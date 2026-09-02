@@ -323,12 +323,34 @@ def get_bars(
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
 ):
+    """HTTP route → the shared `serve_bars` core.
+
+    ⭐ THE SERVE LOGIC LIVES IN `serve_bars` (below), NOT here (Path B / dedicated
+    bars-serving tier, 2026-09-02). Extracted so the app pod AND a dedicated
+    serving service run ONE implementation that cannot drift — exactly the shape
+    `serve_bars_history` was already extracted into. This route stays a thin
+    param-binding shim; `serve_bars` is imported directly by the serving tier."""
+    return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+
+
+def serve_bars(
+    ticker: str,
+    tf: str,
+    bars: int = 200,
+    since: str = "",
+    to: str = "",
+    warm: int = 0,
+):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
     Cache hierarchy: memory → SQLite (delta-updated) → disk fallback → Massive API.
 
     When `since` is provided (browser already has bars up to that timestamp),
     only newer bars are returned — drastically smaller payloads on repeat visits.
+
+    ⭐ POD-AGNOSTIC shared core (see `get_bars` above). Self-contained — no
+    web-pod-only state — so the dedicated bars-serving tier imports and calls it
+    directly, identical to how `worker_main` imports `serve_bars_history`.
     """
     import logging
     import time as _time
@@ -488,9 +510,16 @@ def get_bars(
         # one perf_counter diff + a thread-local read. `dur` is milliseconds.
         try:
             _dur_ms = (_time.perf_counter() - _t0) * 1000.0
-            response.headers["Server-Timing"] = (
-                f'bars;desc="{get_serve_layer()}";dur={_dur_ms:.1f}'
-            )
+            _st = f'bars;desc="{get_serve_layer()}";dur={_dur_ms:.1f}'
+            # Behavior-neutral phase sub-metrics (see bars_fetch._time_ck) so a slow
+            # first-view is localised to the exact phase in prod devtools/curl.
+            try:
+                from api.services.bars_fetch import get_serve_marks
+                for _lbl, _ms in get_serve_marks():
+                    _st += f', {_lbl};dur={_ms:.1f}'
+            except Exception:
+                pass
+            response.headers["Server-Timing"] = _st
         except Exception:
             pass
         return response

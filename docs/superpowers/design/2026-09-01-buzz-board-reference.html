@@ -1,0 +1,167 @@
+<!doctype html>
+<!--
+  DESIGN OF RECORD for the Discord /buzz board image.
+  Owner-reviewed 2026-09-01. Regenerate with scratchpad/gen_board_v6.py.
+
+  This file and app/src/pages/BuzzRender.{jsx,module.css} are ONE design,
+  written twice. They MUST change in the same commit: a committed
+  reference that lags the component becomes a second authority over one
+  value, and on this branch that silently overrode two later rulings
+  (the honest 'messages with tickers' label and the 26-bucket sparkline).
+  If you are reading this to answer 'what does the board look like',
+  the component is what SHIPS -- diff the two before trusting either.
+
+  v6 (structure pass): labelled column header row; a magnitude bar in
+  what was an empty 1fr spacer; rank numerals; a stat strip in place of
+  the grey summary sentence; people promoted to legible (it is the
+  ranking key). No prose lead, no emoji.
+-->
+<html><head><meta charset="utf-8"><title>READ THE ROOM — buzz board design of record (v6)</title><style>
+@font-face{font-family:'Instrument Sans';font-style:normal;font-weight:400 700;
+  font-display:block;src:url(/fonts/instrument-sans-v4-latin.woff2) format('woff2')}
+@font-face{font-family:'Instrument Sans Tab';font-style:normal;font-weight:400 700;
+  font-display:block;src:url(/fonts/instrument-sans-v4-latin-tab.woff2) format('woff2')}
+
+:root{--gold:#c9a84c;--page:#0a0a0a;--chrome:#161616;--chrometext:#888;
+  --muted:#9aa08f;--ink:#e8e6e1;--rule:#1e1e1e;--cream:#d4c9a8;--brand-green:#2faf68}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000}
+#buzz-export{width:1000px;background:var(--page);position:relative;overflow:hidden;
+  font-family:'Instrument Sans',-apple-system,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased}
+.mono{font-family:'Instrument Sans Tab','Instrument Sans',monospace;
+  font-variant-numeric:tabular-nums}
+
+/* chrome bar -- same geometry as the chart export */
+.chrome{height:40px;background:var(--chrome);display:flex;align-items:center;
+  padding:0 16px;color:var(--chrometext);font-size:14px;position:relative;z-index:3}
+.chrome::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,rgba(201,168,76,.55),rgba(201,168,76,.14) 42%,rgba(201,168,76,0))}
+.chrome .subject{color:var(--gold);font-weight:700;font-size:18px;letter-spacing:.2px}
+.chrome .win{margin-left:16px}
+.lockup{position:absolute;left:0;right:0;display:flex;align-items:center;
+  justify-content:center;gap:8px;pointer-events:none}
+.lockup img{height:18px;opacity:.95}
+.lockup span{font-weight:700;font-size:13px;letter-spacing:.6px;
+  background:linear-gradient(135deg,#a8823a 0%,#d4b25a 40%,#e8d18c 50%,#cba954 60%,#8f6f2c 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 1.6px rgba(201,168,76,.32))}
+
+/* backdrop: centred compass rose + a soft gold wash off the masthead */
+.rose{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:440px;height:440px;opacity:.07;pointer-events:none;z-index:0}
+.wash{position:absolute;left:0;right:0;top:0;height:340px;pointer-events:none;z-index:0;
+  background:radial-gradient(760px 300px at 50% -12%,rgba(201,168,76,.075),transparent 70%)}
+
+.body{padding:26px 34px 26px;position:relative;z-index:1}
+
+/* 4. the stat strip -- the same three facts, as numbers */
+.stats{display:flex;align-items:flex-end;padding-bottom:20px;
+  border-bottom:1px solid var(--rule)}
+.stat{padding-right:24px;margin-right:24px;border-right:1px solid #ffffff0f}
+.stat:last-child{padding-right:0;margin-right:0;border-right:0}
+.statn{font-size:23px;font-weight:700;color:var(--cream);line-height:1;letter-spacing:-.4px}
+.statl{font-size:8.5px;letter-spacing:1.7px;color:var(--muted);opacity:.42;
+  font-weight:700;margin-top:6px}
+
+/* 1. the header row -- names every column exactly once */
+.grid{display:grid;grid-template-columns:24px 76px 62px 1fr 70px 152px 76px;
+  align-items:center;gap:13px}
+.hrow{padding:15px 0 9px;border-bottom:1px solid #ffffff0d}
+.hrow span{font-size:8px;letter-spacing:1.35px;font-weight:700;
+  color:var(--muted);opacity:.38}
+.hrow .h-rk,.hrow .h-n,.hrow .h-ppl,.hrow .h-heat{text-align:right}
+
+.r{padding:11px 0;border-bottom:1px solid #ffffff08}
+.rk{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:10.5px;
+  font-variant-numeric:tabular-nums;color:var(--muted);opacity:.3;text-align:right}
+.r.lead .rk{color:var(--gold);opacity:.75}
+.sym{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:15.5px;
+  color:var(--cream);font-weight:700;letter-spacing:.4px}
+.n{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:18px;
+  color:var(--gold);text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* 2. the magnitude bar -- fills the column that used to be empty */
+.bar{height:7px;border-radius:4px;background:#ffffff0a;overflow:hidden;display:block}
+.bar .fill{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,rgba(201,168,76,.3),rgba(201,168,76,.82));
+  box-shadow:0 0 10px rgba(201,168,76,.16)}
+.bar .fill.hot{background:linear-gradient(90deg,rgba(47,175,104,.28),rgba(47,175,104,.9));
+  box-shadow:0 0 10px rgba(47,175,104,.24)}
+
+/* 5. people is the ranking key -- it reads like one now */
+.ppl{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:14px;
+  font-variant-numeric:tabular-nums;color:var(--ink);opacity:.74;text-align:right;
+  font-weight:600}
+
+.sp{display:flex;align-items:flex-end;gap:1.5px;height:22px}
+.sp .s{flex:1;min-width:0;background:var(--muted);opacity:.26;border-radius:1px 1px 0 0}
+.sp .s.hot{background:var(--brand-green);opacity:.5}
+
+.hcell{text-align:right}
+.pill{display:inline-block;padding:2.5px 7px;border-radius:99px;
+  font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:10.5px;
+  font-weight:700;font-variant-numeric:tabular-nums;color:#43c47d;
+  background:rgba(47,175,104,.12);border:1px solid rgba(47,175,104,.3);
+  text-shadow:0 0 8px rgba(47,175,104,.3)}
+
+/* the tail RECEDES -- chips read as chips, singles as a footnote */
+.lbl{margin-top:26px;display:flex;align-items:center;gap:9px;font-size:9px;
+  letter-spacing:1.9px;color:var(--muted);opacity:.5;font-weight:700}
+.lbl::before{content:'';width:16px;height:2px;border-radius:1px;
+  background:linear-gradient(90deg,var(--gold),rgba(201,168,76,0))}
+.multi{margin-top:12px;display:flex;flex-wrap:wrap;gap:7px}
+.m{display:inline-flex;align-items:baseline;gap:6px;padding:4px 9px;border-radius:4px;
+  background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05)}
+.m b{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:12px;
+  color:var(--cream);font-weight:700;letter-spacing:.3px}
+.m i{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-style:normal;
+  font-size:11px;color:var(--gold);opacity:.72;font-variant-numeric:tabular-nums}
+.once{margin-top:11px;padding-left:13px;border-left:1px solid rgba(201,168,76,.2);
+  font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:10.5px;
+  line-height:1.95;color:var(--muted);opacity:.36;letter-spacing:.25px}
+
+/* footer bar -- 20px, same as the chart export */
+.foot{height:20px;background:var(--chrome);display:flex;align-items:center;
+  justify-content:space-between;padding:0 16px;color:var(--chrometext);font-size:10px;
+  position:relative;z-index:2}
+</style></head><body>
+<div id="buzz-export">
+  <div class="chrome">
+    <span class="subject">READ THE ROOM</span>
+    <span class="win">since the open</span>
+    <span class="lockup"><img src="/compass-mark.png" alt=""><span>UCT INTELLIGENCE</span></span>
+  </div>
+
+  <div class="wash"></div>
+  <svg class="rose" viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="none" stroke="#2faf68" stroke-width="4.2" opacity=".5">
+      <circle cx="50" cy="50" r="27.5" stroke-width="8"
+              stroke-dasharray="34 5.5" stroke-dashoffset="8"/>
+    </g>
+    <g fill="#2faf68" opacity=".55">
+      <path d="M50 1.75 L55 22 L50 27 L45 22 Z"/>
+      <path d="M98.25 50 L78 55 L73 50 L78 45 Z"/>
+      <path d="M50 98.25 L45 78 L50 73 L55 78 Z"/>
+      <path d="M1.75 50 L22 45 L27 50 L22 55 Z"/>
+    </g>
+    <g opacity=".6">
+      <rect x="49.2" y="30" width="1.6" height="41" fill="#2faf68"/>
+      <rect x="42.9" y="33.5" width="14.2" height="34.2" fill="#2faf68"/>
+    </g>
+  </svg>
+
+  <div class="body">
+    <div class="stats"><div class="stat"><div class="statn mono">318</div><div class="statl">MESSAGES WITH TICKERS</div></div><div class="stat"><div class="statn mono">63</div><div class="statl">MEMBERS TALKING</div></div><div class="stat"><div class="statn mono">71</div><div class="statl">TICKERS NAMED</div></div></div>
+
+    <div class="grid hrow"><span class="h-rk">#</span><span>TICKER</span><span class="h-n">MENTIONS</span><span>SHARE OF THE CHATTER</span><span class="h-ppl">PEOPLE</span><span>SESSION SHAPE</span><span class="h-heat">TODAY VS 30D</span></div>
+<div class="grid r lead"><span class="rk">01</span><span class="sym">NVDA</span><span class="n">47</span><span class="bar"><i class="fill" style="width:100.0%"></i></span><span class="ppl">14</span><span class="sp"><i class="s" style="height:17%"></i><i class="s" style="height:20%"></i><i class="s" style="height:19%"></i><i class="s" style="height:20%"></i><i class="s" style="height:26%"></i><i class="s" style="height:28%"></i><i class="s" style="height:40%"></i><i class="s" style="height:34%"></i><i class="s" style="height:42%"></i><i class="s" style="height:50%"></i><i class="s" style="height:68%"></i><i class="s" style="height:60%"></i><i class="s" style="height:57%"></i><i class="s" style="height:81%"></i><i class="s" style="height:78%"></i><i class="s" style="height:63%"></i><i class="s" style="height:97%"></i><i class="s" style="height:100%"></i><i class="s" style="height:85%"></i><i class="s" style="height:82%"></i><i class="s" style="height:53%"></i><i class="s" style="height:63%"></i><i class="s" style="height:62%"></i><i class="s" style="height:50%"></i><i class="s" style="height:39%"></i><i class="s" style="height:26%"></i></span><span class="hcell"></span></div><div class="grid r"><span class="rk">02</span><span class="sym">SPY</span><span class="n">38</span><span class="bar"><i class="fill" style="width:80.9%"></i></span><span class="ppl">11</span><span class="sp"><i class="s" style="height:36%"></i><i class="s" style="height:60%"></i><i class="s" style="height:59%"></i><i class="s" style="height:44%"></i><i class="s" style="height:54%"></i><i class="s" style="height:56%"></i><i class="s" style="height:69%"></i><i class="s" style="height:80%"></i><i class="s" style="height:53%"></i><i class="s" style="height:53%"></i><i class="s" style="height:96%"></i><i class="s" style="height:79%"></i><i class="s" style="height:100%"></i><i class="s" style="height:58%"></i><i class="s" style="height:78%"></i><i class="s" style="height:87%"></i><i class="s" style="height:59%"></i><i class="s" style="height:87%"></i><i class="s" style="height:81%"></i><i class="s" style="height:43%"></i><i class="s" style="height:41%"></i><i class="s" style="height:56%"></i><i class="s" style="height:66%"></i><i class="s" style="height:45%"></i><i class="s" style="height:37%"></i><i class="s" style="height:40%"></i></span><span class="hcell"></span></div><div class="grid r"><span class="rk">03</span><span class="sym">TSLA</span><span class="n">22</span><span class="bar"><i class="fill" style="width:46.8%"></i></span><span class="ppl">9</span><span class="sp"><i class="s" style="height:28%"></i><i class="s" style="height:48%"></i><i class="s" style="height:38%"></i><i class="s" style="height:50%"></i><i class="s" style="height:100%"></i><i class="s" style="height:91%"></i><i class="s" style="height:79%"></i><i class="s" style="height:56%"></i><i class="s" style="height:61%"></i><i class="s" style="height:53%"></i><i class="s" style="height:45%"></i><i class="s" style="height:28%"></i><i class="s" style="height:28%"></i><i class="s" style="height:22%"></i><i class="s" style="height:24%"></i><i class="s" style="height:24%"></i><i class="s" style="height:20%"></i><i class="s" style="height:14%"></i><i class="s" style="height:12%"></i><i class="s" style="height:10%"></i><i class="s" style="height:8%"></i><i class="s" style="height:7%"></i><i class="s" style="height:10%"></i><i class="s" style="height:8%"></i><i class="s" style="height:8%"></i><i class="s" style="height:11%"></i></span><span class="hcell"></span></div><div class="grid r"><span class="rk">04</span><span class="sym">PLTR</span><span class="n">19</span><span class="bar"><i class="fill hot" style="width:40.4%"></i></span><span class="ppl">5</span><span class="sp"><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:6%"></i><i class="s hot" style="height:9%"></i><i class="s hot" style="height:7%"></i><i class="s hot" style="height:9%"></i><i class="s hot" style="height:18%"></i><i class="s hot" style="height:16%"></i><i class="s hot" style="height:24%"></i><i class="s hot" style="height:25%"></i><i class="s hot" style="height:36%"></i><i class="s hot" style="height:32%"></i><i class="s hot" style="height:53%"></i><i class="s hot" style="height:71%"></i><i class="s hot" style="height:66%"></i><i class="s hot" style="height:84%"></i><i class="s hot" style="height:90%"></i><i class="s hot" style="height:63%"></i><i class="s hot" style="height:100%"></i><i class="s hot" style="height:89%"></i><i class="s hot" style="height:72%"></i><i class="s hot" style="height:57%"></i></span><span class="hcell"><b class="pill">&#9650; 6.3&#215;</b></span></div><div class="grid r"><span class="rk">05</span><span class="sym">AMD</span><span class="n">11</span><span class="bar"><i class="fill hot" style="width:23.4%"></i></span><span class="ppl">6</span><span class="sp"><i class="s hot" style="height:58%"></i><i class="s hot" style="height:56%"></i><i class="s hot" style="height:75%"></i><i class="s hot" style="height:67%"></i><i class="s hot" style="height:66%"></i><i class="s hot" style="height:80%"></i><i class="s hot" style="height:100%"></i><i class="s hot" style="height:86%"></i><i class="s hot" style="height:76%"></i><i class="s hot" style="height:49%"></i><i class="s hot" style="height:56%"></i><i class="s hot" style="height:42%"></i><i class="s hot" style="height:35%"></i><i class="s hot" style="height:30%"></i><i class="s hot" style="height:30%"></i><i class="s hot" style="height:43%"></i><i class="s hot" style="height:37%"></i><i class="s hot" style="height:36%"></i><i class="s hot" style="height:41%"></i><i class="s hot" style="height:31%"></i><i class="s hot" style="height:38%"></i><i class="s hot" style="height:52%"></i><i class="s hot" style="height:58%"></i><i class="s hot" style="height:66%"></i><i class="s hot" style="height:71%"></i><i class="s hot" style="height:44%"></i></span><span class="hcell"><b class="pill">&#9650; 2.2&#215;</b></span></div><div class="grid r"><span class="rk">06</span><span class="sym">SMCI</span><span class="n">9</span><span class="bar"><i class="fill hot" style="width:19.1%"></i></span><span class="ppl">5</span><span class="sp"><i class="s hot" style="height:7%"></i><i class="s hot" style="height:9%"></i><i class="s hot" style="height:10%"></i><i class="s hot" style="height:12%"></i><i class="s hot" style="height:12%"></i><i class="s hot" style="height:15%"></i><i class="s hot" style="height:9%"></i><i class="s hot" style="height:15%"></i><i class="s hot" style="height:22%"></i><i class="s hot" style="height:23%"></i><i class="s hot" style="height:33%"></i><i class="s hot" style="height:24%"></i><i class="s hot" style="height:36%"></i><i class="s hot" style="height:36%"></i><i class="s hot" style="height:52%"></i><i class="s hot" style="height:60%"></i><i class="s hot" style="height:45%"></i><i class="s hot" style="height:58%"></i><i class="s hot" style="height:64%"></i><i class="s hot" style="height:100%"></i><i class="s hot" style="height:97%"></i><i class="s hot" style="height:67%"></i><i class="s hot" style="height:96%"></i><i class="s hot" style="height:58%"></i><i class="s hot" style="height:75%"></i><i class="s hot" style="height:49%"></i></span><span class="hcell"><b class="pill">&#9650; 4.1&#215;</b></span></div><div class="grid r"><span class="rk">07</span><span class="sym">QQQ</span><span class="n">9</span><span class="bar"><i class="fill" style="width:19.1%"></i></span><span class="ppl">7</span><span class="sp"><i class="s" style="height:89%"></i><i class="s" style="height:89%"></i><i class="s" style="height:72%"></i><i class="s" style="height:60%"></i><i class="s" style="height:47%"></i><i class="s" style="height:79%"></i><i class="s" style="height:72%"></i><i class="s" style="height:89%"></i><i class="s" style="height:72%"></i><i class="s" style="height:94%"></i><i class="s" style="height:70%"></i><i class="s" style="height:100%"></i><i class="s" style="height:98%"></i><i class="s" style="height:80%"></i><i class="s" style="height:84%"></i><i class="s" style="height:88%"></i><i class="s" style="height:61%"></i><i class="s" style="height:75%"></i><i class="s" style="height:84%"></i><i class="s" style="height:58%"></i><i class="s" style="height:78%"></i><i class="s" style="height:71%"></i><i class="s" style="height:75%"></i><i class="s" style="height:54%"></i><i class="s" style="height:44%"></i><i class="s" style="height:69%"></i></span><span class="hcell"></span></div><div class="grid r"><span class="rk">08</span><span class="sym">MU</span><span class="n">8</span><span class="bar"><i class="fill" style="width:17.0%"></i></span><span class="ppl">4</span><span class="sp"><i class="s" style="height:40%"></i><i class="s" style="height:38%"></i><i class="s" style="height:58%"></i><i class="s" style="height:42%"></i><i class="s" style="height:63%"></i><i class="s" style="height:63%"></i><i class="s" style="height:56%"></i><i class="s" style="height:87%"></i><i class="s" style="height:67%"></i><i class="s" style="height:92%"></i><i class="s" style="height:68%"></i><i class="s" style="height:67%"></i><i class="s" style="height:83%"></i><i class="s" style="height:100%"></i><i class="s" style="height:58%"></i><i class="s" style="height:58%"></i><i class="s" style="height:69%"></i><i class="s" style="height:75%"></i><i class="s" style="height:59%"></i><i class="s" style="height:51%"></i><i class="s" style="height:68%"></i><i class="s" style="height:36%"></i><i class="s" style="height:59%"></i><i class="s" style="height:40%"></i><i class="s" style="height:34%"></i><i class="s" style="height:31%"></i></span><span class="hcell"></span></div>
+
+    <div class="lbl">ALSO MENTIONED</div>
+    <div class="multi"><span class="m"><b>AVGO</b><i>8</i></span><span class="m"><b>RKLB</b><i>7</i></span><span class="m"><b>COIN</b><i>7</i></span><span class="m"><b>MSTR</b><i>6</i></span><span class="m"><b>CRWD</b><i>6</i></span><span class="m"><b>IWM</b><i>5</i></span><span class="m"><b>BRZE</b><i>5</i></span><span class="m"><b>NBIS</b><i>5</i></span><span class="m"><b>ALAB</b><i>4</i></span><span class="m"><b>OKLO</b><i>4</i></span><span class="m"><b>SNOW</b><i>4</i></span><span class="m"><b>ASTS</b><i>4</i></span><span class="m"><b>WULF</b><i>3</i></span><span class="m"><b>INOD</b><i>3</i></span><span class="m"><b>TEM</b><i>3</i></span><span class="m"><b>GEV</b><i>3</i></span><span class="m"><b>BIDU</b><i>3</i></span><span class="m"><b>CRDO</b><i>2</i></span><span class="m"><b>LMND</b><i>2</i></span><span class="m"><b>USAR</b><i>2</i></span><span class="m"><b>IREN</b><i>2</i></span><span class="m"><b>RDDT</b><i>2</i></span><span class="m"><b>DDOG</b><i>2</i></span><span class="m"><b>CRWV</b><i>2</i></span></div>
+    <div class="lbl">ONCE EACH</div>
+    <div class="once">ANET &middot; PANW &middot; ZS &middot; NET &middot; TEAM &middot; OKTA &middot; MDB &middot; ESTC &middot; HUBS &middot; SQ &middot; AFRM &middot; SOFI &middot; HOOD &middot; UPST &middot; LC &middot; TREE &middot; OPEN &middot; Z &middot; RDFN &middot; COMP &middot; CVNA &middot; CARG &middot; KMX &middot; AN &middot; LAD &middot; PAG &middot; GPI &middot; ABG &middot; SAH &middot; RUSHA &middot; MRNA &middot; BNTX &middot; NVAX &middot; SRPT &middot; ALNY &middot; RARE &middot; FOLD &middot; IONS &middot; BMRN</div>
+  </div>
+
+  <div class="foot"><span>counted through 4:08p ET</span><span>uctintelligence.com</span></div>
+</div></body></html>

@@ -140,7 +140,7 @@ decide whether a formula can run at all.
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |
 
-## Per-symbol values (112)
+## Per-symbol values (137)
 
 One value per symbol rather than one per bar — a fundamental, a rating, a count.
 `Refreshed` is how often the number behind it moves.
@@ -149,19 +149,25 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 |---|---|---|---|
 | `above_50sma` | true or false | nightly | whether the price is above its 50-day average |
 | `adr_pct` | a number | nightly | the average daily range percentage |
+| `adr_pct_1w` | a number | nightly | the average daily range over the last 5 bars, as a percent of price |
+| `atr_ext_sma50` | a number | nightly | the extension above the 50-bar average, measured in ATRs |
 | `atr_pct` | a number | nightly | the average true range percentage |
 | `avg_body` | a number | nightly | the average candle body, open to close, in price rather than percent, over the 15 completed sessions before the newest bar |
+| `avg_body_pct_5` | a number | nightly | the 5-bar body tightness, the average candle body as a percent of its range |
 | `avg_range` | a number | nightly | the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar |
 | `avg_volume_30d` | a number | nightly | the 30-day average volume |
 | `base_relation_count` | a number | nightly | the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired |
-| `base_stage` | a number | nightly | the IBD base-stage count for this symbol -- how many 20%+ advances separate this base from the first one. POPULATED ONLY FOR ema-crossback rows and null everywhere else, because that is the only structure whose stage effect was measured (+18.5pp early-over-late); darvas-box read -1.4pp, the wrong sign and not distinguishable from zero |
 | `beta` | a number | nightly | the beta |
 | `blended_growth` | a number | nightly | the blended earnings and revenue growth |
 | `body_pct` | a number | nightly | the candle body as a percentage of its range |
 | `candle_recent_bars_ago` | a number | nightly | the number of sessions since the most recent multi-bar candle pattern completed, 0 on the newest bar and at most 4 (blank when none formed inside the last five sessions) |
+| `candle_score` | a number | nightly | the screener's setup score for this symbol's candle structure |
+| `chg_from_open_pct` | a number | nightly | the percentage change from this session's open |
 | `chg_pct_1d` | a number | nightly | the one-day percentage change |
 | `chg_pct_1m` | a number | nightly | the one-month percentage change |
 | `chg_pct_1w` | a number | nightly | the one-week percentage change |
+| `chg_pct_1y` | a number | nightly | the one-year percentage change |
+| `chg_pct_ytd` | a number | nightly | the year-to-date percentage change |
 | `close_cv_pct` | a number | nightly | the closing-price tightness (coefficient of variation of recent closes, %) |
 | `close_position` | a number | nightly | the close's position inside the bar's range |
 | `consecutive_down` | a number | nightly | the run of consecutive down closes |
@@ -169,8 +175,11 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `current_ratio` | a number | nightly | the current ratio |
 | `days_to_earnings` | a number | nightly | the number of days until the next earnings report |
 | `debt_to_equity` | a number | nightly | the debt-to-equity ratio |
+| `dist_20d_high_pct` | a number | nightly | the distance from the 20-day high, in percent |
+| `dist_20d_low_pct` | a number | nightly | the distance from the 20-day low, in percent |
 | `dist_52w_high_pct` | a number | nightly | the percentage distance from the 52-week high |
 | `dist_52w_low_pct` | a number | nightly | the percentage distance from the 52-week low |
+| `dist_ath_pct` | a number | nightly | the distance from the all-time high, in percent |
 | `dividend_yield` | a number | nightly | the dividend yield |
 | `dollar_vol_30d` | a number | nightly | the average daily dollar volume over 30 days |
 | `downgrades_30d` | a number | nightly | the count of analyst downgrades in the last 30 days |
@@ -179,6 +188,9 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `dp_notional_5d` | a number | nightly | the dark-pool block notional across the five latest sessions |
 | `dp_prints_1d` | a number | nightly | the count of dark-pool block prints on the latest session |
 | `ema_stack_intact` | true or false | nightly | whether the EMA stack is intact (close above EMA10 above EMA20, both rising) |
+| `ema_touch_count` | a number | nightly | the number of the last 15 bars that touched the 20-bar EMA |
+| `ema10_rising` | true or false | nightly | whether the 10-bar EMA is rising |
+| `ema20_rising` | true or false | nightly | whether the 20-bar EMA is rising |
 | `eps_growth` | a number | nightly | the earnings-per-share growth |
 | `eps_next_5y_growth` | a number | nightly | the analysts' estimated annual earnings-per-share growth over the next five years (a forecast, not a realised figure) |
 | `eps_next_y_growth` | a number | nightly | the estimated next-year earnings-per-share growth |
@@ -190,6 +202,11 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `higher_lows_run` | a number | nightly | the run of consecutive higher lows |
 | `hvc_52w` | true or false | nightly | the 52-week high-volume-close flag from the breadth universe |
 | `implied_move_pct` | a number | nightly | the options-implied move into the next report |
+| `in_uct20` | true or false | nightly | whether the symbol is in the UCT 20 |
+| `index_dow` | true or false | nightly | whether the symbol is in the Dow 30 |
+| `index_ndx` | true or false | nightly | whether the symbol is in the Nasdaq 100 |
+| `index_r2k` | true or false | nightly | whether the symbol is in the Russell 2000 |
+| `index_sp500` | true or false | nightly | whether the symbol is in the S&P 500 |
 | `inside_bar_run` | a number | nightly | the run of consecutive inside bars |
 | `insider_cluster_days` | a number | nightly | the number of days since the last insider cluster buy |
 | `insider_own_pct` | a number | nightly | the insider ownership percentage |
@@ -197,6 +214,8 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `inst_pct` | a number | nightly | the institutional ownership percentage |
 | `inst_trans_pct` | a number | nightly | the net change in institutional ownership over the trailing window (buying minus selling, not the ownership level) |
 | `ipo_age_days` | a number | nightly | the number of days since the IPO |
+| `is_etf` | true or false | nightly | whether the symbol is an ETF |
+| `is_leveraged` | true or false | nightly | whether the symbol is a leveraged or inverse ETF |
 | `last_report_move_pct` | a number | nightly | the percentage move on the last earnings report |
 | `lower_wick_pct` | a number | nightly | the lower wick as a percentage of the range |
 | `lt_debt_to_capital` | a number | nightly | the long-term debt to total capital ratio |
@@ -204,6 +223,7 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `narrow_bar` | true or false | nightly | whether the bar is unusually narrow |
 | `net_margin` | a number | nightly | the net margin |
 | `new_52w_high` | true or false | nightly | whether the bar made a new 52-week high |
+| `new_ath` | true or false | nightly | whether this bar made a new all-time high |
 | `nr7` | true or false | nightly | whether the bar is the narrowest of the last seven |
 | `op_margin` | a number | nightly | the operating margin |
 | `opt_bull_pct_1d` | a number | nightly | the bullish share of classified options premium on the latest session |
@@ -228,6 +248,11 @@ One value per symbol rather than one per bar — a fundamental, a rating, a coun
 | `pe_fwd` | a number | nightly | the forward price/earnings ratio |
 | `pe_ttm` | a number | nightly | the trailing price/earnings ratio |
 | `peg` | a number | nightly | the PEG ratio |
+| `pole_pct` | a number | nightly | the prior run into the current base, in percent |
+| `prev_day_close` | a number | nightly | the previous session's close |
+| `prev_day_high` | a number | nightly | the previous session's high |
+| `prev_day_low` | a number | nightly | the previous session's low |
+| `prev_day_open` | a number | nightly | the previous session's open |
 | `price` | a number | nightly | the snapshot close |
 | `ps` | a number | nightly | the price/sales ratio |
 | `pt_target` | a number | nightly | the consensus analyst price target |

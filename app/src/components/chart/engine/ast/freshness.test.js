@@ -57,13 +57,9 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // 108 -> 111 on 2026-08-25: the three NUMERIC columns of the 8/24 candle
     // library (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared, all
     // `bars_asof` off the candle producer. Mirrored in `tests/test_ast_scalars.py`.
-    // ⭐ 111 -> 112 on 2026-09-01: `base_stage`, the IBD base count, written
-    // by `bases.classify`. SPARSE ON PURPOSE -- only `ema-crossback` rows
-    // carry a value, because that is the only structure whose stage effect
-    // was measured (+18.5pp early-over-late; darvas-box read -1.4pp, the
-    // wrong sign and not distinguishable from zero). Mirrored in
-    // `tests/test_ast_scalars.py`, which moved 111 -> 112 in the same commit.
-    expect(names.length).toBe(112)
+    // 111 -> 137 on 2026-09-02: the WAVE-1 PROMOTION — twenty-six shipped
+    // screener columns crossed from `_scalars_excluded` into the vocabulary.
+    expect(names.length).toBe(137)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -108,7 +104,7 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               declared side NETS TO A WASH, which is the
     //                               shape that hides a mistake -- both halves
     //                               moved and the total did not.
-    expect(Object.keys(excluded).length).toBe(92)
+    expect(Object.keys(excluded).length).toBe(66)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

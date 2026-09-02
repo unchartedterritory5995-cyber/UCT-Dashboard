@@ -15,6 +15,7 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from api.services import discord_activity_handoff as handoff
 from api.services import discord_chart_context as chart_context
@@ -121,6 +122,40 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         return []
 
 
+def buzz_ticker_choices(q: str, limit: int = 25) -> list[dict]:
+    """Autocomplete from what the room ACTUALLY said, not from cap_universe.
+    v20's lesson: a picker whose silence is indistinguishable from a refusal
+    reads as a refusal. Here every suggestion is a name with real counts."""
+    from api.services import buzz_store
+    try:
+        return [{"name": f"{t} — {n} mention(s)", "value": t}
+                for t, n in buzz_store.known_tickers(q or "", limit=limit)]
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] ticker autocomplete failed %r: %s", q, e)
+        return []
+
+
+def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, render_fn=None, edit_fn=None) -> None:
+    """Background job for a ticker-less /buzz: render the board PNG and PATCH
+    it onto the deferred reply -- mirroring `di.run_chart_job`'s cache/render/
+    edit shape, simplified (no cache, no retry): a failed or empty render just
+    leaves the text-only reply, never an apology. `edit_original` already
+    re-declares `attachments` on the image path, so the PATCH cannot drop the
+    file the way `desk_session_announce._edit` once did."""
+    from api.services import buzz_image
+    render = render_fn or buzz_image.render_board_png
+    edit = edit_fn or di.edit_original
+    try:
+        png = render(window)
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[buzz] image render failed: %s", e)
+        png = None
+    if png:
+        edit(app_id, token, content=content, png=png, filename="buzz.png")
+    else:
+        edit(app_id, token, content=content)
+
+
 def breadth_adjust(req, prefs: dict):
     """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
     series built from the breadth monitor (the bars authority collapses an
@@ -185,6 +220,10 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         return _autocomplete([]) if itype == 4 else _ephemeral(di.NOT_ALLOWED_MESSAGE)
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
+        if name == di.BUZZ_COMMAND:
+            # Backed by what the room ACTUALLY said, so an empty query is still
+            # useful: it offers the most-mentioned names.
+            return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
         if name not in di.CHART_COMMAND_NAMES:
             return _autocomplete([])
         q = di.parse_autocomplete(interaction)
@@ -214,6 +253,38 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                             house_fn=house.render_house_chart if house.house_enabled() else None,
                             quote_fn=fetch_ext_quote, components_fn=di.multi_components)
         return {"type": 5}
+    if itype == 2 and name == di.BUZZ_COMMAND:
+        import time as _t
+        from api.services import buzz_image, buzz_reply
+        opts = {o["name"]: o.get("value") for o in
+                ((interaction.get("data") or {}).get("options") or [])}
+        window = (opts.get("window") or "open").strip()
+        ticker = (opts.get("ticker") or "").strip().upper()
+        now = int(_t.time())
+        try:
+            # ⛔ OFF THE EVENT LOOP. This handler is `async def`, and both
+            # builders do synchronous SQLite -- measured 8.5ms for
+            # build_board_text on a 36.6k-row store, growing with the number of
+            # tickers clearing MIN_CURRENT. Blocking the ONE shared loop on a
+            # single-process pod is the 2026-07-01 root cause by name, and
+            # every other heavy path in this file already defers. Cheap today;
+            # the point is that it cannot get expensive quietly.
+            text = await run_in_threadpool(
+                (lambda: buzz_reply.build_ticker_text(ticker, window, now)) if ticker
+                else (lambda: buzz_reply.build_board_text(now, window)))
+        except Exception as e:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
+            return _ephemeral("Could not read the counts right now.")
+        # No ticker = the board reply, which is worth an image. A ticker
+        # narrows to one name's numbers -- that stays the immediate text
+        # reply it always was (unchanged behaviour, no wait on a render).
+        if not ticker and buzz_image.image_enabled():
+            app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+            token = str(interaction.get("token") or "")
+            if app_id and token:
+                background.add_task(run_buzz_image_job, app_id, token, text, window)
+                return {"type": 5}
+        return {"type": 4, "data": {"content": text}}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)

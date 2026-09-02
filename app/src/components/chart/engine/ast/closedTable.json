@@ -1109,6 +1109,32 @@
       "yields": "num",
       "sentence": "the average daily range percentage"
     },
+    "adr_pct_1w": {
+      "source": {
+        "store": "screener_rows",
+        "column": "adr_pct_1w"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the average daily range over the last 5 bars, as a percent of price"
+    },
+    "atr_ext_sma50": {
+      "source": {
+        "store": "screener_rows",
+        "column": "atr_ext_sma50"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the extension above the 50-bar average, measured in ATRs"
+    },
     "atr_pct": {
       "source": {
         "store": "screener_rows",
@@ -1134,6 +1160,19 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the average candle body, open to close, in price rather than percent, over the 15 completed sessions before the newest bar"
+    },
+    "avg_body_pct_5": {
+      "source": {
+        "store": "screener_rows",
+        "column": "avg_body_pct_5"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the 5-bar body tightness, the average candle body as a percent of its range"
     },
     "avg_range": {
       "source": {
@@ -1173,19 +1212,6 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired"
-    },
-    "base_stage": {
-      "source": {
-        "store": "screener_rows",
-        "column": "base_stage"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the IBD base-stage count for this symbol -- how many 20%+ advances separate this base from the first one. POPULATED ONLY FOR ema-crossback rows and null everywhere else, because that is the only structure whose stage effect was measured (+18.5pp early-over-late); darvas-box read -1.4pp, the wrong sign and not distinguishable from zero"
     },
     "beta": {
       "source": {
@@ -1239,6 +1265,32 @@
       "yields": "num",
       "sentence": "the number of sessions since the most recent multi-bar candle pattern completed, 0 on the newest bar and at most 4 (blank when none formed inside the last five sessions)"
     },
+    "candle_score": {
+      "source": {
+        "store": "screener_rows",
+        "column": "candle_score"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the screener's setup score for this symbol's candle structure"
+    },
+    "chg_from_open_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_from_open_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage change from this session's open"
+    },
     "chg_pct_1d": {
       "source": {
         "store": "screener_rows",
@@ -1277,6 +1329,32 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the one-week percentage change"
+    },
+    "chg_pct_1y": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_1y"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the one-year percentage change"
+    },
+    "chg_pct_ytd": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_ytd"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the year-to-date percentage change"
     },
     "close_cv_pct": {
       "source": {
@@ -1369,6 +1447,32 @@
       "yields": "num",
       "sentence": "the debt-to-equity ratio"
     },
+    "dist_20d_high_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dist_20d_high_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the 20-day high, in percent"
+    },
+    "dist_20d_low_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dist_20d_low_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the 20-day low, in percent"
+    },
     "dist_52w_high_pct": {
       "source": {
         "store": "screener_rows",
@@ -1394,6 +1498,19 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the percentage distance from the 52-week low"
+    },
+    "dist_ath_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dist_ath_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the all-time high, in percent"
     },
     "dividend_yield": {
       "source": {
@@ -1486,6 +1603,32 @@
       "yields": "num",
       "sentence": "the count of dark-pool block prints on the latest session"
     },
+    "ema10_rising": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ema10_rising"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the 10-bar EMA is rising"
+    },
+    "ema20_rising": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ema20_rising"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the 20-bar EMA is rising"
+    },
     "ema_stack_intact": {
       "source": {
         "store": "screener_rows",
@@ -1498,6 +1641,19 @@
       "cadence": "nightly",
       "yields": "bool",
       "sentence": "whether the EMA stack is intact (close above EMA10 above EMA20, both rising)"
+    },
+    "ema_touch_count": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ema_touch_count"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of the last 15 bars that touched the 20-bar EMA"
     },
     "eps_growth": {
       "source": {
@@ -1642,6 +1798,71 @@
       "yields": "num",
       "sentence": "the options-implied move into the next report"
     },
+    "in_uct20": {
+      "source": {
+        "store": "screener_rows",
+        "column": "in_uct20"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the UCT 20"
+    },
+    "index_dow": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_dow"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Dow 30"
+    },
+    "index_ndx": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_ndx"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Nasdaq 100"
+    },
+    "index_r2k": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_r2k"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Russell 2000"
+    },
+    "index_sp500": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_sp500"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the S&P 500"
+    },
     "inside_bar_run": {
       "source": {
         "store": "screener_rows",
@@ -1733,6 +1954,32 @@
       "yields": "num",
       "sentence": "the number of days since the IPO"
     },
+    "is_etf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "is_etf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is an ETF"
+    },
+    "is_leveraged": {
+      "source": {
+        "store": "screener_rows",
+        "column": "is_leveraged"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is a leveraged or inverse ETF"
+    },
     "last_report_move_pct": {
       "source": {
         "store": "screener_rows",
@@ -1823,6 +2070,19 @@
       "cadence": "nightly",
       "yields": "bool",
       "sentence": "whether the bar made a new 52-week high"
+    },
+    "new_ath": {
+      "source": {
+        "store": "screener_rows",
+        "column": "new_ath"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether this bar made a new all-time high"
     },
     "nr7": {
       "source": {
@@ -2135,6 +2395,71 @@
       "cadence": "nightly",
       "yields": "num",
       "sentence": "the PEG ratio"
+    },
+    "pole_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pole_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the prior run into the current base, in percent"
+    },
+    "prev_day_close": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_close"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's close"
+    },
+    "prev_day_high": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_high"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's high"
+    },
+    "prev_day_low": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_low"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's low"
+    },
+    "prev_day_open": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_open"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's open"
     },
     "price": {
       "source": {
@@ -2578,36 +2903,10 @@
     "bars_asof": "the same, for the bar-dated family",
     "built_at": "an operations timestamp. It dates the WRITE, not the value, so a formula reading it would be screening on when the builder ran",
     "accdis": "holds letter grades A-E, not a number -- declaring it `num` was the live two-lane defect (W5 plan ruling D4): a formula comparing it compared a string, and the hole-guard read non-null as resolved; the enum filter is the honest surface -- see 2026-08-23 Wave-6 T1",
-    "chg_pct_3m": "a Wave 1 screener column, not yet promoted to a scalar -- declaring the Wave 1 additions into the formula vocabulary is Wave 6's job (spec Section 2.4), so no formula can read it until then",
+    "chg_pct_3m": "a Wave 1 screener column that ships in the screener and is NOT in the formula vocabulary. ⚰️ THIS NOTE USED TO DEFER THE PROMOTION to a later wave, by number, citing spec Section 2.4 — and that wave RAN. (The old sentence is described rather than quoted here on purpose: a reason that contains a live-sounding deferral reads as one, and `tests/test_no_stale_handoffs.py` cannot tell a quotation from a promise.) docs/superpowers/plans/2026-08-23-screener-wave6-presets-parity.md promoted exactly five Wave-1 columns (dollar_vol_30d, close_cv_pct, vol_updown_ratio, vol_nweek_low, ema_stack_intact) and excluded accdis; the thirty named here were not among them. So the sentence pointed at an owner that had finished, which is how a hand-off becomes permanent: nobody is waiting for a wave that is done. ⭐ WHAT PROMOTION ACTUALLY COSTS IS SMALL AND KNOWN: the source is screener_rows/<column>, `yields` follows the catalog's `type` (`filters.FILTERS[<column>].type == 'bool'` → bool, else num), and what has to be AUTHORED is the read-back sentence — Wave 6's own plan shows why that is not mechanical, requiring vol_nweek_low's sentence to state its 20/15/10 bar-count encoding. ⛔ AND EACH ONE MUST CLEAR `tests/test_scalar_population_rail.py` FIRST: §1 that some line of the builder assigns the column, §2 that it is not NULL across the live snapshot. Declaring a column nothing fills is the 2026-08-09 defect that rail exists for.",
     "chg_pct_6m": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_pct_1y": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_pct_ytd": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_from_open_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "adr_pct_1w": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_20d_high_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_20d_low_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_ath_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "new_ath": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "pole_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema_touch_count": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema10_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema20_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "candle_score": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "atr_ext_sma50": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "rs_line_trend": "TEXT -- RS Line vs SPY: whether the ticker's ratio to SPY is rising, falling or flat, a verdict read off the slope of that ratio over the last 20 sessions against a fixed band of five hundredths of a percent per session, and withheld entirely when fewer than five sessions of the ratio are usable. A verdict is not a magnitude, and the slope behind it is not stored as a column -- that stays true however many nightly builds fill it. The relative-strength magnitudes that ARE declared measure different things: rs_rank, rs_return and sector_rs_pct.",
-    "prev_day_open": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_high": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_low": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_close": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "avg_body_pct_5": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "theme": "TEXT, for the same reason as `sector` -- a single category label surfaced as an `options_column` filter, not a magnitude a formula reads",
-    "in_uct20": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_sp500": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_ndx": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_dow": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_r2k": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "is_etf": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "is_leveraged": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage2": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage4": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ipo_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",

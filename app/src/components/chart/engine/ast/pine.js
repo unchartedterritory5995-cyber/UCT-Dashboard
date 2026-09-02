@@ -80,7 +80,7 @@ import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } f
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
 // imports this file, so the graph stays a tree.
-import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
+import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.js'
 // ⭐⭐ THE INTERPRETER'S OWN ARITHMETIC, BORROWED RATHER THAN COPIED — see
 // `constantValueOf`. `FN` is the shipped implementation of every table function,
 // and for a POINTWISE entry each one is documented in place as "the pointwise
@@ -783,12 +783,21 @@ export function derivedSeriesTree(name, table) {
  *  it. Before the offset it could not be said at all; `DERIVED_SERIES` could not
  *  hold it either, because that map builds a mean and this is not one.
  *
- *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. Pine's
- *  bare `ta.tr` falls back to `high - low` on the first bar, where `close[1]`
- *  does not exist; this expansion is NOT COMPUTABLE there, like every other
- *  lookback in this engine. `ta.tr(true)` asks for Pine's fallback explicitly and
- *  is refused rather than silently given this one — the extra NaN is a bar the
- *  member can see, and a fabricated first bar is not.
+ *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. On the
+ *  first bar `close[1]` does not exist, so this expansion is NOT COMPUTABLE
+ *  there, like every other lookback in this engine. `ta.tr(true)` asks for Pine's
+ *  fallback — bar 0's range as `high - low` — and is refused rather than silently
+ *  given this one: the extra NaN is a bar the member can see, and a fabricated
+ *  first bar is not.
+ *
+ *  ⚰️ THIS PARAGRAPH SAID THE FALLBACK WAS THE **BARE** `ta.tr`, and it is the
+ *  other way round. Three sources in this repo agree it is `ta.tr(true)` that
+ *  fills bar 0: `closedTable.json::functions.atr.vendorNote` (*"`ta.tr(true)`
+ *  counts bar 0's range as `high - low`"*), the `TR_TRUE` construction in
+ *  `pine.vendorParity.test.js`, and TradingView's published `ta.atr(n)` =
+ *  `ta.rma(ta.tr(true), n)`. Getting it backwards is what made the DEFAULT form
+ *  look like the one we could not serve — when `ta.tr(false)` is exactly this
+ *  tree.
  *
  *  ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY. Anything that
  *  needed a judgement about what the author meant belongs in a refusal. */
@@ -828,6 +837,42 @@ export const BUILTIN_CONSTANT_TREE = Object.freeze({
   'barstate.ishistory': () => cNum(1),
   'barstate.isnew': () => cNum(1),
   'barstate.isrealtime': () => cNum(0),
+})
+
+/** ⭐⭐ `dayofweek.<name>` — THE CALENDAR NAMES, IN THEIR OWN MAP.
+ *
+ *  ⚰️ THE BARE NAME WORKED AND THE DOTTED ONES DID NOT. `dayofweek == 6`
+ *  translated while `dayofweek == dayofweek.friday` refused `pine:builtin` —
+ *  *"this Pine built-in names something the engine grammar does not hold"* —
+ *  which is false of a name whose own series the manifest declares. The clock
+ *  landed 2026-08-26 and the bare lane was swept the day after; the dotted lane
+ *  was not, so a guard's sentence quietly became untrue.
+ *
+ *  ⛔⛔ THEY ARE KEPT OUT OF `BUILTIN_CONSTANT_TREE` BECAUSE A RAIL SAID SO.
+ *  Putting them there turned `pine.barstate.test.js` red, and that test is right:
+ *  it pins that map's size *"so the split cannot GROW by accident — each one is a
+ *  judgement about what this engine's evaluation model does and does not
+ *  decide"*. Whether `barstate.isrealtime` is 0 is a claim about how this engine
+ *  EVALUATES. Whether Friday is 6 is a calendar fact. One map holding both would
+ *  make that count mean nothing.
+ *
+ *  ⭐⭐ THE NUMBERS ARE THE MANIFEST'S OWN SENTENCE, not a convention picked here.
+ *  `closedTable.json::clock.dayofweek` reads *"the day of the week the bar falls
+ *  on, 1 on Sunday through 7 on Saturday, in New York time"*, which is Pine's
+ *  numbering exactly.
+ *  ⚠️ AND A HAND-TYPED SET UNDER A DECLARED CONVENTION IS HOW THIS FILE HAS GONE
+ *  STALE BEFORE, so `pine.dayofweek.test.js` PARSES that sentence out of the
+ *  manifest and derives all seven from it. This table cannot be derived — the
+ *  manifest states the rule in prose, not as a list — but it can be pinned to the
+ *  prose that justifies it. */
+export const BUILTIN_CALENDAR_TREE = Object.freeze({
+  'dayofweek.sunday': () => cNum(1),
+  'dayofweek.monday': () => cNum(2),
+  'dayofweek.tuesday': () => cNum(3),
+  'dayofweek.wednesday': () => cNum(4),
+  'dayofweek.thursday': () => cNum(5),
+  'dayofweek.friday': () => cNum(6),
+  'dayofweek.saturday': () => cNum(7),
 })
 
 /** The look-alikes of the four above — REFUSED, and refused with the reason.
@@ -975,6 +1020,10 @@ const BUILTIN_CALL_TREE = Object.freeze({
   // which is the `source - source[length]` already sitting inside the line above
   // — so this costs the table nothing and cannot disagree with `roc`.
   mom: (a) => cOp('-', [a[0], { type: 'offset', value: a[1].value, args: [a[0]] }]),
+  // ⭐ REACHED ONLY THROUGH THE `bare === 'tr'` GUARD ABOVE, which has already
+  // decided that the argument is `false`. Kept here so `tr` is a name this map
+  // holds rather than a special case bolted onto the guard block.
+  tr: () => BUILTIN_SERIES_TREE.tr(),
   // ta.avg(a, b, ...) is the mean OF ITS ARGUMENTS, not a rolling window. ⛔ Not
   // `sma`: reading it as one would turn a two-series average into a 2-bar average
   // of the first, which parses, scans and is wrong on every bar.
@@ -1681,6 +1730,16 @@ function dmiParts(toks, close, names, env, first) {
  *
  *  ⚠️ THE NAMESPACED SPELLINGS ARE DELIBERATE. `ta.sma`, `ta.stdev` and `ta.ema`
  *  cannot be shadowed by a member's own binding the way a bare name can. */
+/** ⭐ WHAT TO SAY WHEN A CALL HAS THE RIGHT NAME AND THE WRONG COUNT, keyed by
+ *  the bare Pine name. Only entries where an EXACT alternative TRANSLATES belong
+ *  here — a hint that sends a member to something which also refuses is worse
+ *  than the bare count. */
+const ARITY_HINTS = Object.freeze({
+  change: 'TO UNBLOCK: Pine defines `ta.change(source, length)` and '
+    + '`ta.mom(source, length)` as the same difference, `source - source[length]`, '
+    + 'and this engine translates the `ta.mom` spelling',
+})
+
 const PINE_TUPLE_BUILTINS = Object.freeze({
   bb: {
     arity: 3,
@@ -3044,6 +3103,33 @@ class Resolver {
    *  the new binding carries the env as it stood when the right-hand side was
    *  written. That is single-assignment form, reached without renaming anything a
    *  member would see. */
+  /** ⭐⭐ ONE SENTENCE FOR "THIS NAME WAS NEVER GIVEN A VALUE", built once.
+   *
+   *  ⚰️ `didYouMean` HAS SHIPPED IN `sentence.js` SINCE THE NATIVE READ-BACK WAS
+   *  WRITTEN, and its own docblock names this exact failure: *"For a member who
+   *  typed `clse` that is a wall of text with the answer buried in the middle of
+   *  it."* `pine.js` never imported it, so a one-character typo came back as
+   *  "this Pine name was never given a value in the pasted script — `clsoe`" and
+   *  stopped there.
+   *
+   *  ⛔ THERE ARE THREE SITES THAT RAISE IT and this is a method so there is one
+   *  sentence, not three. Wiring the first one alone is exactly how two of them
+   *  would have kept the old message — measured: the typo path does not go
+   *  through `resolveBinding` at all.
+   *
+   *  ⚠️ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the names
+   *  it bound itself, plus the bar fields and clock names the table declares.
+   *  Offering the whole vocabulary would put `close` and a hundred strangers at
+   *  the same edit distance. */
+  undefinedName(name, tok) {
+    return new PineRefusal('pine:undefined',
+      `${REFUSALS['pine:undefined']} — \`${name}\`${didYouMean(name, [
+        ...this.env.keys(),
+        ...Object.keys(this.table.series || {}),
+        ...Object.keys(this.table.clock || {}),
+      ])}`, locate(tok))
+  }
+
   resolveBinding(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
@@ -3056,8 +3142,16 @@ class Resolver {
         }
         return clockLeaf(clockKey)
       }
-      throw new PineRefusal('pine:undefined',
-        `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+      // ⭐⭐ A ONE-CHARACTER TYPO SHOULD SAY SO. `didYouMean` has shipped in
+      // `sentence.js` since the native read-back was written, and its own
+      // docblock names this exact failure — yet `pine.js` never imported it, so
+      // `ta.rsi(clsoe, 14)` came back "this Pine name was never given a value in
+      // the pasted script — `clsoe`" and stopped there.
+      // ⛔ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the
+      // names it bound itself, plus the bar fields and clock names the table
+      // declares. Offering the whole vocabulary would put `close` and a hundred
+      // strangers at the same distance.
+      throw this.undefinedName(name, tok)
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
     if (bound.kind === 'state') {
@@ -3221,8 +3315,7 @@ class Resolver {
       // call's arguments out of the outer call's frame.
       const frame = this.frames.pop()
       if (!frame) {
-        throw new PineRefusal('pine:undefined',
-          `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+        throw this.undefinedName(name, tok)
       }
       try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
     }
@@ -3779,6 +3872,7 @@ class Resolver {
           locate(node.tok))
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
+      if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
@@ -3843,8 +3937,7 @@ class Resolver {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
     }
-    throw new PineRefusal('pine:undefined',
-      `${REFUSALS['pine:undefined']} — \`${name}\``, locate(node.tok))
+    throw this.undefinedName(name, node.tok)
   }
 
   /** Did the pasted script DEFINE this name as a function of its own?
@@ -4686,6 +4779,32 @@ class Resolver {
         throw new PineRefusal('pine:window',
           `\`${pineName}\` needs a written whole-number length`, locate(tok))
       }
+      if (bare === 'tr') {
+        // ⚰️ BOTH CALL FORMS USED TO SAY "this Pine function maps to nothing the
+        // engine grammar declares" — false of a name whose tree this door emits
+        // one spelling away, in the same run. The bare `ta.tr` translated.
+        //
+        // ⭐ `ta.tr(false)` IS THE VARIABLE, EXACTLY. TradingView's own `atr`
+        // page (quoted in `closedTable.json::functions.atr.vendorNote`) says it
+        // is `ta.tr(TRUE)` that counts bar 0's range as `high - low` — so the
+        // default, `false`, is the column this expansion already builds. It is
+        // an identity, and identities are the only expansions this door admits.
+        //
+        // ⛔ `ta.tr(true)` IS A DIFFERENT COLUMN AND STAYS REFUSED. It asks for a
+        // first bar whose true range is not defined — `close[1]` does not exist
+        // there — and fabricating one is the invention this lane refuses. The
+        // extra NaN is a bar the member can SEE; a made-up first bar is not.
+        const flag = built.length === 1 && built[0] && built[0].type === 'num'
+          ? Number(built[0].value) : null
+        if (flag === 0) return BUILTIN_SERIES_TREE.tr()
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
+          + '`ta.tr` and `ta.tr(false)` are the same column and both translate; '
+          + '`ta.tr(true)` asks for the Pine fallback, bar 0 as `high - low`, on a '
+          + 'bar where no true range is defined, and this engine leaves that bar '
+          + 'not-computable rather than inventing it — TO UNBLOCK: write `ta.tr`',
+          locate(tok))
+      }
       if (bare === 'avg' && built.length < 2) {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
@@ -4813,8 +4932,29 @@ class Resolver {
           : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {
+      // ⭐⭐ A NAME THIS TABLE HAS ALREADY RULED ON GETS ITS RULING, not a list of
+      // the 64 it does declare. `_functions_excluded` is keyed by name, carries
+      // the reason, and is already rendered to members on the formula reference
+      // page — it was simply never consulted here, so `ta.sar`, `ta.obv` and
+      // `ta.variance` were answered with a dump that says nothing about them.
+      // ⛔ THE RULING IS THE MANIFEST'S SENTENCE, NOT ONE WRITTEN HERE. That is
+      // the same arrangement `docBlockedTail` uses on the thinkScript side: one
+      // registry owns the words, so a refusal and its documentation cannot drift.
+      const ruled = (this.table._functions_excluded || {})[bare]
+      if (ruled) {
+        throw new PineRefusal('pine:function',
+          REFUSALS['pine:function'] + ' — ' + '`' + pineName + '`'
+          + ', and this table has RULED on that name: ' + rulingLead(ruled),
+          locate(tok))
+      }
+      // ⭐ THE SUGGESTION COMES FIRST, THE FULL LIST STILL FOLLOWS — the native
+      // door's own words for the same problem (`sentence.js`). Sixty-four names
+      // is the answer buried in a wall of text; one name in front of it is the
+      // answer.
       throw new PineRefusal('pine:function',
-        `${REFUSALS['pine:function']} — \`${pineName}\`. This table declares `
+        `${REFUSALS['pine:function']} — \`${pineName}\``
+        + `${didYouMean(bare, Object.keys(this.table.functions))}`
+        + '. This table declares '
         + `${Object.keys(this.table.functions).sort().join(', ')}`, locate(tok))
     }
     const spec = this.table.functions[key]
@@ -4899,10 +5039,21 @@ class Resolver {
           locate(tok))
       }
       if (args.length !== declaredArgs.length) {
+        // ⭐⭐ A COUNT MISMATCH WITH A KNOWN WAY ROUND IT SAYS SO. `ta.change(src)`
+        // is declared and `ta.change(src, n)` is not — recorded in
+        // `pine.derived.test.js::TA_VETTED` as *"the n-arg form is refused by
+        // arity"*. That was the whole story until `ta.mom` landed: Pine defines
+        // both as `source - source[length]`, so the two-argument change now HAS an
+        // exact spelling that translates, and a member hitting this wall should be
+        // told it rather than left to find it.
+        // ⛔ IT IS A SENTENCE, NOT AN AUTO-REWRITE. This door has no span to
+        // replace and no business renaming a member call.
+        const hint = own(ARITY_HINTS, bare) ? ' — ' + ARITY_HINTS[bare] : ''
         throw new PineRefusal('pine:arity',
-          `${REFUSALS['pine:arity']} — \`${pineName}\` was given ${args.length} `
-          + `argument${args.length === 1 ? '' : 's'}; this table takes `
-          + `${declaredArgs.length} — ${signatureOf(key, spec)}`, locate(tok))
+          REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given '
+          + args.length + ' argument' + (args.length === 1 ? '' : 's')
+          + '; this table takes ' + declaredArgs.length + ' — '
+          + signatureOf(key, spec) + hint, locate(tok))
       }
       plan = declaredArgs.map((_, i) => ({ pine: i }))
     }
@@ -5753,6 +5904,129 @@ function functionParams(toks, arrow) {
  * construction, so the first thing it cannot fold refuses the body, and the
  * caller decides whether that refuses the script or only a name.
  */
+/** ⭐⭐ ONE `switch` REDUCER, REACHED FROM BOTH WALKERS.
+ *
+ *  ⚰️ IT USED TO LIVE INSIDE `foldStatements`, whose call sites are all function
+ *  bodies and `if` branches — so `switch` worked INSIDE a function and refused at
+ *  the TOP LEVEL, where a member actually writes `ma = switch mode`. Measured:
+ *  the same three lines translated in a `f() =>` body and returned `pine:block`
+ *  one indent level out. `if` was given both doors (`foldIfChain` is called from
+ *  each); `switch` was given one.
+ *
+ *  ⛔ NOTHING ABOUT THE REDUCTION MOVED. The arm is still picked at RESOLVE time
+ *  by `resolveBinding`, not here — choosing now would need the subject's VALUE and
+ *  a name is not resolvable while the walk is still binding names. This function
+ *  only carries the subject and the arms across, which is exactly what the inline
+ *  version did.
+ *
+ *  ⚠️ `null` MEANS "NOT A SHAPE I CAN TAKE", never "refuse". Both callers fall
+ *  through to the refusal they already had, so an arm without `=>`, or a body
+ *  that folds to nothing, still lands on the sentence it always did. */
+/** ⭐⭐ WHY THIS DESTRUCTURE COULD NOT BE TAKEN APART, in one clause.
+ *
+ *  ⚰️ SIX DIFFERENT CAUSES USED TO PRODUCE ONE IDENTICAL SENTENCE. Measured:
+ *  an unknown name, a name with no tuple form, a wrong part count, named
+ *  arguments, a right-hand side that is not a call at all, and a `request.security`
+ *  returning a tuple all came back as *"this Pine call answers with several values
+ *  at once and a column carries one"*. Two of them have a far better sentence one
+ *  bracket away — `st = ta.supertrend(3, 10)` says `pine:function` and NAMES the
+ *  call; `a = request.security(…)` gets the whole `pine:request` ruling — and
+ *  putting brackets round the same right-hand side deleted both.
+ *
+ *  ⛔ THE GUARD NAME DOES NOT MOVE. `pine:tuple` is pinned in `pine.tuples.test.js`,
+ *  `pine.corpus.test.js` and `__fixtures__/pineCorpus.json`; this only appends the
+ *  clause the member was missing, which is the same shape `ta.dmi`'s period tail
+ *  and the `var` arm already use.
+ *
+ *  ⚠️ AND IT IS DERIVED FROM STATIC TABLES, NOT FROM RESOLVING ANYTHING. This
+ *  runs during the WALK, where a name is not yet a value; every branch below asks
+ *  a question the parse tree and the declared tables can answer. */
+/** ⭐⭐ THE OPENING SENTENCE OF A RULING, for a refusal to carry.
+ *
+ *  ⛔ THE WHOLE RULING IS TOO LONG FOR A REFUSAL and exactly right for the page
+ *  that already renders it. `_functions_excluded.obv` is 2,174 characters;
+ *  `sar` is 653. Their FIRST sentences are the actionable part — "ALREADY
+ *  EXPRESSIBLE: `stdev(x, n) * stdev(x, n)`", "CUMULATIVE FROM THE FIRST BAR,
+ *  WITH NO ABSOLUTE SEED" — so the lead is quoted and the rest is left where a
+ *  member can read it.
+ *
+ *  ⚠️ THE LEADING MARKERS ARE STRIPPED, NOT THE WORDS. These entries open with
+ *  the same emphasis marks the rest of this repo uses; they carry meaning to a
+ *  reader of the manifest and none to a member reading a refusal. */
+function rulingLead(text) {
+  const flat = String(text || '').replace(/\s+/g, ' ').trim()
+  const body = flat.replace(/^[^A-Za-z`]+/, '')
+  const stop = body.search(/\.(\s|$)/)
+  return stop > 0 ? body.slice(0, stop + 1) : body.slice(0, 220)
+}
+
+function tupleRefusalTail(call, names, env) {
+  if (!call) return 'the right-hand side is not an expression this engine could read'
+  if (call.type !== 'call') {
+    return 'the right-hand side is not a call, and only a call answers with several values'
+  }
+  const shown = String(call.name)
+  const supplied = call.args || []
+  const callee = env.get(call.name)
+  if (callee && callee.kind === 'fn') {
+    const v = callee.value
+    if (!v || v.kind !== 'tuple') {
+      return '`' + shown + '`' + ' returns one value, and ' + names.length + ' names were given'
+    }
+    return '`' + shown + '`' + ' returns ' + v.parts.length + ' values and '
+      + names.length + ' names were given'
+  }
+  const bare = normaliseName(shown.split('.').pop())
+  if (own(PINE_TUPLE_BUILTINS, bare)) {
+    const spec = PINE_TUPLE_BUILTINS[bare]
+    if (supplied.some((a) => a && a.name != null)) {
+      return '`' + shown + '`' + ' is taken apart BY POSITION here, so its arguments have to '
+        + 'be positional too — a named one could build the answer out of the wrong two'
+    }
+    if (supplied.length !== spec.arity) {
+      return '`' + shown + '`' + ' takes ' + spec.arity + ' arguments and was given '
+        + supplied.length
+    }
+    if (names.length !== spec.parts) {
+      return '`' + shown + '`' + ' answers with ' + spec.parts + ' values and '
+        + names.length + ' names were given'
+    }
+    return '`' + shown + '`' + ' could not be taken apart'
+  }
+  // ⭐ THE LIST IS DERIVED so it cannot go stale the day another tuple is added.
+  const known = [...Object.keys(PINE_TUPLE_BUILTINS), 'dmi'].sort()
+    .map((k) => '`' + 'ta.' + k + '`').join(', ')
+  return 'this engine has no tuple form for ' + '`' + shown + '`'
+    + ' — the ones it can take apart are ' + known
+    + '. Writing it WITHOUT the brackets says more about why'
+}
+
+function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
+  const arms = []
+  let fallback = null
+  for (const arm of (subStmts || [])) {
+    const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+    if (at < 0) return null
+    const rhs = arm.header.slice(at + 1)
+    const binding = rhs.length
+      ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
+      : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
+    if (!binding) return null
+    // A bare `=>` with nothing before it is Pine's default arm.
+    if (at === 0) fallback = binding
+    else arms.push({ match: arm.header.slice(0, at), binding })
+  }
+  if (!arms.length && !fallback) return null
+  return {
+    kind: 'switch',
+    subject: parseWholeExpression(subjectToks),
+    env: new Map(env),
+    arms,
+    fallback,
+    at: locate(firstTok),
+  }
+}
+
 function foldStatements(stmts, ctx, env) {
   let value = null
   let i = 0
@@ -5798,33 +6072,8 @@ function foldStatements(stmts, ctx, env) {
     // chosen. So the whole `switch` becomes ONE binding carrying its subject and
     // its arms, and `resolveBinding` reduces it once the subject can be read.
     if (first.kind === 'ident' && first.value === 'switch' && toks.length > 1) {
-      const arms = []
-      let fallback = null
-      let usable = true
-      for (const arm of (st.sub || [])) {
-        const at = findTop(arm.header, (t) => isPunct(t, '=>'))
-        if (at < 0) { usable = false; break }
-        const rhs = arm.header.slice(at + 1)
-        const binding = rhs.length
-          ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
-          : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
-        if (!binding) { usable = false; break }
-        // A bare `=>` with nothing before it is Pine's default arm.
-        if (at === 0) fallback = binding
-        else arms.push({ match: arm.header.slice(0, at), binding })
-      }
-      if (usable && (arms.length || fallback)) {
-        value = {
-          kind: 'switch',
-          subject: parseWholeExpression(toks.slice(1)),
-          env: new Map(env),
-          arms,
-          fallback,
-          at: locate(first),
-        }
-        i += 1
-        continue
-      }
+      const built = switchBinding(toks.slice(1), st.sub, ctx, env, first)
+      if (built) { value = built; i += 1; continue }
     }
     if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
       throw new PineRefusal('pine:block',
@@ -6101,10 +6350,12 @@ export function translatePine(source, opts = {}) {
       // translation that parses, lints, saves, scans and is silently WRONG.
       // Anything this engine cannot take apart must keep refusing by name.
       const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
+      let parsedRhs = null
       if (close >= 0 && eq > close && names.length > 0) {
         const rhs = toks.slice(eq + 1)
         let call = null
         try { call = parseWholeExpression(rhs) } catch { call = null }
+        parsedRhs = call
         const callee = call && call.type === 'call' ? env.get(call.name) : null
         const value = callee && callee.kind === 'fn' ? callee.value : null
         if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
@@ -6117,8 +6368,11 @@ export function translatePine(source, opts = {}) {
         }
       }
 
-      for (const n of names) markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\``)
-      notes.push(noteOf('pine:tuple', REFUSALS['pine:tuple'], first))
+      const why = tupleRefusalTail(parsedRhs, names, env)
+      for (const n of names) {
+        markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${why}`)
+      }
+      notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${why}`, first))
       continue
     }
 
@@ -6395,6 +6649,18 @@ export function translatePine(source, opts = {}) {
           si = last
         }
         continue
+      }
+      // ⭐⭐ `ma = switch mode` AT THE TOP LEVEL — the door `if` has had all along,
+      // three lines up. Without this the catch-all below marks the name opaque
+      // and the member is told a block "spans several statements", which is true
+      // of the shape and useless about the cause: the reducer one function away
+      // handles this exact case and is commented for it.
+      // ⛔ IT STAYS AHEAD OF THE CATCH-ALL AND FALLS INTO IT. `switchBinding`
+      // returns null for a shape it cannot take, so a malformed `switch` gets the
+      // refusal it always got rather than a new one.
+      if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
+        const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
+        if (built) { env.set(nameTok.value, built); continue }
       }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)

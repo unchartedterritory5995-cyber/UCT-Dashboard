@@ -231,8 +231,25 @@ def main():
                 convergence_ratio=0.50, volume_pattern="contracting", seed=11),
            {"fires": False})
 
+    # depth_pct WAS 0.50 and that was a KNIFE EDGE, measured 2026-09-01.
+    # The detector scans anchored windows (40, 30, 50, 25, 35, 45, 55 bars) and
+    # takes the FIRST that passes, so what the depth gate sees is the SHALLOWEST
+    # eligible sub-window, not the 50% the construction names. At 0.50 the
+    # 30-bar sub-window measured 0.4340 against a 0.40 cap - 8% of margin - and
+    # when the boundaries moved to log-space fitting (Edwards & Magee: a
+    # constant-percentage decline converges in points by construction) the same
+    # sub-window read 0.3946 and the fixture FIRED at confidence 54.2.
+    # Log space is right there and the cap still works: the arithmetic line
+    # extrapolates straight past the last low pivot while the log line decays
+    # proportionally, so it reads support at 53.53 rather than 49.94, and the
+    # last 30 bars genuinely are an in-band wedge. What was wrong is this
+    # fixture, which asserted "no sub-window is in band" and only ever bought
+    # that by 8%. 0.55 is over the cap in BOTH arms with real margin - measured
+    # min depth across every eligible window: raw 0.5186, log 0.4568 - and
+    # still leaves three eligible windows, so it fails on DEPTH rather than on
+    # having no pivots to fit (which is what 0.65+ degenerates into).
     _write("depth_too_deep", "negative",
-           dict(bars_count=40, start_high=100.0, depth_pct=0.50,
+           dict(bars_count=40, start_high=100.0, depth_pct=0.55,
                 convergence_ratio=0.40, volume_pattern="contracting", seed=12),
            {"fires": False})
 

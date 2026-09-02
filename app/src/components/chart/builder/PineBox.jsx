@@ -360,7 +360,23 @@ function memberSettings(settings) {
   return out
 }
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
+/** ⭐⭐ THE EDITOR CHUNK — built, tested against Pine, and mounted by nothing.
+ *
+ *  ⚰️ `editor/languages.js` defines `pineLanguage` off `PINE_CALL_SHAPES` and
+ *  `languageFor` answers `case 'pine'`; `CodeEditor.test.jsx` already mounts it
+ *  with `dialect: 'pine'`. The only production caller was `FormulaField`, which
+ *  passes `result.dialect === 'pcf' ? 'pcf' : 'formula'` — so `'pine'` could
+ *  never be the value, and the Pine authoring surface stayed a bare
+ *  `<textarea rows={8}>` while a Pine-aware editor sat one import away.
+ *
+ *  ⛔ A FAILED LOAD IS THE TEXTAREA, NOT A RELOAD — `FormulaField`'s own ruling
+ *  for the same chunk: this is an inline enhancement of a box that already
+ *  works, and a hard reload would throw away a member's draft. */
+function loadEditor() {
+  return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
+}
+
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -369,6 +385,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const [report, setReport] = useState(() => (initialSource ? inspect(initialSource) : null))
   const [chosen, setChosen] = useState(null)
   const [showNotes, setShowNotes] = useState(false)
+  const [Editor, setEditor] = useState(null)
   const areaRef = useRef(null)
 
   // ⭐⭐ THE MEMBER'S OWN VALUES. `translatePine`'s `inputValues` has shipped,
@@ -404,6 +421,16 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   // identifier in the corpus, and carrying one paste's `len` into the next would
   // silently compute a length the member never chose for it.
   const lastTextRef = useRef(initialSource)
+
+  // ⛔ THE TEXTAREA STAYS AND IS NEVER UNMOUNTED. It is the value carrier and
+  // the fallback; when the chunk lands it is hidden and the editor renders
+  // beside it — the arrangement `FormulaField` already ships, and the reason
+  // every existing rail that types into `pine-box textarea` keeps working.
+  useEffect(() => {
+    let alive = true
+    loadEditor().then((component) => { if (alive && component) setEditor(() => component) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     if (text.trim() === '') {
@@ -512,6 +539,25 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   // is asked to read "whatever this is" and the member has to be told what it
   // decided — a heading that still said "Pine" over a thinkScript paste would be
   // a sentence that is false about the text on screen.
+  /** ⭐⭐ THE ONLY WRITER OF `text`, so nothing can change the member's script
+   *  without the sheet above hearing about it.
+   *
+   *  ⛔⛔ THE TEXTAREA IS NOT THE ONLY WRITER — `applySuggestion` is the other,
+   *  and it is the one that would have been missed. A member who accepts an
+   *  offered call has just made the most valuable edit in the box; reporting only
+   *  keystrokes would have lost exactly that one
+   *  (`lesson_one_grammar_four_hand_written_copies`).
+   *
+   *  ⚠️ `setSettings({})` RIDES ALONG BECAUSE IT ALWAYS DID. The knob values a
+   *  member set belong to the script that was on screen; carrying them onto a
+   *  different script is how a length from the old text ends up folded into the
+   *  new one. */
+  const commitText = useCallback((next) => {
+    setText(next)
+    setSettings({})
+    if (onSourceChange) onSourceChange(next)
+  }, [onSourceChange])
+
   /** ⭐⭐ ACCEPT THE OFFERED CALL — splice it into the member's own source.
    *
    *  ⛔⛔ IT SPLICES `refusal.source`, NEVER `text`, AND THAT IS THE WHOLE SAFETY
@@ -536,9 +582,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     if (typeof src !== 'string' || src !== text) return
     const [from, to] = refusal.span
     if (!(from >= 0 && to >= from && to <= src.length)) return
-    setText(src.slice(0, from) + refusal.suggest + src.slice(to))
-    setSettings({})
-  }, [text])
+    commitText(src.slice(0, from) + refusal.suggest + src.slice(to))
+  }, [text, commitText])
 
   const seen = report && report.dialect ? report.dialect : null
 
@@ -578,8 +623,37 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
         aria-label={anyDialect ? 'Script or formula' : 'Pine script'}
         disabled={disabled}
         value={text}
-        onChange={(e) => { setText(e.target.value); setSettings({}) }}
+        onChange={(e) => commitText(e.target.value)}
+        tabIndex={Editor ? -1 : undefined}
+        aria-hidden={Editor ? 'true' : undefined}
       />
+      {Editor && (
+        <Editor
+          value={text}
+          onChange={commitText}
+          // ⭐ THE DETECTED DIALECT, NEVER A SECOND `detectDialect`. `seen` is
+          // the report's own answer, which is the same rule `FormulaField`
+          // states for its own editor — with `dialect="auto"` a second
+          // detection here could highlight one language while the door reads
+          // another.
+          dialect={seen || 'pine'}
+          // ⭐⭐ THE REFUSAL BECOMES A GUTTER MARK — and it is the REFUSAL, not the
+          // report. `CodeEditor` gates every mark on
+          // `diagnostics.source === view.state.doc.toString()`, and
+          // `inspectSource`'s `stamp` puts `source` on the REFUSAL object.
+          // ⚰️ PASSING `report` HERE READS AS CORRECT AND MARKS NOTHING, FOREVER:
+          // the report has no `source`, the comparison is false on every render,
+          // and the gutter stays empty with no error anywhere. `FormulaField`
+          // passes its whole result because `evaluateFormula` stamps THAT — the
+          // same field, one level up, on a different door.
+          diagnostics={report ? report.refusal : null}
+          // ⛔ NOT THE LABEL VERBATIM: `getByLabelText('Pine script')` has to
+          // keep resolving to exactly ONE element, and that element is the
+          // hidden textarea every existing rail already types into.
+          ariaLabel={`${anyDialect ? 'Script or formula' : 'Pine script'} editor`}
+          testId="pine-editor"
+        />
+      )}
 
       {report && (
         <div className={styles.report}>
@@ -975,14 +1049,29 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
  * been churn in W1b's test file for no behaviour, and the hand-back stays the two
  * lines the brief asked for.
  */
-export function ImportBox({ onPick, disabled = false, initialSource = '', dialect = 'auto' }) {
+export function ImportBox({
+  onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
+}) {
   return (
-    <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} dialect={dialect} />
+    <PasteBox
+      onPick={onPick}
+      disabled={disabled}
+      initialSource={initialSource}
+      dialect={dialect}
+      onSourceChange={onSourceChange}
+    />
   )
 }
 
 /** The Pine-only box, byte-identical in behaviour to what it was: no `dialect`
  *  prop means `inspectPine`, the Pine heading and the Pine aria-label. */
-export default function PineBox({ onPick, disabled = false, initialSource = '' }) {
-  return <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} />
+export default function PineBox({ onPick, disabled = false, initialSource = '', onSourceChange = null }) {
+  return (
+    <PasteBox
+      onPick={onPick}
+      disabled={disabled}
+      initialSource={initialSource}
+      onSourceChange={onSourceChange}
+    />
+  )
 }

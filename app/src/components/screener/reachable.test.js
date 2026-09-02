@@ -299,7 +299,7 @@ const AWAITING_A_DECISION = {
     + 'carries the count of positions entered on the latest wire date. Kept as '
     + 'rollback backup; see the block comment above.',
   'app/src/components/tiles/CatalystFlow.jsx':
-    'COCKPIT RETIREMENT — replaced by Zone D\'s "Calendar" door (/calendar), '
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "UCT Terminal" door (/calendar), '
     + 'which carries tonight\'s AMC reporter count. Kept as rollback backup.',
   'app/src/components/tiles/OptionsFlowPreview.jsx':
     'COCKPIT RETIREMENT — replaced by Zone D\'s "Options Flow" door '

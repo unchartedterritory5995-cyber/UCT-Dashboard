@@ -38,6 +38,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Optional
 
+from api.services import ast_budget
 from api.services import ast_freshness
 from api.services import ast_interpret
 from api.services import ast_table
@@ -89,7 +90,7 @@ AST_KIND = "ast"
 #: — "your formula is malformed" and "that instrument is fine to chart but not
 #: to sweep" are different things to tell a member, and only one of them has a
 #: list of alternatives to offer.
-GATES = ("kind", "tree", "hash", "yields", "symbol")
+GATES = ("kind", "tree", "hash", "yields", "symbol", "cadence", "budget")
 
 
 class ScanRefused(Exception):
@@ -400,6 +401,14 @@ def assert_scannable(definition: Any) -> dict:
     ``yields``  the tree returns a NUMBER. ``<tree> != 0`` over a price column is
                 true for every symbol trading above zero, so this is the gate
                 that stops a screen from silently returning the universe.
+    ``cadence`` the tree reads a LIVE, within-session accumulator. The nightly
+                sweep runs on DAILY bars, where there is no intraday session to
+                accumulate over — so the column is empty for every symbol, and
+                the emptiness is decidable from the tree alone.
+    ``budget``  the tree is over one of the declared caps. The SWEEP already
+                refuses these; this door did not, so the server stamped
+                ``scannable: true`` on a definition it would then refuse every
+                night.
     """
     compute = _compute_of(definition)
     if compute.get("kind") != AST_KIND:
@@ -472,6 +481,66 @@ def assert_scannable(definition: Any) -> dict:
             "`<tree> != 0` on the last confirmed bar, so a real-valued tree "
             "matches every symbol whose value is not exactly zero.",
         )
+    # ⛔⛔ A LIVE ACCUMULATOR CANNOT ANSWER A DAILY SWEEP, AND THAT IS DECIDABLE
+    # FROM THE TREE. Measured on the real universe before this gate existed:
+    # the corpus fixture `17-above-vwap` translated, passed every gate above,
+    # was offered under My Scans, and then answered
+    #
+    #     answered=0  dropped=986  not_computable=2756  hits=0  21.9s
+    #
+    # with `{'reason': 'not-computable', 'detail': 'no value for vwap'}` on every
+    # evaluable symbol — while the other 33 scripts in the same run answered
+    # 2,669–2,756 each. Every night, forever, for ~22 seconds a formula that was
+    # empty from the tree alone.
+    #
+    # ⭐ THE REASON IS THE MANIFEST'S OWN AND IT IS NOT SPELLED HERE. `vwap` and
+    # `avwap` declare `cadence: "live"` and `lookback: "session"`; the sweep runs
+    # `DEFAULT_TF = "D"`, and a daily bar has no session inside it to accumulate
+    # over. `ast_table.live_cadence_functions` derives the set, so a third such
+    # function starts refusing the day it is declared rather than the day someone
+    # remembers to add it to a list.
+    #
+    # ⚠️ THIS IS A SCAN-TIME PROPERTY, NOT A TRANSLATE-TIME ONE. `ta.vwap` is a
+    # perfectly good column on an intraday CHART and keeps translating; what it
+    # cannot do is answer THIS sweep. Refusing it in the Pine door would take a
+    # working chart indicator away to fix a screen.
+    # ⛔⛔ THE SWEEP ALREADY REFUSED THESE AND THIS DOOR DID NOT, which is how a
+    # definition came to be stamped `scannable: true` and then refused every
+    # night. Reproduced in-process on `close > sma(close, 1000)`:
+    #
+    #     ast_budget.budget_result(tree)  -> ok=False, guard=budget:lookback
+    #     assert_scannable(d)             -> ADMITTED, yields=bool
+    #     _stamped(row)                   -> {'scannable': True, 'scan_refusal': None}
+    #     scan_evaluator.evaluate_one(..) -> ScanRunRefused [gate:not-scannable]
+    #                                        "measures 1000 and the cap is 960"
+    #
+    # The member is told their screen is runnable by the surface that knows, and
+    # the only thing that disagrees is a sweep they cannot see.
+    #
+    # ⭐ THE SENTENCE IS THE BUDGET'S OWN. `budget_result` already composes the
+    # cap, the measurement and the reason; re-wording it here would be a second
+    # authority over a number this module does not own.
+    # ⚠️ IT CAN RAISE RATHER THAN RETURN — `node_count` and `max_lookback` refuse
+    # a malformed or unresolvable tree with their own guards. Those propagate, as
+    # they do everywhere else, so the refusal names the door that decided.
+    verdict = ast_budget.budget_result(tree)
+    if not verdict.get("ok"):
+        raise ScanRefused("budget", str(verdict.get("error") or "over budget"))
+
+    live = ast_table.live_cadence_functions()
+    used = sorted({
+        node.get("name") for node in ast_interpret._flatten(tree)
+        if node.get("type") == "call" and node.get("name") in live
+    })
+    if used:
+        raise ScanRefused(
+            "cadence",
+            f"{', '.join(used)} accumulates within a trading session, and the "
+            "sweep runs on daily bars — one daily bar has no session inside it, "
+            "so this column is empty for every symbol. It still works on an "
+            "intraday chart.",
+        )
+
     return {
         "def_hash": handle,
         "yields": _KIND_BOOL,

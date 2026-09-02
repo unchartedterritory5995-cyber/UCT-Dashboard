@@ -69,6 +69,128 @@ def line_intersect(line_a: Line, line_b: Line) -> Optional[Point]:
     return {"t": t, "price": price}
 
 
+# ─── space-aware accessors ───────────────────────────────────────────────────
+#
+# ⛔⛔ WHY THESE EXIST BESIDE `line_at` RATHER THAN REPLACING IT.
+# `fit_trendline(log_space=True)` fits log(price) and exponentiates only the
+# ENDPOINTS back into price. The fitted curve between them is exponential, so
+# `line_at` — which interpolates linearly between p1 and p2 — reads a CHORD off
+# it, exact at the endpoints and wrong everywhere in between. That is invisible:
+# the two agree at exactly the two points a spot-check would test.
+#
+# `line_at`'s semantics are NOT changed in place because ten detector modules
+# call it, including ones that never asked for log space (head_shoulders,
+# inverse_head_shoulders, major_trendlines). Changing it would silently move
+# detectors that made no such request. Instead these accessors take the whole
+# `Trendline` — which carries its own `space` — and dispatch on it. For a
+# price-space line they are bit-for-bit `line_at` / `line_intersect`, by
+# delegation, not by re-derivation.
+
+
+def _space_of(line: dict) -> str:
+    """The space a Trendline was fitted in; absent means "price".
+
+    A hand-built line (a synthesized flat boundary, say) has always been in
+    price space and stays that way without needing to be edited.
+    """
+    return line.get("space") or "price"
+
+
+def price_at(line: dict, t: float) -> float:
+    """Price ON the fitted line at time `t`, respecting the line's space.
+
+    ⛔ USE THIS, NOT `line_at`, FOR ANY LINE THAT MIGHT BE LOG-FITTED. For a
+    price-space line this delegates to `line_at` and is identical to it. For a
+    log-fitted line it reads the EXPONENTIAL through the endpoints:
+
+        price(t) = p1 * (p2 / p1) ** ((t - t1) / (t2 - t1))
+
+    which is the curve that was actually fitted, not the chord across it.
+
+    A log-space line whose endpoints are non-positive is the unusable line
+    `fit_trendline` returns when asked for log space on a series containing a
+    non-positive price (`validity == 0.0`, every field zeroed). It has no
+    logarithm and therefore no price anywhere; this returns 0.0, which every
+    caller's existing `<= 0` guard already rejects. Reaching that value means a
+    caller skipped the validity check, not that the line has a price of zero.
+    """
+    p1, p2 = line["p1"], line["p2"]
+    if _space_of(line) != "log":
+        return line_at((p1, p2), t)
+
+    dt = p2["t"] - p1["t"]
+    if dt == 0:
+        return p1["price"]
+    if p1["price"] <= 0 or p2["price"] <= 0:
+        return 0.0
+    log_slope = (math.log(p2["price"]) - math.log(p1["price"])) / dt
+    return math.exp(math.log(p1["price"]) + log_slope * (t - p1["t"]))
+
+
+def fractional_slope(line: dict, reference_price: float) -> float:
+    """The line's slope as a FRACTION OF PRICE PER BAR — the same unit in both
+    spaces, so a threshold expressed in that unit is scale-correct.
+
+    A log-space slope IS d(log price)/dt, i.e. already a fractional growth rate
+    per bar (0.01 == +1%/bar), so it is returned unchanged. A price-space slope
+    is dollars per bar and is divided by `reference_price` to reach the same
+    unit. `reference_price <= 0` yields 0.0 rather than a division blow-up; a
+    caller with no positive reference price has no scale to normalise against.
+
+    ⛔ THE POINT IS THE UNIT, NOT THE CONVENIENCE. `abs(slope) < k * price` and
+    `abs(slope) / price < k` are the same test only while `slope` is in dollars.
+    Against a log slope the first is ~1/price times too permissive — for a $100
+    stock, ~100x — which is how a threshold meant to catch flat lines came to
+    call every line flat.
+    """
+    if _space_of(line) == "log":
+        return float(line["slope"])
+    if reference_price <= 0:
+        return 0.0
+    return float(line["slope"]) / reference_price
+
+
+def intersect_at(line_a: dict, line_b: dict) -> Optional[Point]:
+    """Where two fitted lines cross, respecting the space they were fitted in.
+
+    For two price-space lines this delegates to `line_intersect` and is
+    identical to it. For two log-fitted lines the crossing is solved where the
+    lines are actually STRAIGHT — in log space — and the returned `price` is
+    exponentiated back. Solving it on the price-space chords instead answers a
+    different question and puts the apex at the wrong bar.
+
+    Raises:
+      ValueError: if the two lines were fitted in different spaces. There is no
+        meaningful crossing of a straight line and an exponential drawn from
+        the same endpoints without deciding which curve is real, and no call
+        site does that: every caller passes two lines produced by one fitting
+        step. A silent None here would report "no pattern" for a programming
+        error, which is the failure mode this engine keeps paying for.
+    """
+    space_a, space_b = _space_of(line_a), _space_of(line_b)
+    if space_a != space_b:
+        raise ValueError(
+            f"cannot intersect a {space_a}-space line with a {space_b}-space "
+            f"one: the two describe different curves through their endpoints")
+
+    if space_a != "log":
+        return line_intersect((line_a["p1"], line_a["p2"]),
+                              (line_b["p1"], line_b["p2"]))
+
+    for line in (line_a, line_b):
+        if line["p1"]["price"] <= 0 or line["p2"]["price"] <= 0:
+            return None      # the unusable all-zero line; nothing to cross
+
+    def _to_log(line: dict) -> Line:
+        return ({"t": line["p1"]["t"], "price": math.log(line["p1"]["price"])},
+                {"t": line["p2"]["t"], "price": math.log(line["p2"]["price"])})
+
+    hit = line_intersect(_to_log(line_a), _to_log(line_b))
+    if hit is None:
+        return None
+    return {"t": hit["t"], "price": math.exp(hit["price"])}
+
+
 def parallel_score(line_a: Line, line_b: Line) -> float:
     """Score 0-1 measuring how parallel the two lines are.
 
@@ -121,13 +243,43 @@ def channel_width_parallel_score(
     l_left  = lower_line["p1"]["price"]
     l_right = lower_line["p2"]["price"]
 
-    width_left  = u_left  - l_left
-    width_right = u_right - l_right
+    # ⛔⛔ WIDTH IS MEASURED IN THE LINES' OWN SPACE, and getting this wrong is
+    # the ORIGINAL finding one level down. A point difference asks "do these
+    # lines stay the same number of DOLLARS apart"; on a log-fitted channel the
+    # question is "do they stay the same PERCENTAGE apart", which is a ratio.
+    # A channel running 100 -> 50 at a steady 10% width measures 10 points then
+    # 5, scores 0.50 and is REFUSED as non-parallel — while being exactly
+    # parallel in the space it was fitted in. That is the same arithmetic-scale
+    # artefact Edwards & Magee describe, arriving through the scorer instead of
+    # through the fit.
+    #
+    # ⭐ THE PRICE PATH IS UNTOUCHED. `space` absent or "price" takes the
+    # original arithmetic verbatim, so `bull_flag` and `bear_flag` — which are
+    # not convergence detectors and were never switched — cannot move.
+    u_space = upper_line.get("space") or "price"
+    l_space = lower_line.get("space") or "price"
+    if u_space != l_space:
+        # ⛔ RAISE, NEVER RETURN 0.0. A zero here reads as "not parallel", which
+        # is a PATTERN VERDICT; mixing spaces is a bug and must not be reported
+        # as a finding about the market.
+        raise ValueError(
+            "channel_width_parallel_score got a %s upper line and a %s lower "
+            "line; a width across two spaces is not a width" % (u_space, l_space))
+
+    if u_space == "log":
+        if min(u_left, u_right, l_left, l_right, high, low) <= 0:
+            return 0.0
+        width_left  = math.log(u_left)  - math.log(l_left)
+        width_right = math.log(u_right) - math.log(l_right)
+        data_range = max(math.log(high) - math.log(low), 1e-9)
+    else:
+        width_left  = u_left  - l_left
+        width_right = u_right - l_right
+        data_range = max(high - low, 1e-9)
 
     if width_left <= 0 or width_right <= 0:
         return 0.0
 
-    data_range = max(high - low, 1e-9)
     if max(width_left, width_right) > data_range * 2.0:
         return 0.0
 

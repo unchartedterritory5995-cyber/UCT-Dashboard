@@ -105,3 +105,15 @@
     align-items: center;
   }
 }
+
+/* TOUCH TIER (wave 17) — the Fetch Mkt Cap button (whose mid-load label
+   "Fetching…" was the app's one accepted phone residual since wave 15)
+   audited 75x23. Growing the button fixes BOTH states on phone AND tablet —
+   the residual is gone, not accepted. Hook: dp-fetchcap in the JSX. */
+@media (max-width: 1024px) {
+  .dp-mroot .dp-fetchcap {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+}

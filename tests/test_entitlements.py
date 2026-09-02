@@ -757,14 +757,52 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
 
     writes = [k for k in by_path if k[0] in ("POST", "PUT")
               and not k[1].endswith("/propose")]
-    assert sorted(writes) == [("POST", "/api/user-definitions"),
-                              ("PUT", "/api/user-definitions/{def_id}")], writes
 
+    # ⛔⛔ TWO CLASSES, NOT ONE, AND THE SPLIT IS THE FIX. This asserted BOTH
+    # gates on every write route and hand-listed two of them. The router grew
+    # three more — `/share`, `/list` and `/shared/{token}/install` — and the
+    # rail went red, correctly. But extending the list would have been wrong:
+    # `limits_dependency` exists to compute a COUNT CAP, and its own failure
+    # message says so ("appends a definition"). `/share` and `/list` append
+    # nothing; they toggle sharing and add to a list. Demanding the cap there
+    # would force a gate that has nothing to count.
+    #
+    # ⭐ SO `require_paid` IS UNIVERSAL AND `limits_dependency` IS SCOPED. Both
+    # sets are asserted by name, so a new route lands RED in whichever class it
+    # belongs to rather than riding in — which is what the original hand-list
+    # was for, kept, with the rule it encodes now written down.
+    #
+    # ⚠️ VERIFIED WHEN THIS SPLIT WAS MADE, 2026-09-01: all five write routes
+    # carry `require_paid`. The red was a stale scope, never a missing gate.
+    assert sorted(writes) == [
+        ("POST", "/api/user-definitions"),
+        ("POST", "/api/user-definitions/shared/{token}/install"),
+        ("POST", "/api/user-definitions/{def_id}/list"),
+        ("POST", "/api/user-definitions/{def_id}/share"),
+        ("PUT", "/api/user-definitions/{def_id}"),
+    ], writes
+
+    # every write is paid-gated — no exceptions, this is the security gate
     for key in writes:
         assert ud.require_paid in by_path[key], key
+
+    # only the routes that PERSIST A NEW DEFINITION carry the count cap
+    appends = [("POST", "/api/user-definitions"),
+               ("POST", "/api/user-definitions/shared/{token}/install"),
+               ("PUT", "/api/user-definitions/{def_id}")]
+    assert set(appends) <= set(writes)
+    for key in appends:
         assert ent.limits_dependency in by_path[key], (
             f"{key} appends a definition without reading the caller's toolkit — "
             "the count cap is computed against a plan nobody looked up")
+
+    # ⛔ AND THE OTHER WRITES MUST NOT QUIETLY GAIN IT. A cap on a route that
+    # appends nothing would be a gate with nothing to count, and its arrival
+    # should be a decision rather than a copy-paste.
+    for key in [k for k in writes if k not in appends]:
+        assert ent.limits_dependency not in by_path[key], (
+            f"{key} now carries the count cap but appends no definition — if "
+            f"it started persisting one, move it into `appends` deliberately")
     assert ud.router.dependencies == []
 
 

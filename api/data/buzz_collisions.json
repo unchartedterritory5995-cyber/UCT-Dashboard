@@ -1,0 +1,585 @@
+{
+ "_comment": "DERIVED, never hand-typed. A token that is a real ticker AND an ordinary word appears in chat mostly in lowercase ('big spot to breakout'); a token used as a ticker appears mostly uppercase. Regenerate with tools/buzz_derive_collisions.py after any corpus refresh. Do not edit by hand -- add house ACRONYMS (AI, RS, EMA, PEG...) to HOUSE_VOCAB instead, since those are uppercase by convention and casing cannot separate them.",
+ "derived_from": {
+  "corpus": "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/b4bd3a61-def5-450e-808a-ba03d5371961/scratchpad/mainchat_corpus.json",
+  "messages": 32890,
+  "messages_in_corpus_file": 32890,
+  "_messages_note": "messages = rows with non-empty content; the difference is empty rows that contribute no tokens",
+  "chars": 1575931,
+  "measured": "2026-09-02",
+  "min_seen": 8,
+  "max_upper_share": 0.1
+ },
+ "measured_effect": {
+  "_comment": "Baseline is NO COLLISION GATE AT ALL (chat_words empty, HOUSE_VOCAB only) -- the total value of gating, not the marginal gain over whatever list was previously shipped. A figure quoted elsewhere as the improvement over a prior hand-typed or previously-committed list is answering a DIFFERENT question and will not match these numbers.",
+  "contextual_tier_mentions_before": 36432,
+  "contextual_tier_mentions_after": 2884,
+  "cashtag_tier_before_after": [
+   1082,
+   1082
+  ],
+  "exact_tier_before_after": [
+   8752,
+   8391
+  ],
+  "removed_vs_no_gate": 33909,
+  "share_of_all_bookings_removed_pct_vs_no_gate": 72.3
+ },
+ "tokens": {
+  "IT": {
+   "as_word": 4569,
+   "as_ticker": 15,
+   "upper_pct": 0.3
+  },
+  "ON": {
+   "as_word": 3440,
+   "as_ticker": 18,
+   "upper_pct": 0.5
+  },
+  "YOU": {
+   "as_word": 3061,
+   "as_ticker": 11,
+   "upper_pct": 0.4
+  },
+  "FOR": {
+   "as_word": 2747,
+   "as_ticker": 12,
+   "upper_pct": 0.4
+  },
+  "BE": {
+   "as_word": 1525,
+   "as_ticker": 111,
+   "upper_pct": 6.8
+  },
+  "UP": {
+   "as_word": 1445,
+   "as_ticker": 10,
+   "upper_pct": 0.7
+  },
+  "SO": {
+   "as_word": 1332,
+   "as_ticker": 1,
+   "upper_pct": 0.1
+  },
+  "ARE": {
+   "as_word": 1286,
+   "as_ticker": 4,
+   "upper_pct": 0.3
+  },
+  "ALL": {
+   "as_word": 980,
+   "as_ticker": 7,
+   "upper_pct": 0.7
+  },
+  "OUT": {
+   "as_word": 972,
+   "as_ticker": 1,
+   "upper_pct": 0.1
+  },
+  "GOOD": {
+   "as_word": 947,
+   "as_ticker": 4,
+   "upper_pct": 0.4
+  },
+  "CAN": {
+   "as_word": 926,
+   "as_ticker": 3,
+   "upper_pct": 0.3
+  },
+  "NICE": {
+   "as_word": 887,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "NOW": {
+   "as_word": 881,
+   "as_ticker": 61,
+   "upper_pct": 6.5
+  },
+  "OR": {
+   "as_word": 838,
+   "as_ticker": 6,
+   "upper_pct": 0.7
+  },
+  "AS": {
+   "as_word": 837,
+   "as_ticker": 5,
+   "upper_pct": 0.6
+  },
+  "SEE": {
+   "as_word": 757,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "HAS": {
+   "as_word": 598,
+   "as_ticker": 2,
+   "upper_pct": 0.3
+  },
+  "AN": {
+   "as_word": 576,
+   "as_ticker": 1,
+   "upper_pct": 0.2
+  },
+  "HE": {
+   "as_word": 567,
+   "as_ticker": 1,
+   "upper_pct": 0.2
+  },
+  "GO": {
+   "as_word": 552,
+   "as_ticker": 5,
+   "upper_pct": 0.9
+  },
+  "AM": {
+   "as_word": 543,
+   "as_ticker": 58,
+   "upper_pct": 9.7
+  },
+  "GAP": {
+   "as_word": 442,
+   "as_ticker": 2,
+   "upper_pct": 0.5
+  },
+  "WELL": {
+   "as_word": 426,
+   "as_ticker": 1,
+   "upper_pct": 0.2
+  },
+  "NEXT": {
+   "as_word": 334,
+   "as_ticker": 1,
+   "upper_pct": 0.3
+  },
+  "MAN": {
+   "as_word": 320,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "LOT": {
+   "as_word": 290,
+   "as_ticker": 2,
+   "upper_pct": 0.7
+  },
+  "WAY": {
+   "as_word": 289,
+   "as_ticker": 1,
+   "upper_pct": 0.3
+  },
+  "BY": {
+   "as_word": 269,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "LOW": {
+   "as_word": 264,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "OPEN": {
+   "as_word": 251,
+   "as_ticker": 14,
+   "upper_pct": 5.3
+  },
+  "BIT": {
+   "as_word": 207,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "PLAY": {
+   "as_word": 193,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "SPOT": {
+   "as_word": 184,
+   "as_ticker": 10,
+   "upper_pct": 5.2
+  },
+  "REAL": {
+   "as_word": 160,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "POST": {
+   "as_word": 158,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TWO": {
+   "as_word": 155,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "BRO": {
+   "as_word": 151,
+   "as_ticker": 2,
+   "upper_pct": 1.3
+  },
+  "HOPE": {
+   "as_word": 130,
+   "as_ticker": 1,
+   "upper_pct": 0.8
+  },
+  "EVER": {
+   "as_word": 129,
+   "as_ticker": 2,
+   "upper_pct": 1.5
+  },
+  "THO": {
+   "as_word": 112,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "AGO": {
+   "as_word": 111,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "RUN": {
+   "as_word": 109,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "CASH": {
+   "as_word": 96,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "FUN": {
+   "as_word": 94,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "GOLD": {
+   "as_word": 86,
+   "as_ticker": 1,
+   "upper_pct": 1.1
+  },
+  "TECH": {
+   "as_word": 81,
+   "as_ticker": 1,
+   "upper_pct": 1.2
+  },
+  "LIFE": {
+   "as_word": 80,
+   "as_ticker": 3,
+   "upper_pct": 3.6
+  },
+  "TALK": {
+   "as_word": 77,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "LINE": {
+   "as_word": 72,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TH": {
+   "as_word": 70,
+   "as_ticker": 2,
+   "upper_pct": 2.8
+  },
+  "PUMP": {
+   "as_word": 62,
+   "as_ticker": 1,
+   "upper_pct": 1.6
+  },
+  "PRE": {
+   "as_word": 57,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "WWW": {
+   "as_word": 56,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "FAST": {
+   "as_word": 55,
+   "as_ticker": 1,
+   "upper_pct": 1.8
+  },
+  "KIDS": {
+   "as_word": 55,
+   "as_ticker": 1,
+   "upper_pct": 1.8
+  },
+  "PLUS": {
+   "as_word": 52,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "LEG": {
+   "as_word": 45,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "EYE": {
+   "as_word": 40,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "QS": {
+   "as_word": 38,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "CARE": {
+   "as_word": 38,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "KEY": {
+   "as_word": 37,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "MAIN": {
+   "as_word": 37,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "MAS": {
+   "as_word": 36,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "GLAD": {
+   "as_word": 32,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "NGL": {
+   "as_word": 30,
+   "as_ticker": 2,
+   "upper_pct": 6.2
+  },
+  "LUCK": {
+   "as_word": 28,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "VIA": {
+   "as_word": 25,
+   "as_ticker": 2,
+   "upper_pct": 7.4
+  },
+  "POOL": {
+   "as_word": 25,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TRIP": {
+   "as_word": 25,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TY": {
+   "as_word": 24,
+   "as_ticker": 2,
+   "upper_pct": 7.7
+  },
+  "GAIN": {
+   "as_word": 24,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "EH": {
+   "as_word": 23,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "LAND": {
+   "as_word": 23,
+   "as_ticker": 1,
+   "upper_pct": 4.2
+  },
+  "BC": {
+   "as_word": 23,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "SAFE": {
+   "as_word": 23,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "STEP": {
+   "as_word": 23,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TAP": {
+   "as_word": 22,
+   "as_ticker": 1,
+   "upper_pct": 4.3
+  },
+  "RARE": {
+   "as_word": 22,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "ACT": {
+   "as_word": 21,
+   "as_ticker": 2,
+   "upper_pct": 8.7
+  },
+  "NAT": {
+   "as_word": 20,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "ST": {
+   "as_word": 20,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "GRAB": {
+   "as_word": 19,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "JAN": {
+   "as_word": 18,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "EXP": {
+   "as_word": 16,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "EAT": {
+   "as_word": 16,
+   "as_ticker": 1,
+   "upper_pct": 5.9
+  },
+  "MOMO": {
+   "as_word": 16,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "FIX": {
+   "as_word": 15,
+   "as_ticker": 1,
+   "upper_pct": 6.2
+  },
+  "WK": {
+   "as_word": 15,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "AIN": {
+   "as_word": 15,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "MAX": {
+   "as_word": 14,
+   "as_ticker": 1,
+   "upper_pct": 6.7
+  },
+  "LEO": {
+   "as_word": 14,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "COLD": {
+   "as_word": 13,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "FORM": {
+   "as_word": 13,
+   "as_ticker": 1,
+   "upper_pct": 7.1
+  },
+  "SUN": {
+   "as_word": 13,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "ING": {
+   "as_word": 11,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "CUZ": {
+   "as_word": 11,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "NOV": {
+   "as_word": 11,
+   "as_ticker": 1,
+   "upper_pct": 8.3
+  },
+  "SITE": {
+   "as_word": 11,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "HOG": {
+   "as_word": 11,
+   "as_ticker": 1,
+   "upper_pct": 8.3
+  },
+  "EL": {
+   "as_word": 10,
+   "as_ticker": 1,
+   "upper_pct": 9.1
+  },
+  "RAMP": {
+   "as_word": 10,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TM": {
+   "as_word": 10,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "DRUG": {
+   "as_word": 10,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "IE": {
+   "as_word": 10,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "SON": {
+   "as_word": 9,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "GUT": {
+   "as_word": 8,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "WASH": {
+   "as_word": 8,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "BALL": {
+   "as_word": 8,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "BIO": {
+   "as_word": 8,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "PPL": {
+   "as_word": 8,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  }
+ }
+}

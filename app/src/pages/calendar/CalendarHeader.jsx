@@ -541,7 +541,7 @@ export default function CalendarHeader({
     <button
       className={`${styles.filterBtn} ${activeCount > 0 ? styles.filterBtnActive : ''}`}
       onClick={onClick}
-      aria-label="Open calendar filters"
+      aria-label="Open filters"
     >
       <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
     </button>
@@ -610,7 +610,7 @@ export default function CalendarHeader({
   return (
     <div className={styles.header}>
       <div className={styles.hrow}>
-        <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Calendar</span>
+        <span className={styles.ttl}><UIcon name="calendar" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />UCT Terminal</span>
         <span className={styles.view}>
           {VIEWS.map(([key, lbl, tip]) => (
             <span key={key} className={view === key ? styles.viewOn : ''}
@@ -773,7 +773,7 @@ export default function CalendarHeader({
           onClose={() => setMobileFiltersOpen(false)}
           onClear={activeCount > 0 ? clearAllFilters : undefined}
           onApply={() => setMobileFiltersOpen(false)}
-          title="Calendar Filters"
+          title="Filters"
           activeCount={activeCount}
           applyLabel="Done"
         >

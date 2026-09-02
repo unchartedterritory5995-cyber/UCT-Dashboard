@@ -313,6 +313,22 @@ SETTINGS_COMMAND = "chartsettings"
 MULTI_COMMAND = "charts"
 MULTI_MAX = 4
 
+BUZZ_COMMAND = "buzz"
+
+
+def _window_choices() -> dict[str, str]:
+    """The picker's options, DERIVED from buzz_boards.WINDOW_LABEL — the one
+    authority on which windows exist. A window added there appears here the
+    same day, and one that exists here but has no bounds cannot happen.
+    The display form is the prose label with its first letter raised
+    ("since the open" -> "Since the open"), so the picker and the board's own
+    header can never name the same window two different ways."""
+    from api.services import buzz_boards
+    return {k: v[:1].upper() + v[1:] for k, v in buzz_boards.WINDOW_LABEL.items()}
+
+
+WINDOW_CHOICES = _window_choices()
+
 
 def parse_charts_command(interaction: dict, default_tf: str = "D") -> list:
     """/charts NVDA AMD AVGO -> one ChartRequest per symbol, in the order given
@@ -826,6 +842,24 @@ def build_settings_command() -> dict:
     }
 
 
+def build_buzz_command() -> dict:
+    """`/buzz` - what the room is talking about.
+
+    ONE command, one picker row. Bare = the board; a ticker = that name's
+    numbers. v19 shrank this picker from 6 rows to 3 for exactly this reason,
+    so `/trending` and `/mentions` are deliberately not separate commands."""
+    return {
+        "name": BUZZ_COMMAND, "type": 1,
+        "description": "What the room is talking about - run it bare for the board, or name a ticker",
+        "options": [
+            {"name": "ticker", "type": 3, "required": False, "autocomplete": True,
+             "description": "One ticker (leave blank for the board)"},
+            {"name": "window", "type": 3, "required": False, "description": "Time window",
+             "choices": [{"name": label, "value": value} for value, label in WINDOW_CHOICES.items()]},
+        ],
+    }
+
+
 # The ONLY servers this app serves. A public bot (or a stale guild install
 # made before the app was locked down) can still deliver interactions from
 # anywhere; every command handler refuses anything outside this set. Override
@@ -888,7 +922,8 @@ def build_commands(activity: bool = False) -> list:
     # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
-    cmds = [build_chart_command(), build_alias_command(), build_settings_command()]
+    cmds = [build_chart_command(), build_alias_command(),
+            build_settings_command(), build_buzz_command()]
     if activity:
         cmds.append(build_launch_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]

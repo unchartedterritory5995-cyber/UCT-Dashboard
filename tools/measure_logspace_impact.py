@@ -7,12 +7,12 @@ the harness behind the table lived only in a session scratchpad — the same
 "a rail demanding a measurement nobody can reproduce is an instruction to guess"
 this repo already learned once.
 
-⭐ BOTH ARMS IN ONE PASS, ON IDENTICAL BARS. The detectors do
-`from ...trendlines import fit_trendline`, binding the name at import, so the
-forced-log-space arm is installed by rebinding the attribute ON EACH DETECTOR
-MODULE. Running the two arms over the same bars in the same process makes this
-a PAIRED comparison: any difference is the scale change and nothing else — not
-a different sample, not a different day's data.
+⭐ BOTH ARMS IN ONE PASS, ON IDENTICAL BARS. Each convergence detector reads a
+module-level `_LOG_SPACE` and passes it to `fit_trendline`, so an arm is
+installed by setting THAT CONSTANT on each detector module — the switch that
+ships, not a stand-in for it. Running the two arms over the same bars in the
+same process makes this a PAIRED comparison: any difference is the scale change
+and nothing else — not a different sample, not a different day's data.
 
 ⚠️ THE RESULT IS THE OPPOSITE OF THE OBVIOUS ONE. Log space ADDS detections
 rather than removing them: a channel holding a constant PERCENTAGE width widens
@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import functools
 import importlib
 import json
 import os
@@ -60,7 +59,6 @@ bars_sqlite._conn = lambda: _RO_BARS
 
 from tools.probe import Probe                                       # noqa: E402
 from tools.run_lift_ledger import load_universe                     # noqa: E402
-from api.services.pattern_engine.primitives import trendlines as TL  # noqa: E402
 from api.services.pattern_engine.primitives.context import build_context  # noqa: E402
 from api.services.pattern_engine import detect_one                  # noqa: E402
 from api.services.voice_tool_impls import (                         # noqa: E402
@@ -77,19 +75,52 @@ _MODULES = ["api.services.pattern_engine.detectors.classical." + n
 
 
 def force_log_space(on: bool) -> int:
-    """Rebind `fit_trendline` on every convergence detector module."""
-    forced = (functools.partial(TL.fit_trendline, log_space=True)
-              if on else TL.fit_trendline)
+    """Flip THE SHIPPED SWITCH on every convergence detector module.
+
+    ⛔⛔ THIS USED TO REBIND `fit_trendline` ITSELF to a partial carrying
+    `log_space=True`. That worked only while the call sites passed no keyword.
+    They now pass `log_space=_LOG_SPACE` explicitly — and an explicit keyword
+    BEATS a partial's — so the rebinding arm would have been silently inert in
+    one direction: the "raw" arm would still have fitted in log space and the
+    table would have reported a change of zero. Flipping the module constant
+    the call sites actually read measures the switch that ships.
+    """
     n = 0
     for name in _MODULES:
         try:
             mod = importlib.import_module(name)
         except ImportError:
             continue
-        if hasattr(mod, "fit_trendline"):
-            mod.fit_trendline = forced
+        if hasattr(mod, "_LOG_SPACE"):
+            mod._LOG_SPACE = on
             n += 1
     return n
+
+
+def _assert_the_flip_reaches_the_fit() -> None:
+    """Prove the arm switch changes a real answer before trusting any table.
+
+    A pure constant-percentage rise is EXACTLY straight in log space and curved
+    in price space, so the two arms must disagree on the fitted slope of one of
+    the detectors' own boundaries. If they agree, the flip is not reaching
+    `fit_trendline` and every number below is one arm measured twice.
+    """
+    import api.services.pattern_engine.detectors.classical.channel as probe
+    pivots = [{"t": i, "price": 100.0 * (1.03 ** i), "type": "high",
+               "strength": 50, "bar_index": i} for i in range(0, 41, 10)]
+    seen = {}
+    for arm in (False, True):
+        force_log_space(arm)
+        seen[arm] = probe.fit_trendline(
+            pivots, log_space=probe._LOG_SPACE)["slope"]
+    if seen[False] == seen[True]:
+        raise SystemExit(
+            "both arms fitted the same slope (%r) on a series that is straight "
+            "in log space and curved in price space — the switch is not "
+            "reaching the fitter, so the table would be one arm twice"
+            % (seen[False],))
+    print("[setup] arm switch verified: slope %.6f (raw) vs %.6f (log)"
+          % (seen[False], seen[True]))
 
 
 def main() -> int:
@@ -100,13 +131,18 @@ def main() -> int:
 
     _ensure_pattern_detectors_loaded()
     patched = force_log_space(False)
-    print("[setup] %d of %d detector modules expose `fit_trendline`"
+    print("[setup] %d of %d detector modules expose `_LOG_SPACE`"
           % (patched, len(_CONVERGENCE)))
     if patched != len(_CONVERGENCE):
         raise SystemExit(
-            "a convergence detector does not import fit_trendline by name — "
-            "the paired arm would silently not apply to it, and the table "
+            "a convergence detector does not read a module-level `_LOG_SPACE` "
+            "— the paired arm would silently not apply to it, and the table "
             "would understate the change")
+    # ⛔ NON-VACUITY, and it is not free: the flip must actually reach the fit.
+    # A detector that read `_LOG_SPACE` once at import, or bound the keyword at
+    # definition time, would leave both arms identical while every check above
+    # still passed.
+    _assert_the_flip_reaches_the_fit()
 
     bars_by = load_universe(args.sample)
     print("[universe] %d tickers" % len(bars_by))

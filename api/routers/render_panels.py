@@ -34,24 +34,35 @@ _RL: list[float] = []
 _RL_MAX_PER_MIN = 60
 
 
-def _rate_limit() -> None:
+# ⛔ /r/buzz needs its OWN budget. Every other /r/* endpoint is driven by the
+# once-a-day newsletter (~5 requests); /r/buzz is driven by MEMBERS running
+# /buzz, one chart-renderer fetch each. Sixty invocations in a minute -- an
+# announcement day in a 750-member room -- would exhaust the shared window and
+# 429 the Morning Wire's /r/catalysts, /r/calendar and /r/movers with it.
+# Separate buckets mean member traffic can only ever starve itself.
+_RL_BUCKETS: dict[str, list[float]] = {}
+_RL_BUZZ_MAX_PER_MIN = 60
+
+
+def _rate_limit(bucket: str = "default", limit: int | None = None) -> None:
     now = time.time()
-    _RL[:] = [t for t in _RL if now - t < 60.0]
-    if len(_RL) >= _RL_MAX_PER_MIN:
+    hits = _RL_BUCKETS.setdefault(bucket, _RL if bucket == "default" else [])
+    hits[:] = [t for t in hits if now - t < 60.0]
+    if len(hits) >= (limit if limit is not None else _RL_MAX_PER_MIN):
         raise HTTPException(status_code=429, detail="rate limited")
-    _RL.append(now)
+    hits.append(now)
 
 
 def _et_today() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
 
-def _check_token(token: str) -> None:
+def _check_token(token: str, bucket: str = "default", limit: int | None = None) -> None:
     want = os.environ.get("CHART_RENDER_TOKEN", "")
     # Fail CLOSED when unset, constant-time compare when set.
     if not want or not hmac.compare_digest(str(token), want):
         raise HTTPException(status_code=403, detail="forbidden")
-    _rate_limit()
+    _rate_limit(bucket, limit)
 
 
 # Thesis phrasings the synthesizer uses when it found NOTHING — a non-catalyst
@@ -108,6 +119,55 @@ def _rev_m(v):
     except (TypeError, ValueError):
         return None
     return v / 1e6 if abs(v) >= 1e6 else v
+
+
+@router.get("/r/buzz")
+def buzz_panel(token: str = "", window: str = "open"):
+    """Discord `/buzz` board data — token-gated public read over the buzz
+    ticker-mention store. Serves the headless `/r/buzz` React page that
+    chart-renderer screenshots for the Discord board image.
+
+    ⛔ PRIVACY: never add author_id, message_id, or jump links to this payload.
+    Those identify a member and belong only in the authenticated `/buzz`
+    command reply, answered inside the member's own server. This endpoint's
+    render token ships inside the frontend JS bundle (see module docstring),
+    so anything returned here is effectively public — aggregate counts and
+    tickers only.
+    """
+    # Own rate-limit bucket: member-driven traffic must never 429 the
+    # newsletter's once-a-day renders. See _rate_limit above.
+    _check_token(token, bucket="buzz", limit=_RL_BUZZ_MAX_PER_MIN)
+    import time
+    from api.services import buzz_boards
+    now = int(time.time())
+    # `window` arrives as a free-text query param. Normalizing HERE keeps the
+    # bounds and the label answering the same question -- window_bounds now
+    # refuses an unknown name outright rather than quietly serving today's.
+    window = buzz_boards.normalize_window(window)
+    every = buzz_boards.full_board(window, now)        # EVERY ticker, ranked
+    head, tail = every[:14], every[14:]
+    multi, singles = buzz_boards.split_tail(tail)
+    # ⛔ ONE heat computation per request. This called heat_board TWICE and
+    # threw one result away; it is by far the most expensive query on the
+    # branch (one COUNT per candidate per prior session -- measured 24ms vs
+    # 0.8ms for top_board on a 36.6k-row store, and it grows with room
+    # activity), and it runs on the anyio worker the render already holds.
+    heat = buzz_boards.heat_board(now, limit=12)
+    hot = {h["ticker"]: h["ratio"] for h in heat}
+    for r in head:
+        r["hot"] = hot.get(r["ticker"])
+    return {
+        "window": window,
+        "label": buzz_boards.WINDOW_LABEL.get(window, window),
+        "rows": head,
+        "tail":    [{"ticker": t["ticker"], "mentions": t["mentions"],
+                     "hot": hot.get(t["ticker"])} for t in multi],
+        "singles": singles,
+        "heat": heat[:4],
+        "totals": buzz_boards.totals(window, now),
+        "coverage": buzz_boards.coverage(now),
+        "asOf": now,
+    }
 
 
 @router.get("/r/earnings-history")

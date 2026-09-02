@@ -481,7 +481,7 @@ export default function MyStocksHub() {
     <div className={styles.hubPage}>
       {/* Header */}
       <div className={styles.hubHeader}>
-        <Link to="/calendar" className={styles.hubBack}>← Calendar</Link>
+        <Link to="/calendar" className={styles.hubBack}>← UCT Terminal</Link>
         <span className={styles.hubTitle}><UIcon name="star-fill" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />My Stocks</span>
 
         {/* ⚙ Source customizer — same pattern as CalendarHeader */}

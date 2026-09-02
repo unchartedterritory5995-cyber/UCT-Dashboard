@@ -48,7 +48,7 @@ describe('a member can write their own Pine screener', () => {
     // just fixed them — a corpus blind beside what it measures. The four scripts
     // this door still refuses were added deliberately, so the number is
     // 30/34 and the residual is visible rather than absent.
-    expect(FILES.length).toBeGreaterThanOrEqual(36)
+    expect(FILES.length).toBeGreaterThanOrEqual(38)
     for (const r of RESULTS) {
       expect(r.source, `${r.name} is not v6`).toContain('//@version=6')
       // ⛔ A SCREEN NEEDS SOMETHING TO FILTER ON. Without this a fixture could be
@@ -58,11 +58,11 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ 34 translate, and the TWO that do not are named with their reason', () => {
+  it('⭐⭐ 36 translate, and the TWO that do not are named with their reason', () => {
     // ⏳ THE FLOOR MOVES ONE WAY. Raising it is the point of this file; a drop
     // reds here with the roster rather than as a silent number change.
     const passed = RESULTS.length - MISSES.length
-    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(34)
+    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(36)
 
     // ⛔⛔ A ROSTER, NOT A COUNT — and the two halves are different KINDS of
     // residual, which is the whole reason to name them:
@@ -100,7 +100,15 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ every one of them REACHES A SCREEN, not just a formula', () => {
+  it('⭐⭐ every one of them YIELDS A BOOLEAN, not just a formula', () => {
+    // ⚰️ THIS CASE WAS TITLED "REACHES A SCREEN" AND THAT WAS AN OVERCLAIM. Yielding
+    // a boolean is ONE of the gates a screen has to pass; `assert_scannable` on
+    // the server has five more, and `17-above-vwap` clears this one and is
+    // refused by another — `[gate:cadence]`, because `vwap` accumulates within a
+    // session and the sweep runs on daily bars. It answered 0 of 3,742 symbols
+    // every night before that gate existed. See `tests/test_scan_cadence_gate.py`.
+    // ⭐ THE CHECK BELOW IS UNCHANGED AND STILL WORTH MAKING; only the sentence
+    // about what it proves was too large.
     // ⛔⛔ TRANSLATING IS NOT THE PRODUCT CLAIM. A column that yields a NUMBER
     // cannot be screened honestly — `doorScorecard` records the defect it causes:
     // the `yields` gate is "the one that stops a numeric column being screened as

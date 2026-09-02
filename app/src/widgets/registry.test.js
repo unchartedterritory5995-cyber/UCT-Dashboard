@@ -47,7 +47,7 @@ describe('widget registry — metadata pins', () => {
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
-      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
+      alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
     })
@@ -58,7 +58,7 @@ describe('widget registry — metadata pins', () => {
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Theme Tracker',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
-      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
+      alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
     })
@@ -69,7 +69,7 @@ describe('widget registry — metadata pins', () => {
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
-      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
+      alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
     })

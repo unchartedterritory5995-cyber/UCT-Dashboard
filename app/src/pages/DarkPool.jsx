@@ -1841,7 +1841,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
 
       {/* ── Notable Activity + Biggest Prints (side by side) ─────── */}
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
-        <button onClick={()=>{
+        <button className="dp-fetchcap" onClick={()=>{
           const tickers = allItems.slice(0,50).map(i=>i.t);
           fetchMktCap(tickers);
         }}

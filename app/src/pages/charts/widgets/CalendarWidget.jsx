@@ -308,7 +308,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', {
       date: selected, econStars, selectedSym, tbdOpen, settings,
-    }, { label: `Calendar ${selected}` }))
+    }, { label: `UCT Terminal ${selected}` }))
   }, [selected, econStars, selectedSym, tbdOpen, settings])
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
@@ -368,7 +368,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Calendar Settings"
+          title="UCT Terminal Settings"
           widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"
@@ -416,7 +416,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
-          title="Calendar widget settings"
+          title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
       </div>
@@ -424,7 +424,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       {/* Body — tabIndex + onKeyDown make it arrow-navigable once a row is clicked. */}
       <div className={styles.list} ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
         {isLoading && !day && (
-          <div className={styles.loading}><span className={styles.spinner} />Loading calendar…</div>
+          <div className={styles.loading}><span className={styles.spinner} />Loading UCT Terminal…</div>
         )}
 
         {nothing && (

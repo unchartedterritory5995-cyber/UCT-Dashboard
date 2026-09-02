@@ -221,81 +221,47 @@ def test_the_reset_actually_resets():
 
 # ─── the degradation curve, measured because IBD publishes none ─────────────
 
-def test_the_measured_curve_travels_with_the_numbers():
-    """⭐⭐ IBD ASSERTS THE STAGE PREFERENCE FOUR WAYS AND QUANTIFIES IT ZERO
-    TIMES. We measured it on our own universe and the answer is
-    STRUCTURE-DEPENDENT: ema-crossback degrades +18.5pp early-over-late, and
-    darvas-box shows -1.4pp — indistinguishable from zero, and pointing the
-    wrong way for a blanket rule.
+def test_the_retraction_travels_with_the_numbers():
+    """⛔⛔ THE STAGE EFFECT WAS PUBLISHED AND THEN RETRACTED, and this rail
+    pins the retraction rather than the claim.
 
-    ⛔ THE CONSEQUENCE IS A DECISION, NOT A NOTE: the stage filter is not
-    applied globally. This rail keeps the evidence attached to it."""
+    A first reading on a 900-bar tail put `ema-crossback` at +18.5pp
+    early-over-late and called it real; the `base_stage` column was wired for
+    that structure BECAUSE of it. On full history it is -0.5pp +/- 2.0. The
+    cause was MEASURED, not guessed: re-staging the SAME anchors on the short
+    history gives -0.7pp +/- 2.1, so the counter was never the problem -- 65
+    fired anchors became 4,409. A 900-bar tail reaches about three and a half
+    years, so +18.5pp was a recent-era reading of a 74-anchor bucket.
+
+    ⭐ THE FIRST NOTE REPORTED ITS OWN LIMITATION CORRECTLY AND STILL POINTED
+    AT THE WRONG RISK. It said the short tail "biases stages LOW" and would
+    UNDERSTATE a real effect. That was true. The risk was never the counter; it
+    was the sample.
+    """
     from api.services.screener import lift_ledger as ll
-    lim = ll.load().get("limitations") or ""
-    assert "DEGRADATION CURVE IBD NEVER PUBLISHED" in lim, (
-        "the measured stage curve is no longer recorded where the numbers are")
-    # ⛔ CASE-INSENSITIVE. A rail that pins the CASING of prose fails on a
-    # reword that changed nothing and trains its author to fight it rather than
-    # read it — the same fix this repo already made to the survivorship rail.
-    low = lim.lower()
-    for must in ("structure-dependent", "not applied globally", "biases stages low"):
+    low = (ll.load().get("limitations") or "").lower()
+    assert "base-stage effect: retracted" in low, (
+        "the ledger no longer carries the retraction -- if the effect was "
+        "re-established on a deeper footing, say so deliberately")
+    for must in ("no structure shows a resolvable stage effect",
+                 "the cause is the anchor set", "-0.5pp"):
         assert must in low, (
-            f"the note lost {must!r}: it must carry the finding, the decision "
-            f"it supports, AND the limit that could hide a real effect")
+            f"the retraction lost {must!r}: it must carry the corrected number, "
+            f"WHAT caused the reversal, AND that no structure survives -- one "
+            f"without the others reads as a tweak rather than a retraction")
 
 
-# ─── the wiring: ema-crossback only, and it must stay that way ──────────────
+def test_the_stage_is_NOT_wired_to_any_surface():
+    """⛔ THE WIRING WENT WITH THE EVIDENCE. `base_stage` was a snapshot
+    column and a screener filter, scoped to `ema-crossback` on a +18.5pp reading
+    that did not survive. Both are removed; `base_count.py` and
+    `tools/measure_stage_effect.py` remain so the question can be re-asked.
 
-def test_the_stage_is_wired_for_ema_crossback_and_no_other_structure():
-    """⭐⭐ SCOPED TO WHAT WAS MEASURED. `bases.classify` populates `base_stage`
-    only when `ema-crossback` fired, because that is the only structure whose
-    stage effect we measured (+18.5pp early-over-late). darvas-box read -1.4pp
-    against a ~8.3pp standard error — the wrong sign and indistinguishable from
-    zero — so filling the column for it would ship IBD's blanket assertion in
-    place of our evidence."""
-    from api.services.screener import bases
-    src = (ROOT / "api/services/screener/bases.py").read_text(encoding="utf-8")
-    assert 'if "ema-crossback" in relation_keys' in src, (
-        "the base_stage computation is no longer scoped to ema-crossback — it "
-        "is either unwired or applied to structures it was never measured on")
-    assert "base_stage" in bases._NULL, (
-        "a refused classify() no longer carries the base_stage KEY; a missing "
-        "key and a null value are different facts downstream")
-
-
-def test_the_stage_needs_full_history_so_it_reads_bars_full():
-    """⛔ The count is stateful over a symbol's whole price history — a windowed
-    `detect()` cannot compute it from what it is given, which is exactly why
-    this lives in `classify` and takes `bars_full`."""
-    src = (ROOT / "api/services/screener/bases.py").read_text(encoding="utf-8")
-    assert "base_count.stage_at(bars_full or bars)" in src, (
-        "the stage is being computed from the working window instead of the "
-        "full series — it will silently under-count on every symbol")
-
-
-def test_the_column_and_the_filter_both_exist():
-    from api.services.screener import snapshot_db, filters
-    assert "base_stage" in snapshot_db.COLUMNS
-    assert "base_stage" in filters.FILTERS
-    assert "EMA Crossback" in filters.FILTERS["base_stage"]["label"], (
-        "the filter's label no longer names its scope. The column is null for "
-        "every other structure, so a member screening it on the whole universe "
-        "silently drops them — the label is where that is disclosed.")
-
-
-def test_the_stage_is_NOT_a_criterion_of_the_structure():
-    """⛔⛔ A REGRESSION THIS CAUGHT ONCE. IBD's stage preference is sourced, so
-    a criterion carrying it gets a `source_id` — and `structure_origin` keys on
-    source_id presence, which flipped EMA Crossback from OURS to PUBLISHED. It
-    is ours; a criterion in that same structure says no primary source exists
-    for any number in it.
-
-    ⭐ A criterion says what the structure IS. The stage says what we FILTER it
-    by. Only the first belongs in `criteria`."""
-    from api.services.screener import base_catalog as bcat
-    st = bcat.by_key("ema-crossback")
-    assert bcat.structure_origin(st) == "uct", (
-        f"EMA Crossback now reads as {bcat.structure_origin(st)!r}. Something "
-        f"gave one of its criteria a source_id — most likely IBD's stage "
-        f"preference, which is a filter we apply and not part of the "
-        f"structure's definition.")
+    ⭐ POINTS BOTH WAYS: re-wire it and this goes red, so whoever does has to
+    name the measurement that justifies it."""
+    from api.services.screener import snapshot_db, filters, bases
+    assert "base_stage" not in snapshot_db.COLUMNS, (
+        "`base_stage` is a snapshot column again -- name the measurement that "
+        "justifies surfacing it, because the one that did has been retracted")
+    assert "base_stage" not in filters.FILTERS
+    assert "base_stage" not in bases._NULL

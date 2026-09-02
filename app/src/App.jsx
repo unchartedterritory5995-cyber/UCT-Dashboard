@@ -147,6 +147,7 @@ const EconRender = lazy(() => import('./pages/EconRender'))
 const EarnCardsRender = lazy(() => import('./pages/EarnCardsRender'))
 const EarnResultsRender = lazy(() => import('./pages/EarnResultsRender'))
 const MoversRender = lazy(() => import('./pages/MoversRender'))
+const BuzzRender = lazy(() => import('./pages/BuzzRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
 const Support = lazy(() => import('./pages/Support'))
@@ -284,7 +285,7 @@ export default function App() {
           '/landing', '/pricing', '/compare', '/brokers', '/terms', '/privacy',
           '/r/chart', '/r/activity', '/r/catalysts', '/r/calendar', '/r/internals', '/r/tweets',
           '/r/flow', '/r/breadth', '/r/themes', '/r/book', '/r/econ',
-          '/r/earncards', '/r/earnresults', '/r/movers',
+          '/r/earncards', '/r/earnresults', '/r/movers', '/r/buzz',
           // Pre-launch, "/" is the COMING SOON holding page — same reasoning as
           // the marketing routes above: social traffic must not wait 9 seconds.
           ...(COMING_SOON ? ['/'] : []),
@@ -403,6 +404,7 @@ export default function App() {
             <Route path="/r/earncards" element={<EarnCardsRender />} />
             <Route path="/r/earnresults" element={<EarnResultsRender />} />
             <Route path="/r/movers" element={<MoversRender />} />
+            <Route path="/r/buzz" element={<BuzzRender />} />
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>

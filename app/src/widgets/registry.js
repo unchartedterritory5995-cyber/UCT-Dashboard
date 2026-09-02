@@ -384,7 +384,7 @@ export const WIDGET_REGISTRY = deepFreeze({
     liveCapable: false,
   },
   calendar: {
-    labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
+    labels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
@@ -561,7 +561,7 @@ export const WIDGET_CATALOG = {
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
   alerts:       { icon: 'bell',     blurb: 'Your price alerts, updating live.' },
-  calendar:     { icon: 'calendar', blurb: 'Earnings & market events calendar.' },
+  calendar:     { icon: 'calendar', blurb: 'Earnings & market events for any day.' },
   optionsflow:  { icon: 'flow',     blurb: 'Live options order-flow tape.', live: true },
   nhnl:         { icon: 'wave',     blurb: 'New highs vs new lows, live by group.', live: true },
   nhnlPulse:    { icon: 'bolt',     blurb: 'Real-time high/low momentum pulse.', live: true },
