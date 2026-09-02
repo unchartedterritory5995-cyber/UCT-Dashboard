@@ -191,6 +191,28 @@ def alias_candidates_as_of(alias: str, as_of: str, db_path: str | None = None) -
     return [r[0] for r in rows]
 
 
+def open_aliases_with_lifecycle(db_path: str | None = None) -> dict[str, list[tuple[str, str]]]:
+    """Checkpoint 7: every currently-open (`valid_to IS NULL`) alias, joined
+    to its entity's `lifecycle_state` — `{alias: [(entity_id, lifecycle_state), ...]}`.
+    A LIST per alias, not a single tuple: a genuine collision (two entities
+    both holding the same alias open — should not happen under the write
+    guard, but this read must not assume it was honored, same discipline as
+    `store.open_alias_candidates`) must stay visible as len > 1, never
+    silently collapsed to whichever row a dict comprehension happened to
+    keep last. The reconciliation job's ONLY read of the store's own state;
+    it never queries `delisted_registry` or any other legacy data source."""
+    conn = _conn(db_path)
+    rows = conn.execute(
+        "SELECT ea.alias, ea.entity_id, e.lifecycle_state "
+        "FROM entity_aliases ea JOIN entities e ON e.entity_id = ea.entity_id "
+        "WHERE ea.valid_to IS NULL"
+    ).fetchall()
+    out: dict[str, list[tuple[str, str]]] = {}
+    for alias, entity_id, lifecycle_state in rows:
+        out.setdefault(alias, []).append((entity_id, lifecycle_state))
+    return out
+
+
 # ── Write helpers (Checkpoint 3) ────────────────────────────────────────────
 # Every function below MUST be called while holding `_WRITE_LOCK` (enforced
 # by convention at the api.py call site, exactly mirroring bars_sqlite.py's

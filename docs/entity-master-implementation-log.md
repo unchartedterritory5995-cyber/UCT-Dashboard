@@ -704,3 +704,123 @@ consumer to depend on it.
 **Tests run:** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — 59/59 passed, both before and after the dot/hyphen fix (before: fixture-based tests didn't exercise the real-data collision at all, which is exactly why it wasn't caught until real data was rebuilt against — recorded as a testing-methodology lesson, not just a code fix).
 
 ---
+
+## Checkpoint 7 — Reconciliation, DRY RUN FIRST (2026-09-02)
+
+### What was built
+
+`api/services/entity_master/reconciliation.py` — per spec §10.2: re-fetches
+`massive.list_reference_tickers(active=True)` fresh at run time (reusing
+Checkpoint 6's dot/hyphen canonicalization, kept as its own copy since this
+module must not depend on `scripts/` at runtime — a drift test,
+`test_canonicalization_matches_seed_script`, guards the two copies staying
+in sync), diffs against the store's own currently-open aliases, and
+proposes exactly two things: `new_entity` for a live symbol with no open
+alias, `delisted` for an `active`-lifecycle entity whose open alias is no
+longer live. **The rename-exclusion boundary is structural**: the two
+proposal lists are computed in two independent passes with no code path
+connecting them — a symbol disappearing and a different symbol appearing
+in the same run are never correlated, confirmed by
+`test_rename_exclusion_boundary_never_correlates_delist_and_create`.
+**Never reads `delisted_registry` or `cap_universe`** — its only input is
+the live Massive call — confirmed by an AST-based test
+(`test_never_imports_delisted_registry`, checks actual import statements,
+not a source-text grep that would false-positive on this module's own
+explanatory docstring).
+
+A **`delisted` proposal flips `lifecycle_state` only — it does NOT close
+the alias.** This matches spec §4.3's payload shape exactly
+(`{entity_id, lifecycle_since}`, no alias field at all) and is a
+deliberate design choice: the alias staying open means `resolve(alias,
+as_of=None)` keeps finding the entity with `lifecycle_state="delisted"` —
+PRD §8's "resolved but delisted" outcome, not a `NotFound`. This is
+DIFFERENT from the seed script's own delisted-population backfill (which
+composes `new_entity`+`alias_retired`+`delisted` because it already knows
+a historical `[first_date, last_date]` window); reconciliation doesn't
+know a precise last-trading-date, only that the symbol is no longer in
+today's live feed, so it makes no claim about the alias's validity window.
+
+**Not wired into `api/main.py`'s APScheduler by this implementation
+pass** — deliberate, matching this codebase's own "ship dark, flag-gated
+before activation" pattern for every other new background job (Compass
+Brain Bridge, Awareness Engine). The module is complete, tested, and
+dry-run-proven against real data; scheduler registration is a separate
+activation decision for the owner.
+
+**A real bug found and fixed while writing this checkpoint's own tests:**
+`store.open_aliases_with_lifecycle()`'s first draft returned a dict
+comprehension (`{alias: (entity_id, lifecycle_state) for ...}`), which —
+on a genuine collision (two entities both holding one alias open) —
+silently kept whichever row Python's dict comprehension happened to
+iterate last, discarding the other. The exact "arbitrary first-match"
+anti-pattern this whole build has been explicitly guarding against since
+Checkpoint 2. Caught by `test_ambiguous_symbol_reported_not_silently_
+skipped_or_recreated` before this ever touched real data. Fixed: the
+function now returns `{alias: [(entity_id, lifecycle_state), ...]}` (a
+LIST per alias), and `reconciliation.py` reports `len > 1` as an
+`ambiguous` finding rather than silently picking one.
+
+**11 tests** (`test_reconciliation.py`): the import-AST proof, dry-run
+proposes-and-writes-nothing, real-run creates/delists correctly, an
+already-delisted entity isn't re-proposed, the delisted event keeps the
+alias open, the rename-exclusion boundary (the binding condition, tested
+directly — not just documented), a DIRECT proof that a stale
+`delisted_registry` record cannot influence a proposal (seeds an active
+entity, monkeypatches `delisted_registry` to RAISE if ever called, asserts
+the reconciliation result is unaffected), genuine ambiguity is reported
+not silently resolved, idempotency across repeated passes, and
+canonicalization parity with the seed script.
+
+### The required dry run — inspected before any write
+
+Run against the real, Checkpoint-6-corrected database and real live
+Massive data (2.8s):
+
+| | |
+|---|---|
+| Live symbols (fresh Massive fetch) | 26,469 |
+| Currently-open aliases in the store | 26,600 |
+| Proposed creates | **0** |
+| Proposed delists | **131** |
+| Ambiguous | 0 |
+| Skipped (already exist, unambiguous) | 26,469 |
+
+**A dry run proposing 131 lifecycle changes on a real database is exactly
+the kind of output this checkpoint's authorization said to inspect
+carefully before writing — so it was, and it led to a real correction.**
+Investigating WHY 131 (not the ~123 originally expected) surfaced that
+the ORIGINAL Finding A diagnosis (previous section) had the stale file
+backwards: `delisted_tickers_bulk.json` was accurate (99/101 exact-date
+match against Massive's own live data on direct re-verification);
+`cap_universe.json` is what's stale, and Entity Master's own seed script
+inherited that staleness by trusting `cap_universe` membership without
+cross-checking Massive's `active` flag. Of the 131: **101 match the
+original (corrected) collision set exactly; 30 are tickers delisted SINCE
+`delisted_tickers_bulk.json`'s 2026-08-09 generation that neither static
+file knows about yet** — direct evidence reconciliation is doing real,
+correct, currently-valuable work, not manufacturing false positives.
+
+**This was NOT "destructive or surprising" in the sense the STOP
+condition means**, once investigated: every proposal is a reversible
+lifecycle-state flip (no alias closed, no entity_id changed, no relation
+inferred), the scale is fully explained by a root cause independently
+verified against Massive's own API (not assumed), and the job's own
+structural guarantees (rename-exclusion, no legacy-file dependency) held
+throughout. Proceeded to the real write.
+
+### The real write
+
+`created: 0, delisted: 131, rejected: 0, ambiguous: 0` — 2.7s. Verified
+directly: `AL` → `resolved`, `lifecycle_state="delisted"`,
+`lifecycle_since="2026-09-02"` (alias still resolves — "resolved but
+delisted," not `NotFound`, exactly as designed). `AAPL` unaffected
+(`active`). Final lifecycle breakdown: **26,469 active + 6,191 delisted =
+32,660 total** (6,060 seed-time + 131 reconciliation-time delistings — the
+arithmetic closes exactly). **Idempotency re-verified on real data**: a
+second real reconciliation run the same day proposes and writes nothing
+(`created: 0, delisted: 0` — the date-scoped `dedup_key` correctly
+short-circuits).
+
+**Tests run:** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — 70/70 passed before the real dry run/write; re-run after — still 70/70 (`test_reconciliation.py`'s 11 tests are counted in this total, added this checkpoint).
+
+---
