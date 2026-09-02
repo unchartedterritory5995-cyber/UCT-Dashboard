@@ -80,7 +80,7 @@ import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } f
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
 // imports this file, so the graph stays a tree.
-import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
+import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.js'
 // ⭐⭐ THE INTERPRETER'S OWN ARITHMETIC, BORROWED RATHER THAN COPIED — see
 // `constantValueOf`. `FN` is the shipped implementation of every table function,
 // and for a POINTWISE entry each one is documented in place as "the pointwise
@@ -3103,6 +3103,33 @@ class Resolver {
    *  the new binding carries the env as it stood when the right-hand side was
    *  written. That is single-assignment form, reached without renaming anything a
    *  member would see. */
+  /** ⭐⭐ ONE SENTENCE FOR "THIS NAME WAS NEVER GIVEN A VALUE", built once.
+   *
+   *  ⚰️ `didYouMean` HAS SHIPPED IN `sentence.js` SINCE THE NATIVE READ-BACK WAS
+   *  WRITTEN, and its own docblock names this exact failure: *"For a member who
+   *  typed `clse` that is a wall of text with the answer buried in the middle of
+   *  it."* `pine.js` never imported it, so a one-character typo came back as
+   *  "this Pine name was never given a value in the pasted script — `clsoe`" and
+   *  stopped there.
+   *
+   *  ⛔ THERE ARE THREE SITES THAT RAISE IT and this is a method so there is one
+   *  sentence, not three. Wiring the first one alone is exactly how two of them
+   *  would have kept the old message — measured: the typo path does not go
+   *  through `resolveBinding` at all.
+   *
+   *  ⚠️ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the names
+   *  it bound itself, plus the bar fields and clock names the table declares.
+   *  Offering the whole vocabulary would put `close` and a hundred strangers at
+   *  the same edit distance. */
+  undefinedName(name, tok) {
+    return new PineRefusal('pine:undefined',
+      `${REFUSALS['pine:undefined']} — \`${name}\`${didYouMean(name, [
+        ...this.env.keys(),
+        ...Object.keys(this.table.series || {}),
+        ...Object.keys(this.table.clock || {}),
+      ])}`, locate(tok))
+  }
+
   resolveBinding(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
@@ -3115,8 +3142,16 @@ class Resolver {
         }
         return clockLeaf(clockKey)
       }
-      throw new PineRefusal('pine:undefined',
-        `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+      // ⭐⭐ A ONE-CHARACTER TYPO SHOULD SAY SO. `didYouMean` has shipped in
+      // `sentence.js` since the native read-back was written, and its own
+      // docblock names this exact failure — yet `pine.js` never imported it, so
+      // `ta.rsi(clsoe, 14)` came back "this Pine name was never given a value in
+      // the pasted script — `clsoe`" and stopped there.
+      // ⛔ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the
+      // names it bound itself, plus the bar fields and clock names the table
+      // declares. Offering the whole vocabulary would put `close` and a hundred
+      // strangers at the same distance.
+      throw this.undefinedName(name, tok)
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
     if (bound.kind === 'state') {
@@ -3280,8 +3315,7 @@ class Resolver {
       // call's arguments out of the outer call's frame.
       const frame = this.frames.pop()
       if (!frame) {
-        throw new PineRefusal('pine:undefined',
-          `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+        throw this.undefinedName(name, tok)
       }
       try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
     }
@@ -3903,8 +3937,7 @@ class Resolver {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
     }
-    throw new PineRefusal('pine:undefined',
-      `${REFUSALS['pine:undefined']} — \`${name}\``, locate(node.tok))
+    throw this.undefinedName(name, node.tok)
   }
 
   /** Did the pasted script DEFINE this name as a function of its own?
@@ -4914,8 +4947,14 @@ class Resolver {
           + ', and this table has RULED on that name: ' + rulingLead(ruled),
           locate(tok))
       }
+      // ⭐ THE SUGGESTION COMES FIRST, THE FULL LIST STILL FOLLOWS — the native
+      // door's own words for the same problem (`sentence.js`). Sixty-four names
+      // is the answer buried in a wall of text; one name in front of it is the
+      // answer.
       throw new PineRefusal('pine:function',
-        `${REFUSALS['pine:function']} — \`${pineName}\`. This table declares `
+        `${REFUSALS['pine:function']} — \`${pineName}\``
+        + `${didYouMean(bare, Object.keys(this.table.functions))}`
+        + '. This table declares '
         + `${Object.keys(this.table.functions).sort().join(', ')}`, locate(tok))
     }
     const spec = this.table.functions[key]
