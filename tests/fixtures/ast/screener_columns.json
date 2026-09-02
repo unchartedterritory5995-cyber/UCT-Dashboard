@@ -2534,6 +2534,78 @@
      }
     ]
    }
+  },
+  {
+   "id": "38-switch-smoothing-choice",
+   "source": "close > ema(close, 50) && volume > sma(volume, 20) ? 1 : 0",
+   "ast": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "volume"
+         },
+         {
+          "type": "call",
+          "name": "sma",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 20
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
   }
  ]
 }

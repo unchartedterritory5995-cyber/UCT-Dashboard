@@ -384,7 +384,7 @@ export const WIDGET_REGISTRY = deepFreeze({
     liveCapable: false,
   },
   calendar: {
-    labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
+    labels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },

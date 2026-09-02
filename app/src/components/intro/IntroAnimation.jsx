@@ -270,7 +270,7 @@ export default function IntroAnimation() {
           <span className={styles.pill}>Watchlists</span>
           <span className={styles.pill}>Scanner</span>
           <span className={styles.pill}>Options Flow</span>
-          <span className={styles.pill}>Calendar</span>
+          <span className={styles.pill}>UCT Terminal</span>
         </div>
       </div>
     </div>
