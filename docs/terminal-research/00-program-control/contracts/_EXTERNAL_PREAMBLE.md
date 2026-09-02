@@ -16,6 +16,14 @@ Every claim carries a URL and the date you fetched it. Quote sparingly (≤40 wo
 
 Separate for every product: verified (primary evidence) · demonstrated (seen in official video/demo transcript) · claimed (marketing) · reported (practitioner) · speculated. Distinguish current from historical capability; note versions and dates.
 
+## Search budget (added 2026-09-02 11:40 UTC)
+
+The `WebSearch` tool has a SHARED per-session cap that earlier roles exhausted (200/200). Assume `WebSearch` will fail or return nothing. Use instead, in this order:
+1. **WebFetch on known URLs**: the product's own help center, docs, pricing, blog, release notes, YouTube video pages (for transcripts/descriptions), university library guides, Wikipedia (for names/dates only).
+2. **Browser search**: load the browser tools via ToolSearch (`mcp__claude-in-chrome__tabs_context_mcp`, `tabs_create_mcp`, `navigate`, `get_page_text`, `tabs_close_mcp`), create ONE new tab, navigate to `https://www.google.com/search?q=<query>` (or Bing), read the results with `get_page_text`, follow promising links in the same tab, and CLOSE the tab when done. One tab per role; never leave tabs open; never interact with forms, sign-ins, or captchas.
+3. **WebFetch on Bing** as a last resort: `https://www.bing.com/search?q=%22Product+Name%22+topic` (quote the product name; the extractor otherwise mis-tokenizes).
+Record in GAPS which channel you used and any query you could not run.
+
 ## Output structure (mandatory)
 
 Frontmatter first:
