@@ -22,8 +22,12 @@
 // list of indicator names in this file. `ta.rsi` resolves because `rsi` is a key
 // of `TABLE.functions`; the day another key lands there, the Pine name that
 // normalises to it works with nothing here changing, and its ARITY and its
-// ARGUMENT KINDS are read off the same declaration. `PINE_NAME_ALIASES` below is
-// spelling only — it renames, it never asserts that anything exists.
+// ARGUMENT KINDS are read off the same declaration. RENAMING is spelling only —
+// a `PINE_CALL_SHAPES` entry whose `table` differs from its key, like
+// `log → ln`, renames and never asserts that anything exists.
+// ⚰️ THIS PARAGRAPH NAMED A `PINE_NAME_ALIASES` MAP THAT WAS NOT IN THE FILE.
+// The capability was real and the map was not, so anyone looking for the place
+// to add a spelling found nothing and concluded there was none.
 //
 // ⛔ EVERY UNSUPPORTED CONSTRUCT REFUSES BY NAME, AT ITS OWN TOKEN. Each refusal
 // carries `{guard, message, line, column, token}` and the source line with a
@@ -533,6 +537,21 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // than assuming it.
   min: { table: 'min', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
   max: { table: 'max', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
+  // ⭐ `math.pow(base, exponent)` ONTO `pow(left, right)`. Two `series` slots make
+  // this fail closed without a measured order — the same gate `max` needed — and
+  // unlike `max` the order is NOT symmetric, so it is written down rather than
+  // assumed: the table reads `{0} raised to the power {1}`, which is base then
+  // exponent, and Pine names its parameters in that order too.
+  pow: { table: 'pow', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
+  // ⭐⭐ `math.log` IS THE NATURAL LOG AND THIS TABLE CALLS IT `ln`, so the only
+  // thing missing was the spelling. A shape renames through `shape.table`, which
+  // is the mechanism this file's header already credits to a `PINE_NAME_ALIASES`
+  // map that does not exist — renaming has always been a shape with a `build`
+  // that changes nothing.
+  // ⛔ `math.log10` NEEDS NO ENTRY: the table declares `log10` under that exact
+  // name, so it resolves by the ordinary path and adding a shape would be a
+  // second statement of the same fact.
+  log: { table: 'ln', pineArity: 1, build: [{ pine: 0 }] },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
   stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
