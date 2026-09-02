@@ -39,6 +39,10 @@ def channels() -> list[str]:
     return [c.strip() for c in raw.split(",") if c.strip()]
 
 
+# Longest a 429's retry-after may park an APScheduler worker slot.
+MAX_RETRY_AFTER_S = float(os.environ.get("BUZZ_MAX_RETRY_AFTER_S", "30"))
+
+
 def _token() -> str:
     return os.environ.get("DISCORD_BOT_TOKEN", "").strip()
 
@@ -63,8 +67,17 @@ def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAG
         r = c.get(f"{API}/channels/{channel_id}/messages",
                   params=params, headers={"Authorization": f"Bot {_token()}"})
         if r.status_code == 429:
-            wait = float(r.headers.get("retry-after", "1"))
-            log.warning("[buzz] rate limited on %s, retry-after %.1fs", channel_id, wait)
+            # ⛔ CAPPED, because this sleeps inside one of APScheduler's TEN
+            # worker slots (see the `max_instances=1` note in main.py). A
+            # global-limit or ban 429 answers `retry-after: 3600`, and the
+            # uncapped version held a slot for an hour to then return None
+            # anyway -- max_instances protects this job from itself, not the
+            # 140+ other jobs sharing the pool. The poll runs every 60s, so
+            # waiting longer than this buys nothing: the next tick retries.
+            asked = float(r.headers.get("retry-after", "1"))
+            wait = min(max(0.0, asked), MAX_RETRY_AFTER_S)
+            log.warning("[buzz] rate limited on %s, retry-after %.1fs (waiting %.1fs)",
+                        channel_id, asked, wait)
             time.sleep(wait)
             return None
         if not r.is_success:

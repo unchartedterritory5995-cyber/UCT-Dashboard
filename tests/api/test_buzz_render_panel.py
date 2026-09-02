@@ -102,3 +102,28 @@ def test_an_unknown_window_is_normalized_rather_than_mislabelled(client):
     body = r.json()
     assert body["window"] == "open"
     assert body["label"] == "since the open"
+
+
+def test_member_traffic_cannot_rate_limit_the_newsletters_renders():
+    """⛔ /r/* shared ONE 60/min sliding window, sized for the once-a-day
+    newsletter (~5 requests). /r/buzz is driven by MEMBERS -- one
+    chart-renderer fetch per ticker-less /buzz -- so sixty invocations in a
+    minute on announcement day would have 429'd the Morning Wire's
+    /r/catalysts, /r/calendar and /r/movers along with it. Separate buckets
+    mean member traffic can only ever starve itself."""
+    import pytest as _pytest
+    from fastapi import HTTPException
+    from api.routers import render_panels as rp
+
+    rp._RL_BUCKETS.clear()
+    rp._RL.clear()
+    for _ in range(rp._RL_BUZZ_MAX_PER_MIN):
+        rp._rate_limit("buzz", rp._RL_BUZZ_MAX_PER_MIN)
+    with _pytest.raises(HTTPException):
+        rp._rate_limit("buzz", rp._RL_BUZZ_MAX_PER_MIN)
+
+    # The newsletter's bucket is untouched by all of that.
+    rp._rate_limit()
+    assert len(rp._RL) == 1
+    rp._RL_BUCKETS.clear()
+    rp._RL.clear()

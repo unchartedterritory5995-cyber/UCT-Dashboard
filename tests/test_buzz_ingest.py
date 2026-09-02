@@ -173,3 +173,42 @@ def test_channels_reads_the_env(mods, monkeypatch):
     _, ing = mods
     monkeypatch.setenv("BUZZ_CHANNELS", "A, B ,C")
     assert ing.channels() == ["A", "B", "C"]
+
+
+def test_a_429_cannot_park_a_scheduler_slot_for_an_hour(mods, monkeypatch):
+    """⛔ This sleep runs inside one of APScheduler's TEN worker slots. Discord
+    or Cloudflare answers a global-limit 429 with `retry-after: 3600`, and the
+    uncapped version held a slot for a full hour to then return None anyway --
+    `max_instances=1` protects this job from itself, never the 140+ other jobs
+    sharing the pool. The poll runs every 60s, so a longer wait buys nothing.
+    """
+    _, ing = mods
+    slept: list[float] = []
+    monkeypatch.setattr(ing.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "t")
+
+    class _Resp:
+        status_code = 429
+        headers = {"retry-after": "3600"}
+        is_success = False
+        text = ""
+
+    class _Http:
+        def get(self, *a, **kw):
+            return _Resp()
+
+    assert ing.fetch_messages("CH1", http=_Http()) is None
+    assert slept and slept[0] <= ing.MAX_RETRY_AFTER_S
+    # CONTROL: a sane retry-after is honoured as given, so the cap is a CAP and
+    # not a constant that ignores the server.
+    slept.clear()
+
+    class _Short(_Resp):
+        headers = {"retry-after": "2"}
+
+    class _HttpShort:
+        def get(self, *a, **kw):
+            return _Short()
+
+    assert ing.fetch_messages("CH1", http=_HttpShort()) is None
+    assert slept == [2.0]

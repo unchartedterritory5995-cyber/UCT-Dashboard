@@ -15,6 +15,7 @@ import os
 
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from api.services import discord_activity_handoff as handoff
 from api.services import discord_chart_context as chart_context
@@ -261,8 +262,16 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         ticker = (opts.get("ticker") or "").strip().upper()
         now = int(_t.time())
         try:
-            text = (buzz_reply.build_ticker_text(ticker, window, now) if ticker
-                    else buzz_reply.build_board_text(now, window))
+            # ⛔ OFF THE EVENT LOOP. This handler is `async def`, and both
+            # builders do synchronous SQLite -- measured 8.5ms for
+            # build_board_text on a 36.6k-row store, growing with the number of
+            # tickers clearing MIN_CURRENT. Blocking the ONE shared loop on a
+            # single-process pod is the 2026-07-01 root cause by name, and
+            # every other heavy path in this file already defers. Cheap today;
+            # the point is that it cannot get expensive quietly.
+            text = await run_in_threadpool(
+                (lambda: buzz_reply.build_ticker_text(ticker, window, now)) if ticker
+                else (lambda: buzz_reply.build_board_text(now, window)))
         except Exception as e:  # noqa: BLE001
             logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
             return _ephemeral("Could not read the counts right now.")

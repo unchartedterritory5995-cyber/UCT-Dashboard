@@ -34,24 +34,35 @@ _RL: list[float] = []
 _RL_MAX_PER_MIN = 60
 
 
-def _rate_limit() -> None:
+# ⛔ /r/buzz needs its OWN budget. Every other /r/* endpoint is driven by the
+# once-a-day newsletter (~5 requests); /r/buzz is driven by MEMBERS running
+# /buzz, one chart-renderer fetch each. Sixty invocations in a minute -- an
+# announcement day in a 750-member room -- would exhaust the shared window and
+# 429 the Morning Wire's /r/catalysts, /r/calendar and /r/movers with it.
+# Separate buckets mean member traffic can only ever starve itself.
+_RL_BUCKETS: dict[str, list[float]] = {}
+_RL_BUZZ_MAX_PER_MIN = 60
+
+
+def _rate_limit(bucket: str = "default", limit: int | None = None) -> None:
     now = time.time()
-    _RL[:] = [t for t in _RL if now - t < 60.0]
-    if len(_RL) >= _RL_MAX_PER_MIN:
+    hits = _RL_BUCKETS.setdefault(bucket, _RL if bucket == "default" else [])
+    hits[:] = [t for t in hits if now - t < 60.0]
+    if len(hits) >= (limit if limit is not None else _RL_MAX_PER_MIN):
         raise HTTPException(status_code=429, detail="rate limited")
-    _RL.append(now)
+    hits.append(now)
 
 
 def _et_today() -> str:
     return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
 
-def _check_token(token: str) -> None:
+def _check_token(token: str, bucket: str = "default", limit: int | None = None) -> None:
     want = os.environ.get("CHART_RENDER_TOKEN", "")
     # Fail CLOSED when unset, constant-time compare when set.
     if not want or not hmac.compare_digest(str(token), want):
         raise HTTPException(status_code=403, detail="forbidden")
-    _rate_limit()
+    _rate_limit(bucket, limit)
 
 
 # Thesis phrasings the synthesizer uses when it found NOTHING — a non-catalyst
@@ -123,7 +134,9 @@ def buzz_panel(token: str = "", window: str = "open"):
     so anything returned here is effectively public — aggregate counts and
     tickers only.
     """
-    _check_token(token)  # already calls _rate_limit() internally, like every other /r/* handler in this file
+    # Own rate-limit bucket: member-driven traffic must never 429 the
+    # newsletter's once-a-day renders. See _rate_limit above.
+    _check_token(token, bucket="buzz", limit=_RL_BUZZ_MAX_PER_MIN)
     import time
     from api.services import buzz_boards
     now = int(time.time())
