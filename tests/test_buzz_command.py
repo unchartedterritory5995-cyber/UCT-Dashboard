@@ -210,8 +210,8 @@ def test_the_text_bars_never_step_up_below_a_higher_ranked_row(mods):
     now = int(dt.datetime(2026, 9, 1, 15, 0, tzinfo=ET).timestamp())
     ts = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
     mid = 9000
-    # BROAD leads on people with few mentions; LOUD has far more mentions and
-    # fewer people -- the exact shape that made the old bars step up.
+    # LOUD leads on mentions; BROAD has more people but fewer mentions. Under
+    # the current ruling LOUD ranks first, and the bar must follow that order.
     for i in range(9):
         store.record_mentions([(str(mid), CH, f"b{i}", "BROAD", ts, "exact")]); mid += 1
     for i in range(20):

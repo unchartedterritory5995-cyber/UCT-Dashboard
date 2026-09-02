@@ -140,20 +140,17 @@ export default function BuzzRender() {
   const singles = data.singles || []
   const totals = data.totals || {}
 
-  // ⛔ THE BAR DRAWS THE QUANTITY THE BOARD IS RANKED BY — PEOPLE.
+  // ⛔ THE BAR DRAWS THE QUANTITY THE BOARD IS RANKED BY. That is the rule,
+  // and the ranked quantity is now MENTIONS (owner, 2026-09-02: "Id like
+  // mentions to be the lead vs people"). Keep the two in step: when the bar
+  // came from a different number than the sort, the board stepped UP three
+  // times in fourteen rows and read as a sorting bug.
   //
-  // It used to draw mentions, and the board looked mis-sorted because of it:
-  // the ranking is people-descending (correct and monotonic), but the widest,
-  // brightest element on each row came from a different number, so it stepped
-  // UP three times in fourteen rows. Measured live 2026-09-02 12:56p: DELL
-  // (8 people / 18 mentions) sat below COIN (9 / 9) with nearly double the
-  // bar. A reader takes the long bar as the rank; ours contradicted it.
-  //
-  // Drawing people makes the board monotonic BY CONSTRUCTION — it cannot
-  // disagree with its own order — and it makes the column label literally
-  // true: share of the ROOM. Mentions keep the gold numeral, which is where
-  // volume belongs.
-  const maxPeople = Math.max(1, ...rows.map((r) => r.people || 0))
+  // Still derived with max() rather than rows[0]: mentions-descending makes
+  // rows[0] the maximum today, but reading the first row as the maximum is an
+  // assumption about the ORDER, and this file has already been wrong about
+  // that once. max() stays correct whatever the ranking does next.
+  const maxRanked = Math.max(1, ...rows.map((r) => r.mentions || 0))
 
   return (
     <div className={styles.wrap}>
@@ -209,7 +206,7 @@ export default function BuzzRender() {
               <span className={styles.hRk}>#</span>
               <span>TICKER</span>
               <span className={styles.hN}>MENTIONS</span>
-              <span>SHARE OF THE ROOM</span>
+              <span>SHARE OF THE CHATTER</span>
               <span className={styles.hPpl}>PEOPLE</span>
               <span className={styles.hHeat}>TODAY VS 30D</span>
             </div>
@@ -227,7 +224,7 @@ export default function BuzzRender() {
               <span className={styles.bar}>
                 <i
                   className={r.hot != null ? `${styles.fill} ${styles.hot}` : styles.fill}
-                  style={{ width: `${((100 * (r.people || 0)) / maxPeople).toFixed(1)}%` }}
+                  style={{ width: `${((100 * (r.mentions || 0)) / maxRanked).toFixed(1)}%` }}
                   data-buzz-bar
                 />
               </span>

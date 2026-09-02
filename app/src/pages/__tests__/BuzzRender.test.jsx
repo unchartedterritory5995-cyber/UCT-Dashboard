@@ -74,19 +74,21 @@ describe('BuzzRender', () => {
   })
 
   it('never draws a bar that steps up below a higher-ranked row', async () => {
-    // ⛔ THE BOARD MUST NOT CONTRADICT ITS OWN ORDER. Bars drew MENTIONS while
-    // the board ranks by PEOPLE, so the widest element on each row came from a
-    // different number than the sort — measured live 2026-09-02, three of
-    // fourteen rows stepped UP (DELL 8 people/18 mentions sat below COIN 9/9
-    // with nearly double the bar). Drawing people makes it monotonic BY
-    // CONSTRUCTION. This payload puts the loudest row second on purpose.
+    // ⛔ THE BOARD MUST NOT CONTRADICT ITS OWN ORDER. The bar has to draw the
+    // same quantity the rows are sorted by, whichever that is. It drew mentions
+    // against a people-sorted board and stepped UP three times in fourteen rows
+    // (DELL 8 people/18 mentions below COIN 9/9, nearly double the bar), which
+    // reads as a sorting bug. Both are MENTIONS now (owner ruling 2026-09-02),
+    // and this rail is what keeps them from drifting apart again.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
         window: 'open', label: 'since the open',
+        // Ordered as the API now returns it: mentions DESC, people as the
+        // tiebreak. The rail is that the BAR follows that order.
         rows: [
-          { ticker: 'BROAD', people: 9, mentions: 9, spark: [1], hot: null },
           { ticker: 'LOUD', people: 4, mentions: 40, spark: [1], hot: null },
+          { ticker: 'BROAD', people: 9, mentions: 9, spark: [1], hot: null },
         ],
         coverage: 'counted through 3:58p', asOf: 1,
       }),

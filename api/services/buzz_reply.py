@@ -28,15 +28,15 @@ def build_board_text(now: int, window: str = "open") -> str:
     # ⚠️ Same defect the RENDERED board had; it was fixed there and not here,
     # which is the whole point of lesson_rail_the_mirror_not_just_the_lane --
     # two surfaces drawing one quantity need the fix in BOTH lanes.
-    # ⛔ Scaled to PEOPLE -- the quantity the board is ranked by -- so the bar
-    # can never disagree with the order it sits in. It drew mentions until
-    # 2026-09-02 and stepped UP three times in fourteen rows, which reads as a
-    # sorting bug. Mirrors the rendered board exactly; these two lanes draw one
-    # quantity and must not drift (lesson_rail_the_mirror_not_just_the_lane).
-    top = max(r["people"] for r in rows)
+    # ⛔ Scaled to the RANKED quantity -- mentions (owner ruling
+    # 2026-09-02). The bar must never come from a different number than
+    # the sort or the board steps up below a higher row and reads as a
+    # sorting bug. Mirrors the rendered board exactly; these two lanes
+    # draw one quantity and must not drift.
+    top = max(r["mentions"] for r in rows)
     lines = [f"**Most talked about — {label}**", "```"]
     for r in rows:
-        lines.append(f"{r['ticker']:<6}{_bar(r['people'], top):<{BAR_W}}  "
+        lines.append(f"{r['ticker']:<6}{_bar(r['mentions'], top):<{BAR_W}}  "
                      f"{r['mentions']:>3}   {r['people']:>2} ppl")
     lines.append("```")
 
