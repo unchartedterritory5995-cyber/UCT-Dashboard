@@ -86,11 +86,28 @@ def extract(text: str | None) -> list[tuple[str, str]]:
         if len(raw) < 2:
             continue
         sym = raw.upper()
-        if sym not in symbols or sym in ambiguous:
+        if sym not in symbols:
             continue
-        # An ordinary-word form counts only when written AS the symbol.
-        # "ARM reports" counts; "sprain your arm" does not.
-        if raw.lower() in uni.WORD_FORMS and raw != sym:
+
+        # ⛔ THE EXCEPTION IS CURATED, NOT DERIVED -- and the attempt to derive
+        # it is why. The obvious rule ("a word is never written uppercase, so
+        # trust the uppercase form") was implemented and MEASURED over 30 days
+        # of #main-chat: it recovered BE +111, NOW +61, SPOT +11 as intended,
+        # and also AM +56 ("this AM"), ON +18, IT +14, YOU +11, FOR +11, UP +10.
+        # People shout ordinary words in caps. Making that rule safe would have
+        # meant hand-suppressing ~25 function words in HOUSE_VOCAB -- trading
+        # three curated entries for twenty-five, in the direction that grows
+        # hand-typed vocabulary rather than shrinking it.
+        #
+        # So the three are named in uni.TICKER_DESPITE_LOWERCASE instead, each
+        # verified by reading every uppercase occurrence in the corpus. That
+        # list is the mirror of HOUSE_VOCAB: HOUSE_VOCAB is "casing says
+        # ticker, we know better"; this is "casing says word, we know better".
+        # Both are hand-curated because casing genuinely cannot answer, and
+        # both demand quoted evidence per entry.
+        if raw == sym and sym in uni.TICKER_DESPITE_LOWERCASE:
+            pass
+        elif sym in ambiguous or (raw.lower() in uni.WORD_FORMS and raw != sym):
             continue
         _strongest(found, sym, "exact" if raw == sym else "contextual")
 

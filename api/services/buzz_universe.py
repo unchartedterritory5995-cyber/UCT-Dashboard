@@ -46,11 +46,13 @@ _DATA = _HERE / "data"
 # once a real #main-chat corpus measured it). Three different collision
 # mechanisms, three lists -- do not merge any two of them.
 #
-# ⛔ SPOT is DELIBERATELY NOT HERE. Spotify is a name this room actually trades,
-# and it was never wrong to refuse a hand-typed "SPOT is just a word" guess --
-# only real data could settle it. It has: the derived corpus measured SPOT at
-# 11.2% uppercase (308 word-uses vs 39 ticker-uses), well under the 35% word
-# threshold, so it IS now gated -- via `chat_words()`, not by adding it here.
+# ⛔ SPOT is DELIBERATELY NOT HERE, and its history is the whole argument for
+# reading sentences rather than ratios. It was ungated by hand-typed guess,
+# then GATED when a corpus measured it lowercase-dominant, and is now gated for
+# its LOWERCASE form only -- because reading all 11 uppercase occurrences in
+# #main-chat showed every single one is Spotify. Three positions, and only the
+# last one was reached by looking at what the room actually wrote. See
+# TICKER_DESPITE_LOWERCASE below.
 HOUSE_VOCAB = frozenset({
     "AI", "RS", "SMA", "MA", "PEG", "EP", "ATH", "ATL", "IPO",
     "ETF", "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI",
@@ -66,6 +68,11 @@ HOUSE_VOCAB = frozenset({
     # there, and the moment the threshold moved for an unrelated reason the
     # coincidence evaporated and "EMA reclaim" started booking a ticker.
     "EMA", "IMO",
+    # ⛔ DTE = "days to expiry", and this room writes "0 DTE" constantly. It
+    # sits at 25.5% uppercase so no threshold catches it, and it was booking a
+    # DTE Energy mention on every options comment. Found by auditing live chat
+    # 2026-09-02: "1000 0 dte s ?", "Ur 0 dte game is legendary".
+    "DTE",
 })
 
 # Indices. cap_universe.json is an EQUITY SCREEN, so none of these are in it --
@@ -75,13 +82,44 @@ HOUSE_VOCAB = frozenset({
 # dead end. Counting a mention has no such dead end.
 INDEX_SYMBOLS = frozenset({"SPX", "NDX", "DJI", "RUT", "VIX", "DXY", "IXIC"})
 
+# ⛔ THE MIRROR OF HOUSE_VOCAB: "casing says word, we know better".
+#
+# These are tokens the derived collision list flags -- their lowercase form
+# really is ordinary English -- but whose UPPERCASE form, read in context, is
+# this room talking about the stock. No threshold reaches them: BE is 6.8%
+# uppercase, NOW 6.5%, SPOT 5.2%, all under the 10% bar, and raising the bar to
+# catch them would ungate dozens of genuine words with it.
+#
+# ⛔ EVERY ENTRY NEEDS QUOTED EVIDENCE, same bar as HOUSE_VOCAB, and it must be
+# the UPPERCASE occurrences that were read -- not an intuition about the word.
+# Verified over 30 days of #main-chat, 2026-09-02:
+#   BE    111 uppercase; 6 are "stopped/sold at BE" (break even). The rest:
+#         "DELL HPE ALAB BE nice", "$BE kind of oops", "Id rather buy BE".
+#   NOW   61 uppercase; 2 are the word. "PLTR MDB NOW good", "day 2 on NOW",
+#         "Sold my NOW puts into close", "How's our NOW doing folks".
+#   SPOT  11 uppercase; ZERO are the word. "SPOT excellent candle",
+#         "I bought SPOT last week", "SPOT/SE/U/WDAY" watchlists.
+#
+# ⛔ It gates the EXACT (uppercase) tier ONLY. Lowercase "be", "now" and "spot"
+# stay gated -- they are overwhelmingly the English word, and that is what the
+# derivation measured.
+TICKER_DESPITE_LOWERCASE = frozenset({"BE", "NOW", "SPOT"})
+
 # Alias keys that are ALSO ordinary English words. An alias hit on one of these
 # demands the proper-noun form in the raw text, because "an apple a day" and
 # "the oracle of omaha" are things this room says constantly. Each entry is
 # justified by a false-positive fixture in tests/test_buzz_extract.py -- add one
 # only WITH its sentence, never on a hunch.
+# ⚠️ "meta" LEFT this set on 2026-09-02, on evidence. The proper-noun rule
+# demanded "Meta"/"META" in the raw text, so every lowercase mention was
+# dropped -- and reading all 42 lowercase occurrences in 30 days of #main-chat,
+# ~38 are the stock: "600 is wall for meta", "meta 50d", "595-598 am all out of
+# meta", "Scaling meta more here 95%", "meta >pdh", "Who caught that fade on
+# meta". Four are slang ("the AI CS meta", "its meta"). Trading ~4 false
+# bookings a month for ~38 real ones is the owner's stated preference, and this
+# room plainly writes the ticker in lowercase.
 AMBIGUOUS_ALIASES = frozenset({
-    "apple", "arm", "meta", "oracle", "affirm", "alphabet", "nike",
+    "apple", "arm", "oracle", "affirm", "alphabet", "nike",
 })
 
 # Tokens whose LOWERCASE form is ordinary English, whatever a corpus measures.
