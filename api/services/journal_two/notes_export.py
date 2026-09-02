@@ -698,9 +698,14 @@ def build_export_zip_to_tempfile(
     `writestr()` call, then flushes to disk), never by the archive's total
     size.
 
-    Caller owns deleting the returned path once done with it -- the route's
-    streaming generator (`stream_export_file`) does this in a `finally` so
-    the temp file is removed on success AND on error/disconnect."""
+    Caller owns deleting the returned path once done with it. ⛔ The route's
+    streaming generator (`stream_export_file`) does this in a `finally`,
+    which covers success and in-generator errors -- it does NOT cover a
+    client disconnect, whatever this docstring used to claim. Starlette
+    parks the generator at its `yield` rather than throwing in, so that
+    `finally` is reached only at GC (the same measured defect as the slot
+    leak). The backstop is `_sweep_abandoned_export_archives`, run from
+    `acquire_export_slot`."""
     from api.services.auth_db import get_connection
 
     owned = conn is None
@@ -832,6 +837,49 @@ def _reclaim_expired_export_leases_locked(now: float) -> None:
     _EXPORT_LEASES[:] = [exp for exp in _EXPORT_LEASES if exp > now]
 
 
+# The archive files themselves leak by the SAME mechanism the lease does:
+# `build_export_zip_to_tempfile` mkstemp's a zip and only
+# `stream_export_file`'s `finally` deletes it -- the finally that a real
+# disconnect never reaches. The slot self-heals in one TTL; the FILE used to
+# survive until the next redeploy, and a member's library can be hundreds of
+# MB. So sweep on the same trigger, with the same reasoning: on demand, no
+# background thread, never raising into the caller.
+# Bound at import so the monotonic-only fake the lease tests inject as
+# `notes_export.time` cannot reach the sweep. These are genuinely two
+# different clocks: a lease measures a MONOTONIC interval, the sweep
+# compares a file's WALL-clock mtime, and a fake for one is wrong for the
+# other.
+_wall_clock = time.time
+
+_EXPORT_TMP_PREFIX = "j2-notes-export-"
+_EXPORT_TMP_GLOB = f"{_EXPORT_TMP_PREFIX}*.zip"
+
+
+def _sweep_abandoned_export_archives(cutoff_age: float) -> None:
+    """Delete our own abandoned temp archives older than `cutoff_age`.
+
+    ⛔ Deliberately narrow, because this deletes files: only the directory
+    `mkstemp` actually used (`tempfile.gettempdir()`, re-read per call so a
+    test or an operator repointing it is honoured), only names matching this
+    module's OWN mkstemp prefix, and only entries whose mtime is older than a
+    full lease TTL -- an export still streaming after that has already lost
+    its slot to the reclaim above. Unlinking a file another thread still has
+    open is safe on POSIX (the fd stays valid); on Windows it raises, which
+    is why every failure here is swallowed. A sweep that raised would break
+    the acquire it is trying to help."""
+    try:
+        tmp_dir = Path(tempfile.gettempdir())
+        now = _wall_clock()
+        for entry in tmp_dir.glob(_EXPORT_TMP_GLOB):
+            try:
+                if now - entry.stat().st_mtime > cutoff_age:
+                    entry.unlink(missing_ok=True)
+            except OSError:
+                continue
+    except OSError:
+        return
+
+
 def acquire_export_slot() -> bool:
     """Non-blocking. True if a slot was claimed (caller must eventually call
     `release_export_slot()`, or route through `stream_export_file`, which
@@ -840,12 +888,14 @@ def acquire_export_slot() -> bool:
     connection that is gone comes back on its own within
     `_export_lease_ttl_seconds()`, even if nothing ever explicitly released
     it."""
+    ttl = _export_lease_ttl_seconds()
+    _sweep_abandoned_export_archives(ttl)
     now = time.monotonic()
     with _EXPORT_LEASES_LOCK:
         _reclaim_expired_export_leases_locked(now)
         if len(_EXPORT_LEASES) >= _export_concurrency_limit():
             return False
-        _EXPORT_LEASES.append(now + _export_lease_ttl_seconds())
+        _EXPORT_LEASES.append(now + ttl)
         return True
 
 

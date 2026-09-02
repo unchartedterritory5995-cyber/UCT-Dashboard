@@ -9,7 +9,10 @@ route wires it up correctly.
 """
 import gc
 import io
+import os
 import sqlite3
+import tempfile
+import time
 import zipfile
 
 import anyio
@@ -400,4 +403,47 @@ def test_releasing_one_of_two_slots_retires_the_soonest_expiring_lease(
         "B's slot was reclaimed while B is still streaming: the limit of 2 "
         "is now serving 3 concurrent exports on a single-replica pod with "
         "OOM history, which is the failure the limit exists to prevent"
+    )
+
+
+# ── Abandoned temp archives ──────────────────────────────────────────────────
+# The slot self-heals; the FILE did not. `build_export_zip_to_tempfile`
+# mkstemp's a zip, and only `stream_export_file`'s finally deletes it -- the
+# finally the audit proved never runs on a real disconnect. So every cancelled
+# download left its archive behind until the next redeploy, and a member's
+# library can be hundreds of MB. Same self-heal idiom as the lease: swept on
+# next demand, no background thread.
+
+
+def test_acquire_sweeps_abandoned_export_archives(monkeypatch, tmp_path):
+    from api.services.journal_two import notes_export
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path), raising=False)
+    monkeypatch.setenv("NOTE_EXPORT_LEASE_TTL_SECONDS", "1000")
+
+    stale = tmp_path / "j2-notes-export-abandoned.zip"
+    stale.write_bytes(b"PK\x05\x06" + b"\0" * 18)
+    os.utime(stale, (0, time.time() - 5000))       # long past the TTL
+
+    fresh = tmp_path / "j2-notes-export-inflight.zip"
+    fresh.write_bytes(b"PK\x05\x06" + b"\0" * 18)  # mtime = now
+
+    unrelated = tmp_path / "someone-elses-file.zip"
+    unrelated.write_bytes(b"PK\x05\x06" + b"\0" * 18)
+    os.utime(unrelated, (0, time.time() - 5000))
+
+    assert notes_export.acquire_export_slot()
+    notes_export.release_export_slot()
+
+    assert not stale.exists(), (
+        "an export archive abandoned by a disconnect was never swept -- it "
+        "sits on the pod's disk until the next redeploy"
+    )
+    assert fresh.exists(), (
+        "the sweep took an archive that is still being streamed; only "
+        "entries older than the lease TTL may be reclaimed"
+    )
+    assert unrelated.exists(), (
+        "the sweep reached beyond our own mkstemp prefix -- it must never "
+        "delete a file this module did not create"
     )
