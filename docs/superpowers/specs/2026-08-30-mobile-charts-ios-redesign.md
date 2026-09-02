@@ -900,3 +900,41 @@ sticky group, rows were loose siblings, nothing could own a shared scroller.
   two scroll depths (rests below the 48px fixed top bar — correct, not a
   failure), contract mode registered 1150==1150×4, desktop DOM unchanged.
   Suites 15/15 · audit `/live-massive` overflowX=0 small=0.
+
+## Wave 17 addendum (2026-09-02) — tablet zero, and the instrument confesses first
+
+The tablet-tier (641–1024) sweep on the honest 23-route list, opening with a
+deeper instance of wave 15's lesson: this time the *instrument* lied, not the
+route list.
+
+- **Pointer-emulation loss is real and silent.** Chromium drops the
+  touch/pointer emulation override on a renderer swap; under the pinned
+  browser build a same-page re-goto does NOT restore it. One guarded run
+  measured **24 of 28 routes fine-pointer in a touch context** — from the
+  drop onward the harness audited the DESKTOP UI as "tablet": 64/62 phantom
+  findings on /charts + /watchlists (desktop RGL chrome; the real
+  coarse-pointer tablet shell audits clean), and equally phantom ZEROS
+  everywhere else. `tools/mobile_audit.py` now records
+  `matchMedia('(pointer: coarse)')` with every probe, heals with a fresh
+  page (context options re-apply at page creation), falls back to a fresh
+  context + re-login, and otherwise marks the row **INVALID** in the console
+  line, report.md, and the Done summary. A sweep can no longer publish
+  numbers about a UI no touch user sees.
+- **The honest tablet debt was 12 findings, now 0**: Breadth header trio +
+  Settings "?" (44px floors); screener column-ⓘ (the parallel workflow's
+  recorded 20×44 known limit, closed by hit-box expansion that leaves the
+  112px track and nowrap label untouched — their comment's actual
+  constraint); PatternFeedbackChip 👍/👎/⋯ (same idiom); Options Flow
+  "Fetch Live P/L" + Dark Pool "Fetch Mkt Cap" via className hooks +
+  touch-tier rules in the additive layers.
+- **Two idiom lessons worth keeping:** (1) a `::after` hit-area expander
+  satisfies fingers but not rect-reading audits — InfoTip's was converted to
+  padding + equal negative margin, the measurable form, and its test now
+  derives the 44 floor from the stylesheet's own numbers; (2) under
+  border-box, a fixed `width:` **absorbs** hit-box padding — `box-sizing:
+  content-box` in the touch block is load-bearing (measured twice: InfoTip,
+  then ColumnDesc).
+- **Certification: the app's first true double zero.** Phone 0 findings / 0
+  overflow · tablet 0 / 0 · 0 invalid measurements, all 28 route rows, both
+  tiers guarded. The dark-pool "Fetching…" residual (accepted since wave 15)
+  is fixed, not accepted.
