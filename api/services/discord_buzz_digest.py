@@ -32,6 +32,16 @@ def webhook_url() -> str:
     return os.environ.get("BUZZ_DIGEST_WEBHOOK", "").strip()
 
 
+def digest_channel() -> str:
+    """Channel id to post into AS THE BOT, instead of via a webhook.
+
+    Exists so activating the digest needs no webhook created by hand: the bot
+    already holds SEND_MESSAGES, so a channel id is enough. A webhook can still
+    target a channel the bot cannot reach, so both paths stay -- this one wins
+    when set, because it is the more specific instruction."""
+    return os.environ.get("BUZZ_DIGEST_CHANNEL", "").strip()
+
+
 # Owner-chosen cadence (2026-09-02): through the session, not once at the close.
 DEFAULT_TIMES = "10:00,10:30,11:30,12:30,14:00,16:15,17:30"
 
@@ -125,6 +135,34 @@ def mark_posted(key: str) -> None:
     os.replace(tmp, p)          # never truncate the real file before the write can fail
 
 
+def _post_as_bot(channel_id: str, content: str, png: bytes | None) -> bool:
+    """Same contract as _post: True on success, never raises. Uses the bot
+    token the poller already needs, so no extra credential is involved."""
+    try:
+        import requests
+        token = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+        if not token:
+            # The poller names this too; say it here as well because the
+            # digest can be armed independently of a working ingest.
+            log.warning("[buzz] BUZZ_DIGEST_CHANNEL is set but DISCORD_BOT_TOKEN is not "
+                        "-- cannot post as the bot")
+            return False
+        files = {"files[0]": ("buzz.png", png, "image/png")} if png else None
+        r = requests.post(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages",
+            headers={"Authorization": f"Bot {token}"},
+            data={"payload_json": json.dumps({"content": content})},
+            files=files, timeout=60,
+        )
+        if r.status_code not in (200, 201, 204):
+            log.warning("[buzz] digest bot-post HTTP %s: %s", r.status_code, r.text[:160])
+            return False
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] digest bot-post failed: %s", e)
+        return False
+
+
 def _post(url: str, content: str, png: bytes | None) -> bool:
     # The one call in this module most exposed to a real network hiccup
     # (DNS, timeout, connection reset) -- every other failure path here is
@@ -152,14 +190,15 @@ def run_digest(*, now: int | None = None, slot: str | None = None,
         # debug, not warning: this is the shipped default and expected.
         log.debug("[buzz] digest disarmed (BUZZ_DIGEST_ENABLED unset)")
         return {"posted": False, "reason": "disarmed"}
-    url = webhook_url()
-    if not url:
+    channel, url = digest_channel(), webhook_url()
+    if not channel and not url:
         # ⛔ WARNING, not debug: armed-but-unconfigured is a MISTAKE, and
         # otherwise indistinguishable from a quiet day for the rest of time --
-        # a mistyped BUZZ_DIGEST_WEBHOOK would return this same dict every day,
-        # forever, with nothing else to say so.
-        log.warning("[buzz] digest is ENABLED but BUZZ_DIGEST_WEBHOOK is unset - nothing will ever post")
-        return {"posted": False, "reason": "no webhook"}
+        # a mistyped destination would return this same dict every slot,
+        # forever, with nothing else to say so. Name BOTH ways to fix it.
+        log.warning("[buzz] digest is ENABLED but neither BUZZ_DIGEST_CHANNEL nor "
+                    "BUZZ_DIGEST_WEBHOOK is set - nothing will ever post")
+        return {"posted": False, "reason": "no destination"}
     now_dt = dt.datetime.fromtimestamp(now, _ET)
     day = now_dt.strftime("%Y-%m-%d")
     slot = slot or _slot_for(now_dt)
@@ -184,7 +223,12 @@ def run_digest(*, now: int | None = None, slot: str | None = None,
         render = render_fn or (buzz_image.render_board_png if buzz_image.image_enabled() else None)
         png = render("open") if render else None
 
-        poster = post_fn or (lambda **kw: _post(kw["url"], kw["content"], kw["png"]))
+        if post_fn is not None:
+            poster = post_fn
+        elif channel:
+            poster = lambda **kw: _post_as_bot(channel, kw["content"], kw["png"])  # noqa: E731
+        else:
+            poster = lambda **kw: _post(kw["url"], kw["content"], kw["png"])       # noqa: E731
         ok = poster(url=url, content=content, png=png)
         if ok:
             mark_posted(key)
