@@ -38,13 +38,24 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
 )
-from api.services.pattern_engine.primitives.geometry import line_at, line_intersect
+from api.services.pattern_engine.primitives.geometry import intersect_at, price_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "pennant"
+#: ⛔ EDWARDS & MAGEE: JUDGE CONVERGENCE IN LOG SPACE, NOT IN POINTS. A
+#: constant-PERCENTAGE swing shrinks in POINTS as price falls, so an arithmetic
+#: fit reports convergence on a series that is uniform in percentage terms, and
+#: refuses genuine convergence on one that is not. The fitted line carries
+#: `space`; read prices off it with `geometry.price_at` and solve the apex with
+#: `geometry.intersect_at` — both unconditionally-linear accessors read a CHORD
+#: across an exponential, exact at the two endpoints and wrong between them,
+#: which is precisely where a width and an apex are measured.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
+_TRENDLINE_SPACE = "log" if _LOG_SPACE else "price"
 _MIN_POLE_PCT = 0.08
 _MAX_POLE_BARS = 20
 _MIN_PENNANT_BARS = 3
@@ -184,18 +195,15 @@ def _try_extract_bullish_pennant(bars, pivots, pole_top_idx: int, pole_top) -> O
     if lower_line["slope"] <= 0:
         return None
 
-    width_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx) - \
-                  line_at((lower_line["p1"], lower_line["p2"]), start_idx)
-    width_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx) - \
-                line_at((lower_line["p1"], lower_line["p2"]), end_idx)
+    width_start = price_at(upper_line, start_idx) - price_at(lower_line, start_idx)
+    width_end = price_at(upper_line, end_idx) - price_at(lower_line, end_idx)
     if width_start <= 0 or width_end <= 0:
         return None
     width_ratio = width_end / width_start
     if width_ratio >= _MAX_WIDTH_RATIO:
         return None
 
-    intersect = line_intersect((upper_line["p1"], upper_line["p2"]),
-                               (lower_line["p1"], lower_line["p2"]))
+    intersect = intersect_at(upper_line, lower_line)
     if intersect is None:
         return None
     apex_bars_ahead = intersect["t"] - end_idx
@@ -293,18 +301,15 @@ def _try_extract_bearish_pennant(bars, pivots, pole_bottom_idx: int, pole_bottom
     if lower_line["slope"] <= 0:
         return None
 
-    width_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx) - \
-                  line_at((lower_line["p1"], lower_line["p2"]), start_idx)
-    width_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx) - \
-                line_at((lower_line["p1"], lower_line["p2"]), end_idx)
+    width_start = price_at(upper_line, start_idx) - price_at(lower_line, start_idx)
+    width_end = price_at(upper_line, end_idx) - price_at(lower_line, end_idx)
     if width_start <= 0 or width_end <= 0:
         return None
     width_ratio = width_end / width_start
     if width_ratio >= _MAX_WIDTH_RATIO:
         return None
 
-    intersect = line_intersect((upper_line["p1"], upper_line["p2"]),
-                               (lower_line["p1"], lower_line["p2"]))
+    intersect = intersect_at(upper_line, lower_line)
     if intersect is None:
         return None
     apex_bars_ahead = intersect["t"] - end_idx
@@ -347,8 +352,8 @@ def _fit_pennant_lines(pennant_bars, start_idx):
                      "type": "low", "strength": 50, "bar_index": start_idx + i}
                     for i, b in enumerate(pennant_bars)]
     try:
-        upper_line = fit_trendline(upper_pivots)
-        lower_line = fit_trendline(lower_pivots)
+        upper_line = fit_trendline(upper_pivots, log_space=_LOG_SPACE)
+        lower_line = fit_trendline(lower_pivots, log_space=_LOG_SPACE)
     except ValueError:
         return None, None
     return upper_line, lower_line
@@ -509,8 +514,8 @@ def _build_detection(bars, c, confidence, context, direction,
     pole_apex_bar = bars[c["pole_apex_idx"]]
     end_idx = c["pennant_end_idx"]
 
-    upper_at_now = line_at((c["upper_line"]["p1"], c["upper_line"]["p2"]), end_idx)
-    lower_at_now = line_at((c["lower_line"]["p1"], c["lower_line"]["p2"]), end_idx)
+    upper_at_now = price_at(c["upper_line"], end_idx)
+    lower_at_now = price_at(c["lower_line"], end_idx)
 
     pennant_high = c["pennant_high"]
     pennant_low = c["pennant_low"]
@@ -791,6 +796,9 @@ def _build_detection(bars, c, confidence, context, direction,
                 "pennant_bars": c["pennant_count"],
                 "apex_bars_ahead": round(float(c["apex_bars_ahead"]), 2),
                 "width_ratio": round(float(c["width_ratio"]), 3),
+                # Which space the boundary lines were fitted in; the widths
+                # and apex above are read off the curve that space implies.
+                "trendline_space": _TRENDLINE_SPACE,
                 "dcr_score_adj": round(_dcr_score_adjustment(context, direction), 2),
                 **(structure_extras(c) if direction == "bullish" else {}),
             },

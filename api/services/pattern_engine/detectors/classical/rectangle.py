@@ -33,17 +33,33 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.geometry import fractional_slope
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "rectangle"
+#: ⛔ EDWARDS & MAGEE: JUDGE SHAPE IN LOG SPACE, NOT IN POINTS. A constant-
+#: PERCENTAGE move shrinks in POINTS as price falls, so an arithmetic fit
+#: reports convergence (or a sloping boundary) on a series that is uniform in
+#: the only terms a trader cares about. `fit_trendline` returns a `space`-tagged
+#: line; read prices off it with `geometry.price_at` and compare its slope only
+#: through `geometry.fractional_slope`.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
 _MIN_BARS = 15
 _MAX_BARS = 50
 _MIN_TOUCHES = 3   # rectangles need ≥3 touches each side for behavioural confirmation
 _MAX_FLAT_SPREAD_PCT = 0.020   # 2% per spec
 _MIN_FLAT_R_SQUARED = 0.70     # boundary lines must fit flat well
+#: A boundary counts as flat below this rate. ⛔ THE UNIT IS A FRACTION OF
+#: PRICE PER BAR (dimensionless): 0.003 == 0.3%/bar. It is compared against
+#: `fractional_slope`, which normalises a price-space slope (dollars/bar) by
+#: dividing by price and returns a log-space slope UNCHANGED because a log
+#: slope is already that rate. Dividing a log slope by price a second time
+#: understates it ~100x on a $100 stock and reads every boundary as flat.
+_MAX_FLAT_SLOPE_PCT_PER_BAR = 0.003
 _MIN_DEPTH_PCT = 0.05
 _MAX_DEPTH_PCT = 0.25
 _PRIOR_TREND_WINDOW = 50
@@ -123,10 +139,9 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                         "type": "high", "strength": p["strength"],
                         "bar_index": p["bar_index"]} for p in upper_cluster_raw]
         try:
-            upper_fit = fit_trendline(rekey_upper)
-            # Slope must be near zero relative to the price level
-            slope_pct_per_bar = abs(upper_fit["slope"]) / max(upper_price, 1e-6)
-            if slope_pct_per_bar > 0.003:  # >0.3% per bar = not flat
+            upper_fit = fit_trendline(rekey_upper, log_space=_LOG_SPACE)
+            slope_pct_per_bar = abs(fractional_slope(upper_fit, max(upper_price, 1e-6)))
+            if slope_pct_per_bar > _MAX_FLAT_SLOPE_PCT_PER_BAR:
                 return None
         except ValueError:
             return None
@@ -147,9 +162,9 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                         "type": "low", "strength": p["strength"],
                         "bar_index": p["bar_index"]} for p in lower_cluster_raw]
         try:
-            lower_fit = fit_trendline(rekey_lower)
-            slope_pct_per_bar = abs(lower_fit["slope"]) / max(lower_price, 1e-6)
-            if slope_pct_per_bar > 0.003:
+            lower_fit = fit_trendline(rekey_lower, log_space=_LOG_SPACE)
+            slope_pct_per_bar = abs(fractional_slope(lower_fit, max(lower_price, 1e-6)))
+            if slope_pct_per_bar > _MAX_FLAT_SLOPE_PCT_PER_BAR:
                 return None
         except ValueError:
             return None

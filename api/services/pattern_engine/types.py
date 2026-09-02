@@ -5,7 +5,7 @@ Consumers (detectors, memory, API, UI) all import from here.
 """
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class Bar(TypedDict):
@@ -31,12 +31,34 @@ class Pivot(TypedDict):
 
 
 class Trendline(TypedDict):
+    """A fitted boundary line, TAGGED WITH THE SPACE IT WAS FITTED IN.
+
+    ⛔ `space` IS LOAD-BEARING, NOT METADATA. `slope` carries a different
+    UNIT in each space and `p1`/`p2` describe a different CURVE:
+
+      - "price": slope is price-per-bar; the curve between p1 and p2 is the
+                 straight line through them, so a linear read is exact.
+      - "log":   slope is d(log price)/bar - a fractional growth rate per bar,
+                 dimensionless. p1/p2 are exponentiated back into price for
+                 drawing, but the curve BETWEEN them is exponential, so a
+                 linear read between the endpoints is a CHORD, not the line.
+
+    Read a price off a line with `geometry.price_at`, which respects this, and
+    NEVER with `geometry.line_at`, which is unconditionally linear. Convert a
+    slope to a comparable unit with `geometry.fractional_slope`.
+
+    A line built by hand (a synthesized flat boundary, say) may omit `space`;
+    every reader treats a missing value as "price", which is what such a line
+    has always been. That is why it is NotRequired rather than defaulted at
+    every construction site.
+    """
     p1: Anchor
     p2: Anchor
-    slope: float       # price per bar
+    slope: float       # price per bar in "price" space; log-units per bar in "log"
     r_squared: float   # 0-1 fit quality
     touches: int       # number of pivots near the line
     validity: float    # 0-1 composite quality
+    space: NotRequired[Literal["price", "log"]]   # absent == "price"
 
 
 class Geometry(TypedDict):
