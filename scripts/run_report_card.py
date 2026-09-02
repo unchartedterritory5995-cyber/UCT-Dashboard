@@ -19,9 +19,45 @@ Usage:
 """
 import argparse
 import os
+import pathlib
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+# ⛔ THIS SCRIPT DOCUMENTED A KEY IT NEVER LOADED. The header says
+# "set ANTHROPIC_API_KEY=... (required unless --offline)", and the exam then
+# died on a missing key for anyone who keeps their credentials in a `.env`
+# like every other script in this directory does
+# (`refresh_uct20_portfolio.py`, `trigger_warm_universe.py`). The deploy gate
+# it enforces is only useful if it can be RUN, and "the operator must export a
+# secret by hand first" is a barrier that gets the gate skipped rather than
+# satisfied.
+#
+# ⭐ THE ENVIRONMENT STILL WINS. `load_dotenv` does not override a variable
+# that is already set, so CI and Railway are unaffected and an operator can
+# still point the run at a different key by exporting one.
+try:
+    from dotenv import load_dotenv
+    # ⛔ THE SIBLING REPOS ARE NOT ALWAYS ONE LEVEL UP. Every other script
+    # here writes `ROOT.parent / "morning-wire"`, which holds when the checkout
+    # is `~/uct-dashboard` and BREAKS in a git worktree, where ROOT is
+    # `~/uct-worktrees/<branch>` and the siblings are two levels up. Walking a
+    # couple of ancestors costs nothing and makes the exam runnable from either.
+    _seen = []
+    for _base in (ROOT, ROOT.parent, ROOT.parent.parent):
+        for _name in (".env",):
+            _p = _base / _name
+            if _p.exists():
+                _seen.append(_p)
+        for _repo in ("uct-intelligence", "morning-wire", "uct-dashboard"):
+            _p = _base / _repo / ".env"
+            if _p.exists():
+                _seen.append(_p)
+    for _env in _seen:
+        load_dotenv(_env)
+except ImportError:
+    pass
 
 
 def main() -> int:
