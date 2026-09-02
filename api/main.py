@@ -802,6 +802,17 @@ def _buzz_poll() -> None:
         log.warning("[buzz] poll error: %s", e)
 
 
+def _buzz_digest() -> None:
+    log = logging.getLogger(__name__)
+    try:
+        from api.services import discord_buzz_digest
+        out = discord_buzz_digest.run_digest()
+        if out.get("posted"):
+            log.info("[buzz] digest posted (image=%s)", out.get("had_image"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] digest error: %s", e)
+
+
 def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
     """Render one house chart shortly after boot so the FIRST Discord /chart
     after a deploy is not the cold one. Measured 2026-08-25: the first render
@@ -5268,6 +5279,21 @@ async def lifespan(app: FastAPI):
             print(f"[startup] buzz poll scheduled (every {BUZZ_POLL_INTERVAL_S}s)")
         except Exception as e:
             print(f"[scheduler] buzz poll registration error: {e}")
+        try:
+            # The digest itself gates on BUZZ_DIGEST_ENABLED (default "0") -- the
+            # job always registers, same shape as the awareness-engine job, so a
+            # flag flip is the only lever, never a redeploy.
+            #
+            # `timezone=_ET` is load-bearing -- a naive trigger resolves tzlocal
+            # (UTC on Railway), which would fire this at 11:10 ET instead of 16:10.
+            _scheduler.add_job(
+                _buzz_digest,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=10, timezone=_ET),
+                id="buzz_digest", replace_existing=True, misfire_grace_time=300,
+            )
+            print("[startup] buzz digest scheduled (mon-fri 16:10 ET)")
+        except Exception as e:
+            print(f"[scheduler] buzz digest registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
             try:
                 # 15-min refresh under theme_index's 30-min cache TTL; the

@@ -129,8 +129,30 @@ def buzz_ticker_choices(q: str, limit: int = 25) -> list[dict]:
     try:
         return [{"name": f"{t} — {n} mention(s)", "value": t}
                 for t, n in buzz_store.known_tickers(q or "", limit=limit)]
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] ticker autocomplete failed %r: %s", q, e)
         return []
+
+
+def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, render_fn=None, edit_fn=None) -> None:
+    """Background job for a ticker-less /buzz: render the board PNG and PATCH
+    it onto the deferred reply -- mirroring `di.run_chart_job`'s cache/render/
+    edit shape, simplified (no cache, no retry): a failed or empty render just
+    leaves the text-only reply, never an apology. `edit_original` already
+    re-declares `attachments` on the image path, so the PATCH cannot drop the
+    file the way `desk_session_announce._edit` once did."""
+    from api.services import buzz_image
+    render = render_fn or buzz_image.render_board_png
+    edit = edit_fn or di.edit_original
+    try:
+        png = render(window)
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[buzz] image render failed: %s", e)
+        png = None
+    if png:
+        edit(app_id, token, content=content, png=png, filename="buzz.png")
+    else:
+        edit(app_id, token, content=content)
 
 
 def breadth_adjust(req, prefs: dict):
@@ -232,7 +254,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         return {"type": 5}
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
-        from api.services import buzz_reply
+        from api.services import buzz_image, buzz_reply
         opts = {o["name"]: o.get("value") for o in
                 ((interaction.get("data") or {}).get("options") or [])}
         window = (opts.get("window") or "open").strip()
@@ -244,6 +266,15 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         except Exception as e:  # noqa: BLE001
             logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
             return _ephemeral("Could not read the counts right now.")
+        # No ticker = the board reply, which is worth an image. A ticker
+        # narrows to one name's numbers -- that stays the immediate text
+        # reply it always was (unchanged behaviour, no wait on a render).
+        if not ticker and buzz_image.image_enabled():
+            app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+            token = str(interaction.get("token") or "")
+            if app_id and token:
+                background.add_task(run_buzz_image_job, app_id, token, text, window)
+                return {"type": 5}
         return {"type": 4, "data": {"content": text}}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)

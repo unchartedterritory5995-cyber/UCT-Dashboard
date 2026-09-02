@@ -130,6 +130,13 @@
       ],
       "note": ""
     },
+    "BUZZ_DIGEST_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF -- ships disarmed by design, not oversight. `api/services/discord_buzz_digest.py`'s own module docstring says why: \"posting into a 750-member room is the owner's call, not a default.\" The scheduler job (`_buzz_digest` in api/main.py, mon-fri 16:10 ET) always registers -- it calls `run_digest()`, which checks this flag itself and returns `{posted: False, reason: 'disarmed'}` when unset, same shape as the awareness-engine gate. `tests/test_buzz_digest.py::test_digest_is_disarmed_by_default` pins the unset-env default to False; that test is the feature. Arm it once the owner decides the room is ready for an unattended daily post."
+    },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [
