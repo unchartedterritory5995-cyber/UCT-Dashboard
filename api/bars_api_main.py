@@ -71,10 +71,18 @@ def _start_r2_sync() -> None:
             if os.path.exists(p):
                 c = sqlite3.connect(p, timeout=5)
                 try:
+                    # ⭐ Count DISTINCT TICKERS, not bar rows. A real R2 install holds
+                    # thousands of tickers (~10k-26k); a db contaminated only by a few
+                    # on-demand cold-fetches holds <100 tickers but easily >1000 bar
+                    # ROWS — which a row-count threshold wrongly reads as "populated"
+                    # and skips the install. GROUP BY ticker rides the (ticker,...) index.
                     row = c.execute(
-                        "SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)"
+                        "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
                     ).fetchone()
-                    populated = bool(row) and int(row[0]) >= 1000
+                    n_tickers = int(row[0]) if row else 0
+                    populated = n_tickers >= 2000
+                    _log.info("[bars-api] local bars.db has ~%d distinct tickers (populated=%s)",
+                              n_tickers, populated)
                 except Exception:
                     populated = False   # no ohlcv table / unreadable → treat as empty
                 finally:
