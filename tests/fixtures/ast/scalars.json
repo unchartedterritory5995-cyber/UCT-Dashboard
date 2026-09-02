@@ -1324,6 +1324,318 @@
       "asOf": "snapshot_date",
       "cadence": "nightly",
       "yields": "bool"
+    },
+    {
+      "id": "adr_pct_1w",
+      "scalar": "adr_pct_1w",
+      "ast": {
+        "type": "series",
+        "name": "adr_pct_1w"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "atr_ext_sma50",
+      "scalar": "atr_ext_sma50",
+      "ast": {
+        "type": "series",
+        "name": "atr_ext_sma50"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "avg_body_pct_5",
+      "scalar": "avg_body_pct_5",
+      "ast": {
+        "type": "series",
+        "name": "avg_body_pct_5"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "candle_score",
+      "scalar": "candle_score",
+      "ast": {
+        "type": "series",
+        "name": "candle_score"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_from_open_pct",
+      "scalar": "chg_from_open_pct",
+      "ast": {
+        "type": "series",
+        "name": "chg_from_open_pct"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_pct_1y",
+      "scalar": "chg_pct_1y",
+      "ast": {
+        "type": "series",
+        "name": "chg_pct_1y"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_pct_ytd",
+      "scalar": "chg_pct_ytd",
+      "ast": {
+        "type": "series",
+        "name": "chg_pct_ytd"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dist_20d_high_pct",
+      "scalar": "dist_20d_high_pct",
+      "ast": {
+        "type": "series",
+        "name": "dist_20d_high_pct"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dist_20d_low_pct",
+      "scalar": "dist_20d_low_pct",
+      "ast": {
+        "type": "series",
+        "name": "dist_20d_low_pct"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dist_ath_pct",
+      "scalar": "dist_ath_pct",
+      "ast": {
+        "type": "series",
+        "name": "dist_ath_pct"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "ema10_rising",
+      "scalar": "ema10_rising",
+      "ast": {
+        "type": "series",
+        "name": "ema10_rising"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "ema20_rising",
+      "scalar": "ema20_rising",
+      "ast": {
+        "type": "series",
+        "name": "ema20_rising"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "ema_touch_count",
+      "scalar": "ema_touch_count",
+      "ast": {
+        "type": "series",
+        "name": "ema_touch_count"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "new_ath",
+      "scalar": "new_ath",
+      "ast": {
+        "type": "series",
+        "name": "new_ath"
+      },
+      "value": 1,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "pole_pct",
+      "scalar": "pole_pct",
+      "ast": {
+        "type": "series",
+        "name": "pole_pct"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "prev_day_close",
+      "scalar": "prev_day_close",
+      "ast": {
+        "type": "series",
+        "name": "prev_day_close"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "prev_day_high",
+      "scalar": "prev_day_high",
+      "ast": {
+        "type": "series",
+        "name": "prev_day_high"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "prev_day_low",
+      "scalar": "prev_day_low",
+      "ast": {
+        "type": "series",
+        "name": "prev_day_low"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "prev_day_open",
+      "scalar": "prev_day_open",
+      "ast": {
+        "type": "series",
+        "name": "prev_day_open"
+      },
+      "value": 1.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "in_uct20",
+      "scalar": "in_uct20",
+      "ast": {
+        "type": "series",
+        "name": "in_uct20"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "index_dow",
+      "scalar": "index_dow",
+      "ast": {
+        "type": "series",
+        "name": "index_dow"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "index_ndx",
+      "scalar": "index_ndx",
+      "ast": {
+        "type": "series",
+        "name": "index_ndx"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "index_r2k",
+      "scalar": "index_r2k",
+      "ast": {
+        "type": "series",
+        "name": "index_r2k"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "index_sp500",
+      "scalar": "index_sp500",
+      "ast": {
+        "type": "series",
+        "name": "index_sp500"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "is_etf",
+      "scalar": "is_etf",
+      "ast": {
+        "type": "series",
+        "name": "is_etf"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "is_leveraged",
+      "scalar": "is_leveraged",
+      "ast": {
+        "type": "series",
+        "name": "is_leveraged"
+      },
+      "value": 1,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "bool"
     }
   ],
   "trees": [

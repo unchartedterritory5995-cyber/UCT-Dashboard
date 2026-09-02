@@ -1083,408 +1083,18 @@
     }
   },
   "scalars": {
-    "market_cap": {
+    "above_50sma": {
       "source": {
         "store": "screener_rows",
-        "column": "market_cap"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the market capitalisation"
-    },
-    "price": {
-      "source": {
-        "store": "screener_rows",
-        "column": "price"
+        "column": "above_50sma"
       },
       "as_of": {
         "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the snapshot close"
-    },
-    "avg_volume_30d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "avg_volume_30d"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the 30-day average volume"
-    },
-    "dividend_yield": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dividend_yield"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the dividend yield"
-    },
-    "pe_ttm": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pe_ttm"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the trailing price/earnings ratio"
-    },
-    "pe_fwd": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pe_fwd"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the forward price/earnings ratio"
-    },
-    "peg": {
-      "source": {
-        "store": "screener_rows",
-        "column": "peg"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the PEG ratio"
-    },
-    "ps": {
-      "source": {
-        "store": "screener_rows",
-        "column": "ps"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the price/sales ratio"
-    },
-    "pb": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pb"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the price/book ratio"
-    },
-    "eps_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "eps_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the earnings-per-share growth"
-    },
-    "rev_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "rev_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the revenue growth"
-    },
-    "op_margin": {
-      "source": {
-        "store": "screener_rows",
-        "column": "op_margin"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the operating margin"
-    },
-    "gross_margin": {
-      "source": {
-        "store": "screener_rows",
-        "column": "gross_margin"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the gross margin"
-    },
-    "net_margin": {
-      "source": {
-        "store": "screener_rows",
-        "column": "net_margin"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the net margin"
-    },
-    "roe": {
-      "source": {
-        "store": "screener_rows",
-        "column": "roe"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the return on equity"
-    },
-    "roa": {
-      "source": {
-        "store": "screener_rows",
-        "column": "roa"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the return on assets"
-    },
-    "debt_to_equity": {
-      "source": {
-        "store": "screener_rows",
-        "column": "debt_to_equity"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the debt-to-equity ratio"
-    },
-    "current_ratio": {
-      "source": {
-        "store": "screener_rows",
-        "column": "current_ratio"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the current ratio"
-    },
-    "beta": {
-      "source": {
-        "store": "screener_rows",
-        "column": "beta"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the beta"
-    },
-    "inst_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "inst_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the institutional ownership percentage"
-    },
-    "uct_composite": {
-      "source": {
-        "store": "screener_rows",
-        "column": "uct_composite"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the UCT composite rating"
-    },
-    "rs_rank": {
-      "source": {
-        "store": "screener_rows",
-        "column": "rs_rank"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the relative-strength rank"
-    },
-    "rs_return": {
-      "source": {
-        "store": "screener_rows",
-        "column": "rs_return"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the relative-strength return"
-    },
-    "chg_pct_1d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "chg_pct_1d"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the one-day percentage change"
-    },
-    "chg_pct_1w": {
-      "source": {
-        "store": "screener_rows",
-        "column": "chg_pct_1w"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the one-week percentage change"
-    },
-    "chg_pct_1m": {
-      "source": {
-        "store": "screener_rows",
-        "column": "chg_pct_1m"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the one-month percentage change"
-    },
-    "rsi14": {
-      "source": {
-        "store": "screener_rows",
-        "column": "rsi14"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the nightly 14-period RSI"
-    },
-    "pct_vs_sma20": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pct_vs_sma20"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance from the 20-day average"
-    },
-    "pct_vs_sma50": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pct_vs_sma50"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance from the 50-day average"
-    },
-    "pct_vs_sma200": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pct_vs_sma200"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance from the 200-day average"
-    },
-    "pct_vs_ema20": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pct_vs_ema20"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance from the 20-day exponential average"
+      "yields": "bool",
+      "sentence": "whether the price is above its 50-day average"
     },
     "adr_pct": {
       "source": {
@@ -1499,6 +1109,32 @@
       "yields": "num",
       "sentence": "the average daily range percentage"
     },
+    "adr_pct_1w": {
+      "source": {
+        "store": "screener_rows",
+        "column": "adr_pct_1w"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the average daily range over the last 5 bars, as a percent of price"
+    },
+    "atr_ext_sma50": {
+      "source": {
+        "store": "screener_rows",
+        "column": "atr_ext_sma50"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the extension above the 50-bar average, measured in ATRs"
+    },
     "atr_pct": {
       "source": {
         "store": "screener_rows",
@@ -1512,10 +1148,10 @@
       "yields": "num",
       "sentence": "the average true range percentage"
     },
-    "vol_ratio": {
+    "avg_body": {
       "source": {
         "store": "screener_rows",
-        "column": "vol_ratio"
+        "column": "avg_body"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1523,12 +1159,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the volume ratio against its own average"
+      "sentence": "the average candle body, open to close, in price rather than percent, over the 15 completed sessions before the newest bar"
     },
-    "gap_pct": {
+    "avg_body_pct_5": {
       "source": {
         "store": "screener_rows",
-        "column": "gap_pct"
+        "column": "avg_body_pct_5"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1536,7 +1172,306 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the opening gap percentage"
+      "sentence": "the 5-bar body tightness, the average candle body as a percent of its range"
+    },
+    "avg_range": {
+      "source": {
+        "store": "screener_rows",
+        "column": "avg_range"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar"
+    },
+    "avg_volume_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "avg_volume_30d"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the 30-day average volume"
+    },
+    "base_relation_count": {
+      "source": {
+        "store": "screener_rows",
+        "column": "base_relation_count"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired"
+    },
+    "beta": {
+      "source": {
+        "store": "screener_rows",
+        "column": "beta"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the beta"
+    },
+    "blended_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "blended_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the blended earnings and revenue growth"
+    },
+    "body_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "body_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the candle body as a percentage of its range"
+    },
+    "candle_recent_bars_ago": {
+      "source": {
+        "store": "screener_rows",
+        "column": "candle_recent_bars_ago"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of sessions since the most recent multi-bar candle pattern completed, 0 on the newest bar and at most 4 (blank when none formed inside the last five sessions)"
+    },
+    "candle_score": {
+      "source": {
+        "store": "screener_rows",
+        "column": "candle_score"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the screener's setup score for this symbol's candle structure"
+    },
+    "chg_from_open_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_from_open_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage change from this session's open"
+    },
+    "chg_pct_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_1d"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the one-day percentage change"
+    },
+    "chg_pct_1m": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_1m"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the one-month percentage change"
+    },
+    "chg_pct_1w": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_1w"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the one-week percentage change"
+    },
+    "chg_pct_1y": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_1y"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the one-year percentage change"
+    },
+    "chg_pct_ytd": {
+      "source": {
+        "store": "screener_rows",
+        "column": "chg_pct_ytd"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the year-to-date percentage change"
+    },
+    "close_cv_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "close_cv_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the closing-price tightness (coefficient of variation of recent closes, %)"
+    },
+    "close_position": {
+      "source": {
+        "store": "screener_rows",
+        "column": "close_position"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the close's position inside the bar's range"
+    },
+    "consecutive_down": {
+      "source": {
+        "store": "screener_rows",
+        "column": "consecutive_down"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the run of consecutive down closes"
+    },
+    "consecutive_up": {
+      "source": {
+        "store": "screener_rows",
+        "column": "consecutive_up"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the run of consecutive up closes"
+    },
+    "current_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "current_ratio"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the current ratio"
+    },
+    "days_to_earnings": {
+      "source": {
+        "store": "screener_rows",
+        "column": "days_to_earnings"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days until the next earnings report"
+    },
+    "debt_to_equity": {
+      "source": {
+        "store": "screener_rows",
+        "column": "debt_to_equity"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the debt-to-equity ratio"
+    },
+    "dist_20d_high_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dist_20d_high_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the 20-day high, in percent"
+    },
+    "dist_20d_low_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dist_20d_low_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the 20-day low, in percent"
     },
     "dist_52w_high_pct": {
       "source": {
@@ -1564,10 +1499,114 @@
       "yields": "num",
       "sentence": "the percentage distance from the 52-week low"
     },
-    "above_50sma": {
+    "dist_ath_pct": {
       "source": {
         "store": "screener_rows",
-        "column": "above_50sma"
+        "column": "dist_ath_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the distance from the all-time high, in percent"
+    },
+    "dividend_yield": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dividend_yield"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dividend yield"
+    },
+    "dollar_vol_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dollar_vol_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the average daily dollar volume over 30 days"
+    },
+    "downgrades_30d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "downgrades_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of analyst downgrades in the last 30 days"
+    },
+    "dp_level_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_level_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance to the nearest signature dark-pool level"
+    },
+    "dp_notional_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_notional_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dark-pool block notional on the latest session"
+    },
+    "dp_notional_5d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_notional_5d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dark-pool block notional across the five latest sessions"
+    },
+    "dp_prints_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dp_prints_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of dark-pool block prints on the latest session"
+    },
+    "ema10_rising": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ema10_rising"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1575,12 +1614,12 @@
       },
       "cadence": "nightly",
       "yields": "bool",
-      "sentence": "whether the price is above its 50-day average"
+      "sentence": "whether the 10-bar EMA is rising"
     },
-    "new_52w_high": {
+    "ema20_rising": {
       "source": {
         "store": "screener_rows",
-        "column": "new_52w_high"
+        "column": "ema20_rising"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1588,64 +1627,12 @@
       },
       "cadence": "nightly",
       "yields": "bool",
-      "sentence": "whether the bar made a new 52-week high"
+      "sentence": "whether the 20-bar EMA is rising"
     },
-    "body_pct": {
+    "ema_stack_intact": {
       "source": {
         "store": "screener_rows",
-        "column": "body_pct"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the candle body as a percentage of its range"
-    },
-    "upper_wick_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "upper_wick_pct"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the upper wick as a percentage of the range"
-    },
-    "lower_wick_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "lower_wick_pct"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the lower wick as a percentage of the range"
-    },
-    "close_position": {
-      "source": {
-        "store": "screener_rows",
-        "column": "close_position"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the close's position inside the bar's range"
-    },
-    "wide_bar": {
-      "source": {
-        "store": "screener_rows",
-        "column": "wide_bar"
+        "column": "ema_stack_intact"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1653,25 +1640,12 @@
       },
       "cadence": "nightly",
       "yields": "bool",
-      "sentence": "whether the bar is unusually wide"
+      "sentence": "whether the EMA stack is intact (close above EMA10 above EMA20, both rising)"
     },
-    "narrow_bar": {
+    "ema_touch_count": {
       "source": {
         "store": "screener_rows",
-        "column": "narrow_bar"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "whether the bar is unusually narrow"
-    },
-    "candle_recent_bars_ago": {
-      "source": {
-        "store": "screener_rows",
-        "column": "candle_recent_bars_ago"
+        "column": "ema_touch_count"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1679,12 +1653,90 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of sessions since the most recent multi-bar candle pattern completed, 0 on the newest bar and at most 4 (blank when none formed inside the last five sessions)"
+      "sentence": "the number of the last 15 bars that touched the 20-bar EMA"
     },
-    "avg_body": {
+    "eps_growth": {
       "source": {
         "store": "screener_rows",
-        "column": "avg_body"
+        "column": "eps_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the earnings-per-share growth"
+    },
+    "eps_next_5y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_next_5y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the analysts' estimated annual earnings-per-share growth over the next five years (a forecast, not a realised figure)"
+    },
+    "eps_next_y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_next_y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the estimated next-year earnings-per-share growth"
+    },
+    "eps_past_5y_growth": {
+      "source": {
+        "store": "screener_rows",
+        "column": "eps_past_5y_growth"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the annualised earnings-per-share growth over the past five years"
+    },
+    "float_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "float_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the public float as a percentage of shares outstanding"
+    },
+    "float_shares": {
+      "source": {
+        "store": "screener_rows",
+        "column": "float_shares"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of shares in the public float"
+    },
+    "gap_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "gap_pct"
       },
       "as_of": {
         "column": "bars_asof",
@@ -1692,59 +1744,20 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the average candle body, open to close, in price rather than percent, over the 15 completed sessions before the newest bar"
+      "sentence": "the opening gap percentage"
     },
-    "avg_range": {
+    "gross_margin": {
       "source": {
         "store": "screener_rows",
-        "column": "avg_range"
+        "column": "gross_margin"
       },
       "as_of": {
-        "column": "bars_asof",
+        "column": "snapshot_date",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the average bar range, high minus low, in price rather than percent, over the 20 completed sessions before the newest bar"
-    },
-    "inside_bar_run": {
-      "source": {
-        "store": "screener_rows",
-        "column": "inside_bar_run"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the run of consecutive inside bars"
-    },
-    "tight_consolidation": {
-      "source": {
-        "store": "screener_rows",
-        "column": "tight_consolidation"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "whether the recent bars are tightly consolidated"
-    },
-    "pullback_depth_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pullback_depth_pct"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the depth of the current pullback"
+      "sentence": "the gross margin"
     },
     "higher_lows_run": {
       "source": {
@@ -1759,6 +1772,318 @@
       "yields": "num",
       "sentence": "the run of consecutive higher lows"
     },
+    "hvc_52w": {
+      "source": {
+        "store": "screener_rows",
+        "column": "hvc_52w"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "the 52-week high-volume-close flag from the breadth universe"
+    },
+    "implied_move_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "implied_move_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the options-implied move into the next report"
+    },
+    "in_uct20": {
+      "source": {
+        "store": "screener_rows",
+        "column": "in_uct20"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the UCT 20"
+    },
+    "index_dow": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_dow"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Dow 30"
+    },
+    "index_ndx": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_ndx"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Nasdaq 100"
+    },
+    "index_r2k": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_r2k"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the Russell 2000"
+    },
+    "index_sp500": {
+      "source": {
+        "store": "screener_rows",
+        "column": "index_sp500"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is in the S&P 500"
+    },
+    "inside_bar_run": {
+      "source": {
+        "store": "screener_rows",
+        "column": "inside_bar_run"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the run of consecutive inside bars"
+    },
+    "insider_cluster_days": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_cluster_days"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days since the last insider cluster buy"
+    },
+    "insider_own_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_own_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the insider ownership percentage"
+    },
+    "insider_trans_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "insider_trans_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net change in insider ownership over the trailing window (buying minus selling, not the ownership level)"
+    },
+    "inst_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "inst_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the institutional ownership percentage"
+    },
+    "inst_trans_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "inst_trans_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net change in institutional ownership over the trailing window (buying minus selling, not the ownership level)"
+    },
+    "ipo_age_days": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ipo_age_days"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of days since the IPO"
+    },
+    "is_etf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "is_etf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is an ETF"
+    },
+    "is_leveraged": {
+      "source": {
+        "store": "screener_rows",
+        "column": "is_leveraged"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the symbol is a leveraged or inverse ETF"
+    },
+    "last_report_move_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "last_report_move_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage move on the last earnings report"
+    },
+    "lower_wick_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "lower_wick_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the lower wick as a percentage of the range"
+    },
+    "lt_debt_to_capital": {
+      "source": {
+        "store": "screener_rows",
+        "column": "lt_debt_to_capital"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the long-term debt to total capital ratio"
+    },
+    "market_cap": {
+      "source": {
+        "store": "screener_rows",
+        "column": "market_cap"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the market capitalisation"
+    },
+    "narrow_bar": {
+      "source": {
+        "store": "screener_rows",
+        "column": "narrow_bar"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the bar is unusually narrow"
+    },
+    "net_margin": {
+      "source": {
+        "store": "screener_rows",
+        "column": "net_margin"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net margin"
+    },
+    "new_52w_high": {
+      "source": {
+        "store": "screener_rows",
+        "column": "new_52w_high"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the bar made a new 52-week high"
+    },
+    "new_ath": {
+      "source": {
+        "store": "screener_rows",
+        "column": "new_ath"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether this bar made a new all-time high"
+    },
     "nr7": {
       "source": {
         "store": "screener_rows",
@@ -1772,36 +2097,10 @@
       "yields": "bool",
       "sentence": "whether the bar is the narrowest of the last seven"
     },
-    "consecutive_up": {
+    "op_margin": {
       "source": {
         "store": "screener_rows",
-        "column": "consecutive_up"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the run of consecutive up closes"
-    },
-    "consecutive_down": {
-      "source": {
-        "store": "screener_rows",
-        "column": "consecutive_down"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the run of consecutive down closes"
-    },
-    "quick_ratio": {
-      "source": {
-        "store": "screener_rows",
-        "column": "quick_ratio"
+        "column": "op_margin"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1809,7 +2108,59 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the quick ratio"
+      "sentence": "the operating margin"
+    },
+    "opt_bull_pct_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_bull_pct_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the bullish share of classified options premium on the latest session"
+    },
+    "opt_net_premium_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_net_premium_1d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net options premium on the latest session"
+    },
+    "opt_net_premium_5d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "opt_net_premium_5d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the net options premium across the five latest sessions"
+    },
+    "optionable": {
+      "source": {
+        "store": "screener_rows",
+        "column": "optionable"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether listed options trade on the stock"
     },
     "p_fcf": {
       "source": {
@@ -1837,6 +2188,97 @@
       "yields": "num",
       "sentence": "the price to operating-cash-flow ratio"
     },
+    "pattern_engine_conf": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_conf"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the highest active pattern-engine confidence, on the engine's 0-100 scale"
+    },
+    "pattern_engine_dir": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_dir"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the best active pattern's direction, encoded 1 for bullish, -1 for bearish and 0 for neutral"
+    },
+    "pattern_engine_flat_base": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_flat_base"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "the pattern engine's own reading that the symbol is in a flat base (a tight horizontal consolidation on drying volume after a prior advance), which is a different answer from the older heuristic pattern tag"
+    },
+    "pattern_engine_vcp": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_engine_vcp"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "the pattern engine's own reading that the symbol is in a volatility contraction (successively shallower pullbacks on drying volume into a pivot), which is a different answer from the older heuristic pattern tag"
+    },
+    "pattern_entry_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_entry_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance from the last price to the best pattern's entry level"
+    },
+    "pattern_expectancy_r": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_expectancy_r"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the pattern's historical expectancy in R, derived from its hit rate at an assumed 2R win and 1R loss"
+    },
+    "pattern_stop_dist_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "pattern_stop_dist_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the percentage distance from the last price to the best pattern's stop level"
+    },
     "payout_ratio": {
       "source": {
         "store": "screener_rows",
@@ -1850,10 +2292,10 @@
       "yields": "num",
       "sentence": "the dividend payout ratio"
     },
-    "roic": {
+    "pb": {
       "source": {
         "store": "screener_rows",
-        "column": "roic"
+        "column": "pb"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1861,64 +2303,64 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the return on invested capital"
+      "sentence": "the price/book ratio"
     },
-    "lt_debt_to_capital": {
+    "pct_vs_ema20": {
       "source": {
         "store": "screener_rows",
-        "column": "lt_debt_to_capital"
+        "column": "pct_vs_ema20"
       },
       "as_of": {
-        "column": "snapshot_date",
+        "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the long-term debt to total capital ratio"
+      "sentence": "the percentage distance from the 20-day exponential average"
     },
-    "ipo_age_days": {
+    "pct_vs_sma20": {
       "source": {
         "store": "screener_rows",
-        "column": "ipo_age_days"
+        "column": "pct_vs_sma20"
       },
       "as_of": {
-        "column": "snapshot_date",
+        "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of days since the IPO"
+      "sentence": "the percentage distance from the 20-day average"
     },
-    "shares_outstanding": {
+    "pct_vs_sma200": {
       "source": {
         "store": "screener_rows",
-        "column": "shares_outstanding"
+        "column": "pct_vs_sma200"
       },
       "as_of": {
-        "column": "snapshot_date",
+        "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of shares outstanding"
+      "sentence": "the percentage distance from the 200-day average"
     },
-    "float_shares": {
+    "pct_vs_sma50": {
       "source": {
         "store": "screener_rows",
-        "column": "float_shares"
+        "column": "pct_vs_sma50"
       },
       "as_of": {
-        "column": "snapshot_date",
+        "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of shares in the public float"
+      "sentence": "the percentage distance from the 50-day average"
     },
-    "float_pct": {
+    "pe_fwd": {
       "source": {
         "store": "screener_rows",
-        "column": "float_pct"
+        "column": "pe_fwd"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1926,12 +2368,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the public float as a percentage of shares outstanding"
+      "sentence": "the forward price/earnings ratio"
     },
-    "short_float_pct": {
+    "pe_ttm": {
       "source": {
         "store": "screener_rows",
-        "column": "short_float_pct"
+        "column": "pe_ttm"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1939,12 +2381,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the short interest as a percentage of the float"
+      "sentence": "the trailing price/earnings ratio"
     },
-    "short_ratio": {
+    "peg": {
       "source": {
         "store": "screener_rows",
-        "column": "short_ratio"
+        "column": "peg"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1952,12 +2394,90 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the short-interest days-to-cover ratio"
+      "sentence": "the PEG ratio"
     },
-    "insider_own_pct": {
+    "pole_pct": {
       "source": {
         "store": "screener_rows",
-        "column": "insider_own_pct"
+        "column": "pole_pct"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the prior run into the current base, in percent"
+    },
+    "prev_day_close": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_close"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's close"
+    },
+    "prev_day_high": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_high"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's high"
+    },
+    "prev_day_low": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_low"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's low"
+    },
+    "prev_day_open": {
+      "source": {
+        "store": "screener_rows",
+        "column": "prev_day_open"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the previous session's open"
+    },
+    "price": {
+      "source": {
+        "store": "screener_rows",
+        "column": "price"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the snapshot close"
+    },
+    "ps": {
+      "source": {
+        "store": "screener_rows",
+        "column": "ps"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -1965,7 +2485,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the insider ownership percentage"
+      "sentence": "the price/sales ratio"
     },
     "pt_target": {
       "source": {
@@ -1993,23 +2513,23 @@
       "yields": "num",
       "sentence": "the percentage upside to the consensus price target"
     },
-    "upgrades_30d": {
+    "pullback_depth_pct": {
       "source": {
         "store": "screener_rows",
-        "column": "upgrades_30d"
+        "column": "pullback_depth_pct"
       },
       "as_of": {
-        "column": "snapshot_date",
+        "column": "bars_asof",
         "grain": "date"
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the count of analyst upgrades in the last 30 days"
+      "sentence": "the depth of the current pullback"
     },
-    "downgrades_30d": {
+    "quick_ratio": {
       "source": {
         "store": "screener_rows",
-        "column": "downgrades_30d"
+        "column": "quick_ratio"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2017,46 +2537,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the count of analyst downgrades in the last 30 days"
-    },
-    "eps_next_y_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "eps_next_y_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the estimated next-year earnings-per-share growth"
-    },
-    "blended_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "blended_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the blended earnings and revenue growth"
-    },
-    "sector_rs_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "sector_rs_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the sector relative-strength percentile"
+      "sentence": "the quick ratio"
     },
     "rating_eps": {
       "source": {
@@ -2084,19 +2565,6 @@
       "yields": "num",
       "sentence": "the growth strength rating"
     },
-    "rating_value": {
-      "source": {
-        "store": "screener_rows",
-        "column": "rating_value"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the value strength rating"
-    },
     "rating_smr": {
       "source": {
         "store": "screener_rows",
@@ -2110,10 +2578,10 @@
       "yields": "num",
       "sentence": "the sales-margins-returns composite rating"
     },
-    "days_to_earnings": {
+    "rating_value": {
       "source": {
         "store": "screener_rows",
-        "column": "days_to_earnings"
+        "column": "rating_value"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2121,12 +2589,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of days until the next earnings report"
+      "sentence": "the value strength rating"
     },
-    "last_report_move_pct": {
+    "rev_growth": {
       "source": {
         "store": "screener_rows",
-        "column": "last_report_move_pct"
+        "column": "rev_growth"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2134,12 +2602,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the percentage move on the last earnings report"
+      "sentence": "the revenue growth"
     },
-    "implied_move_pct": {
+    "roa": {
       "source": {
         "store": "screener_rows",
-        "column": "implied_move_pct"
+        "column": "roa"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2147,12 +2615,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the options-implied move into the next report"
+      "sentence": "the return on assets"
     },
-    "insider_cluster_days": {
+    "roe": {
       "source": {
         "store": "screener_rows",
-        "column": "insider_cluster_days"
+        "column": "roe"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2160,12 +2628,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of days since the last insider cluster buy"
+      "sentence": "the return on equity"
     },
-    "pattern_engine_conf": {
+    "roic": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_engine_conf"
+        "column": "roic"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2173,12 +2641,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the highest active pattern-engine confidence, on the engine's 0-100 scale"
+      "sentence": "the return on invested capital"
     },
-    "pattern_engine_dir": {
+    "rs_rank": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_engine_dir"
+        "column": "rs_rank"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2186,12 +2654,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the best active pattern's direction, encoded 1 for bullish, -1 for bearish and 0 for neutral"
+      "sentence": "the relative-strength rank"
     },
-    "pattern_entry_dist_pct": {
+    "rs_return": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_entry_dist_pct"
+        "column": "rs_return"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2199,142 +2667,12 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the percentage distance from the last price to the best pattern's entry level"
+      "sentence": "the relative-strength return"
     },
-    "pattern_stop_dist_pct": {
+    "rsi14": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_stop_dist_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance from the last price to the best pattern's stop level"
-    },
-    "pattern_expectancy_r": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pattern_expectancy_r"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the pattern's historical expectancy in R, derived from its hit rate at an assumed 2R win and 1R loss"
-    },
-    "dp_notional_1d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dp_notional_1d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the dark-pool block notional on the latest session"
-    },
-    "dp_prints_1d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dp_prints_1d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the count of dark-pool block prints on the latest session"
-    },
-    "dp_notional_5d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dp_notional_5d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the dark-pool block notional across the five latest sessions"
-    },
-    "dp_level_dist_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dp_level_dist_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the percentage distance to the nearest signature dark-pool level"
-    },
-    "opt_net_premium_1d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "opt_net_premium_1d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the net options premium on the latest session"
-    },
-    "opt_bull_pct_1d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "opt_bull_pct_1d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the bullish share of classified options premium on the latest session"
-    },
-    "opt_net_premium_5d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "opt_net_premium_5d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the net options premium across the five latest sessions"
-    },
-    "dollar_vol_30d": {
-      "source": {
-        "store": "screener_rows",
-        "column": "dollar_vol_30d"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the average daily dollar volume over 30 days"
-    },
-    "close_cv_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "close_cv_pct"
+        "column": "rsi14"
       },
       "as_of": {
         "column": "bars_asof",
@@ -2342,137 +2680,7 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the closing-price tightness (coefficient of variation of recent closes, %)"
-    },
-    "vol_updown_ratio": {
-      "source": {
-        "store": "screener_rows",
-        "column": "vol_updown_ratio"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the up-day to down-day volume ratio"
-    },
-    "vol_nweek_low": {
-      "source": {
-        "store": "screener_rows",
-        "column": "vol_nweek_low"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the volume-dryness bar count (20 = 4-week low, 15 = 3-week, 10 = 2-week)"
-    },
-    "ema_stack_intact": {
-      "source": {
-        "store": "screener_rows",
-        "column": "ema_stack_intact"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "whether the EMA stack is intact (close above EMA10 above EMA20, both rising)"
-    },
-    "hvc_52w": {
-      "source": {
-        "store": "screener_rows",
-        "column": "hvc_52w"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "the 52-week high-volume-close flag from the breadth universe"
-    },
-    "insider_trans_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "insider_trans_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the net change in insider ownership over the trailing window (buying minus selling, not the ownership level)"
-    },
-    "inst_trans_pct": {
-      "source": {
-        "store": "screener_rows",
-        "column": "inst_trans_pct"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the net change in institutional ownership over the trailing window (buying minus selling, not the ownership level)"
-    },
-    "optionable": {
-      "source": {
-        "store": "screener_rows",
-        "column": "optionable"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "whether listed options trade on the stock"
-    },
-    "shortable": {
-      "source": {
-        "store": "screener_rows",
-        "column": "shortable"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "whether the stock is available to short"
-    },
-    "eps_past_5y_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "eps_past_5y_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the annualised earnings-per-share growth over the past five years"
-    },
-    "eps_next_5y_growth": {
-      "source": {
-        "store": "screener_rows",
-        "column": "eps_next_5y_growth"
-      },
-      "as_of": {
-        "column": "snapshot_date",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the analysts' estimated annual earnings-per-share growth over the next five years (a forecast, not a realised figure)"
+      "sentence": "the nightly 14-period RSI"
     },
     "sales_past_5y_growth": {
       "source": {
@@ -2487,10 +2695,62 @@
       "yields": "num",
       "sentence": "the annualised sales growth over the past five years"
     },
-    "pattern_engine_vcp": {
+    "sector_rs_pct": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_engine_vcp"
+        "column": "sector_rs_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the sector relative-strength percentile"
+    },
+    "shares_outstanding": {
+      "source": {
+        "store": "screener_rows",
+        "column": "shares_outstanding"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of shares outstanding"
+    },
+    "short_float_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "short_float_pct"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the short interest as a percentage of the float"
+    },
+    "short_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "short_ratio"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the short-interest days-to-cover ratio"
+    },
+    "shortable": {
+      "source": {
+        "store": "screener_rows",
+        "column": "shortable"
       },
       "as_of": {
         "column": "snapshot_date",
@@ -2498,25 +2758,51 @@
       },
       "cadence": "nightly",
       "yields": "bool",
-      "sentence": "the pattern engine's own reading that the symbol is in a volatility contraction (successively shallower pullbacks on drying volume into a pivot), which is a different answer from the older heuristic pattern tag"
+      "sentence": "whether the stock is available to short"
     },
-    "pattern_engine_flat_base": {
+    "tight_consolidation": {
       "source": {
         "store": "screener_rows",
-        "column": "pattern_engine_flat_base"
+        "column": "tight_consolidation"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the recent bars are tightly consolidated"
+    },
+    "uct_composite": {
+      "source": {
+        "store": "screener_rows",
+        "column": "uct_composite"
       },
       "as_of": {
         "column": "snapshot_date",
         "grain": "date"
       },
       "cadence": "nightly",
-      "yields": "bool",
-      "sentence": "the pattern engine's own reading that the symbol is in a flat base (a tight horizontal consolidation on drying volume after a prior advance), which is a different answer from the older heuristic pattern tag"
+      "yields": "num",
+      "sentence": "the UCT composite rating"
     },
-    "base_relation_count": {
+    "upgrades_30d": {
       "source": {
         "store": "screener_rows",
-        "column": "base_relation_count"
+        "column": "upgrades_30d"
+      },
+      "as_of": {
+        "column": "snapshot_date",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the count of analyst upgrades in the last 30 days"
+    },
+    "upper_wick_pct": {
+      "source": {
+        "store": "screener_rows",
+        "column": "upper_wick_pct"
       },
       "as_of": {
         "column": "bars_asof",
@@ -2524,7 +2810,59 @@
       },
       "cadence": "nightly",
       "yields": "num",
-      "sentence": "the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired"
+      "sentence": "the upper wick as a percentage of the range"
+    },
+    "vol_nweek_low": {
+      "source": {
+        "store": "screener_rows",
+        "column": "vol_nweek_low"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the volume-dryness bar count (20 = 4-week low, 15 = 3-week, 10 = 2-week)"
+    },
+    "vol_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "vol_ratio"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the volume ratio against its own average"
+    },
+    "vol_updown_ratio": {
+      "source": {
+        "store": "screener_rows",
+        "column": "vol_updown_ratio"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the up-day to down-day volume ratio"
+    },
+    "wide_bar": {
+      "source": {
+        "store": "screener_rows",
+        "column": "wide_bar"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "bool",
+      "sentence": "whether the bar is unusually wide"
     }
   },
   "_functions_arg_role_kinds": {
@@ -2567,34 +2905,8 @@
     "accdis": "holds letter grades A-E, not a number -- declaring it `num` was the live two-lane defect (W5 plan ruling D4): a formula comparing it compared a string, and the hole-guard read non-null as resolved; the enum filter is the honest surface -- see 2026-08-23 Wave-6 T1",
     "chg_pct_3m": "a Wave 1 screener column that ships in the screener and is NOT in the formula vocabulary. ⚰️ THIS NOTE USED TO DEFER THE PROMOTION to a later wave, by number, citing spec Section 2.4 — and that wave RAN. (The old sentence is described rather than quoted here on purpose: a reason that contains a live-sounding deferral reads as one, and `tests/test_no_stale_handoffs.py` cannot tell a quotation from a promise.) docs/superpowers/plans/2026-08-23-screener-wave6-presets-parity.md promoted exactly five Wave-1 columns (dollar_vol_30d, close_cv_pct, vol_updown_ratio, vol_nweek_low, ema_stack_intact) and excluded accdis; the thirty named here were not among them. So the sentence pointed at an owner that had finished, which is how a hand-off becomes permanent: nobody is waiting for a wave that is done. ⭐ WHAT PROMOTION ACTUALLY COSTS IS SMALL AND KNOWN: the source is screener_rows/<column>, `yields` follows the catalog's `type` (`filters.FILTERS[<column>].type == 'bool'` → bool, else num), and what has to be AUTHORED is the read-back sentence — Wave 6's own plan shows why that is not mechanical, requiring vol_nweek_low's sentence to state its 20/15/10 bar-count encoding. ⛔ AND EACH ONE MUST CLEAR `tests/test_scalar_population_rail.py` FIRST: §1 that some line of the builder assigns the column, §2 that it is not NULL across the live snapshot. Declaring a column nothing fills is the 2026-08-09 defect that rail exists for.",
     "chg_pct_6m": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_pct_1y": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_pct_ytd": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "chg_from_open_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "adr_pct_1w": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_20d_high_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_20d_low_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "dist_ath_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "new_ath": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "pole_pct": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema_touch_count": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema10_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "ema20_rising": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "candle_score": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "atr_ext_sma50": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "rs_line_trend": "TEXT -- RS Line vs SPY: whether the ticker's ratio to SPY is rising, falling or flat, a verdict read off the slope of that ratio over the last 20 sessions against a fixed band of five hundredths of a percent per session, and withheld entirely when fewer than five sessions of the ratio are usable. A verdict is not a magnitude, and the slope behind it is not stored as a column -- that stays true however many nightly builds fill it. The relative-strength magnitudes that ARE declared measure different things: rs_rank, rs_return and sector_rs_pct.",
-    "prev_day_open": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_high": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_low": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "prev_day_close": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "avg_body_pct_5": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "theme": "TEXT, for the same reason as `sector` -- a single category label surfaced as an `options_column` filter, not a magnitude a formula reads",
-    "in_uct20": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_sp500": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_ndx": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_dow": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "index_r2k": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "is_etf": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
-    "is_leveraged": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage2": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "stage4": "for the same reason as `chg_pct_3m` -- Wave 1, not yet promoted",
     "ipo_date": "TEXT, for the same reason as `snapshot_date` -- also a Wave 2 column not yet promoted",

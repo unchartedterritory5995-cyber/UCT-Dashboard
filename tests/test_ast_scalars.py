@@ -256,7 +256,29 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # shape that hides a mistake: a retirement and an addition cancelling means
     # the pair moved for TWO reasons at once. Both are spelled out above so the
     # next reader does not have to reconstruct which.
-    assert (len(declared), len(excluded)) == (111, 92)
+    # (111, 92) -> (137, 66) on 2026-09-02: the WAVE-1 PROMOTION, and it is one
+    # movement rather than two — twenty-six names crossed the partition and
+    # nothing was retired, so the arithmetic is a straight transfer:
+    #   declared  111 + 26 = 137
+    #   excluded   92 - 26 =  66
+    # ⚰️ THEY HAD BEEN WAITING ON A HAND-OFF THAT FINISHED. Every one carried
+    # `chg_pct_3m`'s reason, which deferred the promotion to a later wave by
+    # number; that wave ran on 2026-08-23, promoted five OTHER Wave-1 columns and
+    # left these thirty behind. `tests/test_no_stale_handoffs.py` now refuses a
+    # reason that waits for a wave whose plan already exists.
+    # ⛔ FOUR OF THE THIRTY WERE HELD BACK, AND NOT ARBITRARILY: `chg_pct_3m`,
+    # `chg_pct_6m`, `stage2` and `stage4` read 0 of 3,714 rows on the snapshot
+    # this was measured against. They have collectors — `snapshot_builder.py`
+    # assigns the first, `context_joins.py` the third — so §1 of the population
+    # rail would pass them and §2 is the one that would not. Declaring a column
+    # nothing fills is the 2026-08-09 defect that rail exists for, so they stay
+    # excluded until a snapshot shows them filled.
+    # ⭐ `yields` IS THE CATALOG'S OWN: `filters.FILTERS[col].type == 'bool'`
+    # became bool and everything else num, so the ten flags are flags and the
+    # sixteen measures are numbers. `as_of` follows the convention already in
+    # this file — bar-derived columns take `bars_asof` (19) and joined context
+    # takes `snapshot_date` (7), which is how every existing pair reads.
+    assert (len(declared), len(excluded)) == (137, 66)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -717,7 +739,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # whole reason this assertion has two numbers in it rather than one total.
     # ⭐ 96 -> 97 IS `cumFrom`, THE ANCHORED RUNNING TOTAL, AND THE SCALAR HALF
     # IS UNTOUCHED AT 111 -- again the reason for two numbers rather than one.
-    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 111
+    # ⚠️ THE SCALAR HALF MOVED 111 -> 137 ON 2026-09-02 (the Wave-1 promotion);
+    # the BAR half is untouched, which is the half this test is about.
+    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

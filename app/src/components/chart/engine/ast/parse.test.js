@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 64 functions and 111 scalars — 208 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 64 functions and 137 scalars — 234 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -522,7 +522,14 @@ describe('the manifest', () => {
     // precisely because it packs bars out of argument COLUMNS, so an entry with
     // no columns to pack is handed the real bars. Still no new node type and no
     // new argument kind, so `tableVersion` is unmoved at 2.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(111)
+    // ⭐ 111 -> 137 (2026-09-02): THE WAVE-1 PROMOTION. Twenty-six screener
+    // columns that had shipped and could not be named in a formula crossed the
+    // partition; nothing was retired, so this is a straight transfer from
+    // `_scalars_excluded`. Four of the thirty were held back because they read
+    // 0 of 3,714 rows on the measured snapshot — see
+    // `tests/test_ast_scalars.py`'s partition pin for the arithmetic and the
+    // reason each side moved.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(137)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
       ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
@@ -553,7 +560,7 @@ describe('the manifest', () => {
     // untouched at 111.
     expect(bar.size).toBe(97)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(208)
+    expect(declared.size).toBe(234)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
