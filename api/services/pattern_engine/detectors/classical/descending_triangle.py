@@ -30,13 +30,26 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
-from api.services.pattern_engine.primitives.geometry import line_at
+from api.services.pattern_engine.primitives.geometry import (
+    fractional_slope,
+    price_at,
+)
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "descending_triangle"
+#: ⛔ EDWARDS & MAGEE: JUDGE CONVERGENCE IN LOG SPACE, NOT IN POINTS. A
+#: constant-PERCENTAGE swing shrinks in POINTS as price falls, so an arithmetic
+#: fit misjudges whether the sloping boundary is really closing on the flat one.
+#: The fitted line carries `space`; read prices off it with `geometry.price_at`
+#: (the unconditionally-linear accessor it replaced reads a CHORD across an
+#: exponential) and convert its slope to a comparable unit with
+#: `geometry.fractional_slope` before printing or comparing it.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
+_TRENDLINE_SPACE = "log" if _LOG_SPACE else "price"
 _MIN_BARS = 20
 _MAX_BARS = 60
 _MIN_TOUCHES = 2
@@ -120,7 +133,7 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                     "bar_index": p["bar_index"]} for p in high_pivots_raw]
 
     try:
-        upper_line = fit_trendline(high_pivots)
+        upper_line = fit_trendline(high_pivots, log_space=_LOG_SPACE)
     except ValueError:
         return None
 
@@ -137,20 +150,24 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         "p1": {"t": int(start_idx), "price": float(flat_bottom_price)},
         "p2": {"t": int(end_idx), "price": float(flat_bottom_price)},
         "slope": 0.0,
+        # A horizontal line is the SAME curve in both spaces (constant), so
+        # tagging it with the fitted line's space costs nothing and keeps the
+        # pair intersectable - a mixed-space pair is a ValueError by design.
+        "space": _TRENDLINE_SPACE,
         "r_squared": max(0.0, 1.0 - flat_bottom_spread / _MAX_FLAT_BOTTOM_SPREAD_PCT),
         "touches": len(cluster_pivots_raw),
         "validity": min(1.0, len(cluster_pivots_raw) / 4.0
                         + max(0.0, 1.0 - flat_bottom_spread / _MAX_FLAT_BOTTOM_SPREAD_PCT) * 0.5),
     }
 
-    upper_at_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx)
+    upper_at_end = price_at(upper_line, end_idx)
     if upper_at_end <= flat_bottom_price:
         return None
     gap_pct = (upper_at_end - flat_bottom_price) / flat_bottom_price
     if gap_pct > _MAX_CONVERGENCE_GAP_PCT:
         return None
 
-    upper_at_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx)
+    upper_at_start = price_at(upper_line, start_idx)
     width_start = upper_at_start - flat_bottom_price
     width_end = upper_at_end - flat_bottom_price
     if width_start <= 0 or width_end <= 0:
@@ -183,6 +200,10 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         "upper_line": upper_line,
         "lower_line": lower_line,
         "upper_slope": upper_line["slope"],
+        # Fraction of price per bar - the unit the member-facing sentence
+        # speaks, and the only reading of this slope that means the same
+        # thing whichever space the line was fitted in.
+        "upper_rate": fractional_slope(upper_line, flat_bottom_price),
         "lower_slope": 0.0,
         "highest_swing": earliest_swing_high_price,
         "cluster_touches": len(cluster_pivots_raw),
@@ -327,6 +348,7 @@ def _build_detection(bars, c, confidence, context,
 
     pattern_count = c["pattern_count"]
     upper_slope = c["upper_slope"]
+    upper_slope_pct_per_bar = abs(c["upper_rate"]) * 100.0
     upper_r2 = c["upper_line"]["r_squared"]
     upper_touches = c["high_touches"]
     cluster_touches = c["cluster_touches"]
@@ -360,8 +382,9 @@ def _build_detection(bars, c, confidence, context,
         f"pairs a horizontal lower boundary - here a flat support shelf at "
         f"${flat_bottom:.2f} confirmed by {cluster_touches} swing-low pivots "
         f"clustered within a {flat_spread_pct:.2f}% band - with a falling "
-        f"upper trendline with slope {upper_slope:.4f} per bar, r-squared "
-        f"{upper_r2:.2f}, anchored by {upper_touches} swing-high touches. "
+        f"upper trendline falling {upper_slope_pct_per_bar:.2f}% per bar, "
+        f"r-squared {upper_r2:.2f}, anchored by {upper_touches} swing-high "
+        f"touches. "
         f"Width has compressed from ${c['width_start']:.2f} to "
         f"${c['width_end']:.2f} across {pattern_count} bars (convergence "
         f"ratio {convergence_pct:.0f}% of start), and the falling resistance "
@@ -495,8 +518,16 @@ def _build_detection(bars, c, confidence, context,
             ],
             "extras": {
                 "pattern_bars": c["pattern_count"],
+                # ⛔ `upper_slope` is the RAW FITTED SLOPE and its unit
+                # follows `trendline_space`: dollars per bar under "price",
+                # log-units (a fractional rate) per bar under "log".
+                # `*_pct_per_bar` is the space-independent reading, and is
+                # the number the narrative above quotes.
+                "trendline_space": _TRENDLINE_SPACE,
                 "upper_slope": round(float(c["upper_slope"]), 6),
                 "lower_slope": 0.0,
+                "upper_slope_pct_per_bar": round(float(c["upper_rate"]) * 100, 4),
+                "lower_slope_pct_per_bar": 0.0,
                 "r_squared_upper": round(float(c["upper_line"]["r_squared"]), 3),
                 "r_squared_lower": round(float(c["lower_line"]["r_squared"]), 3),
                 "touches_upper": int(c["high_touches"]),
