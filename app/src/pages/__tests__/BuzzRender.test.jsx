@@ -226,6 +226,71 @@ describe('BuzzRender', () => {
     }
   })
 
+
+  // ── The tail's two chip tiers must look the same.
+  //
+  // ⚰️ Rejected twice. The once-named names started as a 10.5px grey comma-run
+  // at 36% opacity; that became a chip "the same family as the 2+ names, just
+  // quieter" (12px, not bold, 72% opacity) and the owner STILL could not read
+  // them, then ruled: "make the bottom rows of stocks mentioned the same
+  // visual as the 2nd tier so it can be seen."
+  //
+  // The instinct to rank the tail down visually is good typographic manners
+  // and wrong here, which is exactly why it keeps coming back and why this is
+  // a rail rather than a comment. Read from the stylesheet, since jsdom
+  // computes no layout and cannot see any of it.
+
+  const cssText = () => readFileSync(resolve('src/pages/BuzzRender.module.css'), 'utf8')
+
+  /** Declarations of the LAST rule whose selector matches exactly. */
+  function ruleOf(css, selector) {
+    const body = css
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('}')
+      .filter((chunk) => chunk.split('{')[0].trim() === selector)
+      .pop()
+    if (body === undefined) throw new Error(`no rule for "${selector}"`)
+    return Object.fromEntries(
+      body.split('{')[1].split(';')
+        .map((d) => d.trim()).filter(Boolean)
+        .map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]),
+    )
+  }
+
+  it('draws a once-named ticker in the same chip as a 2+ mention one', () => {
+    const css = cssText()
+    const one = ruleOf(css, '.one')
+    const multi = ruleOf(css, '.m')
+    for (const prop of ['padding', 'border-radius', 'background', 'border']) {
+      expect(one[prop], `.one ${prop} must match .m`).toBe(multi[prop])
+    }
+  })
+
+  it('sets a once-named ticker in the same type as a 2+ mention one', () => {
+    const css = cssText()
+    const one = ruleOf(css, '.one')
+    const label = ruleOf(css, '.m b')
+    for (const prop of ['font-size', 'font-weight', 'letter-spacing', 'color', 'font-family']) {
+      expect(one[prop], `.one ${prop} must match .m b`).toBe(label[prop])
+    }
+  })
+
+  it('never dims the once-named chips with an opacity of their own', () => {
+    // The specific mechanism both rejected versions used. A size or weight gap
+    // is caught above; this catches the one that leaves the metrics identical.
+    expect(ruleOf(cssText(), '.one').opacity).toBeUndefined()
+  })
+
+  it('the parity probe can tell two rules apart', () => {
+    // NON-VACUITY. `ruleOf` returning {} for everything would make all three
+    // tests above pass by comparing nothing to nothing.
+    const css = cssText()
+    expect(Object.keys(ruleOf(css, '.one')).length).toBeGreaterThan(4)
+    expect(ruleOf(css, '.m b')['font-weight']).toBe('700')
+    // Two rules that genuinely differ still read as different.
+    expect(ruleOf(css, '.m i').color).not.toBe(ruleOf(css, '.m b').color)
+  })
+
   it('does not claim ready before data arrives', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<BuzzRender />)
