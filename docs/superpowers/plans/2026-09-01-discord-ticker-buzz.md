@@ -2404,6 +2404,11 @@ The board sits beside `/chart` images in the same Discord channel, so it must be
 | Page | `#0a0a0a` |
 | Footer bar | `height:20px; background:#161616; font-size:10px; color:#888` |
 | Muted ink | `#9aa08f` |
+| Ticker symbols | `--ut-cream #d4c9a8` — warmer than near-white, on-brand |
+| **Green** | **`#2faf68`** (`--gain`). ⛔ MEASURED, not chosen: 222 uses across 107 files, the app's dominant green. NOT the logo artwork's `#67DB44` (5 uses) — that is the mark's own ink, not the product's working colour. Used for the heat multiplier, the sparkline of a heating name, and the watermark, so the colour means ONE thing on the board. |
+| Wordmark | UIcon's metallic gold gradient, stop-for-stop: `linear-gradient(135deg,#a8823a,#d4b25a 40%,#e8d18c 50%,#cba954 60%,#8f6f2c)` + `drop-shadow(0 0 1.6px rgba(201,168,76,.32))`. Flat gold reads cheap beside a real `/chart` export. |
+| Watermark | The compass rose, **centred**, `#2faf68`, opacity ~.07, ~440px. ⛔ Draw it as inline SVG from the geometry documented in `UTMark.jsx` (ring mid-r 27.5, points tip r 48.25 base r 22, candle body x 42.9–57.1 y 33.5–67.7, 100×100 box on 50,50). **Do NOT scale `compass-mark.png`** — that file's own comments say it goes soft above ~200px, which is why the vector exists; a 470px PNG renders as a grey smudge. |
+| Chrome rule | 1px `rgba(201,168,76,.22)` under the chrome bar |
 
 ⛔⛔ **The export gold is `#c9a84c`, NOT `--ut-gold #dcbb5e`.** Both are real and both are correct — `#dcbb5e` is the in-app dark-theme token, `#c9a84c` is what rendered images use. Three iterations of this board used the app token on an export surface and read subtly wrong beside a real chart. `tokens.css` is not the authority here; `ChartRender.jsx` is.
 

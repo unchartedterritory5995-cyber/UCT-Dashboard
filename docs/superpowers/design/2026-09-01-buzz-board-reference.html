@@ -6,41 +6,42 @@
   font-display:block;src:url(/fonts/instrument-sans-v4-latin-tab.woff2) format('woff2')}
 
 :root{--gold:#c9a84c;--page:#0a0a0a;--chrome:#161616;--chrometext:#888;
-       --muted:#9aa08f;--ink:#e8e6e1;--rule:#1e1e1e}
+       --muted:#9aa08f;--ink:#e8e6e1;--rule:#1e1e1e;
+       --cream:#d4c9a8;--brand-green:#2faf68}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#000}
-#buzz-export{width:1000px;background:var(--page);
+#buzz-export{width:1000px;background:var(--page);position:relative;overflow:hidden;
   font-family:'Instrument Sans',-apple-system,'Segoe UI',sans-serif;
   -webkit-font-smoothing:antialiased}
 
 /* chrome bar -- same geometry as the chart export */
 .chrome{height:40px;background:var(--chrome);display:flex;align-items:center;
-  padding:0 16px;color:var(--chrometext);font-size:14px;position:relative}
+  padding:0 16px;color:var(--chrometext);font-size:14px;position:relative;z-index:2;border-bottom:1px solid rgba(201,168,76,.22)}
 .chrome .subject{color:var(--gold);font-weight:700;font-size:18px}
 .chrome .where{margin-left:8px;color:var(--muted);font-size:13px}
 .chrome .win{margin-left:12px}
 .lockup{position:absolute;left:0;right:0;display:flex;align-items:center;
   justify-content:center;gap:8px;pointer-events:none}
 .lockup img{height:18px;opacity:.95}
-.lockup span{color:var(--gold);font-weight:700;font-size:13px;letter-spacing:.6px}
+.lockup span{font-weight:700;font-size:13px;letter-spacing:.6px;background:linear-gradient(135deg,#a8823a 0%,#d4b25a 40%,#e8d18c 50%,#cba954 60%,#8f6f2c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 1.6px rgba(201,168,76,.32))}
 
-.body{padding:30px 34px 26px}
+.body{padding:30px 34px 26px;position:relative;z-index:1}
+.rose{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;height:440px;opacity:.07;pointer-events:none;z-index:0}
 .meta{margin-top:15px;padding-bottom:15px;border-bottom:1px solid var(--rule);
   font-size:11.5px;color:var(--muted);opacity:.72;letter-spacing:.25px}
 
 .r{display:grid;grid-template-columns:74px 44px 190px 1fr 82px 62px;align-items:center;
   gap:16px;padding:12px 0;border-bottom:1px solid #ffffff08}
 .sym{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:15.5px;
-  color:var(--ink);font-weight:700;letter-spacing:.4px}
+  color:var(--cream);font-weight:700;letter-spacing:.4px}
 .n{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:18px;
   color:var(--gold);text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .sp{display:flex;align-items:flex-end;gap:1.5px;height:24px}
 .sp .s{flex:1;min-width:0;background:var(--muted);opacity:.28;border-radius:1px 1px 0 0}
-.sp .s.hot{background:var(--gold);opacity:.6}
+.sp .s.hot{background:var(--brand-green);opacity:.5}
 .ppl{font-size:12px;color:var(--muted);opacity:.62;text-align:right;
   font-variant-numeric:tabular-nums}
-.hot{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:12px;
-  color:var(--gold);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.hot{font-family:'Instrument Sans Tab','Instrument Sans',monospace;font-size:12px;color:var(--brand-green);text-shadow:0 0 6px rgba(47,175,104,.26);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
 
 .lbl{margin-top:24px;font-size:9.5px;letter-spacing:1.9px;color:var(--muted);
   opacity:.45;font-weight:700}
@@ -62,6 +63,23 @@ body{background:#000}
     <span class="win">since the open</span>
     <span class="lockup"><img src="/compass-mark.png" alt=""><span>UCT INTELLIGENCE</span></span>
   </div>
+
+  <svg class="rose" viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="none" stroke="#2faf68" stroke-width="4.2" opacity=".5">
+      <circle cx="50" cy="50" r="27.5" stroke-width="8"
+              stroke-dasharray="34 5.5" stroke-dashoffset="8"/>
+    </g>
+    <g fill="#2faf68" opacity=".55">
+      <path d="M50 1.75 L55 22 L50 27 L45 22 Z"/>
+      <path d="M98.25 50 L78 55 L73 50 L78 45 Z"/>
+      <path d="M50 98.25 L45 78 L50 73 L55 78 Z"/>
+      <path d="M1.75 50 L22 45 L27 50 L22 55 Z"/>
+    </g>
+    <g opacity=".6">
+      <rect x="49.2" y="30" width="1.6" height="41" fill="#2faf68"/>
+      <rect x="42.9" y="33.5" width="14.2" height="34.2" fill="#2faf68"/>
+    </g>
+  </svg>
 
   <div class="body">
     <div class="meta">318 messages with tickers &middot; 63 members &middot; 71 tickers</div>
