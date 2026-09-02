@@ -1,10 +1,28 @@
-"""Notebook export -- markdown + attachments, in the shape the importer reads.
+"""Notebook export -- markdown + attachments, human-readable and portable.
 
-The exported archive is deliberately the SAME shape the generic/Obsidian
-importer already ingests: one .md per note with YAML front matter, folders as
-directories. That makes the export a real exit rather than a gesture -- a
-member can round-trip out and back in, which is the whole reason it earns
-trust.
+The exported archive is one .md per note with YAML front matter, folders as
+directories -- a format meant to be readable by any Markdown-aware tool.
+
+⛔ It does NOT currently round-trip back into this product, though an earlier
+version of this docstring claimed it did ("the SAME shape the
+generic/Obsidian importer already ingests ... a member can round-trip out
+and back in"). Measured against the real `detectAdapter()` + adapter
+`parse()` path (`app/src/pages/journal-2-0/lib/importer/`): a real export zip
+built by this module is claimed by the GENERIC adapter (detect score ~0.1),
+never Obsidian (0) -- and `generic.js` has no YAML front-matter stripping at
+all, so the front-matter block re-renders as a visible CommonMark heading and
+every field in it (tags, subtitle, ticker, hero_image, the real created/
+updated dates) is lost on import. Forcing the Obsidian adapter instead
+recovers most of that metadata but drops every bundled attachment (its
+`parse()` never reads the `attachments/` tree this module writes) and
+mis-splits a quoted flow-sequence tag list on bare commas. No single importer
+adapter in this repo can ingest this export's shape today.
+TODO(round-trip gap): needs frontend importer-adapter work -- teach
+`generic.js` to strip/honor YAML front matter, and/or give `obsidian.js`
+attachment support plus a quote-aware flow-sequence parser -- before this
+docstring, or any member-facing copy that echoes its claim, can honestly
+promise a round trip. Out of scope for this fix (backend export code only);
+tracked as a follow-up for whoever owns the importer adapters.
 
 ⛔ Never raises on an unknown node type. Export runs over content written by
 every editor version a member has ever used, and a 500 on one odd block
@@ -27,6 +45,7 @@ import re
 import sqlite3
 import tempfile
 import threading
+import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -731,56 +750,171 @@ def _export_concurrency_limit() -> int:
     return 1
 
 
-_EXPORT_SEMAPHORE = threading.BoundedSemaphore(_export_concurrency_limit())
 _EXPORT_STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MiB read chunks
+
+# ── Self-healing slot lease ──────────────────────────────────────────────────
+#
+# A `threading.BoundedSemaphore` (the prior design) is a pure counter: once
+# acquired, the ONLY way a slot comes back is an explicit `.release()`. That
+# is provably wrong for this call site. `stream_export_file`'s cleanup lives
+# in an async generator's `finally`, and Starlette does not guarantee that
+# ever runs on a real client disconnect -- a disconnect is delivered by
+# cancelling whatever the STREAMING RESPONSE is currently awaiting (typically
+# `send()`, mid-backpressure), not by throwing into the generator, so the
+# generator is left parked at its `yield` with nothing scheduled to resume
+# it. Python's asyncgen GC hook *may* eventually finalize it, but only once
+# the object is actually collected -- which can be much later, or (a
+# never-started generator, cancelled before its first `__anext__`, e.g.
+# while `build_export_zip_to_tempfile` still runs in the threadpool) never:
+# `aclose()` on a generator that never started is a documented no-op, so its
+# `finally` never executes at all. Measured (see
+# `test_notes_export_route.py`, driven at the real ASGI level with a
+# `receive()` that emits `http.disconnect` -- not by cancelling `__anext__`
+# directly, which is not a shape a real client can produce): both leaks are
+# real, and the second one is permanent absent this fix.
+#
+# So a design that *depends on* that `finally` running is the wrong shape no
+# matter how well the cleanup inside it is shielded (the shield fixed a real
+# bug -- a cancellation reaching the finally would previously re-raise before
+# `release_export_slot()` ran -- but it cannot fix a finally that is never
+# entered at all). The invariant this module actually needs is: a slot held
+# by a connection that is gone becomes available again WITHOUT an operator
+# redeploying the pod. A plain counter cannot self-heal; a LEASE can -- each
+# acquired slot carries an expiry, and any future acquire attempt first
+# reclaims whatever has expired. `release_export_slot()` (called explicitly
+# on every path that DOES run -- the generator's shielded `finally`, and the
+# router's own except-block when the archive build itself raises before a
+# response exists) stays as a good complement: it frees the slot immediately
+# on the common paths instead of making every caller wait out the TTL. It is
+# no longer the ONLY thing standing between a disconnect and a permanently
+# wedged export door.
+#
+# This is process-local (module-global) state, same as the semaphore it
+# replaces. That is deliberately fine here: the web pod this endpoint runs on
+# is single-replica (see CLAUDE.md "Performance & Scale" -- the whole
+# architecture assumes one uvicorn process), so there is no second worker for
+# a second copy of this state to disagree with. If this pod is ever
+# multi-instanced, this (like `_connect_code_epoch` and the other
+# single-process guards catalogued elsewhere in this codebase) would need a
+# durable, shared store instead.
+_DEFAULT_EXPORT_LEASE_TTL_SECONDS = 30 * 60  # 30 minutes
+
+
+def _export_lease_ttl_seconds() -> float:
+    override = os.environ.get("NOTE_EXPORT_LEASE_TTL_SECONDS")
+    if override is not None:
+        try:
+            v = float(override)
+            if v > 0:
+                return v
+        except ValueError:
+            pass
+    return _DEFAULT_EXPORT_LEASE_TTL_SECONDS
+
+
+# Each entry is one held slot's expiry, as a `time.monotonic()` timestamp.
+# Leases are fungible -- only the COUNT of unexpired entries matters, never
+# which particular entry a given `release_export_slot()` call removes (there
+# is no per-caller lease id to thread through `stream_export_file(path)` or
+# the router's bare `release_export_slot()` without changing their call
+# signatures, which are relied on outside this file).
+_EXPORT_LEASES: list[float] = []
+_EXPORT_LEASES_LOCK = threading.Lock()
+
+
+def _reclaim_expired_export_leases_locked(now: float) -> None:
+    """Caller must hold `_EXPORT_LEASES_LOCK`. Drops every lease whose TTL
+    has elapsed -- the self-heal half of the invariant: this runs on every
+    `acquire_export_slot()` call, so an abandoned slot is reclaimed the next
+    time anyone asks for capacity, with no background thread and no
+    dependency on the leaked generator's own cleanup ever running."""
+    _EXPORT_LEASES[:] = [exp for exp in _EXPORT_LEASES if exp > now]
 
 
 def acquire_export_slot() -> bool:
     """Non-blocking. True if a slot was claimed (caller must eventually call
     `release_export_slot()`, or route through `stream_export_file`, which
     does it in its own `finally`); False if the concurrency limit is already
-    saturated."""
-    return _EXPORT_SEMAPHORE.acquire(blocking=False)
+    saturated. Reclaims any expired lease first, so a slot abandoned by a
+    connection that is gone comes back on its own within
+    `_export_lease_ttl_seconds()`, even if nothing ever explicitly released
+    it."""
+    now = time.monotonic()
+    with _EXPORT_LEASES_LOCK:
+        _reclaim_expired_export_leases_locked(now)
+        if len(_EXPORT_LEASES) >= _export_concurrency_limit():
+            return False
+        _EXPORT_LEASES.append(now + _export_lease_ttl_seconds())
+        return True
 
 
 def release_export_slot() -> None:
-    _EXPORT_SEMAPHORE.release()
+    """Frees one held slot immediately, for every path that DOES run to
+    completion -- a fast complement to the TTL self-heal above, not a
+    substitute for it. A release with no corresponding held lease (the slot
+    already self-healed via TTL expiry, or a defensive double-release on an
+    error path) is a no-op rather than an error: unlike the
+    `BoundedSemaphore` this replaces, over-releasing must never raise, since
+    an operator-invisible exception from inside a `finally` would be its own
+    new way to leak a slot."""
+    with _EXPORT_LEASES_LOCK:
+        if _EXPORT_LEASES:
+            _EXPORT_LEASES.pop()
 
 
 def stream_export_file(path: Path):
-    """Async generator streaming `path` in bounded chunks. Deletes the file
-    and releases the concurrency slot in a `finally` -- and that `finally`
-    runs its cleanup inside a SHIELDED cancel scope
-    (`anyio.CancelScope(shield=True)`) specifically so it survives a
-    cancelled/disconnected response.
+    """Async generator streaming `path` in bounded chunks. On every path that
+    the generator's own code actually resumes on -- the read loop finishing
+    normally, or a cancellation delivered while control is genuinely inside
+    this generator -- its `finally` closes the handle, deletes the temp
+    file, and calls `release_export_slot()`, shielded
+    (`anyio.CancelScope(shield=True)`) so those three steps run to
+    completion even if the caller is itself in a cancelled state by then.
 
-    ⛔ This docstring used to assert the opposite -- that Starlette "cancels
-    this generator's current await point rather than abandoning it outright,
-    so the `finally` below always executes before the request is torn down."
-    That was false, and the false claim is how the defect it describes
-    survived review-by-reading. What Starlette 0.41.3 actually does on a
-    client disconnect: it cancels the request's anyio task, which delivers a
-    live `anyio.get_cancelled_exc_class()` exception at EVERY checkpoint
-    reached while that cancel scope is still cancelled -- including a
-    checkpoint reached from *inside* a `finally` block. Before this fix, the
-    `finally`'s own FIRST line -- `await anyio.to_thread.run_sync(f.close)`,
-    itself a checkpoint -- re-raised that same Cancelled immediately, so
-    `path.unlink()` and `release_export_slot()` below it never ran. Measured:
-    5/5 leaks (file handle, temp file, AND the concurrency slot) at every
-    disconnect >=1ms. With the default concurrency limit of 1
-    (`_export_concurrency_limit`), that one leaked slot wedges every
-    member's export at a polite 429 until the pod is redeployed -- a member
-    cancelling a slow download (ordinary behaviour; the export is
-    deliberately slow for large notebooks) silently disables exports for
-    everyone else.
+    ⛔ This docstring has twice asserted a stronger guarantee than the code
+    actually provides, and both times the false claim is how the underlying
+    defect survived review-by-reading:
+      1. It used to say Starlette "cancels this generator's current await
+         point ... so the `finally` below always executes before the
+         request is torn down." False -- before the shield existed, a
+         cancellation reaching this `finally` re-raised on its own first
+         checkpoint, skipping the cleanup below it.
+      2. After the shield was added, it said "the shield makes every
+         checkpoint below run to completion regardless of the caller's
+         cancellation state." Also false, for a reason the shield cannot
+         fix: on a REAL client disconnect, Starlette's `StreamingResponse`
+         (starlette/responses.py) does not cancel this generator at all --
+         it cancels whatever `stream_response()` is currently awaiting,
+         almost always `send()` mid-backpressure. This generator is left
+         parked at its `yield`, with nothing scheduled to resume it, so this
+         `finally` is never entered in the first place. A shield only
+         changes what happens once a cancellation reaches a scope; it
+         cannot make a scope get entered that a real disconnect never
+         drives execution into. Measured by driving the real ASGI call
+         (`StreamingResponse.__call__` + a `receive()` emitting
+         `http.disconnect`, not by cancelling `__anext__()` directly -- that
+         shape cannot occur from a real client and is not what this file's
+         tests exercise): the temp file and the concurrency slot both
+         survive the disconnect, and if the cancellation instead lands
+         before this generator's first `__anext__` (e.g. while
+         `build_export_zip_to_tempfile` still runs in the threadpool,
+         before any `StreamingResponse` exists), the leak is permanent --
+         `aclose()` on a never-started async generator is a documented
+         no-op, so this `finally` NEVER runs for that request, full stop.
 
-    The shield makes every checkpoint below run to completion regardless of
-    the caller's cancellation state. Each of the three cleanup steps (close
-    the handle, delete the temp file, release the slot) is ALSO
-    independently guarded so a failure in one can never skip another --
-    `release_export_slot()` in particular must run even if closing or
-    deleting the file raised, or the concurrency slot leaks anyway, just via
-    a different exception.
+    Because of (2), the concurrency slot cannot depend on this `finally`
+    running at all. It doesn't: `acquire_export_slot()`/`release_export_slot()`
+    are a self-healing lease (see the comment above them) that reclaims an
+    abandoned slot on a bounded timer regardless of whether this generator's
+    cleanup ever fires. The shield + explicit release here remain a genuine
+    complement -- they free the slot immediately on every path that DOES
+    resume, rather than making that request's own next caller wait out the
+    TTL -- they are just no longer load-bearing for the "a slot cannot leak
+    permanently" invariant.
+
+    Each of the three cleanup steps (close the handle, delete the temp file,
+    release the slot) is independently guarded so a failure in one can never
+    skip another, on the runs where this code executes at all.
 
     Blocking file I/O is offloaded to a worker thread
     (`anyio.to_thread.run_sync`) on every call so this never blocks the

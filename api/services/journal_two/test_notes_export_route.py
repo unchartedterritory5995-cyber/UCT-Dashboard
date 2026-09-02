@@ -7,6 +7,7 @@ scoped to the caller's own notes. `build_export_zip` already has its own
 thorough unit coverage in test_notes_export.py; this file only proves the
 route wires it up correctly.
 """
+import gc
 import io
 import sqlite3
 import zipfile
@@ -163,65 +164,175 @@ def test_second_concurrent_export_is_refused_with_429(route_client):
     assert r2.status_code == 200
 
 
-# ── Disconnect-cancellation leak (reviewer finding, CRITICAL) ────────────────
+# ── Disconnect-cancellation leak (adversarial audit, CRITICAL) ───────────────
 #
-# `stream_export_file`'s `finally` opens with
-# `await anyio.to_thread.run_sync(f.close)`. Starlette 0.41.3 delivers a
-# client disconnect as a live `anyio.get_cancelled_exc_class()` exception at
-# EVERY checkpoint reached while the request's anyio CancelScope is still
-# cancelled -- including a checkpoint reached from inside a `finally` block.
-# The scenario below reproduces that exactly with anyio's own primitives
-# (no Starlette/ASGI plumbing needed): consume one chunk normally, cancel the
-# enclosing scope (= "the member closed the tab mid-download"), then ask the
-# generator for the next chunk while STILL inside that cancelled scope -- the
-# same shape Starlette's `StreamingResponse` produces on a real disconnect.
+# The test this replaced cancelled INSIDE `agen.__anext__()` via a bare
+# `anyio.CancelScope` -- a shape a real client can never produce. Starlette's
+# `StreamingResponse.__call__` (starlette/responses.py) races two tasks: the
+# body-streaming loop and a `listen_for_disconnect()` loop polling `receive()`
+# for `{"type": "http.disconnect"}`; whichever finishes first cancels the
+# other's cancel scope. On a real disconnect, the streaming task is almost
+# always cancelled while it is suspended INSIDE `await send(...)` (mid
+# backpressure) -- never while awaiting `agen.__anext__()` itself, because
+# `send()` is called from OUTSIDE the generator, in `stream_response()`'s own
+# frame. That means our generator is left parked at its `yield`, and nothing
+# ever throws into it -- `stream_export_file`'s `finally`, shield included,
+# is simply never entered. The old test's cancel-inside-`__anext__` shape
+# instead delivers the cancellation FROM INSIDE the generator, which the
+# shield genuinely protects against -- so that test could pass while the real
+# bug (this section) still leaked on every real disconnect. A rail that
+# proves a shape reality cannot produce is worse than no rail: it reads as
+# coverage. `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`.
+#
+# Both tests below drive the REAL `starlette.responses.StreamingResponse`
+# with a `receive()` that emits `http.disconnect` -- the only honest
+# reproduction, because that message is literally what Starlette turns a
+# socket disconnect into.
 
 
-async def test_client_disconnect_mid_download_frees_the_tempfile_and_slot(
-    tmp_path,
+class _FakeMonotonic:
+    """Deterministic stand-in for `time.monotonic()`, swapped in for
+    `notes_export.time` (notes_export's ONLY use of the `time` module is
+    `time.monotonic()` in `acquire_export_slot`) so a lease TTL can be
+    proven to expire without a real sleep."""
+
+    def __init__(self, start: float = 0.0):
+        self._now = start
+
+    def monotonic(self) -> float:
+        return self._now
+
+    def advance(self, secs: float) -> None:
+        self._now += secs
+
+
+async def _drive_disconnect_after_first_chunk(agen):
+    """Feeds `agen` through the real `StreamingResponse.__call__` and forces
+    a disconnect immediately after the first chunk is handed to `send()` --
+    the realistic case (audit: "client takes a chunk, then disconnects
+    mid-stream"). `send()` blocking on the chunk (rather than returning) is
+    what a real zero-buffer ASGI transport does under backpressure; it is
+    also the ONLY way to guarantee the cancellation below lands inside
+    `send()` and not inside the generator, matching the audit's finding that
+    a real disconnect never reaches `agen.__anext__()` directly."""
+    from starlette.responses import StreamingResponse
+
+    response = StreamingResponse(agen, media_type="application/zip")
+    first_chunk_sent = anyio.Event()
+
+    async def receive():
+        await first_chunk_sent.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        if message["type"] == "http.response.body" and message.get("body"):
+            first_chunk_sent.set()
+            await anyio.sleep_forever()
+
+    scope = {"type": "http", "method": "GET", "path": "/x", "headers": []}
+    await response(scope, receive, send)  # returns normally -- the
+    # cancellation above is absorbed inside StreamingResponse's own task
+    # group, exactly as it is on a real Starlette request.
+
+
+async def test_disconnect_mid_stream_leaves_the_slot_held_until_self_heal_reclaims_it(
+    tmp_path, monkeypatch,
 ):
-    """Must FAIL against the pre-fix code: the disconnect leaves the temp
-    file on disk AND the concurrency slot held, which is the reviewer's
-    measured "5/5 leaks at every disconnect >=1ms" -- with the default
-    concurrency limit of 1, that one leaked slot wedges the export at 429 for
-    every member until redeploy."""
+    """Must go RED against the pre-fix code (verified by reverting the fix --
+    see the report): a real mid-stream disconnect leaves BOTH the temp file
+    and the concurrency slot held immediately afterward (the audit's measured
+    `slots_free() == 0`), with nothing that ever explicitly releases it. The
+    fix does not make that instant leak disappear -- it cannot, since the
+    generator's cleanup genuinely never runs on this path -- it bounds it: a
+    lease TTL reclaims the slot on its own, verified here with NO explicit
+    release call anywhere in this test."""
     from api.services.journal_two import notes_export
 
-    path = tmp_path / "disconnect-repro.zip"
+    clock = _FakeMonotonic()
+    monkeypatch.setattr(notes_export, "time", clock, raising=False)
+    monkeypatch.setenv("NOTE_EXPORT_LEASE_TTL_SECONDS", "60")
+
+    path = tmp_path / "disconnect-mid-stream.zip"
     path.write_bytes(b"x" * (2 * notes_export._EXPORT_STREAM_CHUNK_BYTES))
 
-    assert notes_export.acquire_export_slot()  # simulate the route's own acquire
-    try:
-        agen = notes_export.stream_export_file(path)
-        with anyio.CancelScope() as scope:
-            first = await agen.__anext__()  # open + first read succeed normally
-            assert first  # got real bytes back before the "disconnect"
-            scope.cancel()  # the member closes the tab mid-download
-            with pytest.raises(anyio.get_cancelled_exc_class()):
-                # Still inside the now-cancelled scope: this is exactly
-                # where Starlette's own disconnect cancellation lands.
-                await agen.__anext__()
+    assert notes_export.acquire_export_slot()
+    agen = notes_export.stream_export_file(path)
+    await _drive_disconnect_after_first_chunk(agen)
 
-        assert not path.exists(), (
-            "the temp file leaked -- cleanup was cut short by cancellation"
-        )
-        assert notes_export.acquire_export_slot(), (
-            "the export slot leaked -- release_export_slot() never ran, "
-            "which wedges every member's export at 429 until redeploy"
-        )
-    finally:
-        # Leave the module-global semaphore clean for every other test,
-        # whichever branch above actually ran (pass or fail).
-        try:
-            notes_export.release_export_slot()
-        except ValueError:
-            pass
-        try:
-            path.unlink(missing_ok=True)
-        except OSError:
-            # Pre-fix, the leaked file handle (Windows locks an open file
-            # against deletion) makes even THIS best-effort cleanup fail --
-            # that lock is itself part of the reviewer's "5/5 leaks" finding,
-            # not a flaw in the teardown. Never let it mask the real
-            # assertion failure above with a second, confusing traceback.
-            pass
+    assert path.exists(), (
+        "test setup drifted -- the file should still be on disk immediately "
+        "after a disconnect that never enters stream_export_file's finally"
+    )
+    assert not notes_export.acquire_export_slot(), (
+        "the slot should still read as HELD immediately after the "
+        "disconnect -- this is the audit's measured slots_free() == 0, not "
+        "something this fix can or should make instantaneous"
+    )
+
+    # Self-heal: advance past the lease TTL with NOTHING having explicitly
+    # released the slot (the generator is still parked at its yield, never
+    # resumed, never garbage-collected in this test).
+    clock.advance(61)
+    assert notes_export.acquire_export_slot(), (
+        "the slot never came back on its own -- a self-healing lease is the "
+        "whole point of this fix; without it this is the original bug, "
+        "wedged until an operator redeploys the pod"
+    )
+    notes_export.release_export_slot()
+
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        # The leaked file handle (Windows locks an open file against
+        # deletion) is part of the measured defect, not a flaw in this
+        # teardown -- never let it mask the assertions above.
+        pass
+
+
+async def test_disconnect_before_first_chunk_leaves_the_slot_held_until_self_heal_reclaims_it(
+    tmp_path, monkeypatch,
+):
+    """The other reproduced shape: cancellation lands before the generator's
+    first `__anext__` (e.g. the request is torn down while
+    `build_export_zip_to_tempfile` still runs in the threadpool, before any
+    `StreamingResponse` exists). Modeled directly and honestly: the generator
+    is created and then closed without ever being iterated -- `aclose()` on
+    a never-started async generator is a documented Python no-op, so nothing
+    in `stream_export_file`, including its `finally`, ever runs. Per the
+    audit this variant is PERMANENT pre-fix (survives 5x `gc.collect()`); the
+    self-healing lease is the only thing that ever recovers it."""
+    from api.services.journal_two import notes_export
+
+    clock = _FakeMonotonic()
+    monkeypatch.setattr(notes_export, "time", clock, raising=False)
+    monkeypatch.setenv("NOTE_EXPORT_LEASE_TTL_SECONDS", "60")
+
+    path = tmp_path / "disconnect-before-first-chunk.zip"
+    path.write_bytes(b"y" * 128)
+
+    assert notes_export.acquire_export_slot()
+    agen = notes_export.stream_export_file(path)
+    await agen.aclose()  # never call __anext__ -- the request never started
+    del agen
+    for _ in range(5):
+        gc.collect()
+
+    assert not notes_export.acquire_export_slot(), (
+        "the slot should still read as HELD -- aclose() on a never-started "
+        "generator runs none of its body, including the finally that would "
+        "release it, and 5x gc.collect() does not change that"
+    )
+
+    clock.advance(61)
+    assert notes_export.acquire_export_slot(), (
+        "the slot never came back on its own -- pre-fix this variant is "
+        "PERMANENT (no gc pass, no amount of waiting, ever frees it); the "
+        "self-healing lease is what turns it into a bounded, operator-"
+        "invisible recovery instead"
+    )
+    notes_export.release_export_slot()
+
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
