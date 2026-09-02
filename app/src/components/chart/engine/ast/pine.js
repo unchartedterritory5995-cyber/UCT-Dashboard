@@ -783,12 +783,21 @@ export function derivedSeriesTree(name, table) {
  *  it. Before the offset it could not be said at all; `DERIVED_SERIES` could not
  *  hold it either, because that map builds a mean and this is not one.
  *
- *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. Pine's
- *  bare `ta.tr` falls back to `high - low` on the first bar, where `close[1]`
- *  does not exist; this expansion is NOT COMPUTABLE there, like every other
- *  lookback in this engine. `ta.tr(true)` asks for Pine's fallback explicitly and
- *  is refused rather than silently given this one — the extra NaN is a bar the
- *  member can see, and a fabricated first bar is not.
+ *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. On the
+ *  first bar `close[1]` does not exist, so this expansion is NOT COMPUTABLE
+ *  there, like every other lookback in this engine. `ta.tr(true)` asks for Pine's
+ *  fallback — bar 0's range as `high - low` — and is refused rather than silently
+ *  given this one: the extra NaN is a bar the member can see, and a fabricated
+ *  first bar is not.
+ *
+ *  ⚰️ THIS PARAGRAPH SAID THE FALLBACK WAS THE **BARE** `ta.tr`, and it is the
+ *  other way round. Three sources in this repo agree it is `ta.tr(true)` that
+ *  fills bar 0: `closedTable.json::functions.atr.vendorNote` (*"`ta.tr(true)`
+ *  counts bar 0's range as `high - low`"*), the `TR_TRUE` construction in
+ *  `pine.vendorParity.test.js`, and TradingView's published `ta.atr(n)` =
+ *  `ta.rma(ta.tr(true), n)`. Getting it backwards is what made the DEFAULT form
+ *  look like the one we could not serve — when `ta.tr(false)` is exactly this
+ *  tree.
  *
  *  ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY. Anything that
  *  needed a judgement about what the author meant belongs in a refusal. */
@@ -1011,6 +1020,10 @@ const BUILTIN_CALL_TREE = Object.freeze({
   // which is the `source - source[length]` already sitting inside the line above
   // — so this costs the table nothing and cannot disagree with `roc`.
   mom: (a) => cOp('-', [a[0], { type: 'offset', value: a[1].value, args: [a[0]] }]),
+  // ⭐ REACHED ONLY THROUGH THE `bare === 'tr'` GUARD ABOVE, which has already
+  // decided that the argument is `false`. Kept here so `tr` is a name this map
+  // holds rather than a special case bolted onto the guard block.
+  tr: () => BUILTIN_SERIES_TREE.tr(),
   // ta.avg(a, b, ...) is the mean OF ITS ARGUMENTS, not a rolling window. ⛔ Not
   // `sma`: reading it as one would turn a two-series average into a 2-bar average
   // of the first, which parses, scans and is wrong on every bar.
@@ -4732,6 +4745,32 @@ class Resolver {
       if (bare === 'roc' && (built.length !== 2 || built[1].type !== 'num')) {
         throw new PineRefusal('pine:window',
           `\`${pineName}\` needs a written whole-number length`, locate(tok))
+      }
+      if (bare === 'tr') {
+        // ⚰️ BOTH CALL FORMS USED TO SAY "this Pine function maps to nothing the
+        // engine grammar declares" — false of a name whose tree this door emits
+        // one spelling away, in the same run. The bare `ta.tr` translated.
+        //
+        // ⭐ `ta.tr(false)` IS THE VARIABLE, EXACTLY. TradingView's own `atr`
+        // page (quoted in `closedTable.json::functions.atr.vendorNote`) says it
+        // is `ta.tr(TRUE)` that counts bar 0's range as `high - low` — so the
+        // default, `false`, is the column this expansion already builds. It is
+        // an identity, and identities are the only expansions this door admits.
+        //
+        // ⛔ `ta.tr(true)` IS A DIFFERENT COLUMN AND STAYS REFUSED. It asks for a
+        // first bar whose true range is not defined — `close[1]` does not exist
+        // there — and fabricating one is the invention this lane refuses. The
+        // extra NaN is a bar the member can SEE; a made-up first bar is not.
+        const flag = built.length === 1 && built[0] && built[0].type === 'num'
+          ? Number(built[0].value) : null
+        if (flag === 0) return BUILTIN_SERIES_TREE.tr()
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
+          + '`ta.tr` and `ta.tr(false)` are the same column and both translate; '
+          + '`ta.tr(true)` asks for the Pine fallback, bar 0 as `high - low`, on a '
+          + 'bar where no true range is defined, and this engine leaves that bar '
+          + 'not-computable rather than inventing it — TO UNBLOCK: write `ta.tr`',
+          locate(tok))
       }
       if (bare === 'avg' && built.length < 2) {
         throw new PineRefusal('pine:arity',
