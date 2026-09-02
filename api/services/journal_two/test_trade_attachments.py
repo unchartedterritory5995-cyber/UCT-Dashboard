@@ -114,3 +114,45 @@ async def test_serve_path_rejects_traversal(env):
     assert ta.serve_trade_attachment_path("u1", "id_t1", "../secret.png") is None
     assert ta.serve_trade_attachment_path("u1", "../../etc", fname) is None
     assert ta.serve_trade_attachment_path("u1", "id_t1", "nope.png") is None
+
+
+# ── serve_trade_attachment_path — the axis that was never covered ──────────
+#
+# Same defect shape fixed in notes.py::serve_note_image_path and
+# calendar.py::serve_attachment_path: containment was checked against `base`
+# (= _ATTACHMENT_ROOT/user_id/trades/ref_dir, built FROM the caller's user_id),
+# a tautology once filename/ref_dir are clean (target is always base/filename).
+# ref_dir and filename were already validated as single segments; user_id
+# had no guard at all.
+
+def test_crafted_user_id_cannot_escape_the_attachment_root(env, tmp_path):
+    """A crafted user_id walks _ATTACHMENT_ROOT/user_id/trades/ref_dir right
+    out of the attachment root. Plant a REAL file at the escaped location so
+    a regression would actually get served, not just fail `.exists()`."""
+    ta = env
+    outside = tmp_path / "outside-user" / "trades" / "id_t1"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()  # sanity: the file is really there
+
+    assert ta.serve_trade_attachment_path(
+        "../outside-user", "id_t1", "secret.png") is None
+
+
+def test_root_anchored_containment_holds_even_if_segment_validation_is_bypassed(
+    env, tmp_path, monkeypatch,
+):
+    """Fix 1 (root-anchored containment) must survive on its own — it exists
+    to protect a future caller that skips the cheap segment-validation layer.
+    Disable that layer here and confirm the same escape is still refused, so
+    this isn't just re-testing validation under another name."""
+    ta = env
+    monkeypatch.setattr(ta, "_is_safe_path_segment", lambda v: True, raising=False)
+
+    outside = tmp_path / "outside-bypass" / "trades" / "id_t1"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()
+
+    assert ta.serve_trade_attachment_path(
+        "../outside-bypass", "id_t1", "secret.png") is None
