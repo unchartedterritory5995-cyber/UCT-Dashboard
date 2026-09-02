@@ -68,6 +68,37 @@ reads `"safe"` today. Each has a permanent PINNING fixture —
 up as a test diff, never a silent surprise. See `_lookup_simple_assign`'s own docstring for
 the exact recognized/not-recognized boundary.
 
+THE ANCHOR AXIS IS NOT THE ONLY AXIS (fix round 3 / C6): rounds 1-2 only ever asked whether
+the ANCHOR's provenance is provably independent of `base`. A final whole-branch review found
+a second, orthogonal axis nobody had asked about: whether the containment check's own
+FAILURE PATH does anything at all. `_returns_none_somewhere` only checked that a `return
+None` exists SOMEWHERE in the function — never that it lives in the `except` handler that
+catches the escape — so `except ValueError: pass` (the result AND the failure both discarded,
+falling straight through to whatever runs next, UNREFUSED) used to read `"safe"` as long as
+some unrelated `return None` existed elsewhere for a different reason. `_handler_refuses` now
+checks the handler's OWN body for a `return None`/bare `return` or a `continue`; if no
+ValueError handler on a given `try` refuses, `analyze_containment` reports `"vulnerable"`
+immediately — a check with no functioning failure path is worse than a tautological anchor,
+since it refuses NOTHING. Two more single-target anchor-binding forms were also
+unrecognized — `anchor: Path = base` (`AnnAssign`) and `if (anchor := base):` (`NamedExpr`,
+the walrus operator) — both cheap to add to `_lookup_simple_assign` alongside chained/tuple
+assignment. Fixing rows 1-3 surfaced an inverse trap worth naming as its own finding: the
+NATURAL way to write a brand-new, CORRECT resolver — `root = attachment_root()`, a
+zero-argument call to a known root provider — used to misclassify `"indeterminate"`, because
+any call not shaped like a bare-name alias fell to the same opaque bucket as
+`_passthrough_anchor(base)`. `_resolve_anchor_root` now trusts a ZERO-ARGUMENT call as
+independent (see its docstring for why that is a sound, general rule and not a special case
+for this one function name): such a call cannot receive `base` — or anything local — as
+input, so it cannot hand it back in disguise. All four are pinned by permanent fixtures —
+`test_swallowed_exception_handler_is_not_a_refusal`,
+`test_annassign_anchor_indirection_is_now_detected`,
+`test_named_expr_anchor_indirection_is_now_detected`, and
+`test_zero_arg_root_provider_call_classifies_safe`. Separately, the real-resolver regression
+test's floor (`len(found) >= 3`) traced to a stale count from before the fourth resolver
+(`notes_export.py::_resolve_attachment_path`) was ever discovered, and was never raised
+after — a fifth resolver quietly going missing would have stayed green. It is now
+`_KNOWN_RESOLVERS`, a named watermark checked by identity, not a bare number.
+
 WHY STATIC, NOT DYNAMIC: the task this sweep was written for asks for a sweep that "asserts
 each [discovered function] refuses a crafted traversal on every caller-supplied axis" — the
 natural first idea is to import each discovered function and CALL it with traversal payloads.
@@ -146,23 +177,60 @@ def _function_named(tree: ast.AST, name: str) -> ast.AST:
 
 # ── Shape predicate: "looks like an attachment path resolver" ───────────────
 
+def _value_error_handlers(try_node: ast.Try) -> list[ast.ExceptHandler]:
+    """The handlers on `try_node` that catch `ValueError` (bare or in a
+    tuple with other exception types)."""
+    out = []
+    for h in try_node.handlers:
+        t = h.type
+        if t is None:
+            continue
+        candidates = t.elts if isinstance(t, ast.Tuple) else [t]
+        if any(isinstance(n, ast.Name) and n.id == "ValueError" for n in candidates):
+            out.append(h)
+    return out
+
+
+def _handler_refuses(handler: ast.ExceptHandler) -> bool:
+    """True if THIS handler's own body actually refuses — a `return None`
+    (or bare `return`) directly, or a `continue` (valid because every real
+    resolver's loop falls through to a `return None` after the loop, which
+    `is_attachment_resolver_shape` separately requires via
+    `_returns_none_somewhere`).
+
+    A handler that computes containment and then does NOTHING with the
+    failure (`except ValueError: pass`) is not a refusal — a traversal
+    that raises `ValueError` (i.e. genuinely escapes) falls straight
+    through to whatever runs after the `try`, unrefused. This is exactly
+    the defect this sweep exists to catch, wearing an intact-looking
+    `try`/`except` as a disguise (fix round 3 / C6, row 1)."""
+    for node in ast.walk(handler):
+        if isinstance(node, ast.Continue):
+            return True
+        if isinstance(node, ast.Return):
+            if node.value is None:
+                return True
+            if isinstance(node.value, ast.Constant) and node.value.value is None:
+                return True
+    return False
+
+
 def _relative_to_calls_in_value_error_try(func: ast.AST):
     """Yield every `.relative_to(...)` Call sitting in the BODY of a `Try`
     whose handlers include `ValueError` (bare or in a tuple) — the shape a
-    path-containment check always has: resolve, check, except ValueError."""
+    path-containment check always has: resolve, check, except ValueError.
+
+    DELIBERATELY does not require the handler to actually refuse (see
+    `_handler_refuses`) — that is a stricter, SEPARATE question asked by
+    `analyze_containment`, not by discovery. A function whose `except
+    ValueError:` merely `pass`es is still shape-matched here on purpose:
+    excluding it from discovery would make the swallowed-exception defect
+    INVISIBLE to the sweep rather than caught by it — the opposite of the
+    fix."""
     for node in ast.walk(func):
         if not isinstance(node, ast.Try):
             continue
-        catches_value_error = False
-        for h in node.handlers:
-            t = h.type
-            if t is None:
-                continue
-            candidates = t.elts if isinstance(t, ast.Tuple) else [t]
-            if any(isinstance(n, ast.Name) and n.id == "ValueError" for n in candidates):
-                catches_value_error = True
-                break
-        if not catches_value_error:
+        if not _value_error_handlers(node):
             continue
         for stmt in node.body:
             for sub in ast.walk(stmt):
@@ -179,6 +247,17 @@ def _has_call_named(func: ast.AST, method_name: str) -> bool:
 
 
 def _returns_none_somewhere(func: ast.AST) -> bool:
+    """True if a `return None` (or bare `return`) exists ANYWHERE in the
+    function. This is a necessary but NOT sufficient condition for "this
+    resolver actually refuses" — it only proves the function CAN return
+    `None` from somewhere, not that the containment check's own failure
+    path is what does it. `analyze_containment`'s `_handler_refuses` check
+    is what verifies the latter; conflating the two (a `return None`
+    anywhere counting as proof the HANDLER refuses) was fix round 3's
+    finding (C6, row 1) — `except ValueError: pass` followed by an
+    unrelated `return None` for a different reason (e.g. `if not
+    target.exists(): return None`) used to satisfy this check and nothing
+    else, so the swallowed exception went undetected."""
     for n in ast.walk(func):
         if isinstance(n, ast.Return):
             if n.value is None:
@@ -193,10 +272,12 @@ def is_attachment_resolver_shape(func: ast.AST) -> bool:
     containment via `.relative_to(...)` guarded by `except ValueError`, (2)
     calls `.resolve()` somewhere (resolve-before-check, never string-compare),
     (3) calls `.exists()` or `.is_file()` somewhere (it serves a real file),
-    and (4) can return `None` (the refusal path). All four together are
-    distinctive enough that nothing else in this package's ~60 non-test
-    modules matches — verified by hand against every `.relative_to(` call
-    site in the package (see module docstring)."""
+    and (4) can return `None` (the refusal path — but see `_returns_none_somewhere`'s
+    docstring: this alone does NOT prove the `except` handler is what refuses;
+    `analyze_containment` checks that separately and strictly). All four
+    together are distinctive enough that nothing else in this package's ~60
+    non-test modules matches — verified by hand against every `.relative_to(`
+    call site in the package (see module docstring)."""
     if not list(_relative_to_calls_in_value_error_try(func)):
         return False
     if not _has_call_named(func, "resolve"):
@@ -271,7 +352,8 @@ def _lookup_simple_assign(func: ast.AST, name: str) -> tuple[bool, ast.AST | Non
     to something this analysis can't see through" are DIFFERENT facts —
     collapsing them into one `None` return was fix round 1's bug.
 
-    RECOGNIZED (fix round 2 widened this from single-target-only):
+    RECOGNIZED (fix round 2 widened this from single-target-only; fix
+    round 3 / C6 added the two single-target forms below):
       - `name = <expr>` — a single-target assign.
       - `name = other = <expr>` — a CHAINED assign; every target in one
         `Assign` node is bound to the SAME value, so `name` at ANY target
@@ -281,6 +363,12 @@ def _lookup_simple_assign(func: ast.AST, name: str) -> tuple[bool, ast.AST | Non
         the SAME length with no starred element anywhere — so which value
         goes with `name` is determinable by position alone, with no need
         to evaluate anything.
+      - `name: SomeType = <expr>` — an `AnnAssign` (annotated assignment).
+        Single-target by grammar, cheap to recognize, and one type hint
+        away from the classic bug (C6, row 2).
+      - `(name := <expr>)` — a `NamedExpr` (walrus). Single-target by
+        grammar, appears as an expression anywhere (an `if` test, a
+        comprehension, ...) rather than a statement (C6, row 3).
 
     When `name` sits in a tuple/list target whose value is NOT such a
     matching literal (e.g. `a, b = some_call()`), this returns
@@ -305,23 +393,29 @@ def _lookup_simple_assign(func: ast.AST, name: str) -> tuple[bool, ast.AST | Non
     so a future change that accidentally closes (or widens) it shows up as
     a test diff, not a surprise."""
     for node in ast.walk(func):
-        if not isinstance(node, ast.Assign):
-            continue
-        for t in node.targets:
-            if isinstance(t, ast.Name) and t.id == name:
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == name:
+                    return True, node.value
+                if isinstance(t, (ast.Tuple, ast.List)):
+                    if any(isinstance(e, ast.Starred) for e in t.elts):
+                        continue  # starred target — a documented blind spot, not chased
+                    for i, elt in enumerate(t.elts):
+                        if not (isinstance(elt, ast.Name) and elt.id == name):
+                            continue
+                        val = node.value
+                        if (isinstance(val, (ast.Tuple, ast.List))
+                                and not any(isinstance(e, ast.Starred) for e in val.elts)
+                                and len(val.elts) == len(t.elts)):
+                            return True, val.elts[i]
+                        return True, None  # found, but position not determinable
+        elif isinstance(node, ast.AnnAssign):
+            if (node.value is not None and isinstance(node.target, ast.Name)
+                    and node.target.id == name):
                 return True, node.value
-            if isinstance(t, (ast.Tuple, ast.List)):
-                if any(isinstance(e, ast.Starred) for e in t.elts):
-                    continue  # starred target — a documented blind spot, not chased
-                for i, elt in enumerate(t.elts):
-                    if not (isinstance(elt, ast.Name) and elt.id == name):
-                        continue
-                    val = node.value
-                    if (isinstance(val, (ast.Tuple, ast.List))
-                            and not any(isinstance(e, ast.Starred) for e in val.elts)
-                            and len(val.elts) == len(t.elts)):
-                        return True, val.elts[i]
-                    return True, None  # found, but position not determinable
+        elif isinstance(node, ast.NamedExpr):
+            if isinstance(node.target, ast.Name) and node.target.id == name:
+                return True, node.value
     return False, None
 
 
@@ -362,11 +456,26 @@ def _resolve_anchor_root(
           module-level global, or one of `_lookup_simple_assign`'s
           documented blind spots) and is NOT `target` — proof of
           independence. Returns that name.
-      (c) anything else — an opaque expression (call, lambda, attribute,
-          subscript, binop) that is not itself `target` — returns `None`,
-          "cannot prove", which `analyze_containment` reports as
-          `indeterminate`, never `safe`. This is the fail-safe half of the
-          fix: the default is "not proven", not "assumed safe"."""
+      (c) anything else — an opaque expression (call WITH arguments, a
+          lambda, an attribute chain, a subscript, a binop) that is not
+          itself `target` — returns `None`, "cannot prove", which
+          `analyze_containment` reports as `indeterminate`, never `safe`.
+          This is the fail-safe half of the fix: the default is "not
+          proven", not "assumed safe".
+
+    EXCEPTION (fix round 3 / C6, row 4): a call with ZERO arguments and
+    ZERO keywords (`root = attachment_root()`) is treated the same as case
+    (b) — free/independent — because a function that receives NOTHING
+    cannot hand back `base` (or anything derived from it) in disguise; it
+    has no way to reference a local variable it was never given. This is
+    what distinguishes a genuine root-provider call from the round-1
+    identity-helper attack (`_passthrough_anchor(base)`), which necessarily
+    passes `base` IN as an argument — that case still falls through to (c).
+    Without this exception, the natural, CORRECT spelling of a brand-new
+    resolver (fetch the root via a zero-arg call, check against it
+    directly) was itself misclassified `indeterminate` — the failure
+    pushing a future author toward the one shape this analysis cannot
+    verify is exactly backwards from the goal."""
     seen = _seen if _seen is not None else set()
     if name == target:
         return name
@@ -378,7 +487,9 @@ def _resolve_anchor_root(
         return name  # genuinely free (or an unrecognized-binding blind spot), and != target
     if isinstance(val, ast.Name):
         return _resolve_anchor_root(func, val.id, target, seen)
-    return None  # opaque: call, lambda, attribute chain, binop, whatever
+    if isinstance(val, ast.Call) and not val.args and not val.keywords:
+        return name  # a zero-argument call cannot receive `base` as input
+    return None  # opaque: call w/ arguments, lambda, attribute chain, binop, whatever
 
 
 def analyze_containment(func: ast.AST) -> str:
@@ -386,9 +497,13 @@ def analyze_containment(func: ast.AST) -> str:
     resolver. 'indeterminate' means either the static shape didn't fit the
     exact assign-then-check pattern this analysis understands, OR the
     anchor's provenance could not be PROVEN either equal to, or independent
-    of, the joined base (see `_resolve_anchor_root`). Both are treated as a
-    FAILURE by the real-code test below, never as a silent pass — 'safe' is
-    an earned, positive result, not a default.
+    of, the joined base (see `_resolve_anchor_root`). 'vulnerable' also
+    covers the handler-refusal axis (see `_handler_refuses`) — a
+    containment check whose OWN failure path does nothing is worse than a
+    tautological anchor, since no crafted input is ever refused at all.
+    All three failure paths are treated as a FAILURE by the real-code test
+    below, never as a silent pass — 'safe' is an earned, positive result,
+    not a default.
 
     The RECEIVER's base name is resolved first (`_resolve_receiver_alias` —
     permissive; it is a LABEL, not a claim needing proof) and handed to
@@ -400,7 +515,10 @@ def analyze_containment(func: ast.AST) -> str:
     calls = list(_relative_to_calls_in_value_error_try(func))
     if not calls:
         return "indeterminate"
-    for _try, call in calls:
+    for try_node, call in calls:
+        if not any(_handler_refuses(h) for h in _value_error_handlers(try_node)):
+            return "vulnerable"  # the check's own failure path does nothing (C6, row 1)
+
         receiver = call.func.value
         if not isinstance(receiver, ast.Name):
             return "indeterminate"
@@ -776,7 +894,182 @@ def test_for_loop_single_value_indirection_is_a_known_blind_spot():
     assert analyze_containment(fn) == "safe"
 
 
+# ── Fix round 3 / C6: the handler-refusal axis, AnnAssign/NamedExpr anchors,
+#    and a correct new resolver must not be misclassified ──────────────────
+#
+# The final whole-branch review ran `analyze_containment` in-process against
+# four planted functions and found the anchor-provenance fix (rounds 1-2)
+# was blind to a SECOND axis entirely: whether the containment check's own
+# failure path does anything at all. `_returns_none_somewhere` (used by
+# `is_attachment_resolver_shape`) only asked whether a `return None` exists
+# ANYWHERE in the function — never that it lives in the handler that catches
+# the escape. A resolver that computes `target.relative_to(...)` and then
+# `except ValueError: pass`es discards both the result and the failure,
+# and used to read "safe" (row 1 below). Two cheap anchor-binding forms were
+# also unrecognized (`AnnAssign`, `NamedExpr` — rows 2-3), and the fix for
+# row 1-3 had a side effect worth naming: the NATURAL way to write a
+# brand-new, CORRECT resolver — `root = attachment_root()`, a zero-argument
+# call to a known provider — used to misclassify `indeterminate` (row 4),
+# pushing a future author toward the one shape this analysis could not
+# verify. All four are fixed below; each gets a permanent fixture.
+
+_SWALLOWED_EXCEPTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_swallowed_resolver(user_id: str, note_id: str, filename: str):
+    """The containment check's result -- and its failure -- are both
+    discarded. A traversal that genuinely escapes raises ValueError, which
+    this handler swallows with `pass`, falling straight through to the
+    exists()/return below UNREFUSED. C6 row 1."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    try:
+        target.relative_to(_ROOT.resolve())
+    except ValueError:
+        pass
+    if not target.exists():
+        return None
+    return target
+'''
+
+_ANNASSIGN_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_annassign_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via an annotated assignment -- the same object as base
+    at runtime, one type hint away from the classic bug. C6 row 2."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor: Path = base
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+_NAMED_EXPR_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_walrus_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via a walrus assignment inside a condition -- the same
+    object as base at runtime. C6 row 3."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    if (anchor := base):
+        try:
+            target.relative_to(anchor.resolve())
+        except ValueError:
+            return None
+        if not target.exists():
+            return None
+        return target
+    return None
+'''
+
+_CORRECT_NEW_RESOLVER_SOURCE = '''
+from pathlib import Path
+
+def attachment_root():
+    """Stand-in for the real attachment_root() -- returns SOME root, and
+    takes no arguments, so it structurally cannot hand back `base` in
+    disguise (unlike `_passthrough_anchor(base)`, which necessarily
+    receives `base` as an argument)."""
+    return _ROOT
+
+def correct_new_resolver(user_id: str, note_id: str, filename: str):
+    """The natural spelling of a brand-new, CORRECT resolver: fetch the
+    root via a zero-argument call to a known provider, then check
+    containment against it directly. C6 row 4 -- must classify safe."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    root = attachment_root()
+    base = root / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+
+def test_swallowed_exception_handler_is_not_a_refusal():
+    """C6 row 1 -- THE finding. Before the fix this read "safe"; the
+    containment check computed a result and threw both it and the escape
+    away. Must now fail the sweep."""
+    fn = _function_named(ast.parse(_SWALLOWED_EXCEPTION_SOURCE), "sneaky_swallowed_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "discovery must still find this — excluding it would make the "
+        "defect invisible instead of caught"
+    )
+    assert analyze_containment(fn) == "vulnerable", (
+        "except ValueError: pass discards the containment check's failure — "
+        "this must never read safe"
+    )
+
+
+def test_annassign_anchor_indirection_is_now_detected():
+    """C6 row 2. `anchor: Path = base` must now be caught, same as the
+    round-1 `anchor = base` case."""
+    fn = _function_named(ast.parse(_ANNASSIGN_INDIRECTION_SOURCE), "sneaky_annassign_resolver")
+    assert is_attachment_resolver_shape(fn) is True
+    assert analyze_containment(fn) != "safe"
+
+
+def test_named_expr_anchor_indirection_is_now_detected():
+    """C6 row 3. `if (anchor := base):` must now be caught."""
+    fn = _function_named(ast.parse(_NAMED_EXPR_INDIRECTION_SOURCE), "sneaky_walrus_resolver")
+    assert is_attachment_resolver_shape(fn) is True
+    assert analyze_containment(fn) != "safe"
+
+
+def test_zero_arg_root_provider_call_classifies_safe():
+    """C6 row 4 -- the inverse trap. A brand-new, genuinely correct
+    resolver written the natural way (`root = attachment_root()`) must
+    classify safe, not indeterminate — a false-red here would train the
+    next author away from the one style this analysis penalized by
+    mistake."""
+    fn = _function_named(ast.parse(_CORRECT_NEW_RESOLVER_SOURCE), "correct_new_resolver")
+    assert is_attachment_resolver_shape(fn) is True
+    assert analyze_containment(fn) == "safe", (
+        "a zero-argument call to a root provider must be trusted as "
+        "independent — it structurally cannot hand back `base`"
+    )
+
+
 # ── The real sweep ────────────────────────────────────────────────────────
+
+# The regression gate this whole file exists for: a FIFTH resolver written
+# with the same tautological containment check (on either axis) must fail
+# `test_sweep_discovers_the_known_resolvers_and_none_are_vulnerable` the
+# moment it's added, without anyone updating a list by hand. The set below
+# is NOT that discovery mechanism — discovery is still `is_attachment_resolver_shape`
+# walking every file in `_module_files()`. This is a WATERMARK: the four
+# resolvers already independently verified safe, checked by NAME so a
+# resolver going missing (renamed, deleted, or silently excluded by a
+# predicate regression) fails loudly instead of hiding behind a bare count
+# that happens to still clear some floor (`:` `len(found) >= 3` while the
+# comment above it named FOUR was exactly this — the floor never got raised
+# after the sweep found a fourth resolver, and losing one would have stayed
+# green).
+_KNOWN_RESOLVERS = frozenset({
+    "notes.py::serve_note_image_path",
+    "calendar.py::serve_attachment_path",
+    "trade_attachments.py::serve_trade_attachment_path",
+    "notes_export.py::_resolve_attachment_path",
+})
+
 
 def _discover_real_resolvers() -> list[tuple[Path, ast.AST]]:
     found = []
@@ -792,25 +1085,29 @@ def _discover_real_resolvers() -> list[tuple[Path, ast.AST]]:
 
 
 def test_sweep_discovers_the_known_resolvers_and_none_are_vulnerable():
-    """The regression gate this whole file exists for: a FOURTH resolver
-    written with the same tautological containment check must fail this
-    test the moment it's added, without anyone updating a list by hand."""
-    found = _discover_real_resolvers()
-    labels = sorted(f"{p.name}::{fn.name}" for p, fn in found)
+    """The regression gate this whole file exists for: a resolver written
+    with the same tautological containment check (either axis) must fail
+    this test the moment it's added, without anyone updating a list by
+    hand — discovery walks every file, unconditionally.
 
-    # Known today: notes.py::serve_note_image_path, calendar.py::serve_attachment_path,
-    # trade_attachments.py::serve_trade_attachment_path, notes_export.py::_resolve_attachment_path.
-    # If this ever finds FEWER than 3, the discovery predicate broke — fix the
-    # predicate, do not lower this number (the task's own instruction).
-    assert len(found) >= 3, (
-        f"expected at least 3 known attachment-path resolvers, found "
-        f"{len(found)}: {labels} — the discovery predicate is broken, not the codebase"
+    The floor is `_KNOWN_RESOLVERS`, not a literal count: it derives from
+    the discovered set (checked by name, not by size), so losing any ONE of
+    the four already-verified resolvers fails loudly by name, even if some
+    other file happens to add a new one that keeps the raw count the same."""
+    found = _discover_real_resolvers()
+    labels = {f"{p.name}::{fn.name}" for p, fn in found}
+
+    missing = _KNOWN_RESOLVERS - labels
+    assert not missing, (
+        f"the sweep stopped finding {sorted(missing)} — the discovery "
+        f"predicate broke, a resolver was deleted, or one was renamed "
+        f"without updating _KNOWN_RESOLVERS. Currently found: {sorted(labels)}"
     )
 
     verdicts = {f"{p.name}::{fn.name}": analyze_containment(fn) for p, fn in found}
     not_safe = {k: v for k, v in verdicts.items() if v != "safe"}
     assert not not_safe, (
         f"attachment-path resolver(s) failed the containment invariant "
-        f"(base and anchor are the same variable, or the shape could not be "
-        f"verified safe): {not_safe}"
+        f"(base and anchor are the same variable, the handler doesn't "
+        f"refuse, or the shape could not be verified safe): {not_safe}"
     )

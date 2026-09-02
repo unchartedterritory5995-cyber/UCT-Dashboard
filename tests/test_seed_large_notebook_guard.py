@@ -17,7 +17,10 @@ going near production.
 """
 from __future__ import annotations
 
+import os
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -115,3 +118,67 @@ def test_a_genuinely_safe_temp_path_is_accepted(decoy_root, monkeypatch, tmp_pat
     monkeypatch.setattr(sln, "_SHARED_ROOT_CANDIDATES", (str(decoy_root),))
     safe = tmp_path / "genuinely_safe_dir" / "seed.db"
     assert sln._shared_root_hit(str(safe)) is None
+
+
+# Fix round 2 (final whole-branch review, C7). `main()` used to set
+# J2_ATTACHMENT_ROOT via `os.environ.setdefault(...)`, sitting between two
+# HARD assignments (AUTH_DB_PATH, DATA_DIR) that exist precisely so a stale
+# value already in the environment cannot win. `attachment_root.py`'s
+# `attachment_root()` reads J2_ATTACHMENT_ROOT AHEAD of DATA_DIR, so a value
+# left over from a parent shell or a prior run would win outright and the
+# sandboxed data_dir this script computes would never be consulted for
+# attachments at all — bounded in practice only because this script writes
+# rows, not attachments, but the same shape as the guard-doesn't-cover-the-
+# axis-it-claims defect fixed elsewhere this wave.
+
+def test_stale_j2_attachment_root_env_var_does_not_survive(tmp_path):
+    """A `J2_ATTACHMENT_ROOT` already present in the environment before
+    `main()` runs must NOT survive — it must be overwritten by the freshly
+    sandboxed `data_dir / "j2_attachments"`, the same hard-assignment
+    guarantee `AUTH_DB_PATH`/`DATA_DIR` already had.
+
+    Runs `main()` in a FRESH SUBPROCESS, not in-process: `AUTH_DB_PATH` /
+    `DATA_DIR` / `J2_ATTACHMENT_ROOT` are read once at product-module IMPORT
+    time (see the module's own top docstring) — reusing this test session's
+    already-imported `api.*` modules would silently mask the very bug this
+    test exists to catch."""
+    repo_root = Path(__file__).resolve().parents[1]
+    db_path = tmp_path / "seed.db"
+    data_dir = tmp_path / "seed_datadir"
+    stale_root = tmp_path / "stale_leaked_root"
+    stale_root.mkdir()
+
+    probe = (
+        "import sys\n"
+        f"sys.argv = ['seed_large_notebook.py', '--db', {str(db_path)!r}, "
+        f"'--data-dir', {str(data_dir)!r}, '--skip-seed']\n"
+        "from tools import seed_large_notebook as sln\n"
+        "sln.main()\n"
+        "from api.services.journal_two.attachment_root import attachment_root\n"
+        "print('ATTACHMENT_ROOT=' + str(attachment_root()))\n"
+    )
+
+    env = dict(os.environ)
+    env["J2_ATTACHMENT_ROOT"] = str(stale_root)  # simulate a leaked/stale value
+
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=str(repo_root), env=env, capture_output=True, text=True, timeout=60,
+    )
+    assert result.returncode == 0, (
+        f"seeder subprocess failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
+
+    lines = [l for l in result.stdout.splitlines() if l.startswith("ATTACHMENT_ROOT=")]
+    assert lines, f"probe did not print the attachment root:\n{result.stdout}"
+    actual = Path(lines[-1].split("=", 1)[1]).resolve()
+    expected = (data_dir / "j2_attachments").resolve()
+
+    assert actual != stale_root.resolve(), (
+        f"the stale J2_ATTACHMENT_ROOT ({stale_root}) survived main()'s "
+        f"setup — setdefault() left it in place instead of a hard assignment"
+    )
+    assert actual == expected, (
+        f"attachment_root() resolved to {actual}, expected the freshly "
+        f"sandboxed {expected}"
+    )

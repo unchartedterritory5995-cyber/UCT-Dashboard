@@ -104,8 +104,15 @@ def _shared_root_hit(path: str) -> str | None:
 def _refuse_if_shared(path: str, what: str) -> None:
     hit = _shared_root_hit(path)
     if hit is not None:
+        # Show `os.path.realpath(path)` — what `_shared_root_hit` (via
+        # `_norm`) actually resolved and checked — not `os.path.abspath`,
+        # which does not follow a symlink/junction. A path that crosses one
+        # of those can look entirely different (and safe) under `abspath`
+        # while `realpath` shows the true, shared-root target the containment
+        # check fired on; printing the wrong one misleads whoever reads the
+        # refusal about what was actually checked.
         print(
-            f"REFUSING TO RUN: {what} resolves to {os.path.abspath(path)!r}, "
+            f"REFUSING TO RUN: {what} resolves to {os.path.realpath(path)!r}, "
             f"which is inside {hit!r} — the owner's LIVE PRODUCTION data "
             f"root on this box. This tool must never write there.\n"
             f"Point it at a throwaway path outside {hit!r} instead.",
@@ -323,7 +330,21 @@ def main() -> None:
     # — both vars are captured at module import time by the product code.
     os.environ["AUTH_DB_PATH"] = str(db_path)
     os.environ["DATA_DIR"] = str(data_dir)
-    os.environ.setdefault("J2_ATTACHMENT_ROOT", str(data_dir / "j2_attachments"))
+    # HARD assignment, like its two neighbours above — NOT `setdefault`.
+    # `attachment_root.py::attachment_root()` reads `J2_ATTACHMENT_ROOT`
+    # AHEAD of `DATA_DIR`, so a stale value already sitting in the
+    # environment (a parent shell, a prior run's export) would otherwise
+    # win outright and the sandboxed `data_dir` above would never be
+    # consulted for attachments at all — the exact hole the hard
+    # assignments on `AUTH_DB_PATH`/`DATA_DIR` exist to close, reopened one
+    # variable over. Independently re-checked via `_refuse_if_shared`
+    # (redundant with `data_dir`'s own check above in the common case, but
+    # this makes the promise in the module docstring — "the attachment
+    # root ... [is] checked" — literally true of the code, not just true by
+    # transitive argument through `data_dir`).
+    attachment_root_path = data_dir / "j2_attachments"
+    _refuse_if_shared(str(attachment_root_path), "the resolved J2_ATTACHMENT_ROOT sandbox")
+    os.environ["J2_ATTACHMENT_ROOT"] = str(attachment_root_path)
 
     repo_root = Path(__file__).resolve().parents[1]
     if str(repo_root) not in sys.path:
