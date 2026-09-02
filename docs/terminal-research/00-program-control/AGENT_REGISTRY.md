@@ -252,3 +252,5 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | B-LSEG-01 | 1b | dispatched (Opus) | 2026-09-02 12:25 | — | — | `contracts/B-DOSSIER.md` §B-LSEG-01 |
 | B-FDS-01 | 1b | done | 12:15 | 14:00 (48 calls, 275k) | ACCEPT: FactSet sells substrate, not a destination screen; the 2026 AI brand is FactSet Intelligence (Mercury the engine beneath); published moat is provenance (full in-context source linking, NL to precise API calls, entitlements enforced per human incl. agents); Workstation login-only, no price published (UX/density/seat cost 🔴) | `factset/dossier.md` |
 | C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| E-05 | 2 | dispatched (Fable) | 2026-09-02 14:20 | — | — | data/infra cost model; `contracts/E-COST.md` §E-05 |
+| B-GDL-02 | 2 | dispatched (Opus) | 2026-09-02 14:20 | — | — | Gödel capability verifier; `contracts/B-GDL-W2.md` |
