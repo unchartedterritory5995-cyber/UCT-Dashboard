@@ -1,0 +1,45 @@
+{
+  "measured_at": "2026-09-01",
+  "sample_tickers": 837,
+  "tiers": {
+    "small 0.3-2B": [
+      0,
+      2000000000.0
+    ],
+    "mid 2-10B": [
+      2000000000.0,
+      10000000000.0
+    ],
+    "large 10B+": [
+      10000000000.0,
+      null
+    ]
+  },
+  "min_n": 100,
+  "structures": {
+    "darvas-box": {
+      "unknown": {
+        "n": 5905,
+        "win_rate": 0.3407,
+        "expectancy_pct": 0.00652,
+        "expectancy_r": 0.0815
+      }
+    },
+    "ema-crossback": {
+      "unknown": {
+        "n": 4477,
+        "win_rate": 0.3956,
+        "expectancy_pct": 0.00249,
+        "expectancy_r": 0.0312
+      }
+    },
+    "parabolic-extension": {
+      "unknown": {
+        "n": 541,
+        "win_rate": 0.5564,
+        "expectancy_pct": 0.02257,
+        "expectancy_r": 0.2821
+      }
+    }
+  }
+}
