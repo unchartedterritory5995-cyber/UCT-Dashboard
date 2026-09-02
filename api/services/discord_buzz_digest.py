@@ -177,6 +177,37 @@ def mark_missed(key: str) -> None:
 _CATCHUP_GRACE_MIN = 20
 
 
+def _alert_missed(label: str, late: int) -> None:
+    """Tell a HUMAN a checkpoint was dropped.
+
+    ⛔ A log line is not a notification. Railway's log stream on this pod is
+    flooded by yfinance and theme chatter, nobody tails it, and it is batched on
+    ingest -- so the warning above closes the "it vanished silently" hole in the
+    CODE while leaving it wide open in PRACTICE. That is the same mistake one
+    level up: I would have shipped a miss-detector nobody ever reads.
+
+    `severity="critical"` is not drama, it is the ONLY severity
+    chart_health_alerts pages Discord on; anything less lands in an in-memory
+    deque that dies with the pod. The key carries the slot so two missed
+    checkpoints are two pages rather than one swallowed by the 30-minute
+    per-key cooldown.
+
+    Never raises: this runs inside the 60s poll, and an alerting failure must
+    not cost the room its INGEST.
+    """
+    try:
+        from api.services import chart_health_alerts
+        chart_health_alerts.emit(
+            f"buzz_slot_missed:{label}", "critical",
+            f"Buzz board for the {label} ET checkpoint was never posted "
+            f"({late}m late, past the {_CATCHUP_GRACE_MIN}m catch-up window). "
+            f"The room is missing that slot today.",
+            {"slot": label, "minutes_late": late},
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] could not raise a missed-slot alert for %s: %s", label, e)
+
+
 def due_unposted_slots(now_dt: dt.datetime) -> list[tuple[str, int]]:
     """(slot label, minutes late) for today's slots that have already passed
     and carry no posted record. Oldest first.
@@ -223,6 +254,7 @@ def catch_up(*, now: int | None = None, **kw) -> dict:
         log.warning("[buzz] MISSED the %s board -- %dm late, past the %dm catch-up "
                     "window, so it will not be posted. The room got six of seven "
                     "checkpoints today, not seven.", label, late, _CATCHUP_GRACE_MIN)
+        _alert_missed(label, late)
     return {"posted": False, "reason": "all due slots are past the catch-up window"}
 
 
