@@ -135,11 +135,32 @@ def poll_once(channel_id: str, *, fetch_fn=None) -> dict:
     return {"fetched": len(msgs or []), "rows": written, "cursor": newest or cursor}
 
 
-def backfill(channel_id: str, days: int = 30, *, fetch_fn=None, progress=None) -> dict:
-    """Walk the channel backwards until messages fall outside the window."""
+def backfill(channel_id: str, days: int = 30, *, fetch_fn=None, progress=None,
+             restart: bool = False) -> dict:
+    """Walk the channel backwards until messages fall outside the window.
+
+    ⛔ RESUMABLE, AND IT HAS TO BE. This used to set `before = None` on every
+    run, so the walk always restarted from the NEWEST message. On a channel
+    doing ~1,100 messages a day, a single rate limit at page 11 capped it at
+    about 14 hours of history — and each re-run re-walked those same pages and
+    stopped in the same place, so a 30-day backfill was unreachable no matter
+    how many times you ran it. Measured on #main-chat: five consecutive runs,
+    four adding zero new mentions. The tool printed "re-run to continue"; it
+    could not continue.
+
+    The walk now starts from the persisted backward watermark and advances it
+    AFTER each page's rows commit, so a rate limit, a crash or a deploy swap
+    costs one page, not the whole run. `restart=True` ignores the mark and
+    walks from the newest again.
+    """
     fetch = fetch_fn or fetch_messages
     cutoff = int(time.time()) - days * 86400
-    before = None
+    if restart:
+        buzz_store.clear_backfill_mark(channel_id)
+        before = None
+    else:
+        before = buzz_store.get_backfill_mark(channel_id)
+    resumed = before is not None
     total = pages = fetched = 0
     newest_seen: int | None = None
     truncated = False
@@ -159,12 +180,20 @@ def backfill(channel_id: str, days: int = 30, *, fetch_fn=None, progress=None) -
             newest_seen = max(newest_seen or 0, int(newest))
         oldest = min(int(m["id"]) for m in msgs)
         before = str(oldest)
+        # ⛔ AFTER the page's rows are committed by ingest_messages above, never
+        # before: a mark written first would skip this page forever if the next
+        # step died. Same ordering rule as the forward cursor.
+        buzz_store.set_backfill_mark(channel_id, before)
         if progress:
             progress(pages, fetched, total)
         if buzz_store.snowflake_ts(str(oldest)) < cutoff:
             break
         if fetch_fn is None:
             time.sleep(BACKFILL_PAGE_PAUSE_S)
-    if newest_seen and not buzz_store.get_cursor(channel_id):
+    # Only a walk that STARTED at the newest message may seed the forward
+    # cursor. A resumed run begins deep in the past, so its "newest seen" is an
+    # old id -- planting that as the poller's cursor would make the next poll
+    # re-fetch weeks of history one 100-message page at a time.
+    if newest_seen and not resumed and not buzz_store.get_cursor(channel_id):
         buzz_store.set_cursor(channel_id, str(newest_seen))
     return {"pages": pages, "fetched": fetched, "rows": total, "truncated": truncated}

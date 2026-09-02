@@ -100,9 +100,21 @@ def _start_r2_sync() -> None:
                     except Exception as _re:
                         _log.warning("[bars-api] could not remove %s: %s", _f, _re)
                 _log.info("[bars-api] removed empty local bars.db → R2 will full-install")
-            ts = (data_sync.sync_with_deltas() if data_sync.DELTA_ENABLED
-                  else data_sync.sync_if_newer())
-            _log.info("[bars-api] boot snapshot INSTALL done (%s)", ts)
+            # ⭐ Install the base via download_snapshot DIRECTLY — it streams the
+            # tarball to disk in 8MB chunks (data_sync.py:599, low memory) and writes
+            # the sync marker (line 677) so the periodic delta loop has its floor.
+            # NOT sync_with_deltas at boot: on a fresh/empty db its base path reads
+            # the whole ~688MB snapshot into RAM (resp.Body.read) + row-by-row merge,
+            # which OOM-crash-looped the pod. Once the db is populated, the periodic
+            # sync_with_deltas applies only small deltas (low-memory, like the web pod).
+            latest = data_sync.get_latest_snapshot_ts()
+            if not latest:
+                _log.warning("[bars-api] no R2 snapshot available yet — will cold-fetch "
+                             "until the periodic pull lands one")
+                return
+            _log.info("[bars-api] installing base snapshot %s (streaming, low-memory)…", latest)
+            ok = data_sync.download_snapshot(latest)
+            _log.info("[bars-api] boot snapshot INSTALL %s (%s)", "done" if ok else "FAILED", latest)
             # Ensure schema/indexes exist post-install (idempotent).
             try:
                 from api.services import bars_sqlite
