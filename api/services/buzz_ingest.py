@@ -55,6 +55,18 @@ def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAG
     single 429 look like "end of history" and silently short-reads the whole
     backfill while reporting success.
     """
+    # ⛔ NAME THE MISCONFIGURATION. DISCORD_BOT_TOKEN has no other consumer in
+    # this app, so it is the one variable an activation is most likely to miss —
+    # and without this branch the symptom is a 401 logged as a generic
+    # "fetch HTTP 401", every 60s, behind a board that just looks like a quiet
+    # room. A named cause is the difference between a two-minute fix and an
+    # afternoon spent doubting the extractor.
+    if not _token():
+        log.warning("[buzz] DISCORD_BOT_TOKEN is not set — cannot read %s. "
+                    "The poller is configured (BUZZ_CHANNELS) but has no "
+                    "credentials; see docs/runbooks/buzz-activation.md.", channel_id)
+        return None
+
     import httpx
     params: dict = {"limit": limit}
     if after:

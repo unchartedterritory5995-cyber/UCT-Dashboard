@@ -212,3 +212,47 @@ def test_a_429_cannot_park_a_scheduler_slot_for_an_hour(mods, monkeypatch):
 
     assert ing.fetch_messages("CH1", http=_HttpShort()) is None
     assert slept == [2.0]
+
+
+def test_a_missing_bot_token_is_named_not_left_as_a_generic_401(mods, monkeypatch, caplog):
+    """⛔ DISCORD_BOT_TOKEN has NO other consumer in this app, so it is the one
+    variable an activation is most likely to miss. Without a named branch the
+    symptom is a generic "fetch HTTP 401" every 60s behind a board that just
+    looks like a quiet room — and the extractor gets blamed for a config gap.
+
+    It must also return None, not [], or `backfill` would read the
+    misconfiguration as "end of history" and report a successful short-read.
+    """
+    import logging
+    _, ing = mods
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+
+    class _NeverCalled:
+        def get(self, *a, **kw):
+            raise AssertionError("must not reach Discord without a token")
+
+    with caplog.at_level(logging.WARNING):
+        assert ing.fetch_messages("CH1", http=_NeverCalled()) is None
+    assert "DISCORD_BOT_TOKEN" in caplog.text
+
+    # CONTROL: with a token set, the guard is out of the way and the request
+    # is actually attempted — so this cannot pass by refusing everything.
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "tok")
+    reached = []
+
+    class _Ok:
+        def get(self, *a, **kw):
+            reached.append(1)
+            class _R:
+                status_code = 200
+                is_success = True
+                text = ""
+                headers: dict = {}
+
+                @staticmethod
+                def json():
+                    return []
+            return _R()
+
+    assert ing.fetch_messages("CH1", http=_Ok()) == []
+    assert reached == [1]
