@@ -35,7 +35,7 @@ def build_board_text(now: int, window: str = "open") -> str:
                      f"{r['mentions']:>3}   {r['people']:>2} ppl")
     lines.append("```")
 
-    heat = buzz_boards.heat_board(now)
+    heat = buzz_boards.heat_board(now, limit=buzz_boards.HEAT_MARKS)
     if heat:
         # ⛔ "today" is load-bearing, not filler. heat_board is ALWAYS a
         # today-vs-30-sessions measure, so on `/buzz month` this line sits
