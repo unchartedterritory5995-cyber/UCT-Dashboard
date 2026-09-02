@@ -1,0 +1,76 @@
+.wrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border, #2e3127);
+  color: var(--text-bright, #e0dac8);
+  border-radius: var(--radius-md, 6px);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+.tab:hover {
+  background: var(--bg-hover, #2a2d24);
+}
+.tabActive {
+  border-color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.1);
+  color: #dcbb5e;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: var(--radius-md, 6px);
+  background: rgba(255, 255, 255, 0.02);
+}
+.line {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted, #8c8674);
+  line-height: 1.5;
+}
+.line strong {
+  color: var(--text-bright, #e0dac8);
+}
+.lineWarn {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #d8b962;
+  line-height: 1.5;
+}
+.lineWarn svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* This product's touch tier is <=1024px, NOT <=640px — a floor restored only
+   at 640 leaves tablet broken (a defect this repo has hit repeatedly). */
+@media (max-width: 1024px) {
+  .tab {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+}

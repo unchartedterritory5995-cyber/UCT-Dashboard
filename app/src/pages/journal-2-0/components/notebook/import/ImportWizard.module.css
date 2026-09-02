@@ -110,19 +110,6 @@
   cursor: pointer;
   padding: 4px 0;
 }
-.guideList {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--text-muted, #8c8674);
-  line-height: 1.5;
-}
-.guideList strong { color: var(--text-bright, #e0dac8); }
-
 /* ── scanning / running steps ── */
 .scanningWrap,
 .runningWrap {
