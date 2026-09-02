@@ -8505,6 +8505,12 @@ export default function StockChart({
     // stale server close that otherwise snapped ~1s later when the first tick
     // arrived. Cold/uncached ticker → null → prior ~1s behaviour, no regression.
     // Sane-price guard mirrors Writers A/B (baseline = the just-refreshed server close).
+    // Set when the re-top below CREATES today's developing bar (a bucket BEYOND the
+    // N filteredBars, which end at yesterday's close). The framing block reads it so
+    // it pins TODAY at the anchor, not yesterday — else today's candle loads one bar
+    // to the right of the default position and then shifts left by one (the "pop"
+    // the neighbor live-price prewarm otherwise still leaves on a fresh switch).
+    let _todayBarPlanted = false
     let _retopLive = (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price)
       ? latestLiveRef.current
       : null
@@ -8591,6 +8597,7 @@ export default function StockChart({
       const lb = liveBarRef.current
 
       if (decision.kind === 'new') {
+        _todayBarPlanted = true  // series now holds today (index = filteredBars.length); frame for it
         const isDW = !isIntradayTf
         // A NEW bucket must NOT inherit O/H/L from liveBarRef — that's the PREVIOUS
         // bar (decision.kind==='new' ⇒ lb.time !== barTime). Fusing lb.low gave a
@@ -10209,7 +10216,11 @@ export default function StockChart({
         const _pt = pendingTfReframeRef.current
         let from, to
         if (_pt.width > 0) {
-          const lastIdx = filteredBars.length - 1
+          // Pin TODAY (the just-planted developing bar, index = filteredBars.length)
+          // at the anchor when it exists, else yesterday — so the current-day candle
+          // loads at the SAME position the outgoing view had, never one bar to the
+          // right and then shifted left.
+          const lastIdx = (filteredBars.length - 1) + (_todayBarPlanted ? 1 : 0)
           to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - _pt.width
         } else {
