@@ -145,10 +145,12 @@ def reset_rate_for_tests() -> None:
         _rate_hits.clear()
 
 
-def throttle_message(wait_s: float) -> str:
+def throttle_message(wait_s: float, noun: str = "charts") -> str:
+    """`noun` because this budget is shared by every rendering command, and a
+    member who ran /buzz should not be told they hit a limit on "charts"."""
     n, window = user_rate()
     per = "minute" if int(window) == 60 else f"{int(window)}s"
-    return f"Slow down: up to {n} charts per {per} per member. Try again in {max(1, int(wait_s + 0.999))}s."
+    return f"Slow down: up to {n} {noun} per {per} per member. Try again in {max(1, int(wait_s + 0.999))}s."
 
 
 

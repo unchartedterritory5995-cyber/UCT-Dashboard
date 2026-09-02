@@ -542,3 +542,43 @@ def test_an_alerting_failure_never_costs_the_room_its_ingest(mods, monkeypatch):
                           post_fn=lambda **k: True)
     assert out["posted"] is False          # returned normally, did not propagate
     assert "2026-09-01 16:15" in digest.missed_keys()   # and still recorded the miss
+
+
+def test_the_scheduled_post_is_never_ephemeral(mods, monkeypatch):
+    """⛔⛔ THE OPPOSITE MISTAKE, AND IT IS THE EXPENSIVE ONE.
+
+    On-demand /buzz became ephemeral 2026-09-02 so a member checking the board
+    does not put a second copy in front of 750 people. The SCHEDULED post must
+    stay public -- it IS the thing the room is meant to see. An ephemeral flag
+    on this path would make seven boards a day visible to nobody, and every
+    check we have would still read green: the job runs, `posted` is stamped, the
+    log says posted, the attachment exists. Only a human noticing the room went
+    quiet would catch it.
+
+    They cannot collide today -- the digest posts through the bot token to
+    POST /channels/{id}/messages, where message flags do not apply, while
+    ephemerality is an INTERACTION response flag. This pins that separation so a
+    future "let's unify the posting" cannot quietly erase it.
+    """
+    import json as _json
+    store, _, digest = mods
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-token")   # _post_as_bot refuses without one
+    sent = {}
+
+    class _Resp:
+        status_code = 200
+
+    def _capture(url, data=None, files=None, timeout=None, **kw):
+        sent["url"] = url
+        sent["payload"] = _json.loads((data or {}).get("payload_json") or "{}")
+        return _Resp()
+
+    import requests
+    monkeypatch.setattr(requests, "post", _capture)
+    out = digest.run_digest(now=_at(16, 15), slot="16:15", render_fn=lambda w: None)
+    assert out["posted"] is True
+    assert "/channels/" in sent["url"], "the digest must post as the bot, not as an interaction"
+    assert "flags" not in sent["payload"], "an ephemeral scheduled board is invisible to the room"

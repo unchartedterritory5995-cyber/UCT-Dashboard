@@ -258,6 +258,23 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         from api.services import buzz_image, buzz_reply
+        # ⛔ ON-DEMAND /buzz IS EPHEMERAL AND THROTTLED; the SCHEDULED post is
+        # neither. Owner ruling 2026-09-02. The two are different doors on
+        # purpose: the room gets the shared board seven times a session, and a
+        # member checking it in between does not put a second copy in front of
+        # 750 people. Nothing here can reach the scheduled path -- that one
+        # posts through discord_buzz_digest._post_as_bot (POST /channels/{id}/
+        # messages with the bot token), where message flags do not even apply.
+        #
+        # The budget is SHARED with /chart rather than given its own: both end
+        # up on the same 4-slot render valve, so one per-member budget is the
+        # honest model. 12/minute (DISCORD_CHART_USER_RATE) is far above real
+        # use -- this bounds a member pinning a render slot in a loop, not
+        # anyone's normal reading.
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="boards"))
         opts = {o["name"]: o.get("value") for o in
                 ((interaction.get("data") or {}).get("options") or [])}
         window = (opts.get("window") or "open").strip()
@@ -285,8 +302,14 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             token = str(interaction.get("token") or "")
             if app_id and token:
                 background.add_task(run_buzz_image_job, app_id, token, text, window)
-                return {"type": 5}
-        return {"type": 4, "data": {"content": text}}
+                # ⛔ THE FLAG GOES ON THE DEFER, NOT THE FOLLOW-UP. Discord fixes
+                # a deferred reply's visibility at type 5; setting flags later on
+                # the PATCH is silently ignored and the board lands PUBLICLY.
+                # run_buzz_image_job edits via `edit_original`
+                # (PATCH /webhooks/{app}/{token}/messages/@original), which keeps
+                # whatever this response declared.
+                return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+        return {"type": 4, "data": {"content": text, "flags": di.EPHEMERAL}}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
