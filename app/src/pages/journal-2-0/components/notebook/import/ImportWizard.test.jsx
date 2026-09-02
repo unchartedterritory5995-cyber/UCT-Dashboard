@@ -487,3 +487,289 @@ describe('ImportWizard — per-note selection on the preview step (Task 2)', () 
     expect(screen.getByText(/Created: 2/i)).toBeInTheDocument()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 5 — closing the transfer-gap coverage hole. The importer's core
+// promise is that re-importing UPDATES existing notes rather than duplicating
+// them: every incoming note is classified create/update/unchanged by
+// `importKey` fingerprint against what the member already has. Every test
+// above only ever exercises the CREATE path (`checkExisting` mocked to
+// `{ existing: {} }`) — the update/unchanged branches of `classifyDocs` had
+// zero coverage, and `cadaa4ad0` (perf: defer body conversion) restructured
+// exactly the code around them: body conversion during scan is now
+// restricted to notes with an existing server match (only those need a
+// converted body to compute the update-vs-unchanged hash), while everything
+// else defers to confirm. These tests drive a genuine existing-match through
+// the SAME `checkExisting` mocking idiom the rest of this file uses, so the
+// classification + deferred-conversion interaction actually runs.
+// ---------------------------------------------------------------------------
+describe('ImportWizard — re-import classification survives deferred body conversion (Task 5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function makeFileAt(name, content, lastModified) {
+    return new File([content], name, { type: 'text/markdown', lastModified })
+  }
+
+  // classifyDocs's 'unchanged' verdict needs the wizard's own internal,
+  // unexported `computeImportHash` (SHA-256 over title/subtitle/bodyJson/
+  // tags/ticker/folderPath/updatedAt — see the "UX estimate, not a source of
+  // truth" comment atop ImportWizard.jsx) to equal the "existing" fixture's
+  // importHash. Re-deriving that canonical-JSON basis independently in this
+  // test file would be a second, driftable copy of the exact algorithm this
+  // test exists to hold accountable (the repo's own standing lesson: derive,
+  // never restate). Instead: run the SAME file through the real wizard once
+  // with a deliberately-WRONG placeholder importHash — this forces the real
+  // scan-time hash computation (and an 'update' verdict, since the
+  // placeholder can't match) — spy on the real, pass-through
+  // `crypto.subtle.digest` to CAPTURE what the wizard actually computed, then
+  // feed that captured value back as the "existing" fixture in the real
+  // assertion pass below. The spy never changes `digest`'s behavior; it only
+  // observes the real result.
+  async function primeRealHash(name, content, lastModified) {
+    const digestSpy = vi.spyOn(globalThis.crypto.subtle, 'digest')
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).endsWith('/import/check')) {
+        return new Response(JSON.stringify({
+          existing: {
+            [`file:${name}`]: {
+              id: 'prime',
+              updatedAt: new Date(lastModified).toISOString(),
+              importHash: 'placeholder-that-can-never-match-a-real-sha256-digest',
+            },
+          },
+        }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    const { unmount } = render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [makeFileAt(name, content, lastModified)] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument())
+    expect(digestSpy).toHaveBeenCalledTimes(1)
+    const digestBuf = await digestSpy.mock.results[0].value
+    const hex = [...new Uint8Array(digestBuf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+    unmount()
+    digestSpy.mockRestore()
+    return hex
+  }
+
+  it('a note whose content is unchanged since last import classifies as unchanged, counts correctly, and is not re-written on confirm', async () => {
+    const NAME = 'unchanged.md'
+    const CONTENT = '# Steady\n\nThis body never changes across imports. STABLE_MARKER_9001'
+    const LAST_MOD = 1700000000000
+    const realHash = await primeRealHash(NAME, CONTENT, LAST_MOD)
+
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (String(url).endsWith('/import/check')) {
+        return new Response(JSON.stringify({
+          existing: {
+            [`file:${NAME}`]: { id: 'existing-1', updatedAt: new Date(LAST_MOD).toISOString(), importHash: realHash },
+          },
+        }))
+      }
+      if (String(url).endsWith('/import/confirm')) {
+        // Real server behavior: a fingerprint match comes back `skipped`
+        // (not `updated`) — the ECHO here mirrors that, keyed off importKey.
+        const body = JSON.parse(opts.body)
+        return new Response(JSON.stringify({
+          created: body.notes.filter((n) => n.importKey !== `file:${NAME}`).map((n) => ({ importKey: n.importKey, id: `id-${n.importKey}` })),
+          updated: [],
+          skipped: body.notes.filter((n) => n.importKey === `file:${NAME}`).map((n) => ({ importKey: n.importKey, id: 'existing-1' })),
+        }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    // A lone unchanged note leaves `importTotal` (create+update) at 0, which
+    // disables the Import button — pair it with a create note so the confirm
+    // step actually runs and the unchanged note's fate through it is provable.
+    const files = [makeFileAt(NAME, CONTENT, LAST_MOD), makeFileAt('fresh.md', '# Fresh\n\nBrand new note.', LAST_MOD)]
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files } })
+
+    await waitFor(() => expect(screen.getByText(/2 notes/i)).toBeInTheDocument())
+    expect(screen.getByText(/create 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/unchanged 1/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+    // Assertion OUTSIDE any mock callback — on the RECORDED call.
+    const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(call[1].body)
+    expect(body.notes.map((n) => n.importKey).sort()).toEqual(['file:fresh.md', `file:${NAME}`].sort())
+
+    await waitFor(() => expect(screen.getByText(/Imported 1 note\./i)).toBeInTheDocument())
+    expect(screen.getByText(/Created: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Unchanged: 1/i)).toBeInTheDocument()
+  })
+
+  it('a note whose content changed classifies as update, and the confirm payload carries its NEW body', async () => {
+    const NAME = 'changed.md'
+    const LAST_MOD = 1700000000001
+    const NEW_CONTENT = '# Changed\n\nThe member edited this since the last import. NEW_BODY_MARKER_4242'
+
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (String(url).endsWith('/import/check')) {
+        return new Response(JSON.stringify({
+          existing: {
+            [`file:${NAME}`]: {
+              id: 'existing-2',
+              updatedAt: new Date(LAST_MOD).toISOString(),
+              importHash: 'placeholder-that-can-never-match-a-real-sha256-digest',
+            },
+          },
+        }))
+      }
+      if (String(url).endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({ created: [], updated: [{ importKey: `file:${NAME}`, id: 'existing-2' }], skipped: [] }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [makeFileAt(NAME, NEW_CONTENT, LAST_MOD)] } })
+
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+    // Assertion OUTSIDE any mock callback — on the RECORDED call, not on
+    // anything a mock's own response body computed. This is the one the
+    // deferral could plausibly break: an update needs a converted body, and
+    // the perf change decides conversion timing based on whether a server
+    // match exists.
+    const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(call[1].body)
+    expect(body.notes).toHaveLength(1)
+    const sentBody = body.notes[0].bodyJson
+    expect(sentBody).toBeTruthy()
+    expect(JSON.stringify(sentBody)).toContain('NEW_BODY_MARKER_4242')
+  })
+
+  it('a mix of create/update/unchanged in one import gets each preview count right', async () => {
+    const UNCHANGED_NAME = 'steady.md'
+    const UNCHANGED_CONTENT = '# Steady\n\nThis one never changes. STABLE_MARKER_777'
+    const LAST_MOD = 1700000000002
+    const realHash = await primeRealHash(UNCHANGED_NAME, UNCHANGED_CONTENT, LAST_MOD)
+
+    const UPDATE_NAME = 'edited.md'
+    const UPDATE_CONTENT = '# Edited\n\nThis one changed since last time. EDITED_MARKER_888'
+    const CREATE_NAME = 'brandnew.md'
+    const CREATE_CONTENT = '# Brand New\n\nNever seen before.'
+
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (String(url).endsWith('/import/check')) {
+        return new Response(JSON.stringify({
+          existing: {
+            [`file:${UNCHANGED_NAME}`]: { id: 'e-unchanged', updatedAt: new Date(LAST_MOD).toISOString(), importHash: realHash },
+            [`file:${UPDATE_NAME}`]: {
+              id: 'e-update',
+              updatedAt: new Date(LAST_MOD).toISOString(),
+              importHash: 'placeholder-that-can-never-match-a-real-sha256-digest',
+            },
+          },
+        }))
+      }
+      if (String(url).endsWith('/import/confirm')) {
+        const body = JSON.parse(opts.body)
+        return new Response(JSON.stringify({
+          created: body.notes.filter((n) => n.importKey === `file:${CREATE_NAME}`).map((n) => ({ importKey: n.importKey, id: `id-${n.importKey}` })),
+          updated: body.notes.filter((n) => n.importKey === `file:${UPDATE_NAME}`).map((n) => ({ importKey: n.importKey, id: 'e-update' })),
+          skipped: body.notes.filter((n) => n.importKey === `file:${UNCHANGED_NAME}`).map((n) => ({ importKey: n.importKey, id: 'e-unchanged' })),
+        }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [
+      makeFileAt(UNCHANGED_NAME, UNCHANGED_CONTENT, LAST_MOD),
+      makeFileAt(UPDATE_NAME, UPDATE_CONTENT, LAST_MOD),
+      makeFileAt(CREATE_NAME, CREATE_CONTENT, LAST_MOD),
+    ]
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files } })
+
+    await waitFor(() => expect(screen.getByText(/3 notes/i)).toBeInTheDocument())
+    // A member reads these three counts to decide whether to proceed — each
+    // one has to be right, independently, in the same preview.
+    expect(screen.getByText(/create 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/update 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/unchanged 1/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => expect(screen.getByText(/Imported 2 notes\./i)).toBeInTheDocument())
+    expect(screen.getByText(/Created: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Updated: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Unchanged: 1/i)).toBeInTheDocument()
+  })
+
+  it('a match with no stored fingerprint skips scan-time conversion but still gets its NEW body before confirm', async () => {
+    const NAME = 'nohash.md'
+    const LAST_MOD = 1700000000003
+    const NEW_CONTENT = '# No Hash On File\n\nThe existing record has no importHash to compare against. NOHASH_MARKER_1313'
+
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).endsWith('/import/check')) {
+        return new Response(JSON.stringify({
+          existing: {
+            // No `importHash` key at all — classifyDocs treats this as
+            // 'update' WITHOUT computing a hash (the `ex.importHash ? ... :
+            // null` short-circuit in classifyDocs), so beginScan's
+            // `needsHash` filter deliberately EXCLUDES this note from
+            // scan-time body conversion. Its body must still arrive intact
+            // via handleConfirm's confirm-time `needsBody` fallback — this is
+            // the deferral's OTHER half, distinct from the update test above
+            // (which goes through the scan-time path because its existing
+            // record DOES carry an importHash to compare against).
+            [`file:${NAME}`]: { id: 'existing-3', updatedAt: new Date(LAST_MOD).toISOString() },
+          },
+        }))
+      }
+      if (String(url).endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({ created: [], updated: [{ importKey: `file:${NAME}`, id: 'existing-3' }], skipped: [] }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [makeFileAt(NAME, NEW_CONTENT, LAST_MOD)] } })
+
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+    const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(call[1].body)
+    const sentBody = body.notes[0].bodyJson
+    // Not stale, not empty: a real, non-trivial TipTap doc carrying the
+    // CURRENT content, filled in by confirm's own lazy conversion since scan
+    // deliberately skipped it.
+    expect(sentBody).toBeTruthy()
+    expect(sentBody.content?.length || 0).toBeGreaterThan(0)
+    expect(JSON.stringify(sentBody)).toContain('NOHASH_MARKER_1313')
+  })
+})
