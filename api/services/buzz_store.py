@@ -165,7 +165,14 @@ def board(start_ts: int, end_ts: int, channels, limit: int = 10) -> list[dict]:
     sql = (
         "SELECT ticker, COUNT(DISTINCT author_id) AS people, COUNT(*) AS mentions "
         "FROM mentions WHERE ts >= ? AND ts < ?" + cl +
-        " GROUP BY ticker ORDER BY people DESC, mentions DESC, ticker ASC LIMIT ?"
+        # ⛔ MENTIONS LEAD. Owner ruling 2026-09-02: "Id like mentions to be the
+        # lead vs people honestly." It ranked people-first from the original
+        # brief; distinct people is the spam-resistant measure (one member
+        # saying NVDA forty times cannot top the board on volume alone), and
+        # that property now lives in the TIEBREAK rather than the lead.
+        # `ticker ASC` last keeps a fully tied board deterministic, so the same
+        # data always renders the same order.
+        " GROUP BY ticker ORDER BY mentions DESC, people DESC, ticker ASC LIMIT ?"
     )
     rows = connect().execute(sql, [start_ts, end_ts, *params, limit]).fetchall()
     return [{"ticker": r["ticker"], "people": r["people"], "mentions": r["mentions"]} for r in rows]

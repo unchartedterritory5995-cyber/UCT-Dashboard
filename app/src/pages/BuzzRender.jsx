@@ -140,12 +140,17 @@ export default function BuzzRender() {
   const singles = data.singles || []
   const totals = data.totals || {}
 
-  // The magnitude bar is scaled to the LOUDEST row, which is not necessarily
-  // rows[0]: the board ranks by DISTINCT PEOPLE, so a name further down can
-  // carry more mentions (three people saying NVDA forty times outranks
-  // nobody). Reading rows[0].mentions as the maximum would render bars wider
-  // than their track on exactly the rows the board exists to surface.
-  const maxMentions = Math.max(1, ...rows.map((r) => r.mentions || 0))
+  // ⛔ THE BAR DRAWS THE QUANTITY THE BOARD IS RANKED BY. That is the rule,
+  // and the ranked quantity is now MENTIONS (owner, 2026-09-02: "Id like
+  // mentions to be the lead vs people"). Keep the two in step: when the bar
+  // came from a different number than the sort, the board stepped UP three
+  // times in fourteen rows and read as a sorting bug.
+  //
+  // Still derived with max() rather than rows[0]: mentions-descending makes
+  // rows[0] the maximum today, but reading the first row as the maximum is an
+  // assumption about the ORDER, and this file has already been wrong about
+  // that once. max() stays correct whatever the ranking does next.
+  const maxRanked = Math.max(1, ...rows.map((r) => r.mentions || 0))
 
   return (
     <div className={styles.wrap}>
@@ -219,7 +224,7 @@ export default function BuzzRender() {
               <span className={styles.bar}>
                 <i
                   className={r.hot != null ? `${styles.fill} ${styles.hot}` : styles.fill}
-                  style={{ width: `${((100 * (r.mentions || 0)) / maxMentions).toFixed(1)}%` }}
+                  style={{ width: `${((100 * (r.mentions || 0)) / maxRanked).toFixed(1)}%` }}
                   data-buzz-bar
                 />
               </span>
