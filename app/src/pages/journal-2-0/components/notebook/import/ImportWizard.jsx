@@ -12,13 +12,8 @@ import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import useJ2NoteFolders from '../../../hooks/useJ2NoteFolders'
 import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
+import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
-
-const EXPORT_GUIDES = [
-  { app: 'Notion', tip: 'Export the workspace/page as "HTML" (not Markdown & CSV) — Settings → Export.' },
-  { app: 'OneNote', tip: 'Export each section you want as a Word (.docx) file — File → Export → Section.' },
-  { app: 'Apple Notes', tip: 'Use the free "Exporter" app from the Mac App Store for a bulk export of a whole folder.' },
-]
 
 // ---------------------------------------------------------------------------
 // Best-effort client-side content hash — used ONLY to estimate the
@@ -562,17 +557,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   aria-expanded={guideOpen}
                 >
                   <UIcon name={guideOpen ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
-                  How do I export from…
+                  How do I get my export file?
                 </button>
-                {guideOpen && (
-                  <ul className={styles.guideList}>
-                    {EXPORT_GUIDES.map((g) => (
-                      <li key={g.app}>
-                        <strong>{g.app}:</strong> {g.tip}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {guideOpen && <ExportGuide />}
               </div>
             </div>
           )}

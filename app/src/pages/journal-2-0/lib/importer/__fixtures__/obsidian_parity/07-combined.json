@@ -1,0 +1,32 @@
+{
+  "id": "07-combined",
+  "input_markdown": "# Combined Obsidian Constructs\n\nSee [[Setups/VCP|the VCP setup]] and also [[Target Note]] plus a broken [[Ghost Note]] link.\n\nThis trade is ==very important== to size correctly.\n\n![[chart.png]]\n\n- [ ] Confirm the pattern\n- [x] Set the stop\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [
+      "files/chart.png"
+    ],
+    "links": [
+      {
+        "target": "Setups/VCP.md",
+        "text": "the VCP setup"
+      },
+      {
+        "target": "Target Note.md",
+        "text": "Target Note"
+      }
+    ],
+    "task_checked": [
+      false,
+      true
+    ],
+    "text": "Combined Obsidian Constructs See  the VCP setup  and also  Target Note  plus a broken Ghost Note link. This trade is very important to size correctly. Confirm the pattern Set the stop"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Setups/VCP.md",
+    "Target Note.md",
+    "files/chart.png"
+  ]
+}

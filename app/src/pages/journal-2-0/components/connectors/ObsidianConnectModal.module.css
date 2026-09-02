@@ -1,0 +1,95 @@
+.form { display: flex; flex-direction: column; gap: 10px; }
+
+.lead { font-size: 13px; line-height: 1.55; margin: 0; opacity: 0.9; }
+.helpText { font-size: 12px; line-height: 1.5; opacity: 0.75; margin: 0; }
+
+.consentCheck {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+  margin-top: 2px;
+}
+.consentCheck input { margin-top: 3px; flex-shrink: 0; }
+
+.error {
+  font-size: 13px;
+  color: var(--color-danger, #f87171);
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 8px 10px;
+}
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+
+/* Code display — no media query gating here on purpose: this product's
+   touch tier is <=1024px (tablet included, not just phone), and the
+   simplest way to never miss that boundary is to never shrink the target
+   in the first place. --tap-min applies identically on phone, tablet and
+   desktop. */
+.codeRow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.codeBox {
+  flex: 1 1 220px;
+  min-height: var(--tap-min, 44px);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-family: var(--font-mono, 'IBM Plex Mono', ui-monospace, monospace);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  word-break: break-all;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border, #333);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text, #e8e8ea);
+  user-select: all;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 14px;
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border, #333);
+  background: transparent;
+  color: var(--color-text, #e8e8ea);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.copyBtn:hover { background: rgba(255, 255, 255, 0.05); }
+
+.primaryBtn, .ghostBtn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  min-height: var(--tap-min, 44px);
+  border: 1px solid transparent;
+}
+.primaryBtn { background: var(--color-accent, #dcbb5e); color: var(--bg); }
+.primaryBtn:hover:not(:disabled) { filter: brightness(1.08); }
+.primaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ghostBtn {
+  background: transparent;
+  border-color: var(--color-border, #333);
+  color: var(--color-text, #e8e8ea);
+}
+.ghostBtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); }
+.ghostBtn:disabled { opacity: 0.5; cursor: not-allowed; }

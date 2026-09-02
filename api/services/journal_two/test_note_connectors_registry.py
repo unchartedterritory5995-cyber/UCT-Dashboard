@@ -24,15 +24,17 @@ def test_import_is_inert_with_zero_env_vars(monkeypatch):
         "NOTION_CLIENT_ID", "NOTION_CLIENT_SECRET",
         "DROPBOX_APP_KEY", "DROPBOX_APP_SECRET",
         "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET",
+        "NOTE_SYNC_OBSIDIAN_ENABLED", "NOTE_ENCRYPTION_KEY", "NOTE_ENCRYPTION_KEYS_V1",
     ):
         monkeypatch.delenv(var, raising=False)
     from api.services.journal_two.note_connectors import registry
     importlib.reload(registry)  # re-run module body with the clean env -- must not raise
-    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive"]
+    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian"]
     assert registry.configured("notion") is False
     assert registry.configured("dropbox") is False
     assert registry.configured("onenote") is False
     assert registry.configured("onedrive") is False
+    assert registry.configured("obsidian") is False
     assert registry.configured("roam") is True
     assert registry.configured("craft") is True
 
@@ -63,6 +65,28 @@ def test_configured_reflects_env_for_oauth_providers(monkeypatch):
     assert registry.configured("onenote") is True  # same Azure app backs both
 
 
+def test_configured_reflects_env_for_obsidian(monkeypatch):
+    """Obsidian's `configured()` is a TWO-part gate (registry.py's own
+    `_obsidian_configured` docstring): the deliberate `NOTE_SYNC_OBSIDIAN_ENABLED`
+    rollout flag AND a working `NOTE_ENCRYPTION_KEY` (obsidian_link.py needs it
+    to encrypt a device token at all). Either one missing must read as
+    not-configured -- never a raise, never a false-positive "Connect" button
+    for a door nothing can complete yet."""
+    from api.services.journal_two.note_connectors import registry
+
+    monkeypatch.delenv("NOTE_SYNC_OBSIDIAN_ENABLED", raising=False)
+    monkeypatch.setenv("NOTE_ENCRYPTION_KEY", "any-non-empty-value")
+    assert registry.configured("obsidian") is False  # flag off -> not configured, even with a key
+
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    monkeypatch.delenv("NOTE_ENCRYPTION_KEY", raising=False)
+    monkeypatch.delenv("NOTE_ENCRYPTION_KEYS_V1", raising=False)
+    assert registry.configured("obsidian") is False  # flag on, but no encryption key -> still not configured
+
+    monkeypatch.setenv("NOTE_ENCRYPTION_KEY", "any-non-empty-value")
+    assert registry.configured("obsidian") is True  # both prerequisites met
+
+
 def test_configured_is_false_not_raising_for_an_unknown_provider():
     from api.services.journal_two.note_connectors import registry
     assert registry.configured("evernote") is False
@@ -77,6 +101,7 @@ def test_build_provider_dispatches_to_the_right_class():
     from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
     from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
     from api.services.journal_two.note_connectors.providers.onedrive import OneDriveProvider
+    from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
 
     assert isinstance(registry.build_provider("roam"), RoamProvider)
     assert isinstance(registry.build_provider("craft"), CraftProvider)
@@ -84,6 +109,7 @@ def test_build_provider_dispatches_to_the_right_class():
     assert isinstance(registry.build_provider("dropbox"), DropboxProvider)
     assert isinstance(registry.build_provider("onenote"), OneNoteProvider)
     assert isinstance(registry.build_provider("onedrive"), OneDriveProvider)
+    assert isinstance(registry.build_provider("obsidian"), ObsidianProvider)
 
 
 def test_build_provider_raises_not_configured_for_an_unknown_name():
@@ -145,6 +171,24 @@ def test_build_provider_with_no_source_leaves_onedrive_folder_id_unset():
     assert p._folder_id_override is None
 
 
+def test_build_provider_threads_user_and_vault_to_obsidian():
+    """Obsidian is the ONE provider that needs `source["userId"]` (every
+    other provider resolves its tenant from decrypted credentials instead —
+    see `registry._build_obsidian`'s own docstring for why this provider has
+    none to resolve from)."""
+    from api.services.journal_two.note_connectors import registry
+    p = registry.build_provider("obsidian", {"id": "src1", "userId": "u1", "remoteId": "vault-abc"})
+    assert p.user_id == "u1"
+    assert p.vault_id == "vault-abc"
+
+
+def test_build_provider_with_no_source_leaves_obsidian_scope_unset():
+    from api.services.journal_two.note_connectors import registry
+    p = registry.build_provider("obsidian", None)
+    assert p.user_id is None
+    assert p.vault_id is None
+
+
 def test_get_entry_exposes_connect_kind_for_the_router():
     from api.services.journal_two.note_connectors import registry
     assert registry.get_entry("roam").connect_kind == "token"
@@ -153,3 +197,4 @@ def test_get_entry_exposes_connect_kind_for_the_router():
     assert registry.get_entry("dropbox").connect_kind == "oauth"
     assert registry.get_entry("onenote").connect_kind == "oauth"
     assert registry.get_entry("onedrive").connect_kind == "oauth"
+    assert registry.get_entry("obsidian").connect_kind == "device"

@@ -11,6 +11,7 @@ import io
 import sqlite3
 import zipfile
 
+import anyio
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -160,3 +161,67 @@ def test_second_concurrent_export_is_refused_with_429(route_client):
     # The slot is free again -- a subsequent export is not permanently wedged.
     r2 = route_client.get("/api/j2/notes/export")
     assert r2.status_code == 200
+
+
+# ── Disconnect-cancellation leak (reviewer finding, CRITICAL) ────────────────
+#
+# `stream_export_file`'s `finally` opens with
+# `await anyio.to_thread.run_sync(f.close)`. Starlette 0.41.3 delivers a
+# client disconnect as a live `anyio.get_cancelled_exc_class()` exception at
+# EVERY checkpoint reached while the request's anyio CancelScope is still
+# cancelled -- including a checkpoint reached from inside a `finally` block.
+# The scenario below reproduces that exactly with anyio's own primitives
+# (no Starlette/ASGI plumbing needed): consume one chunk normally, cancel the
+# enclosing scope (= "the member closed the tab mid-download"), then ask the
+# generator for the next chunk while STILL inside that cancelled scope -- the
+# same shape Starlette's `StreamingResponse` produces on a real disconnect.
+
+
+async def test_client_disconnect_mid_download_frees_the_tempfile_and_slot(
+    tmp_path,
+):
+    """Must FAIL against the pre-fix code: the disconnect leaves the temp
+    file on disk AND the concurrency slot held, which is the reviewer's
+    measured "5/5 leaks at every disconnect >=1ms" -- with the default
+    concurrency limit of 1, that one leaked slot wedges the export at 429 for
+    every member until redeploy."""
+    from api.services.journal_two import notes_export
+
+    path = tmp_path / "disconnect-repro.zip"
+    path.write_bytes(b"x" * (2 * notes_export._EXPORT_STREAM_CHUNK_BYTES))
+
+    assert notes_export.acquire_export_slot()  # simulate the route's own acquire
+    try:
+        agen = notes_export.stream_export_file(path)
+        with anyio.CancelScope() as scope:
+            first = await agen.__anext__()  # open + first read succeed normally
+            assert first  # got real bytes back before the "disconnect"
+            scope.cancel()  # the member closes the tab mid-download
+            with pytest.raises(anyio.get_cancelled_exc_class()):
+                # Still inside the now-cancelled scope: this is exactly
+                # where Starlette's own disconnect cancellation lands.
+                await agen.__anext__()
+
+        assert not path.exists(), (
+            "the temp file leaked -- cleanup was cut short by cancellation"
+        )
+        assert notes_export.acquire_export_slot(), (
+            "the export slot leaked -- release_export_slot() never ran, "
+            "which wedges every member's export at 429 until redeploy"
+        )
+    finally:
+        # Leave the module-global semaphore clean for every other test,
+        # whichever branch above actually ran (pass or fail).
+        try:
+            notes_export.release_export_slot()
+        except ValueError:
+            pass
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            # Pre-fix, the leaked file handle (Windows locks an open file
+            # against deletion) makes even THIS best-effort cleanup fail --
+            # that lock is itself part of the reviewer's "5/5 leaks" finding,
+            # not a flaw in the teardown. Never let it mask the real
+            # assertion failure above with a second, confusing traceback.
+            pass

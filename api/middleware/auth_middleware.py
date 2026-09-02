@@ -33,19 +33,40 @@ def get_current_user_with_plan(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+def meets_plan_gate(user: dict, allowed_plans: list[str]) -> bool:
+    """THE membership predicate `require_plan(allowed_plans)` enforces, as a
+    plain function over an already-resolved user dict — for a caller that
+    cannot use the cookie-bound `Depends` chain (e.g. a device-token
+    authenticated request, which carries no session cookie to read a user
+    from). Admins always pass; 'comped' users (comped to paid) are treated
+    as allowed — matching is_paid_user/requires_voice_access semantics so
+    admin/comp accounts aren't locked out of paid features (and can test
+    them); an active trial also passes (feature access only).
+
+    `require_plan` below is the ONLY caller inside the cookie-bound
+    dependency chain — it is now a thin wrapper that resolves the user from
+    the session cookie and defers the actual entitlement decision here.
+    Any other caller resolving its own user (e.g. from a device token) must
+    call THIS function directly rather than re-deriving the rule — two
+    copies of one membership predicate drift the moment either one changes
+    and nothing catches it (see note_sync.py's obsidian device-push gate)."""
+    if user.get("role") == "admin":
+        return True
+    plan = user.get("plan")
+    if plan in allowed_plans or plan == "comped":
+        return True
+    # full-access trial grants paid-feature access (see trial.py).
+    if is_account_in_trial(user):
+        return True
+    return False
+
+
 def require_plan(allowed_plans: list[str]):
-    """Factory: returns a dependency that checks user's plan against allowed list.
-    Admins always pass; 'comped' users (comped to paid) are treated as allowed —
-    matching is_paid_user/requires_voice_access semantics so admin/comp accounts
-    aren't locked out of paid features (and can test them)."""
+    """Factory: returns a dependency that checks user's plan against allowed
+    list. Thin cookie-reading layer over `meets_plan_gate` — see its
+    docstring for the actual entitlement rule."""
     def checker(user: dict = Depends(get_current_user_with_plan)) -> dict:
-        if user.get("role") == "admin":
-            return user
-        plan = user.get("plan")
-        if plan in allowed_plans or plan == "comped":
-            return user
-        # full-access trial grants paid-feature access (see trial.py).
-        if is_account_in_trial(user):
+        if meets_plan_gate(user, allowed_plans):
             return user
         raise HTTPException(status_code=403, detail="Upgrade required")
     return checker

@@ -357,3 +357,15 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
     expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 1 — the export guide is actually reachable from the drop step, not
+// just present as a standalone component nobody surfaces.
+// ---------------------------------------------------------------------------
+describe('ImportWizard — export guide surfaced on the drop step (Task 1)', () => {
+  it('opening "How do I get my export file?" reveals the per-platform guide, Notion included', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /how do i get my export file/i }))
+    expect(await screen.findByRole('button', { name: /notion/i })).toBeInTheDocument()
+  })
+})

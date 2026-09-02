@@ -786,3 +786,92 @@ describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)
     expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
   })
 })
+
+describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const OBSIDIAN_CONFIGURED_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      obsidian: { configured: true, connected: false, connectKind: 'device', sources: [] },
+    },
+  }
+
+  // ⛔ This is the rail that would FAIL if the "Connect" button on the
+  // Obsidian tile were deleted — it drives the whole flow through the real
+  // tile click, never rendering ObsidianConnectModal directly. That is the
+  // exact shape this repo's export door was missing (every test rendered
+  // the dialog directly, so deleting the door left them all green).
+  it('minting a connect code is reachable from the Obsidian tile\'s own Connect button', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: OBSIDIAN_CONFIGURED_STATUS }],
+      ['/api/j2/notes/connectors/obsidian/connect', { body: { connectCode: 'OBS-CODE-123', expiresInSeconds: 900 } }],
+    ])
+    render(<ConnectedAppsCard />)
+
+    const obsidianTile = await screen.findByTestId('connector-tile-obsidian')
+    fireEvent.click(within(obsidianTile).getByRole('button', { name: /connect/i }))
+
+    // Phase 1: explanation + required consent checkbox — no POST yet.
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/markdown text of your notes/i)).toBeInTheDocument()
+    const generateBtn = within(dialog).getByRole('button', { name: /generate code/i })
+    expect(generateBtn).toBeDisabled()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('/obsidian/connect'))).toBe(false)
+
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.click(within(dialog).getByRole('button', { name: /generate code/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/obsidian/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
+    })
+
+    // Phase 2: the code is shown, once, with a copy control.
+    expect(await screen.findByTestId('obsidian-connect-code')).toHaveTextContent('OBS-CODE-123')
+    expect(within(dialog).getByRole('button', { name: /copy/i })).toBeInTheDocument()
+  })
+
+  it('the minted code is not re-fetched on a re-render', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: OBSIDIAN_CONFIGURED_STATUS }],
+      ['/api/j2/notes/connectors/obsidian/connect', { body: { connectCode: 'OBS-CODE-456', expiresInSeconds: 900 } }],
+    ])
+    const { rerender } = render(<ConnectedAppsCard />)
+
+    const obsidianTile = await screen.findByTestId('connector-tile-obsidian')
+    fireEvent.click(within(obsidianTile).getByRole('button', { name: /connect/i }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.click(within(dialog).getByRole('button', { name: /generate code/i }))
+    expect(await screen.findByTestId('obsidian-connect-code')).toHaveTextContent('OBS-CODE-456')
+
+    const mintCallsAfterFirstGenerate = global.fetch.mock.calls.filter(
+      (c) => String(c[0]).includes('/obsidian/connect')
+    ).length
+    expect(mintCallsAfterFirstGenerate).toBe(1)
+
+    rerender(<ConnectedAppsCard />)
+
+    // Still the same code, and mint was never called again.
+    expect(screen.getByTestId('obsidian-connect-code')).toHaveTextContent('OBS-CODE-456')
+    const mintCallsAfterRerender = global.fetch.mock.calls.filter(
+      (c) => String(c[0]).includes('/obsidian/connect')
+    ).length
+    expect(mintCallsAfterRerender).toBe(1)
+  })
+
+  it('a dark (unconfigured) Obsidian tile shows Coming soon, never a Connect button', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: EMPTY_STATUS }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByTestId('connector-tile-obsidian')).toHaveTextContent('Coming soon')
+  })
+})

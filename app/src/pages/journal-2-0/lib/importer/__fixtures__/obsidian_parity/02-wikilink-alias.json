@@ -1,0 +1,21 @@
+{
+  "id": "02-wikilink-alias",
+  "input_markdown": "# Wikilink Alias\n\nCheck out [[Setups/VCP|the VCP setup]] before entering.\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [],
+    "links": [
+      {
+        "target": "Setups/VCP.md",
+        "text": "the VCP setup"
+      }
+    ],
+    "task_checked": [],
+    "text": "Wikilink Alias Check out  the VCP setup  before entering."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Setups/VCP.md"
+  ]
+}
