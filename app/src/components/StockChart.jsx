@@ -488,7 +488,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4746,9 +4746,16 @@ export default function StockChart({
   // right then pops left" shift). Marking it stale skips the provisional so the
   // network's today-inclusive set paints directly, framed correctly. See
   // marketSession.isDailyTailStaleForPaint.
+  // Two reasons an IDB daily tail is not safe to instant-paint: (1) it's missing a
+  // session (isDailyTailStaleForPaint — the yesterday-during-RTH shift), or (2) it's
+  // a TODAY tail whose cached CLOSE is provisional now that the session has closed
+  // (isDailyTodayCloseProvisionalForPaint — the "loads a mid-session price then snaps
+  // to the real close" after-hours flicker). Either way, defer to the network's
+  // sealed set so the first frame is correct.
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && isDailyTailStaleForPaint(idbSinceRef.current)
+    && (isDailyTailStaleForPaint(idbSinceRef.current)
+        || isDailyTodayCloseProvisionalForPaint(idbSinceRef.current))
   // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
   // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
   // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
@@ -4767,11 +4774,11 @@ export default function StockChart({
       if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
       return false
     })()
-  const _memTailStaleDaily = (arr) => (
-    resolvedTf === 'D'
-    && Array.isArray(arr) && arr.length
-    && isDailyTailStaleForPaint(arr[arr.length - 1]?.t)
-  )
+  const _memTailStaleDaily = (arr) => {
+    if (resolvedTf !== 'D' || !Array.isArray(arr) || !arr.length) return false
+    const _t = arr[arr.length - 1]?.t
+    return isDailyTailStaleForPaint(_t) || isDailyTodayCloseProvisionalForPaint(_t)
+  }
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
