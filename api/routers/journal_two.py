@@ -430,18 +430,40 @@ def export_trades(
 # (declared further below), or FastAPI matches "export" as a note_id. Placed
 # here, beside `/trades/export`, for the same reason.
 @router.get("/notes/export")
-def export_notes(user: dict = Depends(get_current_user)) -> Response:
-    """Download every note as markdown + front matter in a zip.
+def export_notes(user: dict = Depends(get_current_user)) -> StreamingResponse:
+    """Download every note as markdown + front matter (+ bundled attachments)
+    in a zip.
 
-    Deliberately unpaginated and synchronous: it is a rare, member-initiated
-    action, and a partial export is worse than a slow one. If large libraries
-    make this slow enough to matter, move it behind the job runner -- do not
-    silently truncate it."""
-    from api.services.journal_two.notes_export import build_export_zip
+    Deliberately unpaginated: it is a rare, member-initiated action, and a
+    partial export is worse than a slow one. If large libraries make this
+    slow enough to matter, move it behind the job runner -- do not silently
+    truncate it.
 
-    blob, filename = build_export_zip(user["id"])
-    return Response(
-        content=blob,
+    ⛔ Builds to a TEMP FILE and streams it back, rather than the in-memory
+    `build_export_zip` -- an archive materialized whole in RAM (once as the
+    BytesIO backing array, again via `.getvalue()`) is a 400+MiB peak on a
+    single-replica pod with documented OOM history. A process-wide semaphore
+    (`notes_export.acquire_export_slot`) refuses a second concurrent export
+    with 429 rather than letting them stack -- see that module for why a
+    non-blocking refusal was chosen over a queue."""
+    from api.services.journal_two.notes_export import (
+        acquire_export_slot, build_export_zip_to_tempfile, stream_export_file,
+    )
+
+    if not acquire_export_slot():
+        raise HTTPException(
+            status_code=429,
+            detail="An export is already running. Please wait a moment and try again.",
+        )
+    try:
+        tmp_path, filename = build_export_zip_to_tempfile(user["id"])
+    except Exception:
+        from api.services.journal_two.notes_export import release_export_slot
+        release_export_slot()
+        raise
+
+    return StreamingResponse(
+        stream_export_file(tmp_path),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -25,10 +25,14 @@ import os
 import posixpath
 import re
 import sqlite3
+import tempfile
+import threading
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+import anyio
 
 from api.services.journal_two.attachment_root import read_candidates_with_roots
 
@@ -123,9 +127,17 @@ def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str
         try:
             target = candidate.resolve()
             target.relative_to(root.resolve())
+            # `is_file()` stats the filesystem too -- it belongs in the SAME
+            # guard as `resolve()`/`relative_to()` above. A permission error
+            # here (an EACCES mount, a race with a delete) used to propagate
+            # straight out of this function; the hero-image call site (below,
+            # in `_make_attachment_resolver`) has no per-note shield of its
+            # own, so that one EACCES took down the entire archive rather
+            # than just this one attachment (review finding, fix round 2).
+            is_match = target.is_file()
         except (OSError, ValueError):
             continue
-        if target.is_file():
+        if is_match:
             return target
     return None
 
@@ -198,7 +210,18 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
                 url, (note_title, "file could not be read"))
             return None
 
-        state["zf"].writestr(zip_rel, data)
+        try:
+            # Same OSError shield as the read above -- a write failure (full
+            # disk, a torn temp-file handle) is exactly as recoverable as a
+            # read failure: skip THIS attachment, record why, keep exporting
+            # everything else (review finding, fix round 2 -- this call used
+            # to sit outside any except clause here).
+            state["zf"].writestr(zip_rel, data)
+        except OSError:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(
+                url, (note_title, "file could not be added to the archive"))
+            return None
         state["written"].add(zip_rel)
         state["used_bytes"] += size
         return _relative_link(note_folder, zip_rel)
@@ -403,31 +426,220 @@ def _folder_path(folder_id: str | None, folders: dict[str, tuple[str, str]]) -> 
     return "/".join(parts)
 
 
+# ── YAML front matter escaping ───────────────────────────────────────────────
+#
+# Front matter is real YAML -- Obsidian (and any other tool a member points at
+# this export) parses it as such, and this app's OWN importer strips it with a
+# YAML-shaped regex too (app/src/pages/journal-2-0/lib/importer/adapters/
+# obsidian.js `FRONTMATTER_RE` + `parseFrontmatterBlock`). Before this fix
+# every value was interpolated bare: `f"title: {row['title']}"`. A title
+# containing a colon ("Setup: NVDA reclaim" -- an entirely ordinary title, not
+# an edge case) puts a SECOND colon on the `title:` line, which a compliant
+# YAML parser reads as a nested mapping and rejects or mis-parses; an embedded
+# newline splits the scalar across lines the front-matter block was never
+# built to hold. Either one corrupts the round trip back through the
+# importer, which is the export's whole stated reason to exist.
+#
+# `_yaml_scalar` renders a value as a bare plain scalar when that is safe,
+# and as a YAML double-quoted scalar (backslash escapes) otherwise -- so an
+# ordinary title/subtitle/ticker/URL keeps rendering byte-identically to
+# before this fix, and only a value that would actually break parsing pays
+# for the quotes.
+_YAML_LEADING_UNSAFE = set("-?:,[]{}#&*!|>'\"%@`")
+_YAML_RESERVED_SCALARS = {"true", "false", "null", "~", "yes", "no", "on", "off"}
+_YAML_NUMERIC_RE = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
+
+
+def _yaml_needs_quoting(value: str, *, flow: bool = False) -> bool:
+    if value == "" or value != value.strip():
+        return True
+    if value[0] in _YAML_LEADING_UNSAFE:
+        return True
+    if any(c in value for c in ("\n", "\r", "\t")):
+        return True
+    # A colon is only a YAML mapping indicator when followed by whitespace
+    # (or at end-of-line) -- a bare "https://..." colon is unambiguous and
+    # every existing export keeps rendering those bare.
+    if ": " in value or value.endswith(":"):
+        return True
+    if " #" in value:
+        return True
+    if value.lower() in _YAML_RESERVED_SCALARS or _YAML_NUMERIC_RE.match(value):
+        return True
+    # Inside a flow sequence (`tags: [a, b]`) an unquoted comma/bracket/brace
+    # ANYWHERE in the item is a real delimiter, not just when leading.
+    if flow and any(c in value for c in (",", "[", "]", "{", "}")):
+        return True
+    return False
+
+
+def _yaml_scalar(value: str, *, flow: bool = False) -> str:
+    """Render `value` as a single YAML scalar safe to place after `key: `
+    (or inside a `[...]` flow sequence when `flow=True`)."""
+    if not _yaml_needs_quoting(value, flow=flow):
+        return value
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+    return f'"{escaped}"'
+
+
 def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
     try:
         tags = json.loads(row["tags"] or "[]")
     except (ValueError, TypeError):
         tags = []
-    lines = ["---", f"title: {row['title'] or 'Untitled'}"]
+    lines = ["---", f"title: {_yaml_scalar(row['title'] or 'Untitled')}"]
     # subtitle (authored text) and hero_image_url (the note's headline visual)
     # are real j2_notes columns -- dropping them from the archive is silent
     # content loss a member notices immediately (fix round 1, finding 2).
     if row["subtitle"]:
-        lines.append(f"subtitle: {row['subtitle']}")
+        lines.append(f"subtitle: {_yaml_scalar(row['subtitle'])}")
     if row["ticker"]:
-        lines.append(f"ticker: {row['ticker']}")
+        lines.append(f"ticker: {_yaml_scalar(row['ticker'])}")
     if tags:
-        lines.append("tags: [" + ", ".join(str(t) for t in tags) + "]")
+        lines.append(
+            "tags: [" + ", ".join(_yaml_scalar(str(t), flow=True) for t in tags) + "]"
+        )
     if row["hero_image_url"]:
         # hero_local is the bundled-into-the-archive relative path when the
         # hero URL was one of ours and resolved cleanly; otherwise (external
         # URL, or unresolved -- already reported in EXPORT_ISSUES.txt) the
         # original value is kept so the front matter never goes blank.
-        lines.append(f"hero_image: {hero_local or row['hero_image_url']}")
+        lines.append(f"hero_image: {_yaml_scalar(hero_local or row['hero_image_url'])}")
     lines.append(f"created: {row['created_at']}")
     lines.append(f"updated: {row['updated_at']}")
     lines.append("---")
     return "\n".join(lines)
+
+
+def _write_notes_archive(
+    zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
+) -> None:
+    """Writes every note `user_id` owns -- markdown + front matter + bundled
+    attachments -- into an already-open `zf`, plus EXPORT_ISSUES.txt when
+    anything was skipped. Shared by both `build_export_zip` (in-memory,
+    BytesIO-backed -- kept for this file's own direct unit testing of archive
+    content) and `build_export_zip_to_tempfile` (disk-backed -- what the
+    export ROUTE actually uses); the archive-building logic itself must be
+    identical either way, so it lives here once.
+
+    ⛔ Scoped by user_id in SQL, never filtered in Python -- an export is the
+    highest-blast-radius place a tenancy mistake could land."""
+    folders = {
+        r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
+            "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
+            (user_id,))
+    }
+    rows = conn.execute(
+        "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
+        " hero_image_url, created_at, updated_at FROM j2_notes"
+        " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
+    ).fetchall()
+
+    used: set[str] = set()
+    failures: list[tuple[str, str]] = []
+    # ONE dict shared across every note: dedup (a file ten notes reference is
+    # copied into the zip once), a running byte total against the shared cap,
+    # and one issues list feeding the SAME EXPORT_ISSUES.txt manifest the
+    # per-note guard below writes to.
+    attach_state: dict[str, Any] = {
+        "zf": zf, "written": set(), "failed": set(), "issues": {},
+        "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+    }
+    for row in rows:
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (ValueError, TypeError):
+            doc = {}
+        note_title = row["title"] or "Untitled"
+        # Folder is needed BEFORE walking the body, so the attachment
+        # resolver can compute a relative link from wherever this note's .md
+        # file will live back to the shared attachments/ tree. It never
+        # changes below (only the leaf filename might, on a title
+        # collision), so this is stable to compute early.
+        folder = _folder_path(row["folder_id"], folders)
+        resolver = _make_attachment_resolver(
+            user_id, folder, row["id"], note_title, attach_state,
+        )
+        try:
+            body = tiptap_to_markdown(doc, attachment_resolver=resolver)
+        except Exception as exc:  # noqa: BLE001 -- deliberately broad.
+            # One malformed note (e.g. a non-dict entry in a content
+            # array) must never deny the member the rest of a
+            # 4,000-note archive. The note still exports -- front
+            # matter intact, a visible marker in place of the body --
+            # rather than vanishing silently or aborting the whole
+            # run (fix round 1, finding 1).
+            body = (
+                "> ⚠ This note's content could not be converted "
+                f"for export ({type(exc).__name__}). The original "
+                "note is unaffected in the app -- contact support if "
+                "this repeats."
+            )
+            failures.append((row["id"], note_title))
+        # The hero-image resolver call gets the SAME broad shield as the body
+        # walk above -- review finding, fix round 2: this call used to sit
+        # OUTSIDE any per-note guard, so a raise from hero resolution (the
+        # `is_file()`/`writestr()` OSError leaks fixed above, or anything
+        # else) took down the WHOLE archive instead of costing this one note
+        # its hero image, exactly the failure shape already prevented for
+        # the body walk.
+        hero_local = None
+        if row["hero_image_url"]:
+            try:
+                hero_local = resolver(row["hero_image_url"])
+            except Exception:  # noqa: BLE001 -- deliberately broad, see above.
+                attach_state["issues"].setdefault(
+                    row["hero_image_url"],
+                    (note_title, "hero image could not be bundled"),
+                )
+        base = _safe_name(row["title"], row["id"])
+        path = f"{folder}/{base}" if folder else base
+        # Two notes may share a title; the id keeps them distinct.
+        if f"{path}.md" in used:
+            path = f"{path}-{row['id'][:8]}"
+        used.add(f"{path}.md")
+        zf.writestr(
+            f"{path}.md",
+            f"{_front_matter(row, hero_local)}\n\n{body}\n",
+        )
+
+    issue_lines: list[str] = []
+    if failures:
+        # The archive tells the member itself -- a top-level manifest
+        # beside the per-file marker above, so a partial failure is
+        # never silent even if they never open the affected file.
+        issue_lines += [
+            "The following notes could not be fully converted to "
+            "markdown during export. Each one still exported with "
+            "its title, tags and other front matter intact -- only "
+            "the body content was affected.",
+            "",
+        ]
+        issue_lines += [f"- {title} (id: {nid})" for nid, title in failures]
+
+    if attach_state["issues"]:
+        if issue_lines:
+            issue_lines.append("")
+        issue_lines += [
+            "The following attachments could not be bundled into "
+            "this archive. The note text above still links to them "
+            "by their original in-app address, which stops working "
+            "once the account is no longer active.",
+            "",
+        ]
+        issue_lines += [
+            f"- {url} (referenced by \"{title}\") -- {reason}"
+            for url, (title, reason) in attach_state["issues"].items()
+        ]
+
+    if issue_lines:
+        zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
 
 
 def build_export_zip(
@@ -435,115 +647,132 @@ def build_export_zip(
 ) -> tuple[bytes, str]:
     """Every note this user owns, as markdown in a zip. Returns (bytes, filename).
 
-    ⛔ Scoped by user_id in SQL, never filtered in Python -- an export is the
-    highest-blast-radius place a tenancy mistake could land."""
+    In-memory (BytesIO) builder, retained for this file's own direct unit
+    testing of archive content/fidelity/tenancy. ⛔ The export ROUTE does NOT
+    call this -- see `build_export_zip_to_tempfile`: building the WHOLE
+    archive as one in-memory `bytes` object (this function's BytesIO backing
+    array, doubled again by `.getvalue()`'s copy) is exactly the two-copies
+    shape that turns a rare, member-initiated download into a 400+MiB peak on
+    a single-replica pod with documented OOM history."""
     from api.services.auth_db import get_connection
 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        folders = {
-            r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
-                "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
-                (user_id,))
-        }
-        rows = conn.execute(
-            "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
-            " hero_image_url, created_at, updated_at FROM j2_notes"
-            " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
-        ).fetchall()
-
         buf = io.BytesIO()
-        used: set[str] = set()
-        failures: list[tuple[str, str]] = []
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            # ONE dict shared across every note: dedup (a file ten notes
-            # reference is copied into the zip once), a running byte total
-            # against the shared cap, and one issues list feeding the SAME
-            # EXPORT_ISSUES.txt manifest the per-note guard below writes to.
-            attach_state: dict[str, Any] = {
-                "zf": zf, "written": set(), "failed": set(), "issues": {},
-                "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
-            }
-            for row in rows:
-                try:
-                    doc = json.loads(row["body_json"] or "{}")
-                except (ValueError, TypeError):
-                    doc = {}
-                # Folder is needed BEFORE walking the body, so the attachment
-                # resolver can compute a relative link from wherever this
-                # note's .md file will live back to the shared attachments/
-                # tree. It never changes below (only the leaf filename might,
-                # on a title collision), so this is stable to compute early.
-                folder = _folder_path(row["folder_id"], folders)
-                resolver = _make_attachment_resolver(
-                    user_id, folder, row["id"], row["title"] or "Untitled",
-                    attach_state,
-                )
-                try:
-                    body = tiptap_to_markdown(doc, attachment_resolver=resolver)
-                except Exception as exc:  # noqa: BLE001 -- deliberately broad.
-                    # One malformed note (e.g. a non-dict entry in a content
-                    # array) must never deny the member the rest of a
-                    # 4,000-note archive. The note still exports -- front
-                    # matter intact, a visible marker in place of the body --
-                    # rather than vanishing silently or aborting the whole
-                    # run (fix round 1, finding 1).
-                    body = (
-                        "> ⚠ This note's content could not be converted "
-                        f"for export ({type(exc).__name__}). The original "
-                        "note is unaffected in the app -- contact support if "
-                        "this repeats."
-                    )
-                    failures.append((row["id"], row["title"] or "Untitled"))
-                hero_local = (
-                    resolver(row["hero_image_url"]) if row["hero_image_url"] else None
-                )
-                base = _safe_name(row["title"], row["id"])
-                path = f"{folder}/{base}" if folder else base
-                # Two notes may share a title; the id keeps them distinct.
-                if f"{path}.md" in used:
-                    path = f"{path}-{row['id'][:8]}"
-                used.add(f"{path}.md")
-                zf.writestr(
-                    f"{path}.md",
-                    f"{_front_matter(row, hero_local)}\n\n{body}\n",
-                )
-
-            issue_lines: list[str] = []
-            if failures:
-                # The archive tells the member itself -- a top-level manifest
-                # beside the per-file marker above, so a partial failure is
-                # never silent even if they never open the affected file.
-                issue_lines += [
-                    "The following notes could not be fully converted to "
-                    "markdown during export. Each one still exported with "
-                    "its title, tags and other front matter intact -- only "
-                    "the body content was affected.",
-                    "",
-                ]
-                issue_lines += [f"- {title} (id: {nid})" for nid, title in failures]
-
-            if attach_state["issues"]:
-                if issue_lines:
-                    issue_lines.append("")
-                issue_lines += [
-                    "The following attachments could not be bundled into "
-                    "this archive. The note text above still links to them "
-                    "by their original in-app address, which stops working "
-                    "once the account is no longer active.",
-                    "",
-                ]
-                issue_lines += [
-                    f"- {url} (referenced by \"{title}\") -- {reason}"
-                    for url, (title, reason) in attach_state["issues"].items()
-                ]
-
-            if issue_lines:
-                zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
-
+            _write_notes_archive(zf, user_id, conn)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return buf.getvalue(), f"uct-notebook-export-{stamp}.zip"
     finally:
         if owned:
             conn.close()
+
+
+def build_export_zip_to_tempfile(
+    user_id: str, conn: sqlite3.Connection | None = None,
+) -> tuple[Path, str]:
+    """Same archive as `build_export_zip`, built directly to a real file on
+    disk instead of an in-memory BytesIO. This is what the export ROUTE uses:
+    peak memory during the build is bounded by whatever one note's markdown
+    + one attachment's bytes cost transiently (zipfile buffers each
+    `writestr()` call, then flushes to disk), never by the archive's total
+    size.
+
+    Caller owns deleting the returned path once done with it -- the route's
+    streaming generator (`stream_export_file`) does this in a `finally` so
+    the temp file is removed on success AND on error/disconnect."""
+    from api.services.auth_db import get_connection
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                _write_notes_archive(zf, user_id, conn)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        return tmp_path, f"uct-notebook-export-{stamp}.zip"
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Concurrency guard + streaming (route-facing) ─────────────────────────────
+#
+# A single-replica pod with documented OOM history must never run more than a
+# small, fixed number of exports at once -- each one now costs one archive's
+# worth of disk + transient per-note/per-attachment memory rather than the
+# old two-full-copies-in-RAM shape, but "bounded per export" still isn't
+# "safe at any concurrency". Chosen: a small process-wide semaphore (default
+# 1 -- literally one export in flight at a time on this pod), non-blocking
+# acquire. A blocking queue was considered and rejected: queuing a second
+# request behind another member's multi-minute build would tie up a request
+# thread for no better reason than not having said "busy" sooner, on a pod
+# that has already OOM'd from stacked concurrent work twice. A refused
+# request (429) costs the member nothing but a retry. This also covers the
+# same-member-double-clicks-the-button case as a strict subset -- one member
+# exhausting the single slot with two tabs is refused exactly like two
+# different members would be.
+def _export_concurrency_limit() -> int:
+    override = os.environ.get("NOTE_EXPORT_MAX_CONCURRENT")
+    if override is not None:
+        try:
+            n = int(override)
+            if n > 0:
+                return n
+        except ValueError:
+            pass
+    return 1
+
+
+_EXPORT_SEMAPHORE = threading.Semaphore(_export_concurrency_limit())
+_EXPORT_STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MiB read chunks
+
+
+def acquire_export_slot() -> bool:
+    """Non-blocking. True if a slot was claimed (caller must eventually call
+    `release_export_slot()`, or route through `stream_export_file`, which
+    does it in its own `finally`); False if the concurrency limit is already
+    saturated."""
+    return _EXPORT_SEMAPHORE.acquire(blocking=False)
+
+
+def release_export_slot() -> None:
+    _EXPORT_SEMAPHORE.release()
+
+
+def stream_export_file(path: Path):
+    """Async generator streaming `path` in bounded chunks. Deletes the file
+    and releases the concurrency slot in a `finally` -- runs on normal
+    completion AND on a cancelled/disconnected response: Starlette's
+    `StreamingResponse` cancels this generator's current await point rather
+    than abandoning it outright, so the `finally` below always executes
+    before the request is torn down. Blocking file I/O is offloaded to a
+    worker thread (`anyio.to_thread.run_sync`) on every call so this never
+    blocks the single shared event loop, matching how every other
+    disk/network-bound call on this pod is written."""
+    async def _iter():
+        f = None
+        try:
+            f = await anyio.to_thread.run_sync(open, path, "rb")
+            while True:
+                chunk = await anyio.to_thread.run_sync(f.read, _EXPORT_STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            if f is not None:
+                await anyio.to_thread.run_sync(f.close)
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            release_export_slot()
+
+    return _iter()

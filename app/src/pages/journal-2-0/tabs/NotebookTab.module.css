@@ -167,6 +167,24 @@
   font-weight: 600;
 }
 .importBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
+.exportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--color-text-primary, #e8eaed);
+  border: 1px solid var(--color-border, #232932);
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  /* Base-rule floor (not scoped to a phone-only media query) so this clears
+     the 44px touch target on tablet too, not just phone -- this repo's
+     touch tier is <=1024px, not <=640px (see tapFloor.test.js). */
+  min-height: var(--tap-min, 44px);
+}
+.exportBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
 .newBtn:disabled, .templatesBtn:disabled { opacity: 0.6; cursor: default; }
 .emptyImportPitch {
   display: flex;
