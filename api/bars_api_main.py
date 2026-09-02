@@ -6,28 +6,27 @@ the live chart data, so every app/partner deploy restarts it and the charts blip
 (`/api/bars` + `/api/bars-history`) from a fresh, R2-synced `bars.db`, with NO
 warmers, NO market-data socket, and (once its Railway watch paths are narrowed)
 its OWN deploy triggers — so app/partner deploys can NEVER restart chart serving.
-"Charts stop living on the deployable app server."
 
 It runs the SAME shared serve core as the web pod — `api.routers.bars.serve_bars`
-and `serve_bars_history` (extracted in Phase 0) — so the two can never diverge.
-Selected by the railway.json dispatcher when `BARS_API_ENABLED=1`.
+and `serve_bars_history` — so the two can never diverge. Selected by the
+railway.json dispatcher when `BARS_API_ENABLED=1`.
 
-What it runs (all reused from the web pod's exact code):
-  • the R2 newer-wins pull (`data_sync.sync_if_newer_merge` / `sync_with_deltas`)
-    — same freshness the web pod gets; the serve-path bg heals fill depth on view.
-  • the bars.db WAL checkpointer (keeps reads fast — the 2026-09-02 fix).
-  • optionally the barspack web-ingest + hot-set publish (flag-gated; they turn on
-    at cutover so they don't double up with the web pod's copies).
-
-⛔ It DELIBERATELY does NOT run: the prewarmer, the R2 UPLOADER, the Massive WS
-   consumer, or the reconciliation/audit watchdogs. Those stay on the worker/web.
-⛔ NEVER opens a Massive WS (Massive allows ~1 conn/key — a second would kick the
-   web pod's live price/candle feed offline).
+⛔ Does NOT run the prewarmer, R2 uploader, Massive WS, or reconciliation/audit.
+⛔ NEVER opens a Massive WS (~1 conn/key — a second kicks web's live feed offline).
 ⛔ Only READS + newer-wins MERGES the local db. NEVER force_resync / replace-pull.
 
-The live developing candle is UNAFFECTED: it streams over a SEPARATE SSE
-connection served by the web pod. This tier serves only the one-shot historical
-tail; the client stitches the live bar on top by timestamp, origin-agnostically.
+── The boot install (2026-09-02, hard-won) ─────────────────────────────────────
+On a fresh pod the local bars.db is INSTALLED from R2 via `download_snapshot`
+(streams the tarball to disk in 8MB chunks — data_sync.py:599). Two traps this
+survived:
+  1. init_db() before the pull created an EMPTY db → the slow row-by-row merge
+     (loads whole snapshot into RAM). Fixed: install first, init_db after.
+  2. The install ran in a lifespan THREAD → its GIL-heavy extract starved
+     /api/health → Railway silently restart-looped it (even with 32GB/50GB).
+     Fixed: run the install SYNCHRONOUSLY in main() BEFORE uvicorn, so it's
+     covered by the 600s startup-healthcheck grace and there is no live health
+     to starve. Also extract onto the 50GB VOLUME (TMPDIR), not the small
+     ephemeral /tmp.
 """
 import os
 import logging
@@ -39,8 +38,6 @@ import uvicorn
 from fastapi import FastAPI, Query
 
 _log = logging.getLogger("uvicorn.error")
-
-# Keep in sync with data_sync's own boot-skip probe on the web pod (main.py).
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 
 
@@ -52,67 +49,73 @@ def _rss_mb():
         return None
 
 
-# ── R2 freshness: boot pull + periodic newer-wins pull (SAME as the web pod) ──
-def _start_r2_sync() -> None:
+def _ensure_local_db_installed() -> None:
+    """SYNCHRONOUS boot install — CALLED FROM main() BEFORE uvicorn.
+
+    A real R2 install holds thousands of distinct tickers; a db contaminated only
+    by a few on-demand cold-fetches holds <100 (but easily >1000 bar ROWS — which
+    a row-count check wrongly reads as populated). So gate on DISTINCT TICKERS.
+    Remove a sparse/missing db so `download_snapshot` does a FAST streamed full
+    install (not a RAM-heavy merge into an empty db). Step-logged so any failure
+    is pinpointed. Never raises (serving cold-fetches until the periodic pull lands).
+    """
+    from api.services import data_sync
+    import sqlite3
+    p = os.path.join(_DATA_DIR, "bars.db")
+    try:
+        populated = False
+        if os.path.exists(p):
+            c = sqlite3.connect(p, timeout=5)
+            try:
+                row = c.execute(
+                    "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
+                ).fetchone()
+                n = int(row[0]) if row else 0
+                populated = n >= 2000
+                _log.info("[bars-api] local bars.db ~%d distinct tickers (populated=%s)", n, populated)
+            except Exception:
+                populated = False
+            finally:
+                c.close()
+        if populated and os.environ.get("FORCE_BOOT_R2_PULL") != "1":
+            _log.info("[bars-api] boot install skipped — local bars.db already populated")
+            return
+        if os.path.exists(p) and not populated:
+            for f in (p, p + "-wal", p + "-shm"):
+                try:
+                    os.remove(f)
+                except FileNotFoundError:
+                    pass
+                except Exception as e:  # noqa: BLE001
+                    _log.warning("[bars-api] could not remove %s: %s", f, e)
+            _log.info("[bars-api] removed sparse local bars.db → R2 full install")
+        latest = data_sync.get_latest_snapshot_ts()
+        if not latest:
+            _log.warning("[bars-api] no R2 snapshot available yet — will cold-fetch "
+                         "until the periodic pull lands one")
+            return
+        _log.info("[bars-api] STEP install: download+extract snapshot %s onto %s …",
+                  latest, os.environ.get("TMPDIR", "/tmp"))
+        t0 = time.time()
+        ok = data_sync.download_snapshot(latest)
+        _log.info("[bars-api] STEP install: download_snapshot returned %s in %.1fs",
+                  ok, time.time() - t0)
+        try:
+            from api.services import bars_sqlite
+            bars_sqlite.init_db()
+            _log.info("[bars-api] STEP install: init_db done — boot install COMPLETE")
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-api] post-install init_db failed (non-fatal): %s", e)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] boot install FAILED (non-fatal, cold cache): %s", e)
+
+
+def _start_periodic_pull() -> None:
+    """Periodic R2 newer-wins pull (same as the web pod). Runs post-startup in a
+    daemon thread; applies small deltas onto the already-installed db (low GIL)."""
     from api.services import data_sync
 
-    def _boot_pull():
-        # ⭐ On a FRESH pod the local bars.db must be INSTALLED from R2 (a fast,
-        # streamed, atomic full download), NOT merged row-by-row into an empty db.
-        # `merge_snapshot` only takes the fast full-install path when NO local
-        # bars.db exists (data_sync.py:979) — so if a prior init_db()/serve request
-        # left an EMPTY bars.db, the sync loads the whole ~688MB snapshot into RAM
-        # and inserts millions of rows one-by-one (the 5.4GB + never-populates bug).
-        # Fix: if the local db is missing or empty, remove it so the pull full-installs.
-        try:
-            import sqlite3
-            p = os.path.join(_DATA_DIR, "bars.db")
-            populated = False
-            if os.path.exists(p):
-                c = sqlite3.connect(p, timeout=5)
-                try:
-                    # ⭐ Count DISTINCT TICKERS, not bar rows. A real R2 install holds
-                    # thousands of tickers (~10k-26k); a db contaminated only by a few
-                    # on-demand cold-fetches holds <100 tickers but easily >1000 bar
-                    # ROWS — which a row-count threshold wrongly reads as "populated"
-                    # and skips the install. GROUP BY ticker rides the (ticker,...) index.
-                    row = c.execute(
-                        "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
-                    ).fetchone()
-                    n_tickers = int(row[0]) if row else 0
-                    populated = n_tickers >= 2000
-                    _log.info("[bars-api] local bars.db has ~%d distinct tickers (populated=%s)",
-                              n_tickers, populated)
-                except Exception:
-                    populated = False   # no ohlcv table / unreadable → treat as empty
-                finally:
-                    c.close()
-            if populated and os.environ.get("FORCE_BOOT_R2_PULL") != "1":
-                _log.info("[bars-api] boot pull skipped — local bars.db already populated")
-                return
-            if os.path.exists(p) and not populated:
-                # Remove the empty db (+ WAL/SHM) so the pull does a FAST full install.
-                for _f in (p, p + "-wal", p + "-shm"):
-                    try:
-                        os.remove(_f)
-                    except FileNotFoundError:
-                        pass
-                    except Exception as _re:
-                        _log.warning("[bars-api] could not remove %s: %s", _f, _re)
-                _log.info("[bars-api] removed empty local bars.db → R2 will full-install")
-            ts = (data_sync.sync_with_deltas() if data_sync.DELTA_ENABLED
-                  else data_sync.sync_if_newer())
-            _log.info("[bars-api] boot snapshot INSTALL done (%s)", ts)
-            # Ensure schema/indexes exist post-install (idempotent).
-            try:
-                from api.services import bars_sqlite
-                bars_sqlite.init_db()
-            except Exception as _ie:
-                _log.warning("[bars-api] post-install init_db failed (non-fatal): %s", _ie)
-        except Exception as e:  # noqa: BLE001
-            _log.warning("[bars-api] boot pull failed (non-fatal, cold cache): %s", e)
-
-    def _pull_loop():
+    def _loop():
         legacy = os.environ.get("R2_PERIODIC_PULL_LEGACY_REPLACE") == "1"
         while True:
             time.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
@@ -124,19 +127,17 @@ def _start_r2_sync() -> None:
                 else:
                     data_sync.sync_if_newer_merge()   # newer-wins; never wipes
             except Exception as e:  # noqa: BLE001
-                _log.warning("[bars-api] pull error (non-fatal): %s", e)
+                _log.warning("[bars-api] periodic pull error (non-fatal): %s", e)
 
-    threading.Thread(target=_boot_pull, daemon=True, name="bars-api-boot-pull").start()
-    threading.Thread(target=_pull_loop, daemon=True, name="bars-api-s3-pull").start()
-    _log.info("[bars-api] R2 newer-wins puller started (%s-min cadence)",
+    threading.Thread(target=_loop, daemon=True, name="bars-api-s3-pull").start()
+    _log.info("[bars-api] periodic R2 puller started (%s-min cadence)",
               data_sync.SNAPSHOT_INTERVAL_SECONDS // 60)
 
 
 def _start_hotset_push() -> None:
     """Publish THIS tier's recorded hot-set to R2 so the worker prewarmer keeps
-    prioritising what users actually view. Gated `BARS_API_PUSH_HOTSET` (default
-    OFF) — flips ON at cutover, when the web pod's own hot-set push flips OFF, so
-    the two never write conflicting hot-sets."""
+    prioritising what users view. Gated BARS_API_PUSH_HOTSET (default OFF) — flips
+    ON at cutover when the web pod's own hot-set push flips OFF."""
     from api.services import data_sync
     from api.services.bars_fetch import get_hot_intraday_tickers
 
@@ -151,24 +152,19 @@ def _start_hotset_push() -> None:
                 _log.warning("[bars-api] hotset push error (non-fatal): %s", e)
 
     threading.Thread(target=_loop, daemon=True, name="bars-api-hotset-push").start()
-    _log.info("[bars-api] hot-set push loop started (this tier -> R2)")
+    _log.info("[bars-api] hot-set push loop started")
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # ⛔ Do NOT init_db() here. Creating an empty bars.db before the R2 pull forces
-    # the slow row-by-row MERGE path (loads the whole snapshot into RAM) instead of
-    # the fast streamed full-install. `_boot_pull` installs from R2 first, then runs
-    # init_db() to ensure the schema/indexes exist on the installed db.
-    _start_r2_sync()
-
+    # The DB was installed synchronously in main() before uvicorn. Here we only
+    # start the post-startup background loops (all light / non-blocking).
+    _start_periodic_pull()
     try:
         from api.services import bars_wal_checkpointer
         bars_wal_checkpointer.start_bars_wal_checkpointer()
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] WAL checkpointer start failed: %s", e)
-
-    # Long-tail depth fill (add-only, missing-series-only) — same as the web pod.
     try:
         if os.environ.get("BARSPACK_WEB_INGEST_ENABLED") == "1":
             from api.services import barspack_web_ingest as _bpwi
@@ -176,10 +172,8 @@ async def _lifespan(app: FastAPI):
             _log.info("[bars-api] barspack web-ingest started")
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] barspack ingest start failed (non-fatal): %s", e)
-
     if os.environ.get("BARS_API_PUSH_HOTSET") == "1":
         _start_hotset_push()
-
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no warmers, no uploader, no WS)")
     yield
@@ -187,7 +181,6 @@ async def _lifespan(app: FastAPI):
 
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
-    # The shared serve core (Phase 0 extraction) — one implementation, both pods.
     from api.routers.bars import serve_bars, serve_bars_history
 
     def _health():
@@ -232,9 +225,22 @@ def _build_app() -> FastAPI:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    # Extract/install onto the 50GB VOLUME, not the small ephemeral /tmp (a big
+    # extract there was a suspected silent-kill cause). Set in-process so it also
+    # overrides any mangled Railway TMPDIR value.
+    try:
+        _tmp = os.path.join(_DATA_DIR, "tmp")
+        os.makedirs(_tmp, exist_ok=True)
+        os.environ["TMPDIR"] = _tmp
+        os.environ["TEMP"] = _tmp
+        os.environ["TMP"] = _tmp
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] could not set volume TMPDIR (%s): %s", _DATA_DIR, e)
+    # ⭐ Install the DB SYNCHRONOUSLY, before uvicorn — covered by the 600s startup
+    # healthcheck grace, with no live /api/health to starve.
+    _log.info("[bars-api] boot: ensuring local bars.db is installed from R2 …")
+    _ensure_local_db_installed()
     port = int(os.environ.get("PORT", "8080"))
-    # exec'd as PID 1 by the dispatcher so it receives SIGTERM; graceful shutdown
-    # bounded so the (short) bars requests drain fast.
     uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
 
