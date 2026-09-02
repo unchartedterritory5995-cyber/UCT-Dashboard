@@ -1,8 +1,10 @@
 # Entity Master — Implementation Log
 
 Tracks the 8-checkpoint implementation authorized 2026-09-02 ("Approved: IMPLEMENT
-ENTITY MASTER WITH CONDITIONS"). Currently authorized through Checkpoint 4
-(first real seed run), which is a hard stop pending owner review.
+ENTITY MASTER WITH CONDITIONS"). Checkpoint 4's real-seed-run report was reviewed
+and ACCEPTED by the owner 2026-09-02, with explicit conditions carried into
+Checkpoints 5-8 (see "Post-Checkpoint-4 findings" section below) — full text of
+the approval and conditions is the authorizing message, not restated here.
 
 Source of truth for design: `docs/terminal-research/05-product-strategy/prds/entity-master-prd.md`,
 `.../07-technical-architecture/specs/entity-master-spec.md`,
@@ -367,5 +369,117 @@ mapping), 6 (Compatibility integration), 7 (Reconciliation job), or 8 (Full
 validation) without explicit approval after this review. The real database
 sits at `_local_seed_data/entity_master.db` (gitignored, not committed) for
 inspection if wanted.
+
+---
+
+## Post-Checkpoint-4 findings — root-cause investigation (2026-09-02)
+
+Owner reviewed Checkpoint 4's report and approved Checkpoints 5-8, with two
+findings required to be investigated (not fixed) before proceeding. Both are
+now root-caused.
+
+### Finding A — the stale `delisted_tickers_bulk.json`
+
+**Origin.** `tools/enumerate_delisted.py` (read in full). A manual, one-off
+script: fetches Massive's `active=true` set (`live`) and `active=false, type=CS`
+set once, computes `bare_live = sym in live` per delisted record, and writes
+`api/data/delisted_tickers_bulk.json`. Its own docstring: "Run with the Massive
+key in the environment... Read-only against the provider; writes one local
+JSON file" — a hand-run tool, never described as recurring.
+
+**Refresh cadence.** `git log -- api/data/delisted_tickers_bulk.json` shows
+exactly three commits, all on **2026-08-09** (bulk-enumerate ~6,177 names →
+bare-reused-symbol fix → sector/industry enrichment), and nothing since.
+`grep -rn "enumerate_delisted" api/main.py` returns nothing — it is not
+registered in the APScheduler instance, and it does not appear in `CLAUDE.md`'s
+Task Scheduler roster either. **It has never been regenerated since creation.**
+Today (2026-09-02) is 24 days later. Only 6 of its 6,177 entries carry
+`bare_live=true` (the generator's own at-generation-time live-check); the other
+117 of the 123 collisions Checkpoint 4 found became stale purely from 24 days
+of unrefreshed provider drift after generation — no bug in the generator
+itself, just no refresh mechanism.
+
+**Consumers.** `grep -rln "delisted_registry" api/` → `api/routers/bars.py`
+(no actual `delisted_registry.*` call, an unrelated import), `api/routers/
+delisted.py`, `api/routers/ticker_search.py` (already known from Checkpoint 1),
+`api/services/engine.py:717`, `api/services/theme_index.py:142`, `api/services/
+theme_performance.py:143,640`. **The three `engine.py`/`theme_*.py` call sites
+all use `delisted_registry.is_delisted(sym)` as an EXCLUSION FILTER on theme/
+holdings lists** — confirmed, not inferred.
+
+**Confirmed current downstream impact (pre-existing, NOT caused by Entity
+Master):** `delisted_registry.is_delisted("AL")` returns `True` today, because
+the bulk file's `AL` entry (bare key, `bare_live` absent/false at generation
+time, single delisting event) still resolves. AL (Air Lease Corp) is a real,
+currently-trading NYSE name on `cap_universe.symbols()` right now. So AL — and
+presumably some fraction of the other 122 — is silently excluded from any
+theme holdings list it should appear in. **This is a real, already-shipping
+product defect, unrelated to and predating Entity Master's own build**;
+Entity Master's seed pass only discovered it as a side effect of
+cross-referencing the file against live data. Reported as `RG-33` in the
+`terminal-research` worktree's `RESEARCH_GAPS.md` (program-wide record) and
+here (this build's own record) — not fixed, per the owner's explicit scope
+boundary.
+
+**Can Entity Master or its reconciliation path be fooled by this staleness?**
+No, by construction, not by an added guard:
+- The **seed script** (Checkpoint 4, already run) reads `delisted_registry.
+  all_entries()` ONLY during the one-time backfill's delisted-entity pass
+  (§5.1 step 4b), and — as already demonstrated by the real run — it always
+  checks `em_api.resolve(ticker, ...)` against ALREADY-CREATED entities before
+  writing anything. All 123 stale records were correctly skipped, not
+  incorrectly applied. Verified again this pass with a fresh read-only query
+  against the real seed database (0 collisions caused any entity mutation).
+- The **reconciliation job** (Checkpoint 7, per spec §10.2) never reads
+  `delisted_registry`/`delisted_tickers_bulk.json` **at all** — its only input
+  is a fresh, live call to `massive.list_reference_tickers(active=True)` at
+  RUN TIME, diffed against the store's own currently-open aliases. This was
+  true in the spec before this investigation and is unchanged by it; Checkpoint
+  7's implementation (below) preserves this — `delisted_registry` does not
+  appear anywhere in `reconciliation.py`'s import list, which is itself part
+  of Checkpoint 7's own test coverage (`test_reconciliation_never_imports_
+  delisted_registry`).
+- **No new code was added to re-check or "fix" the bulk file** — per the
+  owner's explicit instruction, this remains entirely out of Entity Master's
+  scope. The only Entity-Master-side guarantee needed, and the one already
+  verified, is that Entity Master itself cannot be misled by the file's
+  staleness into mutating a live entity — confirmed above on both of its two
+  actual consumers of that file (seed script; reconciliation does not consume
+  it at all).
+
+### Finding B — the large `index` universe (13,322 entities)
+
+Per the owner's framing, this is accepted as a real characteristic of
+Massive's `market=indices` reference feed (thousands of computed/derivative
+indices, not just SPX/NDX/COMP-style named benchmarks), not a defect. No
+entity was deleted or filtered on this basis.
+
+**Explicit contract note (added here and to be carried into any future
+consumer-facing documentation for S3):** `entity_type == 'index'` on an
+Entity Master record means "Massive's reference feed classifies this ticker
+as an index" — nothing more. It does **not** mean "one of the small number of
+benchmark indices this codebase's COT/breadth modules track by name," and no
+downstream code should assume that equivalence. No new subtype (`benchmark`
+vs `computed` vs `terminal-featured`, etc.) is introduced in this build —
+per the owner's instruction, that classification work only happens if a
+concrete product/architecture requirement calls for it, which none does yet
+in the currently-authorized scope. Checkpoint 6 (compatibility integration,
+below) does not wire anything to `entity_type='index'` on the assumption of a
+small curated set.
+
+### FIGI coverage (40.2%) — confirmed non-blocking
+
+Re-verified against the real seed database: **zero** code path in
+`api/services/entity_master/` treats `entity_figi` as mandatory.
+`vendor_symbol()`/`resolve()`/`aliases()`/`related_to()` do not read
+`entity_figi` at all; `set_figi()` is called conditionally (`if ref and
+ref.get("composite_figi")`) and is a pure upsert with no downstream
+dependency that assumes its own success. A canonical entity with zero
+`entity_figi` rows resolves, aliases, and vendor-maps identically to one
+with a FIGI — confirmed by `test_cold_start_returns_not_found_never_raises`
+(Checkpoint 2) exercising every primitive against an entity with no FIGI at
+all, and by the real run itself (59.8% of seeded entities carry no FIGI row
+and none of them produced an error, an ambiguous result, or a rejected
+event). OpenFIGI remains untouched, out of scope, per Condition 5.
 
 ---
