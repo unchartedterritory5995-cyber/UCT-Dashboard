@@ -75,8 +75,10 @@ export default function useMonitorGrid({ enabled, liveRow }) {
 
   // Debounced: load the visible blocks (+1 buffer each side) once the scroll settles.
   const settleRef = useRef(0)
+  const lastRangeRef = useRef([0, 0])       // most recent visible [first, last] index
   const ensureRange = useCallback((firstIdx, lastIdx) => {
     if (!allDates.length) return
+    lastRangeRef.current = [firstIdx, lastIdx]
     clearTimeout(settleRef.current)
     settleRef.current = setTimeout(() => {
       const b0 = Math.max(0, Math.floor(firstIdx / BLOCK) - 1)
@@ -84,6 +86,21 @@ export default function useMonitorGrid({ enabled, liveRow }) {
       for (let k = b0; k <= b1; k++) fetchBlock(k)
     }, SETTLE_MS)
   }, [allDates.length, fetchBlock])
+
+  // Manual refresh: drop the cached rows + block bookkeeping and re-fetch the
+  // currently visible range now (the row cache is normally sticky because rows
+  // are keyed by date and don't change — a manual refresh is the one time we
+  // want a completed day re-pulled, e.g. after the collector writes today).
+  const refresh = useCallback(() => {
+    cacheRef.current = new Map()
+    loadedRef.current = new Set()
+    loadingRef.current = new Set()
+    setVersion((v) => v + 1)
+    const [f, l] = lastRangeRef.current
+    const b0 = Math.max(0, Math.floor(f / BLOCK) - 1)
+    const b1 = Math.floor(l / BLOCK) + 1
+    for (let k = b0; k <= b1; k++) fetchBlock(k)
+  }, [fetchBlock])
 
   useEffect(() => () => clearTimeout(settleRef.current), [])
 
@@ -127,7 +144,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   }, [allDates])
 
   return {
-    allDates, getRow, trail, ensureRange, indexOfDate, indexOfYearStart,
+    allDates, getRow, trail, ensureRange, refresh, indexOfDate, indexOfYearStart,
     min: datesData?.min ?? null, max: datesData?.max ?? null,
     ready: !!datesData, count: allDates.length,
   }

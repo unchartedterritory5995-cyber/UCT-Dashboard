@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -1068,6 +1068,21 @@ export default function Breadth() {
     monitorScrollTo(Math.max(0, monitorTopIndex + (dir < 0 ? 1 : -1)))
   }, [monitorTopIndex, monitorScrollTo])
 
+  // Jump straight back to the present day (index 0 = the latest/top row).
+  const onJumpToday = useCallback(() => monitorScrollTo(0), [monitorScrollTo])
+
+  // Manual refresh: revalidate every breadth-monitor SWR key (the live/today row,
+  // the timeline index, the Views window) AND re-pull the Monitor's visible block
+  // rows. The brief `refreshing` flag spins the icon for feedback.
+  const { mutate } = useSWRConfig()
+  const [refreshing, setRefreshing] = useState(false)
+  const onManualRefresh = useCallback(() => {
+    setRefreshing(true)
+    try { mutate((k) => typeof k === 'string' && k.startsWith('/api/breadth-monitor')) } catch { /* best-effort */ }
+    grid.refresh?.()
+    setTimeout(() => setRefreshing(false), 700)
+  }, [mutate, grid])
+
   const lastUpdated = storedRows[0]?._created_at
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
@@ -1143,46 +1158,20 @@ export default function Breadth() {
 
   return (
     <div className={styles.page}>
-      <PageHeader icon="breadth" title="Breadth">
-        <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        <span className={styles.meta}>
-          {isViewsTab
-            ? (rows.length > 0
-                ? (windowMismatch
-                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
-                : isLoading ? 'Loading…' : 'No data')
-            : (grid.count > 0
-                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : 'Loading…')}
-        </span>
-        {isViewsTab ? (
-          // Views keeps its window pills (a lens is defined by how many sessions
-          // it spans). The Monitor sheet instead scrolls freely across all time.
-          <div className={styles.daysPills}>
-            {VIEWS_DAY_CHOICES.map(d => (
-              <button
-                key={d}
-                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
-                onClick={() => setViewsDays(d)}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        ) : (
-          <BreadthDateNav
-            topDate={monitorTopDate}
-            minDate={grid.min}
-            maxDate={grid.max}
-            canForward={monitorTopIndex > 0}
-            onStep={onDateStep}
-            onPickDate={onDatePick}
-            onPickYear={onYearPick}
-          />
-        )}
-        {activeTab !== 'heatmap' && (
+      <PageHeader
+        icon="breadth"
+        title="Breadth"
+        right={activeTab !== 'heatmap' ? (
           <>
+            {/* CSV sits to the LEFT of Customize; Customize is pinned to the far
+                right of the bar, next to the help "?". */}
+            <button
+              className={styles.exportBtn}
+              onClick={() => exportCsv(rows, visibleCols)}
+              title="Download as CSV"
+            >
+              ↓ CSV
+            </button>
             {activeTab === 'breadth' && (
               <div className={customizeStyles.anchor}>
                 <button
@@ -1211,14 +1200,66 @@ export default function Breadth() {
                 )}
               </div>
             )}
+          </>
+        ) : null}
+      >
+        <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
+        {isViewsTab ? (
+          // Views keeps its window pills (a lens is defined by how many sessions
+          // it spans). The Monitor sheet instead scrolls freely across all time.
+          <div className={styles.daysPills}>
+            {VIEWS_DAY_CHOICES.map(d => (
+              <button
+                key={d}
+                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+                onClick={() => setViewsDays(d)}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        ) : (
+          // Monitor: the calendar comes right after the tabs, with a "Today"
+          // jump-to-present button beside it; the "updated" meta follows to its right.
+          <>
+            <BreadthDateNav
+              topDate={monitorTopDate}
+              minDate={grid.min}
+              maxDate={grid.max}
+              canForward={monitorTopIndex > 0}
+              onStep={onDateStep}
+              onPickDate={onDatePick}
+              onPickYear={onYearPick}
+            />
             <button
-              className={styles.exportBtn}
-              onClick={() => exportCsv(rows, visibleCols)}
-              title="Download as CSV"
+              className={styles.hdrBtn}
+              onClick={onJumpToday}
+              title="Jump to the present day (top of the sheet)"
             >
-              ↓ CSV
+              Today
             </button>
           </>
+        )}
+        <span className={styles.meta}>
+          {isViewsTab
+            ? (rows.length > 0
+                ? (windowMismatch
+                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
+                : isLoading ? 'Loading…' : 'No data')
+            : (grid.count > 0
+                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : grid.ready ? 'No data' : 'Loading…')}
+        </span>
+        {activeTab === 'breadth' && (
+          <button
+            className={`${styles.hdrBtn} ${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
+            onClick={onManualRefresh}
+            title="Refresh breadth data now"
+            aria-label="Refresh breadth data"
+          >
+            <UIcon name="refresh" size={13} />
+          </button>
         )}
       </PageHeader>
 

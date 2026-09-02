@@ -38,6 +38,7 @@ const ROWS = Array.from({ length: 40 }, (_, i) => ({
 }))
 vi.mock('swr', () => ({
   default: () => ({ data: { rows: ROWS, days: 90 }, isLoading: false, error: null, mutate: () => {} }),
+  useSWRConfig: () => ({ mutate: () => {} }),
 }))
 
 import Breadth, { VIEWS_DAY_CHOICES, MONITOR_WINDOW } from '../Breadth'
