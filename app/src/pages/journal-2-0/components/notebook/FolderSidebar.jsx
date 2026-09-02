@@ -386,8 +386,15 @@ export default function FolderSidebar({
     return tagCounts.slice(0, TAG_CAP)
   }, [tagCounts, tagFilter, showAllTags, tagsOverCap])
 
-  // Fallback for tests/callers that pass `notes` without the server total —
-  // the honest `unfiledTotalFromServer` above wins whenever it's available.
+  // Fallback while the server total is unknown (still in flight, or the
+  // request failed) OR for a test/caller that only supplies `notes` — the
+  // honest `unfiledTotalFromServer` above wins whenever it's actually known.
+  // ⛔ Final-review C2: this branch used to be UNREACHABLE in production —
+  // `useJ2Notes` returned `total: 0` (never `undefined`) while loading, and
+  // `0 ?? x` is `0`, so "Unfiled" showed a hard 0 on every notebook open
+  // until the request resolved, and forever on a failed one. Fixed at the
+  // hook (`total` is now genuinely `undefined` until the server answers),
+  // so this fallback now actually executes during that window.
   const unfiledCountFromPage = useMemo(
     () => notes.filter((n) => !n.folderId).length,
     [notes],
@@ -530,7 +537,7 @@ export default function FolderSidebar({
           </div>
 
           {!trimmedQuery ? (
-            <div className={styles.searchHint}>Search titles, content, tags, and tickers.</div>
+            <div className={styles.searchHint}>Search titles and content by word, or match an exact tag or ticker.</div>
           ) : searching ? (
             <div className={styles.searchHint} role="status">Searching…</div>
           ) : searchError ? (

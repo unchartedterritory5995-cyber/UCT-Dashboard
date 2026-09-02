@@ -565,15 +565,33 @@ def _notes_filter_sql(
         # LIKE scan remains the fallback so a query FTS cannot parse
         # still returns results rather than an error. body_plain stays
         # authoritative -- j2_notes_fts is a derived index (db.py).
+        #
+        # Coverage note (final-review C1): j2_notes_fts indexes ONLY
+        # title/body_plain (db.py) — tags and ticker are NOT FTS columns.
+        # The pre-Task-11 client-side panel search matched a note's tags and
+        # ticker too (it joined title+body+tags+ticker into one string and
+        # substring-matched); routing search through this SQL predicate
+        # alone would silently drop that coverage for every small,
+        # non-migrated library -- making search WORSE for the members we
+        # actually have today, in exchange for a benefit (reaching beyond one
+        # page) only a migrated member gets. So `q` ALSO matches via the SAME
+        # predicates the dedicated `tag=`/`ticker=` filters above already use
+        # (one way to ask each question, never a third), ORed alongside the
+        # title/body text search. Deliberately NOT added as FTS columns —
+        # that would touch the virtual table, its 3 triggers, and the v4
+        # backfill, for a scope this OR clause already covers.
+        exact_tag_pattern = f'%"{q.strip().lower()}"%'   # same spelling as the `tag` filter above
+        exact_ticker = q.strip().upper()                  # same spelling as the `ticker` filter above
         expr = fts_match_expr(q)
         if expr:
-            sql += (" AND id IN (SELECT note_id FROM j2_notes_fts"
-                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)")
-            params.extend([expr, user_id])
+            sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
+                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
+                    " OR lower(tags) LIKE ? OR ticker = ?)")
+            params.extend([expr, user_id, exact_tag_pattern, exact_ticker])
         else:
-            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
+            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR lower(tags) LIKE ? OR ticker = ?)"
             ql = f"%{q.lower()}%"
-            params.extend([ql, ql])
+            params.extend([ql, ql, exact_tag_pattern, exact_ticker])
     return sql, params
 
 

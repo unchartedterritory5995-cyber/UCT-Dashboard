@@ -38,21 +38,32 @@ describe('useJ2Notes — total (Task 11)', () => {
                                                         // badge could never show
   })
 
-  it('falls back to the page length only when the response predates `total`', async () => {
+  it('reports `total` as undefined (never a coerced number) when the response predates that field', async () => {
     global.fetch = vi.fn(() => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({ notes: noteRange(0, 3) }), // no `total` key
     }))
     const { result } = renderHook(() => useJ2Notes({ sort: 'updated' }))
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    expect(result.current.total).toBe(3)
+    // Final-review C2: the hook itself no longer guesses a total from page
+    // length — `total` stays undefined so a CONSUMER decides its own
+    // fallback (FolderSidebar's `?? unfiledCountFromPage`, e.g.). The hook
+    // silently synthesizing a number here is exactly what made a real
+    // "unknown total" indistinguishable from a real "zero notes" one layer
+    // up.
+    expect(result.current.total).toBeUndefined()
   })
 
-  it('a request disabled via `enabled:false` never fetches and reports an empty, non-crashing shape', () => {
+  it('a request disabled via `enabled:false` never fetches, and `total` is undefined (not 0) — unknown, not zero', () => {
     const { result } = renderHook(() => useJ2Notes({ enabled: false }))
     expect(global.fetch).not.toHaveBeenCalled()
     expect(result.current.notes).toEqual([])
-    expect(result.current.total).toBe(0)
+    // Final-review C2: `total` must be undefined here, not `0`. The bug this
+    // pins: `data?.total ?? firstPage.length` degrades an unknown total to a
+    // DEFINED `0` (since `firstPage` is always `[]` when `data` is
+    // undefined) — and `0 ?? x` is `0`, so a consumer's own `?? fallback`
+    // could never run. `hasMore` must independently still read `false`.
+    expect(result.current.total).toBeUndefined()
     expect(result.current.hasMore).toBe(false)
   })
 })

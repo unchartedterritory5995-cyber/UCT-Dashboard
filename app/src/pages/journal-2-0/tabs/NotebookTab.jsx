@@ -453,7 +453,12 @@ export default function NotebookTab() {
                 never contradicted by a grid that quietly stops at 100. */}
             <div className={styles.loadMoreRow}>
               <span className={styles.loadMoreCount}>
-                Showing {notes.length} of {total} note{total === 1 ? '' : 's'}
+                {/* `total` is only undefined mid-flight/on error, which this
+                    branch can't actually reach (`notes.length > 0` implies
+                    the response that produced `notes` also carried `total`)
+                    — `?? notes.length` is defensive, not load-bearing
+                    (final-review C2: `total` is no longer coerced to 0). */}
+                Showing {notes.length} of {total ?? notes.length} note{(total ?? notes.length) === 1 ? '' : 's'}
               </span>
               {hasMore && (
                 <button

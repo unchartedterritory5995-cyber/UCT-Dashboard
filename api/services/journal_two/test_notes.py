@@ -119,6 +119,31 @@ def test_list_notes_search_body(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
+def test_list_notes_search_reaches_a_note_findable_only_by_its_tag(conn):
+    """Final-review C1: the pre-Task-11 client-side panel search matched a
+    note's tags (it substring-matched over `title+body+tags+ticker` joined
+    into one string). Routing `q` through FTS5 alone (title/body_plain only)
+    silently dropped that coverage — this note's title and body contain
+    NOTHING that could match; only its tag can find it."""
+    a = svc.create_note(
+        "u1", {"title": "Untitled reflections", "tags": ["earnings"]}, conn=conn,
+    )
+    svc.create_note("u1", {"title": "Some other note", "tags": ["macro"]}, conn=conn)
+    rows = svc.list_notes("u1", q="earnings", conn=conn)
+    assert [n["id"] for n in rows] == [a["id"]]
+
+
+def test_list_notes_search_reaches_a_note_findable_only_by_its_ticker(conn):
+    """Same gap, the ticker axis: the old client search also substring-matched
+    the ticker. Neither this note's title nor its body contains the ticker."""
+    a = svc.create_note(
+        "u1", {"title": "Weekend prep notes", "ticker": "NVDA"}, conn=conn,
+    )
+    svc.create_note("u1", {"title": "Another weekend note", "ticker": "AAPL"}, conn=conn)
+    rows = svc.list_notes("u1", q="nvda", conn=conn)
+    assert [n["id"] for n in rows] == [a["id"]]
+
+
 # ── count_notes — the true total behind a capped page (Task 11) ─────────────
 
 def test_count_notes_reflects_all_matches_not_the_page_size(conn):

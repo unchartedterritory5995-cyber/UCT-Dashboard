@@ -41,11 +41,19 @@ export default function useJ2Notes({
   const firstPage = data?.notes ?? []
   // `total` is the TRUE count from SQL (`count_notes` in
   // api/services/journal_two/notes.py, built off the SAME WHERE clause as
-  // the list) — never `notes.length`. A migrated library of thousands of
-  // notes must report its real size, not "however many fit on one page".
-  // The `?? firstPage.length` only covers a response shape that predates
-  // this field; the live endpoint always sends `total`.
-  const total = data?.total ?? firstPage.length
+  // the list) — never `notes.length`.
+  //
+  // ⛔ Final-review C2: this used to read `data?.total ?? firstPage.length`.
+  // While `data` is undefined — in flight, or after a failed fetch —
+  // `firstPage` is `[]`, so that fallback silently produced `0`, NEVER
+  // `undefined`. `0 ?? x` is `0`, not `x` — so every downstream "fall back
+  // when the server total is unknown" check (FolderSidebar's
+  // `unfiledTotalFromServer ?? unfiledCountFromPage`, for one) was DEAD CODE:
+  // the left side was always a defined number, just sometimes a wrong one
+  // (a real zero-length page masquerading as "no server total yet"). Left
+  // undefined here on purpose so a consumer can tell "unknown" apart from
+  // "zero" and choose its own fallback (or gate on `isLoading`/`error`).
+  const total = data?.total
 
   // "Load more" — extra pages fetched past the first, appended locally and
   // tracked against the URL they were fetched FOR. A folder/tag/sort/q
@@ -57,7 +65,11 @@ export default function useJ2Notes({
 
   const extraNotes = extra.forUrl === url ? extra.notes : []
   const notes = extraNotes.length ? [...firstPage, ...extraNotes] : firstPage
-  const hasMore = Boolean(url) && notes.length < total
+  // `total !== undefined` guards the in-flight/unknown state explicitly —
+  // `notes.length < undefined` already evaluates false in JS, but spelling
+  // it out means a future refactor can't quietly reintroduce the C2 shape
+  // (an unknown total masquerading as a known one).
+  const hasMore = Boolean(url) && total !== undefined && notes.length < total
 
   const loadMore = useCallback(async () => {
     if (!url || !hasMore || isLoadingMore) return

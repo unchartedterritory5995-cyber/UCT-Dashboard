@@ -349,8 +349,24 @@ describe('honest badges for a migrated library (Task 11)', () => {
     expect(within(unfiledRow).queryByText('1')).not.toBeInTheDocument()
   })
 
-  it('"Unfiled" falls back to counting the loaded page when the server total is unavailable', () => {
-    // Default mock (from beforeEach) returns no `total` field at all.
+  it('"Unfiled" falls back to counting the loaded page while the server total is still loading', () => {
+    // Final-review C2: the REAL shape `useJ2Notes` emits before its first
+    // response resolves is `isLoading: true` (SWR's own signal for "no data
+    // yet") paired with `total: undefined` — never `total: 0`, and never
+    // `isLoading: false` with `total` simply absent. The old version of this
+    // test used that second, hook-structurally-IMPOSSIBLE shape (default
+    // mock: `isLoading: false`, no `total` key) — it passed, but proved
+    // nothing about the fallback firing against the real hook, because the
+    // real (pre-fix) hook could never actually hand FolderSidebar an
+    // undefined `total` in the first place (it coerced to `0`, which is a
+    // defined number `??` treats as present). Mocking the true in-flight
+    // shape is what makes this test able to fail against that old bug.
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.folderId === '__unfiled__') {
+        return { notes: [], isLoading: true, isValidating: true, error: null, total: undefined }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null, total: 0 }
+    })
     render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null}
                           onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
     const unfiledRow = screen.getByText('Unfiled').closest('button')
