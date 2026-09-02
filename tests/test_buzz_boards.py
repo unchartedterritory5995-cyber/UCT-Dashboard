@@ -154,6 +154,39 @@ def test_heat_baseline_floor_rejects_a_name_with_no_real_history(mods):
     assert "THIN" not in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
 
 
+def test_a_hot_name_outside_the_top_40_is_still_found(mods):
+    """⛔ THE REGRESSION THIS BOARD EXISTS TO PREVENT. Candidates must be gated
+    by the VOLUME FLOOR, never by today's rank: a name at 20x its normal chatter
+    ranked 51st by raw mentions, and the board rendered EMPTY while it happened."""
+    store, boards = mods
+    now_dt = dt.datetime(2026, 9, 21, 11, 0, tzinfo=ET)
+    now = int(now_dt.timestamp())
+    open_ts = int(now_dt.replace(hour=9, minute=30).timestamp())
+    mid = 1
+    for i in range(50):                       # 50 busy-but-normal names
+        t = f"BUSY{i:02d}"
+        for k in range(8):
+            _put(store, open_ts + 60, t, f"p{i}_{k}", mid); mid += 1
+        for d in _prior_weekdays(now_dt, 30):
+            for k in range(8):
+                _put(store, int(d.replace(hour=9, minute=40).timestamp()), t, f"h{i}_{k}", mid); mid += 1
+    for k in range(6):                        # one genuine hot move
+        _put(store, open_ts + 60, "QUIET", f"q{k}", mid); mid += 1
+    # ⛔ DEVIATION FROM THE COORDINATOR'S LITERAL TEST: the reproduction as
+    # given seeded QUIET's baseline on only the first 9 of 30 prior weekdays
+    # (`_prior_weekdays(now_dt, 30)[:9]`), which computes base = 9/30 = 0.3 --
+    # BELOW MIN_BASELINE (1.0) -- so it trips the (correctly working)
+    # baseline floor instead of isolating the candidate-cap regression this
+    # test exists to catch. Verified independently with a standalone repro
+    # before changing it. Seeding all 30 sessions via `_seed_baseline` (the
+    # file's own established pattern for CALM/NOISE/THIN) gives base = 1.0
+    # exactly -- clears the floor -- while today's 6 mentions still read
+    # 6.0x, comfortably hot and comfortably above the 1.5 ratio cutoff.
+    _seed_baseline(store, now_dt, "QUIET", per_session=1, mid=mid)
+
+    assert "QUIET" in {r["ticker"] for r in boards.heat_board(now, limit=10)}
+
+
 def test_window_bounds_open_starts_at_the_market_open(mods):
     _, boards = mods
     start, end = boards.window_bounds("open", _at(1, 15))
@@ -232,3 +265,21 @@ def test_ticker_detail_reports_people_mentions_and_a_link(mods):
     d = boards.ticker_detail("NVDA", "open", _at(1, 15))
     assert d["mentions"] == 1 and d["people"] == 1
     assert "discord.com/channels/" in d["link"]
+
+
+def test_ticker_detail_is_consistent_for_a_name_outside_the_top_200(mods):
+    """mentions/people came from a 200-row board scan while spark and link were
+    uncapped -- so a name ranked 210th reported 0 mentions beside a real
+    sparkline and a working link."""
+    store, boards = mods
+    now = _at(1, 15)
+    mid = 1
+    for i in range(210):                      # 210 louder names
+        for k in range(3):
+            _put(store, _at(1, 10), f"T{i:03d}", f"u{i}_{k}", mid); mid += 1
+    _put(store, _at(1, 10), "RARE1", "alice", 900001)
+    _put(store, _at(1, 11), "RARE1", "bob", 900002)
+
+    d = boards.ticker_detail("RARE1", "open", now)
+    assert d["mentions"] == 2 and d["people"] == 2
+    assert sum(d["spark"]) == d["mentions"]   # the payload must agree with itself
