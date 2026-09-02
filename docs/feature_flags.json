@@ -88,6 +88,13 @@
       ],
       "note": ""
     },
+    "BARS_PROXY_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF, in its author's own words: the commit that added it (b82b6ac58) says it \"ships FULLY DARK: with BARS_ORIGIN_URL unset and BARS_PROXY_ENABLED unset it serves locally exactly as before\". Like the BARS_HISTORY_* pair above it is HALF A SWITCH -- api/routers/bars.py forwards only when BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT, and the proxy needs BARS_ORIGIN_URL besides, so arming this alone changes nothing and arming it without the origin URL is the failure mode to watch for. It is a CANARY gate, meant to be ramped 0->5->25->100 via BARS_PROXY_PCT with rollback by env var and no code deploy; any error falls back to local serve. Arm it as the Path B Phase 2 cutover, by ramp, not by flipping it to 100. ⚠️ Declared by a passer-by, not its author: the flag arrived in the 2026-09-02 Path B bars-serving-tier work (merge 64bb2e2c3) and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make; tools/flag_ledger_audit.py settles `where` against Railway."
+    },
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
       "where": [
@@ -539,7 +546,7 @@
       "where": [
         "(set on no service)"
       ],
-      "note": "DELIBERATELY OFF. registry.py's obsidian entry (connect_kind='device') stays unconfigured until this is armed -- the Obsidian plugin is a separate, not-yet-published GitHub repo (2026-09-02 plan, Wave 3b) with no real vault to gate against, and the mock-plugin live-gate lifecycle test (that plan's Task 6) has not run yet. Arm after that test passes."
+      "note": "DELIBERATELY OFF -- AND THE OLD ARMING CONDITION IS VOID. registry.py's obsidian entry (connect_kind='device') stays unconfigured until this is armed. The previous note said 'arm after Wave 3b Task 6 (the mock-plugin live-gate lifecycle test) passes'. That test now passes, so a reader following the old note would arm this and ship a silent data-loss defect to members. It does not gate what matters. The 2026-09-02 adversarial audit (.superpowers/audit/session-audit.md, finding 1) proved end-to-end that ONE ordinary note over the limit makes import_confirm roll back the WHOLE batch: 13 notes staged, 0 landed in the member's notebook, status 'ok', cursor advanced anyway, and the plugin's re-push is a no-op -- so the notes are gone permanently. This is not a security bug, so the Wave 3b security review's gate does not cover it. ARM ONLY WHEN ALL THREE HOLD, each verified against a run and not against a passing suite: (1) per-note failure isolation has landed -- a batch containing one unstorable note stores its siblings and reports the failure per note; (2) a real, published Obsidian plugin exists for members to install (the connect modal already instructs them to use one that does not); (3) a live gate has synced a note of REALISTIC size -- 250KB+ of markdown, since the measured md->TipTap blowup is 3.4-4.7x and nothing anywhere (unit, parity, or live gate) has ever imported or synced a note larger than a few KB. Note size is the one property that breaks this feature, and it is the one property nothing measures."
     },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
@@ -700,6 +707,13 @@
         "(set on no service)"
       ],
       "note": "DELIBERATELY OFF, awaiting a NAMED prerequisite -- which is what makes this dark rather than pending. `api/services/history_prewarm.py`'s own module docstring states it: \"gated by HISTORY_PREWARM_ENABLED (default OFF -- activate once Cloudflare Tiered Cache + Cache Reserve are on)\". ARM IT ONLY AFTER CONFIRMING BOTH ARE ENABLED IN CLOUDFLARE. The sweep walks the whole symbol universe through the public domain to stock the edge; with Cache Reserve OFF that traffic reaches the ORIGIN instead of being absorbed, which is a universe-wide load against the single web pod rather than the cache-filling pass it is meant to be. It runs on the WORKER, off the user request path, and is gentle and sequential so an overlapping pass cannot load the pod -- but that bounds the rate, not the destination. ⚠️ Classified by a passer-by, not its author: the flag arrived in the 'instant-charts Phase 5' commit and tripped test_every_off_by_default_gate_is_declared. Cloudflare's dashboard state is not visible from the repo or from Railway, so the prerequisite could not be checked here -- which is precisely why the answer is 'off with a reason' and not 'on'."
+    },
+    "BARS_API_ENABLED": {
+      "status": "armed",
+      "where": [
+        "bars-api service (railway.json startCommand dispatcher)"
+      ],
+      "note": "A SERVICE SELECTOR, not a feature gate -- same family as WORKER_ENABLED and FLOW_WORKER_ENABLED, and read in the same place: railway.json's startCommand dispatcher (`if [ \"${BARS_API_ENABLED:-0}\" = \"1\" ]; then exec python -m api.bars_api_main`). It selects the dedicated bars-SERVING tier, whose whole purpose is that app/partner deploys can never restart chart serving. It is therefore DELIBERATELY unset on web/worker -- unset is the correct value there, and arming it on web would turn the web pod into the bars tier and take the app down. Marked armed because the tier has demonstrably RUN: api/bars_api_main.py records two boot traps it survived on a real pod (init_db-before-pull, and a lifespan-thread extract that starved /api/health into a Railway restart loop) -- findings you cannot make without deploying it. ⚠️ Declared by a passer-by, not its author: the flag arrived in the 2026-09-02 Path B bars-serving-tier work (merge 64bb2e2c3) and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make; tools/flag_ledger_audit.py settles `where` against Railway."
     },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "dark",
