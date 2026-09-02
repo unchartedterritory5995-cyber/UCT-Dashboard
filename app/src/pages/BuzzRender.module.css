@@ -186,7 +186,7 @@
    is shared by the header and the rows so they can never drift apart. */
 .grid {
   display: grid;
-  grid-template-columns: 24px 76px 62px 1fr 70px 152px 76px;
+  grid-template-columns: 26px 88px 60px 1fr 74px 78px;
   align-items: center;
   gap: 13px;
 }
@@ -200,7 +200,7 @@
 }
 .hRk, .hN, .hPpl, .hHeat { text-align: right; }
 
-.r { padding: 11px 0; border-bottom: 1px solid #ffffff08; }
+.r { padding: 10px 0; border-bottom: 1px solid #ffffff08; }
 /* 3. rank numerals, zero-padded so 01..08 hold one column width. */
 .rk {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
@@ -215,7 +215,7 @@
 .r.lead .rk { color: var(--buzz-gold); opacity: .75; }
 .sym {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 15.5px;
+  font-size: 16.5px;
   color: var(--buzz-cream);
   font-weight: 700;
   letter-spacing: .4px;
@@ -263,16 +263,6 @@
   font-weight: 600;
 }
 
-.sp { display: flex; align-items: flex-end; gap: 1.5px; height: 22px; }
-.sp .s {
-  flex: 1;
-  min-width: 0;
-  background: var(--buzz-muted);
-  opacity: .26;
-  border-radius: 1px 1px 0 0;
-}
-.sp .s.hot { background: var(--buzz-green); opacity: .5; }
-
 .hcell { text-align: right; }
 /* The heat multiple was bare green text among five other numeric columns.
    As a pill it is the one thing on the row that is not a column of figures,
@@ -300,7 +290,7 @@
   font-size: 9px;
   letter-spacing: 1.9px;
   color: var(--buzz-muted);
-  opacity: .5;
+  opacity: .55;
   font-weight: 700;
 }
 .lbl::before {
@@ -315,14 +305,14 @@
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, .028);
-  border: 1px solid rgba(255, 255, 255, .05);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .07);
 }
 .m b {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--buzz-cream);
   font-weight: 700;
   letter-spacing: .3px;
@@ -330,21 +320,27 @@
 .m i {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
   font-style: normal;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--buzz-gold);
-  opacity: .72;
+  opacity: .85;
   font-variant-numeric: tabular-nums;
 }
-.once {
-  margin-top: 11px;
-  padding-left: 13px;
-  border-left: 1px solid rgba(201, 168, 76, .2);
+/* ⛔ The once-mentioned names were a 10.5px grey comma-run at 36% opacity and
+ * the owner could not read them (2026-09-02) -- while telling us those 1-3
+ * mention names are exactly what he wants to see. They are chips now, the same
+ * family as the 2+ names, just quieter. Legibility is the point; do not dim
+ * this back down to "de-emphasise the tail". */
+.singles { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.one {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 10.5px;
-  line-height: 1.95;
-  color: var(--buzz-muted);
-  opacity: .36;
-  letter-spacing: .25px;
+  font-size: 12px;
+  letter-spacing: .3px;
+  color: var(--buzz-cream);
+  opacity: .72;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .022);
+  border: 1px solid rgba(255, 255, 255, .05);
 }
 
 /* footer bar — 20px, same as the chart export */

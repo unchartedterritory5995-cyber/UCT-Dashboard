@@ -152,6 +152,31 @@ describe('BuzzRender', () => {
     expect(box.style.width).toBe(`${window.__buzzBoardW}px`)
   })
 
+  it('renders every once-named ticker as its own readable chip', async () => {
+    // ⛔ OWNER REQUIREMENT, 2026-09-02: "Cant see the bottom lesser important
+    // shaded ones that we want seen. Even the 1-3 mentions people want to
+    // see." They used to be one joined string at 10.5px / 36% opacity. A
+    // single text node is not a list you can read, so this asserts they are
+    // SEPARATE elements — the thing that makes them scannable.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        window: 'open', label: 'since the open',
+        rows: [{ ticker: 'NVDA', people: 3, mentions: 9, spark: [1], hot: null }],
+        tail: [{ ticker: 'AMD', mentions: 3 }],
+        singles: ['ANET', 'PANW', 'ZS'],
+        coverage: 'counted through 3:58p', asOf: 1,
+      }),
+    })))
+    render(<BuzzRender />)
+    for (const t of ['ANET', 'PANW', 'ZS']) {
+      const el = await screen.findByText(t)
+      expect(el).toBeInTheDocument()
+      // each is its own node, not a fragment of a comma-run
+      expect(el.textContent).toBe(t)
+    }
+  })
+
   it('does not claim ready before data arrives', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<BuzzRender />)
