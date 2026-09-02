@@ -52,8 +52,33 @@ set" hook it already knows how to use for delete detection. Nothing about
    implementation below never branches on `full` at all (it isn't even
    visible to a provider — `list_changed`'s signature has no `full` param
    in any provider), which is the only correct shape given the above: it
-   always returns "staged rows with `updated_at` newer than `cursor`,"
-   full pass or not.
+   always returns "staged rows whose SERVER-assigned `received_at` is newer
+   than `cursor`," full pass or not — see item 3 for why `received_at`, not
+   `updated_at`.
+
+3. ⛔⛔ SECURITY (2026-09-02 review, C1) — the cursor is NEVER built from the
+   client-supplied `updated_at` column. It used to be: `engine.py`'s default
+   cursor-advance derives `max(ref.updated_at for ref in refs)` from
+   whatever `list_changed` returns, and `RemoteRef.updated_at` came straight
+   from `j2_obsidian_staging.updated_at` — the plugin's own filesystem mtime,
+   forwarded with no validation (measured: `obsidian_staging.ingest_batch`
+   stored it verbatim). One staged row with a garbled/absurd mtime (a bad
+   mtime is an ORDINARY failure mode, no attacker required) became a cursor
+   floor no genuine future timestamp could ever clear — and because item 1/2
+   above deliberately keep the engine from resetting this provider's cursor
+   on a full pass (correct for OneNote's bounded drain; this provider has no
+   such drain to protect), there was no self-heal: the vault's sync just
+   silently stopped, forever, reporting `status: ok`. Fixed at TWO layers,
+   neither a substitute for the other: `obsidian_staging.ingest_batch`
+   clamps an implausible `updated_at` at write time (see that module's own
+   C1 section), and — independently, so a gap in that clamp can't reproduce
+   this — `list_changed` below cursors on `received_at`, a column ONLY this
+   server ever writes (`obsidian_staging._now_iso()`), and publishes it via
+   `self.opaque_cursor` (`base.py`'s Dropbox-precedent extension point):
+   the engine persists that value VERBATIM instead of deriving one from
+   `refs`. `RemoteRef.updated_at` (this method's return value) is UNCHANGED
+   — it still carries the note's own (now-clamped) `updated_at` for
+   display/conflict purposes; only the CURSOR moved off of it.
 
 ── Conversion — reuses the existing converter, never a second one ──────────
 
@@ -494,30 +519,45 @@ class ObsidianProvider(NoteProvider):
     async def list_changed(
         self, credentials: dict[str, Any], cursor: str | None = None,
     ) -> list[RemoteRef]:
-        """Staged rows strictly newer than `cursor` (`cursor=None` ->
-        everything staged so far). See the module docstring's "Cursor
-        consequence" section for why this NEVER branches on a full-vs-
-        incremental distinction — this provider defines `list_present_refs`,
-        so the engine never resets this to a forced full re-list; a plain
-        "what's newer than the cursor" query is correct in both cases."""
+        """Staged rows whose SERVER-assigned `received_at` is strictly newer
+        than `cursor` (`cursor=None` -> everything staged so far). See the
+        module docstring's "Cursor consequence" section (items 2 and 3) for
+        why this NEVER branches on a full-vs-incremental distinction, and
+        for why the filter/cursor column is `received_at` rather than the
+        client-supplied `updated_at` (C1, 2026-09-02 security review).
+
+        Publishes `self.opaque_cursor` (`base.py`'s Dropbox-precedent
+        extension point) so the engine persists that value VERBATIM instead
+        of deriving one from `RemoteRef.updated_at` -- the cursor this
+        method hands back can never be poisoned by a client value, even one
+        `obsidian_staging`'s own ingest-time clamp somehow missed. When no
+        row is newer than `cursor`, the SAME `cursor` is republished
+        (rather than left at the class-level `None` default) so the
+        engine's unconditional `update_cursor` call is a harmless no-op
+        instead of silently reverting this source to "no sync has ever
+        completed" on its next full pass."""
         conn = get_connection()
         try:
             if cursor:
                 rows = conn.execute(
-                    "SELECT vault_path, updated_at FROM j2_obsidian_staging "
-                    "WHERE user_id = ? AND vault_id = ? AND updated_at > ? "
-                    "ORDER BY updated_at ASC, vault_path ASC",
+                    "SELECT vault_path, updated_at, received_at FROM j2_obsidian_staging "
+                    "WHERE user_id = ? AND vault_id = ? AND received_at > ? "
+                    "ORDER BY received_at ASC, vault_path ASC",
                     (self.user_id, self.vault_id, cursor),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT vault_path, updated_at FROM j2_obsidian_staging "
+                    "SELECT vault_path, updated_at, received_at FROM j2_obsidian_staging "
                     "WHERE user_id = ? AND vault_id = ? "
-                    "ORDER BY updated_at ASC, vault_path ASC",
+                    "ORDER BY received_at ASC, vault_path ASC",
                     (self.user_id, self.vault_id),
                 ).fetchall()
         finally:
             conn.close()
+        if rows:
+            self.opaque_cursor = max(r["received_at"] for r in rows)
+        elif cursor:
+            self.opaque_cursor = cursor
         return [RemoteRef(remote_id=r["vault_path"], updated_at=r["updated_at"]) for r in rows]
 
     async def list_present_refs(self, credentials: dict[str, Any]) -> list[RemoteRef]:

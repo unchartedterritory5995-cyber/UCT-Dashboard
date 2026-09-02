@@ -892,9 +892,16 @@ def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
     """
     entry = registry.get_entry("obsidian")
     if not entry.configured():
-        # Mirrors `_mint_device_connect_code`'s own gate -- flipping
-        # `NOTE_SYNC_OBSIDIAN_ENABLED` off is the rollback lever, and it must
-        # stop a redemption in flight just as surely as it stops a new mint.
+        # Mirrors `_mint_device_connect_code`'s own gate -- stops a
+        # redemption in flight just as surely as it stops a new mint.
+        # ⛔ This comment used to go further and call the flag "the rollback
+        # lever" outright -- FALSE until 2026-09-02 (I2): a device that had
+        # ALREADY redeemed kept pushing to `/obsidian/ingest` with the flag
+        # off, because that endpoint had no `configured()` check of its own.
+        # Mint and redeem alone never made this a kill switch; `obsidian_
+        # ingest` (below) now checks independently, and NEITHER endpoint's
+        # comment should restate the other's guarantee as fact without
+        # actually checking it -- exactly how this one went unverified.
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
     vault_id = (body.vaultId or "").strip()
     if not body.code or not vault_id:
@@ -1056,7 +1063,20 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
     `manifest` — the vault's COMPLETE path list — is only applied to
     `j2_obsidian_manifest` when `final` is true (see
     `obsidian_staging.ingest_batch`'s docstring for why a partial push must
-    never touch it)."""
+    never touch it).
+
+    ⛔⛔ I2 (2026-09-02 review): checks `registry.get_entry("obsidian").
+    configured()` FIRST, before even authenticating the device token --
+    this was previously missing, so `NOTE_SYNC_OBSIDIAN_ENABLED=0` stopped
+    NEW mints/redemptions (`_mint_device_connect_code`/`obsidian_redeem`
+    both gate on it) but did nothing to an ALREADY-connected device, which
+    kept pushing indefinitely. That gap made the flag a partial rollback at
+    best, not the kill switch its own name promises -- see the corrected
+    comment on `obsidian_redeem`'s identical check for the false claim this
+    replaces."""
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
     device = _authenticate_obsidian_device(request)
     _require_paid_device_user(device["user_id"])
 
