@@ -218,7 +218,8 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | F-03a | 2 | KILLED by usage limit 08:05; RE-DISPATCHED 10:41 (Fable) | 2026-09-02 08:00 / 10:41 | — | — | `contracts/F-03a.md`; DL-014 |
 | F-03b | 2 | done | 10:41 | 12:00 (35 calls, 542k) | ACCEPT: 48 provider rows across 6 code locations and 5 services; 20 core; 7 retirement/consolidation candidates; 9 dormant keyless lanes; named data classes with NO provider; zero CONTRACT-ACTIVE rows; only FMP and Finnhub reach OBSERVED-CALLED | `02-data-providers/provider-ledger.md` (gate item 4 draft) |
 | F-04 | 2 | dispatched (Fable) | 2026-09-02 12:05 | — | — | licensing register; `contracts/F-04.md` |
-| B-QTR-01 | 1b | dispatched (Opus) | 2026-09-02 12:05 | — | — | `contracts/B-DOSSIER.md` §B-QTR-01 |
+| B-QTR-01 | 1b | done | 12:05 | 12:30 (63 calls, 232k) | ACCEPT: Quartr is a corpus company, not a terminal (six taxonomy slots deliberately empty); 🟢 only on Workflows B and F; the transferable primitive is "take me to the exact source"; product interior login-gated (ceiling) | `quartr/dossier.md` |
+| B-SG-01 | 1b | dispatched (Opus) | 2026-09-02 12:35 | — | — | `contracts/B-DOSSIER.md` §B-SG-01 |
 | B-VAL-01 | 1b | done | 10:50 | 11:15 (68 calls, 244k) | ACCEPT: universe validated with 71 cited URLs; zero options-native products in the candidate list; three name corrections (Fiscal.ai, Eikon sunset, Fey closed); two naming traps logged | `03-competitive-research/benchmark-universe.md`; → DL-017, OI-18, OI-19 |
 | B-BBG-01 | 1b | done | 10:50 | 11:45 (56 calls, 266k) | ACCEPT: navigation is a grammar (`TICKER <SECTOR> FUNCTION <GO>`) with menus/tabs/help/history as views over it; 2 Bloomberg-authored primaries + 9 university guides; `ESRV` not found (contract guess) | `bloomberg/01-search-navigation.md` |
 | B-BBG-02 | 1b | done | 10:50 | 11:35 (70 calls, 260k) | ACCEPT: fixed four-panel terminal plus floating Launchpad with two crossing primitives (`LLP`, monitor row-click into a panel); corrects contract premises (no colour groups: `Group-1, #A` badges; `MON` unverified, restore is `MNRS`) | `bloomberg/02-monitors-workspaces.md` |
@@ -235,4 +236,4 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | B-TV-01, B-KOY-01, B-BZ-01, B-AS-01, B-FC-01 (Opus) | 1b | running (batch B) | 2026-09-02 11:45–11:55 | — | — | search fallback per preamble |
 | B-LSEG-01 | 1b | dispatched (Opus) | 2026-09-02 12:25 | — | — | `contracts/B-DOSSIER.md` §B-LSEG-01 |
 | B-FDS-01 | 1b | dispatched (Opus) | 2026-09-02 12:15 | — | — | `contracts/B-DOSSIER.md` §B-FDS-01 |
-| B-SG-01, B-ADJ-01 (TIKR+YCharts+CIQ light), B-DESK-01..04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| B-ADJ-01 (TIKR+YCharts+CIQ light), B-DESK-01..04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
