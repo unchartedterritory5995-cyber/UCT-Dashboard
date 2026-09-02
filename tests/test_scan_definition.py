@@ -446,7 +446,14 @@ def test_the_gates_are_a_CLOSED_set_and_an_unknown_one_cannot_be_raised():
     # `interpret` accepts (a scan reads only DECLARED benchmarks, while the
     # chart lane serves any symbol). Spelled out rather than counted, because
     # a caller branches on this tuple.
-    assert scan_definition.GATES == ("kind", "tree", "hash", "yields", "symbol")
+    # ⚠️ `cadence` JOINED 2026-09-01, the second gate of that kind: `interpret`
+    # computes `vwap` happily on intraday bars and the nightly sweep runs on
+    # DAILY ones, where a session accumulator has no session to accumulate over.
+    # Measured before it existed — the corpus fixture `17-above-vwap` passed
+    # every gate here and then answered 0 of 3,742 symbols, for ~22s, every
+    # night. See `tests/test_scan_cadence_gate.py`.
+    assert scan_definition.GATES == (
+        "kind", "tree", "hash", "yields", "symbol", "cadence")
     for gate in scan_definition.GATES:
         assert scan_definition.ScanRefused(gate, "x").gate == gate
     with pytest.raises(ValueError, match="not one of this module's gates"):

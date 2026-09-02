@@ -100,7 +100,15 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ every one of them REACHES A SCREEN, not just a formula', () => {
+  it('⭐⭐ every one of them YIELDS A BOOLEAN, not just a formula', () => {
+    // ⚰️ THIS CASE WAS TITLED "REACHES A SCREEN" AND THAT WAS AN OVERCLAIM. Yielding
+    // a boolean is ONE of the gates a screen has to pass; `assert_scannable` on
+    // the server has five more, and `17-above-vwap` clears this one and is
+    // refused by another — `[gate:cadence]`, because `vwap` accumulates within a
+    // session and the sweep runs on daily bars. It answered 0 of 3,742 symbols
+    // every night before that gate existed. See `tests/test_scan_cadence_gate.py`.
+    // ⭐ THE CHECK BELOW IS UNCHANGED AND STILL WORTH MAKING; only the sentence
+    // about what it proves was too large.
     // ⛔⛔ TRANSLATING IS NOT THE PRODUCT CLAIM. A column that yields a NUMBER
     // cannot be screened honestly — `doorScorecard` records the defect it causes:
     // the `yields` gate is "the one that stops a numeric column being screened as

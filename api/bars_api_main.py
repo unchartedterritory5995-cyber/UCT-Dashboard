@@ -57,28 +57,58 @@ def _start_r2_sync() -> None:
     from api.services import data_sync
 
     def _boot_pull():
-        # Skip the boot pull when the local db already holds bars (preserve local
-        # writes) — mirrors main.py's `_skip_boot_pull`. FORCE_BOOT_R2_PULL=1 overrides.
+        # ⭐ On a FRESH pod the local bars.db must be INSTALLED from R2 (a fast,
+        # streamed, atomic full download), NOT merged row-by-row into an empty db.
+        # `merge_snapshot` only takes the fast full-install path when NO local
+        # bars.db exists (data_sync.py:979) — so if a prior init_db()/serve request
+        # left an EMPTY bars.db, the sync loads the whole ~688MB snapshot into RAM
+        # and inserts millions of rows one-by-one (the 5.4GB + never-populates bug).
+        # Fix: if the local db is missing or empty, remove it so the pull full-installs.
         try:
             import sqlite3
-            skip = False
             p = os.path.join(_DATA_DIR, "bars.db")
-            if os.path.exists(p) and os.environ.get("FORCE_BOOT_R2_PULL") != "1":
+            populated = False
+            if os.path.exists(p):
                 c = sqlite3.connect(p, timeout=5)
                 try:
+                    # ⭐ Count DISTINCT TICKERS, not bar rows. A real R2 install holds
+                    # thousands of tickers (~10k-26k); a db contaminated only by a few
+                    # on-demand cold-fetches holds <100 tickers but easily >1000 bar
+                    # ROWS — which a row-count threshold wrongly reads as "populated"
+                    # and skips the install. GROUP BY ticker rides the (ticker,...) index.
                     row = c.execute(
-                        "SELECT COUNT(*) FROM (SELECT 1 FROM ohlcv LIMIT 1000)"
+                        "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
                     ).fetchone()
-                    if row and int(row[0]) >= 1000:
-                        skip = True
+                    n_tickers = int(row[0]) if row else 0
+                    populated = n_tickers >= 2000
+                    _log.info("[bars-api] local bars.db has ~%d distinct tickers (populated=%s)",
+                              n_tickers, populated)
+                except Exception:
+                    populated = False   # no ohlcv table / unreadable → treat as empty
                 finally:
                     c.close()
-            if skip:
+            if populated and os.environ.get("FORCE_BOOT_R2_PULL") != "1":
                 _log.info("[bars-api] boot pull skipped — local bars.db already populated")
                 return
+            if os.path.exists(p) and not populated:
+                # Remove the empty db (+ WAL/SHM) so the pull does a FAST full install.
+                for _f in (p, p + "-wal", p + "-shm"):
+                    try:
+                        os.remove(_f)
+                    except FileNotFoundError:
+                        pass
+                    except Exception as _re:
+                        _log.warning("[bars-api] could not remove %s: %s", _f, _re)
+                _log.info("[bars-api] removed empty local bars.db → R2 will full-install")
             ts = (data_sync.sync_with_deltas() if data_sync.DELTA_ENABLED
                   else data_sync.sync_if_newer())
-            _log.info("[bars-api] boot snapshot pull done (%s)", ts)
+            _log.info("[bars-api] boot snapshot INSTALL done (%s)", ts)
+            # Ensure schema/indexes exist post-install (idempotent).
+            try:
+                from api.services import bars_sqlite
+                bars_sqlite.init_db()
+            except Exception as _ie:
+                _log.warning("[bars-api] post-install init_db failed (non-fatal): %s", _ie)
         except Exception as e:  # noqa: BLE001
             _log.warning("[bars-api] boot pull failed (non-fatal, cold cache): %s", e)
 
@@ -126,13 +156,10 @@ def _start_hotset_push() -> None:
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # Ensure the schema exists so serving works even before the first pull lands.
-    try:
-        from api.services import bars_sqlite
-        bars_sqlite.init_db()
-    except Exception as e:  # noqa: BLE001
-        _log.warning("[bars-api] init_db failed (non-fatal): %s", e)
-
+    # ⛔ Do NOT init_db() here. Creating an empty bars.db before the R2 pull forces
+    # the slow row-by-row MERGE path (loads the whole snapshot into RAM) instead of
+    # the fast streamed full-install. `_boot_pull` installs from R2 first, then runs
+    # init_db() to ensure the schema/indexes exist on the installed db.
     _start_r2_sync()
 
     try:
