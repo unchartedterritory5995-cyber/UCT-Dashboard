@@ -59,3 +59,12 @@ Advisor/analyst platform: fundamental and macro charting, screening, watchlists,
 
 ### B-BZ-01 — Benzinga Pro → slug `benzinga-pro`
 News/squawk terminal for active traders: news feed, audio squawk, movers, calendars, signals (unusual options), watchlist news, chat, pricing tiers; latency positioning; what active traders say they use it for.
+
+### B-UW-01 — Unusual Whales (DEEP; added by B-VAL-01, DL-017) → slug `unusual-whales`
+Options-native retail/prosumer terminal: options flow (sweeps, blocks, unusual volume), dark pool prints, GEX/gamma exposure, open-interest and expected-move tools, screeners, alerts, news, congressional/insider trades, Discord community, API; pricing tiers with dates; the free-vs-paid boundary; how it presents flow to a non-professional. This is the closest public analog to UCT's own options-flow, dark-pool, and GEX surfaces: pay special attention to Section D (capability map), G (customization), and M/N (transferable vs avoid).
+
+### B-SG-01 — SpotGamma (STANDARD; added by B-VAL-01, DL-017) → slug `spotgamma`
+Dealer-positioning and gamma analytics service: HIRO real-time flow, TRACE, key levels, daily notes, Discord, pricing tiers; how it turns positioning into a daily workflow (Part XIV Workflow G); what it publishes vs what it lets users compute. Compare to UCT's dealer-positioning and GEX rails only via public evidence (do not read internal files).
+
+### B-ADJ-01 — Adjacent light note: TIKR + YCharts + S&P Capital IQ Pro (LIGHT; merged per DL-017) → slug `adjacent-notes` (file `dossier.md` with one section per product)
+Light coverage: sections A, D, L, M, N, P only per product (six sections each), maximum two pages per product. Purpose: keep the coverage map complete for prosumer fundamentals (TIKR), advisor charting (YCharts), and enterprise research (CIQ Pro) without duplicating Koyfin/Fiscal.ai/FactSet depth. Cite the redundancy rationale in `benchmark-universe.md`.

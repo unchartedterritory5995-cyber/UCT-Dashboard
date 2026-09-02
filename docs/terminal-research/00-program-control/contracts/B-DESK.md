@@ -16,3 +16,6 @@ Not the dossier (another role writes it). Reconstruct the desk's charting loop: 
 
 ## B-DESK-03 — Finviz (Elite) → `finviz.md`
 Screener presets and the market-cap floor, maps, news, insider data, charts (static PNG use inside UCT), export, Elite real-time and backtests; which scans the pipelines run (D-14) vs what a trader runs by hand; whether the screener engine inside UCT already covers it.
+
+## B-DESK-04 — Market Chameleon (fourth slot; B-VAL-01 recommendation, PROVISIONAL pending OI-19 on structures vs single-legs) → `market-chameleon.md`
+Options analytics site: expected move, implied-move history, earnings option strategies, unusual volume, screeners, option-strategy backtests; which of its calculations the desk performs by hand or via UCT's own implied-move rails (D-13 cites the implied capture and expected move code; do not read code); what a small desk would open it for during an earnings week; pricing tiers with dates. If OI-19 answers "structures", the orchestrator may swap this slot to OptionStrat.

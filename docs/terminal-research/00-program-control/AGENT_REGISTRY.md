@@ -217,7 +217,9 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | E-02 | 1b | done | 08:00 / 10:41 | 10:55 (46 calls, 413k on the re-run) | ACCEPT: the first attempt had in fact written the full artifact before the 429; the re-run re-verified every inherited claim at source and made three corrections in place. Master table of provider x data class x seven uses, with Individual-vs-Business Massive scenario columns. Disclosure: one read-only git status ran in a compound check (nothing mutated). | `09-security-licensing-cost/data-use-classification.md`; feeds F-04 |
 | F-03a | 2 | KILLED by usage limit 08:05; RE-DISPATCHED 10:41 (Fable) | 2026-09-02 08:00 / 10:41 | — | — | `contracts/F-03a.md`; DL-014 |
 | F-03b | 2 | KILLED by usage limit 08:05; RE-DISPATCHED 10:41 (Fable) | 2026-09-02 08:00 / 10:41 | — | — | `contracts/F-03b.md`; DL-014 |
-| B-VAL-01, B-BBG-01..06 | 1b | dispatched (batch A, Opus) | 2026-09-02 10:50 | — | — | `contracts/B-VAL-01.md`, `contracts/B-BBG.md` |
+| B-VAL-01 | 1b | done | 10:50 | 11:15 (68 calls, 244k) | ACCEPT: universe validated with 71 cited URLs; zero options-native products in the candidate list; three name corrections (Fiscal.ai, Eikon sunset, Fey closed); two naming traps logged | `03-competitive-research/benchmark-universe.md`; → DL-017, OI-18, OI-19 |
+| B-BBG-01..06 | 1b | running (batch A, Opus) | 2026-09-02 10:50 | — | — | `contracts/B-BBG.md` |
 | B-BBG-07 | 1b | dispatched (top-up, Opus) | 2026-09-02 10:58 | — | — | `contracts/B-BBG.md` §B-BBG-07 |
-| B-BBG-08, B-GDL-01, B-LSEG-01, B-FDS-01, B-CIQ-01, B-KOY-01, B-TV-01, B-AS-01, B-FC-01 | 1b | queued (batch B) | — | — | — | top-up on completion |
-| B-TIKR-01, B-QTR-01, B-YC-01, B-BZ-01, B-DESK-01..03, C4-01, C5-01, C7-01 | 1b | queued (batch C) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| B-BBG-08 | 1b | dispatched (top-up, Opus) | 2026-09-02 11:20 | — | — | `contracts/B-BBG.md` §B-BBG-08 |
+| B-GDL-01, B-UW-01, B-TV-01, B-KOY-01, B-BZ-01, B-AS-01, B-FC-01 (Fiscal.ai), B-QTR-01 | 1b | queued (batch B, revised per DL-017) | — | — | — | top-up on completion |
+| B-FDS-01, B-LSEG-01, B-SG-01, B-ADJ-01 (TIKR+YCharts+CIQ light), B-DESK-01..04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
