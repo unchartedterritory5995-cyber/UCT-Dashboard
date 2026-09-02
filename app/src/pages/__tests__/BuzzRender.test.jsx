@@ -50,7 +50,49 @@ describe('BuzzRender', () => {
     // halves are asserted so a regression that drops the header (leaving a
     // naked "14" nobody can read) still fails.
     expect(screen.getByText('14')).toBeInTheDocument()
-    expect(screen.getByText('PEOPLE')).toBeInTheDocument()
+    // 'PPL', not 'PEOPLE': the v8 two-column pass shortened every header to
+    // fit a ~46%-width column. The rail is that SOME header still names the
+    // figure -- a naked '14' is unreadable either way.
+    expect(screen.getByText('PPL')).toBeInTheDocument()
+  })
+
+  it('splits the head rows into two columns whose ranks read DOWN, not across', async () => {
+    // ⛔ THE COLUMNS ARE A HEIGHT FIX, AND THE RANKING MUST SURVIVE IT.
+    // Discord scales a PORTRAIT attachment by HEIGHT into a landscape box, so
+    // the 1338px board rendered ~262px wide and the bottom rows were
+    // unreadable -- the owner's actual complaint. Two columns halve the height
+    // at the same width. But a split that numbers ACROSS (01 02 / 03 04) makes
+    // the highest-mention ticker sit beside the second instead of above it,
+    // and the board stops reading as a ranking at all.
+    //
+    // Five rows on purpose: an ODD count is where a balanced split can put the
+    // extra row on the wrong side and silently renumber everything after it.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        window: 'open', label: 'since the open',
+        rows: [
+          { ticker: 'AAA', people: 9, mentions: 50, spark: [1], hot: null },
+          { ticker: 'BBB', people: 8, mentions: 40, spark: [1], hot: null },
+          { ticker: 'CCC', people: 7, mentions: 30, spark: [1], hot: null },
+          { ticker: 'DDD', people: 6, mentions: 20, spark: [1], hot: null },
+          { ticker: 'EEE', people: 5, mentions: 10, spark: [1], hot: null },
+        ],
+        coverage: 'counted through 3:58p', asOf: 1,
+      }),
+    })))
+    const { container } = render(<BuzzRender />)
+    await screen.findByText('EEE')
+    // Rank labels in DOM order must be 01..05 -- the left column's three rows
+    // first, then the right column's two. Reading across would give 01 04 02
+    // 05 03 here, so this ordering is what distinguishes the two designs.
+    const ranks = [...container.querySelectorAll('[data-buzz-row]')]
+      .map((el) => el.firstElementChild.textContent)
+    expect(ranks).toEqual(['01', '02', '03', '04', '05'])
+    // ...and the ticker beside each rank is the one the payload ranked there.
+    const syms = [...container.querySelectorAll('[data-buzz-row]')]
+      .map((el) => el.children[1].textContent)
+    expect(syms).toEqual(['AAA', 'BBB', 'CCC', 'DDD', 'EEE'])
   })
 
   it('shows the heat marker on a row the heat board flagged', async () => {

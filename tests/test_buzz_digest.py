@@ -326,3 +326,156 @@ def test_a_channel_without_a_bot_token_fails_loudly_instead_of_posting(mods, mon
     assert out["posted"] is False
     assert "DISCORD_BOT_TOKEN" in caplog.text
     assert digest.already_posted("2026-09-01 14:00") is False, "a failed post must not consume the slot"
+
+
+# ── Catch-up for a checkpoint the scheduler never fired.
+#
+# APScheduler's jobs live in an in-memory store here, so a pod restarting
+# across 16:15 does not MISS that fire -- it never creates it. misfire_grace_time
+# is blind to a job that was never scheduled, and the slot disappears without a
+# log line. That is the same "silence reads as not-yet" trap that let a
+# truncated backfill pass for a finished one on this branch.
+
+def _at(h, m, day=1):
+    return int(dt.datetime(2026, 9, day, h, m, tzinfo=ET).timestamp())
+
+
+def test_a_slot_the_scheduler_never_fired_is_posted_within_the_window(mods, monkeypatch):
+    store, _, digest = mods
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    posts = []
+    out = digest.catch_up(now=_at(16, 25),          # 10m after the 16:15 slot
+                          render_fn=lambda w: None,
+                          post_fn=lambda **kw: posts.append(kw) or True)
+    assert out["posted"] is True
+    assert out["slot"] == "16:15", "it must post under the SLOT's label, not the clock's"
+    assert len(posts) == 1
+
+
+def test_a_caught_up_slot_is_not_posted_a_second_time(mods, monkeypatch):
+    store, _, digest = mods
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    posts = []
+    kw = dict(render_fn=lambda w: None, post_fn=lambda **k: posts.append(k) or True)
+    assert digest.catch_up(now=_at(16, 20), **kw)["posted"] is True
+    assert digest.catch_up(now=_at(16, 21), **kw)["posted"] is False
+    assert digest.catch_up(now=_at(16, 22), **kw)["posted"] is False
+    assert len(posts) == 1
+
+
+def test_a_slot_missed_by_an_hour_is_recorded_and_warned_not_posted(mods, monkeypatch, caplog):
+    """⛔ 20 minutes is an HONESTY limit, not a retry budget. The board is
+    captioned "since the open" and stamped with its own coverage time, so a
+    modestly late post is still true; an hour-late one is a different board
+    wearing an old slot's label. The slot must cost a log line, never a lie."""
+    _, _, digest = mods
+    import logging
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    posts = []
+    with caplog.at_level(logging.WARNING):
+        out = digest.catch_up(now=_at(17, 25),      # 70m after 16:15
+                              render_fn=lambda w: None,
+                              post_fn=lambda **k: posts.append(k) or True)
+    assert out["posted"] is False
+    assert posts == []
+    assert "16:15" in caplog.text and "MISSED" in caplog.text
+    assert "2026-09-01 16:15" in digest.missed_keys()
+
+
+def test_a_slot_written_off_is_not_re_warned_every_minute(mods, monkeypatch, caplog):
+    """CONTROL on the warning: one that fires 60 times an hour is one nobody
+    reads, and it would bury the checkpoint that actually needs attention."""
+    _, _, digest = mods
+    import logging
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    digest.catch_up(now=_at(17, 25), render_fn=lambda w: None, post_fn=lambda **k: True)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        digest.catch_up(now=_at(17, 26), render_fn=lambda w: None, post_fn=lambda **k: True)
+    assert "MISSED" not in caplog.text
+
+
+def test_nothing_is_caught_up_before_the_first_slot(mods, monkeypatch):
+    """CONTROL. Without it, a catch-up that posted unconditionally would pass
+    every test above."""
+    store, _, digest = mods
+    _seed(store, hour=9, minute=35)   # a board IS available; only the clock says no
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    posts = []
+    out = digest.catch_up(now=_at(9, 45), render_fn=lambda w: None,
+                          post_fn=lambda **k: posts.append(k) or True)
+    assert out["posted"] is False and posts == []
+
+
+def test_the_weekend_is_never_caught_up(mods, monkeypatch):
+    """The cron is mon-fri, so a Saturday catch-up would post a board no
+    schedule would ever have produced. 2026-09-05 is a Saturday."""
+    store, _, digest = mods
+    _seed(store, day=5, hour=9, minute=45)  # a full board; only the DAY says no
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    sat = int(dt.datetime(2026, 9, 5, 16, 25, tzinfo=ET).timestamp())
+    assert dt.datetime.fromtimestamp(sat, ET).weekday() == 5, "fixture must be a Saturday"
+    posts = []
+    out = digest.catch_up(now=sat, render_fn=lambda w: None,
+                          post_fn=lambda **k: posts.append(k) or True)
+    assert out["posted"] is False and posts == []
+
+
+def test_a_disarmed_digest_catches_nothing_up_and_stays_quiet(mods, monkeypatch, caplog):
+    """Not posting is the easy half -- run_digest refuses a disarmed post on its
+    own. The half that needs its own guard is SILENCE: without the check in
+    catch_up, a feature nobody turned on would still walk the day's slots,
+    write them off as MISSED and warn about each one. A disarmed feature must
+    leave no state and no log behind."""
+    import logging
+    store, _, digest = mods
+    _seed(store)                     # a board IS available; only the flag says no
+    monkeypatch.delenv("BUZZ_DIGEST_ENABLED", raising=False)
+    posts = []
+    with caplog.at_level(logging.WARNING):
+        out = digest.catch_up(now=_at(17, 25), render_fn=lambda w: None,
+                              post_fn=lambda **k: posts.append(k) or True)
+    assert out["posted"] is False and posts == []
+    assert "MISSED" not in caplog.text
+    assert digest.missed_keys() == set(), "a disarmed digest must not write state"
+
+
+def test_the_state_writer_merges_rather_than_replacing(mods, monkeypatch):
+    """⛔ It used to write {"posted": [...]} wholesale. The day a second key was
+    added, the first write of the day would have deleted it silently -- a
+    projection dropping what it does not name. Both keys must survive each
+    other's writes."""
+    _, _, digest = mods
+    digest.mark_missed("2026-09-01 10:00")
+    digest.mark_posted("2026-09-01 10:30")
+    assert digest.missed_keys() == {"2026-09-01 10:00"}
+    assert "2026-09-01 10:30" in digest.posted_keys()
+
+
+def test_catch_up_is_actually_called_by_the_poll_job():
+    """⛔ THE WIRE, NOT THE FUNCTION. This repo's signature defect is a correct
+    routine that no scheduler ever calls -- the Desk insights pass sat
+    "written, documented as scheduled, wired into no scheduler" for weeks, and
+    the buzz catch-up is worth exactly nothing if `_buzz_poll` does not run it.
+    Derived by AST from api/main.py rather than grepped, so a renamed call or a
+    commented-out line cannot pass."""
+    import ast
+    import pathlib as _p
+    tree = ast.parse(_p.Path("api/main.py").read_text(encoding="utf-8"))
+    poll = next((n for n in ast.walk(tree)
+                 if isinstance(n, ast.FunctionDef) and n.name == "_buzz_poll"), None)
+    assert poll is not None, "api/main.py no longer defines _buzz_poll"
+    called = {n.func.attr for n in ast.walk(poll)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    assert "catch_up" in called, "_buzz_poll does not call catch_up -- a missed slot is silent again"
+    # NON-VACUITY: the probe can see a sibling it is not looking for, so a
+    # walker that returned everything (or nothing) cannot pass by accident.
+    assert "poll_once" in called
