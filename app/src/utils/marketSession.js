@@ -55,6 +55,88 @@ export function isDailyTailStale(isoTail) {
   return isoTail.slice(0, 10) < expectedLatestDailySessionET()
 }
 
+/**
+ * The ET date a fresh daily series should end at FOR THE PURPOSE OF THE INSTANT
+ * PROVISIONAL PAINT — which, unlike expectedLatestDailySessionET, is anchored on
+ * market OPEN, not close, during RTH.
+ *
+ * Since /api/bars now server-includes TODAY's developing daily bar (see
+ * api/routers/bars.py::_augment_daily_with_today), the authoritative series ends
+ * at TODAY the moment the session opens. So a cache/pack whose tail is only the
+ * last CLOSED session (yesterday) is now stale-by-one-bar during RTH: painting it
+ * provisionally frames yesterday, then the today-inclusive network response adds a
+ * bar and re-anchors → the visible "current candle loads one bar right, then pops
+ * left" shift. Treating that closed-only tail as stale makes the client skip the
+ * provisional and paint the today-inclusive network response directly (no shift).
+ *
+ * OUTSIDE RTH this deliberately agrees with expectedLatestDailySessionET (the
+ * close-anchored session model), because that is exactly when the server does NOT
+ * carry today either: pre-open / overnight / weekend → day.o is 0 so the server
+ * returns the last closed session, and a closed-only cache is genuinely fresh;
+ * post-market (>=16:00) → both already return today. So this differs ONLY inside
+ * 09:30–16:00 ET, the one window where the server adds today's forming bar and a
+ * yesterday tail would shift.
+ *
+ * This is the PAINT gate only — expectedLatestDailySessionET (and isDailyTailStale)
+ * stay close-anchored for the prefetch warmer + intraday session model, which must
+ * not start re-warming every daily mid-session.
+ */
+export function expectedDailyTailForPaintET() {
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const dow = nowET.getDay()
+  const mins = nowET.getHours() * 60 + nowET.getMinutes()
+  // RTH (weekday 09:30–16:00 ET): the server carries today's developing bar, so the
+  // expected paint tail is TODAY.
+  if (dow >= 1 && dow <= 5 && mins >= 570 && mins < 960) {
+    const p = (n) => String(n).padStart(2, '0')
+    return `${nowET.getFullYear()}-${p(nowET.getMonth() + 1)}-${p(nowET.getDate())}`
+  }
+  return expectedLatestDailySessionET()
+}
+
+/**
+ * True when a DAILY series' newest-bar date is older than what a fresh series
+ * should carry FOR PAINTING — i.e. it's missing today during RTH (server includes
+ * today now) or missing an earlier closed session. Use this for the instant-paint
+ * decision; use isDailyTailStale for the warmer/session model.
+ */
+export function isDailyTailStaleForPaint(isoTail) {
+  if (typeof isoTail !== 'string' || !isoTail) return false
+  return isoTail.slice(0, 10) < expectedDailyTailForPaintET()
+}
+
+/**
+ * True when a TODAY-dated daily cache's CLOSE should be treated as provisional for
+ * the instant paint — i.e. the session has CLOSED for the day but the cache may hold
+ * a MID-SESSION close (it was written while the bar was still developing during RTH),
+ * so the sealed close from /api/bars should paint first.
+ *
+ * Once the market closes, today's daily bar is SEALED at the regular close (the
+ * server serves it as day.c). A cache tail dated today reads as "fresh" to the date
+ * gate above (it is not missing a session) — but its cached CLOSE can still be a
+ * mid-session snapshot from when the ticker was viewed earlier in the day, which then
+ * visibly snaps to the real close when the network response lands ("loads a different
+ * price, then the body adjusts to the actual close"). Deferring the paint to the
+ * network for such a tail shows the sealed close on the first frame instead. It is a
+ * paint-timing gate only (the SWR fetch happens regardless), so it adds no request.
+ *
+ * Scoped to a weekday AT/AFTER close, same ET day as the tail (16:00 → midnight ET) —
+ * the "after hours" window. Overnight/next-session a today-dated tail is a DIFFERENT
+ * ET day than the cache, so it never matches; the date gate + expected session handle
+ * those. During RTH this is intentionally false: the developing bar's close SHOULD
+ * evolve with the live feed, so a same-session cache is legitimately live.
+ */
+export function isDailyTodayCloseProvisionalForPaint(isoTail) {
+  if (typeof isoTail !== 'string' || !isoTail) return false
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const dow = nowET.getDay()
+  const mins = nowET.getHours() * 60 + nowET.getMinutes()
+  if (!(dow >= 1 && dow <= 5 && mins >= 960)) return false   // only at/after today's close
+  const p = (n) => String(n).padStart(2, '0')
+  const todayET = `${nowET.getFullYear()}-${p(nowET.getMonth() + 1)}-${p(nowET.getDate())}`
+  return isoTail.slice(0, 10) === todayET
+}
+
 // ET calendar date ('YYYY-MM-DD') of a unix-SECONDS timestamp (intraday bars carry
 // `t` as unix seconds). Used to compare an intraday tail's SESSION against the last
 // closed daily session — the session model both daily and intraday freshness share.

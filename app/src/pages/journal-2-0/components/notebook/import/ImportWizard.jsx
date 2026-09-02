@@ -7,6 +7,7 @@
 // mammoth/tiptap's `generateJSON`, which would otherwise ride along in the
 // Notebook tab's main chunk for every user who never imports anything.
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
@@ -118,6 +119,26 @@ function pluralize(n, word) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
+// A member migrating a decade of Evernote/Notion arrives with thousands of
+// notes (measured: 5,000 unvirtualized rows stalled every checkbox click for
+// several seconds and froze the tab mid-render — Task 3,
+// docs/superpowers/plans/2026-09-02-closing-the-transfer-gap.md). The notes
+// list below is virtualized specifically for that reason: only the rows
+// scrolled into view are ever mounted, so the DOM node count — and the cost
+// of every single checkbox toggle — stays flat regardless of import size.
+// Fixed row heights (not `measureElement`) match the existing virtualized
+// idiom in `pages/screener/shell/VirtualResults.jsx`; titles are truncated
+// to one line (`.noteTitle`) so a real height never disagrees with these.
+// ⛔ Touch tier is <=1024px, NOT <=640px (see CLAUDE.md) — the CSS module's
+// own `@media (max-width: 1024px)` block floors `.noteRow`/`.groupBulkBtn` to
+// the 44px tap target, so the estimate must switch with `useIsTouch()` or a
+// touch viewport's REAL rows (44px) disagree with the virtualizer's assumed
+// height and start overlapping.
+const NOTE_ROW_H = 28
+const NOTE_ROW_H_TOUCH = 44
+const NOTE_HEADER_H = 34
+const NOTE_HEADER_H_TOUCH = 44
+
 // ---------------------------------------------------------------------------
 // error boundary — a conversion crash must not take down the Notebook tab
 // ---------------------------------------------------------------------------
@@ -174,6 +195,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const [docStatus, setDocStatus] = useState({})
   const [warnings, setWarnings] = useState([])
   const [excludedFolders, setExcludedFolders] = useState(() => new Set())
+  // Per-note exclusion — the finer-grained sibling of excludedFolders. Keyed
+  // by importKey (stable across a re-scan of the same source), holding the
+  // notes the member unchecked INSIDE a folder that is otherwise kept. Both
+  // sets are separate axes that meet in ONE place (`visibleDocs` below) —
+  // there is no second "what to send" payload anywhere downstream of it.
+  const [excludedNotes, setExcludedNotes] = useState(() => new Set())
   const [destChoice, setDestChoice] = useState('__new__')
 
   const [progress, setProgress] = useState(null)
@@ -181,6 +208,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
   const fileInputRef = useRef(null)
   const dirInputRef = useRef(null)
+  const notesListRef = useRef(null)
 
   // Cancel token for the async scan/confirm pipelines. Sheet's Escape handler
   // (and the backdrop, when enabled) call onClose unconditionally — if that
@@ -204,6 +232,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setDocStatus({})
     setWarnings([])
     setExcludedFolders(new Set())
+    setExcludedNotes(new Set())
     setDestChoice('__new__')
     setProgress(null)
     setSummaryResult(null)
@@ -280,6 +309,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setWarnings([...expandWarnings, ...parseWarnings])
       setSourceLabel(adapter.label)
       setExcludedFolders(new Set())
+      setExcludedNotes(new Set())
       setStep('preview')
     } catch (err) {
       if (cancelled()) return
@@ -334,9 +364,21 @@ export default function ImportWizard({ open, onClose, onImported }) {
     return [...set].sort()
   }, [docs])
 
-  const visibleDocs = useMemo(
+  // Folder exclusion first (whole-folder axis) — this is what the "Skip
+  // folders" checkboxes drive.
+  const folderFilteredDocs = useMemo(
     () => docs.filter((d) => !(d.folderPath?.length && excludedFolders.has(d.folderPath[0]))),
     [docs, excludedFolders]
+  )
+
+  // The set that actually gets imported: folder exclusion AND per-note
+  // exclusion compose HERE, and only here. previewCounts/mediaCount/
+  // folderCount and the confirm payload (`handleConfirm` below) all read
+  // this same value, so there is exactly one definition of "what's
+  // excluded" for the whole preview step — never a second list to drift.
+  const visibleDocs = useMemo(
+    () => folderFilteredDocs.filter((d) => !excludedNotes.has(d.importKey)),
+    [folderFilteredDocs, excludedNotes]
   )
 
   const previewCounts = useMemo(() => {
@@ -382,6 +424,94 @@ export default function ImportWizard({ open, onClose, onImported }) {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
+      return next
+    })
+  }
+
+  // Notes grouped for the per-note picker, built from `folderFilteredDocs`
+  // (NOT `docs`) — a note inside an already-excluded folder never shows up
+  // here at all, so there is only ever one control that can exclude it.
+  const noteGroups = useMemo(() => {
+    const map = new Map()
+    for (const d of folderFilteredDocs) {
+      const key = d.folderPath?.length ? d.folderPath.join('/') : '__unfiled__'
+      const label = d.folderPath?.length ? d.folderPath.join(' / ') : 'Unfiled'
+      if (!map.has(key)) map.set(key, { key, label, docs: [] })
+      map.get(key).docs.push(d)
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
+  }, [folderFilteredDocs])
+
+  // The virtualizer needs one flat, index-addressable array — group headers
+  // and note rows interleaved in display order — rather than the nested
+  // noteGroups shape above, which is what a non-virtualized `.map().map()`
+  // wants instead. Same data, two views; noteGroups stays because the bulk
+  // "All"/"None" handlers close over `group.docs`.
+  const flatNoteItems = useMemo(() => {
+    const out = []
+    for (const group of noteGroups) {
+      out.push({ type: 'header', key: `h:${group.key}`, group })
+      for (const d of group.docs) out.push({ type: 'note', key: d.importKey, doc: d, group })
+    }
+    return out
+  }, [noteGroups])
+
+  const noteRowH = isTouch ? NOTE_ROW_H_TOUCH : NOTE_ROW_H
+  const noteHeaderH = isTouch ? NOTE_HEADER_H_TOUCH : NOTE_HEADER_H
+  const rowVirtualizer = useVirtualizer({
+    count: flatNoteItems.length,
+    getScrollElement: () => notesListRef.current,
+    estimateSize: (i) => (flatNoteItems[i]?.type === 'header' ? noteHeaderH : noteRowH),
+    overscan: 12,
+    // @tanstack/virtual-core's DEFAULT observeElementRect reads
+    // offsetWidth/offsetHeight once, synchronously, then relies on
+    // ResizeObserver for anything after — and jsdom both reports 0 for those
+    // (no real layout engine) AND this repo's global test-setup stubs
+    // ResizeObserver as a permanent no-op, so the default locks onto a 0×0
+    // viewport forever and getVirtualItems() comes back empty: every note
+    // row silently vanishes under vitest even though the data is there. A
+    // real browser always measures `.notesList`'s genuine size (CSS caps it
+    // at 280px) well before this matters, so falling back to an assumed
+    // size only ever engages where there is truly nothing real to measure.
+    observeElementRect: (instance, cb) => {
+      const element = instance.scrollElement
+      if (!element) return undefined
+      const read = () => {
+        const rect = element.getBoundingClientRect()
+        cb({ width: rect.width || 400, height: rect.height || 4000 })
+      }
+      read()
+      const RO = instance.targetWindow?.ResizeObserver
+      if (!RO) return () => {}
+      const observer = new RO(() => read())
+      observer.observe(element)
+      return () => observer.unobserve(element)
+    },
+  })
+
+  const toggleExcludeNote = (importKey) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      if (next.has(importKey)) next.delete(importKey)
+      else next.add(importKey)
+      return next
+    })
+  }
+
+  const selectAllNotes = () => setExcludedNotes(new Set())
+  const selectNoNotes = () => setExcludedNotes(new Set(folderFilteredDocs.map((d) => d.importKey)))
+
+  const selectAllInGroup = (groupDocs) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      for (const d of groupDocs) next.delete(d.importKey)
+      return next
+    })
+  }
+  const selectNoneInGroup = (groupDocs) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      for (const d of groupDocs) next.add(d.importKey)
       return next
     })
   }
@@ -623,6 +753,74 @@ export default function ImportWizard({ open, onClose, onImported }) {
                       {name}
                     </label>
                   ))}
+                </div>
+              )}
+
+              {folderFilteredDocs.length > 0 && (
+                <div className={styles.notesWrap}>
+                  <div className={styles.notesHeader}>
+                    <span className={styles.fieldLabel}>
+                      Notes to import ({visibleDocs.length} of {folderFilteredDocs.length} selected)
+                    </span>
+                    <div className={styles.notesBulkRow}>
+                      <button type="button" className={styles.bulkBtn} onClick={selectAllNotes}>
+                        <UIcon name="check" size={13} gold={false} />
+                        Select all
+                      </button>
+                      <button type="button" className={styles.bulkBtn} onClick={selectNoNotes}>
+                        <UIcon name="x" size={13} gold={false} />
+                        Select none
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles.notesList} ref={notesListRef}>
+                    <div style={{ position: 'relative', height: rowVirtualizer.getTotalSize(), width: '100%' }}>
+                      {rowVirtualizer.getVirtualItems().map((vi) => {
+                        const item = flatNoteItems[vi.index]
+                        if (!item) return null
+                        const rowStyle = {
+                          position: 'absolute',
+                          top: vi.start,
+                          left: 0,
+                          right: 0,
+                          height: vi.size,
+                        }
+                        if (item.type === 'header') {
+                          const group = item.group
+                          return (
+                            <div key={item.key} style={rowStyle} className={styles.notesGroupHeader}>
+                              <span className={styles.notesGroupLabel}>{group.label}</span>
+                              <button
+                                type="button"
+                                className={styles.groupBulkBtn}
+                                onClick={() => selectAllInGroup(group.docs)}
+                              >
+                                All
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.groupBulkBtn}
+                                onClick={() => selectNoneInGroup(group.docs)}
+                              >
+                                None
+                              </button>
+                            </div>
+                          )
+                        }
+                        const d = item.doc
+                        return (
+                          <label key={item.key} style={rowStyle} className={styles.noteRow}>
+                            <input
+                              type="checkbox"
+                              checked={!excludedNotes.has(d.importKey)}
+                              onChange={() => toggleExcludeNote(d.importKey)}
+                            />
+                            <span className={styles.noteTitle}>{d.title || 'Untitled'}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
 

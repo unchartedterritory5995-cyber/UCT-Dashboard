@@ -369,3 +369,121 @@ describe('ImportWizard — export guide surfaced on the drop step (Task 1)', () 
     expect(await screen.findByRole('button', { name: /notion/i })).toBeInTheDocument()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Task 2 — per-note selection on the preview step, composing with the
+// existing folder exclusion rather than fighting it.
+// ---------------------------------------------------------------------------
+describe('ImportWizard — per-note selection on the preview step (Task 2)', () => {
+  // The confirm mock ECHOES exactly what it was sent (rather than a fixed
+  // fixture) — this is what makes the summary-count test (below) actually
+  // able to fail: if the implementation silently sent every note regardless
+  // of what's checked, the echoed counts would say so.
+  function mockEchoConfirm() {
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (String(url).endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (String(url).endsWith('/import/confirm')) {
+        const body = JSON.parse(opts.body)
+        return new Response(JSON.stringify({
+          created: body.notes.map((n) => ({ importKey: n.importKey, id: `id-${n.importKey}` })),
+          updated: [],
+          skipped: [],
+        }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+  }
+
+  beforeEach(() => {
+    mockEchoConfirm()
+  })
+
+  it('imports only the notes the member left checked', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [
+      makeFile('a.md', 'a.md', '# Alpha'),
+      makeFile('b.md', 'b.md', '# Bravo'),
+      makeFile('c.md', 'c.md', '# Charlie'),
+    ]
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files } })
+
+    await waitFor(() => expect(screen.getByText(/3 notes/i)).toBeInTheDocument())
+
+    // Uncheck the middle note — everything else stays checked by default.
+    const bravoCheckbox = screen.getByRole('checkbox', { name: /Bravo/i })
+    expect(bravoCheckbox.checked).toBe(true)
+    fireEvent.click(bravoCheckbox)
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+    // Assertion OUTSIDE any mock callback — on the RECORDED call, not on
+    // anything the mock's own response body computed.
+    const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(call[1].body)
+    expect(body.notes.map((n) => n.importKey)).toEqual(['file:a.md', 'file:c.md'])
+  })
+
+  it('a folder excluded and a note excluded inside a kept folder both hold', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [
+      makeFile('root.md', 'root.md', '# Root'),
+      makeFile('inner1.md', 'Sub/inner1.md', '# Inner1'),
+      makeFile('inner2.md', 'Sub/inner2.md', '# Inner2'),
+      makeFile('keep1.md', 'Keep/keep1.md', '# Keep1'),
+      makeFile('keep2.md', 'Keep/keep2.md', '# Keep2'),
+    ]
+    const input = screen.getByTestId('import-dir-input')
+    fireEvent.change(input, { target: { files } })
+
+    await waitFor(() => expect(screen.getByText(/5 notes/i)).toBeInTheDocument())
+
+    // Exclude the whole "Sub" folder via the existing folder mechanism.
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Sub$/i }))
+    // Exclude ONE note inside the "Keep" folder, which stays otherwise kept.
+    fireEvent.click(screen.getByRole('checkbox', { name: /Keep2/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+    const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(call[1].body)
+    // Root survives (untouched), both Sub notes are gone (whole-folder
+    // exclusion), Keep1 survives (folder kept), Keep2 is gone (per-note
+    // exclusion inside a KEPT folder) — both mechanisms held at once.
+    expect(body.notes.map((n) => n.importKey).sort()).toEqual(
+      ['file:Keep/keep1.md', 'file:root.md'].sort()
+    )
+  })
+
+  it('the summary counts match what was actually imported', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [
+      makeFile('a.md', 'a.md', '# Alpha'),
+      makeFile('b.md', 'b.md', '# Bravo'),
+      makeFile('c.md', 'c.md', '# Charlie'),
+    ]
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files } })
+
+    await waitFor(() => expect(screen.getByText(/3 notes/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Bravo/i }))
+    // The "will create" line updates immediately too — the preview never
+    // shows a count larger than what will actually be sent.
+    await waitFor(() => expect(screen.getByText(/create 2/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+
+    await waitFor(() => expect(screen.getByText(/Imported 2 notes\./i)).toBeInTheDocument())
+    expect(screen.getByText(/Created: 2/i)).toBeInTheDocument()
+  })
+})

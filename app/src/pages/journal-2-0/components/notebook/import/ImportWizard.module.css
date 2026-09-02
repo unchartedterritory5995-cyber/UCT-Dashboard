@@ -177,6 +177,101 @@
   font-size: 13px;
   color: var(--text-bright, #e0dac8);
 }
+.notesWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notesBulkRow {
+  display: flex;
+  gap: 8px;
+}
+.bulkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border, #2e3127);
+  color: var(--text-bright, #e0dac8);
+  border-radius: var(--radius-md, 6px);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bulkBtn:hover { background: var(--bg-hover, #2a2d24); }
+/* Fixed max-height + overflow-y: auto make this the virtualizer's scroll
+   element (`getScrollElement`, ImportWizard.jsx) — position: relative so its
+   absolutely-positioned rows (each a virtual item) anchor here rather than
+   the Sheet's own scrolling `.body`. Rows are NOT flex/gap children of this
+   element any more (a decade-of-Evernote import can carry thousands of
+   them — every row used to mount unconditionally, which stalled every
+   checkbox click for seconds; see Task 3 of
+   2026-09-02-closing-the-transfer-gap.md) — only the ones scrolled into view
+   ever exist in the DOM.
+*/
+.notesList {
+  position: relative;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: var(--radius-md, 6px);
+  padding: 10px;
+}
+.notesGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted, #8c8674);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border, #2e3127);
+}
+.notesGroupLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.groupBulkBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-bright, #e0dac8);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.groupBulkBtn:hover { color: #dcbb5e; }
+.noteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-bright, #e0dac8);
+  padding: 2px 0;
+}
+/* Single line, always — a wrapped title would make this row's real height
+   disagree with the virtualizer's fixed NOTE_ROW_H estimate (ImportWizard.jsx)
+   and rows would start overlapping. */
+.noteTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .warningsList {
   margin: 0;
   padding-left: 18px;
@@ -249,4 +344,21 @@
   .dropButtons .secondaryBtn { width: 100%; justify-content: center; }
   .previewActions { flex-direction: column-reverse; align-items: stretch; }
   .summaryStats { flex-direction: column; gap: 6px; }
+}
+
+/* This product's touch tier is <=1024px, NOT <=640px — a floor restored only
+   at 640 leaves tablet broken (a defect this repo has hit repeatedly). */
+@media (max-width: 1024px) {
+  .bulkBtn, .groupBulkBtn {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  .noteRow {
+    min-height: 44px;
+  }
+  .noteRow input[type='checkbox'],
+  .excludeRow input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
 }
