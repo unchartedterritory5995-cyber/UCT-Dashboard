@@ -452,8 +452,12 @@ def test_the_gates_are_a_CLOSED_set_and_an_unknown_one_cannot_be_raised():
     # Measured before it existed — the corpus fixture `17-above-vwap` passed
     # every gate here and then answered 0 of 3,742 symbols, for ~22s, every
     # night. See `tests/test_scan_cadence_gate.py`.
+    # ⚠️ `budget` JOINED THE SAME DAY, and it is the third of that kind: the
+    # SWEEP already refused an over-budget tree while this door admitted it, so
+    # the server stamped `scannable: true` on a definition it would then refuse
+    # every night. See `tests/test_scan_budget_gate.py`.
     assert scan_definition.GATES == (
-        "kind", "tree", "hash", "yields", "symbol", "cadence")
+        "kind", "tree", "hash", "yields", "symbol", "cadence", "budget")
     for gate in scan_definition.GATES:
         assert scan_definition.ScanRefused(gate, "x").gate == gate
     with pytest.raises(ValueError, match="not one of this module's gates"):
