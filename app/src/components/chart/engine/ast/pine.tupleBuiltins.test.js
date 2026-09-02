@@ -104,3 +104,76 @@ describe('ta.bb and ta.macd destructure into the table’s own vocabulary', () =
     expect(out.refusal.guard).toBe('pine:tuple')
   })
 })
+
+// ─── ⚰️ SIX CAUSES, ONE SENTENCE ─────────────────────────────────────
+//
+// Every failed destructure came back as *"this Pine call answers with several
+// values at once and a column carries one"* — true of the shape, useless about
+// the cause. Two of them have a far better sentence ONE BRACKET AWAY:
+//
+//     st = ta.supertrend(3, 10)      -> pine:function, and it NAMES the call
+//     [st, d] = ta.supertrend(3, 10) -> pine:tuple, and it names nothing
+//
+// ⛔ THE GUARD NAME DOES NOT MOVE. `pine:tuple` is pinned in `pine.tuples.test.js`,
+// `pine.corpus.test.js` and `__fixtures__/pineCorpus.json`; only a derived clause
+// is appended — the same shape `ta.dmi`'s period tail already uses.
+
+describe('a tuple refusal says WHICH thing went wrong', () => {
+  const bind = (head, use) =>
+    translatePine(`//@version=6
+indicator("s")
+${head}
+plot(close > ${use} ? 1 : 0)
+`)
+
+  const CAUSES = [
+    ['unknown name', '[st, d] = ta.supertrend(3, 10)', 'st'],
+    ['no tuple form', '[mk, uk, lk] = ta.kc(close, 20, 2)', 'uk'],
+    ['wrong part count', '[a, b] = ta.bb(close, 20, 2)', 'a'],
+    ['named arguments', '[m, u, l] = ta.bb(series = close, length = 20, mult = 2)', 'u'],
+    ['not a call at all', '[a, b] = close', 'a'],
+  ]
+
+  it('⭐⭐ five different causes give five DIFFERENT messages', () => {
+    // ⛔ THIS IS THE WHOLE CLAIM. Before, this set had ONE member.
+    const messages = new Set()
+    for (const [label, head, use] of CAUSES) {
+      const out = bind(head, use)
+      expect(out.ok, `${label} unexpectedly translated`).toBe(false)
+      expect(out.refusal.guard, `${label} changed guard`).toBe('pine:tuple')
+      messages.add(String(out.refusal.message))
+    }
+    expect(messages.size, 'two causes still share a sentence').toBe(CAUSES.length)
+  })
+
+  it('⭐ each one names the thing a member can act on', () => {
+    expect(bind('[a, b] = ta.bb(close, 20, 2)', 'a').refusal.message)
+      .toContain('answers with 3 values and 2 names were given')
+    expect(bind('[m, u, l] = ta.bb(series = close, length = 20, mult = 2)', 'u').refusal.message)
+      .toContain('BY POSITION')
+    expect(bind('[a, b] = close', 'a').refusal.message)
+      .toContain('not a call')
+  })
+
+  it('⭐⭐ an unknown name lists what CAN be taken apart, derived', () => {
+    // ⚠️ THE LIST COMES FROM `PINE_TUPLE_BUILTINS` so it cannot go stale the day
+    // another tuple is added — which is exactly how a hand-typed roster in this
+    // file would rot.
+    const msg = bind('[st, d] = ta.supertrend(3, 10)', 'st').refusal.message
+    expect(msg).toContain('ta.supertrend')
+    expect(msg).toContain('ta.bb')
+    expect(msg).toContain('ta.macd')
+    expect(msg).toContain('ta.dmi')
+    // ⭐ and it points at the spelling that says more
+    expect(msg).toContain('WITHOUT the brackets')
+  })
+
+  it('⛔ the working tuples are untouched', () => {
+    // NON-VACUITY: a change that made every destructure refuse would satisfy
+    // everything above.
+    expect(formulaOf(screen(BB, 'close > up')))
+      .toBe('close > sma(close, 20) + 2 * stdev(close, 20) ? 1 : 0')
+    expect(formulaOf(screen(MACD, 'hist > 0')))
+      .toBe('macd(close, 12, 26) - ema(macd(close, 12, 26), 9) > 0 ? 1 : 0')
+  })
+})

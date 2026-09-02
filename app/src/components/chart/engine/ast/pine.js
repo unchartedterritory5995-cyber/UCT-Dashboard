@@ -5868,6 +5868,66 @@ function functionParams(toks, arrow) {
  *  ⚠️ `null` MEANS "NOT A SHAPE I CAN TAKE", never "refuse". Both callers fall
  *  through to the refusal they already had, so an arm without `=>`, or a body
  *  that folds to nothing, still lands on the sentence it always did. */
+/** ⭐⭐ WHY THIS DESTRUCTURE COULD NOT BE TAKEN APART, in one clause.
+ *
+ *  ⚰️ SIX DIFFERENT CAUSES USED TO PRODUCE ONE IDENTICAL SENTENCE. Measured:
+ *  an unknown name, a name with no tuple form, a wrong part count, named
+ *  arguments, a right-hand side that is not a call at all, and a `request.security`
+ *  returning a tuple all came back as *"this Pine call answers with several values
+ *  at once and a column carries one"*. Two of them have a far better sentence one
+ *  bracket away — `st = ta.supertrend(3, 10)` says `pine:function` and NAMES the
+ *  call; `a = request.security(…)` gets the whole `pine:request` ruling — and
+ *  putting brackets round the same right-hand side deleted both.
+ *
+ *  ⛔ THE GUARD NAME DOES NOT MOVE. `pine:tuple` is pinned in `pine.tuples.test.js`,
+ *  `pine.corpus.test.js` and `__fixtures__/pineCorpus.json`; this only appends the
+ *  clause the member was missing, which is the same shape `ta.dmi`'s period tail
+ *  and the `var` arm already use.
+ *
+ *  ⚠️ AND IT IS DERIVED FROM STATIC TABLES, NOT FROM RESOLVING ANYTHING. This
+ *  runs during the WALK, where a name is not yet a value; every branch below asks
+ *  a question the parse tree and the declared tables can answer. */
+function tupleRefusalTail(call, names, env) {
+  if (!call) return 'the right-hand side is not an expression this engine could read'
+  if (call.type !== 'call') {
+    return 'the right-hand side is not a call, and only a call answers with several values'
+  }
+  const shown = String(call.name)
+  const supplied = call.args || []
+  const callee = env.get(call.name)
+  if (callee && callee.kind === 'fn') {
+    const v = callee.value
+    if (!v || v.kind !== 'tuple') {
+      return '`' + shown + '`' + ' returns one value, and ' + names.length + ' names were given'
+    }
+    return '`' + shown + '`' + ' returns ' + v.parts.length + ' values and '
+      + names.length + ' names were given'
+  }
+  const bare = normaliseName(shown.split('.').pop())
+  if (own(PINE_TUPLE_BUILTINS, bare)) {
+    const spec = PINE_TUPLE_BUILTINS[bare]
+    if (supplied.some((a) => a && a.name != null)) {
+      return '`' + shown + '`' + ' is taken apart BY POSITION here, so its arguments have to '
+        + 'be positional too — a named one could build the answer out of the wrong two'
+    }
+    if (supplied.length !== spec.arity) {
+      return '`' + shown + '`' + ' takes ' + spec.arity + ' arguments and was given '
+        + supplied.length
+    }
+    if (names.length !== spec.parts) {
+      return '`' + shown + '`' + ' answers with ' + spec.parts + ' values and '
+        + names.length + ' names were given'
+    }
+    return '`' + shown + '`' + ' could not be taken apart'
+  }
+  // ⭐ THE LIST IS DERIVED so it cannot go stale the day another tuple is added.
+  const known = [...Object.keys(PINE_TUPLE_BUILTINS), 'dmi'].sort()
+    .map((k) => '`' + 'ta.' + k + '`').join(', ')
+  return 'this engine has no tuple form for ' + '`' + shown + '`'
+    + ' — the ones it can take apart are ' + known
+    + '. Writing it WITHOUT the brackets says more about why'
+}
+
 function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   const arms = []
   let fallback = null
@@ -6217,10 +6277,12 @@ export function translatePine(source, opts = {}) {
       // translation that parses, lints, saves, scans and is silently WRONG.
       // Anything this engine cannot take apart must keep refusing by name.
       const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
+      let parsedRhs = null
       if (close >= 0 && eq > close && names.length > 0) {
         const rhs = toks.slice(eq + 1)
         let call = null
         try { call = parseWholeExpression(rhs) } catch { call = null }
+        parsedRhs = call
         const callee = call && call.type === 'call' ? env.get(call.name) : null
         const value = callee && callee.kind === 'fn' ? callee.value : null
         if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
@@ -6233,8 +6295,11 @@ export function translatePine(source, opts = {}) {
         }
       }
 
-      for (const n of names) markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\``)
-      notes.push(noteOf('pine:tuple', REFUSALS['pine:tuple'], first))
+      const why = tupleRefusalTail(parsedRhs, names, env)
+      for (const n of names) {
+        markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\` — ${why}`)
+      }
+      notes.push(noteOf('pine:tuple', `${REFUSALS['pine:tuple']} — ${why}`, first))
       continue
     }
 
