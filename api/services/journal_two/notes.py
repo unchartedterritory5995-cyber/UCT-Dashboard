@@ -31,6 +31,7 @@ MAX_FOLDER_DEPTH = 6
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
 )
+from api.services.journal_two.notes_search import fts_match_expr
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
 # every redeploy wiped every note image. One authority now (attachment_root.py).
@@ -557,9 +558,19 @@ def list_notes(
             sql += ' AND lower(tags) LIKE ?'
             params.append(f'%"{tag.lower()}"%')
         if q:
-            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
-            ql = f"%{q.lower()}%"
-            params.extend([ql, ql])
+            # FTS5 when the text yields a valid MATCH expression; the old
+            # LIKE scan remains the fallback so a query FTS cannot parse
+            # still returns results rather than an error. body_plain stays
+            # authoritative -- j2_notes_fts is a derived index (db.py).
+            expr = fts_match_expr(q)
+            if expr:
+                sql += (" AND id IN (SELECT note_id FROM j2_notes_fts"
+                        " WHERE j2_notes_fts MATCH ? AND user_id = ?)")
+                params.extend([expr, user_id])
+            else:
+                sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
+                ql = f"%{q.lower()}%"
+                params.extend([ql, ql])
         order_col = {
             "updated": "updated_at DESC",
             "created": "created_at DESC",

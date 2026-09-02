@@ -111,3 +111,92 @@ def test_migration_v4_backfills_rows_that_predate_the_index(tmp_path, monkeypatc
     rows = list(c.execute(
         "SELECT note_id FROM j2_notes_fts WHERE j2_notes_fts MATCH ?", ("legacy",)))
     assert len(rows) == 1, "re-running the migration duplicated index rows"
+
+
+from api.services.journal_two.notes_search import fts_match_expr
+
+
+def test_fts_match_expr_quotes_terms_and_prefixes_the_last():
+    assert fts_match_expr("cup handle") == '"cup" "handle"*'
+
+
+def test_fts_match_expr_neutralises_fts_operators():
+    """A user typing a quote or a NEAR/OR operator must not crash the query
+    or silently change its meaning -- FTS5 raises on malformed MATCH text."""
+    assert fts_match_expr('nvda "breakout') == '"nvda" "breakout"*'
+    assert fts_match_expr("cup OR handle") == '"cup" "OR" "handle"*'
+
+
+def test_fts_match_expr_returns_none_when_nothing_is_searchable():
+    assert fts_match_expr("   ") is None
+    assert fts_match_expr('"""') is None
+
+
+def test_search_finds_a_note_written_by_raw_sql():
+    """The importer and sync engine both write via raw SQL. If search only
+    saw service-function writes, every migrated note would be unfindable --
+    which is the entire failure this wave exists to prevent."""
+    from api.services.journal_two.notes import list_notes
+    c = _conn()
+    _insert_note(c, "n1", title="Migrated", body_plain="anchored volume shelf")
+    rows = list_notes("u1", q="anchored", conn=c)
+    assert [r["id"] for r in rows] == ["n1"]
+
+
+def test_search_agrees_with_the_like_fallback():
+    """Pins the two search paths together, the way
+    test_backlinks_and_the_list_filter_agree pins the backlink reader to the
+    list filter. If FTS and LIKE ever disagree on membership for a plain
+    single-word, TOKEN-BOUNDARY query, this goes red rather than quietly
+    returning a different set of notes than the code it replaced.
+
+    This is NOT a claim that FTS and LIKE agree in general -- they don't.
+    FTS5 MATCH (with the trailing `*`) matches whole tokens / token PREFIXES;
+    LIKE matches arbitrary substrings anywhere, including mid-word. Every
+    fixture term below is a complete word that starts at a token boundary in
+    the note it's meant to match, which is the only regime this rail claims
+    to cover. See test_search_deliberately_no_longer_matches_mid_word_substrings
+    for the documented, intentional divergence outside that regime.
+    """
+    from api.services.journal_two.notes import list_notes
+    c = _conn()
+    _insert_note(c, "n1", title="Cup and handle", body_plain="NVDA base")
+    _insert_note(c, "n2", title="Unrelated", body_plain="gold miners")
+    for term in ("cup", "nvda", "gold", "handle"):
+        fts = {r["id"] for r in list_notes("u1", q=term, conn=c)}
+        like = {r["id"] for r in c.execute(
+            "SELECT id FROM j2_notes WHERE user_id='u1' AND"
+            " (lower(title) LIKE ? OR lower(body_plain) LIKE ?)",
+            (f"%{term}%", f"%{term}%"))}
+        assert fts == like, f"FTS and LIKE disagree on {term!r}: {fts} vs {like}"
+
+
+def test_search_deliberately_no_longer_matches_mid_word_substrings():
+    """DELIBERATE, REVIEWED BEHAVIOUR CHANGE -- not a bug, and not something
+    to "fix" by loosening the FTS query back toward substring matching.
+
+    The old LIKE-based search matched ANY substring anywhere in the text, so
+    typing "andle" found a note containing "handle". FTS5 MATCH with a
+    prefix (`*`) only matches whole tokens or a token's PREFIX -- "andle" is
+    neither "handle" nor a prefix of it, so it now returns nothing through
+    list_notes(q=...), even though the raw LIKE query below still matches.
+
+    This means members who type a partial word starting mid-token (not at
+    the start of a word) get different -- and in this case worse -- results
+    than before. That is a known, accepted cost of moving search onto FTS5
+    for ranking + operator support (quoting, prefix-as-you-type), reviewed
+    and signed off rather than discovered later by a member filing a "search
+    is broken" ticket.
+    """
+    from api.services.journal_two.notes import list_notes
+    c = _conn()
+    _insert_note(c, "n1", title="Cup and handle", body_plain="NVDA base")
+
+    fts = {r["id"] for r in list_notes("u1", q="andle", conn=c)}
+    like = {r["id"] for r in c.execute(
+        "SELECT id FROM j2_notes WHERE user_id='u1' AND"
+        " (lower(title) LIKE ? OR lower(body_plain) LIKE ?)",
+        ("%andle%", "%andle%"))}
+
+    assert fts == set(), f"expected no FTS matches for a mid-word substring, got {fts}"
+    assert like == {"n1"}, "LIKE should still match the substring -- this pins the divergence, not a LIKE regression"
