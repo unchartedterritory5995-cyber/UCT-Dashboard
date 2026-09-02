@@ -258,3 +258,4 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | E-06 | 2 | dispatched (Fable) | 2026-09-02 16:15 | — | — | AI/infra cost model; `contracts/E-COST.md` §E-06 |
 | C6-01 | 2 | done | 16:15 | 16:30 (54 calls, 262k) | ACCEPT: 15-product survey; products differ less in whether they claim grounding than in what verifying one claim costs the reader (a five-rung ladder from per-cell citations to configuration-as-answer to nothing); Fintool acquired by Microsoft 2026-04-18; Perplexity Finance rents data from four products in this set; no mechanism observed running (ceiling) | `08-ai/ai-native-tools-survey.md` |
 | C6-02 | 2 | dispatched (Opus) | 2026-09-02 16:35 | — | — | grounding/citation architectures; `contracts/C-WAVE2.md` §C6-02 |
+| C7-02 | 2 | dispatched (Opus) | 2026-09-02 16:55 | — | — | symbol master / time model; `contracts/C-WAVE2.md` §C7-02 |
