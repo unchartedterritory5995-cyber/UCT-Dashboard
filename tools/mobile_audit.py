@@ -112,6 +112,14 @@ PROBE_JS = r"""
     overflowX, vw, scrollWidth: de.scrollWidth,
     offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10),
     scrollHeight, viewportHeight, screens,
+    // Measurement-validity facts: Chromium can DROP pointer/touch emulation
+    // mid-context (renderer swap), after which touch-gated UI branches render
+    // their DESKTOP variants and every "finding" describes a page no tablet
+    // user sees. The 2026-09-02 tablet sweep reported 64 phantom sub-44px
+    // targets on /charts this way. The runner checks these against the
+    // context's intent and retries/invalidates instead of reporting phantoms.
+    pointerCoarse: matchMedia('(pointer: coarse)').matches,
+    touchPoints: navigator.maxTouchPoints,
   };
 }
 """
@@ -242,11 +250,63 @@ def main():
                     _dismiss_intro(page)
                     page.wait_for_timeout(int(args.settle * 1000))
                     probe = page.evaluate(PROBE_JS)
+                    # Validity guard: a touch-intent context (isMobile) must
+                    # still MEASURE as coarse-pointer, or the page rendered its
+                    # desktop branches and the numbers describe a UI no touch
+                    # user sees. Chromium drops the touch/pointer emulation
+                    # override on a renderer swap and — with this pinned
+                    # browser build — a same-page re-goto does NOT restore it
+                    # (measured 2026-09-02: 24 of 28 tablet routes went
+                    # fine-pointer mid-sweep and stayed there). A FRESH PAGE
+                    # re-applies the context's emulation; if even that fails,
+                    # a fresh context (+ re-login) is the last resort. Only
+                    # after both is the row marked INVALID instead of being
+                    # reported as findings.
+                    if vp.get("isMobile", True) and not probe.get("pointerCoarse"):
+                        def _remeasure(pg):
+                            try:
+                                pg.goto(url, wait_until="domcontentloaded", timeout=30000)
+                            except Exception:  # noqa: BLE001
+                                pass
+                            _dismiss_intro(pg)
+                            pg.wait_for_timeout(int(args.settle * 1000))
+                            return pg.evaluate(PROBE_JS)
+
+                        try:
+                            page.close()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        page = ctx.new_page()
+                        probe = _remeasure(page)
+                        if not probe.get("pointerCoarse"):
+                            try:
+                                ctx.close()
+                            except Exception:  # noqa: BLE001
+                                pass
+                            ctx = browser.new_context(
+                                viewport={"width": vp["width"], "height": vp["height"]},
+                                device_scale_factor=vp.get("deviceScaleFactor", 2),
+                                is_mobile=vp.get("isMobile", True),
+                                has_touch=True,
+                                user_agent=vp.get("userAgent"),
+                                reduced_motion="reduce",
+                            )
+                            page = ctx.new_page()
+                            if args.auth:
+                                do_login(page, base)
+                            probe = _remeasure(page)
+                        if not probe.get("pointerCoarse"):
+                            entry["measurementInvalid"] = (
+                                "pointer emulation lost — coarse=false in a "
+                                "touch context; findings describe the desktop UI"
+                            )
                     shot = OUT_DIR / vp_name / f"{slug(route)}.png"
                     page.screenshot(path=str(shot), full_page=True)
                     entry.update(probe)
                     entry["screenshot"] = str(shot.relative_to(OUT_DIR.parent))
                     flag = "OVERFLOW" if probe["overflowX"] > 2 else "ok"
+                    if entry.get("measurementInvalid"):
+                        flag = "INVALID"
                     # Vertical budget: /dashboard must fit one viewport.
                     # Baseline measured 2026-08-30: 5.5 screens at 2133x1050,
                     # 6.9 at 1277x1000. Target after Phase 3: <= 1.05.
@@ -287,8 +347,14 @@ def main():
     (OUT_DIR / "report.json").write_text(json.dumps(report, indent=2))
     _write_md(report)
     n_over = sum(1 for r in report["results"] if r.get("overflowX", 0) > 2)
-    print(f"\nDone. {n_over} page/viewport combos with horizontal overflow. "
-          f"Report + screenshots in {OUT_DIR}")
+    n_invalid = sum(1 for r in report["results"] if r.get("measurementInvalid"))
+    invalid_note = (
+        f" ⚠ {n_invalid} INVALID measurement(s) — pointer emulation lost; "
+        f"re-run those routes before trusting their numbers."
+        if n_invalid else ""
+    )
+    print(f"\nDone. {n_over} page/viewport combos with horizontal overflow."
+          f"{invalid_note} Report + screenshots in {OUT_DIR}")
 
 
 def _write_md(report):
@@ -304,6 +370,8 @@ def _write_md(report):
                 continue
             ov = e.get("overflowX", 0)
             tag = "🔴 OVERFLOW" if ov > 2 else "🟢 ok"
+            if e.get("measurementInvalid"):
+                tag = "⚠️ INVALID — " + e["measurementInvalid"]
             lines.append(f"- **{e['viewport']}** {tag} (overflowX={ov}px, small-targets={e.get('smallCount', 0)}) — `{e.get('screenshot','')}`")
             for o in e.get("offenders", [])[:6]:
                 lines.append(f"    - overflow: `<{o['tag']} class=\"{o['cls']}\">` right={o['right']} w={o['width']}")

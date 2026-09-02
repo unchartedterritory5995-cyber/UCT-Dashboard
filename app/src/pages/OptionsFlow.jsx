@@ -5621,7 +5621,7 @@ export default function OptionsFlowDashboard() {
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <span style={{ fontSize:10, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":top5Filter==="Standout"?"Single-strike sweeps · ignores ticker balance":"Ranked by net premium · sweep required"}</span>
-                      <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
+                      <button className="of-fetchpl" onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                           fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                         {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live P/L</>}

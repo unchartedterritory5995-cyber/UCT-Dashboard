@@ -141,10 +141,25 @@ describe('InfoTip.module.css — touch tap target without a row jump', () => {
   const CSS = readFileSync(fileURLToPath(new URL(cssRelPath, import.meta.url)), 'utf8')
   const touchBlock = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*?)\n\}/.exec(CSS)?.[1] ?? ''
 
-  it('meets the tap floor with an invisible expander, not by growing the button', () => {
-    expect(touchBlock).toMatch(/\.trigger::after/)
-    expect(touchBlock).toMatch(/width:\s*var\(--tap-min\)/)
-    expect(touchBlock).toMatch(/height:\s*var\(--tap-min\)/)
+  // Wave 17 swapped the ::after pseudo-expander for PADDING + negative-margin
+  // expansion: the hit area is identical, but padding also grows the button's
+  // measured rect, so the mobile-audit harness (which reads
+  // getBoundingClientRect) can PROVE the floor instead of flagging the 16px
+  // glyph as a false positive forever. The floor is derived from the sheet's
+  // own numbers, not retyped: glyph + 2×padding must reach 44.
+  it('meets the tap floor with measurable hit-box expansion (padding), layout-cancelled by equal negative margin', () => {
+    const pad = Number(/padding:\s*(\d+)px/.exec(touchBlock)?.[1])
+    const neg = Number(/(?<!-)margin:\s*-(\d+)px/.exec(touchBlock)?.[1])
+    const glyph = Number(/\.trigger\s*\{[^}]*?width:\s*(\d+)px/.exec(CSS)?.[1])
+    expect(pad).toBeGreaterThan(0)
+    expect(neg).toBe(pad) // layout-neutral: the margin cancels exactly what the padding adds
+    expect(glyph + 2 * pad).toBeGreaterThanOrEqual(44)
+    // The base margin-left spacing must survive the blanket negative margin.
+    expect(touchBlock).toMatch(new RegExp(`margin-left:\\s*calc\\(var\\(--space-xs\\) - ${pad}px\\)`))
+  })
+
+  it('the folded-away ::after expander stays gone (stacked with padding it would double the reach)', () => {
+    expect(CSS).not.toMatch(/\.trigger::after/)
   })
 
   it('never sizes the trigger BOX to --tap-min (that is what jumped the row)', () => {
