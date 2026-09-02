@@ -19,7 +19,7 @@ export const DOORS = [
   { key: 'breadth',      label: 'Breadth',       to: '/breadth',         icon: 'breadth' },
   { key: 'options_flow', label: 'Options Flow',  to: '/options-flow',    icon: 'flow' },
   { key: 'uct20',        label: 'UCT 20',        to: '/uct-20',          icon: 'star' },
-  { key: 'calendar',     label: 'Calendar',      to: '/calendar',        icon: 'calendar' },
+  { key: 'calendar',     label: 'UCT Terminal',  to: '/calendar',        icon: 'calendar' },
   { key: 'screener',     label: 'Screener',      to: '/screener',        icon: 'screener' },
   { key: 'desk',         label: 'The Desk',      to: '/desk',            icon: 'desk' },
   { key: 'journal',      label: 'Journal',       to: '/journal',         icon: 'journal' },

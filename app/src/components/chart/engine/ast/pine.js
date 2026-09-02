@@ -5850,6 +5850,50 @@ function functionParams(toks, arrow) {
  * construction, so the first thing it cannot fold refuses the body, and the
  * caller decides whether that refuses the script or only a name.
  */
+/** ⭐⭐ ONE `switch` REDUCER, REACHED FROM BOTH WALKERS.
+ *
+ *  ⚰️ IT USED TO LIVE INSIDE `foldStatements`, whose call sites are all function
+ *  bodies and `if` branches — so `switch` worked INSIDE a function and refused at
+ *  the TOP LEVEL, where a member actually writes `ma = switch mode`. Measured:
+ *  the same three lines translated in a `f() =>` body and returned `pine:block`
+ *  one indent level out. `if` was given both doors (`foldIfChain` is called from
+ *  each); `switch` was given one.
+ *
+ *  ⛔ NOTHING ABOUT THE REDUCTION MOVED. The arm is still picked at RESOLVE time
+ *  by `resolveBinding`, not here — choosing now would need the subject's VALUE and
+ *  a name is not resolvable while the walk is still binding names. This function
+ *  only carries the subject and the arms across, which is exactly what the inline
+ *  version did.
+ *
+ *  ⚠️ `null` MEANS "NOT A SHAPE I CAN TAKE", never "refuse". Both callers fall
+ *  through to the refusal they already had, so an arm without `=>`, or a body
+ *  that folds to nothing, still lands on the sentence it always did. */
+function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
+  const arms = []
+  let fallback = null
+  for (const arm of (subStmts || [])) {
+    const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+    if (at < 0) return null
+    const rhs = arm.header.slice(at + 1)
+    const binding = rhs.length
+      ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
+      : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
+    if (!binding) return null
+    // A bare `=>` with nothing before it is Pine's default arm.
+    if (at === 0) fallback = binding
+    else arms.push({ match: arm.header.slice(0, at), binding })
+  }
+  if (!arms.length && !fallback) return null
+  return {
+    kind: 'switch',
+    subject: parseWholeExpression(subjectToks),
+    env: new Map(env),
+    arms,
+    fallback,
+    at: locate(firstTok),
+  }
+}
+
 function foldStatements(stmts, ctx, env) {
   let value = null
   let i = 0
@@ -5895,33 +5939,8 @@ function foldStatements(stmts, ctx, env) {
     // chosen. So the whole `switch` becomes ONE binding carrying its subject and
     // its arms, and `resolveBinding` reduces it once the subject can be read.
     if (first.kind === 'ident' && first.value === 'switch' && toks.length > 1) {
-      const arms = []
-      let fallback = null
-      let usable = true
-      for (const arm of (st.sub || [])) {
-        const at = findTop(arm.header, (t) => isPunct(t, '=>'))
-        if (at < 0) { usable = false; break }
-        const rhs = arm.header.slice(at + 1)
-        const binding = rhs.length
-          ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
-          : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
-        if (!binding) { usable = false; break }
-        // A bare `=>` with nothing before it is Pine's default arm.
-        if (at === 0) fallback = binding
-        else arms.push({ match: arm.header.slice(0, at), binding })
-      }
-      if (usable && (arms.length || fallback)) {
-        value = {
-          kind: 'switch',
-          subject: parseWholeExpression(toks.slice(1)),
-          env: new Map(env),
-          arms,
-          fallback,
-          at: locate(first),
-        }
-        i += 1
-        continue
-      }
+      const built = switchBinding(toks.slice(1), st.sub, ctx, env, first)
+      if (built) { value = built; i += 1; continue }
     }
     if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
       throw new PineRefusal('pine:block',
@@ -6492,6 +6511,18 @@ export function translatePine(source, opts = {}) {
           si = last
         }
         continue
+      }
+      // ⭐⭐ `ma = switch mode` AT THE TOP LEVEL — the door `if` has had all along,
+      // three lines up. Without this the catch-all below marks the name opaque
+      // and the member is told a block "spans several statements", which is true
+      // of the shape and useless about the cause: the reducer one function away
+      // handles this exact case and is commented for it.
+      // ⛔ IT STAYS AHEAD OF THE CATCH-ALL AND FALLS INTO IT. `switchBinding`
+      // returns null for a shape it cannot take, so a malformed `switch` gets the
+      // refusal it always got rather than a new one.
+      if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
+        const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
+        if (built) { env.set(nameTok.value, built); continue }
       }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)

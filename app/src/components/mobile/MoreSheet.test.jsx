@@ -28,7 +28,7 @@ beforeEach(() => { mockPlan = 'pro'; mockRole = null })
 
 test('renders the full directory for a paid user', () => {
   renderSheet()
-  ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'Calendar',
+  ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'UCT Terminal',
     // ⚰️ 'Patterns' REMOVED — the page was retired (15.7% precision) and
     // `MoreSheet.jsx` stopped listing it; this expectation was left behind, so
     // the directory test failed on a row the product deliberately dropped.

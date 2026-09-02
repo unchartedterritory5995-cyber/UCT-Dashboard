@@ -123,7 +123,7 @@ export default function CalendarRender() {
           ))}
         </div>
         <div style={{ height: 22, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', color: '#666', fontSize: 10 }}>
-          <span>Earnings Calendar · notable names by market cap</span>
+          <span>UCT Terminal · notable earnings by market cap</span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
       </div>

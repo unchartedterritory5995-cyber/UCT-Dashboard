@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
       { to: '/charts', label: 'Charts', icon: 'chart' },
       { to: '/ai-search', label: 'AI Search', icon: 'search' },
       { to: '/screener', label: 'Screener', icon: 'screener' },
-      { to: '/calendar', label: 'Calendar', icon: 'calendar' },
+      { to: '/calendar', label: 'UCT Terminal', icon: 'calendar' },
     ],
   },
   {

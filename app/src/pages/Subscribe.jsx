@@ -44,7 +44,7 @@ export default function Subscribe() {
           {[
             'Morning Wire — daily pre-market brief & top picks',
             'Screener & Patterns — the setup scanner + pattern engine',
-            'UCT 20 leadership, Theme Tracker & Calendar',
+            'UCT 20 leadership, Theme Tracker & UCT Terminal',
             'Research dossiers — fundamentals, analyst & ownership depth',
             'Compass — AI coaching, voice & pre-trade verdicts',
           ].map((b) => (

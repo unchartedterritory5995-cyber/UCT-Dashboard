@@ -277,7 +277,7 @@ describe('MyStocksHub', () => {
 
   it('renders a back link to /calendar', () => {
     renderHub()
-    const link = screen.getByRole('link', { name: /← Calendar/ })
+    const link = screen.getByRole('link', { name: /← UCT Terminal/ })
     expect(link).toBeTruthy()
   })
 

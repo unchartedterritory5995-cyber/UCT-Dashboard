@@ -61,6 +61,14 @@ describe('CalendarHeader (consolidated)', () => {
     expect(screen.queryByText('Export ▾')).toBeNull()
   })
 
+  it('titles the surface "UCT Terminal"', () => {
+    // The page's own header had NO rail before this test: the title text could
+    // be renamed to anything (or dropped) and 13k green tests would not see it.
+    renderHeader()
+    expect(screen.getByText('UCT Terminal')).toBeTruthy()
+    expect(screen.queryByText('Calendar')).toBeNull()
+  })
+
   it('badges the Filters button with the active-filter count', () => {
     renderHeader({ filters: { ...baseFilters, minAvgVol: 500000 } })
     expect(screen.getByLabelText('Open calendar filters').textContent).toMatch(/· 1/)
