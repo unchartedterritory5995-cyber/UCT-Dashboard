@@ -375,13 +375,13 @@ const SHOWCASE = [
     key: 'workflow',
     tab: 'Your Workflow',
     img: shotCalendar,
-    barTitle: 'Calendar · The week ahead',
+    barTitle: 'UCT Terminal · The week ahead',
     barTime: 'LOGO-FORWARD',
     headline: 'Your daily driver.',
     lede: 'The quiet conveniences that make the whole thing feel like one desk.',
     features: [
       { name: 'Watchlists', desc: 'color tags, price alerts, multi-channel delivery' },
-      { name: 'Calendar', desc: 'earnings audio, filings, AI call recaps' },
+      { name: 'UCT Terminal', desc: 'earnings audio, filings, AI call recaps' },
       { name: 'Notebook', desc: 'long-form notes with video timestamps' },
       { name: 'Command center', desc: 'the bento dashboard, your daily intel at a glance' },
       { name: 'Share cards', desc: 'clean PNG exports of any trade or chart' },
@@ -570,7 +570,7 @@ const FAQS = [
 
 // Chip strips under each pillar — compact feature naming.
 const PILLAR_CHIPS = {
-  market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '111 themes', 'Stock Catalysts', 'UCT 20', 'Calendar', 'News + tweet tape', '3,742 tickers streaming'],
+  market: ['LiveFlow tape', 'Dark-pool prints', 'GEX', 'Breadth Monitor', 'COT', '111 themes', 'Stock Catalysts', 'UCT 20', 'UCT Terminal', 'News + tweet tape', '3,742 tickers streaming'],
   charts: ['Drag-resize tiles', '4 link groups', '8 timeframes', 'Streaming bars', 'Drawing tools', 'Pattern callouts', 'Deep history', 'Mobile workspace'],
   research: ['Fundamentals widget', 'Analyst ratings & targets', 'Ownership', 'SEC filings', 'AI earnings-call recaps', 'Listen-live audio', 'Full transcripts', 'Forward estimates'],
   uct20: ['20 leadership names', 'Live RS ranking', 'Setup tags — leader / pullback / extended', 'Entry, stop & target', 'Live P&L', 'Rotates as leadership shifts'],
@@ -882,10 +882,10 @@ export default function Landing() {
                 />
                 <Shot
                   src={shotCalendar}
-                  title="Calendar"
+                  title="UCT Terminal"
                   time="WEEK AHEAD"
                   onZoom={setZoomed}
-                  alt="The earnings calendar — a logo-forward week of reporting companies"
+                  alt="UCT Terminal — a logo-forward week of reporting companies"
                 />
               </div>
             </div>
