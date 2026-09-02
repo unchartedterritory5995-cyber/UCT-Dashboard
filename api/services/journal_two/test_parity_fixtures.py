@@ -68,23 +68,34 @@ def test_options_fixture_matches_python(case):
 def test_composition_fixture_matches_python(case):
     """Net-liq composition regen guard — the authority is
     broker/composition.py (the live sentinel composes with it; the JS mirror
-    is brokerLiveSummary, held by parity.test.js). Case 0 is the 2026-08-26
-    incident book: the composed truth is $10,773.09, not the $21,763.06 a
-    stale cash produced."""
+    is brokerLiveSummary, held by parity.test.js). The 2026-08-26 incident
+    book (see test_incident_case_is_pinned_to_the_real_numbers) composes to
+    $10,773.09, not the $21,763.06 a stale cash produced."""
     from api.services.journal_two.broker import composition
     i, exp = case["inputs"], case["expected"]
     out = composition.compose_net_liq(
         i["account"], i["positions"], i["strategies"],
         i["prices"], i["optionMarks"],
+        i.get("preferBroker", False),
     )
     assert out == exp
 
 
 def test_incident_case_is_pinned_to_the_real_numbers():
-    """The first composition fixture must remain the 8/26 incident book —
-    a regen that drops or renumbers it loses the regression."""
-    exp = FIXTURES["composition"][0]["expected"]
+    """The 8/26 incident book must remain present with its real numbers —
+    a regen that DROPS it loses the regression. It is located by its
+    distinctive inputs (brokerCash == -18760.66) rather than by list
+    position: position is an implementation detail that has already
+    broken once (a regen prepended newer cases and moved it to index 4)."""
+    matches = [c for c in FIXTURES["composition"]
+               if c["inputs"]["account"].get("brokerCash") == -18760.66]
+    assert matches, (
+        "the 2026-08-26 incident regression case (brokerCash == -18760.66) "
+        "is no longer in parity-fixtures.json composition cases — a regen "
+        "DROPPED it and the regression it pins is no longer guarded"
+    )
+    exp = matches[0]["expected"]
     assert exp["netLiq"] == pytest.approx(10773.09, abs=0.02)
-    acct = FIXTURES["composition"][0]["inputs"]["account"]
+    acct = matches[0]["inputs"]["account"]
     assert acct["brokerCash"] == -18760.66
     assert acct["brokerCashLive"] == -29750.66
