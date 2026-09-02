@@ -245,9 +245,17 @@ of members collapses to one render rather than 25.
 
 ---
 
-## Step 5 — arm the daily digest
+## Step 5 — arm the digest
 
-Posts the board once each weekday at **16:10 ET**.
+Posts the board **seven times each weekday**, through the session (owner,
+2026-09-02): **10:00 · 10:30 · 11:30 · 12:30 · 14:00 · 16:15 · 17:30**.
+
+Every post is the **"since the open"** board, so 10:00 is a 30-minute pulse and
+17:30 is the finished session.
+
+> Times are `America/New_York`, not a fixed offset. You said "EST", and in
+> September that is really EDT — using the zone means these track the wall
+> clock you mean on both sides of the DST change, with no edit in November.
 
 ```bash
 railway variables --service web \
@@ -255,6 +263,18 @@ railway variables --service web \
   --set BUZZ_DIGEST_WEBHOOK=<webhook-url>
 railway redeploy --service web --yes
 ```
+
+Change the cadence with `BUZZ_DIGEST_TIMES` (comma-separated `HH:MM`, ET) —
+e.g. `--set BUZZ_DIGEST_TIMES=10:00,12:30,16:15` for three. One scheduler job
+is registered per slot, and boot prints the list it registered.
+
+> ⛔ A malformed `BUZZ_DIGEST_TIMES` posts **nothing** and warns — it does NOT
+> fall back to the default. Falling back would post at times you never asked
+> for and make a typo invisible. Check the boot line names the slots you meant.
+
+Each slot dedups independently: a quiet 10:00 never consumes 10:30, and a
+misfire a few minutes late still counts as its own slot rather than posting
+twice next to the real one.
 
 Rollback is the env var, not a deploy: set `BUZZ_DIGEST_ENABLED=0` and redeploy.
 

@@ -802,15 +802,19 @@ def _buzz_poll() -> None:
         log.warning("[buzz] poll error: %s", e)
 
 
-def _buzz_digest() -> None:
+def _buzz_digest(slot: str | None = None) -> None:
+    """One scheduled buzz post. `slot` is the job's own "HH:MM" label, passed so
+    the per-slot dedup keys off what was SCHEDULED rather than off the clock at
+    fire time -- a misfire three minutes late still belongs to its own slot."""
     log = logging.getLogger(__name__)
     try:
         from api.services import discord_buzz_digest
-        out = discord_buzz_digest.run_digest()
+        out = discord_buzz_digest.run_digest(slot=slot)
         if out.get("posted"):
-            log.info("[buzz] digest posted (image=%s)", out.get("had_image"))
+            log.info("[buzz] digest posted for %s (image=%s)",
+                     out.get("slot"), out.get("had_image"))
     except Exception as e:  # noqa: BLE001
-        log.warning("[buzz] digest error: %s", e)
+        log.warning("[buzz] digest error (slot %s): %s", slot, e)
 
 
 def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
@@ -5317,12 +5321,30 @@ async def lifespan(app: FastAPI):
             #
             # `timezone=_ET` is load-bearing -- a naive trigger resolves tzlocal
             # (UTC on Railway), which would fire this at 11:10 ET instead of 16:10.
-            _scheduler.add_job(
-                _buzz_digest,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=10, timezone=_ET),
-                id="buzz_digest", replace_existing=True, misfire_grace_time=300,
-            )
-            print("[startup] buzz digest scheduled (mon-fri 16:10 ET)")
+            # ONE JOB PER SLOT. The owner asked for the board through the
+            # session (2026-09-02), not once at the close, and the slots have
+            # different minutes (10:00, 10:30, 11:30, 12:30, 14:00, 16:15,
+            # 17:30) so a single CronTrigger with hour/minute lists would fire
+            # the cross product -- 10:30 AND 10:15 AND 12:00 and so on. Each
+            # job carries its own label so the per-slot dedup keys off what was
+            # SCHEDULED, not off the clock when it happened to fire.
+            from api.services import discord_buzz_digest as _bd
+            _slots = _bd.digest_times()
+            for _h, _m in _slots:
+                _label = _bd.slot_label(_h, _m)
+                _scheduler.add_job(
+                    _buzz_digest,
+                    trigger=CronTrigger(day_of_week="mon-fri", hour=_h, minute=_m, timezone=_ET),
+                    args=[_label],
+                    id=f"buzz_digest_{_h:02d}{_m:02d}", replace_existing=True,
+                    misfire_grace_time=300,
+                )
+            if _slots:
+                print("[startup] buzz digest scheduled (mon-fri ET): "
+                      + ", ".join(_bd.slot_label(h, m) for h, m in _slots))
+            else:
+                # digest_times() already warned WHY; say the consequence here.
+                print("[startup] buzz digest: NO slots configured -- nothing will post")
         except Exception as e:
             print(f"[scheduler] buzz digest registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
