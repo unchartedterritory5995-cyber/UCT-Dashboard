@@ -38,6 +38,20 @@ def main() -> int:
     from api.services import buzz_ingest
     wanted = set(buzz_ingest.channels())
 
+    # "LOOKED AND FOUND NOTHING WRONG" AND "DID NOT LOOK" MUST NOT SHARE AN
+    # EXIT CODE. This tool checks only the channels named in BUZZ_CHANNELS, and
+    # the activation runbook calls it BEFORE that variable is set -- so the
+    # honest answer at that moment is "I cannot check", not the silent
+    # all-clear it used to print (empty loop, bad == 0, "All wanted channels
+    # readable", exit 0). Same shape as tools/flag_ledger_audit.py's refusal:
+    # a distinct exit code meaning the question was never asked.
+    if not wanted:
+        print("CANNOT CHECK: BUZZ_CHANNELS is unset, so there is no channel to")
+        print("examine -- this is NOT a pass. Set it first, e.g.")
+        print("  BUZZ_CHANNELS=<channel-id> python tools/buzz_perms.py")
+        print("(the id comes from right-click #main-chat -> Copy Channel ID)")
+        return 2
+
     bad = 0
     for ch in chans:
         if ch["id"] not in wanted:
@@ -63,7 +77,7 @@ def main() -> int:
         print("  Channel Settings -> Permissions -> Add members or roles -> 'UCT Intelligence'")
         print("  Do NOT click 'Sync Now' -- it overwrites the channel's own overwrites.")
         return 1
-    print("\nAll wanted channels readable.")
+    print("\nAll %d wanted channel(s) readable." % len(wanted))
     return 0
 
 
