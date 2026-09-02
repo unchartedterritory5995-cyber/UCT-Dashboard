@@ -16,6 +16,8 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--channel", default="")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--restart", action="store_true",
+                    help="ignore the saved watermark and walk from the newest message again")
     args = ap.parse_args()
 
     from dotenv import load_dotenv
@@ -38,11 +40,20 @@ def main() -> int:
             else:
                 print(f"   dry run: {len(page)} message(s) readable")
             continue
-        out = buzz_ingest.backfill(ch, days=args.days, progress=progress)
+        out = buzz_ingest.backfill(ch, days=args.days, progress=progress,
+                                   restart=args.restart)
         print(f"\n   {out['pages']} pages, {out['fetched']} messages, {out['rows']} mentions")
         if out.get("truncated"):
             print("   ⚠️  TRUNCATED — hit a rate limit or an API error before reaching the "
-                  "cutoff.\n       This is NOT the end of the channel's history. Re-run to continue.")
+                  "cutoff.\n       This is NOT the end of the channel's history. Re-run to "
+                  "continue from the\n       saved watermark — the walk RESUMES, it does not "
+                  "restart.")
+        else:
+            # ⛔ Say this out loud. The absence of the TRUNCATED line is not
+            # evidence of completion: a run that dies before printing anything
+            # also prints no warning, and a loop grepping for "TRUNCATED" reads
+            # that silence as success. It did, on the first real backfill.
+            print(f"   ✅ reached the {args.days}-day cutoff — this channel's history is in.")
     print(f"done in {time.time() - t0:.1f}s")
     return 0
 

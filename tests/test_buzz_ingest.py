@@ -256,3 +256,76 @@ def test_a_missing_bot_token_is_named_not_left_as_a_generic_401(mods, monkeypatc
 
     assert ing.fetch_messages("CH1", http=_Ok()) == []
     assert reached == [1]
+
+
+def test_a_truncated_backfill_RESUMES_instead_of_restarting(mods):
+    """⛔ THE BUG THIS FILE EXISTS TO PREVENT REPEATING. `backfill` set
+    `before = None` every run, so the walk always restarted from the NEWEST
+    message. On #main-chat (~1,100 messages/day) one rate limit at page 11
+    capped it at ~14 hours of history, and every re-run re-walked those same
+    pages and stopped in the same place -- five consecutive runs, four adding
+    zero new mentions, while the tool printed "re-run to continue".
+
+    Here page 2 fails. The second call must ask for messages BEFORE where the
+    first one stopped, not from the top again.
+    """
+    store, ing = mods
+    seen_before: list = []
+    # ids descend as we walk back; the second page fails the first time.
+    pages = {
+        None: [_msg(1544451055910129726, "a", "$NVDA")],
+        "1544451055910129726": None,          # rate limited
+    }
+
+    def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
+        seen_before.append(before)
+        return pages.get(before, [])
+
+    first = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
+    assert first["truncated"] is True
+    assert seen_before == [None, "1544451055910129726"]
+
+    # The watermark survives the failed run.
+    assert store.get_backfill_mark("CH1") == "1544451055910129726"
+
+    # Second run: the page that failed now succeeds and ends the history.
+    pages["1544451055910129726"] = []
+    seen_before.clear()
+    second = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
+    assert second["truncated"] is False
+    # ⛔ THE assertion: it did NOT ask for the top of the channel again.
+    assert seen_before == ["1544451055910129726"], seen_before
+
+
+def test_restart_walks_from_the_newest_again(mods):
+    """CONTROL for the test above: without this, a backfill that could never
+    start over would also satisfy 'it resumed'."""
+    store, ing = mods
+    store.set_backfill_mark("CH1", "1544451055910129726")
+    seen_before: list = []
+
+    def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
+        seen_before.append(before)
+        return []
+
+    ing.backfill("CH1", days=30, fetch_fn=fake_fetch, restart=True)
+    assert seen_before == [None]
+    assert store.get_backfill_mark("CH1") is None
+
+
+def test_a_resumed_run_never_plants_an_ancient_forward_cursor(mods):
+    """The forward cursor is where the 60s poller reads FROM. A resumed
+    backfill starts deep in the past, so seeding the cursor with its newest
+    seen id would make the next poll re-fetch weeks of history 100 messages at
+    a time."""
+    store, ing = mods
+    store.set_backfill_mark("CH1", "1544451055910129726")
+
+    def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
+        if before == "1544451055910129726":
+            return [_msg(1200000000000000000, "b", "$AMD")]
+        return []
+
+    assert store.get_cursor("CH1") is None
+    ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
+    assert store.get_cursor("CH1") is None, "a resumed walk must not seed the forward cursor"
