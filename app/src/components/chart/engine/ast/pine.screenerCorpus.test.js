@@ -48,7 +48,7 @@ describe('a member can write their own Pine screener', () => {
     // just fixed them — a corpus blind beside what it measures. The four scripts
     // this door still refuses were added deliberately, so the number is
     // 30/34 and the residual is visible rather than absent.
-    expect(FILES.length).toBeGreaterThanOrEqual(37)
+    expect(FILES.length).toBeGreaterThanOrEqual(38)
     for (const r of RESULTS) {
       expect(r.source, `${r.name} is not v6`).toContain('//@version=6')
       // ⛔ A SCREEN NEEDS SOMETHING TO FILTER ON. Without this a fixture could be
@@ -58,11 +58,11 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ 35 translate, and the TWO that do not are named with their reason', () => {
+  it('⭐⭐ 36 translate, and the TWO that do not are named with their reason', () => {
     // ⏳ THE FLOOR MOVES ONE WAY. Raising it is the point of this file; a drop
     // reds here with the roster rather than as a silent number change.
     const passed = RESULTS.length - MISSES.length
-    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(35)
+    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(36)
 
     // ⛔⛔ A ROSTER, NOT A COUNT — and the two halves are different KINDS of
     // residual, which is the whole reason to name them:
