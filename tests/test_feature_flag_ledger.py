@@ -141,3 +141,40 @@ def test_inverted_disable_gates_are_not_dragged_in():
     assert ffi.needs_declaration("MASSIVE_OI_FALLBACK_DISABLED", "0") is False
     # …but explicitly disabling one IS a decision worth writing down.
     assert ffi.needs_declaration("SOMETHING_DISABLED", "1") is True
+
+
+def test_no_flag_is_declared_twice():
+    """Two sessions declaring the same gate merge CLEANLY into duplicate keys.
+
+    2026-09-02: two branches each declared BARS_API_ENABLED and
+    BARS_PROXY_ENABLED after they arrived undeclared through a master merge.
+    The insertions landed in different hunks, so git merged without a
+    conflict, and `json.load` silently keeps the LAST of a duplicated key --
+    so one branch's researched note became text that no parser would ever
+    read, while a human scrolling the file saw both and could not tell which
+    one was live. Every other test in this file parses the JSON first, which
+    is exactly the step that hides this.
+    """
+    import json as _json
+    from collections import Counter
+
+    found: list[str] = []
+
+    def check_pairs(pairs):
+        # Per-OBJECT, not global: `object_pairs_hook` fires for every object in
+        # the document, so counting across all of them just reports `status`,
+        # `note` and `where` once per flag. A duplicate key means ONE object
+        # holds the same key twice -- which is the only case JSON resolves by
+        # silently dropping an entry.
+        counts = Counter(k for k, _ in pairs)
+        found.extend(k for k, n in counts.items() if n > 1)
+        return dict(pairs)
+
+    _json.loads(LEDGER_PATH.read_text(encoding="utf-8"), object_pairs_hook=check_pairs)
+    dupes = sorted(set(found))
+    assert not dupes, (
+        "declared more than once in docs/feature_flags.json:\n"
+        + "\n".join(f"  {k}" for k in dupes)
+        + "\n\nJSON keeps the LAST one, so the earlier entry is invisible to "
+          "every reader except a human. Merge them into one entry."
+    )
