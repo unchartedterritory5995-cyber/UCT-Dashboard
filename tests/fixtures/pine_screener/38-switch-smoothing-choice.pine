@@ -1,0 +1,7 @@
+//@version=6
+indicator("screen")
+mode = input.string("EMA", "Smoothing", options=["EMA","SMA"])
+ma = switch mode
+    "EMA" => ta.ema(close, 50)
+    "SMA" => ta.sma(close, 50)
+plot(close > ma and volume > ta.sma(volume, 20) ? 1 : 0)
