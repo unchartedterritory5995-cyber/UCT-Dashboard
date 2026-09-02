@@ -2642,6 +2642,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"community store init failed: {e}")
 
+    # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
+    # It used to be created only inside _buzz_poll, AFTER its
+    # `if not ingest_enabled(): return` guard and only when this process holds
+    # the scheduler lock. Both are WRITER conditions, and every READER shares
+    # the table: with BUZZ_INGEST_ENABLED=0 (the obvious kill-switch for a
+    # poller that finds nothing today) `/api/r/buzz` answered 500 "no such
+    # table: mentions", `/buzz` answered "Could not read the counts right now"
+    # instead of the honest "No mentions counted yet", and an armed digest
+    # logged an error and posted nothing — indistinguishable from a quiet day,
+    # which is the exact failure run_digest's "armed but unconfigured" warning
+    # exists to prevent. Same hole for the first poll interval after any
+    # deploy onto a fresh volume. init_db is idempotent DDL.
+    try:
+        from api.services import buzz_store as _buzz_boot
+        _buzz_boot.init_db()
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[buzz] store init skipped: {e}")
+
     # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
     # Single web process → the in-memory chat hub needs no external pub/sub.
     try:

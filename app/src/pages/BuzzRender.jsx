@@ -1,8 +1,8 @@
 // app/src/pages/BuzzRender.jsx — headless, token-gated /buzz board export.
 //
 // Renders the Discord `/buzz` board image: the top tickers with full
-// treatment (bar/count/sparkline/people/heat), and the receding tail
-// (2+ mentions as plain text, once-mentioned names as one dim comma line).
+// treatment (rank/count/magnitude bar/people/sparkline/heat), and the
+// receding tail (2+ mentions as chips, once-mentioned names as one dim line).
 // ⛔ NO PROSE LEAD — the owner reviewed a rendered board with a two-sentence
 // derived lead at the top and rejected it (2026-09-01). Do not re-add one.
 // A headless browser (chart-renderer) navigates to /r/buzz, waits for
@@ -15,6 +15,10 @@
 // rendered reference). (⚠️ this comment previously named a "-v4-" filename
 // that does not exist on disk — corrected 2026-09-01 during the
 // brand-treatment port, see task-8-brand-port-report.md.)
+// ⛔ The reference is regenerated IN THE SAME COMMIT as any change here.
+// A committed design file that lags the component becomes a second authority
+// over one value, which has already silently overridden two rulings on this
+// branch — see progress.md.
 //
 // Public route (no AuthGuard). Data comes from /api/r/buzz?token= (a
 // token-gated public read over the buzz store — aggregate counts/tickers
@@ -30,6 +34,39 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 import styles from './BuzzRender.module.css'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
+
+// ⛔ THE EXPORT CONTAINER'S GEOMETRY IS INLINE, AND MUST STAY INLINE.
+// `id="buzz-export"` is a literal string because buzz_image.py screenshots
+// `{"selector": "#buzz-export"}` — but this page's stylesheet is a CSS
+// MODULE, and css-modules scopes bare *id* selectors exactly like classes
+// (postcss-modules-local-by-default handles `case "id": case "class":` in one
+// branch). A `#buzz-export { width: 1000px }` rule in BuzzRender.module.css
+// compiles to `#_buzz-export_1ey3r_1` and matches NOTHING — verified against
+// this repo's own `npm run build`: the literal `#buzz-export{` appears zero
+// times in dist/assets/*.css.
+//
+// It shipped that way and nothing could see it. jsdom computes no layout, so
+// BuzzRender.test.jsx is blind to it; buzz_image.PROBE_JS counts
+// [data-buzz-row] elements, which still EXIST, so the probe reports "drawn"
+// and hands back a mislaid-out PNG. Unstyled, the board filled chart-renderer's
+// 1400px viewport instead of its designed 1000px, which doubled the row grid's
+// `1fr` column and pushed every people/heat cell ~800px away from the count it
+// annotates — i.e. the posted image was never the layout that was reviewed.
+//
+// ChartRender, MoversRender and CatalystsRender all set their export
+// container's geometry inline for this reason; this is that house idiom, not
+// a local workaround. Class-based rules in the module are unaffected (they
+// are scoped and referenced through `styles.*`), and `:root` custom properties
+// survive scoping, so `var(--buzz-*)` resolves here.
+const BOARD_W = 1000
+const EXPORT_STYLE = {
+  width: BOARD_W,
+  background: 'var(--buzz-page)',
+  position: 'relative',
+  overflow: 'hidden',
+  fontFamily: "'Instrument Sans', -apple-system, 'Segoe UI', sans-serif",
+  WebkitFontSmoothing: 'antialiased',
+}
 
 // The sparkline's floor keeps a near-silent bucket visibly present (a literal
 // 0% bar is invisible and unmeasurable) — a quiet stretch should still read
@@ -94,20 +131,28 @@ export default function BuzzRender() {
 
   if (failed) {
     return (
-      <div className={styles.fallback} id="buzz-export">Unavailable</div>
+      <div className={styles.fallback} id="buzz-export" style={EXPORT_STYLE}>Unavailable</div>
     )
   }
   if (!data) {
-    return <div className={styles.fallback} id="buzz-export" />
+    return <div className={styles.fallback} id="buzz-export" style={EXPORT_STYLE} />
   }
 
+  const rows = data.rows || []
   const tail = data.tail || []
   const singles = data.singles || []
   const totals = data.totals || {}
 
+  // The magnitude bar is scaled to the LOUDEST row, which is not necessarily
+  // rows[0]: the board ranks by DISTINCT PEOPLE, so a name further down can
+  // carry more mentions (three people saying NVDA forty times outranks
+  // nobody). Reading rows[0].mentions as the maximum would render bars wider
+  // than their track on exactly the rows the board exists to surface.
+  const maxMentions = Math.max(1, ...rows.map((r) => r.mentions || 0))
+
   return (
     <div className={styles.wrap}>
-      <div id="buzz-export" ref={exportRef}>
+      <div id="buzz-export" ref={exportRef} style={EXPORT_STYLE}>
         <div className={styles.chrome}>
           <span className={styles.subject}>READ THE ROOM</span>
           <span className={styles.win}>{data.label}</span>
@@ -117,6 +162,7 @@ export default function BuzzRender() {
           </span>
         </div>
 
+        <div className={styles.wash} />
         <svg className={styles.rose} viewBox="0 0 100 100" aria-hidden="true">
           <g fill="none" stroke="#2faf68" strokeWidth="4.2" opacity=".5">
             <circle cx="50" cy="50" r="27.5" strokeWidth="8"
@@ -135,18 +181,57 @@ export default function BuzzRender() {
         </svg>
 
         <div className={styles.body}>
-          <div className={styles.meta}>
-            {totals.messages} messages with tickers · {totals.members} members · {totals.tickers} tickers
+          <div className={styles.stats}>
+            {/* ⛔ "WITH TICKERS" is load-bearing: the store holds only
+                ticker-bearing messages, so a bare "MESSAGES" would claim the
+                board counted the whole room. Railed in BuzzRender.test.jsx. */}
+            <div className={styles.stat}>
+              <div className={`${styles.statn} ${styles.mono}`}>{totals.messages}</div>
+              <div className={styles.statl}>MESSAGES WITH TICKERS</div>
+            </div>
+            <div className={styles.stat}>
+              <div className={`${styles.statn} ${styles.mono}`}>{totals.members}</div>
+              <div className={styles.statl}>MEMBERS TALKING</div>
+            </div>
+            <div className={styles.stat}>
+              <div className={`${styles.statn} ${styles.mono}`}>{totals.tickers}</div>
+              <div className={styles.statl}>TICKERS NAMED</div>
+            </div>
           </div>
 
-          {(data.rows || []).map((r) => (
-            <div key={r.ticker} className={styles.r} data-buzz-row>
+          {rows.length > 0 && (
+            <div className={`${styles.grid} ${styles.hrow}`}>
+              <span className={styles.hRk}>#</span>
+              <span>TICKER</span>
+              <span className={styles.hN}>MENTIONS</span>
+              <span>SHARE OF THE CHATTER</span>
+              <span className={styles.hPpl}>PEOPLE</span>
+              <span>SESSION SHAPE</span>
+              <span className={styles.hHeat}>VS 30D</span>
+            </div>
+          )}
+
+          {rows.map((r, i) => (
+            <div
+              key={r.ticker}
+              className={`${styles.grid} ${styles.r}${i === 0 ? ` ${styles.lead}` : ''}`}
+              data-buzz-row
+            >
+              <span className={styles.rk}>{String(i + 1).padStart(2, '0')}</span>
               <span className={styles.sym}>{r.ticker}</span>
               <span className={styles.n}>{r.mentions}</span>
+              <span className={styles.bar}>
+                <i
+                  className={r.hot != null ? `${styles.fill} ${styles.hot}` : styles.fill}
+                  style={{ width: `${((100 * (r.mentions || 0)) / maxMentions).toFixed(1)}%` }}
+                  data-buzz-bar
+                />
+              </span>
+              <span className={styles.ppl}>{r.people}</span>
               <Spark values={r.spark} hot={r.hot != null} />
-              <span />
-              <span className={styles.ppl}>{r.people} people</span>
-              <span className={styles.hot}>{r.hot != null ? `▲ ${r.hot}×` : ''}</span>
+              <span className={styles.hcell}>
+                {r.hot != null && <b className={styles.pill}>{`▲ ${r.hot}×`}</b>}
+              </span>
             </div>
           ))}
 
@@ -156,7 +241,7 @@ export default function BuzzRender() {
               <div className={styles.multi}>
                 {tail.map((t) => (
                   <span key={t.ticker} className={styles.m} data-buzz-chip>
-                    <b>{t.ticker}</b>{t.mentions}
+                    <b>{t.ticker}</b><i>{t.mentions}</i>
                   </span>
                 ))}
               </div>

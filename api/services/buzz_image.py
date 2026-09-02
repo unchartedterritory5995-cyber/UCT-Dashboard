@@ -19,15 +19,76 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
+import time
 
 log = logging.getLogger(__name__)
 
-# 1400 wide because the board carries EVERY ticker: a ranked column plus the
-# themed tail in three sub-columns. Height is a generous VIEWPORT -- the
-# renderer screenshots the #buzz-export element's own box, so a day with more
-# tickers simply produces a taller PNG.
+# These are the renderer's VIEWPORT, not the board. The board is a fixed
+# 1000px element (BuzzRender.jsx's EXPORT_STYLE) and the renderer screenshots
+# `#buzz-export`'s own box, so the viewport only has to be comfortably wider
+# than the board and tall enough not to matter -- a day with more tickers
+# simply produces a taller PNG.
+# ⛔ Do NOT read 1400 as the board's width. It said "1400 wide because the
+# board carries EVERY ticker: a ranked column plus the themed tail in three
+# sub-columns" -- there are no three sub-columns (the tail is one wrapping
+# row), and while a CSS-modules bug was silently dropping the board's own
+# `width: 1000px`, the board really did stretch to fill this number. That is
+# fixed; this comment is what stops the next reader from re-deriving the
+# layout from the viewport.
 BOARD_W, BOARD_H, SCALE = 1400, 1400, 2
 RENDER_TIMEOUT_S = 45.0
+
+# ── The valve. Every /chart render passes through discord_interactions'
+# RENDER_SLOTS (default 4) with a cache and single-flight in front of it. This
+# path had NONE of that while being MEMBER-TRIGGERED: each in-flight /buzz
+# pins one anyio worker on the single-process web pod for up to
+# RENDER_TIMEOUT_S, and fires an unbounded Playwright render at the one
+# chart-renderer the 4-slot valve exists to protect. 25 members running /buzz
+# in a minute is the 2026-07-01 threadpool-exhaustion outage, plus /chart --
+# which politely waits for a slot -- degrading underneath it.
+#
+# The board is BYTE-IDENTICAL for every caller inside a poll interval, so the
+# cache collapses that burst to one render. Both waits are bounded on purpose:
+# a caller that cannot get the image quickly returns None and the member still
+# gets the text board, which is the whole degrade-never-apologise contract.
+_CACHE_TTL_S = float(os.environ.get("BUZZ_IMAGE_CACHE_TTL_S", "60"))
+_FLIGHT_WAIT_S = float(os.environ.get("BUZZ_IMAGE_FLIGHT_WAIT_S", "20"))
+_SLOT_WAIT_S = float(os.environ.get("BUZZ_IMAGE_SLOT_WAIT_S", "8"))
+
+_CACHE: dict[str, tuple[float, bytes]] = {}
+_CACHE_LOCK = threading.Lock()
+_FLIGHT_LOCKS: dict[str, threading.Lock] = {}
+
+
+def _cache_get(window: str) -> bytes | None:
+    with _CACHE_LOCK:
+        hit = _CACHE.get(window)
+        if not hit:
+            return None
+        made, png = hit
+        if time.monotonic() - made > _CACHE_TTL_S:
+            _CACHE.pop(window, None)
+            return None
+        return png
+
+
+def _cache_put(window: str, png: bytes) -> None:
+    with _CACHE_LOCK:
+        _CACHE[window] = (time.monotonic(), png)
+
+
+def _flight_lock(window: str) -> threading.Lock:
+    with _CACHE_LOCK:
+        return _FLIGHT_LOCKS.setdefault(window, threading.Lock())
+
+
+def _reset_for_tests() -> None:
+    """Drop cache + flight state so one test's render cannot answer another's."""
+    with _CACHE_LOCK:
+        _CACHE.clear()
+        _FLIGHT_LOCKS.clear()
+
 
 READY_JS = "() => window.__buzzReady === true"
 # Count the artifact, do not trust the flag. Comes back as the X-Chart-Probe
@@ -56,6 +117,33 @@ def _probe_rows(resp) -> int | None:
 
 
 def render_board_png(window: str = "open", *, client=None) -> bytes | None:
+    """Cached, single-flighted, slot-limited board render. See the valve note
+    above. Returns None on every failure path -- the caller degrades to the
+    text board rather than apologising."""
+    png = _cache_get(window)
+    if png is not None:
+        return png
+
+    lock = _flight_lock(window)
+    # A bounded wait, not a queue: a caller that cannot get in inside
+    # _FLIGHT_WAIT_S releases its anyio worker instead of holding it for the
+    # leader's full RENDER_TIMEOUT_S.
+    if not lock.acquire(timeout=_FLIGHT_WAIT_S):
+        return _cache_get(window)
+    try:
+        # The leader may have finished while we waited on the lock.
+        png = _cache_get(window)
+        if png is not None:
+            return png
+        png = _render_uncached(window, client=client)
+        if png:
+            _cache_put(window, png)
+        return png
+    finally:
+        lock.release()
+
+
+def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
     renderer = os.environ.get("CHART_RENDERER_URL", "").strip().rstrip("/")
     if not renderer:
         return None
@@ -63,6 +151,14 @@ def render_board_png(window: str = "open", *, client=None) -> bytes | None:
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     secret = os.environ.get("CHART_RENDERER_SECRET", "")
     url = f"{base}/r/buzz?token={token}&window={window}"
+
+    # Share /chart's bounded valve rather than opening a second, unbounded
+    # lane at the same renderer. Imported lazily: discord_interactions is a
+    # heavy module and nothing here needs it until a render actually happens.
+    from api.services.discord_interactions import RENDER_SLOTS
+    if not RENDER_SLOTS.acquire(timeout=_SLOT_WAIT_S):
+        log.info("[buzz] no render slot within %.0fs -- text-only board", _SLOT_WAIT_S)
+        return None
     try:
         import httpx
         own = client is None
@@ -91,3 +187,5 @@ def render_board_png(window: str = "open", *, client=None) -> bytes | None:
     except Exception as e:  # noqa: BLE001
         log.warning("[buzz] render failed: %s", e)
         return None
+    finally:
+        RENDER_SLOTS.release()
