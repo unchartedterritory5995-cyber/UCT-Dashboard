@@ -150,12 +150,20 @@ def _measure_effect(texts: list[str], tokens: dict[str, dict]) -> dict:
     total_before = sum(before.values())
     removed = (contextual_before - contextual_after) + (exact_before - exact_after)
     return {
+        "_comment": (
+            "Baseline is NO COLLISION GATE AT ALL (chat_words empty, "
+            "HOUSE_VOCAB only) -- the total value of gating, not the "
+            "marginal gain over whatever list was previously shipped. A "
+            "figure quoted elsewhere as the improvement over a prior "
+            "hand-typed or previously-committed list is answering a "
+            "DIFFERENT question and will not match these numbers."
+        ),
         "contextual_tier_mentions_before": contextual_before,
         "contextual_tier_mentions_after": contextual_after,
         "cashtag_tier_before_after": [cashtag_before, cashtag_after],
         "exact_tier_before_after": [exact_before, exact_after],
-        "false_mentions_removed": removed,
-        "share_of_all_bookings_removed_pct": (
+        "removed_vs_no_gate": removed,
+        "share_of_all_bookings_removed_pct_vs_no_gate": (
             round(removed / total_before * 100, 1) if total_before else 0.0
         ),
     }

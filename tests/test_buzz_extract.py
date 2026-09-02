@@ -126,31 +126,20 @@ def test_an_alias_that_is_an_ordinary_word_needs_the_proper_noun_form(text):
     assert tickers(text) == [], f"false positive: {extract(text)}"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "KNOWN GAP (Task 5, 2026-09-01), not a silent regression: arm/meta/"
-        "net/lab are ordinary English words whose spelling is IDENTICAL to "
-        "their own ticker (ARM/META/NET/LAB) -- the same class of collision "
-        "as SPOT. The real #tsdr corpus (api/data/buzz_collisions.json) does "
-        "not measure any of them at >=8 occurrences with <35% uppercase, and "
-        "the brief reserves HOUSE_VOCAB for uppercase-by-convention acronyms "
-        "(AI, RS, EMA, SMA, MA, DD, OI, RSI, PEG), not ordinary words -- so "
-        "neither list may absorb them without fabricating data this corpus "
-        "does not support. '#tsdr is disciplined, #main-chat is casual' (the "
-        "brief): the blocked #main-chat backfill is expected to surface these "
-        "and close the gap by re-running tools/buzz_derive_collisions.py. "
-        "strict=True: if this starts passing, promote the case out of here "
-        "instead of leaving a stale xfail."
-    ),
-)
 @pytest.mark.parametrize("text", [
     "did you sprain your arm at practice",
     "that comment was very meta of you",
     "my net worth took a hit",
     "back to the lab tomorrow",
 ])
-def test_arm_meta_net_lab_are_a_known_uncovered_word_collision_gap(text):
+def test_arm_meta_net_lab_lowercase_word_forms_are_never_a_ticker(text):
+    """FIXED (was a documented xfail'd gap): #tsdr is a disciplined trading
+    feed, so casing measured arm/meta as ticker-dominant there even though
+    they are ordinary English in casual chat -- a structural blind spot in
+    the corpus, not a flaw in the derivation. `uni.WORD_FORMS` (extended from
+    AMBIGUOUS_ALIASES to also cover net/lab, which aren't alias keys at all)
+    demands the exact-symbol form at the bare-word tier too, same principle
+    as the alias tier's proper-noun requirement."""
     assert tickers(text) == [], f"false positive: {extract(text)}"
 
 
@@ -172,6 +161,25 @@ def test_the_gate_is_a_scalpel_real_mentions_still_count(text, want):
     novo and lilly are not ordinary English words, so they are never gated --
     lowercase mentions count."""
     assert want in tickers(text)
+
+
+@pytest.mark.parametrize("text,want", [
+    ("ARM reports Tuesday", "ARM"),          # exact caps still counts
+    ("Arm reports Tuesday", "ARM"),          # alias proper-noun path still counts
+    ("Meta earnings tonight", "META"),
+    ("NET broke out today", "NET"),
+    ("Cloudflare guidance", "NET"),
+    ("$NET breaking out", "NET"),
+    ("Rocket Lab launch", "RKLB"),
+])
+def test_the_lowercase_word_gate_is_a_scalpel(text, want):
+    """CONTROL for the WORD_FORMS gate. Without this, blocking those tokens
+    outright would also pass -- and would delete real mentions permanently."""
+    assert want in tickers(text)
+
+
+def test_rocket_lab_does_not_book_a_phantom_LAB():
+    assert "LAB" not in tickers("Rocket Lab launch")
 
 
 def test_urls_do_not_produce_tickers():

@@ -64,6 +64,14 @@ AMBIGUOUS_ALIASES = frozenset({
     "apple", "arm", "meta", "oracle", "affirm", "alphabet", "nike",
 })
 
+# Tokens whose LOWERCASE form is ordinary English, whatever a corpus measures.
+# ⛔ This is a THIRD category, distinct from both the derived list and
+# HOUSE_VOCAB, and it exists because of a measured blind spot: the derivation
+# corpus (#tsdr) is a DISCIPLINED feed where "arm"/"meta" are ticker-dominant,
+# while in casual chat they are a body part and an adjective. A casing rule
+# cannot see that from #tsdr alone. Every entry needs a fixture sentence.
+WORD_FORMS = AMBIGUOUS_ALIASES | frozenset({"net", "lab"})
+
 # Ordinary conversational English that also reads as a ticker. DERIVED, never
 # hand-typed -- see the module docstring and tools/buzz_derive_collisions.py.
 # `chat_words()` below is the loader; `api/data/buzz_collisions.json` is the

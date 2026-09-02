@@ -1,30 +1,31 @@
 {
  "_comment": "DERIVED, never hand-typed. A token that is a real ticker AND an ordinary word appears in chat mostly in lowercase ('big spot to breakout'); a token used as a ticker appears mostly uppercase. Regenerate with tools/buzz_derive_collisions.py after any corpus refresh. Do not edit by hand -- add house ACRONYMS (AI, RS, EMA, PEG...) to HOUSE_VOCAB instead, since those are uppercase by convention and casing cannot separate them.",
  "derived_from": {
-  "corpus": "uct_intelligence/data/processed/processed_messages.json",
-  "messages": 7766,
-  "chars": 1057763,
+  "corpus": "C:\\Users\\Patrick\\uct_intelligence\\data\\processed\\processed_messages.json",
+  "messages": 7631,
+  "chars": 1049998,
   "measured": "2026-09-01",
   "min_seen": 8,
   "max_upper_share": 0.35
  },
  "measured_effect": {
-  "contextual_tier_mentions_before": 2162,
-  "contextual_tier_mentions_after": 316,
+  "_comment": "Baseline is NO COLLISION GATE AT ALL (chat_words empty, HOUSE_VOCAB only) -- the total value of gating, not the marginal gain over whatever list was previously shipped. A figure quoted elsewhere as the improvement over a prior hand-typed or previously-committed list is answering a DIFFERENT question and will not match these numbers.",
+  "contextual_tier_mentions_before": 15520,
+  "contextual_tier_mentions_after": 312,
   "cashtag_tier_before_after": [
    258,
    258
   ],
   "exact_tier_before_after": [
-   9205,
-   9124
+   9637,
+   9137
   ],
-  "false_mentions_removed": 1927,
-  "share_of_all_bookings_removed_pct": 16.1
+  "removed_vs_no_gate": 15708,
+  "share_of_all_bookings_removed_pct_vs_no_gate": 61.0
  },
  "tokens": {
   "ON": {
-   "as_word": 2591,
+   "as_word": 2592,
    "as_ticker": 16,
    "upper_pct": 0.6
   },
@@ -44,7 +45,7 @@
    "upper_pct": 10.1
   },
   "UP": {
-   "as_word": 890,
+   "as_word": 897,
    "as_ticker": 5,
    "upper_pct": 0.6
   },
@@ -59,7 +60,7 @@
    "upper_pct": 1.5
   },
   "NOW": {
-   "as_word": 733,
+   "as_word": 734,
    "as_ticker": 38,
    "upper_pct": 4.9
   },
@@ -98,6 +99,11 @@
    "as_ticker": 1,
    "upper_pct": 0.3
   },
+  "EMA": {
+   "as_word": 358,
+   "as_ticker": 154,
+   "upper_pct": 30.1
+  },
   "GAP": {
    "as_word": 355,
    "as_ticker": 7,
@@ -105,8 +111,8 @@
   },
   "AM": {
    "as_word": 340,
-   "as_ticker": 32,
-   "upper_pct": 8.6
+   "as_ticker": 38,
+   "upper_pct": 10.1
   },
   "LOW": {
    "as_word": 330,
@@ -147,11 +153,6 @@
    "as_word": 250,
    "as_ticker": 0,
    "upper_pct": 0.0
-  },
-  "EMA": {
-   "as_word": 235,
-   "as_ticker": 19,
-   "upper_pct": 7.5
   },
   "GO": {
    "as_word": 212,
@@ -219,9 +220,9 @@
    "upper_pct": 3.3
   },
   "JAN": {
-   "as_word": 67,
+   "as_word": 70,
    "as_ticker": 3,
-   "upper_pct": 4.3
+   "upper_pct": 4.1
   },
   "EYE": {
    "as_word": 50,
@@ -239,9 +240,9 @@
    "upper_pct": 0.0
   },
   "MAIN": {
-   "as_word": 41,
+   "as_word": 42,
    "as_ticker": 1,
-   "upper_pct": 2.4
+   "upper_pct": 2.3
   },
   "HOPE": {
    "as_word": 34,
@@ -269,7 +270,7 @@
    "upper_pct": 16.7
   },
   "TAP": {
-   "as_word": 27,
+   "as_word": 28,
    "as_ticker": 0,
    "upper_pct": 0.0
   },
@@ -323,32 +324,37 @@
    "as_ticker": 0,
    "upper_pct": 0.0
   },
-  "LUCK": {
-   "as_word": 18,
-   "as_ticker": 0,
-   "upper_pct": 0.0
-  },
   "LIFE": {
    "as_word": 18,
    "as_ticker": 0,
    "upper_pct": 0.0
   },
-  "PRE": {
-   "as_word": 17,
+  "LUCK": {
+   "as_word": 18,
    "as_ticker": 0,
    "upper_pct": 0.0
+  },
+  "PRE": {
+   "as_word": 18,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "TH": {
+   "as_word": 16,
+   "as_ticker": 1,
+   "upper_pct": 5.9
   },
   "STEP": {
    "as_word": 16,
    "as_ticker": 0,
    "upper_pct": 0.0
   },
-  "RARE": {
+  "VIA": {
    "as_word": 16,
    "as_ticker": 0,
    "upper_pct": 0.0
   },
-  "VIA": {
+  "RARE": {
    "as_word": 16,
    "as_ticker": 0,
    "upper_pct": 0.0
@@ -363,25 +369,35 @@
    "as_ticker": 0,
    "upper_pct": 0.0
   },
+  "WWW": {
+   "as_word": 13,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
   "LINE": {
    "as_word": 13,
    "as_ticker": 1,
    "upper_pct": 7.1
   },
-  "WWW": {
-   "as_word": 13,
-   "as_ticker": 0,
-   "upper_pct": 0.0
+  "UPS": {
+   "as_word": 10,
+   "as_ticker": 3,
+   "upper_pct": 23.1
   },
   "NOV": {
    "as_word": 10,
    "as_ticker": 4,
    "upper_pct": 28.6
   },
-  "UPS": {
-   "as_word": 10,
-   "as_ticker": 3,
-   "upper_pct": 23.1
+  "WK": {
+   "as_word": 9,
+   "as_ticker": 0,
+   "upper_pct": 0.0
+  },
+  "SON": {
+   "as_word": 9,
+   "as_ticker": 0,
+   "upper_pct": 0.0
   },
   "DRUG": {
    "as_word": 9,
@@ -389,11 +405,6 @@
    "upper_pct": 10.0
   },
   "BETA": {
-   "as_word": 9,
-   "as_ticker": 0,
-   "upper_pct": 0.0
-  },
-  "SON": {
    "as_word": 9,
    "as_ticker": 0,
    "upper_pct": 0.0
@@ -407,6 +418,11 @@
    "as_word": 7,
    "as_ticker": 2,
    "upper_pct": 22.2
+  },
+  "HR": {
+   "as_word": 6,
+   "as_ticker": 2,
+   "upper_pct": 25.0
   }
  }
 }

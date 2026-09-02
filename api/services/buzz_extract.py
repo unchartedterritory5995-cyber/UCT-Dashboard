@@ -73,6 +73,10 @@ def extract(text: str | None) -> list[tuple[str, str]]:
         sym = raw.upper()
         if sym not in symbols or sym in ambiguous:
             continue
+        # An ordinary-word form counts only when written AS the symbol.
+        # "ARM reports" counts; "sprain your arm" does not.
+        if raw.lower() in uni.WORD_FORMS and raw != sym:
+            continue
         _strongest(found, sym, "exact" if raw == sym else "contextual")
 
     return sorted(found.items())
