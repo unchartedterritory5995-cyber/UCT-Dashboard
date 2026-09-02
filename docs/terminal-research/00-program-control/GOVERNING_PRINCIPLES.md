@@ -74,7 +74,7 @@ Member-facing traffic never routes through the owner's Claude Max seat; any prot
 
 ## 13. Defaults in force (OWNER_SEED_FACTS §6; pending owner correction)
 
-Internal desk first, members second (D-001). US equities primary; options active; indices/ETFs context; futures positioning as a research rail; no FX, fixed income, or crypto in V1. No execution or order management. No public Substack wire. No renaming of persisted preference or widget keys. Under ~750 community members; one paid tier (Morning Wire paywall, $7 weekly promo). 2–5 internal dogfooders. Desk tools today: thinkorswim/Schwab, TradingView, Finviz, Discord, Substack, YouTube.
+Internal desk first, members second (D-001). US equities primary; options active; indices/ETFs context; futures positioning as a research rail; no FX, fixed income, or crypto in V1. No execution or order management. No public Substack wire. No renaming of persisted preference or widget keys. Under ~750 community members; one paid tier with a $7 weekly promo. CORRECTED 2026-09-02 (DL-010): the code makes the Morning Wire the ONLY free page (`AuthGuard.jsx` `FREE_PAGES = ['/morning-wire']`) and paid-gates every other route server-side; the seed facts had this inverted. Proceeding on the code; owner confirmation requested (OI-12). 2–5 internal dogfooders. Desk tools today: thinkorswim/Schwab, TradingView, Finviz, Discord, Substack, YouTube.
 
 ## 14. THE CANONICAL ACCEPTANCE GATE (Document B §49) — copied in full
 

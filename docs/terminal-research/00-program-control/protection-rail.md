@@ -29,23 +29,21 @@ Also record `git -C ... status --porcelain -- . ':(exclude)docs/terminal-researc
 
 ### (2) LIVENESS — the tests that cover Terminal-Current pass, in the research worktree, against a local backend only
 
-Frontend (vitest, from `app/`; `npm ci` must have been run once in the worktree):
+Frontend (vitest, from `app/`; `npm ci` must have been run once in the worktree). Vitest positional arguments are SUBSTRING FILTERS, so a renamed or deleted file makes the run shrink silently (D-07 finding). The rail therefore (a) names every file explicitly, (b) pre-checks that each exists, and (c) asserts the file count in the summary line. Tightened 2026-09-02 (DL-009); the file list is the 31 files the R0 run executed.
 
 ```bash
-cd "C:/Users/Patrick/uct-worktrees/terminal-research/app" && npx vitest run src/pages/calendar src/pages/charts/widgets/CalendarWidget src/components/AuthGuard.calendarDeepLink.test.jsx src/pages/journal-2-0/tabs/CalendarTab.test.jsx src/pages/journal-2-0/hooks/useJ2Calendar.test.jsx
+cd "C:/Users/Patrick/uct-worktrees/terminal-research/app" && FILES="src/components/AuthGuard.calendarDeepLink.test.jsx src/pages/calendar/Calendar.deepLinkWeek.test.jsx src/pages/calendar/Calendar.earningsRoute.test.jsx src/pages/calendar/Calendar.realModal.test.jsx src/pages/calendar/Calendar.weekNav.test.jsx src/pages/calendar/CalendarDayTable.test.jsx src/pages/calendar/CalendarHeader.test.jsx src/pages/calendar/EarningsCard.test.jsx src/pages/calendar/MyStocksHub.crashRecovery.test.jsx src/pages/calendar/MyStocksHub.stepping.test.jsx src/pages/calendar/WeekView.rankWire.test.jsx src/pages/calendar/WireView.coverage.test.jsx src/pages/calendar/WireView.test.jsx src/pages/calendar/callRecap.test.jsx src/pages/calendar/earningsLifecycle.test.js src/pages/calendar/earningsModalRow.test.js src/pages/calendar/eventCard.test.jsx src/pages/calendar/filterLogic.test.js src/pages/calendar/impliedMoveReason.test.jsx src/pages/calendar/importance.test.js src/pages/calendar/monthGrid.test.js src/pages/calendar/myStocksHub.test.jsx src/pages/calendar/rankOrder.test.js src/pages/calendar/refusalLastHops.test.jsx src/pages/calendar/todaysBrief.test.jsx src/pages/calendar/useCalendarData.test.js src/pages/calendar/useEarningsModalRoute.test.jsx src/pages/calendar/weekAnchor.test.js src/pages/charts/widgets/CalendarWidget.weekIntent.test.jsx src/pages/journal-2-0/hooks/useJ2Calendar.test.jsx src/pages/journal-2-0/tabs/CalendarTab.test.jsx" && for f in $FILES; do [ -f "$f" ] || { echo "RAIL FAIL: missing $f"; exit 1; }; done && npx vitest run $FILES
 ```
 
-PASS = vitest summary line reports 0 failed. Read the summary line; do not trust the wrapper exit code alone (`--reporter=basic` exits 0 with no summary).
+PASS = every named file exists AND the summary reads `Test Files 31 passed (31)` with 0 failed. Read the summary line; do not trust the wrapper exit code alone (`--reporter=basic` exits 0 with no summary). If Terminal-Current gains a calendar test file, ADD it here (the rail may tighten, never loosen).
 
-Backend (pytest, from the worktree root; the repo-root `conftest.py` pins shared-data paths away from the live `C:\data` — never override those pins; never point at production or the port-8077 stale backend):
+Backend (pytest, from the worktree root; the repo-root `conftest.py` pins shared-data paths away from the live `C:\data` — never override those pins; never point at production or the port-8077 stale backend). Widened 2026-09-02 (DL-009) to include the market-calendar router, economic-calendar (FMP), and IPO-calendar suites that feed the surface:
 
 ```bash
-cd "C:/Users/Patrick/uct-worktrees/terminal-research" && python -m pytest tests/test_calendar_*.py tests/test_dividends_calendar.py tests/test_catalyst_market_calendar.py -q -p no:cacheprovider
+cd "C:/Users/Patrick/uct-worktrees/terminal-research" && python -m pytest tests/test_calendar_*.py tests/test_dividends_calendar.py tests/test_catalyst_market_calendar.py tests/test_econ_calendar_fmp.py tests/test_ipo_calendar.py tests/test_market_calendar_router.py -q -p no:cacheprovider
 ```
 
-PASS = pytest summary line shows 0 failed / 0 errors (skips allowed and counted).
-
-Note on Day 1a: the frontend suite is being enabled (`npm ci` in the worktree); the backend command's Python environment on this box is being confirmed by role D-07. Until both baseline runs are recorded below, check (2) is BASELINE PENDING, not FAILED.
+PASS = pytest summary line shows 0 failed / 0 errors (skips allowed and counted); baseline 374 passed.
 
 ### (3) LIVENESS — production `/calendar` renders the expected content (read-only)
 
@@ -65,4 +63,5 @@ Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome to
 
 | Run | Program day / checkpoint | (1) diff empty | (2) frontend | (2) backend | (3) HTTP | (3) browser | Result |
 |---|---|---|---|---|---|---|---|
+| R0b | Day 1a, 2026-09-02 06:50 UTC, after tightening (DL-009) | PASS (diff empty; only untracked scratch `routers_inv.txt` left by an agent, removed after Wave 1) | PASS — same 31 files, 390 tests (explicit list) | PASS — widened set: 374 passed, 0 failed, 14.3 s | (unchanged from R0) | (unchanged from R0) | **PASS** |
 | R0 | Day 1a Step Zero, 2026-09-02 05:40–06:05 UTC | PASS (docs-only branch; `git diff --stat 9c3df14b9 -- . ':(exclude)docs/terminal-research'` empty) | PASS — vitest: 31 test files, 390 tests passed, 0 failed (`npm ci` done in the worktree first) | PASS — pytest: 317 passed, 0 failed, 13.2 s (Python 3.14 on this box runs the suite as-is) | PASS (`/api/health` 200 `status ok`, uptime 776 s, rss 1306 MB, threads 67; `/calendar` 200, `id="root"` present) | PASS — authenticated Chrome load of `/calendar` at 05:46 UTC rendered header "UCT Terminal", tabs Wire/Board/Table/Month, scopes My Stocks/Watchlist/Positions/UCT20/All, week strip MON 31–FRI 4, cap chips, roster line "0 reporting · 145 hidden", "Week of Aug 31 – Sep 4, 2026". Note: the roster is filter-dependent, so the assertion is header + week strip + roster line, never "≥1 earnings row". | **PASS** |
