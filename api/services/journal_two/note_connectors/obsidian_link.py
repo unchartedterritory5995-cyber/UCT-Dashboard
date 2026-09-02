@@ -282,6 +282,46 @@ def get_device(device_id: str) -> dict[str, Any] | None:
     }
 
 
+def revoke_devices(user_id: str) -> int:
+    """Deletes every `j2_obsidian_devices` row for `user_id` -- the fix for
+    the gap the disconnect flow used to have: `authenticate_device` (below)
+    authenticates a push purely off THIS table, looked up by the
+    `device_id` half of the bearer token, INDEPENDENTLY of the
+    `j2_note_connectors` row `note_sync.py::disconnect` otherwise purges
+    alone via `connections.delete_connector`. A `DELETE /obsidian` that
+    only removed the connector row left every device token this member
+    ever redeemed still valid -- a member who disconnects Obsidian in the
+    UI, believing they cut the plugin off, still had a plugin able to push
+    notes into staging. Called from `note_sync.py::disconnect` before
+    `connections.delete_connector` runs (mirrors that function's Dropbox
+    best-effort-revoke-before-purge shape, generalized to whichever
+    provider owns an out-of-band credential store of its own).
+
+    Scoped to `user_id` alone, no `vault_id`/`device_id` filter: a member
+    disconnecting Obsidian from Settings disconnects the WHOLE provider for
+    their account -- exactly like every other provider's disconnect, not
+    one vault -- so every device this user ever redeemed a code for (one
+    per vault, `UNIQUE(user_id, vault_id)`) is revoked in one call. A
+    second user's rows are a disjoint set (`user_id` is part of every row)
+    and are never touched.
+
+    Returns the number of rows removed (0 if none existed -- a safe,
+    idempotent no-op, matching `connections.delete_connector`'s own
+    "nothing to disconnect" case). Raises whatever the underlying DB call
+    raises rather than swallowing it: unlike Dropbox's best-effort revoke
+    of a THIRD PARTY's grant (harmless to leave dangling since it grants
+    nothing back to us), a failure here means the vulnerability this
+    function exists to close would still be open -- it must never look
+    like it succeeded when it didn't."""
+    conn = get_connection()
+    try:
+        cur = conn.execute("DELETE FROM j2_obsidian_devices WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
 def authenticate_device(raw_token: str) -> dict[str, Any] | None:
     """Returns `{device_id, user_id, vault_id, label}` for a currently
     valid device token, or `None` for anything else -- malformed input, an

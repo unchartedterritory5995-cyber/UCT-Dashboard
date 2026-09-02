@@ -148,7 +148,21 @@ def _verify_state(state: str, *, provider: str) -> str:
     nothing about which check failed. Raises `errors.NoteConnNotConfigured`
     (mapped to 503 by the caller) when no signing secret is configured at
     all — a distinct, server-side-only signal, never confused with a
-    client-supplied bad state."""
+    client-supplied bad state.
+
+    ⛔ That "on ANY failure" claim was FALSE until the `compare_digest` call
+    below was fixed to compare BYTES: `state` arrives as a raw URL query
+    value on the Notion/Dropbox/MS Graph OAuth callback, and a malformed one
+    can decode (base64 + `.decode("utf-8")`) into a `sig` half containing a
+    non-ASCII character. `hmac.compare_digest` on two `str` raises
+    `TypeError` (not a clean False) the instant either side is non-ASCII --
+    that reached this exact comparison uncaught and turned a bad state into
+    a 500 on this shared callback path (measured, not assumed -- see
+    `tests/test_note_sync_router.py`'s non-ASCII-state test). Encoding both
+    sides to bytes right before `compare_digest` makes that same input
+    compare false like any other bad signature -- same pre-existing shape,
+    same fix, as `obsidian_link.py`'s `_verify_connect_code` /
+    `authenticate_device`."""
     bad = HTTPException(status_code=400, detail="invalid or expired state")
     try:
         raw = base64.urlsafe_b64decode(state.encode("utf-8")).decode("utf-8")
@@ -159,7 +173,10 @@ def _verify_state(state: str, *, provider: str) -> str:
         raise bad
     payload = f"{user_id}:{state_provider}:{ts_str}:{nonce}"
     expected = _hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()  # NoteConnNotConfigured propagates
-    if not _hmac.compare_digest(expected, sig):
+    # BYTES, not str: `sig` was decoded from an attacker-controlled base64
+    # blob via .decode("utf-8"), so it can legally contain non-ASCII
+    # characters -- see the docstring above.
+    if not _hmac.compare_digest(expected.encode("utf-8"), sig.encode("utf-8")):
         raise bad
     try:
         ts = int(ts_str)
@@ -747,11 +764,31 @@ async def _best_effort_revoke_dropbox(user_id: str) -> None:
 async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Purges the connector's token + every source/log/remote-index row for
     this provider — NEVER touches `j2_notes`/`j2_note_folders` (spares
-    already-synced notes; `connections.delete_connector`'s own contract)."""
+    already-synced notes; `connections.delete_connector`'s own contract).
+
+    ⛔ Obsidian also revokes every `j2_obsidian_devices` row for this user
+    (2026-09-02 gap fix). The ingest endpoint (`_authenticate_obsidian_
+    device` below) authenticates a push purely off that table, via
+    `obsidian_link.authenticate_device` — INDEPENDENTLY of the
+    `j2_note_connectors` row this function otherwise purges alone. Without
+    this, disconnecting Obsidian here left every already-issued device
+    token still valid: a member who disconnects Obsidian in the UI,
+    believing they cut the plugin off, still had a plugin able to push
+    notes into staging (reproduced before this fix landed — see
+    `test_obsidian_ingest.py`'s disconnect-revokes-the-device-token tests).
+    Mirrors Dropbox's best-effort-revoke-before-purge shape immediately
+    below, generalized to whichever provider owns an out-of-band credential
+    store of its own (Dropbox: a third-party OAuth grant; Obsidian: a
+    locally-issued device token) — NOT best-effort, though: a failed revoke
+    here must fail the whole disconnect rather than silently claim success
+    while a device is still live (see `obsidian_link.revoke_devices`'s own
+    docstring)."""
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
     if provider == "dropbox":
         await _best_effort_revoke_dropbox(user["id"])
+    if provider == "obsidian":
+        obsidian_link.revoke_devices(user["id"])
     ok = connections.delete_connector(user["id"], provider)
     if not ok:
         raise HTTPException(status_code=404, detail=f"{provider} is not connected")

@@ -612,6 +612,33 @@ def test_callback_tampered_state_400(client, monkeypatch):
     assert r.status_code == 400
 
 
+def test_callback_non_ascii_state_signature_fails_cleanly_not_a_500(client, monkeypatch):
+    """`_verify_state`'s `compare_digest` call had the identical str-vs-str
+    shape as `obsidian_link.py`'s connect-code/device-token checks (fixed the
+    same day, same file family) -- `state` arrives as a raw URL query value
+    on this shared Notion/Dropbox/MS Graph OAuth callback, and a malformed
+    one can decode (base64 + `.decode("utf-8")`) into a `sig` half
+    containing a non-ASCII character. Before the byte-safety fix,
+    `hmac.compare_digest` on two `str` raised `TypeError` (not a clean
+    False) the instant either side was non-ASCII -- an uncaught 500, not the
+    clean 400 every other malformed state gets. Must fail against
+    unfixed code (a `str`-vs-`str` compare_digest call)."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import base64
+    import time as _time
+    ts = str(int(_time.time()))
+    nonce = "non-ascii-sig-test-nonce"
+    payload = f"u1:notion:{ts}:{nonce}"
+    # Never a valid hex digest either way -- the point is that a non-ASCII
+    # `sig` must compare false like any other bad signature, not crash.
+    bad_sig = "é" * 64
+    state = base64.urlsafe_b64encode(f"{payload}:{bad_sig}".encode("utf-8")).decode("utf-8")
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 400, r.text
+
+
 def test_callback_expired_state_400(client, monkeypatch):
     monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
     monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
