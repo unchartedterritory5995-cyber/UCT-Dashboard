@@ -2398,8 +2398,8 @@ The board sits beside `/chart` images in the same Discord channel, so it must be
 |---|---|
 | Font | **Instrument Sans**, self-hosted. ⛔ `app/index.html` explicitly forbids putting it back on `fonts.googleapis.com` — lightweight-charts bakes the face in. Use the **`-tab`** face for every numeric column so counts align. |
 | Chrome bar | `height:40px; background:#161616; padding:0 16px; font-size:14px; color:#888` |
-| Subject | gold **`#c9a84c`**, `font-weight:700; font-size:18px` (where the chart puts its ticker) |
-| Context | `#9aa08f`, 13px (where the chart puts the company name) |
+| Subject | **`READ THE ROOM`** in gold `#c9a84c`, `font-weight:700; font-size:18px` (where the chart puts its ticker). ⛔ No `(#main-chat)` beside it — the board is posted IN that channel, so naming it there is redundant. Owner decision 2026-09-01. |
+| Context | the window label only (`since the open`), `#9aa08f` 13px |
 | Lockup | `compass-mark.png` at `height:18px; opacity:.95` + `UCT INTELLIGENCE` in gold `13px/700`, `letter-spacing:.6px` — **absolutely centred** in the chrome bar via `position:absolute; left:0; right:0` |
 | Page | `#0a0a0a` |
 | Footer bar | `height:20px; background:#161616; font-size:10px; color:#888` |
