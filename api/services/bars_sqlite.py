@@ -101,8 +101,16 @@ def _conn() -> sqlite3.Connection:
         #    blew straight past the timeout → ~155 "database is locked"
         #    per 45s, each a wasted Massive fetch + a slower warm. The
         #    worker should simply WAIT it out and succeed.
+        #  • BARS-API (dedicated serving tier, BARS_API_ENABLED): worker-LIKE.
+        #    Its cold-fetch CACHE write runs on a BACKGROUND pool (off the anyio
+        #    request thread), it does NOT run the web pod's reconciliation/audit
+        #    writers, and it has 32GB headroom. At the web 2s timeout every
+        #    cold-fetch write LOST its collision with the 30s R2-merge and failed
+        #    "database is locked" → obscure long-tail tickers never cached (17-20s
+        #    on every view, forever). It must WAIT the merge out and succeed.
         _is_worker = os.environ.get("WORKER_ENABLED") == "1"
-        _busy_ms = 30000 if _is_worker else 2000
+        _bg_tier = _is_worker or os.environ.get("BARS_API_ENABLED") == "1"
+        _busy_ms = 30000 if _bg_tier else 2000
         c.execute(f"PRAGMA busy_timeout={_busy_ms}")
         # Per-connection page cache is CONTEXT-AWARE (2026-07-03):
         #  • WEB serves requests on up to 64 anyio threads, each with its own
@@ -113,7 +121,7 @@ def _conn() -> sqlite3.Connection:
         #    warm read latency is unchanged while RSS pressure drops ~4×.
         #  • WORKER (few long-lived prewarm threads, more headroom, heavy writes)
         #    keeps the larger 8 MB cache.
-        c.execute(f"PRAGMA cache_size={-8192 if _is_worker else -2048}")
+        c.execute(f"PRAGMA cache_size={-8192 if _bg_tier else -2048}")
         # Memory-map the DB so reads fault pages straight from the OS page cache
         # instead of per-read read() syscalls into the per-connection cache. On a
         # multi-GB bars.db this materially cuts read latency and lets the smaller
