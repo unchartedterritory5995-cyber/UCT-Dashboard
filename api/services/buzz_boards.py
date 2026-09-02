@@ -25,7 +25,12 @@ CLOSE_H, CLOSE_M = 16, 0
 
 MIN_CURRENT = int(os.environ.get("BUZZ_HEAT_MIN_CURRENT", "5"))
 MIN_BASELINE = float(os.environ.get("BUZZ_HEAT_MIN_BASELINE", "1.0"))
-SPARK_BUCKETS = 8
+# 26 fifteen-minute slices across a ~6.5h session. ⛔ NOT a smaller number:
+# 7-8 bars across the board's ~190px sparkline box render as FAT BLOCKS that
+# read as a second bar chart competing with the count beside them. Measured
+# visually across two board iterations. The sparkline exists to show WHEN the
+# chatter happened; at 8 buckets it shows nothing.
+SPARK_BUCKETS = 26
 
 WINDOW_LABEL = {
     "open": "since the open", "today": "today", "noon": "since noon",

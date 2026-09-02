@@ -51,6 +51,14 @@ describe('BuzzRender', () => {
     expect(await screen.findByText('▲ 6.3×')).toBeInTheDocument()
   })
 
+  it('labels the message count honestly', async () => {
+    render(<BuzzRender />)
+    // The store holds ONLY ticker-bearing rows, so a bare "318 messages" would
+    // claim the board counted the whole room. It counted the subset that named
+    // a stock, and the most prominent line on the image has to say so.
+    expect(await screen.findByText(/messages with tickers/)).toBeInTheDocument()
+  })
+
   it('does not claim ready before data arrives', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<BuzzRender />)

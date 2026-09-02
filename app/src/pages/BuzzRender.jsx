@@ -146,7 +146,7 @@ export default function BuzzRender() {
             </div>
           )}
           <div className={styles.meta}>
-            {totals.messages} messages · {totals.members} members · {totals.tickers} tickers
+            {totals.messages} messages with tickers · {totals.members} members · {totals.tickers} tickers
           </div>
 
           {(data.rows || []).map((r) => (
