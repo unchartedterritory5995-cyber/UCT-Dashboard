@@ -75,8 +75,12 @@ def test_uppercase_ambiguous_word_is_still_not_a_ticker_without_a_cashtag():
 
 
 def test_house_vocabulary_is_never_a_ticker():
-    # "line" matters here: LINE is a genuine listed symbol, so without it in
-    # HOUSE_VOCAB this sentence books a LINE mention. Verified 2026-09-01.
+    # "line" matters here: LINE is a genuine listed symbol, so without a gate
+    # this sentence books a LINE mention. Verified 2026-09-01. RS is gated via
+    # hand-curated HOUSE_VOCAB (an acronym casing can't separate); line/EMA/GAP
+    # are gated via the DERIVED chat_words() instead (all three were removed
+    # from HOUSE_VOCAB as redundant once the corpus independently covered
+    # them) -- either mechanism lands in the same `ambiguous()` set.
     assert tickers("RS line reclaiming the EMA after that GAP") == []
 
 
@@ -131,13 +135,19 @@ def test_an_alias_that_is_an_ordinary_word_needs_the_proper_noun_form(text):
     "that comment was very meta of you",
     "my net worth took a hit",
     "back to the lab tomorrow",
+    "the band played all night",      # BAND
+    "that was a pump and dump",       # PUMP
 ])
-def test_arm_meta_net_lab_lowercase_word_forms_are_never_a_ticker(text):
-    """FIXED (was a documented xfail'd gap): #tsdr is a disciplined trading
-    feed, so casing measured arm/meta as ticker-dominant there even though
-    they are ordinary English in casual chat -- a structural blind spot in
-    the corpus, not a flaw in the derivation. `uni.WORD_FORMS` (extended from
-    AMBIGUOUS_ALIASES to also cover net/lab, which aren't alias keys at all)
+def test_word_forms_lowercase_are_never_a_ticker(text):
+    """FIXED (was a documented xfail'd gap for arm/meta/net/lab): #tsdr is a
+    disciplined trading feed, so casing measured arm/meta as ticker-dominant
+    there even though they are ordinary English in casual chat -- a
+    structural blind spot in the corpus, not a flaw in the derivation.
+    band/pump joined the same list for a related reason: they are ordinary
+    words too, just below the derivation's min_seen floor in this corpus, so
+    they were removed from HOUSE_VOCAB (redundant-entry cleanup, 2026-09-01)
+    and given a fixture here instead of staying hand-typed there. `uni.WORD_FORMS`
+    (AMBIGUOUS_ALIASES + net/lab/band/pump, none of which are alias keys)
     demands the exact-symbol form at the bare-word tier too, same principle
     as the alias tier's proper-noun requirement."""
     assert tickers(text) == [], f"false positive: {extract(text)}"
@@ -171,6 +181,9 @@ def test_the_gate_is_a_scalpel_real_mentions_still_count(text, want):
     ("Cloudflare guidance", "NET"),
     ("$NET breaking out", "NET"),
     ("Rocket Lab launch", "RKLB"),
+    ("LAB reports earnings", "LAB"),         # exact caps still counts (untested corner)
+    ("BAND ripping today", "BAND"),          # exact caps still counts
+    ("PUMP breaking out", "PUMP"),           # exact caps still counts
 ])
 def test_the_lowercase_word_gate_is_a_scalpel(text, want):
     """CONTROL for the WORD_FORMS gate. Without this, blocking those tokens

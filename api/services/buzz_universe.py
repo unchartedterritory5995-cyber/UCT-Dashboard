@@ -22,20 +22,28 @@ import pathlib
 _HERE = pathlib.Path(__file__).resolve().parents[1]      # api/
 _DATA = _HERE / "data"
 
-# Chart / setup / desk vocabulary that is ALSO a listed symbol.
-# The second row was DERIVED on 2026-09-01 by intersecting a chart-vocabulary
-# candidate list against the real universe -- not typed from memory. Without
-# LINE, "RS line reclaiming the EMA" books a mention of LINE (a genuine ticker).
-#
-# This is the ONE hand-curated collision list, and it stays narrow on purpose:
-# uppercase-by-convention ACRONYMS (AI, RS, EMA, SMA, MA, DD, OI, RSI, PEG ...)
-# that casing analysis structurally cannot separate -- this room writes them
-# uppercase whether it means the acronym or the ticker, so no corpus measurement
-# will ever push their upper_pct below the word threshold. Every ordinary
-# ENGLISH WORD collision (SPOT, IMO, BIT, LOT, WAY, POST, TWO, JAN, ...) belongs
-# in `chat_words()` / `api/data/buzz_collisions.json` instead, DERIVED from a
-# real corpus by `tools/buzz_derive_collisions.py`. Two different collision
-# mechanisms, two lists -- do not merge one into the other.
+# Chart / setup / desk ACRONYMS that are ALSO a listed symbol -- e.g. without
+# RS in this set, "RS reclaiming the 50" books a mention of RS (a genuine
+# ticker). This is the ONE hand-curated collision list, and it is PROVABLY
+# narrow: every entry is an uppercase-by-convention ACRONYM/ABBREVIATION that
+# casing analysis structurally cannot separate -- this room writes them
+# uppercase whether it means the acronym or the ticker, so no corpus
+# measurement will ever push their upper_pct below the word threshold.
+# `test_house_vocab_holds_only_what_casing_cannot_derive` pins ZERO overlap
+# with `chat_words()` (the derived file) -- an entry the corpus already
+# covers is not evidence this list needs it, it is precedent for the next
+# person to hand-type an ordinary word here "because the file already does
+# that." (EMA, GAP, LINE, BULL and GAIN were removed for exactly this reason
+# on 2026-09-01: the derived corpus independently covers all five with its
+# own evidence.) Every ordinary ENGLISH WORD collision (SPOT, IMO, BIT, LOT,
+# WAY, POST, TWO, JAN, ...) belongs in `chat_words()` /
+# `api/data/buzz_collisions.json` instead, DERIVED from a real corpus by
+# `tools/buzz_derive_collisions.py`. A word whose LOWERCASE form is ordinary
+# English but that this corpus does not (yet) measure as a collision belongs
+# in `WORD_FORMS` below, with a fixture -- not here either (`BAND`/`PUMP`
+# moved there the same day, for the same reason `arm`/`meta`/`net`/`lab`
+# live there). Three different collision mechanisms, three lists -- do not
+# merge any two of them.
 #
 # ⛔ SPOT is DELIBERATELY NOT HERE. Spotify is a name this room actually trades,
 # and it was never wrong to refuse a hand-typed "SPOT is just a word" guess --
@@ -43,9 +51,9 @@ _DATA = _HERE / "data"
 # 11.2% uppercase (308 word-uses vs 39 ticker-uses), well under the 35% word
 # threshold, so it IS now gated -- via `chat_words()`, not by adding it here.
 HOUSE_VOCAB = frozenset({
-    "AI", "RS", "EMA", "SMA", "MA", "GAP", "PEG", "EP", "ATH", "ATL", "IPO",
+    "AI", "RS", "SMA", "MA", "PEG", "EP", "ATH", "ATL", "IPO",
     "ETF", "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI",
-    "DD", "LINE", "BAND", "BULL", "GAIN", "PUMP",
+    "DD",
 })
 
 # Indices. cap_universe.json is an EQUITY SCREEN, so none of these are in it --
@@ -70,7 +78,7 @@ AMBIGUOUS_ALIASES = frozenset({
 # corpus (#tsdr) is a DISCIPLINED feed where "arm"/"meta" are ticker-dominant,
 # while in casual chat they are a body part and an adjective. A casing rule
 # cannot see that from #tsdr alone. Every entry needs a fixture sentence.
-WORD_FORMS = AMBIGUOUS_ALIASES | frozenset({"net", "lab"})
+WORD_FORMS = AMBIGUOUS_ALIASES | frozenset({"net", "lab", "band", "pump"})
 
 # Ordinary conversational English that also reads as a ticker. DERIVED, never
 # hand-typed -- see the module docstring and tools/buzz_derive_collisions.py.

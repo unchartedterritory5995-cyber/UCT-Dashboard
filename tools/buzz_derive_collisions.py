@@ -43,18 +43,25 @@ DEFAULT_OUT = "api/data/buzz_collisions.json"
 _TOKEN = re.compile(r"[A-Za-z]+")
 
 
-def _load_corpus_texts(path: pathlib.Path) -> list[str]:
+def _load_corpus_texts(path: pathlib.Path) -> tuple[list[str], int]:
     """Accept whatever shape the corpus ships in: a bare list of strings, a
     list of message dicts (content/text/message/clean_content), or either of
     those wrapped in a dict under 'messages'/'data'. Mirrors the defensive
     shape-handling `buzz_universe._syms_from` already uses for universe
     files -- a corpus we cannot parse must never look like an empty corpus
-    that measured zero collisions."""
+    that measured zero collisions.
+
+    Returns (non_empty_texts, raw_row_count) -- the raw count is the total
+    rows in the corpus file BEFORE dropping empty/attachment-only messages,
+    so provenance (why `messages` in the output is smaller than the corpus
+    file's own row count) stays auditable FROM the emitted file, not just
+    from whoever ran the tool that day."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
         payload = payload.get("messages") or payload.get("data") or []
+    payload = payload or []
     out: list[str] = []
-    for item in payload or []:
+    for item in payload:
         if isinstance(item, str):
             if item:
                 out.append(item)
@@ -66,7 +73,7 @@ def _load_corpus_texts(path: pathlib.Path) -> list[str]:
             text = str(text).strip()
             if text:
                 out.append(text)
-    return out
+    return out, len(payload)
 
 
 def _count_tokens(texts: list[str]) -> dict[str, tuple[int, int]]:
@@ -193,7 +200,7 @@ def main() -> int:
 
     from api.services import buzz_universe as uni
 
-    texts = _load_corpus_texts(corpus_path)
+    texts, raw_row_count = _load_corpus_texts(corpus_path)
     if not texts:
         print(f"corpus at {corpus_path} yielded zero messages -- refusing to write an empty result")
         return 2
@@ -215,6 +222,11 @@ def main() -> int:
         "derived_from": {
             "corpus": args.corpus,
             "messages": len(texts),
+            "messages_in_corpus_file": raw_row_count,
+            "_messages_note": (
+                "messages = rows with non-empty content; the difference is "
+                "empty rows that contribute no tokens"
+            ),
             "chars": sum(len(t) for t in texts),
             "measured": datetime.date.today().isoformat(),
             "min_seen": args.min_seen,

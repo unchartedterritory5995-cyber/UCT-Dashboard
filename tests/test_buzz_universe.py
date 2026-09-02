@@ -89,15 +89,34 @@ def test_SPOT_is_now_gated_by_measured_corpus_data_not_by_hand():
     assert "SPOT" in u.chat_words()
     assert "SPOT" in u.ambiguous()
     assert "SPOT" not in u.HOUSE_VOCAB
-    # control: the siblings it was originally compared against are still
-    # gated -- some (LINE, BULL, GAIN) happen to also appear in the derived
-    # file now, which is harmless (ambiguous() is a union); BAND and PUMP are
-    # gated ONLY through HOUSE_VOCAB, proving that mechanism still matters on
-    # its own.
-    for gated in ("LINE", "BAND", "BULL", "GAIN", "PUMP"):
-        assert gated in u.HOUSE_VOCAB
-    for hand_only in ("BAND", "PUMP"):
-        assert hand_only not in u.chat_words()
+    # control: LINE/BULL/GAIN were removed from HOUSE_VOCAB the same day this
+    # ruling was corrected, because the derived corpus already covers all
+    # three independently -- still gated, just no longer hand-typed.
+    for still_gated_via_derivation in ("LINE", "BULL", "GAIN"):
+        assert still_gated_via_derivation in u.chat_words()
+        assert still_gated_via_derivation in u.ambiguous()
+        assert still_gated_via_derivation not in u.HOUSE_VOCAB
+    # BAND/PUMP moved to WORD_FORMS the same day (ordinary words this corpus
+    # does not measure as collisions) -- neither mechanism marks them
+    # ambiguous now; they are gated only at the bare-word tier for their
+    # lowercase form (behavioural proof lives in test_buzz_extract.py's
+    # scalpel control).
+    for word_form_only in ("BAND", "PUMP"):
+        assert word_form_only.lower() in u.WORD_FORMS
+        assert word_form_only not in u.HOUSE_VOCAB
+        assert word_form_only not in u.chat_words()
+
+
+def test_house_vocab_holds_only_what_casing_cannot_derive():
+    """HOUSE_VOCAB is for uppercase-by-convention ACRONYMS. Anything the corpus
+    derivation already covers must not be duplicated here -- a redundant entry
+    reads as precedent for hand-typing ordinary words, which is the exact
+    anti-pattern the derived list exists to retire."""
+    import json, pathlib
+    derived = set(json.loads(
+        (pathlib.Path(u.__file__).resolve().parents[1] / "data" / "buzz_collisions.json")
+        .read_text(encoding="utf-8"))["tokens"])
+    assert not (u.HOUSE_VOCAB & derived), sorted(u.HOUSE_VOCAB & derived)
 
 
 def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path, monkeypatch):
