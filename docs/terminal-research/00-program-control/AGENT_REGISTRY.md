@@ -240,11 +240,12 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | B-KOY-01 | 1b | done | 11:52 | 13:15 (96 calls, 273k) | ACCEPT: Koyfin deliberately refuses the tape (no intraday candles, no options, no bid/ask), so it is complementary to UCT; transferable mechanics = 7 colour groups whose payload can be a symbol, a set, or a watchlist, and user-minted command shortcuts bound to saved artefacts; 50 sources | `koyfin/dossier.md` |
 | B-BZ-01 | 1b | done | 11:55 | 13:20 (58 calls, 296k) | ACCEPT: a catalyst-delivery pipe with tools attached (WIIM, a 3-rung editorial importance ladder, a published Signals taxonomy with cooldowns, silent-by-default squawk); embeds TradingView; 4-tool workspaces persisted to browser cache; live UI unobserved (403 + browser read denied), 35 official help articles | `benzinga-pro/dossier.md` |
 | B-DESK-04 | 1b | dispatched (Sonnet) | 2026-09-02 13:25 | — | — | `contracts/B-DESK.md` §B-DESK-04 |
-| B-DESK-03 | 1b | dispatched (Sonnet) | 2026-09-02 13:20 | — | — | `contracts/B-DESK.md` §B-DESK-03 |
+| B-DESK-03 | 1b | done | 13:20 | 13:45 (28 calls, 207k) | ACCEPT: Finviz Elite is a narrow hard dependency (3 automated scans + static chart PNG tab); its other features are replicated natively; its $300M Small bucket is baked into UCT's scanner floor; Elite shipped automatic candlestick pattern detection 2026-08-27; hand-usage beyond the scanner unconfirmed (owner input) | `desk-tools/finviz.md` |
+| C5-01 | 1b | dispatched (Opus) | 2026-09-02 13:50 | — | — | `contracts/C-WAVE1B.md` §C5-01 |
 | B-DESK-02 | 1b | dispatched (Sonnet) | 2026-09-02 13:10 | — | — | `contracts/B-DESK.md` §B-DESK-02 |
 | B-DESK-01 | 1b | dispatched (Sonnet) | 2026-09-02 12:55 | — | — | `contracts/B-DESK.md` §B-DESK-01 |
 | B-ADJ-01 | 1b | done | 12:45 | 13:35 (24 calls, 212k, Sonnet) | ACCEPT (light): TIKR = prosumer fundamentals + 13F superinvestor tracking, no AI; YCharts = advisor charting/proposals, quote-only pricing (~$3.6–6k/user/yr reported, one source conflicts); CIQ Pro = enterprise research with named AI tools, pricing sales-gated | `adjacent-notes/dossier.md` |
 | C4-01 | 1b | dispatched (Opus) | 2026-09-02 13:40 | — | — | `contracts/C-WAVE1B.md` §C4-01 |
 | B-LSEG-01 | 1b | dispatched (Opus) | 2026-09-02 12:25 | — | — | `contracts/B-DOSSIER.md` §B-LSEG-01 |
 | B-FDS-01 | 1b | dispatched (Opus) | 2026-09-02 12:15 | — | — | `contracts/B-DOSSIER.md` §B-FDS-01 |
-| C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
