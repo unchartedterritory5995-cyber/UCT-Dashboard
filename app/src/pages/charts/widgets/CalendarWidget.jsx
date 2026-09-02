@@ -368,7 +368,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Calendar Settings"
+          title="UCT Terminal Settings"
           widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"
@@ -416,7 +416,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
-          title="Calendar widget settings"
+          title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
       </div>

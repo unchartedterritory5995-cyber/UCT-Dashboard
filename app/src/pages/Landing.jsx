@@ -885,7 +885,7 @@ export default function Landing() {
                   title="UCT Terminal"
                   time="WEEK AHEAD"
                   onZoom={setZoomed}
-                  alt="The earnings calendar — a logo-forward week of reporting companies"
+                  alt="UCT Terminal — a logo-forward week of reporting companies"
                 />
               </div>
             </div>

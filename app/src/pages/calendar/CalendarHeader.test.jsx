@@ -48,7 +48,7 @@ describe('CalendarHeader (consolidated)', () => {
     renderHeader()
     expect(screen.queryByText('Min avg vol')).toBeNull()
     expect(screen.queryByText('Count toward My Stocks')).toBeNull()
-    fireEvent.click(screen.getByLabelText('Open calendar filters'))
+    fireEvent.click(screen.getByLabelText('Open filters'))
     expect(screen.getByText('Min avg vol')).toBeTruthy()
     expect(screen.getByText('IPOs')).toBeTruthy()
     expect(screen.getByText('Count toward My Stocks')).toBeTruthy()
@@ -71,7 +71,7 @@ describe('CalendarHeader (consolidated)', () => {
 
   it('badges the Filters button with the active-filter count', () => {
     renderHeader({ filters: { ...baseFilters, minAvgVol: 500000 } })
-    expect(screen.getByLabelText('Open calendar filters').textContent).toMatch(/· 1/)
+    expect(screen.getByLabelText('Open filters').textContent).toMatch(/· 1/)
   })
 })
 
@@ -132,7 +132,7 @@ describe('CalendarHeader — quick filters', () => {
 
   it('the ⚙ panel no longer carries the cap select (pills own minMcap)', () => {
     renderHeader({ setQuickQ: vi.fn() })
-    fireEvent.click(screen.getByLabelText('Open calendar filters'))
+    fireEvent.click(screen.getByLabelText('Open filters'))
     expect(screen.queryByText('Any cap')).toBeNull()
     expect(screen.getByText('Sort')).toBeTruthy()
   })

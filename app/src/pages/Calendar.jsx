@@ -761,7 +761,7 @@ export default function Calendar() {
     return (
       <div className={styles.page}>
         {headerEl}
-        <div className={styles.skeletonWrap} aria-label="Loading calendar">
+        <div className={styles.skeletonWrap} aria-label="Loading UCT Terminal">
           {[0, 1, 2].map(i => (
             <div key={i} className={styles.skeletonDay}>
               <div className={styles.skeletonBar} />
