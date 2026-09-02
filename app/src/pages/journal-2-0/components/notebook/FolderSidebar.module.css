@@ -229,6 +229,17 @@
 .iconBtn:hover { color: var(--loss); }
 .iconBtnAdd:hover { color: var(--accent); }
 .addForm { display: flex; padding: 0 6px; }
+.tagFilterInput {
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 6px 10px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 7px;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 12px;
+}
+.tagFilterInput:focus { outline: none; border-color: #dcbb5e; }
 
 /* Touch: no hover to reveal row actions, so keep them always visible and
  * give every control a 44px tap target. Desktop (≥1025px) is untouched. */
@@ -247,6 +258,7 @@
   .noteRow { min-height: var(--tap-min, 44px); font-size: 15px; }
   .addBtn { min-height: var(--tap-min, 44px); font-size: 14px; }
   .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .tagFilterInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .iconBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
   .disclosureBtn,
   .disclosureSpacer { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
@@ -276,6 +288,9 @@
     min-height: var(--tap-min, 44px);
   }
   .editInput {
+    min-height: var(--tap-min, 44px);
+  }
+  .tagFilterInput {
     min-height: var(--tap-min, 44px);
   }
   .iconBtn {

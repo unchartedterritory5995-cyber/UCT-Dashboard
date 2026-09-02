@@ -90,6 +90,7 @@ def test_serve_finds_a_legacy_file_after_the_root_moved(monkeypatch, tmp_path):
     import api.services.journal_two.notes as notes
     monkeypatch.setattr(notes, "_ATTACHMENT_ROOT", ar.attachment_root())
     monkeypatch.setattr(notes, "_read_candidates", ar.read_candidates)
+    monkeypatch.setattr(notes, "_read_candidates_with_roots", ar.read_candidates_with_roots)
 
     d = legacy / "u1" / "notes" / "n1" / "inline"
     d.mkdir(parents=True)
@@ -97,6 +98,85 @@ def test_serve_finds_a_legacy_file_after_the_root_moved(monkeypatch, tmp_path):
     assert notes.serve_note_image_path("u1", "n1", "inline", "old.png") is not None
     # …and traversal is still refused on every candidate.
     assert notes.serve_note_image_path("u1", "n1", "inline", "../../x") is None
+
+
+# ── The axis the filename-only guard above never exercised: user_id/note_id ──
+#
+# `base = root / user_id / "notes" / note_id / sub` is built FROM the caller's
+# user_id/note_id. The historical bug anchored containment on THAT base
+# (`target.relative_to(base.resolve())`) — a tautology once the filename axis
+# is clean, since target is always base/filename. These tests craft a
+# traversal through user_id/note_id instead of filename, and plant a REAL
+# file at the escaped location so a regression would actually serve it
+# rather than just fail on `.exists()`.
+
+def _patch_single_root(monkeypatch, notes, root):
+    """Redirect BOTH candidate resolvers to one controlled root, regardless
+    of which one `serve_note_image_path` currently calls — so a discrimination
+    run (temporarily reverting the containment fix, which also reverts which
+    name is called) can't accidentally pass because the OTHER resolver fell
+    through to the real, unrelated attachment root instead of failing to
+    find the planted file for the right reason."""
+    monkeypatch.setattr(notes, "_read_candidates_with_roots",
+                         lambda rel: [(root, root / rel)])
+    monkeypatch.setattr(notes, "_read_candidates", lambda rel: [root / rel])
+
+
+def test_crafted_note_id_cannot_escape_the_attachment_root(monkeypatch, tmp_path):
+    import api.services.journal_two.notes as notes
+    root = tmp_path / "vol" / "j2_attachments"
+    root.mkdir(parents=True)
+    _patch_single_root(monkeypatch, notes, root)
+
+    # root/u1/notes/<note_id>/inline, with note_id unwinding all the way
+    # past root and back down into a sibling directory.
+    outside = tmp_path / "outside-note" / "inline"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()  # sanity: the file is really there
+
+    assert notes.serve_note_image_path(
+        "u1", "../../../../outside-note", "inline", "secret.png") is None
+
+
+def test_crafted_user_id_cannot_escape_the_attachment_root(monkeypatch, tmp_path):
+    """Same shape via user_id — the axis note_shares.py's `resolve_share_attachment`
+    exercises with a DB-sourced value rather than a validated URL segment."""
+    import api.services.journal_two.notes as notes
+    root = tmp_path / "vol" / "j2_attachments"
+    root.mkdir(parents=True)
+    _patch_single_root(monkeypatch, notes, root)
+
+    outside = tmp_path / "outside-user" / "notes" / "n1" / "inline"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()
+
+    assert notes.serve_note_image_path(
+        "../../outside-user", "n1", "inline", "secret.png") is None
+
+
+def test_root_anchored_containment_holds_even_if_segment_validation_is_bypassed(
+    monkeypatch, tmp_path,
+):
+    """Fix 1 (root-anchored containment) must survive on its own — the whole
+    point per the task is that it protects a FUTURE caller that skips the
+    cheap segment-validation layer. Disable that layer here and confirm the
+    same escape is still refused, so this isn't just re-testing validation
+    under another name."""
+    import api.services.journal_two.notes as notes
+    monkeypatch.setattr(notes, "_is_safe_path_segment", lambda v: True, raising=False)
+    root = tmp_path / "vol" / "j2_attachments"
+    root.mkdir(parents=True)
+    _patch_single_root(monkeypatch, notes, root)
+
+    outside = tmp_path / "outside-bypass" / "inline"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()
+
+    assert notes.serve_note_image_path(
+        "u1", "../../../../outside-bypass", "inline", "secret.png") is None
 
 
 @pytest.fixture(autouse=True)

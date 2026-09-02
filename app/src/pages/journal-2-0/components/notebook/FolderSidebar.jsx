@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
+import useJ2Notes from '../../hooks/useJ2Notes'
+import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import styles from './FolderSidebar.module.css'
+
+// Debounce before the search query reaches the server (below) — short enough
+// to feel instant, long enough that fast typing doesn't fire a request per
+// keystroke.
+const SEARCH_DEBOUNCE_MS = 250
+// Matches the panel's pre-existing display cap.
+const SEARCH_RESULT_LIMIT = 100
+
+// A migrated library (a decade of Evernote tags, say) can hand the tag cloud
+// hundreds of distinct tags. The cloud already sorts by count descending
+// (below) — that sort is the existing decision, kept as-is. This just caps
+// how many render by default, with a "Show all tags" affordance + a filter
+// input so a specific low-frequency tag stays reachable.
+const TAG_CAP = 40
 
 /**
  * Nest a flat folder list into a tree. A folder whose `parentId` doesn't
@@ -251,6 +267,12 @@ function FolderNode({
 
 export default function FolderSidebar({
   notes,
+  // The TRUE "All notes" total (from SQL, via the parent's unfiltered
+  // useJ2Notes call) — a migrated library's honest size, not the length of
+  // the `notes` page above. Optional so existing callers/tests that only
+  // pass `notes` still render (falls back to `notes.length`, the old,
+  // page-capped behavior) — see the badge below.
+  notesTotal,
   activeFolderId,
   onSelectFolder,
   activeTag,
@@ -269,11 +291,24 @@ export default function FolderSidebar({
   // Panel mode: the folder tree, or a full-panel note search (Obsidian-style).
   const [mode, setMode] = useState('folders')
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const searchInputRef = useRef(null)
+  const [tagFilter, setTagFilter] = useState('')
+  const [showAllTags, setShowAllTags] = useState(false)
 
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
   }, [mode])
+
+  const trimmedQuery = query.trim()
+
+  // Debounce the query before it reaches the server. Clearing the box clears
+  // the debounced value immediately (no reason to wait 250ms to blank it).
+  useEffect(() => {
+    if (!trimmedQuery) { setDebouncedQuery(''); return undefined }
+    const t = setTimeout(() => setDebouncedQuery(trimmedQuery), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [trimmedQuery])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
 
@@ -293,32 +328,93 @@ export default function FolderSidebar({
     return m
   }, [notes])
 
-  // Client-side search over the full note set the sidebar already holds — title,
-  // body text, tags and ticker. Instant, no extra fetch.
-  const searchResults = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-    return notes
-      .filter((n) => {
-        const hay = `${n.title || ''} ${n.bodyPlain || ''} ${(n.tags || []).join(' ')} ${n.ticker || ''}`.toLowerCase()
-        return hay.includes(q)
-      })
-      .slice(0, 100)
-  }, [notes, query])
+  // Honest "Unfiled" badge. `notes` (the prop) is one loaded page, so a
+  // client-side `.filter(n => !n.folderId).length` over it is capped the
+  // exact same way the old "All notes" badge was — a migrated library with
+  // more unfiled notes than fit on one page would undercount here too. Ask
+  // the server for the TRUE count instead (cheap: `limit: 1` means only
+  // `total` is read, the single row is discarded).
+  const { total: unfiledTotalFromServer } = useJ2Notes({ folderId: '__unfiled__', limit: 1 })
 
-  // Tag cloud from current note list (counts).
-  const tagCounts = useMemo(() => {
+  // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
+  // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
+  // it client-side silently misses anything past that on a migrated library,
+  // and fails as "no results" rather than an error. GET /api/j2/notes?q=
+  // already runs the real FTS5 index (over the FULL body) for this, so route
+  // the query there instead of re-deriving a second, worse search here.
+  //
+  // Gated on `mode === 'search'` + a non-empty debounced query so the fetch
+  // fires only while the panel is actually searching — otherwise useJ2Notes's
+  // SWR key would be non-null on every render (folder mode included) and
+  // fire a redundant `/api/j2/notes` default-list request nobody asked for.
+  const searchEnabled = mode === 'search' && Boolean(debouncedQuery)
+  const {
+    notes: serverSearchResults,
+    isLoading: searchLoading,
+    isValidating: searchValidating,
+    error: searchError,
+  } = useJ2Notes({ q: debouncedQuery || undefined, limit: SEARCH_RESULT_LIMIT, enabled: searchEnabled })
+
+  // A query "in flight" — either still waiting out the debounce, or the fetch
+  // itself hasn't resolved — must never render as "no results". That is the
+  // same silent-emptiness failure this whole fix exists to close, just moved
+  // one layer down: an empty moment mistaken for an empty result.
+  const searching = Boolean(trimmedQuery) &&
+    (trimmedQuery !== debouncedQuery || (searchEnabled && (searchLoading || searchValidating)))
+
+  // Tag cloud counts, sorted by count descending — that sort is the
+  // pre-existing decision; TAG_CAP + the filter below are additive.
+  //
+  // Final-review C5: this used to derive counts from `notes` (one loaded
+  // page) — harmless while "All notes" was ALSO page-capped (both numbers
+  // were consistently wrong together), but Task 11 gave the sidebar an
+  // honest whole-library total, which turned this into a VISIBLE
+  // self-contradiction (a true "All notes 5000" beside tag counts that sum
+  // to at most 100) and meant `TAG_CAP` picked the top 40 of a biased
+  // 100-note sample rather than the real distribution. Fixed the same way
+  // as the honest Unfiled total: ask the server (`useJ2NoteTags` ->
+  // `GET /api/j2/notes/tags` -> `notes.py::tag_counts`, a whole-library
+  // COUNT, not a page). `tagCountsFromPage` is now ONLY the fallback while
+  // the server hasn't answered yet (or for a caller/test that stubs the
+  // hook away) — never blended with the server numbers, since a partial
+  // merge would recreate the same "biased sample" defect this fix closes.
+  const { tagCounts: serverTagCounts } = useJ2NoteTags()
+  const tagCountsFromPage = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
       c.set(t, (c.get(t) || 0) + 1)
     }
     return [...c.entries()].sort((a, b) => b[1] - a[1])
   }, [notes])
+  const tagCounts = serverTagCounts.length
+    ? serverTagCounts.map((t) => [t.tag, t.count])
+    : tagCountsFromPage
 
-  const unfiledCount = useMemo(
+  const tagsOverCap = tagCounts.length > TAG_CAP
+
+  // A filter match searches the FULL tag list (not just the capped slice) so
+  // a low-frequency tag pushed off the visible cap is still reachable by name.
+  const visibleTagCounts = useMemo(() => {
+    const q = tagFilter.trim().toLowerCase()
+    if (q) return tagCounts.filter(([t]) => t.toLowerCase().includes(q))
+    if (showAllTags || !tagsOverCap) return tagCounts
+    return tagCounts.slice(0, TAG_CAP)
+  }, [tagCounts, tagFilter, showAllTags, tagsOverCap])
+
+  // Fallback while the server total is unknown (still in flight, or the
+  // request failed) OR for a test/caller that only supplies `notes` — the
+  // honest `unfiledTotalFromServer` above wins whenever it's actually known.
+  // ⛔ Final-review C2: this branch used to be UNREACHABLE in production —
+  // `useJ2Notes` returned `total: 0` (never `undefined`) while loading, and
+  // `0 ?? x` is `0`, so "Unfiled" showed a hard 0 on every notebook open
+  // until the request resolved, and forever on a failed one. Fixed at the
+  // hook (`total` is now genuinely `undefined` until the server answers),
+  // so this fallback now actually executes during that window.
+  const unfiledCountFromPage = useMemo(
     () => notes.filter((n) => !n.folderId).length,
     [notes],
   )
+  const unfiledCount = unfiledTotalFromServer ?? unfiledCountFromPage
 
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
@@ -442,7 +538,7 @@ export default function FolderSidebar({
               placeholder="Search notes…"
               onKeyDown={(e) => {
                 if (e.key === 'Escape') { if (query) setQuery(''); else setMode('folders') }
-                if (e.key === 'Enter' && searchResults[0]) onOpenNote(searchResults[0])
+                if (e.key === 'Enter' && serverSearchResults[0]) onOpenNote(serverSearchResults[0])
               }}
             />
             {query && (
@@ -455,36 +551,38 @@ export default function FolderSidebar({
             )}
           </div>
 
-          {query.trim() ? (
-            searchResults.length ? (
-              <div className={styles.searchResults}>
-                <div className={styles.searchCount}>
-                  {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
-                </div>
-                {searchResults.map((n) => {
-                  const title = n.title?.trim() || 'Untitled'
-                  const snippet = (n.bodyPlain || '').trim().slice(0, 120)
-                  return (
-                    <button
-                      key={n.id}
-                      type="button"
-                      className={`${styles.searchResultRow} ${activeNoteId === n.id ? styles.rowActive : ''}`}
-                      onClick={() => onOpenNote(n)}
-                    >
-                      <NoteIcon />
-                      <span className={styles.searchResultBody}>
-                        <span className={styles.searchResultTitle}>{title}</span>
-                        {snippet && <span className={styles.searchResultSnippet}>{snippet}</span>}
-                      </span>
-                    </button>
-                  )
-                })}
+          {!trimmedQuery ? (
+            <div className={styles.searchHint}>Search titles and content by word, or match an exact tag or ticker.</div>
+          ) : searching ? (
+            <div className={styles.searchHint} role="status">Searching…</div>
+          ) : searchError ? (
+            <div className={styles.searchEmpty}>Search failed — try again.</div>
+          ) : serverSearchResults.length ? (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {serverSearchResults.length} result{serverSearchResults.length === 1 ? '' : 's'}
               </div>
-            ) : (
-              <div className={styles.searchEmpty}>No notes match “{query.trim()}”.</div>
-            )
+              {serverSearchResults.map((n) => {
+                const title = n.title?.trim() || 'Untitled'
+                const snippet = (n.bodyPlain || '').trim().slice(0, 120)
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className={`${styles.searchResultRow} ${activeNoteId === n.id ? styles.rowActive : ''}`}
+                    onClick={() => onOpenNote(n)}
+                  >
+                    <NoteIcon />
+                    <span className={styles.searchResultBody}>
+                      <span className={styles.searchResultTitle}>{title}</span>
+                      {snippet && <span className={styles.searchResultSnippet}>{snippet}</span>}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           ) : (
-            <div className={styles.searchHint}>Search titles, content, tags, and tickers.</div>
+            <div className={styles.searchEmpty}>No notes match “{trimmedQuery}”.</div>
           )}
         </div>
       ) : (
@@ -498,7 +596,12 @@ export default function FolderSidebar({
                 onClick={() => { onSelectFolder(null); onSelectTag(null) }}
               >
                 <span>All notes</span>
-                <span className={styles.count}>{notes.length}</span>
+                {/* The TRUE total (from SQL), never `notes.length` — that page
+                    length is what capped this badge at 100 on a migrated
+                    library. `notesTotal` is optional so a caller/test that
+                    only supplies `notes` still renders (falls back to the old,
+                    page-capped number). */}
+                <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
             <div className={styles.rowWrap}>
@@ -561,7 +664,17 @@ export default function FolderSidebar({
           {tagCounts.length > 0 && (
             <div className={styles.section}>
               <div className={styles.sectionLabel}>Tags</div>
-              {tagCounts.map(([t, c]) => (
+              {tagsOverCap && (
+                <input
+                  type="text"
+                  className={styles.tagFilterInput}
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  placeholder="Filter tags…"
+                  aria-label="Filter tags"
+                />
+              )}
+              {visibleTagCounts.map(([t, c]) => (
                 <button
                   key={t}
                   type="button"
@@ -572,6 +685,18 @@ export default function FolderSidebar({
                   <span className={styles.count}>{c}</span>
                 </button>
               ))}
+              {tagFilter.trim() && visibleTagCounts.length === 0 && (
+                <div className={styles.searchEmpty}>No tags match “{tagFilter.trim()}”.</div>
+              )}
+              {tagsOverCap && !showAllTags && !tagFilter.trim() && (
+                <button
+                  type="button"
+                  className={styles.addBtn}
+                  onClick={() => setShowAllTags(true)}
+                >
+                  Show all tags ({tagCounts.length})
+                </button>
+              )}
             </div>
           )}
         </>

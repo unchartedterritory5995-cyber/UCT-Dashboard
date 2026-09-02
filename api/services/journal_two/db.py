@@ -405,6 +405,86 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
+
+-- ── Notebook search index ───────────────────────────────────────────────────
+-- Standalone (NOT external-content) FTS5 mirror of the searchable columns.
+-- Standalone deliberately: an external-content table keys on rowid, and
+-- j2_notes has a TEXT PRIMARY KEY, so its rowid is not stable across a
+-- VACUUM -- which would silently desync the index. Storing note_id as an
+-- UNINDEXED column costs duplicated text and buys an index that cannot drift.
+-- Mirrors the house pattern in transcript_index.py / education_search.py.
+--
+-- ⛔ body_plain in j2_notes stays authoritative. This table is DERIVED and
+-- fully rebuildable from it (run_notebook_migration_v4). Never write here
+-- except through the triggers below.
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_notes_fts USING fts5(
+    note_id UNINDEXED,
+    user_id UNINDEXED,
+    title,
+    body_plain,
+    tokenize = 'porter unicode61'
+);
+
+-- O(1) note_id -> j2_notes_fts rowid lookup (perf fix, 2026-09). An ordinary
+-- table, not virtual, so unlike j2_notes_fts's UNINDEXED note_id column it
+-- CAN carry a real PRIMARY KEY index. Without this, `DELETE FROM
+-- j2_notes_fts WHERE note_id = ?` has no index to use and SQLite falls back
+-- to scanning every row's stored content -- measured 7.9x tax at 5,000
+-- notes, 32.0x at 20,000, linear and unbounded (a control with the FTS
+-- triggers removed: 2.41ms -> 2.04ms flat; as shipped: 19.09ms -> 65.33ms).
+-- j2_notes_fts is one GLOBAL table shared by every user's notes, so this tax
+-- was paid by EVERY member's Save, scaling with the WHOLE table.
+--
+-- Deliberately NOT "key j2_notes_fts's rowid to j2_notes.rowid" (the other
+-- candidate fix): j2_notes has a TEXT primary key, so ITS rowid is implicit,
+-- and SQLite's own docs say VACUUM may renumber implicit rowids -- silently
+-- desyncing that scheme with no way to detect it after the fact. fts_rowid
+-- here is instead whatever rowid FTS5 itself assigned at insert time
+-- (captured via last_insert_rowid() in the same trigger that inserted it,
+-- never copied or guessed from j2_notes) -- FTS5's own shadow storage
+-- declares real INTEGER PRIMARY KEYs internally, so it is not subject to
+-- that renumbering, and this mapping never needs to reference j2_notes'
+-- rowid at all. Also deliberately NOT `contentless_delete=1` (needs SQLite
+-- 3.43+ -- see run_notebook_migration_v5's docstring for the version check):
+-- a contentless FTS5 table returns NULL for every column, UNINDEXED ones
+-- included, on a MATCH read (verified empirically) -- note_id, the one
+-- thing every search caller actually needs back, would become unreadable.
+CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
+    note_id    TEXT PRIMARY KEY,
+    fts_rowid  INTEGER NOT NULL
+);
+
+-- Triggers, not per-writer calls: j2_notes has 11 production write statements
+-- across notes.py, note_connectors/engine.py and db.py. Wiring each writer is
+-- how an index goes stale on the one path someone forgets -- and the paths
+-- that would be forgotten are the importer and the sync engine, i.e. exactly
+-- the notes a migrating member most needs to find.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
+    DELETE FROM j2_notes_fts_map WHERE note_id = old.id;
+END;
+
+-- UPDATE OF (not a bare UPDATE): the sync engine's timestamp-neutral
+-- tags/import_hash writes must NOT re-index. A nightly full pass touches
+-- those columns on every synced note.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_au
+AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+
 -- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
 -- the initial executescript would run BEFORE run_notebook_migration_v2 adds
 -- the import_key column on a pre-existing (v1-shaped) database, raising
@@ -1067,6 +1147,21 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v3] aborted: {e}")
 
+    try:
+        run_notebook_migration_v4(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v4] aborted: {e}")
+
+    # Order-independent (2026-09-02 fix): both v4 and v5 resync
+    # j2_notes_fts_map via the shared `_resync_fts_map` full-rebuild, so
+    # running v5 before/after/without v4 (e.g. only one of their flags was
+    # ever lost) always converges correctly. See run_notebook_migration_v5's
+    # and _resync_fts_map's docstrings.
+    try:
+        run_notebook_migration_v5(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v5] aborted: {e}")
+
     # Note Connectors additive columns (Task 8): `miss_streak` on
     # j2_note_remote_index (2-strikes delete-detection counter) and
     # `conflicts` on j2_note_sync_log. run_notebook_migration_v3 above is
@@ -1434,6 +1529,253 @@ def run_notebook_migration_v3(conn: sqlite3.Connection) -> None:
     for table, ddl in _NOTE_CONNECTOR_TABLE_DDL.items():
         if table not in existing:
             conn.execute(ddl)
+
+    conn.commit()
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+    except Exception:
+        pass
+
+
+def _resync_fts_map(conn: sqlite3.Connection) -> None:
+    """Rebuilds j2_notes_fts_map from j2_notes_fts's CURRENT rowids -- a full
+    DELETE+INSERT, never a partial patch. `INSERT OR IGNORE` looks idempotent
+    but is NOT safe here: after j2_notes_fts's rowids get reassigned (which
+    only `run_notebook_migration_v4`'s raw-DML rebuild does, since it bypasses
+    every trigger), an existing map row for a note_id that survived the
+    rebuild is left pointing at its OLD (now wrong) rowid forever -- `OR
+    IGNORE` skips writing the corrected value because a row for that note_id
+    already exists. Reproduced (2026-09-02 review round): after one note
+    delete + a lone rerun of v4, 5 of 10 notes' map rows silently pointed at
+    a DIFFERENT note's fts row, and one was a dangling pointer to a rowid
+    that no longer existed -- a member's search could return someone else's
+    note, or a deleted note could stay searchable forever. A full rebuild
+    has no such history to get stuck on: it always describes "the map
+    matches whatever j2_notes_fts holds right now," which is correct by
+    construction regardless of what ran before it, in what order, or how
+    many times.
+
+    Cheap regardless of table size -- reads rowids j2_notes_fts already
+    assigned, never re-tokenizes or rewrites FTS content.
+
+    THE INVARIANT THIS ENFORCES: whatever rebuilds j2_notes_fts must also
+    rebuild j2_notes_fts_map, in the same transaction, every time. Called
+    from BOTH run_notebook_migration_v4 (right after ITS OWN j2_notes_fts
+    rebuild, before that function's commit -- so losing only v4's flag and
+    forcing a solo rerun can never desync the map, since v4 now carries its
+    own fix-up) and run_notebook_migration_v5 (as its entire map-side job,
+    now that map *creation* lives in _J2_SCHEMA itself -- so losing only
+    v5's flag, or losing both, converges just as correctly). Neither
+    migration is the sole owner of map correctness; this function is the
+    one owner both call into, in whatever order their flags happen to have
+    been lost."""
+    conn.execute("DELETE FROM j2_notes_fts_map")
+    conn.execute(
+        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid) "
+        "SELECT note_id, rowid FROM j2_notes_fts"
+    )
+
+
+def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
+    """Backfills j2_notes_fts for DBs whose notes predate the search index.
+
+    Idempotent by CONSTRUCTION, not just by flag: it deletes the whole index
+    and rebuilds it from j2_notes, so a half-finished previous run, a manual
+    re-run, or a restored backup all converge on the same correct state. The
+    flag file only makes the common case cheap.
+
+    The index is DERIVED -- j2_notes.body_plain is authoritative -- so a full
+    rebuild is always safe and never loses data.
+
+    Also resyncs j2_notes_fts_map (`_resync_fts_map`, same transaction,
+    before commit) -- this rebuild is raw DML directly on j2_notes_fts, which
+    fires no trigger defined ON j2_notes, so nothing else keeps the map in
+    step with the rowids this just reassigned. See `_resync_fts_map`'s
+    docstring for the desync this closes (reproduced 2026-09-02: losing only
+    this migration's flag and forcing a solo rerun left 5 of 10 map rows
+    pointing at the WRONG note's fts row).
+
+    Spec: docs/superpowers/specs/2026-09-01-notebook-migration-program-design.md §4.1
+    """
+    flag = _data_dir() / ".notebook_migration_v4"
+    if flag.exists():
+        return
+
+    has_fts = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'"
+    ).fetchone()
+    if not has_fts:
+        return  # _J2_SCHEMA has not run yet; nothing to backfill into.
+
+    conn.execute("DELETE FROM j2_notes_fts")
+    conn.execute(
+        "INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain) "
+        "SELECT id, user_id, title, body_plain FROM j2_notes"
+    )
+    # Same transaction as the rebuild above -- see _resync_fts_map's
+    # docstring for why this can never be a separate, flag-gated step.
+    _resync_fts_map(conn)
+    conn.commit()
+
+    note_count = conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0]
+    if note_count == 0:
+        # Nothing existed to backfill yet -- this DB has no legacy notes
+        # (e.g. ensure_schema() runs this on every fresh install before any
+        # note is ever created). Don't mark done: a flag written against zero
+        # rows would let a not-yet-arrived batch of legacy notes (a restored
+        # backup, a delayed import) slip past the backfill forever. Deferring
+        # costs nothing -- the next boot's DELETE+INSERT is equally free
+        # against an empty table.
+        return
+
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        tmp = flag.with_suffix(".tmp")
+        tmp.write_bytes(b"1")
+        os.replace(tmp, flag)
+    except Exception:
+        # Matches v1/v2/v3's defensive flag-write: unlike theirs, this one
+        # was missing the mkdir (DATA_DIR not yet created on a very first
+        # boot) -- so a write failure here fell through uncaught into
+        # ensure_schema's outer try/except, which prints and moves on
+        # WITHOUT the flag ever landing. Since the DELETE+INSERT rebuild
+        # above already committed, the *data* is fine either way -- but a
+        # never-persisted flag means the NEXT boot sees no flag, redoes the
+        # full rebuild (measured 11.5s at 20,000 notes, synchronous, before
+        # the pod serves), and repeats that on every boot forever. Catching
+        # here (rather than relying on the outer catch) makes that a no-op
+        # miss instead of a silent permanent cost.
+        pass
+
+
+# Literal DDL, duplicated (not shared/interpolated) with the matching block
+# in _J2_SCHEMA -- same convention as _NOTE_CONNECTOR_TABLE_DDL above, so
+# this migration reads standalone.
+_J2_NOTES_FTS_MAP_DDL = """
+CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
+    note_id    TEXT PRIMARY KEY,
+    fts_rowid  INTEGER NOT NULL
+)
+"""
+
+_J2_NOTES_FTS_TRIGGERS_DDL = """
+CREATE TRIGGER j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+
+CREATE TRIGGER j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
+    DELETE FROM j2_notes_fts_map WHERE note_id = old.id;
+END;
+
+CREATE TRIGGER j2_notes_fts_au
+AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+"""
+
+
+def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
+    """Closes the j2_notes_fts_au/ad scale trap: DELETE FROM j2_notes_fts
+    WHERE note_id = ? has no index to use (note_id is UNINDEXED on a virtual
+    table, and CREATE INDEX cannot target a virtual table at all), so it
+    scanned every row's stored content on every Save. Measured (control with
+    triggers removed vs. the shipped triggers, median of 5, 4KB bodies):
+
+        notes in j2_notes_fts   no triggers   as shipped   tax
+        5,000                   2.41ms        19.09ms      7.9x
+        20,000                  2.04ms        65.33ms      32.0x
+
+    j2_notes_fts is one GLOBAL table shared by every user's notes (it lives
+    in auth.db), so the tax scaled with the WHOLE table's size, not the
+    saving user's own note count -- one member's Save paid for every
+    member's notes.
+
+    Fix: j2_notes_fts_map (an ORDINARY table, so it can carry a real
+    PRIMARY KEY index) tracks note_id -> the rowid FTS5 itself assigned at
+    insert time, letting the AU/AD triggers delete by `rowid = ?` (an
+    indexed point lookup) instead of `note_id = ?` (an unindexed scan).
+    _J2_SCHEMA ships this shape for every fresh install; this migration
+    upgrades a pre-existing DB still running the old (scan-based) trigger
+    bodies -- CREATE TRIGGER IF NOT EXISTS in an executescript is a NO-OP
+    against a trigger name that already exists, so simply re-running
+    _J2_SCHEMA can never replace them (same reason
+    idx_j2_notes_user_import above is DROP-then-CREATE rather than bare
+    IF NOT EXISTS).
+
+    SQLite version note on the rejected `contentless_delete=1` alternative:
+    that option needs SQLite 3.43+ (this project's dev runtime measured
+    3.50.4, comfortably above it; a live SSH probe of the Railway pod's
+    actual bundled SQLite was attempted and blocked by this session's tool
+    policy, so that number is UNCONFIRMED -- see the c3 report). It turned
+    out not to matter regardless: a contentless FTS5 table returns NULL for
+    every column on a MATCH read, UNINDEXED ones included (verified
+    empirically), which would make note_id -- the one thing every search
+    caller needs back -- permanently unreadable. Version support was moot
+    once the mechanism itself couldn't serve this table's actual read shape.
+
+    Idempotent via the .notebook_migration_v5 flag AND by construction: the
+    map resync is a full DELETE+INSERT (`_resync_fts_map` -- see its
+    docstring), and the trigger swap is DROP-then-CREATE, so re-running this
+    (including against a DB that already has the current _J2_SCHEMA's fixed
+    triggers, or one where run_notebook_migration_v4 just rebuilt
+    j2_notes_fts out from under an already-completed v5) is always a no-op
+    OR a self-heal, never a source of drift.
+
+    Order-INDEPENDENT by design (2026-09-02 review round fixed this):
+    safe to run before, after, or interleaved with a v4 rerun, and safe if
+    ONLY this migration's flag is ever lost while v4's stays put. Both
+    migrations call the same `_resync_fts_map` -- a full rebuild of the map
+    from whatever j2_notes_fts currently holds -- so whichever one runs
+    last always leaves a correct pairing, and running the "wrong" one alone
+    is never a way to end up worse off than before. (The prior version of
+    this migration used `INSERT OR IGNORE` for its own backfill and
+    required running immediately after v4 on the same boot; both of those
+    constraints are gone now that map correctness has one owner instead of
+    two migrations coordinating by ordering.)
+
+    Spec: docs/superpowers/sdd/2026-09-01-notebook-migration-wave0-scale/c3-report.md
+    """
+    flag = _data_dir() / ".notebook_migration_v5"
+    if flag.exists():
+        return
+
+    conn.execute(_J2_NOTES_FTS_MAP_DDL)
+
+    has_fts = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'"
+    ).fetchone()
+    if not has_fts:
+        # _J2_SCHEMA has not run yet; nothing to backfill or repoint. Mirrors
+        # v4's own early-return, but does NOT touch the flag here either --
+        # same reasoning as v4's note_count==0 guard below: a DB that hasn't
+        # created j2_notes_fts yet should get a real pass once it has one,
+        # not a flag written against nothing.
+        return
+
+    # Full rebuild of the map from j2_notes_fts's CURRENT rowids -- see
+    # _resync_fts_map's docstring for why a partial patch (INSERT OR IGNORE)
+    # is unsafe here.
+    _resync_fts_map(conn)
+
+    # Repoint the triggers: DROP + CREATE (not IF NOT EXISTS) so a DB
+    # carrying the OLD (scan-based) trigger bodies is upgraded -- the same
+    # DROP-then-CREATE idiom idx_j2_notes_user_import uses above, for the
+    # identical "IF NOT EXISTS no-ops against an existing name" reason.
+    conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ai")
+    conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ad")
+    conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_au")
+    conn.executescript(_J2_NOTES_FTS_TRIGGERS_DDL)
 
     conn.commit()
     try:

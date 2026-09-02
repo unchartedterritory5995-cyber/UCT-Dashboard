@@ -127,3 +127,43 @@ def test_member_traffic_cannot_rate_limit_the_newsletters_renders():
     assert len(rp._RL) == 1
     rp._RL_BUCKETS.clear()
     rp._RL.clear()
+
+
+def test_the_image_marks_no_more_rows_hot_than_the_text_reply_names(client, monkeypatch):
+    """⛔ DAY-ONE FINDING (2026-09-02, 11:30 ET). The render asked heat_board for
+    12 while build_board_text asked for 4, so the picture and the words
+    disagreed about what "heating up" meant -- and the picture was the noisy
+    one: ELEVEN of fourteen head rows carried a pill, leaving the board almost
+    entirely green and making the few NORMAL rows look like the anomaly.
+
+    The room's total volume that day was 1.06x its weekday average, so this was
+    not a busy day -- it is the ratio itself. Attention rotates, so whichever
+    names lead today are by construction the ones above their own 30-session
+    mean. Only the extreme tail deserves a mark.
+
+    Both surfaces now read one constant, so they cannot drift apart again.
+    """
+    from api.services import buzz_boards, buzz_reply
+    import inspect
+    c, store = client
+    import time
+    ts = int(time.time()) - 60
+    mid = 40000
+    # Twelve names, all with today-only history: every one of them would be
+    # "hot" against an empty baseline if nothing capped the marks.
+    for i in range(12):
+        for k in range(6):
+            store.record_mentions([(str(mid), "CH1", f"u{k}", f"SYM{i:02d}", ts, "exact")])
+            mid += 1
+    body = c.get("/api/r/buzz", params={"token": "secret-token", "window": "today"}).json()
+    marked = [r for r in body["rows"] if r.get("hot") is not None]
+    assert len(marked) <= buzz_boards.HEAT_MARKS, (
+        f"{len(marked)} rows marked hot, ceiling is {buzz_boards.HEAT_MARKS}")
+    assert len(body["heat"]) <= buzz_boards.HEAT_MARKS
+
+    # ⛔ The two surfaces must ask for the SAME size. A hard-coded number in
+    # either one is how they drifted apart the first time.
+    panel_src = inspect.getsource(
+        __import__("api.routers.render_panels", fromlist=["x"]).buzz_panel)
+    assert "HEAT_MARKS" in panel_src
+    assert "HEAT_MARKS" in inspect.getsource(buzz_reply.build_board_text)

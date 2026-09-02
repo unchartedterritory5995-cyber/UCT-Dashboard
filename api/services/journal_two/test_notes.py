@@ -5,8 +5,11 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from api.services.journal_two import notes as svc
+from api.services.journal_two import notes_quota
 from api.services.journal_two.notes import (
     NoteValidationError, convert_playbook_to_tiptap, extract_plain_text,
 )
@@ -116,17 +119,166 @@ def test_list_notes_search_body(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
-def _note_with_embeds(conn, title, *symbols, user="u1"):
+def test_list_notes_search_reaches_a_note_findable_only_by_its_tag(conn):
+    """Final-review C1: the pre-Task-11 client-side panel search matched a
+    note's tags (it substring-matched over `title+body+tags+ticker` joined
+    into one string). Routing `q` through FTS5 alone (title/body_plain only)
+    silently dropped that coverage — this note's title and body contain
+    NOTHING that could match; only its tag can find it."""
+    a = svc.create_note(
+        "u1", {"title": "Untitled reflections", "tags": ["earnings"]}, conn=conn,
+    )
+    svc.create_note("u1", {"title": "Some other note", "tags": ["macro"]}, conn=conn)
+    rows = svc.list_notes("u1", q="earnings", conn=conn)
+    assert [n["id"] for n in rows] == [a["id"]]
+
+
+def test_list_notes_search_reaches_a_note_findable_only_by_its_ticker(conn):
+    """Same gap, the ticker axis: the old client search also substring-matched
+    the ticker. Neither this note's title nor its body contains the ticker."""
+    a = svc.create_note(
+        "u1", {"title": "Weekend prep notes", "ticker": "NVDA"}, conn=conn,
+    )
+    svc.create_note("u1", {"title": "Another weekend note", "ticker": "AAPL"}, conn=conn)
+    rows = svc.list_notes("u1", q="nvda", conn=conn)
+    assert [n["id"] for n in rows] == [a["id"]]
+
+
+# ── count_notes — the true total behind a capped page (Task 11) ─────────────
+
+def test_count_notes_reflects_all_matches_not_the_page_size(conn):
+    """The migration defect this task exists to kill: a member with more
+    notes than one page must see an honest total, not `len(page)`. 120
+    notes, requested with a 100-row page — `count_notes` must still say 120,
+    not 100."""
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}"}, conn=conn)
+    page = svc.list_notes("u1", limit=100, conn=conn)
+    assert len(page) == 100
+    assert svc.count_notes("u1", conn=conn) == 120
+
+
+def test_count_notes_respects_the_folder_filter(conn):
+    """A folder's total must be that folder's count, not the library's."""
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    for i in range(3):
+        svc.create_note("u1", {"title": f"In folder {i}", "folderId": f["id"]}, conn=conn)
+    for i in range(2):
+        svc.create_note("u1", {"title": f"Unfiled {i}"}, conn=conn)
+    assert svc.count_notes("u1", conn=conn) == 5
+    assert svc.count_notes("u1", folder_id=f["id"], conn=conn) == 3
+    assert svc.count_notes("u1", folder_id="__unfiled__", conn=conn) == 2
+
+
+def test_count_notes_never_crosses_users(conn):
+    svc.create_note("u1", {"title": "Mine"}, conn=conn)
+    svc.create_note("u2", {"title": "Theirs"}, conn=conn)
+    assert svc.count_notes("u1", conn=conn) == 1
+    assert svc.count_notes("u2", conn=conn) == 1
+
+
+def _note_with_embeds(conn, title, *symbols, user="u1", widget_id="chart"):
     content = [{
         "type": "widgetEmbed",
         "attrs": {
-            "v": 1, "widgetId": "chart", "mode": "snapshot",
+            "v": 1, "widgetId": widget_id, "mode": "snapshot",
             "params": {"symbol": s, "tf": "D"},
             "capturedAt": "2026-08-13T12:00:00Z",
             "searchText": f"[chart: {s} D]",
         },
     } for s in symbols]
     return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+
+
+def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
+    """`list_notes` and `count_notes` share ONE WHERE-clause builder
+    (`_notes_filter_sql`) precisely so they can never disagree about
+    membership — this pins that invariant across every filter the notebook
+    route exposes: folder/unfiled/ticker/tag/q AND the two embed dimensions
+    (`embed_symbol`/`embed_widget`), which read from the `j2_note_embeds`
+    sidecar rather than a column on `j2_notes`.
+
+    Fix-round-1 note: the embed cases were missing from the first version of
+    this test — a real gap (both dimensions the brief named), even though
+    both functions happened to share the identical `_notes_filter_sql` call
+    at the time, so a future edit that touched only ONE of the two embed
+    branches would have walked straight past this rail undetected."""
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    svc.create_note(
+        "u1", {"title": "In folder", "folderId": f["id"], "ticker": "NVDA", "tags": ["earnings"]},
+        conn=conn,
+    )
+    svc.create_note("u1", {"title": "Unfiled NVDA", "ticker": "NVDA"}, conn=conn)
+    svc.create_note("u1", {"title": "Unfiled AAPL", "ticker": "AAPL", "tags": ["macro"]}, conn=conn)
+    # Populate the j2_note_embeds sidecar for real — embed_symbol/embed_widget
+    # read it, not j2_notes, so a fixture with no embeds would let both cases
+    # "pass" by matching nothing on both sides, proving nothing either way.
+    _note_with_embeds(conn, "AMD chart embed", "AMD", widget_id="chart")
+    _note_with_embeds(conn, "NVDA breadth embed", "NVDA", widget_id="breadth")
+
+    cases = [
+        {},
+        {"folder_id": f["id"]},
+        {"folder_id": "__unfiled__"},
+        {"ticker": "NVDA"},
+        {"tag": "earnings"},
+        {"q": "unfiled"},
+        {"embed_symbol": "AMD"},
+        {"embed_widget": "chart"},
+    ]
+    for kwargs in cases:
+        listed = svc.list_notes("u1", limit=500, conn=conn, **kwargs)
+        assert svc.count_notes("u1", conn=conn, **kwargs) == len(listed), kwargs
+
+    # Each embed case must select a STRICT, non-empty, non-full subset of the
+    # 5 notes above — a filter matching 0 or all 5 would let a broken
+    # embed_symbol/embed_widget branch pass the agreement check vacuously
+    # (both sides could drift identically to "everything" or "nothing" and
+    # still agree with each other).
+    total_notes = svc.count_notes("u1", conn=conn)
+    assert total_notes == 5
+    embed_symbol_count = svc.count_notes("u1", embed_symbol="AMD", conn=conn)
+    embed_widget_count = svc.count_notes("u1", embed_widget="chart", conn=conn)
+    assert 0 < embed_symbol_count < total_notes
+    assert 0 < embed_widget_count < total_notes
+
+
+# ── tag_counts — the whole-library tag distribution (final-review C5) ───────
+
+def test_tag_counts_reflects_the_whole_library_not_a_page(conn):
+    """The exact shape of the C5 bug: more notes exist than one page (100),
+    each tagged 'earnings' — `tag_counts` must count all of them, not
+    whatever a 100-row `list_notes` page would have carried."""
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}", "tags": ["earnings"]}, conn=conn)
+    page = svc.list_notes("u1", limit=100, conn=conn)
+    assert len(page) == 100  # confirms the page really is smaller than the library
+    counts = {row["tag"]: row["count"] for row in svc.tag_counts("u1", conn=conn)}
+    assert counts["earnings"] == 120
+
+
+def test_tag_counts_sums_notes_not_tag_occurrences_and_sorts_by_count_desc(conn):
+    svc.create_note("u1", {"title": "A", "tags": ["earnings", "macro"]}, conn=conn)
+    svc.create_note("u1", {"title": "B", "tags": ["macro"]}, conn=conn)
+    svc.create_note("u1", {"title": "C", "tags": ["macro"]}, conn=conn)
+    rows = svc.tag_counts("u1", conn=conn)
+    assert rows[0] == {"tag": "macro", "count": 3}
+    assert {"tag": "earnings", "count": 1} in rows
+
+
+def test_tag_counts_never_crosses_users(conn):
+    svc.create_note("u1", {"title": "Mine", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u2", {"title": "Theirs", "tags": ["earnings", "macro"]}, conn=conn)
+    u1_counts = {row["tag"]: row["count"] for row in svc.tag_counts("u1", conn=conn)}
+    u2_counts = {row["tag"]: row["count"] for row in svc.tag_counts("u2", conn=conn)}
+    assert u1_counts == {"earnings": 1}
+    assert u2_counts == {"earnings": 1, "macro": 1}
+
+
+def test_tag_counts_ignores_untagged_notes_and_handles_an_empty_library(conn):
+    assert svc.tag_counts("u1", conn=conn) == []
+    svc.create_note("u1", {"title": "No tags"}, conn=conn)
+    assert svc.tag_counts("u1", conn=conn) == []
 
 
 def test_backlinks_answer_which_entries_reference_a_ticker(conn):
@@ -534,3 +686,164 @@ def test_capture_inbox_carries_capture_time_annotations(conn):
             {"widgetId": "chart", "annotations": [{"note": "x" * (300 * 1024)}]},
             conn=conn,
         )
+
+
+# ── Import headroom guard wiring (notes_quota.assert_import_headroom) ───────
+#
+# Both byte-level upload paths call assert_import_headroom() right beside
+# their existing size-cap checks (_MAX_IMAGE_BYTES / _MAX_FILE_BYTES) so a
+# volume-full condition is refused the same way an oversized file already is:
+# NoteValidationError, not a raw NoteQuotaExceeded leaking a different shape
+# to the router. Monkeypatch the seam (notes_quota._free_bytes) -- never fill
+# a real disk to exercise this.
+
+@pytest.fixture
+def attach_root(tmp_path, monkeypatch):
+    r = tmp_path / "j2_attachments"
+    monkeypatch.setattr(svc, "_ATTACHMENT_ROOT", r)
+    return r
+
+
+def test_save_note_image_bytes_refused_when_headroom_short(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 100)  # far below RESERVE_BYTES
+    with pytest.raises(NoteValidationError):
+        svc.save_note_image_bytes(
+            "u1", "n1", b"\x89PNG\r\n\x1a\n" + b"0" * 100, "pic.png", "image/png",
+        )
+    # Nothing was written to disk by the refused upload.
+    assert not any(attach_root.rglob("*")) if attach_root.exists() else True
+
+
+def test_save_note_image_bytes_succeeds_with_ample_room(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 500 * 1024**3)
+    out = svc.save_note_image_bytes(
+        "u1", "n1", b"\x89PNG\r\n\x1a\n" + b"0" * 100, "pic.png", "image/png",
+    )
+    assert out["url"].startswith("/api/j2/notes/attachments/u1/n1/inline/")
+
+
+def test_save_note_attachment_bytes_refused_when_headroom_short(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 100)  # far below RESERVE_BYTES
+    with pytest.raises(NoteValidationError):
+        svc.save_note_attachment_bytes(
+            "u1", "n1", b"%PDF-1.4 " + b"0" * 100, "doc.pdf", "application/pdf",
+        )
+    assert not any(attach_root.rglob("*")) if attach_root.exists() else True
+
+
+def test_save_note_attachment_bytes_succeeds_with_ample_room(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 500 * 1024**3)
+    out = svc.save_note_attachment_bytes(
+        "u1", "n1", b"%PDF-1.4 " + b"0" * 100, "doc.pdf", "application/pdf",
+    )
+    assert out["url"].startswith("/api/j2/notes/attachments/u1/n1/file/")
+    assert out["name"] == "doc.pdf"
+
+
+# ── GET /api/j2/notes — the total actually reaches the JSON response ────────
+#
+# The repo's standing trap: a service can compute the right number and a
+# whitelist dict-rebuild between the service and the wire can still drop it,
+# leaving the reader at zero forever. This mounts the REAL router (not just
+# the service function) so the assertion is on what actually serializes over
+# the wire, not on an intermediate value.
+
+@pytest.fixture
+def route_client(monkeypatch, tmp_path):
+    """Minimal app mounting the real journal_two router, with get_current_user
+    overridden and the service DB pointed at a seeded temp file — mirrors
+    test_filters.py's `route_client` fixture for the trades additive envelope."""
+    from api.services import auth_db
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+
+    db_path = str(tmp_path / "j2_notes_route.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ensure_schema(conn)
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}"}, conn=conn)
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    svc.create_note("u1", {"title": "Filed", "folderId": f["id"]}, conn=conn)
+    conn.commit()
+    conn.close()
+
+    # get_connection() reads the module-global _DB_PATH at call time.
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1"}
+    client = TestClient(app)
+    client.folder_id = f["id"]
+    return client
+
+
+def test_route_total_reflects_the_full_library_not_the_page(route_client):
+    """121 notes exist (120 + 1 filed); the default page caps at 100. `total`
+    must be the honest 121, and it must be a SIBLING key next to `notes` —
+    not something the frontend has to derive from page length."""
+    r = route_client.get("/api/j2/notes")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["notes"]) == 100          # the page cap, unchanged
+    assert body["total"] == 121                # the TRUE total, not len(notes)
+    assert body["limit"] == 100
+    assert body["offset"] == 0
+
+
+def test_route_total_respects_the_folder_filter(route_client):
+    """A folder-scoped request's total must be that folder's count, not the
+    library's — proves the router wires the SAME filters into count_notes
+    that it uses for the list."""
+    r = route_client.get(f"/api/j2/notes?folder_id={route_client.folder_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert [n["title"] for n in body["notes"]] == ["Filed"]
+    assert body["total"] == 1
+
+
+def test_route_paginates_past_the_first_page_via_offset(route_client):
+    """The route already accepted limit/offset — this proves paging past the
+    100-row default actually surfaces the remaining rows via `offset`, and
+    that two consecutive pages together add up to the honest total with no
+    duplicates."""
+    first = route_client.get("/api/j2/notes?limit=100&offset=0").json()
+    second = route_client.get("/api/j2/notes?limit=100&offset=100").json()
+    assert len(first["notes"]) == 100
+    assert len(second["notes"]) == 21           # 121 total - 100 on page one
+    first_ids = {n["id"] for n in first["notes"]}
+    second_ids = {n["id"] for n in second["notes"]}
+    assert not (first_ids & second_ids)          # no overlap
+    assert len(first_ids | second_ids) == 121    # nothing dropped either
+
+
+def test_route_tags_endpoint_reflects_the_whole_library_not_a_page(monkeypatch, tmp_path):
+    """`GET /api/j2/notes/tags` is the honest source FolderSidebar's tag
+    cloud consumes (final-review C5). 120 notes share a tag — more than one
+    `list_notes` page (100) — through the REAL router, proving the count
+    that reaches the wire is a whole-library count, not `len(page)`. A
+    second user's identically-tagged note must not leak into the total."""
+    from api.services import auth_db
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+
+    db_path = str(tmp_path / "j2_notes_tags_route.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ensure_schema(conn)
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u2", {"title": "Not mine", "tags": ["earnings"]}, conn=conn)
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1"}
+    client = TestClient(app)
+
+    r = client.get("/api/j2/notes/tags")
+    assert r.status_code == 200
+    assert r.json()["tags"] == [{"tag": "earnings", "count": 120}]

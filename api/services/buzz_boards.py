@@ -30,6 +30,17 @@ MIN_BASELINE = float(os.environ.get("BUZZ_HEAT_MIN_BASELINE", "1.0"))
 # ratio built on two or three days is noise wearing a decimal point, and the
 # board's whole claim is "this is unusual for this name".
 MIN_SESSIONS = int(os.environ.get("BUZZ_HEAT_MIN_SESSIONS", "5"))
+# How many names may carry a heat mark. ⛔ A CEILING, not a filter -- and it is
+# small on purpose. Measured on day one (2026-09-02, 11:30 ET): with the render
+# asking for 12, ELEVEN of fourteen head rows carried a pill, so the board was
+# almost entirely green and the few normal rows read as the anomaly. The room's
+# total volume that day was 1.06x its weekday average, so nothing unusual was
+# happening -- the ratio itself is the problem. Attention ROTATES, so whichever
+# names lead today are by construction the ones running above their own
+# 30-session mean; "above your own average" describes most of any day's top
+# board. Only the extreme tail is worth marking, and top-N by ratio is
+# self-calibrating where a fixed multiple would drift with room volume.
+HEAT_MARKS = int(os.environ.get("BUZZ_HEAT_MARKS", "4"))
 # 26 fifteen-minute slices across a ~6.5h session. ⛔ NOT a smaller number:
 # 7-8 bars across the board's ~190px sparkline box render as FAT BLOCKS that
 # read as a second bar chart competing with the count beside them. Measured

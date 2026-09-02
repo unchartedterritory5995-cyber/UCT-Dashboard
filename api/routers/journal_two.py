@@ -426,6 +426,27 @@ def export_trades(
     return Response(content=buf.getvalue(), media_type="text/csv", headers=headers)
 
 
+# ROUTE ORDER: `/notes/export` MUST be registered BEFORE `/notes/{note_id}`
+# (declared further below), or FastAPI matches "export" as a note_id. Placed
+# here, beside `/trades/export`, for the same reason.
+@router.get("/notes/export")
+def export_notes(user: dict = Depends(get_current_user)) -> Response:
+    """Download every note as markdown + front matter in a zip.
+
+    Deliberately unpaginated and synchronous: it is a rare, member-initiated
+    action, and a partial export is worse than a slow one. If large libraries
+    make this slow enough to matter, move it behind the job runner -- do not
+    silently truncate it."""
+    from api.services.journal_two.notes_export import build_export_zip
+
+    blob, filename = build_export_zip(user["id"])
+    return Response(
+        content=blob,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/trades/{trade_id}")
 def get_trade_detail(
     trade_id: str,
@@ -1349,7 +1370,16 @@ def list_notes_endpoint(
         embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset,
     )
-    return {"notes": rows}
+    # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+    # never the length of `rows` — a migrated library of thousands of notes must
+    # see its real count, not "however many fit on this page". Built from the
+    # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
+    # so the two can never disagree about which notes match.
+    total = notes_service.count_notes(
+        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        embed_symbol=embed_symbol, embed_widget=embed_widget,
+    )
+    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
 @router.get("/notes/backlinks")
@@ -1365,6 +1395,21 @@ def note_backlinks_endpoint(
     declaration order, and that route would swallow "backlinks" as a note id
     (the live-drill route-order lesson, same shape)."""
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
+
+
+@router.get("/notes/tags")
+def note_tag_counts_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Tag -> count across the member's WHOLE library (final-review C5) — the
+    honest source for FolderSidebar's tag cloud, so its counts (and which 40
+    tags `TAG_CAP` selects) reflect the real distribution instead of one
+    loaded page.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks` immediately above: FastAPI matches in declaration
+    order and that route would otherwise swallow "tags" as a note id."""
+    return {"tags": notes_service.tag_counts(user["id"])}
 
 
 @router.post("/notes/{note_id}/embeds")

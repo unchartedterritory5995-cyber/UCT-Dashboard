@@ -44,9 +44,52 @@ def attachment_root() -> Path:
     return Path(os.environ.get("DATA_DIR", "/data")) / "j2_attachments"
 
 
+def existing_ancestor(path: Path | str) -> Path:
+    """Nearest directory that actually exists, walking up from `path`.
+
+    Free space is a property of the VOLUME, not of one leaf directory --
+    a subdirectory that hasn't been created yet (e.g. before the first
+    attachment has ever been written, or on a brand-new volume) doesn't
+    change how much room is left on the filesystem underneath it.
+
+    A caller that needs `shutil.disk_usage()` on an attachment path MUST
+    resolve through this first: `disk_usage()` itself raises
+    `FileNotFoundError` on a path that doesn't exist yet, which is a
+    "this directory is new" fact, not a "the volume is unreadable" fact.
+    Conflating the two rejected a member's FIRST-EVER upload with a message
+    about free space (review round 2, 2026-09-01) -- fixed by resolving to
+    the nearest existing ancestor before ever calling disk_usage, exactly
+    like `tools/notebook_volume_report.py` (read-only) already did; both now
+    share this one implementation instead of two copies drifting apart.
+    """
+    p = Path(path).resolve()
+    while not p.is_dir():
+        parent = p.parent
+        if parent == p:  # reached a filesystem root; stop here
+            break
+        p = parent
+    return p
+
+
 def read_candidates(rel: Path) -> list[Path]:
     """Absolute paths to try, in order, for a relative attachment path.
     Primary first, then the legacy tree (dedup'd when they coincide)."""
-    primary = attachment_root() / rel
-    legacy = LEGACY_ATTACHMENT_ROOT / rel
-    return [primary] if primary == legacy else [primary, legacy]
+    return [path for _, path in read_candidates_with_roots(rel)]
+
+
+def read_candidates_with_roots(rel: Path) -> list[tuple[Path, Path]]:
+    """Like `read_candidates`, but paired with the ROOT each candidate was
+    built from: `(primary_root, primary_root/rel)`, then, unless it coincides,
+    `(LEGACY_ATTACHMENT_ROOT, LEGACY_ATTACHMENT_ROOT/rel)`.
+
+    A caller doing path-containment must check a resolved candidate against
+    the root it actually came from — never against `root/rel` itself, since
+    `rel` can carry caller-supplied segments (e.g. user_id/note_id) that a
+    containment check anchored on `root/rel` would silently trust."""
+    primary_root = attachment_root()
+    legacy_root = LEGACY_ATTACHMENT_ROOT
+    primary = primary_root / rel
+    legacy = legacy_root / rel
+    if primary == legacy:
+        return [(primary_root, primary)]
+    return [(primary_root, primary), (legacy_root, legacy)]

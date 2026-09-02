@@ -20,14 +20,22 @@ def build_board_text(now: int, window: str = "open") -> str:
     if not rows:
         return f"No mentions counted yet for **{label}**. {buzz_boards.coverage(now)}."
 
-    top = rows[0]["mentions"]
+    # ⛔ The LOUDEST row, not the FIRST one. The board ranks by distinct
+    # PEOPLE, so rows[0] is not the mentions maximum -- reading it as one makes
+    # every louder row draw a bar longer than BAR_W and the block runs ragged
+    # past the column. Seen live on 2026-09-02: SNDK led on people with 25
+    # mentions while MU had 37, so MU drew 27 blocks in an 18-wide column.
+    # ⚠️ Same defect the RENDERED board had; it was fixed there and not here,
+    # which is the whole point of lesson_rail_the_mirror_not_just_the_lane --
+    # two surfaces drawing one quantity need the fix in BOTH lanes.
+    top = max(r["mentions"] for r in rows)
     lines = [f"**Most talked about — {label}**", "```"]
     for r in rows:
         lines.append(f"{r['ticker']:<6}{_bar(r['mentions'], top):<{BAR_W}}  "
                      f"{r['mentions']:>3}   {r['people']:>2} ppl")
     lines.append("```")
 
-    heat = buzz_boards.heat_board(now)
+    heat = buzz_boards.heat_board(now, limit=buzz_boards.HEAT_MARKS)
     if heat:
         # ⛔ "today" is load-bearing, not filler. heat_board is ALWAYS a
         # today-vs-30-sessions measure, so on `/buzz month` this line sits

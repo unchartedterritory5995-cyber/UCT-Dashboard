@@ -30,7 +30,12 @@ MAX_FOLDER_DEPTH = 6
 
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
+    read_candidates_with_roots as _read_candidates_with_roots,
 )
+from api.services.journal_two.notes_quota import (
+    NoteQuotaExceeded, assert_import_headroom,
+)
+from api.services.journal_two.notes_search import fts_match_expr
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
 # every redeploy wiped every note image. One authority now (attachment_root.py).
@@ -513,6 +518,83 @@ def _folder_depth(conn: sqlite3.Connection, user_id: str, folder_id: str) -> int
 
 # ── Notes CRUD ───────────────────────────────────────────────────────────────
 
+def _notes_filter_sql(
+    user_id: str,
+    *,
+    folder_id: str | None = None,
+    tag: str | None = None,
+    ticker: str | None = None,
+    q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
+) -> tuple[str, list[Any]]:
+    """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
+    for "which notes match this filter set". `list_notes` and `count_notes`
+    BOTH build off this ONE predicate — two independently-written WHERE
+    clauses for the same membership question is a defect shape this codebase
+    has been burned by repeatedly: the moment either copy learns a rule the
+    other doesn't, the count and the page it counts silently disagree."""
+    sql = " WHERE user_id = ?"
+    params: list[Any] = [user_id]
+    if folder_id == "__unfiled__":
+        sql += " AND folder_id IS NULL"
+    elif folder_id:
+        sql += " AND folder_id = ?"
+        params.append(folder_id)
+    if ticker:
+        sql += " AND ticker = ?"
+        params.append(ticker.strip().upper())
+    # Widget-embed filters ("every entry where I traded AMD" / "every entry
+    # with a breadth widget") — answered from the j2_note_embeds sidecar.
+    if embed_symbol:
+        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.symbol = ?)")
+        params.append(embed_symbol.strip().upper())
+    if embed_widget:
+        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.widget_id = ?)")
+        params.append(embed_widget.strip())
+    if tag:
+        # JSON LIKE — case-insensitive substring of any tag value.
+        sql += ' AND lower(tags) LIKE ?'
+        params.append(f'%"{tag.lower()}"%')
+    if q:
+        # FTS5 when the text yields a valid MATCH expression; the old
+        # LIKE scan remains the fallback so a query FTS cannot parse
+        # still returns results rather than an error. body_plain stays
+        # authoritative -- j2_notes_fts is a derived index (db.py).
+        #
+        # Coverage note (final-review C1): j2_notes_fts indexes ONLY
+        # title/body_plain (db.py) — tags and ticker are NOT FTS columns.
+        # The pre-Task-11 client-side panel search matched a note's tags and
+        # ticker too (it joined title+body+tags+ticker into one string and
+        # substring-matched); routing search through this SQL predicate
+        # alone would silently drop that coverage for every small,
+        # non-migrated library -- making search WORSE for the members we
+        # actually have today, in exchange for a benefit (reaching beyond one
+        # page) only a migrated member gets. So `q` ALSO matches via the SAME
+        # predicates the dedicated `tag=`/`ticker=` filters above already use
+        # (one way to ask each question, never a third), ORed alongside the
+        # title/body text search. Deliberately NOT added as FTS columns —
+        # that would touch the virtual table, its 3 triggers, and the v4
+        # backfill, for a scope this OR clause already covers.
+        exact_tag_pattern = f'%"{q.strip().lower()}"%'   # same spelling as the `tag` filter above
+        exact_ticker = q.strip().upper()                  # same spelling as the `ticker` filter above
+        expr = fts_match_expr(q)
+        if expr:
+            sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
+                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
+                    " OR lower(tags) LIKE ? OR ticker = ?)")
+            params.extend([expr, user_id, exact_tag_pattern, exact_ticker])
+        else:
+            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR lower(tags) LIKE ? OR ticker = ?)"
+            ql = f"%{q.lower()}%"
+            params.extend([ql, ql, exact_tag_pattern, exact_ticker])
+    return sql, params
+
+
 def list_notes(
     user_id: str,
     *,
@@ -530,45 +612,90 @@ def list_notes(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes WHERE user_id = ?"
-        params: list[Any] = [user_id]
-        if folder_id == "__unfiled__":
-            sql += " AND folder_id IS NULL"
-        elif folder_id:
-            sql += " AND folder_id = ?"
-            params.append(folder_id)
-        if ticker:
-            sql += " AND ticker = ?"
-            params.append(ticker.strip().upper())
-        # Widget-embed filters ("every entry where I traded AMD" / "every entry
-        # with a breadth widget") — answered from the j2_note_embeds sidecar.
-        if embed_symbol:
-            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    " AND e.symbol = ?)")
-            params.append(embed_symbol.strip().upper())
-        if embed_widget:
-            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    " AND e.widget_id = ?)")
-            params.append(embed_widget.strip())
-        if tag:
-            # JSON LIKE — case-insensitive substring of any tag value.
-            sql += ' AND lower(tags) LIKE ?'
-            params.append(f'%"{tag.lower()}"%')
-        if q:
-            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
-            ql = f"%{q.lower()}%"
-            params.extend([ql, ql])
+        where_sql, params = _notes_filter_sql(
+            user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+        )
+        sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         order_col = {
             "updated": "updated_at DESC",
             "created": "created_at DESC",
             "title": "title COLLATE NOCASE ASC",
         }.get(sort, "updated_at DESC")
         sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
-        params.extend([max(1, min(limit, 500)), max(0, offset)])
+        params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
         return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def count_notes(
+    user_id: str,
+    *,
+    folder_id: str | None = None,
+    tag: str | None = None,
+    ticker: str | None = None,
+    q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """The TRUE total behind `list_notes`'s same filter set — a real
+    ``SELECT COUNT(*)`` over the whole match, never the length of a
+    limit/offset page. Migrating a library of thousands of notes must never
+    make the member's honest count degrade to "however many fit on one
+    page" — that gap is what made a 5,000-note migration look like data
+    loss. Built from the SAME `_notes_filter_sql` predicate as `list_notes`
+    so the two can never disagree about which notes match."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        where_sql, params = _notes_filter_sql(
+            user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+        )
+        sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
+        row = conn.execute(sql, params).fetchone()
+        return int(row["c"] or 0) if row else 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def tag_counts(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Tag -> note-count across the member's WHOLE library — never derived
+    from one loaded page.
+
+    Final-review C5: `FolderSidebar`'s tag cloud counted tags over the
+    `notes` prop, which is one 100-row page. Task 11 gave the sidebar an
+    honest "All notes" TOTAL, which made that page-derived tag cloud
+    visibly self-contradicting on a migrated library (5,000 notes, tag
+    counts that sum to at most 100) — and `TAG_CAP = 40` would then pick
+    the top 40 of a biased sample (whichever 100 notes happened to load),
+    not the real distribution. This is the same fix shape as the honest
+    Unfiled total: ask the server for the whole library's answer.
+
+    Scoped exactly like every other read here — `user_id` only, so a
+    member never sees another member's tags. `json_each` over the JSON
+    `tags` column is the same SQLite JSON1 idiom `filters.py` already uses
+    for the (unrelated) mistake/emotion tag facets."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT je.value AS tag, COUNT(*) AS c"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ?"
+            " GROUP BY je.value"
+            " ORDER BY c DESC, je.value ASC",
+            (user_id,),
+        ).fetchall()
+        return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]
     finally:
         if owned:
             conn.close()
@@ -1210,6 +1337,10 @@ def save_note_image_bytes(
         raise NoteValidationError("Image must be < 5 MB")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
+    try:
+        assert_import_headroom(len(data))
+    except NoteQuotaExceeded as e:
+        raise NoteValidationError(str(e)) from e
 
     ext_map = {
         "image/png": ".png", "image/jpeg": ".jpg",
@@ -1263,6 +1394,10 @@ def save_note_attachment_bytes(
         raise NoteValidationError("File must be < 25 MB")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
+    try:
+        assert_import_headroom(len(data))
+    except NoteQuotaExceeded as e:
+        raise NoteValidationError(str(e)) from e
 
     # Fallback: empty filename becomes "attachment"
     filename = filename or "attachment"
@@ -1329,6 +1464,14 @@ async def save_note_attachment(
     )
 
 
+def _is_safe_path_segment(value: str) -> bool:
+    """One path segment, same axis `filename` is already checked on below: no
+    separators (so it can't smuggle extra path components) and no leading
+    dot (so it can't be `.`/`..`). Empty is also unsafe — `Path("") / "x"`
+    silently collapses to `"x"`, which is not the segment the caller named."""
+    return bool(value) and "/" not in value and "\\" not in value and not value.startswith(".")
+
+
 def serve_note_image_path(
     user_id: str,
     note_id: str,
@@ -1337,16 +1480,32 @@ def serve_note_image_path(
 ) -> Path | None:
     if sub not in ("hero", "inline", "file"):
         return None
+    # Cheap, precise layer: user_id/note_id/filename must each be a single
+    # path segment. This alone would have caught the historical bug, but it
+    # is NOT the only guard — see the root-anchored check below.
+    if not _is_safe_path_segment(user_id) or not _is_safe_path_segment(note_id):
+        return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
     rel = Path(user_id) / "notes" / note_id / sub
-    # Primary root first, then the LEGACY repo-relative tree — a box that still
-    # holds files in the old location keeps serving them after the root moved.
-    # The traversal guard is re-applied per candidate, never skipped.
-    for base in _read_candidates(rel):
+    # Structural layer: containment is checked against the ATTACHMENT ROOT
+    # itself (primary or legacy — whichever root this candidate came from),
+    # never against `base` (= root/user_id/notes/note_id/sub). `base` is
+    # built FROM caller-supplied user_id/note_id, so a containment check
+    # anchored on `base` only proves the target sits inside a directory the
+    # caller helped construct — it says nothing about the real root. Anchoring
+    # on the root is what still holds even if a future caller (e.g. one
+    # reading user_id/note_id out of a DB row instead of a validated URL path)
+    # skips the segment check above.
+    #
+    # Primary root first, then the LEGACY repo-relative tree — a box that
+    # still holds files in the old location keeps serving them after the
+    # root moved. The containment guard is re-applied per candidate, never
+    # skipped.
+    for root, base in _read_candidates_with_roots(rel):
         target = (base / filename).resolve()
         try:
-            target.relative_to(base.resolve())
+            target.relative_to(root.resolve())
         except ValueError:
             continue
         if target.exists():

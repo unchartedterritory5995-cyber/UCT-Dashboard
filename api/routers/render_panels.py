@@ -152,7 +152,11 @@ def buzz_panel(token: str = "", window: str = "open"):
     # branch (one COUNT per candidate per prior session -- measured 24ms vs
     # 0.8ms for top_board on a 36.6k-row store, and it grows with room
     # activity), and it runs on the anyio worker the render already holds.
-    heat = buzz_boards.heat_board(now, limit=12)
+    # ⛔ ONE list for the marks AND the heat block -- and it is the SAME size
+    # the text reply names. Asking for 12 here while build_board_text asked for
+    # 4 made the image and the words disagree about what "heating up" means,
+    # and the image was the noisy one: 11 of 14 rows pilled on day one.
+    heat = buzz_boards.heat_board(now, limit=buzz_boards.HEAT_MARKS)
     hot = {h["ticker"]: h["ratio"] for h in heat}
     for r in head:
         r["hot"] = hot.get(r["ticker"])
@@ -163,7 +167,7 @@ def buzz_panel(token: str = "", window: str = "open"):
         "tail":    [{"ticker": t["ticker"], "mentions": t["mentions"],
                      "hot": hot.get(t["ticker"])} for t in multi],
         "singles": singles,
-        "heat": heat[:4],
+        "heat": heat,
         "totals": buzz_boards.totals(window, now),
         "coverage": buzz_boards.coverage(now),
         "asOf": now,
