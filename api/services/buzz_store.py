@@ -116,6 +116,44 @@ def set_cursor(channel_id: str, message_id: str) -> None:
     c.commit()
 
 
+# ── The BACKWARD watermark, distinct from the forward cursor above.
+#
+# `last_message_id` is how far FORWARD the poller has read. This is how far
+# BACK the backfill has walked, and the two must not share a row: the poller
+# advances one every minute, the backfill the other only during a manual run.
+#
+# It lives in the same table under a suffixed key rather than in a new column,
+# so no migration is needed on a volume that already holds a live table. The
+# suffix cannot collide with a real channel id — Discord snowflakes are digits
+# only, and `_BACKFILL_SUFFIX` is not.
+#
+# ⛔ It exists because `backfill` used to restart from the NEWEST message on
+# every run. On a channel doing ~1,100 messages a day, one rate limit at page
+# 11 capped the walk at about 14 hours of history, and every re-run re-walked
+# the same pages and stopped in the same place. The tool told the operator
+# "re-run to continue"; re-running could not continue. Measured on #main-chat:
+# five consecutive runs, four of them adding zero new mentions.
+_BACKFILL_SUFFIX = ":backfill"
+
+
+def get_backfill_mark(channel_id: str) -> str | None:
+    """Oldest message id this channel's backfill has reached, if any."""
+    return get_cursor(channel_id + _BACKFILL_SUFFIX)
+
+
+def set_backfill_mark(channel_id: str, message_id: str) -> None:
+    """Record how far back the walk got. ⛔ Call this only AFTER the page's rows
+    are committed — same ordering rule as the forward cursor. A mark written
+    before the write would skip a page permanently on a crash."""
+    set_cursor(channel_id + _BACKFILL_SUFFIX, message_id)
+
+
+def clear_backfill_mark(channel_id: str) -> None:
+    c = connect()
+    c.execute("DELETE FROM ingest_state WHERE channel_id=?", (channel_id + _BACKFILL_SUFFIX,))
+    c.commit()
+
+
 def _chan_clause(channels):
     if not channels:
         return "", []

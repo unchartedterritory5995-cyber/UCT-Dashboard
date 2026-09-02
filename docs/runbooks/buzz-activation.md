@@ -186,10 +186,24 @@ not double-load the api stack the way the report card does.
 The tool prints pages, messages and mentions as it walks. At the end:
 
 - **`TRUNCATED` means a rate limit or API error, not the end of history.** Re-run
-  it; the walk resumes from where it stopped. Do not read a truncated run as a
-  finished backfill — that silent short-read is the worst failure shape here, and
-  it is why the tool says so out loud.
-- Re-run the Step 2 curl: `totals.tickers` should now reflect a month, not a day.
+  it — the walk now genuinely **resumes** from a saved watermark. On a busy
+  channel expect several runs: `#main-chat` does ~1,100 messages/day, so 30 days
+  is ~330 pages and Discord will rate-limit you repeatedly along the way.
+  `--restart` throws the watermark away and walks from the newest again.
+- ⛔ **Judge completion by the DATA, never by the absence of a warning.** A run
+  that dies before printing anything prints no `TRUNCATED` either, and a loop
+  grepping for that word reads the silence as success — which is exactly what
+  happened on the first real backfill, leaving one day of history while
+  reporting done. A finished run says
+  `✅ reached the N-day cutoff` explicitly. Verify against the store:
+
+```bash
+MSYS_NO_PATHCONV=1 railway ssh --service web \
+  "/opt/venv/bin/python -c \"import sqlite3;c=sqlite3.connect('/data/buzz.db');lo,hi=c.execute('SELECT MIN(ts),MAX(ts) FROM mentions').fetchone();print('span days:',round((hi-lo)/86400,1))\""
+```
+
+  `span days` is the number that matters. Anything well under your `--days` means
+  the walk has not finished, whatever the log said.
 
 > ⚠️ Heat ("▲ 6.3×") stays hidden until the store covers at least 5 sessions the
 > room actually spoke in. That is deliberate: on a thin baseline every ordinary
