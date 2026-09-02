@@ -153,3 +153,55 @@ def test_the_slot_is_released_when_the_render_raises(monkeypatch):
     # The slot came back: a second acquire must succeed immediately.
     assert sem.acquire(timeout=0.1) is True
     sem.release()
+
+
+# ── The width arm of the probe. Counting rows caught a BLANK board; it was
+# structurally blind to a MISLAID-OUT one, and that is exactly what shipped: a
+# `#buzz-export` rule inside a CSS module is hashed by css-modules, so the board
+# lost `width: 1000px` and stretched to fill the renderer's 1400px viewport.
+# Every row still existed, so the probe reported a healthy count.
+
+def _probe(rows_or_width):
+    return _CountingClient(response=_FakeResponse(rows=rows_or_width))
+
+
+def test_a_board_drawn_at_the_wrong_width_is_discarded(caplog):
+    """A NEGATIVE probe is the page saying "rows drew, but my box is |n|px, not
+    the width I declared". The PNG would be legible enough to look shippable and
+    wrong enough to be worthless, so it never reaches the room."""
+    import logging
+    c = _probe(-1915)
+    with caplog.at_level(logging.WARNING):
+        assert buzz_image.render_board_png("open", client=c) is None
+    # The measured width is in the log, not just "discarded" — the number is
+    # what tells you WHICH geometry broke.
+    assert "1915" in caplog.text
+
+
+def test_a_wrong_width_board_is_not_cached():
+    """Same contract as any other failure: one bad render must not cost every
+    caller the image for a whole TTL."""
+    c = _probe(-1915)
+    assert buzz_image.render_board_png("open", client=c) is None
+    assert buzz_image.render_board_png("open", client=c) is None
+    assert c.calls == 2
+
+
+def test_a_correctly_sized_board_is_kept():
+    """CONTROL. Without this, discarding everything would also pass the two
+    tests above."""
+    c = _probe(8)
+    assert buzz_image.render_board_png("open", client=c) == b"\x89PNG-board"
+    assert c.calls == 1
+
+
+def test_the_probe_asks_the_page_for_the_width_rather_than_restating_it():
+    """⛔ The expected width has ONE authority: BuzzRender.jsx's BOARD_W, which
+    it publishes as window.__buzzBoardW. If this module ever hard-codes 1000,
+    the two drift and the probe starts discarding good boards (or passing bad
+    ones) the day the design changes width."""
+    assert "__buzzBoardW" in buzz_image.PROBE_JS
+    assert "1000" not in buzz_image.PROBE_JS
+    # An older cached bundle that does not publish the value must fall through
+    # to the plain row count, never to a rejection.
+    assert "if (!want) return rows;" in buzz_image.PROBE_JS

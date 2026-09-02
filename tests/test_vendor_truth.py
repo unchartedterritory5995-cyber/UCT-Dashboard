@@ -292,8 +292,9 @@ def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
         # The roster names the code it is about; the manifest key is the function.
         target = row["id"].split("-")[0]
         assert target in notes, (
-            f"{row['id']}: ACCEPTED with no `vendorNote` on `closedTable.json::"
-            f"functions.{target}`. A member pasting a script that uses it would "
+            f"{row['id']}: ACCEPTED with no `vendorNote`. See "
+            f"`closedTable.json::functions` for `{target}`. A member "
+            f"pasting a script that uses it would "
             f"never be told. Either write the note or the row is not accepted — "
             f"it is merely known.")
         # ⛔ AND THE TWO MUST AGREE ON THE MEASUREMENT. A member sentence that

@@ -91,9 +91,46 @@ def _reset_for_tests() -> None:
 
 
 READY_JS = "() => window.__buzzReady === true"
-# Count the artifact, do not trust the flag. Comes back as the X-Chart-Probe
-# header; 0 rows means "ready but empty" -> discard.
-PROBE_JS = "document.querySelectorAll('[data-buzz-row]').length"
+
+# Measure the artifact, do not trust the flag. Comes back as the X-Chart-Probe
+# header (see _probe_rows), and the result is a single integer:
+#
+#     > 0   rows drawn, board at its declared width  -> keep
+#     = 0   ready but nothing drawn                  -> discard
+#     < 0   rows drawn but the board is the WRONG WIDTH; the magnitude is the
+#           width actually measured                  -> discard
+#
+# ⛔ THE WIDTH ARM EXISTS BECAUSE COUNTING ROWS WAS NOT ENOUGH. A `#buzz-export`
+# rule in a CSS *module* is hashed by css-modules and matches nothing, so the
+# board silently lost `width: 1000px` and stretched to fill chart-renderer's
+# 1400px viewport (measured 1915px, with the row grid's flexible column at
+# 1309px instead of 394px). Every row still EXISTED, so this probe returned a
+# healthy count and the mislaid-out PNG shipped for two days. A probe built to
+# catch an EMPTY artifact says nothing about a WRONG one.
+#
+# ⛔ The expected width is NOT restated here. BuzzRender.jsx publishes its own
+# declared width as `window.__buzzBoardW`, and the probe compares the measured
+# box against that — so the number has exactly one authority (the component
+# that sets it), and this module cannot drift from it. A page that does not
+# publish the value (an older cached bundle) falls through to the plain row
+# count, i.e. the behaviour that existed before this check.
+#
+# Failure direction: if a renderer cannot evaluate this expression the header
+# is absent, _probe_rows returns None, and the image is KEPT — the same
+# fallback as an older renderer. Tightening the probe can never cost a member
+# their board.
+_PROBE_W_TOLERANCE_PX = 2
+PROBE_JS = (
+    "(() => {"
+    " const el = document.getElementById('buzz-export');"
+    " if (!el) return 0;"
+    " const rows = document.querySelectorAll('[data-buzz-row]').length;"
+    " const want = window.__buzzBoardW;"
+    " if (!want) return rows;"
+    " const w = Math.round(el.getBoundingClientRect().width);"
+    " return Math.abs(w - want) <= %d ? rows : -w;"
+    "})()" % _PROBE_W_TOLERANCE_PX
+)
 
 
 def image_enabled() -> bool:
@@ -176,9 +213,16 @@ def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
             if not r.content.startswith(b"\x89PNG"):
                 log.warning("[buzz] render returned non-PNG")
                 return None
-            rows = _probe_rows(r)
-            if rows == 0:
+            probe = _probe_rows(r)
+            if probe == 0:
                 log.warning("[buzz] render ready but empty (0 rows) -- discarding")
+                return None
+            if probe is not None and probe < 0:
+                # Rows drew, but not at the declared width — the export
+                # container lost its geometry. The PNG would be legible enough
+                # to look shippable and wrong enough to be worthless.
+                log.warning("[buzz] board rendered %dpx wide, not its declared width "
+                            "-- discarding (export container lost its geometry)", -probe)
                 return None
             return r.content
         finally:

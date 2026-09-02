@@ -139,6 +139,19 @@ describe('BuzzRender', () => {
     expect(idSelectors).toEqual([])
   })
 
+  it('publishes its declared width for the render probe, matching the inline style', async () => {
+    // buzz_image.PROBE_JS measures the drawn board and compares it against
+    // window.__buzzBoardW, then discards a PNG whose box does not match. That
+    // makes this value the ONE authority for the board's width -- the Python
+    // side deliberately does not restate it. If these two ever disagree the
+    // probe starts discarding good boards, or passing bad ones.
+    const { container } = render(<BuzzRender />)
+    await screen.findByText('NVDA')
+    const box = container.querySelector('#buzz-export')
+    expect(window.__buzzBoardW).toBe(1000)
+    expect(box.style.width).toBe(`${window.__buzzBoardW}px`)
+  })
+
   it('does not claim ready before data arrives', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<BuzzRender />)
