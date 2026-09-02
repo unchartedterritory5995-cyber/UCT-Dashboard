@@ -58,32 +58,29 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ 30 translate, and the FOUR that do not are named with their reason', () => {
+  it('⭐⭐ 32 translate, and the TWO that do not are named with their reason', () => {
     // ⏳ THE FLOOR MOVES ONE WAY. Raising it is the point of this file; a drop
     // reds here with the roster rather than as a silent number change.
     const passed = RESULTS.length - MISSES.length
-    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(30)
+    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(32)
 
     // ⛔⛔ A ROSTER, NOT A COUNT — and the two halves are different KINDS of
     // residual, which is the whole reason to name them:
     //
-    //   31-cci-oversold        ─┐ ADAPTER WORK. Pine passes a SOURCE where this
-    //   32-money-flow-oversold ─┘ table takes high/low/close. The mapping is exact
-    //     when that source is `hlc3` — `computeCCI` and `computeMFI` both open
-    //     with `tp = (h + l + c) / 3` — and must refuse otherwise, because
-    //     `ta.cci(close, 20)` is a real and different indicator. A static
-    //     `PINE_CALL_SHAPES` plan cannot express the condition: it would DROP the
-    //     source argument silently. Needs a shape-level `sourceMustBe`; see the
-    //     note above `EXPANSIONS.mom` for why this map cannot do it either.
+    // ✅ 31-cci-oversold AND 32-money-flow-oversold WERE ON THIS ROSTER AND CAME
+    //    OFF IT. They needed a shape-level `sourceMustBe`, since Pine passes a
+    //    SOURCE where this table takes high/low/close and a static `build` plan
+    //    would have DROPPED that argument silently. See
+    //    `pine.sourceAdapters.test.js`.
     //
-    //   33-obv-rising          ─┐ A RULING, NOT A GAP. Pine's `ta.obv` and
-    //   34-bars-since-signal   ─┘ `ta.barssince` accumulate from the first bar ever
-    //     drawn; this table's `obvN` and `barssince` take a window. An unbounded
-    //     accumulator would end static decidability, which is what lets ONE
-    //     definition sweep every symbol. These stay refused on purpose.
+    //   33-obv-rising          ─┐ WHAT IS LEFT IS A RULING, NOT A GAP. Pine's
+    //   34-bars-since-signal   ─┘ `ta.obv` and `ta.barssince` accumulate from the
+    //     first bar ever drawn; this table's `obvN` and `barssince` take a window.
+    //     An unbounded accumulator would end static decidability — the property
+    //     that lets ONE definition sweep every symbol without being evaluated
+    //     first. These stay refused on purpose, and a member who needs them is
+    //     told the window to give.
     expect(MISSES).toEqual([
-      '31-cci-oversold [pine:role-order]',
-      '32-money-flow-oversold [pine:role-order]',
       '33-obv-rising [pine:function]',
       '34-bars-since-signal [pine:function]',
     ])

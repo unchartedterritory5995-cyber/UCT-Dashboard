@@ -548,6 +548,39 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
   atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
+  //
+  // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
+  // these the shipped implementation reads the TYPICAL PRICE. Measured in
+  // `indicators.js`: `computeCCI` and `computeMFI` each open with
+  // `tp[i] = (bars[i].h + bars[i].l + bars[i].c) / 3`. So when the source a member
+  // passes IS `hlc3`, filling high/low/close is the same column exactly — which
+  // is what `sourceMustBe` states, and what makes dropping the source argument
+  // admissible rather than a silent loss.
+  //
+  // ⛔⛔ WITHOUT THAT FIELD THE PLAN WOULD BE A LIE. `build` has no slot for the
+  // source, so a shape alone would answer `ta.cci(close, 20)` — a real and
+  // different indicator — with the typical-price column: a plausible number, on
+  // the right scale, wrong on every bar, with nothing refusing.
+  cci: {
+    table: 'cci',
+    pineArity: 2,
+    sourceMustBe: { at: 0, series: 'hlc3' },
+    build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 1 }],
+  },
+  mfi: {
+    table: 'mfi',
+    pineArity: 2,
+    sourceMustBe: { at: 0, series: 'hlc3' },
+    build: [{ series: 'high' }, { series: 'low' }, { series: 'close' },
+      { series: 'volume' }, { pine: 1 }],
+  },
+  // ⚠️ `ta.vwap` IS DELIBERATELY NOT HERE, though it wants the same adapter.
+  // `computeVWAP` weights by the same typical price, so `ta.vwap(hlc3)` really is
+  // our `vwap()` — but a shape carries ONE `pineArity`, and bare `ta.vwap` is a
+  // zero-argument VARIABLE that reaches the table and works today. Declaring the
+  // one-argument form here would refuse the spelling members actually write, so
+  // the function form keeps refusing until a shape can hold both arities.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
   // these keys are synthetic and `dmiParts` is their only caller.
@@ -4810,6 +4843,29 @@ class Resolver {
           + `${shape.pineArity} — this engine reads the call in Pine's shape before `
           + `mapping it onto the table, so the count has to match Pine first`,
           locate(tok))
+      }
+      // ⭐⭐ THE SOURCE IS CHECKED HERE AND NOT EARLIER, and the ordering is the
+      // point. Both gates above have already passed, so this never resolves an
+      // argument for a call that was going to refuse for its shape or its count
+      // — the same discipline `thinkscript.js` states where it checks every
+      // parameter before resolving any of them.
+      // ⛔ IT COMPARES AGAINST `derivedSeriesTree`, THE FUNCTION THE DOOR ITSELF
+      // USES to expand `hlc3`, so this is an identity check rather than two
+      // constructions that happen to agree today.
+      if (shape.sourceMustBe) {
+        const want = derivedSeriesTree(shape.sourceMustBe.series, this.table)
+        const got = this.resolve(args[shape.sourceMustBe.at].value)
+        if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          throw new PineRefusal('pine:role-order',
+            REFUSALS['pine:role-order'] + ' — '
+            + '`' + pineName + '`' + ' takes a SOURCE and this table reads the typical '
+            + 'price from ' + signatureOf(key, spec) + '. Those are the same column '
+            + 'when the source is ' + '`' + shape.sourceMustBe.series + '`' + ' and a '
+            + 'DIFFERENT indicator otherwise, so only that source is taken — '
+            + 'TO UNBLOCK: write ' + '`' + pineName + '(' + shape.sourceMustBe.series
+            + ', …)' + '`',
+            locate(tok))
+        }
       }
       plan = shape.build
     } else {
