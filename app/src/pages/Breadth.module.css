@@ -1646,3 +1646,14 @@ tbody tr { cursor: pointer; }
     min-width: var(--tap-min);
   }
 }
+
+/* TOUCH (wave 17) — the header actions (Today / refresh / Share) audited
+   50x21, 29x21, 67x21 on tablet. Appended at file END so equal-specificity
+   base rules can't out-cascade it (source order decides). */
+@media (max-width: 1024px) {
+  .hdrBtn {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+}

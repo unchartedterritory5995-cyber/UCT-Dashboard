@@ -61,7 +61,40 @@ def _ensure_local_db_installed() -> None:
     """
     from api.services import data_sync
     import sqlite3
+    import shutil
     p = os.path.join(_DATA_DIR, "bars.db")
+    # ⭐ Clear stale temp from interrupted prior installs FIRST. A redeploy mid-download
+    # leaves download_snapshot's tmpdir uncleaned; across many deploys these accumulated
+    # in /data/tmp and filled the 50GB volume → "[Errno 28] No space left on device".
+    # Start each boot with a clean temp dir so a clean install fits. Never touches bars.db.
+    try:
+        du = shutil.disk_usage(_DATA_DIR)
+        _log.info("[bars-api] volume %s: %.1fGB used / %.1fGB total (%.1fGB free) BEFORE cleanup",
+                  _DATA_DIR, (du.used) / 1e9, du.total / 1e9, du.free / 1e9)
+        # Log the biggest offenders on /data so we KNOW what filled it (not guess).
+        for name in sorted(os.listdir(_DATA_DIR)):
+            fp = os.path.join(_DATA_DIR, name)
+            try:
+                if os.path.isfile(fp):
+                    sz = os.path.getsize(fp)
+                else:
+                    sz = sum(os.path.getsize(os.path.join(r, f))
+                             for r, _, fs in os.walk(fp) for f in fs
+                             if os.path.exists(os.path.join(r, f)))
+                if sz > 50e6:
+                    _log.info("[bars-api]   /data/%s = %.2fGB", name, sz / 1e9)
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] disk-usage probe failed (non-fatal): %s", e)
+    try:
+        _tmp = os.path.join(_DATA_DIR, "tmp")
+        if os.path.isdir(_tmp):
+            shutil.rmtree(_tmp, ignore_errors=True)
+        os.makedirs(_tmp, exist_ok=True)
+        _log.info("[bars-api] cleared stale temp dir %s before install", _tmp)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] temp cleanup failed (non-fatal): %s", e)
     try:
         populated = False
         if os.path.exists(p):
@@ -234,11 +267,18 @@ def main() -> None:
     # extract there was a suspected silent-kill cause). Set in-process so it also
     # overrides any mangled Railway TMPDIR value.
     try:
+        import tempfile
         _tmp = os.path.join(_DATA_DIR, "tmp")
         os.makedirs(_tmp, exist_ok=True)
+        # ⭐ Set BOTH the env vars AND tempfile.tempdir directly. tempfile CACHES its
+        # dir on first use (during imports, before main runs) → the env var alone was
+        # ignored and the ~GB snapshot download went to the tiny ephemeral /tmp →
+        # "[Errno 28] No space left on device" after 78s. Setting tempfile.tempdir
+        # overrides the cache so download_snapshot's mkdtemp uses the 50GB volume.
         os.environ["TMPDIR"] = _tmp
         os.environ["TEMP"] = _tmp
         os.environ["TMP"] = _tmp
+        tempfile.tempdir = _tmp
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] could not set volume TMPDIR (%s): %s", _DATA_DIR, e)
     # The DB install runs in a background thread from the lifespan (AFTER uvicorn

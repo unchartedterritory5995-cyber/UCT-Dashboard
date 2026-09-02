@@ -828,3 +828,12 @@
     min-height: var(--tap-min);
   }
 }
+
+/* TOUCH (wave 17) — the "?" keyboard-shortcuts button audited 38x31 on
+   tablet. Appended at file END: source order beats equal specificity. */
+@media (max-width: 1024px) {
+  .kbdIconBtn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
+}

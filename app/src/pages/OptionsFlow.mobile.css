@@ -240,3 +240,15 @@
     min-height: var(--tap-min, 44px) !important;
   }
 }
+
+/* TOUCH TIER (wave 17) — tablet reaches this file too now. The Fetch Live
+   P/L button audited 103x35 at 820px; the phone blocks above stop at 640px
+   so this rides the canonical touch boundary instead. Same rebase-safe
+   contract: className hook (of-fetchpl in the JSX), never the inline style. */
+@media (max-width: 1024px) {
+  .of-mroot .of-fetchpl {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+}

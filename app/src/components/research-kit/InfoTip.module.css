@@ -75,26 +75,35 @@
   right: 0;
 }
 
-/* TOUCH — the 44px tap floor (--tap-min) is met by an invisible expander, NOT by
-   growing the button. The ⓘ is INLINE inside a label row (EyebrowLabel,
+/* TOUCH — the 44px tap floor (--tap-min) is met by hit-box expansion, NOT by
+   growing the glyph. The ⓘ is INLINE inside a label row (EyebrowLabel,
    VerdictChip), so a 44px layout box re-flowed every eyebrow row on a phone.
-   The hit area is 44px; the box stays 16px. */
+   Padding grows the tappable box to 44px; negative margins cancel the layout
+   impact, so the row doesn't move and the glyph stays 16px.
+
+   This REPLACED a ::after pseudo-element expander (wave 17): the hit area was
+   identical, but the button's own rect stayed 16px — unmeasurable, so every
+   audit flagged it as a false positive forever. Padding participates in both
+   hit-testing AND getBoundingClientRect, making the fix provable.
+
+   The z-index bump is load-bearing: the expansion reaches ~14px beyond the
+   glyph on every side, so it can slip UNDER a sibling that paints later in
+   DOM order — measured on phone, the Break-even range tip's expanded area was
+   obstructed while its siblings' were not (a tap 18px out landed on the
+   neighbour). `--z-dropdown` is reserved for the popover itself; 1 is enough
+   to clear ordinary in-flow siblings. */
 @media (max-width: 1024px) {
-  .trigger::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: var(--tap-min);
-    height: var(--tap-min);
-    transform: translate(-50%, -50%);
-    /* The expansion reaches ~14px beyond the 16px icon on every side, so it
-       can slip UNDER a sibling that paints later in DOM order — measured on
-       phone, the Break-even range tip's expanded area was obstructed while
-       its siblings' were not (a tap 18px out landed on the neighbour, not the
-       tip). Without a stacking bump the hit area exists in CSS and does
-       nothing under a thumb. `--z-dropdown` is reserved for the popover
-       itself; 1 is enough to clear ordinary in-flow siblings. */
+  .trigger {
+    position: relative;
+    /* content-box is load-bearing: the base rule fixes width/height at 16px,
+       and under border-box that CAP absorbs the padding (measured: the box
+       stayed 20px wide with the padding "applied"). content-box keeps 16px as
+       the glyph content and lets the padding add outward — 16 + 2×14 = 44. */
+    box-sizing: content-box;
+    padding: 14px;
+    margin: -14px;
+    /* Preserve the base margin-left spacing under the negative expansion. */
+    margin-left: calc(var(--space-xs) - 14px);
     z-index: 1;
   }
 }
@@ -106,24 +115,7 @@
   }
 }
 
-/* The ⓘ trigger renders as a 16x16 glyph — flagged in the 2026-08-09 phone
-   audit, and it is one I introduced with CoverageNote. Enlarging the glyph
-   would shout on a line of quiet muted text, so the GLYPH stays 16px and only
-   the HIT AREA grows, via a centred pseudo-element. Safe here specifically
-   because this trigger sits next to TEXT, never beside another control, so a
-   44px invisible box cannot swallow a neighbour's tap. */
-@media (max-width: 1024px) {
-  .trigger {
-    position: relative;
-  }
-
-  .trigger::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: var(--tap-min, 44px);
-    height: var(--tap-min, 44px);
-  }
-}
+/* (A second ::after expander block lived here — same intent as the touch
+   block above, added independently for CoverageNote. Both were folded into
+   the single padding-based block above in wave 17: two expanders would have
+   stacked reach, and the ::after form was unmeasurable by the audit.) */
