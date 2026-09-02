@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../components/ui/UIcon'
 import useSavedScreens from './hooks/useSavedScreens'
+import useScreenAlerts from './hooks/useScreenAlerts'
 import { sharedScreenUrl } from './screenShareLink'
 import { useUserDefinitions, deleteUserDefinition } from '../../hooks/useUserDefinitions'
 import { scannableScreens, SCAN_TF, defaultSession } from '../../components/screener/scanSession'
@@ -267,6 +268,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // never arm two), `deleting` is the one whose request is out, and
   // `deleteError` is `{defId, message}` — keyed by row so the store's sentence
   // renders beside the scan it is about and nowhere else.
+  // ⭐⭐ THE PRODUCER FOR THE SCREEN-ALERT ROUTES. Three paid routes, a complete
+  // service and a prod-armed nightly job had shipped with NOTHING in `app/src`
+  // calling them — a member could write a screener, save it and run it, and had
+  // no way to be told when a name entered it.
+  const alerts = useScreenAlerts()
+  const [alertBusy, setAlertBusy] = useState(null)
+  const [alertError, setAlertError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
@@ -569,6 +577,34 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                         onClick={() => onUseScan(row.ast_hash, name)}>
                         Use as filter
                       </button>
+                      {/* ⭐⭐ BE TOLD WHEN A NAME ENTERS OR LEAVES THIS SCREEN.
+                          ⚠️ THE COPY SAYS "OVERNIGHT" BECAUSE THE DIFF IS NIGHTLY BY
+                          CONSTRUCTION — the route's own docstring: "the sweep runs
+                          once, off a 03:00 snapshot". Calling it a watch would
+                          promise a liveness the service does not have.
+                          ⛔ KEYED ON `ast_hash`, WHICH IS THE `def_hash` THE SERVICE
+                          KEYS ON. A screen's hash does not move while its tree
+                          does not, so renaming or re-saving keeps the alert. */}
+                      <button type="button"
+                        aria-pressed={alerts.subscribedHashes.has(String(row.ast_hash))}
+                        aria-label={alerts.subscribedHashes.has(String(row.ast_hash))
+                          ? `Stop overnight alerts for ${name}`
+                          : `Alert me overnight when ${name} changes`}
+                        data-testid={`screen-alert-${row.def_id}`}
+                        disabled={alertBusy === row.def_id}
+                        onClick={async () => {
+                          const on = alerts.subscribedHashes.has(String(row.ast_hash))
+                          setAlertBusy(row.def_id)
+                          setAlertError(null)
+                          const res = on
+                            ? await alerts.unsubscribe(row.ast_hash)
+                            : await alerts.subscribe(row.ast_hash, row.def_id, name)
+                          setAlertBusy(null)
+                          // ⛔ THE STORE'S SENTENCE, NOT ONE INVENTED HERE.
+                          if (!res.ok) setAlertError(res.error)
+                        }}>
+                        <UIcon name="bell" size={12} />
+                      </button>
                       {/* ⛔ THE SAME SHEET, NOT A SECOND ONE, and it opens on
                           the ROW rather than on `NEW_SCAN_MODE` — an edit lands
                           on the Formula because `openForEdit` says so, and a
@@ -591,6 +627,12 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     </span>
                   </div>
 
+                  {alertError && (
+                    <p role="alert" data-testid="screens-manager-error--alert"
+                      style={deleteErrStyle}>
+                      {alertError}
+                    </p>
+                  )}
                   {pendingDelete === row.def_id && (
                     <div style={deleteAskStyle} data-testid={`delete-ask-${row.def_id}`}>
                       {/* ⛔ NAMED. A member must be able to tell WHAT they are
