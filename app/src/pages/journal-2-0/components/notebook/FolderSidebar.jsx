@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import useJ2Notes from '../../hooks/useJ2Notes'
+import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -361,19 +362,33 @@ export default function FolderSidebar({
   const searching = Boolean(trimmedQuery) &&
     (trimmedQuery !== debouncedQuery || (searchEnabled && (searchLoading || searchValidating)))
 
-  // Tag cloud from current note list (counts), sorted by count descending —
-  // that sort is the pre-existing decision; TAG_CAP + the filter below are
-  // additive. NOTE: this is derived only from `notes` (the loaded page), so
-  // at migrated scale the counts are partial — a related, separately-tracked
-  // gap (also affects search). The cap here doesn't make that worse: it only
-  // trims how many of these (already partial) counts render.
-  const tagCounts = useMemo(() => {
+  // Tag cloud counts, sorted by count descending — that sort is the
+  // pre-existing decision; TAG_CAP + the filter below are additive.
+  //
+  // Final-review C5: this used to derive counts from `notes` (one loaded
+  // page) — harmless while "All notes" was ALSO page-capped (both numbers
+  // were consistently wrong together), but Task 11 gave the sidebar an
+  // honest whole-library total, which turned this into a VISIBLE
+  // self-contradiction (a true "All notes 5000" beside tag counts that sum
+  // to at most 100) and meant `TAG_CAP` picked the top 40 of a biased
+  // 100-note sample rather than the real distribution. Fixed the same way
+  // as the honest Unfiled total: ask the server (`useJ2NoteTags` ->
+  // `GET /api/j2/notes/tags` -> `notes.py::tag_counts`, a whole-library
+  // COUNT, not a page). `tagCountsFromPage` is now ONLY the fallback while
+  // the server hasn't answered yet (or for a caller/test that stubs the
+  // hook away) — never blended with the server numbers, since a partial
+  // merge would recreate the same "biased sample" defect this fix closes.
+  const { tagCounts: serverTagCounts } = useJ2NoteTags()
+  const tagCountsFromPage = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
       c.set(t, (c.get(t) || 0) + 1)
     }
     return [...c.entries()].sort((a, b) => b[1] - a[1])
   }, [notes])
+  const tagCounts = serverTagCounts.length
+    ? serverTagCounts.map((t) => [t.tag, t.count])
+    : tagCountsFromPage
 
   const tagsOverCap = tagCounts.length > TAG_CAP
 

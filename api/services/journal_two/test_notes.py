@@ -243,6 +243,44 @@ def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
     assert 0 < embed_widget_count < total_notes
 
 
+# ── tag_counts — the whole-library tag distribution (final-review C5) ───────
+
+def test_tag_counts_reflects_the_whole_library_not_a_page(conn):
+    """The exact shape of the C5 bug: more notes exist than one page (100),
+    each tagged 'earnings' — `tag_counts` must count all of them, not
+    whatever a 100-row `list_notes` page would have carried."""
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}", "tags": ["earnings"]}, conn=conn)
+    page = svc.list_notes("u1", limit=100, conn=conn)
+    assert len(page) == 100  # confirms the page really is smaller than the library
+    counts = {row["tag"]: row["count"] for row in svc.tag_counts("u1", conn=conn)}
+    assert counts["earnings"] == 120
+
+
+def test_tag_counts_sums_notes_not_tag_occurrences_and_sorts_by_count_desc(conn):
+    svc.create_note("u1", {"title": "A", "tags": ["earnings", "macro"]}, conn=conn)
+    svc.create_note("u1", {"title": "B", "tags": ["macro"]}, conn=conn)
+    svc.create_note("u1", {"title": "C", "tags": ["macro"]}, conn=conn)
+    rows = svc.tag_counts("u1", conn=conn)
+    assert rows[0] == {"tag": "macro", "count": 3}
+    assert {"tag": "earnings", "count": 1} in rows
+
+
+def test_tag_counts_never_crosses_users(conn):
+    svc.create_note("u1", {"title": "Mine", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u2", {"title": "Theirs", "tags": ["earnings", "macro"]}, conn=conn)
+    u1_counts = {row["tag"]: row["count"] for row in svc.tag_counts("u1", conn=conn)}
+    u2_counts = {row["tag"]: row["count"] for row in svc.tag_counts("u2", conn=conn)}
+    assert u1_counts == {"earnings": 1}
+    assert u2_counts == {"earnings": 1, "macro": 1}
+
+
+def test_tag_counts_ignores_untagged_notes_and_handles_an_empty_library(conn):
+    assert svc.tag_counts("u1", conn=conn) == []
+    svc.create_note("u1", {"title": "No tags"}, conn=conn)
+    assert svc.tag_counts("u1", conn=conn) == []
+
+
 def test_backlinks_answer_which_entries_reference_a_ticker(conn):
     """The sidecar has been written since v1 and read by exactly one consumer.
     This is the read that lets the rest of the app see the journal."""
@@ -778,3 +816,34 @@ def test_route_paginates_past_the_first_page_via_offset(route_client):
     second_ids = {n["id"] for n in second["notes"]}
     assert not (first_ids & second_ids)          # no overlap
     assert len(first_ids | second_ids) == 121    # nothing dropped either
+
+
+def test_route_tags_endpoint_reflects_the_whole_library_not_a_page(monkeypatch, tmp_path):
+    """`GET /api/j2/notes/tags` is the honest source FolderSidebar's tag
+    cloud consumes (final-review C5). 120 notes share a tag — more than one
+    `list_notes` page (100) — through the REAL router, proving the count
+    that reaches the wire is a whole-library count, not `len(page)`. A
+    second user's identically-tagged note must not leak into the total."""
+    from api.services import auth_db
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+
+    db_path = str(tmp_path / "j2_notes_tags_route.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ensure_schema(conn)
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u2", {"title": "Not mine", "tags": ["earnings"]}, conn=conn)
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1"}
+    client = TestClient(app)
+
+    r = client.get("/api/j2/notes/tags")
+    assert r.status_code == 200
+    assert r.json()["tags"] == [{"tag": "earnings", "count": 120}]

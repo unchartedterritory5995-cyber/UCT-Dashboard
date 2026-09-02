@@ -25,9 +25,20 @@ vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
 }))
 
+// The tag cloud's honest, whole-library counts (final-review C5). Default
+// (empty) mimics the real hook's shape before its first response resolves,
+// so the component's page-derived fallback is what most tests exercise —
+// tests that care about the SERVER numbers override this explicitly.
+const useJ2NoteTagsMock = vi.fn(() => ({ tagCounts: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useJ2NoteTags', () => ({
+  default: (...args) => useJ2NoteTagsMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
+  useJ2NoteTagsMock.mockReset()
+  useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
 })
 
 describe('folder tree', () => {
@@ -371,5 +382,46 @@ describe('honest badges for a migrated library (Task 11)', () => {
                           onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
     const unfiledRow = screen.getByText('Unfiled').closest('button')
     expect(within(unfiledRow).getByText('1')).toBeInTheDocument()
+  })
+})
+
+describe('tag counts read the whole library, not the loaded page (final-review C5)', () => {
+  // The bug this closes: Task 11 gave "All notes" an honest whole-library
+  // total, which made a page-derived tag cloud visibly self-contradict it —
+  // 5,000 notes up top, tag counts summing to at most 100 twelve lines
+  // below. `notes` here stands in for that one loaded page: just 2 notes,
+  // whose tags would derive to {alpha: 1, beta: 1} if counted client-side.
+  const onePageOfNotes = [
+    { id: 'n1', title: 'One', folderId: null, tags: ['alpha'] },
+    { id: 'n2', title: 'Two', folderId: null, tags: ['alpha', 'beta'] },
+  ]
+
+  it('renders the SERVER-computed whole-library counts, not counts derived from the loaded page', () => {
+    useJ2NoteTagsMock.mockImplementation(() => ({
+      tagCounts: [{ tag: 'alpha', count: 3200 }, { tag: 'beta', count: 900 }],
+      isLoading: false,
+      error: null,
+    }))
+    render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const alphaRow = screen.getByText('#alpha').closest('button')
+    const betaRow = screen.getByText('#beta').closest('button')
+    expect(within(alphaRow).getByText('3200')).toBeInTheDocument()
+    expect(within(betaRow).getByText('900')).toBeInTheDocument()
+    // Would read '2' / '1' if it fell back to counting the loaded page —
+    // this is exactly what today's code (pre-C5) renders instead.
+    expect(within(alphaRow).queryByText('2')).not.toBeInTheDocument()
+    expect(within(betaRow).queryByText('1')).not.toBeInTheDocument()
+  })
+
+  it('falls back to counting the loaded page only while the server total is unknown', () => {
+    // Default mock (from beforeEach): tagCounts: [] — the real hook's shape
+    // before its first response resolves.
+    render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const alphaRow = screen.getByText('#alpha').closest('button')
+    const betaRow = screen.getByText('#beta').closest('button')
+    expect(within(alphaRow).getByText('2')).toBeInTheDocument()
+    expect(within(betaRow).getByText('1')).toBeInTheDocument()
   })
 })

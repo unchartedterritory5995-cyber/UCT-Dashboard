@@ -1397,6 +1397,21 @@ def note_backlinks_endpoint(
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
 
 
+@router.get("/notes/tags")
+def note_tag_counts_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Tag -> count across the member's WHOLE library (final-review C5) — the
+    honest source for FolderSidebar's tag cloud, so its counts (and which 40
+    tags `TAG_CAP` selects) reflect the real distribution instead of one
+    loaded page.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks` immediately above: FastAPI matches in declaration
+    order and that route would otherwise swallow "tags" as a note id."""
+    return {"tags": notes_service.tag_counts(user["id"])}
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
