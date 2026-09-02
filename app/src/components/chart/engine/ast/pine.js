@@ -4899,6 +4899,21 @@ class Resolver {
           : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {
+      // ⭐⭐ A NAME THIS TABLE HAS ALREADY RULED ON GETS ITS RULING, not a list of
+      // the 64 it does declare. `_functions_excluded` is keyed by name, carries
+      // the reason, and is already rendered to members on the formula reference
+      // page — it was simply never consulted here, so `ta.sar`, `ta.obv` and
+      // `ta.variance` were answered with a dump that says nothing about them.
+      // ⛔ THE RULING IS THE MANIFEST'S SENTENCE, NOT ONE WRITTEN HERE. That is
+      // the same arrangement `docBlockedTail` uses on the thinkScript side: one
+      // registry owns the words, so a refusal and its documentation cannot drift.
+      const ruled = (this.table._functions_excluded || {})[bare]
+      if (ruled) {
+        throw new PineRefusal('pine:function',
+          REFUSALS['pine:function'] + ' — ' + '`' + pineName + '`'
+          + ', and this table has RULED on that name: ' + rulingLead(ruled),
+          locate(tok))
+      }
       throw new PineRefusal('pine:function',
         `${REFUSALS['pine:function']} — \`${pineName}\`. This table declares `
         + `${Object.keys(this.table.functions).sort().join(', ')}`, locate(tok))
@@ -5887,6 +5902,25 @@ function functionParams(toks, arrow) {
  *  ⚠️ AND IT IS DERIVED FROM STATIC TABLES, NOT FROM RESOLVING ANYTHING. This
  *  runs during the WALK, where a name is not yet a value; every branch below asks
  *  a question the parse tree and the declared tables can answer. */
+/** ⭐⭐ THE OPENING SENTENCE OF A RULING, for a refusal to carry.
+ *
+ *  ⛔ THE WHOLE RULING IS TOO LONG FOR A REFUSAL and exactly right for the page
+ *  that already renders it. `_functions_excluded.obv` is 2,174 characters;
+ *  `sar` is 653. Their FIRST sentences are the actionable part — "ALREADY
+ *  EXPRESSIBLE: `stdev(x, n) * stdev(x, n)`", "CUMULATIVE FROM THE FIRST BAR,
+ *  WITH NO ABSOLUTE SEED" — so the lead is quoted and the rest is left where a
+ *  member can read it.
+ *
+ *  ⚠️ THE LEADING MARKERS ARE STRIPPED, NOT THE WORDS. These entries open with
+ *  the same emphasis marks the rest of this repo uses; they carry meaning to a
+ *  reader of the manifest and none to a member reading a refusal. */
+function rulingLead(text) {
+  const flat = String(text || '').replace(/\s+/g, ' ').trim()
+  const body = flat.replace(/^[^A-Za-z`]+/, '')
+  const stop = body.search(/\.(\s|$)/)
+  return stop > 0 ? body.slice(0, stop + 1) : body.slice(0, 220)
+}
+
 function tupleRefusalTail(call, names, env) {
   if (!call) return 'the right-hand side is not an expression this engine could read'
   if (call.type !== 'call') {

@@ -308,7 +308,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', {
       date: selected, econStars, selectedSym, tbdOpen, settings,
-    }, { label: `Calendar ${selected}` }))
+    }, { label: `UCT Terminal ${selected}` }))
   }, [selected, econStars, selectedSym, tbdOpen, settings])
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
@@ -424,7 +424,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       {/* Body — tabIndex + onKeyDown make it arrow-navigable once a row is clicked. */}
       <div className={styles.list} ref={listRef} tabIndex={0} onKeyDown={onListKeyDown}>
         {isLoading && !day && (
-          <div className={styles.loading}><span className={styles.spinner} />Loading calendar…</div>
+          <div className={styles.loading}><span className={styles.spinner} />Loading UCT Terminal…</div>
         )}
 
         {nothing && (

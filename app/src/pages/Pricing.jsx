@@ -31,7 +31,7 @@ const PAID_FEATURES = [
   'Broker auto-sync — link a brokerage, trades import themselves',
   'Journal 2.0 — MFE / MAE excursions, exit quality, regime analytics',
   'The Floor — the live members community',
-  'The whole platform — live charts, LiveFlow, breadth, themes, calendar, The Desk',
+  'The whole platform — live charts, LiveFlow, breadth, themes, UCT Terminal, The Desk',
   'Full exports (CSV / JSON), always',
 ]
 
