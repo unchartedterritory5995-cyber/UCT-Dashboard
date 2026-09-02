@@ -8505,12 +8505,24 @@ export default function StockChart({
     // stale server close that otherwise snapped ~1s later when the first tick
     // arrived. Cold/uncached ticker → null → prior ~1s behaviour, no regression.
     // Sane-price guard mirrors Writers A/B (baseline = the just-refreshed server close).
-    // Set when the re-top below CREATES today's developing bar (a bucket BEYOND the
-    // N filteredBars, which end at yesterday's close). The framing block reads it so
-    // it pins TODAY at the anchor, not yesterday — else today's candle loads one bar
-    // to the right of the default position and then shifts left by one (the "pop"
-    // the neighbor live-price prewarm otherwise still leaves on a fresh switch).
-    let _todayBarPlanted = false
+    // ⭐ UNIVERSAL current-bar anchor. Reserve TODAY's slot at the anchor whenever the
+    // loaded DAILY tail is a PRIOR session (a developing today bar is expected but the
+    // served history ends yesterday). The framing below adds +1 so the anchor lands on
+    // today's slot — then today's bar, whenever it arrives from ANY path (the sync
+    // re-top, an async live tick, a typed ticker, any surface), fills that reserved
+    // slot instead of appending PAST the frame and shifting the whole view left/right.
+    // No prewarming dependency. isDailyTailStale is session-aware (false on weekends/
+    // holidays and when the tail already IS today), so there's no empty-slot gap and no
+    // over-reserve. D only — W/M "current bucket" staleness isn't this session model.
+    let _reserveTodaySlot = false
+    try {
+      if (resolvedTf === 'D' && filteredBars.length) {
+        const _lb = filteredBars[filteredBars.length - 1]
+        const _iso = _lb && (typeof _lb.t === 'string' ? _lb.t
+          : typeof _lb.time === 'string' ? _lb.time : null)
+        _reserveTodaySlot = !!_iso && isDailyTailStale(_iso)
+      }
+    } catch { /* framing prep is best-effort — never break the paint */ }
     let _retopLive = (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price)
       ? latestLiveRef.current
       : null
@@ -8597,7 +8609,6 @@ export default function StockChart({
       const lb = liveBarRef.current
 
       if (decision.kind === 'new') {
-        _todayBarPlanted = true  // series now holds today (index = filteredBars.length); frame for it
         const isDW = !isIntradayTf
         // A NEW bucket must NOT inherit O/H/L from liveBarRef — that's the PREVIOUS
         // bar (decision.kind==='new' ⇒ lb.time !== barTime). Fusing lb.low gave a
@@ -10135,8 +10146,11 @@ export default function StockChart({
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
+            // +1 when a developing today bar is expected (_reserveTodaySlot) so the
+            // anchor lands on today's slot, not yesterday's — the typed-ticker / fresh
+            // page-load equivalent of the switch re-frame above.
             const { from: _from, to: _to } = computeDefaultLogicalRange(
-              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              filteredBars.length + (_reserveTodaySlot ? 1 : 0), resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
             )
             chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
           }
@@ -10216,11 +10230,11 @@ export default function StockChart({
         const _pt = pendingTfReframeRef.current
         let from, to
         if (_pt.width > 0) {
-          // Pin TODAY (the just-planted developing bar, index = filteredBars.length)
-          // at the anchor when it exists, else yesterday — so the current-day candle
-          // loads at the SAME position the outgoing view had, never one bar to the
-          // right and then shifted left.
-          const lastIdx = (filteredBars.length - 1) + (_todayBarPlanted ? 1 : 0)
+          // Pin TODAY's reserved slot at the anchor when a developing today bar is
+          // expected (_reserveTodaySlot), else the loaded last bar — so the current
+          // candle lands at the SAME position the outgoing view had, from ANY path,
+          // whether or not today's bar has arrived yet.
+          const lastIdx = (filteredBars.length - 1) + (_reserveTodaySlot ? 1 : 0)
           to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - _pt.width
         } else {
