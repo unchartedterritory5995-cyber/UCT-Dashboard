@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(math.sqrt(math.pow(close - ta.sma(close, 20), 2)) / close > 0.05 ? 1 : 0)

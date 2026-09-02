@@ -22,8 +22,12 @@
 // list of indicator names in this file. `ta.rsi` resolves because `rsi` is a key
 // of `TABLE.functions`; the day another key lands there, the Pine name that
 // normalises to it works with nothing here changing, and its ARITY and its
-// ARGUMENT KINDS are read off the same declaration. `PINE_NAME_ALIASES` below is
-// spelling only — it renames, it never asserts that anything exists.
+// ARGUMENT KINDS are read off the same declaration. RENAMING is spelling only —
+// a `PINE_CALL_SHAPES` entry whose `table` differs from its key, like
+// `log → ln`, renames and never asserts that anything exists.
+// ⚰️ THIS PARAGRAPH NAMED A `PINE_NAME_ALIASES` MAP THAT WAS NOT IN THE FILE.
+// The capability was real and the map was not, so anyone looking for the place
+// to add a spelling found nothing and concluded there was none.
 //
 // ⛔ EVERY UNSUPPORTED CONSTRUCT REFUSES BY NAME, AT ITS OWN TOKEN. Each refusal
 // carries `{guard, message, line, column, token}` and the source line with a
@@ -533,6 +537,21 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // than assuming it.
   min: { table: 'min', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
   max: { table: 'max', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
+  // ⭐ `math.pow(base, exponent)` ONTO `pow(left, right)`. Two `series` slots make
+  // this fail closed without a measured order — the same gate `max` needed — and
+  // unlike `max` the order is NOT symmetric, so it is written down rather than
+  // assumed: the table reads `{0} raised to the power {1}`, which is base then
+  // exponent, and Pine names its parameters in that order too.
+  pow: { table: 'pow', pineArity: 2, build: [{ pine: 0 }, { pine: 1 }] },
+  // ⭐⭐ `math.log` IS THE NATURAL LOG AND THIS TABLE CALLS IT `ln`, so the only
+  // thing missing was the spelling. A shape renames through `shape.table`, which
+  // is the mechanism this file's header already credits to a `PINE_NAME_ALIASES`
+  // map that does not exist — renaming has always been a shape with a `build`
+  // that changes nothing.
+  // ⛔ `math.log10` NEEDS NO ENTRY: the table declares `log10` under that exact
+  // name, so it resolves by the ordinary path and adding a shape would be a
+  // second statement of the same fact.
+  log: { table: 'ln', pineArity: 1, build: [{ pine: 0 }] },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
   stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
@@ -548,6 +567,39 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
   atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
+  //
+  // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
+  // these the shipped implementation reads the TYPICAL PRICE. Measured in
+  // `indicators.js`: `computeCCI` and `computeMFI` each open with
+  // `tp[i] = (bars[i].h + bars[i].l + bars[i].c) / 3`. So when the source a member
+  // passes IS `hlc3`, filling high/low/close is the same column exactly — which
+  // is what `sourceMustBe` states, and what makes dropping the source argument
+  // admissible rather than a silent loss.
+  //
+  // ⛔⛔ WITHOUT THAT FIELD THE PLAN WOULD BE A LIE. `build` has no slot for the
+  // source, so a shape alone would answer `ta.cci(close, 20)` — a real and
+  // different indicator — with the typical-price column: a plausible number, on
+  // the right scale, wrong on every bar, with nothing refusing.
+  cci: {
+    table: 'cci',
+    pineArity: 2,
+    sourceMustBe: { at: 0, series: 'hlc3' },
+    build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 1 }],
+  },
+  mfi: {
+    table: 'mfi',
+    pineArity: 2,
+    sourceMustBe: { at: 0, series: 'hlc3' },
+    build: [{ series: 'high' }, { series: 'low' }, { series: 'close' },
+      { series: 'volume' }, { pine: 1 }],
+  },
+  // ⚠️ `ta.vwap` IS DELIBERATELY NOT HERE, though it wants the same adapter.
+  // `computeVWAP` weights by the same typical price, so `ta.vwap(hlc3)` really is
+  // our `vwap()` — but a shape carries ONE `pineArity`, and bare `ta.vwap` is a
+  // zero-argument VARIABLE that reaches the table and works today. Declaring the
+  // one-argument form here would refuse the spelling members actually write, so
+  // the function form keeps refusing until a shape can hold both arities.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
   // these keys are synthetic and `dmiParts` is their only caller.
@@ -1629,6 +1681,16 @@ function dmiParts(toks, close, names, env, first) {
  *
  *  ⚠️ THE NAMESPACED SPELLINGS ARE DELIBERATE. `ta.sma`, `ta.stdev` and `ta.ema`
  *  cannot be shadowed by a member's own binding the way a bare name can. */
+/** ⭐ WHAT TO SAY WHEN A CALL HAS THE RIGHT NAME AND THE WRONG COUNT, keyed by
+ *  the bare Pine name. Only entries where an EXACT alternative TRANSLATES belong
+ *  here — a hint that sends a member to something which also refuses is worse
+ *  than the bare count. */
+const ARITY_HINTS = Object.freeze({
+  change: 'TO UNBLOCK: Pine defines `ta.change(source, length)` and '
+    + '`ta.mom(source, length)` as the same difference, `source - source[length]`, '
+    + 'and this engine translates the `ta.mom` spelling',
+})
+
 const PINE_TUPLE_BUILTINS = Object.freeze({
   bb: {
     arity: 3,
@@ -4811,6 +4873,29 @@ class Resolver {
           + `mapping it onto the table, so the count has to match Pine first`,
           locate(tok))
       }
+      // ⭐⭐ THE SOURCE IS CHECKED HERE AND NOT EARLIER, and the ordering is the
+      // point. Both gates above have already passed, so this never resolves an
+      // argument for a call that was going to refuse for its shape or its count
+      // — the same discipline `thinkscript.js` states where it checks every
+      // parameter before resolving any of them.
+      // ⛔ IT COMPARES AGAINST `derivedSeriesTree`, THE FUNCTION THE DOOR ITSELF
+      // USES to expand `hlc3`, so this is an identity check rather than two
+      // constructions that happen to agree today.
+      if (shape.sourceMustBe) {
+        const want = derivedSeriesTree(shape.sourceMustBe.series, this.table)
+        const got = this.resolve(args[shape.sourceMustBe.at].value)
+        if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          throw new PineRefusal('pine:role-order',
+            REFUSALS['pine:role-order'] + ' — '
+            + '`' + pineName + '`' + ' takes a SOURCE and this table reads the typical '
+            + 'price from ' + signatureOf(key, spec) + '. Those are the same column '
+            + 'when the source is ' + '`' + shape.sourceMustBe.series + '`' + ' and a '
+            + 'DIFFERENT indicator otherwise, so only that source is taken — '
+            + 'TO UNBLOCK: write ' + '`' + pineName + '(' + shape.sourceMustBe.series
+            + ', …)' + '`',
+            locate(tok))
+        }
+      }
       plan = shape.build
     } else {
       if (seriesSlots > 1) {
@@ -4824,10 +4909,21 @@ class Resolver {
           locate(tok))
       }
       if (args.length !== declaredArgs.length) {
+        // ⭐⭐ A COUNT MISMATCH WITH A KNOWN WAY ROUND IT SAYS SO. `ta.change(src)`
+        // is declared and `ta.change(src, n)` is not — recorded in
+        // `pine.derived.test.js::TA_VETTED` as *"the n-arg form is refused by
+        // arity"*. That was the whole story until `ta.mom` landed: Pine defines
+        // both as `source - source[length]`, so the two-argument change now HAS an
+        // exact spelling that translates, and a member hitting this wall should be
+        // told it rather than left to find it.
+        // ⛔ IT IS A SENTENCE, NOT AN AUTO-REWRITE. This door has no span to
+        // replace and no business renaming a member call.
+        const hint = own(ARITY_HINTS, bare) ? ' — ' + ARITY_HINTS[bare] : ''
         throw new PineRefusal('pine:arity',
-          `${REFUSALS['pine:arity']} — \`${pineName}\` was given ${args.length} `
-          + `argument${args.length === 1 ? '' : 's'}; this table takes `
-          + `${declaredArgs.length} — ${signatureOf(key, spec)}`, locate(tok))
+          REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given '
+          + args.length + ' argument' + (args.length === 1 ? '' : 's')
+          + '; this table takes ' + declaredArgs.length + ' — '
+          + signatureOf(key, spec) + hint, locate(tok))
       }
       plan = declaredArgs.map((_, i) => ({ pine: i }))
     }

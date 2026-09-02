@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine } from './pine.js'
+import { translatePine, treeYieldsBool } from './pine.js'
 import { parseFormula } from './parse.js'
 
 const DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_screener')
@@ -48,7 +48,7 @@ describe('a member can write their own Pine screener', () => {
     // just fixed them — a corpus blind beside what it measures. The four scripts
     // this door still refuses were added deliberately, so the number is
     // 30/34 and the residual is visible rather than absent.
-    expect(FILES.length).toBeGreaterThanOrEqual(34)
+    expect(FILES.length).toBeGreaterThanOrEqual(36)
     for (const r of RESULTS) {
       expect(r.source, `${r.name} is not v6`).toContain('//@version=6')
       // ⛔ A SCREEN NEEDS SOMETHING TO FILTER ON. Without this a fixture could be
@@ -58,32 +58,29 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ 30 translate, and the FOUR that do not are named with their reason', () => {
+  it('⭐⭐ 34 translate, and the TWO that do not are named with their reason', () => {
     // ⏳ THE FLOOR MOVES ONE WAY. Raising it is the point of this file; a drop
     // reds here with the roster rather than as a silent number change.
     const passed = RESULTS.length - MISSES.length
-    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(30)
+    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(34)
 
     // ⛔⛔ A ROSTER, NOT A COUNT — and the two halves are different KINDS of
     // residual, which is the whole reason to name them:
     //
-    //   31-cci-oversold        ─┐ ADAPTER WORK. Pine passes a SOURCE where this
-    //   32-money-flow-oversold ─┘ table takes high/low/close. The mapping is exact
-    //     when that source is `hlc3` — `computeCCI` and `computeMFI` both open
-    //     with `tp = (h + l + c) / 3` — and must refuse otherwise, because
-    //     `ta.cci(close, 20)` is a real and different indicator. A static
-    //     `PINE_CALL_SHAPES` plan cannot express the condition: it would DROP the
-    //     source argument silently. Needs a shape-level `sourceMustBe`; see the
-    //     note above `EXPANSIONS.mom` for why this map cannot do it either.
+    // ✅ 31-cci-oversold AND 32-money-flow-oversold WERE ON THIS ROSTER AND CAME
+    //    OFF IT. They needed a shape-level `sourceMustBe`, since Pine passes a
+    //    SOURCE where this table takes high/low/close and a static `build` plan
+    //    would have DROPPED that argument silently. See
+    //    `pine.sourceAdapters.test.js`.
     //
-    //   33-obv-rising          ─┐ A RULING, NOT A GAP. Pine's `ta.obv` and
-    //   34-bars-since-signal   ─┘ `ta.barssince` accumulate from the first bar ever
-    //     drawn; this table's `obvN` and `barssince` take a window. An unbounded
-    //     accumulator would end static decidability, which is what lets ONE
-    //     definition sweep every symbol. These stay refused on purpose.
+    //   33-obv-rising          ─┐ WHAT IS LEFT IS A RULING, NOT A GAP. Pine's
+    //   34-bars-since-signal   ─┘ `ta.obv` and `ta.barssince` accumulate from the
+    //     first bar ever drawn; this table's `obvN` and `barssince` take a window.
+    //     An unbounded accumulator would end static decidability — the property
+    //     that lets ONE definition sweep every symbol without being evaluated
+    //     first. These stay refused on purpose, and a member who needs them is
+    //     told the window to give.
     expect(MISSES).toEqual([
-      '31-cci-oversold [pine:role-order]',
-      '32-money-flow-oversold [pine:role-order]',
       '33-obv-rising [pine:function]',
       '34-bars-since-signal [pine:function]',
     ])
@@ -101,6 +98,39 @@ describe('a member can write their own Pine screener', () => {
       const parsed = parseFormula(row.formula)
       expect(parsed.ok, `${r.name}: ${row.formula}`).toBe(true)
     }
+  })
+
+  it('⭐⭐ every one of them REACHES A SCREEN, not just a formula', () => {
+    // ⛔⛔ TRANSLATING IS NOT THE PRODUCT CLAIM. A column that yields a NUMBER
+    // cannot be screened honestly — `doorScorecard` records the defect it causes:
+    // the `yields` gate is "the one that stops a numeric column being screened as
+    // `!= 0` and returning the universe". Every fixture here plots `cond ? 1 : 0`,
+    // which is what a Pine author actually writes, so this asks the SHIPPED
+    // predicate whether that folds back to a boolean.
+    //
+    // ⭐ `treeYieldsBool` IS THE DOOR'S OWN, the same function `thinkscript.js`
+    // imports so both doors ask one question — not a second opinion written here.
+    const numeric = []
+    for (const r of RESULTS.filter((x) => x.out.ok)) {
+      const row = r.out.outputs[r.out.selected]
+      let bool = false
+      try { bool = !!treeYieldsBool(parseFormula(row.formula).ast) } catch (e) { bool = false }
+      if (!bool) numeric.push(`${r.name}: ${row.formula}`)
+    }
+    expect(numeric, 'these translate but cannot be screened').toEqual([])
+  })
+
+  it('⛔ …and the bool check can FAIL — a numeric column is caught', () => {
+    // ⚠️ WITHOUT THIS THE CASE ABOVE PASSES IF `treeYieldsBool` EVER RETURNED
+    // TRUTHY FOR EVERYTHING. A plain price plot is exactly the column the `yields`
+    // gate exists to stop, so it is the honest control.
+    const priced = translatePine(`//@version=6
+indicator("s")
+plot(ta.sma(close, 20))
+`)
+    expect(priced.ok).toBe(true)
+    const row = priced.outputs[priced.selected]
+    expect(!!treeYieldsBool(parseFormula(row.formula).ast)).toBe(false)
   })
 
   it('⛔ the corpus can DISTINGUISH — a broken script really does fail', () => {
