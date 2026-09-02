@@ -33,6 +33,46 @@ _LOCK = threading.Lock()
 # sliver and its counts are a gross undercount.
 _MIN_COVERAGE = float(os.environ.get("BREADTH_HEAL_MIN_COVERAGE", "0.6"))
 
+# ── Bars-recompute DIVERGENCE guard ─────────────────────────────────────────────
+# The signature guard (`snapshot_looks_degraded`) only catches a collection where
+# stage-2 AND movers AND highs/lows all collapse together. A collection can be
+# corrupt in a NARROWER way — 2026-09-01: the MA-breadth family was deflated
+# (%>200MA 61->47.5, stage-2 497->32) while the movers came through, so the guard
+# missed it and the bad row stood on the Monitor + every UCTA chart. The reliable
+# check is not more hand-coded signatures but a comparison to OUR OWN bars: recompute
+# the day and, if the stored MA-breadth disagrees materially, the stored row is wrong
+# (the recompute is truth). Only the newest collector days are checked (they're the
+# freshly-written, most-visible ones); a day confirmed to agree is memoized so it
+# isn't re-recomputed every loop.
+_DIVERGENCE_POINTS = float(os.environ.get("BREADTH_DIVERGENCE_POINTS", "8"))
+_DIVERGENCE_CHECK_DAYS = int(os.environ.get("BREADTH_DIVERGENCE_CHECK_DAYS", "2"))
+_DIVERGENCE_KEYS = ("pct_above_200sma", "pct_above_100sma",
+                    "pct_above_50sma", "pct_above_40sma")
+_DIV_OK: set = set()   # dates confirmed to agree with the bars recompute (this process)
+
+
+def _divergence_from_recompute(stored: dict, rec: dict) -> Optional[dict]:
+    """A MATERIAL disagreement between the stored MA-breadth and a fresh bars
+    recompute, or None when they agree. The MA-breadth family is slow-moving and
+    coverage-invariant, so several of them off by multiple points means the stored
+    row's MA math is corrupt. Requires the gap on ≥2 metrics — one alone could be a
+    universe/edge-case difference; the whole family drifting is the tell."""
+    if not isinstance(stored, dict) or not isinstance(rec, dict):
+        return None
+    diffs = {}
+    for k in _DIVERGENCE_KEYS:
+        sv, rv = stored.get(k), rec.get(k)
+        if sv is None or rv is None:
+            continue
+        try:
+            diffs[k] = round(abs(float(sv) - float(rv)), 1)
+        except (TypeError, ValueError):
+            continue
+    flagged = {k: v for k, v in diffs.items() if v >= _DIVERGENCE_POINTS}
+    if len(flagged) >= 2:
+        return {"threshold": _DIVERGENCE_POINTS, "diffs": diffs, "flagged": flagged}
+    return None
+
 
 def _expected_universe() -> int:
     """The size of the universe we SHOULD be measuring (the current list)."""
@@ -157,10 +197,12 @@ def ensure_universe_list(date_str: str) -> bool:
     return False
 
 
-def heal_date(date_str: str, force: bool = False) -> dict:
+def heal_date(date_str: str, force: bool = False,
+              check_divergence: bool = False) -> dict:
     """Recompute one session's breadth from bars and store it IF the current row is
-    missing or degraded (or `force`). Preserves the good index/sentiment fields AND
-    the drill lists (esp. `universe_list`, which the live path reads). Best-effort —
+    missing/degraded, or (with `check_divergence`) its MA-breadth diverges materially
+    from the recompute, or `force`. Preserves the good index/sentiment fields AND the
+    drill lists (esp. `universe_list`, which the live path reads). Best-effort —
     returns a status dict, never raises."""
     from api.services import breadth_monitor as bm
     from api.services import breadth_history_recon as recon
@@ -174,7 +216,10 @@ def heal_date(date_str: str, force: bool = False) -> dict:
     if ul_repaired:
         stored = bm.raw_row(date_str)   # re-read: it now carries the list
 
-    if stored is not None and not force and not _needs_heal(stored, expected):
+    # The cheap signature gate decides on its own; the divergence check needs the
+    # recompute below, so it can't short-circuit here.
+    signature_needs = force or stored is None or _needs_heal(stored, expected)
+    if not signature_needs and not check_divergence:
         return {"ok": True, "date": date_str, "skipped": "already accurate",
                 "ul_repaired": ul_repaired}
 
@@ -222,6 +267,17 @@ def heal_date(date_str: str, force: bool = False) -> dict:
                            "daily bars not fully ingested yet; will retry"),
                 "priced": priced, "expected": expected, "ul_repaired": ul_repaired}
 
+    # DIVERGENCE GATE: when we're here only to divergence-check (the day passed the
+    # cheap signature gate as "fine"), store the recompute ONLY if the stored row's
+    # MA-breadth disagrees materially with our own bars. If they agree, the collector's
+    # row is trusted and left as-is — nothing is overwritten.
+    divergence = None
+    if not signature_needs:
+        divergence = _divergence_from_recompute(stored, metrics)
+        if not divergence:
+            return {"ok": True, "date": date_str, "skipped": "recompute agrees",
+                    "ul_repaired": ul_repaired}
+
     # Preserve the collector's drill lists — the recompute produces scalars only, and
     # `universe_list` in particular is load-bearing for `breadth_live.universe()`.
     if stored:
@@ -249,6 +305,9 @@ def heal_date(date_str: str, force: bool = False) -> dict:
     metrics["_healed"] = True
     ok = bm.store_snapshot(date_str, metrics)
     return {"ok": bool(ok), "date": date_str, "healed": True,
+            "reason": ("bars-recompute divergence" if divergence
+                       else "degraded/forced"),
+            "divergence": divergence,
             "was_degraded": stored is not None,
             "universe_count": metrics.get("universe_count"),
             "stage2_count": metrics.get("stage2_count"),
@@ -268,15 +327,24 @@ def heal_recent(days: int = 10) -> dict:
         expected = _expected_universe()
         results = []
         repaired = []
-        for d in _recent_dates(days):
+        for i, d in enumerate(_recent_dates(days)):
             # ALWAYS repair a stripped universe_list first — it's load-bearing for
             # the live path and its absence otherwise HIDES the row from _needs_heal
             # (an empty newest list drives _expected_universe to 0).
             if ensure_universe_list(d):
                 repaired.append(d)
             m = bm.raw_row(d)
-            if _needs_heal(m, expected):
-                results.append(heal_date(d))
+            # The newest COLLECTOR days also get a bars-recompute divergence check —
+            # this catches a corrupt collection the cheap signature gate misses
+            # (2026-09-01). A day already healed by us, or already confirmed to agree
+            # this process, is skipped so we don't recompute it every loop.
+            div = (i < _DIVERGENCE_CHECK_DAYS and isinstance(m, dict)
+                   and not m.get("_healed") and d not in _DIV_OK)
+            if _needs_heal(m, expected) or div:
+                res = heal_date(d, check_divergence=div)
+                results.append(res)
+                if div and res.get("skipped") == "recompute agrees":
+                    _DIV_OK.add(d)
         return {"ok": True, "checked": days, "ul_repaired": repaired,
                 "healed": [r for r in results if r.get("healed")], "attempts": results}
     finally:

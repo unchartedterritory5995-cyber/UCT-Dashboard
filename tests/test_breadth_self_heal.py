@@ -245,3 +245,94 @@ def test_heal_recent_only_touches_degraded_rows(_iso):
     res = heal.heal_recent(10)
     healed_dates = [h["date"] for h in res["healed"]]
     assert healed_dates == ["2026-08-31"], "only the degraded day is healed"
+
+
+# ── bars-recompute divergence guard (2026-09-01) ──────────────────────────────
+
+def test_divergence_helper_needs_at_least_two_metrics_off():
+    from api.services import breadth_self_heal as heal
+    stored = {"pct_above_200sma": 47.5, "pct_above_100sma": 54.0,
+              "pct_above_50sma": 46.0, "pct_above_40sma": 44.0}
+    # ONE metric far off could be a universe/edge-case difference → not flagged.
+    rec1 = dict(stored, pct_above_200sma=60.0)
+    assert heal._divergence_from_recompute(stored, rec1) is None
+    # The whole MA family drifting is the corruption tell → flagged.
+    rec2 = dict(stored, pct_above_200sma=60.0, pct_above_50sma=36.0)
+    assert heal._divergence_from_recompute(stored, rec2) is not None
+    # Agreement within normal noise → not flagged.
+    rec3 = dict(stored, pct_above_200sma=45.0, pct_above_50sma=44.0,
+                pct_above_40sma=42.0, pct_above_100sma=52.0)
+    assert heal._divergence_from_recompute(stored, rec3) is None
+
+
+# The real 2026-09-01 shape: movers came through (so the signature guard passes),
+# but the MA-breadth family is deflated and stage-2 collapsed 497 -> 32.
+CORRUPT_0901 = {"universe_count": 2672, "stage2_count": 32, "up_4pct_today": 55,
+                "down_4pct_today": 297, "new_52w_highs": 4, "new_52w_lows": 13,
+                "new_20d_highs": 8, "new_20d_lows": 106,
+                "pct_above_5sma": 17.4, "pct_above_40sma": 36.3,
+                "pct_above_50sma": 36.7, "pct_above_100sma": 37.1,
+                "pct_above_200sma": 47.5, "sp500_close": 7631.47, "vix": 16.43}
+# What our own bars say: MA-breadth a modest drop from 8/31, stage-2 intact.
+TRUTH_0901 = {"universe_count": 2650, "stage2_count": 470, "up_4pct_today": 40,
+              "down_4pct_today": 120, "new_52w_highs": 30, "new_52w_lows": 20,
+              "new_20d_highs": 100, "new_20d_lows": 60,
+              "pct_above_5sma": 22.0, "pct_above_40sma": 44.0,
+              "pct_above_50sma": 45.8, "pct_above_100sma": 54.0,
+              "pct_above_200sma": 58.8}
+
+
+def test_divergence_check_heals_a_corrupt_ma_day_the_signature_missed(_iso):
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    assert bm.snapshot_looks_degraded(CORRUPT_0901) is False   # signature guard misses it
+    _put(bm, "2026-08-31", dict(CORRUPT_0901))
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(TRUTH_0901))
+    from api.services import breadth_self_heal as heal
+
+    # Without the divergence check the bad row stands.
+    res0 = heal.heal_date("2026-08-31", check_divergence=False)
+    assert res0.get("skipped") == "already accurate"
+    assert bm.raw_row("2026-08-31")["pct_above_200sma"] == 47.5
+
+    # With it, the bars-recompute disagreement heals the day.
+    res = heal.heal_date("2026-08-31", check_divergence=True)
+    assert res["ok"] and res["healed"]
+    assert res["reason"] == "bars-recompute divergence"
+    stored = bm.raw_row("2026-08-31")
+    assert stored["pct_above_200sma"] == 58.8
+    assert stored["stage2_count"] == 470
+    # the collector's real index close is preserved through the heal
+    assert stored["sp500_close"] == 7631.47
+
+
+def test_divergence_check_leaves_a_day_that_agrees_with_the_recompute(_iso):
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    good = {"universe_count": 2600, "stage2_count": 500, "up_4pct_today": 50,
+            "down_4pct_today": 60, "new_52w_highs": 40, "new_52w_lows": 20,
+            "new_20d_highs": 120, "new_20d_lows": 80,
+            "pct_above_40sma": 46.0, "pct_above_50sma": 48.0,
+            "pct_above_100sma": 54.0, "pct_above_200sma": 61.0}
+    _put(bm, "2026-08-31", good)
+    # recompute agrees within a couple points (normal methodology noise)
+    close = dict(good, pct_above_200sma=59.5, pct_above_50sma=46.5,
+                 pct_above_40sma=44.5, pct_above_100sma=52.5)
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(close))
+    from api.services import breadth_self_heal as heal
+    res = heal.heal_date("2026-08-31", check_divergence=True)
+    assert res.get("skipped") == "recompute agrees"
+    assert bm.raw_row("2026-08-31")["pct_above_200sma"] == 61.0   # untouched
+
+
+def test_heal_recent_divergence_checks_the_newest_collector_day(_iso):
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    from api.services import breadth_self_heal as heal
+    heal._DIV_OK.clear()
+    # newest day is corrupt-but-signature-passes; an older good day sits behind it
+    _put(bm, "2026-08-28", {"universe_count": 2606, "stage2_count": 539,
+                            "up_4pct_today": 42, "down_4pct_today": 342})
+    _put(bm, "2026-08-31", dict(CORRUPT_0901))
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(TRUTH_0901))
+    res = heal.heal_recent(10)
+    healed = [h["date"] for h in res["healed"]]
+    assert healed == ["2026-08-31"], "the newest collector day was divergence-healed"
+    assert bm.raw_row("2026-08-31")["pct_above_200sma"] == 58.8
