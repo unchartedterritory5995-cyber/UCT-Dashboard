@@ -2413,7 +2413,7 @@ The board sits beside `/chart` images in the same Discord channel, so it must be
 
 The owner asked for **every** ticker and then said the result was **noisy**. Both are right: the noise was never the ticker *count*, it was giving a name mentioned once the same visual weight as one mentioned 47 times.
 
-1. **A prose lead, before any data.** Two sentences, derived deterministically from the rows — no LLM, nothing to hallucinate. *"NVDA owned the room — 14 of 63 people talking. PLTR was quiet all morning, then woke up after lunch — 6.3× its normal chatter."* ⭐ This is the single highest-impact element: a board that opens with rows is a spreadsheet; one that opens with a sentence is a briefing.
+1. ~~**A prose lead, before any data.**~~ **REMOVED 2026-09-01 by owner direction**, after seeing it rendered. I had argued it was the highest-impact element — a board that opens with rows reads as a spreadsheet, one that opens with a sentence reads as a briefing. The owner disagreed on sight. Do not reintroduce it. The board opens with the chrome bar, then the totals line, then the rows.
 2. **Eight featured rows** with symbol · count · sparkline · people · heat multiplier. Not fourteen — fourteen crowded, eight breathes.
 3. **The tail recedes in two steps:** names with 2+ mentions as plain text (`AVGO 8  RKLB 7 …`, no chips, no borders), then once-mentioned names as one dim comma line at ~34% opacity. Every ticker is present and findable; only the informative ones ask for the eye.
 
