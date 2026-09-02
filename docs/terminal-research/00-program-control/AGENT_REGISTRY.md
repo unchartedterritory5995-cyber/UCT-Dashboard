@@ -196,5 +196,5 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | ID | Wave | Status | Dispatched (UTC) | Returned | QC (ACCEPT / ACCEPT WITH GAPS / RESEARCH AGAIN / DISCARD) | Notes |
 |---|---|---|---|---|---|---|
 | PROBE-01..10 | probe | done | 2026-09-02 05:39 | 05:42 | ACCEPT | see §1 |
-| D-01..D-10 | 1 | dispatched | 2026-09-02 (batch 1) | — | — | contracts in `contracts/D-0x.md` |
-| D-11..D-14, E-01, E-03, E-04 | 1 | queued for top-up | — | — | — | contracts on disk |
+| D-01..D-10 | 1 | running | 2026-09-02 06:02 (batch 1, Opus) | — | — | contracts in `contracts/D-0x.md` |
+| D-11..D-14, E-01, E-03, E-04 | 1 | running | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
