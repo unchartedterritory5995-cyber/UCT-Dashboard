@@ -31,7 +31,6 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
-from api.services.pattern_engine.primitives.geometry import line_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 

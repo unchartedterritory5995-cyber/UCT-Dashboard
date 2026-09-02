@@ -65,7 +65,10 @@ KNOWN_DEAD: set[tuple[str, str]] = {
     ("api/services/pattern_backtest.py", "_ensure_pattern_detectors_loaded"),
     ("api/services/voice_tool_impls.py", "get_recent_flow"),
     ("api/services/voice_tool_impls.py", "get_recent_dark_pool"),
-    ("api/services/voice_tool_impls.py", "get_macro_events"),
+    # ⛔ `get_macro_events` RESOLVED and its entry was deleted 2026-09-01.
+    # A KNOWN_DEAD list that keeps a name which now imports fine is a false
+    # claim about the codebase, and this rail exists to delete such claims
+    # rather than carry them.
 }
 
 

@@ -243,13 +243,43 @@ def channel_width_parallel_score(
     l_left  = lower_line["p1"]["price"]
     l_right = lower_line["p2"]["price"]
 
-    width_left  = u_left  - l_left
-    width_right = u_right - l_right
+    # ⛔⛔ WIDTH IS MEASURED IN THE LINES' OWN SPACE, and getting this wrong is
+    # the ORIGINAL finding one level down. A point difference asks "do these
+    # lines stay the same number of DOLLARS apart"; on a log-fitted channel the
+    # question is "do they stay the same PERCENTAGE apart", which is a ratio.
+    # A channel running 100 -> 50 at a steady 10% width measures 10 points then
+    # 5, scores 0.50 and is REFUSED as non-parallel — while being exactly
+    # parallel in the space it was fitted in. That is the same arithmetic-scale
+    # artefact Edwards & Magee describe, arriving through the scorer instead of
+    # through the fit.
+    #
+    # ⭐ THE PRICE PATH IS UNTOUCHED. `space` absent or "price" takes the
+    # original arithmetic verbatim, so `bull_flag` and `bear_flag` — which are
+    # not convergence detectors and were never switched — cannot move.
+    u_space = upper_line.get("space") or "price"
+    l_space = lower_line.get("space") or "price"
+    if u_space != l_space:
+        # ⛔ RAISE, NEVER RETURN 0.0. A zero here reads as "not parallel", which
+        # is a PATTERN VERDICT; mixing spaces is a bug and must not be reported
+        # as a finding about the market.
+        raise ValueError(
+            "channel_width_parallel_score got a %s upper line and a %s lower "
+            "line; a width across two spaces is not a width" % (u_space, l_space))
+
+    if u_space == "log":
+        if min(u_left, u_right, l_left, l_right, high, low) <= 0:
+            return 0.0
+        width_left  = math.log(u_left)  - math.log(l_left)
+        width_right = math.log(u_right) - math.log(l_right)
+        data_range = max(math.log(high) - math.log(low), 1e-9)
+    else:
+        width_left  = u_left  - l_left
+        width_right = u_right - l_right
+        data_range = max(high - low, 1e-9)
 
     if width_left <= 0 or width_right <= 0:
         return 0.0
 
-    data_range = max(high - low, 1e-9)
     if max(width_left, width_right) > data_range * 2.0:
         return 0.0
 

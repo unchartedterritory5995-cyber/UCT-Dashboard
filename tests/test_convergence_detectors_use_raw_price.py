@@ -803,3 +803,58 @@ def test_the_downstream_claim_is_the_measured_one_not_the_feared_one():
     assert ch._LOG_SPACE is True, (
         "channel is back on raw price — if that was deliberate, the impact "
         "table in this file's docstring describes a build that is not shipped")
+
+
+# ─── the scorer measures width in the space the lines were fitted in ────────
+
+def _line(p1, p2, space=None):
+    d = {"p1": {"t": 0, "price": p1[0]}, "p2": {"t": 100, "price": p2[0]}}
+    lo = {"p1": {"t": 0, "price": p1[1]}, "p2": {"t": 100, "price": p2[1]}}
+    if space:
+        d["space"] = lo["space"] = space
+    return d, lo
+
+
+def test_a_constant_PERCENTAGE_channel_is_parallel_in_log_space():
+    """⛔⛔ THE ORIGINAL FINDING, ONE LEVEL DOWN. A point width asks "do these
+    lines stay the same DOLLARS apart"; on a log-fitted channel the question is
+    "the same PERCENTAGE apart". A channel running 100 -> 50 at a steady 10%
+    width measures 10 points then 5 — scored 0.50 and REFUSED — while being
+    exactly parallel in the space it was fitted in."""
+    from api.services.pattern_engine.primitives.geometry import (
+        channel_width_parallel_score as score)
+    up, lo = _line((105.0, 95.0), (52.5, 47.5), space="log")
+    assert score(up, lo, 105.0, 47.5) > 0.99, (
+        "a constant-percentage channel is not scoring as parallel in log space")
+
+
+def test_the_same_channel_is_REFUSED_in_price_space_which_is_the_control():
+    """⭐ WITHOUT THIS, the test above passes for a scorer that calls
+    everything parallel."""
+    from api.services.pattern_engine.primitives.geometry import (
+        channel_width_parallel_score as score)
+    up, lo = _line((105.0, 95.0), (52.5, 47.5))          # no space tag = price
+    assert score(up, lo, 105.0, 47.5) < 0.6, (
+        "the price-space arithmetic changed — bull_flag and bear_flag read this "
+        "same function and were never switched to log space")
+
+
+def test_a_genuinely_widening_channel_is_still_refused_in_log_space():
+    """⛔ THE DISCRIMINATION CONTROL. If log space scored everything parallel
+    it would be a mute, not a fix."""
+    from api.services.pattern_engine.primitives.geometry import (
+        channel_width_parallel_score as score)
+    up, lo = _line((102.0, 98.0), (75.0, 25.0), space="log")   # 4% -> 200%
+    assert score(up, lo, 102.0, 25.0) < 0.5
+
+
+def test_mixing_the_two_spaces_RAISES_rather_than_scoring_zero():
+    """⛔ A zero here reads as "not parallel", which is a PATTERN VERDICT. A
+    space mismatch is a bug and must never be reported as a finding about the
+    market."""
+    from api.services.pattern_engine.primitives.geometry import (
+        channel_width_parallel_score as score)
+    up, _ = _line((105.0, 95.0), (52.5, 47.5), space="log")
+    _, lo = _line((105.0, 95.0), (52.5, 47.5))
+    with pytest.raises(ValueError):
+        score(up, lo, 105.0, 47.5)
