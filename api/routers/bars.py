@@ -314,8 +314,63 @@ def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_curre
     return {"ok": True, "kicked": kick_snapshot_warm(ticker, tf, need_before_ymd=need_before)}
 
 
+# ── Path B Phase 2: HOT-path reverse-proxy (web → dedicated bars-serving tier) ──
+# Lazy shared async client for the /api/bars proxy. Distinct from the bars-history
+# client (different timeouts — this is the interactive hot path, not a rare edge MISS).
+_bars_proxy_client = None
+
+
+async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
+    """Forward a /api/bars request to the dedicated bars-serving tier and return its
+    response VERBATIM — body + status + the exact Cache-Control/Pragma/Server-Timing
+    headers `serve_bars` sets — so the browser cannot tell proxy from local (the tier
+    runs the SAME `serve_bars` core). Pure network I/O on the event loop = the web pod
+    holds NO threadpool worker for a proxied read. On ANY upstream error the CALLER
+    falls back to the web's own local serve → a bad/slow tier can never take charts
+    down (honest degradation, never a 5xx the tier caused)."""
+    import httpx
+    from urllib.parse import quote as _quote
+    from starlette.responses import Response as _Response
+    global _bars_proxy_client
+    if _bars_proxy_client is None:
+        _bars_proxy_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(8.0, connect=2.0), follow_redirects=False)
+    url = f"{origin}/api/bars/{_quote(ticker)}"
+    r = await _bars_proxy_client.get(
+        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm})
+    resp = _Response(content=r.content, status_code=r.status_code,
+                     media_type=r.headers.get("content-type", "application/json"))
+    for _h in ("cache-control", "pragma", "server-timing"):
+        if _h in r.headers:
+            resp.headers[_h] = r.headers[_h]
+    resp.headers["X-Bars-Tier"] = "1"  # canary observability only; the client ignores it
+    return resp
+
+
+def _bars_proxy_should_route(warm: int) -> bool:
+    """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
+    BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
+    Fully dark at pct=0 (the default) — the code ships inert. warm=1 (background
+    web-db warms) ALWAYS stays local: low-stakes + keeps the tier's load = real reads.
+    Env-tunable → ramp (0→5→25→100) and rollback with NO code deploy."""
+    if warm:
+        return False
+    if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
+        return False
+    try:
+        pct = float(os.environ.get("BARS_PROXY_PCT", "0"))
+    except (TypeError, ValueError):
+        return False
+    if pct <= 0:
+        return False
+    if pct >= 100:
+        return True
+    import random
+    return (random.random() * 100.0) < pct
+
+
 @router.get("/api/bars/{ticker}")
-def get_bars(
+async def get_bars(
     ticker: str,
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
@@ -323,14 +378,25 @@ def get_bars(
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
 ):
-    """HTTP route → the shared `serve_bars` core.
+    """HTTP route → the dedicated bars-serving tier (Path B Phase 2) or the local
+    `serve_bars` core.
 
-    ⭐ THE SERVE LOGIC LIVES IN `serve_bars` (below), NOT here (Path B / dedicated
-    bars-serving tier, 2026-09-02). Extracted so the app pod AND a dedicated
-    serving service run ONE implementation that cannot drift — exactly the shape
-    `serve_bars_history` was already extracted into. This route stays a thin
-    param-binding shim; `serve_bars` is imported directly by the serving tier."""
-    return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+    ⭐ THE SERVE LOGIC LIVES IN `serve_bars` (below), NOT here. When the canary gate is
+    on, this forwards to the tier over the private network (non-blocking, off the web
+    pod's threadpool) with fallback-to-local on any error. Otherwise it serves locally
+    exactly as before. In-process callers (discord/cot_prewarm) call `serve_bars`
+    directly — they must never hit the proxy path."""
+    origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
+    if origin and _bars_proxy_should_route(warm):
+        try:
+            return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin)
+        except Exception:
+            pass  # tier unreachable/slow/error → fall through to local serve (today's path)
+    # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
+    # blocks the event loop (this route is async now for the proxy path). Behaviourally
+    # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
 
 
 def serve_bars(

@@ -439,20 +439,22 @@ def test_endpoint_unknown_command_is_ephemeral(monkeypatch):
     assert r.json()["type"] == 4
 
 
-def test_fetch_bars_uses_get_bars_and_only_accepts_200_with_bars(monkeypatch):
+def test_fetch_bars_uses_serve_bars_and_only_accepts_200_with_bars(monkeypatch):
+    # fetch_bars calls serve_bars (the local core); get_bars is now an async proxy
+    # route (Path B Phase 2) that in-process callers must not touch.
     from fastapi.responses import JSONResponse
     from api.routers import discord_interactions as rt
     from api.routers import bars as bars_router
     calls = []
 
-    def fake_get_bars(ticker, tf, bars, since, to, warm):
+    def fake_serve_bars(ticker, tf, bars, since, to, warm):
         calls.append((ticker, tf, bars, since, to, warm))
         if ticker == "NVDA":
             return JSONResponse(content={"ticker": "NVDA", "tf": tf, "bars": [{"t": "2026-08-25", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]})
         if ticker == "ZZZZQ":
             return JSONResponse(content={"ticker": "ZZZZQ", "tf": tf, "bars": [], "no_data": True})
         return JSONResponse(status_code=503, content={"error": "provider"})
-    monkeypatch.setattr(bars_router, "get_bars", fake_get_bars)
+    monkeypatch.setattr(bars_router, "serve_bars", fake_serve_bars)
 
     assert rt.fetch_bars("NVDA", "D", 170) == [{"t": "2026-08-25", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
     assert calls[-1] == ("NVDA", "D", 170, "", "", 0)
