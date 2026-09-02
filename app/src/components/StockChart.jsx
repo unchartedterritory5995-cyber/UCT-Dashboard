@@ -8505,24 +8505,14 @@ export default function StockChart({
     // stale server close that otherwise snapped ~1s later when the first tick
     // arrived. Cold/uncached ticker → null → prior ~1s behaviour, no regression.
     // Sane-price guard mirrors Writers A/B (baseline = the just-refreshed server close).
-    // ⭐ UNIVERSAL current-bar anchor. Reserve TODAY's slot at the anchor whenever the
-    // loaded DAILY tail is a PRIOR session (a developing today bar is expected but the
-    // served history ends yesterday). The framing below adds +1 so the anchor lands on
-    // today's slot — then today's bar, whenever it arrives from ANY path (the sync
-    // re-top, an async live tick, a typed ticker, any surface), fills that reserved
-    // slot instead of appending PAST the frame and shifting the whole view left/right.
-    // No prewarming dependency. isDailyTailStale is session-aware (false on weekends/
-    // holidays and when the tail already IS today), so there's no empty-slot gap and no
-    // over-reserve. D only — W/M "current bucket" staleness isn't this session model.
+    // ⭐ UNIVERSAL current-bar anchor. Set true (just after the re-top below) when the
+    // SERIES holds more bars than the loaded set — i.e. a developing "today" bar was
+    // planted BEYOND the served history (which ends yesterday). The framing then adds
+    // +1 so the anchor lands on today's slot, not yesterday's — so today's candle sits
+    // where the outgoing view's did, never one bar to the right. Representation-agnostic
+    // (a real series-length compare, not a time/date-field guess that missed daily's
+    // numeric .time). No prewarming dependency; works from any path/surface.
     let _reserveTodaySlot = false
-    try {
-      if (resolvedTf === 'D' && filteredBars.length) {
-        const _lb = filteredBars[filteredBars.length - 1]
-        const _iso = _lb && (typeof _lb.t === 'string' ? _lb.t
-          : typeof _lb.time === 'string' ? _lb.time : null)
-        _reserveTodaySlot = !!_iso && isDailyTailStale(_iso)
-      }
-    } catch { /* framing prep is best-effort — never break the paint */ }
     let _retopLive = (latestLiveRef.current?.sym === sym && latestLiveRef.current?.price)
       ? latestLiveRef.current
       : null
@@ -8655,6 +8645,17 @@ export default function StockChart({
         }
       }
     }
+
+    // Now that the re-top has (if applicable) planted today's developing bar, record
+    // whether the SERIES holds MORE bars than the loaded set — the universal signal the
+    // framing uses to pin today's slot (index = filteredBars.length) at the anchor
+    // instead of yesterday's. A real length compare → correct regardless of which
+    // writer planted or the bar-time representation. Runs on commits (not per tick).
+    try {
+      const _sd = candleSeriesRef.current && typeof candleSeriesRef.current.data === 'function'
+        ? candleSeriesRef.current.data() : null
+      _reserveTodaySlot = resolvedTf === 'D' && Array.isArray(_sd) && _sd.length > filteredBars.length
+    } catch { /* best-effort; false → prior behaviour */ }
 
     // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
     //
