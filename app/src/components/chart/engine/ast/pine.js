@@ -830,6 +830,42 @@ export const BUILTIN_CONSTANT_TREE = Object.freeze({
   'barstate.isrealtime': () => cNum(0),
 })
 
+/** ⭐⭐ `dayofweek.<name>` — THE CALENDAR NAMES, IN THEIR OWN MAP.
+ *
+ *  ⚰️ THE BARE NAME WORKED AND THE DOTTED ONES DID NOT. `dayofweek == 6`
+ *  translated while `dayofweek == dayofweek.friday` refused `pine:builtin` —
+ *  *"this Pine built-in names something the engine grammar does not hold"* —
+ *  which is false of a name whose own series the manifest declares. The clock
+ *  landed 2026-08-26 and the bare lane was swept the day after; the dotted lane
+ *  was not, so a guard's sentence quietly became untrue.
+ *
+ *  ⛔⛔ THEY ARE KEPT OUT OF `BUILTIN_CONSTANT_TREE` BECAUSE A RAIL SAID SO.
+ *  Putting them there turned `pine.barstate.test.js` red, and that test is right:
+ *  it pins that map's size *"so the split cannot GROW by accident — each one is a
+ *  judgement about what this engine's evaluation model does and does not
+ *  decide"*. Whether `barstate.isrealtime` is 0 is a claim about how this engine
+ *  EVALUATES. Whether Friday is 6 is a calendar fact. One map holding both would
+ *  make that count mean nothing.
+ *
+ *  ⭐⭐ THE NUMBERS ARE THE MANIFEST'S OWN SENTENCE, not a convention picked here.
+ *  `closedTable.json::clock.dayofweek` reads *"the day of the week the bar falls
+ *  on, 1 on Sunday through 7 on Saturday, in New York time"*, which is Pine's
+ *  numbering exactly.
+ *  ⚠️ AND A HAND-TYPED SET UNDER A DECLARED CONVENTION IS HOW THIS FILE HAS GONE
+ *  STALE BEFORE, so `pine.dayofweek.test.js` PARSES that sentence out of the
+ *  manifest and derives all seven from it. This table cannot be derived — the
+ *  manifest states the rule in prose, not as a list — but it can be pinned to the
+ *  prose that justifies it. */
+export const BUILTIN_CALENDAR_TREE = Object.freeze({
+  'dayofweek.sunday': () => cNum(1),
+  'dayofweek.monday': () => cNum(2),
+  'dayofweek.tuesday': () => cNum(3),
+  'dayofweek.wednesday': () => cNum(4),
+  'dayofweek.thursday': () => cNum(5),
+  'dayofweek.friday': () => cNum(6),
+  'dayofweek.saturday': () => cNum(7),
+})
+
 /** The look-alikes of the four above — REFUSED, and refused with the reason.
  *
  *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
@@ -3789,6 +3825,7 @@ class Resolver {
           locate(node.tok))
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
+      if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))

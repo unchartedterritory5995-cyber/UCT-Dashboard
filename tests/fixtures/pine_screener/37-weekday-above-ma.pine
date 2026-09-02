@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(dayofweek != dayofweek.saturday and dayofweek != dayofweek.sunday and close > ta.sma(close, 50) ? 1 : 0)
