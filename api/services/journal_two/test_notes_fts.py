@@ -113,6 +113,112 @@ def test_migration_v4_backfills_rows_that_predate_the_index(tmp_path, monkeypatc
     assert len(rows) == 1, "re-running the migration duplicated index rows"
 
 
+def _assert_map_and_fts_are_consistent(c, live_ids, deleted_id):
+    """The invariant the v4/v5 desync bug breaks: every live note has EXACTLY
+    one map row, that row's fts_rowid names an fts row that ACTUALLY belongs
+    to that same note (not a different note's row, and not nothing), and the
+    deleted note has no trace in either table.
+
+    A weaker check (just "map row count == fts row count") passes even when
+    rows are pairwise swapped -- this walks each note by id and asks the fts
+    table itself who rowid X belongs to, which is the only way to catch
+    "note A's map row points at note B's fts row."
+    """
+    map_rows = dict(c.execute("SELECT note_id, fts_rowid FROM j2_notes_fts_map"))
+    fts_owner = dict(c.execute("SELECT rowid, note_id FROM j2_notes_fts"))
+
+    assert set(map_rows) == set(live_ids), (
+        f"map ids {set(map_rows)} != live ids {set(live_ids)}")
+    assert set(fts_owner.values()) == set(live_ids), (
+        f"fts ids {set(fts_owner.values())} != live ids {set(live_ids)}")
+
+    for nid in live_ids:
+        rowid = map_rows[nid]
+        owner = fts_owner.get(rowid)
+        assert owner == nid, (
+            f"note {nid}'s map row points at fts rowid {rowid}, which "
+            f"belongs to {owner!r} instead (dangling if None)")
+
+    assert deleted_id not in map_rows, f"deleted note {deleted_id} still has a map row"
+    assert deleted_id not in fts_owner.values(), (
+        f"deleted note {deleted_id} is still searchable in j2_notes_fts")
+
+
+def _seed_ten_and_delete_one(c, dbmod):
+    """Shared setup for the three flag-loss scenarios below: 10 notes via the
+    CURRENT (already-fixed) triggers, then one deleted the normal way -- both
+    operations that, on their own, leave the map and fts correctly paired.
+    The desync this reproduces comes only from what happens to a SEPARATE,
+    OUT-OF-BAND rebuild (run_notebook_migration_v4) after that point.
+
+    `ensure_schema` is called again at the end, on a DB that now has real
+    (non-zero) notes -- `_conn()`'s own initial call ran against an EMPTY
+    j2_notes, and v4 defers writing its flag until note_count > 0 (by
+    design: a not-yet-arrived batch of legacy notes must still get backfilled
+    later). Without this second call neither migration flag has actually
+    been written yet, and "delete the flag to force a rerun" is testing
+    nothing -- this mirrors production, where 76 real notes have already
+    made both migrations complete for real."""
+    ids = [f"n{i}" for i in range(10)]
+    for i, nid in enumerate(ids):
+        _insert_note(c, nid, body_plain=f"content unique{i}")
+    c.execute("DELETE FROM j2_notes WHERE id=?", (ids[5],))
+    c.commit()
+    dbmod.ensure_schema(c)
+    return ids[5], [i for i in ids if i != ids[5]]
+
+
+def test_losing_only_the_v4_flag_after_v5_already_ran(tmp_path, monkeypatch):
+    """Reproduces the reviewer's scenario verbatim: an operator (or a future
+    flag-write failure) deletes ONLY `.notebook_migration_v4` to force a
+    reindex, on a DB where v5 already completed. v4's rebuild reassigns
+    j2_notes_fts's rowids via raw DML that fires no trigger -- if nothing
+    re-syncs j2_notes_fts_map to match, existing map rows go stale/wrong."""
+    from api.services.journal_two import db as dbmod
+    monkeypatch.setattr(dbmod, "_data_dir", lambda: tmp_path)
+    c = _conn()
+    deleted_id, live_ids = _seed_ten_and_delete_one(c, dbmod)
+
+    (tmp_path / ".notebook_migration_v4").unlink()
+    dbmod.ensure_schema(c)  # v4 reruns alone; v5's flag is untouched
+
+    _assert_map_and_fts_are_consistent(c, live_ids, deleted_id)
+    # And the fix must still actually find things by content, not just by id.
+    assert _fts_ids(c, "unique3") == {"n3"}
+
+
+def test_losing_only_the_v5_flag(tmp_path, monkeypatch):
+    """Same shape, but the LOST flag is v5's. v5 must be safe to run on its
+    own (before, after, or without v4 having rerun) and must never leave a
+    stale map row behind via a partial patch like INSERT OR IGNORE."""
+    from api.services.journal_two import db as dbmod
+    monkeypatch.setattr(dbmod, "_data_dir", lambda: tmp_path)
+    c = _conn()
+    deleted_id, live_ids = _seed_ten_and_delete_one(c, dbmod)
+
+    (tmp_path / ".notebook_migration_v5").unlink()
+    dbmod.ensure_schema(c)  # v5 reruns alone; v4's flag is untouched
+
+    _assert_map_and_fts_are_consistent(c, live_ids, deleted_id)
+    assert _fts_ids(c, "unique3") == {"n3"}
+
+
+def test_losing_both_flags(tmp_path, monkeypatch):
+    """Both migrations rerun (v4 then v5, per ensure_schema's call order) --
+    must still converge on a correct pairing."""
+    from api.services.journal_two import db as dbmod
+    monkeypatch.setattr(dbmod, "_data_dir", lambda: tmp_path)
+    c = _conn()
+    deleted_id, live_ids = _seed_ten_and_delete_one(c, dbmod)
+
+    (tmp_path / ".notebook_migration_v4").unlink()
+    (tmp_path / ".notebook_migration_v5").unlink()
+    dbmod.ensure_schema(c)
+
+    _assert_map_and_fts_are_consistent(c, live_ids, deleted_id)
+    assert _fts_ids(c, "unique3") == {"n3"}
+
+
 from api.services.journal_two.notes_search import fts_match_expr
 
 

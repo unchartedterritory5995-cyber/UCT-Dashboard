@@ -1152,10 +1152,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v4] aborted: {e}")
 
-    # MUST come immediately after v4, on the same connection/boot — v5's
-    # note_id->rowid backfill reads j2_notes_fts's CURRENT rowids, and only
-    # v4 (raw DML on the virtual table, no trigger fires) can change them
-    # out from under it. See run_notebook_migration_v5's docstring.
+    # Order-independent (2026-09-02 fix): both v4 and v5 resync
+    # j2_notes_fts_map via the shared `_resync_fts_map` full-rebuild, so
+    # running v5 before/after/without v4 (e.g. only one of their flags was
+    # ever lost) always converges correctly. See run_notebook_migration_v5's
+    # and _resync_fts_map's docstrings.
     try:
         run_notebook_migration_v5(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
@@ -1537,6 +1538,45 @@ def run_notebook_migration_v3(conn: sqlite3.Connection) -> None:
         pass
 
 
+def _resync_fts_map(conn: sqlite3.Connection) -> None:
+    """Rebuilds j2_notes_fts_map from j2_notes_fts's CURRENT rowids -- a full
+    DELETE+INSERT, never a partial patch. `INSERT OR IGNORE` looks idempotent
+    but is NOT safe here: after j2_notes_fts's rowids get reassigned (which
+    only `run_notebook_migration_v4`'s raw-DML rebuild does, since it bypasses
+    every trigger), an existing map row for a note_id that survived the
+    rebuild is left pointing at its OLD (now wrong) rowid forever -- `OR
+    IGNORE` skips writing the corrected value because a row for that note_id
+    already exists. Reproduced (2026-09-02 review round): after one note
+    delete + a lone rerun of v4, 5 of 10 notes' map rows silently pointed at
+    a DIFFERENT note's fts row, and one was a dangling pointer to a rowid
+    that no longer existed -- a member's search could return someone else's
+    note, or a deleted note could stay searchable forever. A full rebuild
+    has no such history to get stuck on: it always describes "the map
+    matches whatever j2_notes_fts holds right now," which is correct by
+    construction regardless of what ran before it, in what order, or how
+    many times.
+
+    Cheap regardless of table size -- reads rowids j2_notes_fts already
+    assigned, never re-tokenizes or rewrites FTS content.
+
+    THE INVARIANT THIS ENFORCES: whatever rebuilds j2_notes_fts must also
+    rebuild j2_notes_fts_map, in the same transaction, every time. Called
+    from BOTH run_notebook_migration_v4 (right after ITS OWN j2_notes_fts
+    rebuild, before that function's commit -- so losing only v4's flag and
+    forcing a solo rerun can never desync the map, since v4 now carries its
+    own fix-up) and run_notebook_migration_v5 (as its entire map-side job,
+    now that map *creation* lives in _J2_SCHEMA itself -- so losing only
+    v5's flag, or losing both, converges just as correctly). Neither
+    migration is the sole owner of map correctness; this function is the
+    one owner both call into, in whatever order their flags happen to have
+    been lost."""
+    conn.execute("DELETE FROM j2_notes_fts_map")
+    conn.execute(
+        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid) "
+        "SELECT note_id, rowid FROM j2_notes_fts"
+    )
+
+
 def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
     """Backfills j2_notes_fts for DBs whose notes predate the search index.
 
@@ -1547,6 +1587,14 @@ def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
 
     The index is DERIVED -- j2_notes.body_plain is authoritative -- so a full
     rebuild is always safe and never loses data.
+
+    Also resyncs j2_notes_fts_map (`_resync_fts_map`, same transaction,
+    before commit) -- this rebuild is raw DML directly on j2_notes_fts, which
+    fires no trigger defined ON j2_notes, so nothing else keeps the map in
+    step with the rowids this just reassigned. See `_resync_fts_map`'s
+    docstring for the desync this closes (reproduced 2026-09-02: losing only
+    this migration's flag and forcing a solo rerun left 5 of 10 map rows
+    pointing at the WRONG note's fts row).
 
     Spec: docs/superpowers/specs/2026-09-01-notebook-migration-program-design.md §4.1
     """
@@ -1565,6 +1613,9 @@ def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
         "INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain) "
         "SELECT id, user_id, title, body_plain FROM j2_notes"
     )
+    # Same transaction as the rebuild above -- see _resync_fts_map's
+    # docstring for why this can never be a separate, flag-gated step.
+    _resync_fts_map(conn)
     conn.commit()
 
     note_count = conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0]
@@ -1673,19 +1724,25 @@ def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
     caller needs back -- permanently unreadable. Version support was moot
     once the mechanism itself couldn't serve this table's actual read shape.
 
-    Idempotent via the .notebook_migration_v5 flag AND by construction:
-    the backfill is `INSERT OR IGNORE`, and the trigger swap is
-    DROP-then-CREATE, so re-running this (including against a DB that
-    already has the current _J2_SCHEMA's fixed triggers) is always a no-op.
+    Idempotent via the .notebook_migration_v5 flag AND by construction: the
+    map resync is a full DELETE+INSERT (`_resync_fts_map` -- see its
+    docstring), and the trigger swap is DROP-then-CREATE, so re-running this
+    (including against a DB that already has the current _J2_SCHEMA's fixed
+    triggers, or one where run_notebook_migration_v4 just rebuilt
+    j2_notes_fts out from under an already-completed v5) is always a no-op
+    OR a self-heal, never a source of drift.
 
-    MUST run immediately after run_notebook_migration_v4 in ensure_schema,
-    never before and never on a separate boot: v4 rebuilds j2_notes_fts by
-    raw DML directly on the virtual table (DELETE + INSERT...SELECT), which
-    does NOT fire any trigger defined ON j2_notes, so it cannot maintain
-    j2_notes_fts_map itself. This migration's backfill step reads whatever
-    rowids v4 just left behind -- if a boot's v4 pass rebuilds the index and
-    this migration is not the very next thing that runs on that same
-    connection, the map would backfill against stale rowids.
+    Order-INDEPENDENT by design (2026-09-02 review round fixed this):
+    safe to run before, after, or interleaved with a v4 rerun, and safe if
+    ONLY this migration's flag is ever lost while v4's stays put. Both
+    migrations call the same `_resync_fts_map` -- a full rebuild of the map
+    from whatever j2_notes_fts currently holds -- so whichever one runs
+    last always leaves a correct pairing, and running the "wrong" one alone
+    is never a way to end up worse off than before. (The prior version of
+    this migration used `INSERT OR IGNORE` for its own backfill and
+    required running immediately after v4 on the same boot; both of those
+    constraints are gone now that map correctness has one owner instead of
+    two migrations coordinating by ordering.)
 
     Spec: docs/superpowers/sdd/2026-09-01-notebook-migration-wave0-scale/c3-report.md
     """
@@ -1706,16 +1763,10 @@ def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
         # not a flag written against nothing.
         return
 
-    # Backfill from whatever rowids j2_notes_fts already carries -- cheap
-    # regardless of table size (the rowid is already assigned; this never
-    # re-tokenizes or rewrites FTS content), and correct immediately after
-    # run_notebook_migration_v4's rebuild (see the ordering note above).
-    # INSERT OR IGNORE: a re-run, or a DB where this migration partially
-    # completed before a crash, never duplicates or clobbers a mapping row.
-    conn.execute(
-        "INSERT OR IGNORE INTO j2_notes_fts_map(note_id, fts_rowid) "
-        "SELECT note_id, rowid FROM j2_notes_fts"
-    )
+    # Full rebuild of the map from j2_notes_fts's CURRENT rowids -- see
+    # _resync_fts_map's docstring for why a partial patch (INSERT OR IGNORE)
+    # is unsafe here.
+    _resync_fts_map(conn)
 
     # Repoint the triggers: DROP + CREATE (not IF NOT EXISTS) so a DB
     # carrying the OLD (scan-based) trigger bodies is upgraded -- the same
