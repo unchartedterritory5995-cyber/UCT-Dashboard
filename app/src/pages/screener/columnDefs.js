@@ -449,6 +449,8 @@ export const COLUMN_DEFS = {
     desc: 'EVERY structure this symbol satisfied — its one shape plus any named structures — not just the one that renders. ⛔ This is the column the Base Structure FILTER queries, because screening the rendered head would silently drop every symbol whose structure was ALSO a Darvas box. Stored delimiter-wrapped so a search for one key cannot match a longer key that contains it: measured on real rows, a bare "range" search matched 122 rows where the wrapped form matched 64.' },
   base_relation_count: { label: 'Named', fmt: num(0),
     desc: 'How many NAMED structures fired on this symbol beyond its shape — a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. Zero is a real answer (we looked and none fired); a blank means the row was not classified at all.' },
+  base_stage: { label: 'Stage', fmt: num(0),
+    desc: 'The IBD base-stage count — how many 20%+ advances separate this base from the first one. O’Neil: "Sell when your stock makes a new high in price off a third- or fourth-stage base." ⛔ POPULATED ONLY FOR EMA Crossback ROWS and blank everywhere else, on purpose: measured on our universe the stage effect is structure-dependent (+18.5pp early-over-late for EMA Crossback; -1.4pp for Darvas Box, the wrong sign and indistinguishable from zero), so filling it for every structure would ship IBD’s blanket assertion instead of our measurement. A blank means "not measured for this structure", never "stage 0".' },
   // ── Wave 6: per-pattern engine flags ──
   // `tri`, not `bool`, the `optionable`/`shortable` precedent: ✓ the engine
   // detected this pattern, ✗ the engine has active detections on this symbol

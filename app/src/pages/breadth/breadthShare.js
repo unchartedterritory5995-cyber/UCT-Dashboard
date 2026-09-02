@@ -35,15 +35,19 @@ function loadImage(src) {
 export async function buildBreadthSnapshotCanvas(tableEl, { subtitle = '' } = {}) {
   if (!tableEl) return null
   const scale = 2
-  const inner = await domToCanvas(tableEl, {
+  // Capture the inner <table>, NOT the scroll container. The container
+  // (`.tableWrap`) is scrolled (scrollTop can be thousands of px) and carries
+  // `contain: layout paint`; capturing it while scrolled mis-paints the body
+  // (a header-only or color-band snapshot). The <table> itself is never scrolled,
+  // so with the virtualization spacer rows filtered out it lays out as thead +
+  // the rendered rows and rasterizes cleanly at any scroll position.
+  const target =
+    (tableEl.querySelector && tableEl.querySelector('table')) || tableEl
+  const inner = await domToCanvas(target, {
     scale,
     backgroundColor: BG,
-    // The Monitor sheet is virtualized: two tall aria-hidden spacer rows hold the
-    // scroll height above/below the rendered window. modern-screenshot clones the
-    // scroll container and resets its scroll to 0, so the TOP spacer would push the
-    // visible rows out of the captured box (a header-only, blank-body snapshot when
-    // scrolled). Excluding both spacers makes the visible rows flow from the top of
-    // the clone, so the capture matches what's on screen at any scroll position.
+    // Two tall aria-hidden spacer rows hold the virtual scroll height above/below
+    // the rendered window; exclude them so only the real rows are captured.
     filter: (node) =>
       !(node instanceof Element && node.hasAttribute('data-snapshot-skip')),
   })

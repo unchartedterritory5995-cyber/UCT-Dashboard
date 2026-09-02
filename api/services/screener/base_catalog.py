@@ -5081,6 +5081,21 @@ EMA_CROSSBACK = Structure(
         # it on the first run. A refusal is a refusal whoever is declining, and
         # the structure still reads as ours because `structure_origin` keys on
         # `source_id`, which no criterion here carries.
+        # ⛔⛔ THE IBD BASE STAGE IS *NOT* A CRITERION OF THIS STRUCTURE, and
+        # putting it here broke something. IBD's preference — "It's usually
+        # best to buy when a stock breaks out from a first-stage or
+        # second-stage base" — is genuinely sourced, so a criterion carrying it
+        # gets a `source_id`, and `structure_origin` keys on source_id
+        # presence: EMA Crossback flipped from OURS to PUBLISHED the moment it
+        # was added. That is false. This structure is ours, and a criterion two
+        # lines below says no primary source exists for any number in it.
+        #
+        # ⭐ THE DISTINCTION THAT MATTERS: a criterion says what the structure
+        # IS. The stage says what we FILTER it by. They are different claims and
+        # only the first belongs in `criteria`. The stage wiring lives in
+        # `bases.classify` (which has the full history the count needs), in the
+        # `base_stage` filter, and in the ledger's limitations where the +18.5pp
+        # measurement that justifies it is recorded.
         Criterion(
             condition=("⛔ THE SHORT LEG IS NOT IMPLEMENTED. Our playbook "
                        "trades this both ways -- the short is price rallying "
