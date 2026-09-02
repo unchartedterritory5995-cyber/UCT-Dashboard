@@ -96,12 +96,19 @@ def test_SPOT_is_now_gated_by_measured_corpus_data_not_by_hand():
         assert still_gated_via_derivation in u.chat_words()
         assert still_gated_via_derivation in u.ambiguous()
         assert still_gated_via_derivation not in u.HOUSE_VOCAB
-    # BAND/PUMP moved to WORD_FORMS the same day (ordinary words this corpus
-    # does not measure as collisions) -- neither mechanism marks them
-    # ambiguous now; they are gated only at the bare-word tier for their
-    # lowercase form (behavioural proof lives in test_buzz_extract.py's
-    # scalpel control).
-    for word_form_only in ("BAND", "PUMP"):
+    # BAND moved to WORD_FORMS the same day (an ordinary word this corpus does
+    # not measure as a collision) -- neither mechanism marks it ambiguous now;
+    # it is gated only at the bare-word tier for its lowercase form
+    # (behavioural proof lives in test_buzz_extract.py's scalpel control).
+    # ⚠️ PUMP left this list on 2026-09-02. Re-deriving against 32,890 real
+    # #main-chat messages MEASURED it -- 62 lowercase uses against ONE
+    # uppercase -- so the derived chat_words() now covers it and it was dropped
+    # from WORD_FORMS: the same graduation LINE/BULL/GAIN made out of
+    # HOUSE_VOCAB, and for the same reason (two authorities over one token is
+    # the defect, not the redundancy). Asserted, not silently deleted.
+    assert "PUMP" in u.chat_words()
+    assert "pump" not in u.WORD_FORMS
+    for word_form_only in ("BAND",):
         assert word_form_only.lower() in u.WORD_FORMS
         assert word_form_only not in u.HOUSE_VOCAB
         assert word_form_only not in u.chat_words()
@@ -131,3 +138,32 @@ def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path
         assert isinstance(u.symbols(), frozenset)      # must not raise
     finally:
         u._reset_caches_for_tests()                    # leave no poisoned cache
+
+
+def test_a_lowercase_typed_TICKER_is_not_gated_as_a_word():
+    """⛔ The casing rule assumes lowercase means "ordinary word". That holds
+    for 52 of the 53 collisions the real #main-chat corpus surfaced -- "ngl",
+    "ty", "bc", "0 dte", "nat gas", "wall st", an electric "bill" -- and even
+    "qs", which is this room's slang for QQQ rather than QuantumScape.
+
+    SGOV is where it breaks: not an English word, just an ETF people type
+    casually ("Watching sgov 5 minute", "buy back the sgov I sold"). Gating it
+    would DROP REAL MENTIONS -- the other half of the brief, not noise.
+
+    The exception lives at LOAD (LOWERCASE_TICKERS), never in the JSON, so the
+    derived file stays a pure reproducible measurement."""
+    import json
+    import pathlib
+    u._reset_caches_for_tests()
+    derived = set(json.loads(
+        (pathlib.Path(u.__file__).resolve().parents[1] / "data" / "buzz_collisions.json")
+        .read_text(encoding="utf-8"))["tokens"])
+    # The measurement DID flag it -- the file is honest about what it saw.
+    assert "SGOV" in derived
+    # The runtime does not act on it.
+    assert "SGOV" not in u.chat_words()
+    assert "SGOV" not in u.ambiguous()
+    # CONTROL: the exception is a scalpel, not a blanket -- everything else the
+    # same corpus flagged is still gated.
+    for genuinely_a_word in ("EVER", "SPOT", "GOLD", "NGL", "TY", "BC", "QS"):
+        assert genuinely_a_word in u.chat_words(), genuinely_a_word

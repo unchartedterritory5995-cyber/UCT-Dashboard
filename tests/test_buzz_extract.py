@@ -183,11 +183,21 @@ def test_the_gate_is_a_scalpel_real_mentions_still_count(text, want):
     ("Rocket Lab launch", "RKLB"),
     ("LAB reports earnings", "LAB"),         # exact caps still counts (untested corner)
     ("BAND ripping today", "BAND"),          # exact caps still counts
-    ("PUMP breaking out", "PUMP"),           # exact caps still counts
+    ("$PUMP breaking out", "PUMP"),          # see the PUMP note below
 ])
 def test_the_lowercase_word_gate_is_a_scalpel(text, want):
     """CONTROL for the WORD_FORMS gate. Without this, blocking those tokens
-    outright would also pass -- and would delete real mentions permanently."""
+    outright would also pass -- and would delete real mentions permanently.
+
+    ⚠️ PUMP used to appear here as "PUMP breaking out" -> PUMP, because it was
+    a hand-curated WORD_FORMS entry and that gate only blocks the lowercase
+    form. Re-deriving against 32,890 real #main-chat messages MEASURED it as a
+    collision -- 62 lowercase uses against ONE uppercase -- so it graduated to
+    the derived list, where the gate covers the uppercase form too. That is the
+    correct outcome for this room: it does not trade the ticker, it says "pump".
+    The escape hatch is the cashtag, which is what this case now asserts, and
+    it is a stronger control: it proves the gate did not swallow the token
+    entirely."""
     assert want in tickers(text)
 
 
