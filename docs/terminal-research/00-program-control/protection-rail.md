@@ -57,7 +57,7 @@ curl -s -m 20 -A "$UA" -o /tmp/cal.html -w "HTTP %{http_code} %{size_download}\n
 
 Assertions: `/api/health` → HTTP 200 and JSON `"status":"ok"`; `/calendar` → HTTP 200 and the SPA shell contains `id="root"`.
 
-Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome tools, read-only): open `https://uctintelligence.com/calendar`; PASS when the page header shows the text "UCT Terminal" (from `app/src/pages/calendar/CalendarHeader.jsx` line 613) and the week view renders at least one day column with at least one earnings row for the current or next trading week. Never click Save, Delete, Send, or any mutating control during the smoke.
+Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome tools, read-only): open `https://uctintelligence.com/calendar`; PASS when the page header shows the text "UCT Terminal" (from `app/src/pages/calendar/CalendarHeader.jsx` line 613), the week strip renders five day columns for the current or next trading week, and the roster line renders (either "N reporting · M hidden" or "No reporters scheduled"). The roster is filter-dependent, so NEVER assert a row count (DL-002). Never click Save, Delete, Send, or any mutating control during the smoke.
 
 ## Master drift log (DL-011)
 
