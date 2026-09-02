@@ -541,7 +541,7 @@ export default function CalendarHeader({
     <button
       className={`${styles.filterBtn} ${activeCount > 0 ? styles.filterBtnActive : ''}`}
       onClick={onClick}
-      aria-label="Open calendar filters"
+      aria-label="Open filters"
     >
       <UIcon name="gear" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
     </button>
