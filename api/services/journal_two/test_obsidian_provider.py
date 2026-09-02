@@ -9,6 +9,8 @@ Spec: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-4-brief.md
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -462,3 +464,82 @@ async def test_fetch_media_refuses_a_non_https_reference(db):
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     with pytest.raises(errors.NoteConnUnsupported):
         await provider.fetch_media({}, "Notes/attachments/file.pdf")
+
+
+# ---------------------------------------------------------------------------
+# ⛔⛔ session-audit.md A1 — the honest markdown-side boundary. Nothing
+# anywhere previously synced/imported a note bigger than a few KB; note
+# size is the one property that broke this feature. `notes.MAX_BODY_JSON_
+# CHARS_ESTIMATE` derives the ingest-side ceiling from the STORAGE-side
+# `notes.MAX_BODY_JSON_BYTES` and the measured worst-case md->TipTap
+# blowup (4.7x) -- these two tests prove that derivation is honest AND
+# that it is only an ESTIMATE, not a proof, which is exactly why
+# `import_confirm`'s per-note isolation stays as the real backstop.
+# ---------------------------------------------------------------------------
+
+def _checkbox_markdown(n_items: int) -> str:
+    """A real Obsidian task-list shape (checkbox items), same family the
+    audit measured at 4.08x-4.27x blowup -- close to the 4.7x worst case
+    `MAX_BODY_MD_CHARS_ESTIMATE` is derived from, so a note built from this
+    shape right at the boundary is a meaningful, non-cherry-picked proof."""
+    return "\n".join(
+        f"- [{'x' if i % 2 else ' '}] Task item number {i} for today"
+        for i in range(n_items)
+    )
+
+
+async def test_a_note_right_at_the_derived_markdown_boundary_round_trips(db):
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import obsidian_staging
+
+    # Binary-search the largest checkbox-shaped note that still clears the
+    # real ingest-side `_MAX_BODY_MD_LEN` (derived from `MAX_BODY_JSON_
+    # BYTES` -- session-audit.md A1) -- this is the boundary a real member's
+    # daily-notes/checklist file would actually sit at, not an arbitrary
+    # round number.
+    lo, hi, best_n = 1, 20_000, 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if len(_checkbox_markdown(mid)) <= obsidian_staging._MAX_BODY_MD_LEN:
+            best_n, lo = mid, mid + 1
+        else:
+            hi = mid - 1
+    body_md = _checkbox_markdown(best_n)
+    assert len(body_md) <= obsidian_staging._MAX_BODY_MD_LEN  # clears the ingest door
+
+    _stage("user-a", "vault-1", "Daily/checklist.md", body_md, T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="Daily/checklist.md", updated_at=T1))
+
+    body_json_bytes = len(json.dumps(note.doc).encode("utf-8"))
+    assert body_json_bytes < notes_svc.MAX_BODY_JSON_BYTES  # clears the storage door
+
+    # And the round trip actually completes through the real storage layer
+    # -- not just a byte-count check against the converter's output.
+    entry = {
+        "importKey": "obsidian:vault-1:Daily/checklist.md",
+        "title": note.title, "bodyJson": note.doc, "tags": [], "folderPath": [],
+    }
+    r = notes_svc.import_confirm(
+        "user-a", {"source": "obsidian", "destFolderId": None, "notes": [entry]},
+    )
+    assert [n["importKey"] for n in r["created"]] == [entry["importKey"]]
+    assert r["failed"] == []
+
+
+def test_the_worst_case_blowup_estimate_is_not_a_guarantee(db):
+    """The 4.7x figure `MAX_BODY_MD_CHARS_ESTIMATE` is derived from is the
+    WORST of three measured shapes (session-audit.md A1), not a proven
+    ceiling. A different real shape (many short headings, each followed by
+    a one-line note) blows up FAR past it -- proving the estimate alone is
+    not sufficient, and `import_confirm`'s per-note isolation (not a bigger
+    safety margin here) is the real backstop for a shape nobody measured."""
+    from api.services.journal_two import notes as notes_svc
+
+    md = "\n".join(f"## {i}\nnote {i}" for i in range(2000))
+    doc = md_to_tiptap(md)["doc"]
+    blowup = len(json.dumps(doc).encode("utf-8")) / len(md.encode("utf-8"))
+    assert blowup > notes_svc._MD_TO_JSON_WORST_CASE_BLOWUP, (
+        "this shape must exceed the constant's own 'worst case' label, or "
+        "the test proves nothing about the estimate's limits"
+    )

@@ -514,6 +514,18 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
         item_failures.extend(fetch_failures)
 
+        # ⛔⛔ session-audit.md A1: every ref this pass fetched but never
+        # actually got a stored note out of — a fetch failure (never made it
+        # into `remote_notes`) or a per-note storage failure `import_confirm`
+        # isolated (`result["notStoredRefs"]`, below) — is tracked so the
+        # cursor-advance step can refuse to move past it. Without this, the
+        # provider's own cursor (computed from EVERY fetched ref, before any
+        # import is attempted) advances regardless of what actually landed,
+        # and an oversized-but-otherwise-ordinary note is lost permanently:
+        # a plain re-push of unchanged content is a no-op (no new hash, no
+        # new timestamp), so nothing would ever ask for it again.
+        not_stored_refs: set[str] = {r.remote_id for r in refs} - {rn.remote_id for rn in remote_notes}
+
         if remote_notes:
             result = await _import_remote_notes(user_id, source, provider, creds, remote_notes)
             counts["created"] += result["created"]
@@ -522,6 +534,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             counts["mediaUploaded"] += result["mediaUploaded"]
             counts["conflicts"] += result["conflicts"]
             item_failures.extend(result["failures"])
+            not_stored_refs.update(result.get("notStoredRefs", []))
 
         # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
         # on ITSELF (Dropbox — see base.py's `opaque_cursor` docstring)
@@ -532,16 +545,38 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # mode (Roam/Craft/Notion — `opaque_cursor` stays the class default
         # `None`) is completely unchanged: only advances on a non-empty
         # `refs`, derived as `max(updated_at)`.
+        #
+        # ⛔⛔ A1: neither branch runs at all when `not_stored_refs` is
+        # non-empty — the cursor stays exactly where it was BEFORE this
+        # pass, for every provider uniformly. Coarser than a per-provider
+        # partial-safe watermark (opaque-cursor providers like Obsidian
+        # expose no per-item granularity to do better), but correct: every
+        # note this round DID store is unaffected — `import_confirm`'s own
+        # hash check makes reprocessing an already-stored note on the next
+        # pass a harmless no-op — and the still-unstored one is retried
+        # (and re-reported) every pass until it is fixed or removed,
+        # instead of silently disappearing.
         opaque_cursor = getattr(provider, "opaque_cursor", None)
-        if opaque_cursor is not None:
-            connections.update_cursor(user_id, source_id, opaque_cursor)
-        elif refs:
-            newest = max(r.updated_at for r in refs)
-            connections.update_cursor(user_id, source_id, newest)
+        if not not_stored_refs:
+            if opaque_cursor is not None:
+                connections.update_cursor(user_id, source_id, opaque_cursor)
+            elif refs:
+                newest = max(r.updated_at for r in refs)
+                connections.update_cursor(user_id, source_id, newest)
 
         connections.record_sync_result(user_id, source_id, ok=True)
 
-        status = "warning" if delete_guard_warning else "ok"
+        # A1: a pass that fetched refs but stored NONE of them (the "13 of
+        # 13 lost" catastrophic case a whole-batch confirm failure used to
+        # produce) must not report "ok" and move on. A genuine PARTIAL
+        # commit — most notes stored, one oversized note isolated and named
+        # in `failures` — still reports "ok": the batch committed what it
+        # could, exactly as designed; the failure is visible in `failures`,
+        # not hidden behind the top-level status.
+        lost_everything = bool(not_stored_refs) and not (
+            counts["created"] or counts["updated"] or counts["skipped"]
+        )
+        status = "warning" if (delete_guard_warning or lost_everything) else "ok"
         error_parts = ([delete_guard_warning] if delete_guard_warning else []) + item_failures
         _finish_log(
             log_id, status=status, counts=counts,
@@ -1149,6 +1184,7 @@ def _merge_batch_result(
     totals["mediaUploaded"] += res["mediaUploaded"]
     totals["conflicts"] += res.get("conflicts", 0)
     totals["failures"].extend(res["failures"])
+    totals["notStoredRefs"].extend(res.get("notStoredRefs", []))
     all_touched.extend(res.get("touched", []))
 
 
@@ -1251,8 +1287,14 @@ async def _confirm_and_resolve_batch(
     by prior batches)."""
     result: dict[str, Any] = {
         "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
-        "conflicts": 0, "failures": [], "touched": [],
+        "conflicts": 0, "failures": [], "touched": [], "notStoredRefs": [],
     }
+    # Every ref THIS batch is attempting, so a whole-call exception below
+    # (a batch-level failure, e.g. a malformed overall payload — NOT a
+    # per-note one; `import_confirm` isolates those into its own `failed`
+    # bucket and returns normally, see below) can still report every one of
+    # them as not-stored — the cursor must not advance past ANY of them.
+    remote_id_by_key = {key: rn.remote_id for rn, key in pairs}
     try:
         r = notes_svc.import_confirm(
             user_id,
@@ -1263,6 +1305,7 @@ async def _confirm_and_resolve_batch(
         result["failures"].append(
             f"confirm failed for a batch of {len(entries)} note(s): {e}"
         )
+        result["notStoredRefs"].extend(remote_id_by_key.values())
         return result
 
     result["created"] = len(r["created"])
@@ -1275,6 +1318,23 @@ async def _confirm_and_resolve_batch(
         outcome_by_key[item["importKey"]] = ("updated", item["id"])
     for item in r["skipped"]:
         outcome_by_key[item["importKey"]] = ("skipped", item["id"])
+
+    # session-audit.md A1/A2: `import_confirm` isolates a per-note storage
+    # failure (oversized/malformed body) into its own `failed` bucket
+    # instead of raising for the whole batch. Surface each one as a named
+    # failure (the same per-ref idiom `_fetch_remote_notes` already uses
+    # for a fetch failure) and record its REMOTE ref so `_do_sync` can
+    # refuse to advance the sync cursor past a note that was never stored —
+    # a re-sync (with no action needed from the member) picks it back up
+    # rather than skipping it as already-seen.
+    for item in r.get("failed", []):
+        fkey = item.get("importKey")
+        result["failures"].append(
+            f"note {fkey!r} could not be stored: {item.get('error')}"
+        )
+        rid = remote_id_by_key.get(fkey)
+        if rid is not None:
+            result["notStoredRefs"].append(rid)
 
     # Self-heal (Critical 3, SAFETY NET): a note marked 'skipped' this round
     # (content hash unchanged) may still carry a stranded import-ref://
@@ -1435,7 +1495,7 @@ async def _import_remote_notes(
 
         totals: dict[str, Any] = {
             "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
-            "conflicts": pre_confirm_conflicts, "failures": [],
+            "conflicts": pre_confirm_conflicts, "failures": [], "notStoredRefs": [],
         }
         all_touched: list[tuple[RemoteNote, str, str]] = []
 

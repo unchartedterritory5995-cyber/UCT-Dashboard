@@ -57,6 +57,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import notes as notes_svc
 
 from . import errors
 
@@ -82,7 +83,24 @@ _MAX_NOTES_PER_BATCH = 2_000
 _MAX_MANIFEST_ENTRIES = 50_000
 _MAX_STAGING_ROWS_PER_VAULT = 50_000
 _MAX_VAULT_PATH_LEN = 1024
-_MAX_BODY_MD_LEN = 1_500_000
+
+# ⛔⛔ session-audit.md A1: this used to be its OWN number (1.5MB), set here
+# in the I7 round and recorded as "deliberately generous but arbitrary" --
+# and `notes.py::MAX_BODY_JSON_BYTES` (1MB) never referenced it, or vice
+# versa. Markdown->TipTap JSON is NOT 1:1 (measured 3.4x-4.7x for ordinary
+# bullet/checkbox/heading notes), so a note that cleared this door at
+# ~1.2MB of markdown was GUARANTEED to fail `import_confirm`'s 1MB storage
+# check every single time -- and, before that fix, took its whole batch
+# down with it. Deriving this from `notes_svc.MAX_BODY_JSON_BYTES` makes
+# the two doors agree by construction: a note under THIS many characters of
+# markdown cannot, even in the worst measured shape, produce a JSON body
+# the storage door will refuse. Unlike the OTHER four bounds in this
+# module (batch/manifest/staging-row/path-length -- genuine "is this
+# client malicious" signals, still enforced by rejecting the whole batch),
+# a single note over THIS limit is an ORDINARY large note, not evidence of
+# abuse -- so it is isolated per-note in `ingest_batch` below (skipped +
+# named in `tooLarge`), never a reason to fail its healthy siblings.
+_MAX_BODY_MD_LEN = notes_svc.MAX_BODY_MD_CHARS_ESTIMATE
 
 
 def _now_iso() -> str:
@@ -135,12 +153,27 @@ def ingest_batch(
     """Writes `notes` into `j2_obsidian_staging` for `(user_id, vault_id)`,
     then -- only when `final` is true AND a `manifest` was actually supplied
     -- atomically replaces `j2_obsidian_manifest` for the same pair. Returns
-    `{"written": int, "skipped": int, "manifestReplaced": bool}`. Raises
-    `errors.NoteConnValidationError` (mapped to HTTP 400 by the router) and
-    writes NOTHING for the whole batch when a bound below is violated --
-    this module deliberately does not silently truncate/filter a bad
-    payload, since a padded or oversized batch is exactly evidence an
-    honest plugin would never produce (see I3/I4/I7 below).
+    `{"written": int, "skipped": int, "manifestReplaced": bool, "tooLarge":
+    [vault_path, ...]}`. Raises `errors.NoteConnValidationError` (mapped to
+    HTTP 400 by the router) and writes NOTHING for the whole batch when one
+    of the four BATCH-LEVEL bounds below is violated (too many notes, an
+    over-cap manifest, a vault_path that's absurdly long, or this vault's
+    staged-row cap) -- this module deliberately does not silently truncate/
+    filter those, since an over-cap batch on any of THOSE axes is exactly
+    evidence an honest plugin would never produce (see I3/I4/I7 below).
+
+    ⛔⛔ session-audit.md A1: the per-NOTE `_MAX_BODY_MD_LEN` bound is
+    different in kind and is NOT one of those all-or-nothing checks -- an
+    individually large note (a long trading-journal daily-notes file) is an
+    ORDINARY shape, not evidence of a malicious client, so a note over that
+    limit is isolated instead: it is simply not staged, named in the
+    returned `tooLarge` list, and every OTHER note in the same push still
+    stages normally. Before this fix the check ran before any write (like
+    the batch-level ones above) with its OWN, independently-set threshold
+    1.5x the storage-side `notes.MAX_BODY_JSON_BYTES` -- so a note that
+    passed it was frequently GUARANTEED to fail storage later and, worse,
+    a whole push failing this check here would have silently cost every
+    sibling note in the same push its sync too.
 
     No-op on an unchanged hash: an existing row whose stored `content_hash`
     already equals the pushed one is neither rewritten nor its `received_at`
@@ -200,11 +233,10 @@ def ingest_batch(
             raise errors.NoteConnValidationError(
                 f"vault_path exceeds {_MAX_VAULT_PATH_LEN} characters"
             )
-        body_md = note.get("body_md") or ""
-        if len(body_md) > _MAX_BODY_MD_LEN:
-            raise errors.NoteConnValidationError(
-                f"body_md for {vault_path!r} exceeds {_MAX_BODY_MD_LEN} characters"
-            )
+        # body_md length is deliberately NOT checked here -- see the
+        # docstring's A1 section. An individually oversized note is
+        # isolated per-note (skipped, named in `tooLarge`) in the staging
+        # loop below, never a reason to reject the whole push.
     if manifest is not None and len(manifest) > _MAX_MANIFEST_ENTRIES:
         raise errors.NoteConnValidationError(
             f"manifest of {len(manifest)} entries exceeds the {_MAX_MANIFEST_ENTRIES}-entry cap"
@@ -213,6 +245,7 @@ def ingest_batch(
     received_at = _now_iso()
     written = 0
     skipped = 0
+    too_large: list[str] = []
     conn = get_connection()
     try:
         existing_paths = {
@@ -233,6 +266,15 @@ def ingest_batch(
 
         for note in notes:
             vault_path = note["vault_path"]
+            body_md = note.get("body_md") or ""
+            if len(body_md) > _MAX_BODY_MD_LEN:
+                # A1 -- isolated per-note: this note is not staged, but
+                # every OTHER note in the same push still is. Its
+                # vault_path is still a legitimate member of `incoming_paths`
+                # below (the plugin genuinely read this file off disk), so a
+                # manifest naming it is not "fabricated" (I3).
+                too_large.append(vault_path)
+                continue
             content_hash = note["content_hash"]
             existing = conn.execute(
                 "SELECT content_hash FROM j2_obsidian_staging "
@@ -290,4 +332,7 @@ def ingest_batch(
     finally:
         conn.close()
 
-    return {"written": written, "skipped": skipped, "manifestReplaced": manifest_replaced}
+    return {
+        "written": written, "skipped": skipped, "manifestReplaced": manifest_replaced,
+        "tooLarge": too_large,
+    }

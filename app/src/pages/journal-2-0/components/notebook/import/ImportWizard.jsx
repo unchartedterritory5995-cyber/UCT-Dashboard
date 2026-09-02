@@ -932,14 +932,18 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 <li>Updated: {summaryResult.updated}</li>
                 <li>Unchanged: {summaryResult.skipped}</li>
               </ul>
-              {summaryResult.failedBatch && (
-                <p className={styles.crashDetail}>
-                  {summaryResult.failedBatch.message} ({summaryResult.failedBatch.reason})
-                </p>
+              {summaryResult.failedBatches?.length > 0 && (
+                <div className={styles.failures}>
+                  {summaryResult.failedBatches.map((b, i) => (
+                    <p key={i} className={styles.crashDetail}>
+                      {b.message} ({b.reason})
+                    </p>
+                  ))}
+                </div>
               )}
               {summaryResult.failures?.length > 0 && (
                 <div className={styles.failures}>
-                  <p>Some attachments couldn't be uploaded:</p>
+                  <p>Some notes couldn't be fully imported:</p>
                   <ul>
                     {summaryResult.failures.map((f, i) => (
                       <li key={i}>{f.name} — {f.reason}</li>

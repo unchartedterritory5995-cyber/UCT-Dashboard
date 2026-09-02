@@ -320,18 +320,51 @@ def test_import_check_reports_existing(conn):
     assert "x:1" in out["existing"] and "x:2" not in out["existing"]
 
 
-def test_import_confirm_is_atomic(conn):
+def test_import_confirm_isolates_one_bad_note_and_commits_its_healthy_siblings(conn):
+    """⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (here, a
+    malformed body) must not roll back the whole batch. This test used to
+    assert the OPPOSITE (`test_import_confirm_is_atomic`) — the audit's own
+    root-cause reproduction against the real engine measured a 1.2MB
+    Obsidian note taking twelve healthy siblings down with it: "notes in
+    the member's notebook: 0 of 13", `status: ok`. The bad note is now
+    reported in `failed`, by importKey, with its error — everything else in
+    the batch commits normally."""
+    good = {"source": "x", "destFolderId": None,
+            "notes": [_mk_import_note("x:ok"),
+                       {"importKey": "x:bad", "title": "B", "bodyJson": "not-a-doc",
+                        "tags": [], "folderPath": []}]}
+    r = notes_svc.import_confirm("u1", good, conn=conn)
+    assert [n["importKey"] for n in r["created"]] == ["x:ok"]
+    assert r["failed"] == [{
+        "importKey": "x:bad",
+        "error": "body_json must be valid JSON",
+    }]
+    # The healthy note actually landed — the OPPOSITE of the old all-or-
+    # nothing rollback.
+    assert notes_svc.import_check("u1", ["x:ok"], conn=conn)["existing"] != {}
+    # The bad note was never stored under any id.
+    assert notes_svc.import_check("u1", ["x:bad"], conn=conn)["existing"] == {}
+
+
+def test_import_confirm_reimporting_a_previously_failed_note_recovers_it(conn):
+    """A re-push with the SAME importKey but a now-VALID body must succeed —
+    this is the "re-push recovers rather than skips" contract: a note that
+    failed to store leaves no row behind, so a later import_confirm call
+    for that importKey is treated as brand new, never as an unchanged
+    (and therefore skipped) note."""
     bad = {"source": "x", "destFolderId": None,
-           "notes": [_mk_import_note("x:ok"),
-                      {"importKey": "x:bad", "title": "B", "bodyJson": "not-a-doc",
-                       "tags": [], "folderPath": []}]}
-    with pytest.raises(notes_svc.NoteValidationError):
-        notes_svc.import_confirm("u1", bad, conn=conn)
-    # Verify rollback: no notes exist
-    assert notes_svc.import_check("u1", ["x:ok"], conn=conn)["existing"] == {}
-    # Verify rollback: no folders were created either
-    folders = {f["name"] for f in notes_svc.list_folders("u1", conn=conn)}
-    assert "Inbox" not in folders
+           "notes": [{"importKey": "x:fix-me", "title": "Bad", "bodyJson": "not-a-doc",
+                      "tags": [], "folderPath": []}]}
+    r1 = notes_svc.import_confirm("u1", bad, conn=conn)
+    assert r1["created"] == [] and len(r1["failed"]) == 1
+
+    fixed = {"source": "x", "destFolderId": None,
+             "notes": [_mk_import_note("x:fix-me", "Fixed")]}
+    r2 = notes_svc.import_confirm("u1", fixed, conn=conn)
+    assert [n["importKey"] for n in r2["created"]] == ["x:fix-me"]
+    assert r2["failed"] == []
+    note = notes_svc.get_note("u1", r2["created"][0]["id"], conn=conn)
+    assert note["title"] == "Fixed"
 
 
 # ── Non-image attachment upload ──────────────────────────────────────────────

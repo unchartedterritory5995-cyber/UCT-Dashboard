@@ -342,6 +342,33 @@ def test_an_oversized_batch_is_refused_with_a_clean_4xx(client):
     assert _staging_rows("user-a", "vault-1") == []
 
 
+def test_one_oversized_note_is_isolated_at_ingest_not_the_whole_push(client):
+    """⛔⛔ session-audit.md A1: before this fix, `_MAX_BODY_MD_LEN` was its
+    OWN, independently-set number (1.5MB) checked BEFORE any write -- one
+    note over it raised for the WHOLE call, so every OTHER honest note in
+    the same push was silently discarded too (the exact failure shape this
+    whole audit is about, just one layer earlier than `import_confirm`).
+    A note over the (now storage-derived) limit is isolated instead: named
+    in `tooLarge`, not staged, and every sibling note still stages."""
+    token = _device_token("user-a")
+    huge_body_md = "x" * (obsidian_staging._MAX_BODY_MD_LEN + 1000)
+    good_notes = [_note(f"Notes/n{i}.md", f"h{i}") for i in range(12)]
+    r = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": good_notes + [_note("Notes/huge.md", "hHuge", huge_body_md)],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["written"] == 12
+    assert body["tooLarge"] == ["Notes/huge.md"]
+    staged_paths = {row["vault_path"] for row in _staging_rows("user-a", "vault-1")}
+    assert staged_paths == {n["vault_path"] for n in good_notes}
+    assert "Notes/huge.md" not in staged_paths
+
+
 # ── `updated_at` is client input -- validated, and the cursor is immune (C1) ─
 
 def test_a_malformed_updated_at_is_clamped_not_stored_raw(client):
@@ -658,6 +685,93 @@ async def test_delete_detection_still_fires_through_the_real_sync_engine(client)
     assert third["status"] == "ok", third
     assert third["sourceDeleted"] == 1  # second consecutive miss -- severed
     assert "source-deleted" in _tags_for("B")
+
+
+# ── ⛔⛔ session-audit.md A1 — THE defect this fix exists for ─────────────────
+#
+# Proven end to end through the real `engine.sync_source`, mirroring the
+# audit's own reproduction: 13 notes staged, twelve trivial, one whose
+# markdown clears the (now storage-derived) ingest boundary but whose
+# converted TipTap JSON still exceeds `notes.MAX_BODY_JSON_BYTES` -- the
+# "worst-case blowup estimate is not a guarantee" case
+# (`test_obsidian_provider.py`'s own proof), which is exactly why
+# `import_confirm`'s per-note isolation is the real backstop, not the
+# ingest-side estimate alone. Before this fix: "notes in the member's
+# notebook: 0 of 13", `status: ok`, cursor advanced anyway, and a plain
+# re-sync could never recover any of them.
+
+def _headed_short_markdown(n_sections: int) -> str:
+    """Many short headings, each followed by a one-line note -- the shape
+    `test_obsidian_provider.py::test_the_worst_case_blowup_estimate_is_not_
+    a_guarantee` measures at ~9x blowup, far past the 4.7x the ingest-side
+    estimate assumes. Sized (by the caller) to clear ingest but still blow
+    past 1MB of JSON after conversion."""
+    return "\n".join(f"## {i}\nnote {i}" for i in range(n_sections))
+
+
+async def test_one_oversized_note_no_longer_destroys_the_whole_batch_and_a_resync_recovers_nothing_more_is_needed(
+    client,
+):
+    # `_redeem_via_http` (not the bare `_device_token`) so the redeem
+    # response hands back a real `j2_note_sources` row id -- `engine.
+    # sync_source` needs one, exactly like the mint->redeem->ingest chain
+    # test above.
+    code = obsidian_link.mint_connect_code("user-a")
+    redeem = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1", "label": "V"})
+    assert redeem.status_code == 200, redeem.text
+    token = redeem.json()["token"]
+    source_id = redeem.json()["source"]["id"]
+
+    good_notes = [_note(f"Notes/n{i}.md", f"h{i}") for i in range(12)]
+    # 6,137 headed-short sections -> ~108KB of markdown (well under the
+    # ~212KB ingest boundary) but ~1.02MB of converted JSON (over the 1MB
+    # storage cap) -- clears the door this fix widened correctly derives,
+    # and still needs `import_confirm`'s per-note isolation to survive.
+    bad_md = _headed_short_markdown(6137)
+    assert len(bad_md) < obsidian_staging._MAX_BODY_MD_LEN
+    bad_note = _note("Notes/huge.md", "hHuge", bad_md)
+
+    ingest = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": good_notes + [bad_note],
+            "manifest": [n["vault_path"] for n in good_notes] + ["Notes/huge.md"],
+            "final": True,
+        },
+    )
+    assert ingest.status_code == 200, ingest.text
+    assert ingest.json()["written"] == 13  # ingest accepts it -- clears the boundary
+    assert ingest.json()["tooLarge"] == []
+
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import connections, engine as sync_engine
+
+    first = await sync_engine.sync_source(source_id, full=True, manual=True)
+    # PARTIAL loss, honestly reported -- NOT "0 of 13", and NOT "ok" masking
+    # a total loss (that condition is tested separately below).
+    assert first["created"] == 12
+    assert first["status"] == "ok"
+    assert any("Notes/huge.md" in f or "could not be stored" in f for f in first["failures"])
+
+    notes_now = notes_svc.list_notes("user-a")
+    assert len(notes_now) == 12  # the twelve healthy siblings actually landed
+
+    # A1: the cursor must NOT have advanced past the still-unstored note --
+    # a plain re-sync (no plugin action, no re-push) must still see it.
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    stored_cursor = connections.get_source_by_id(source_id)["cursor"]
+    changed = await provider.list_changed({}, cursor=stored_cursor)
+    assert "Notes/huge.md" in {ref.remote_id for ref in changed}, \
+        "the cursor advanced past a note that was never stored -- it can never be recovered"
+
+    # The re-sync (no edit, no re-push -- exactly what a scheduled nightly
+    # sync would do on its own) keeps reporting the same honest failure and
+    # does not re-lose or duplicate any of the twelve already-stored notes.
+    second = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert second["created"] == 0 and second["updated"] == 0  # all 12 already stored -> skipped
+    assert any("Notes/huge.md" in f or "could not be stored" in f for f in second["failures"])
+    assert len(notes_svc.list_notes("user-a")) == 12  # unchanged -- nothing lost, nothing duplicated
 
 
 # ── DELETE /{provider} (disconnect) revokes the device token ────────────────

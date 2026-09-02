@@ -883,7 +883,7 @@ async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved
     provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
 
     bad = _rn("p2", "Batch Two Note", updated_at="2026-08-01T00:00:01+00:00")
-    bad.doc = {"type": "not-a-doc"}  # malformed -> import_confirm raises NoteValidationError
+    bad.doc = {"type": "not-a-doc"}  # malformed -> import_confirm isolates it into `failed`
 
     provider.notes_by_id = {"p1": good, "p2": bad}
 
@@ -892,7 +892,10 @@ async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved
     assert result["status"] == "ok"  # a bad batch degrades gracefully, doesn't abort the sync
     assert result["created"] == 1  # only batch 1's note
     assert result["mediaUploaded"] == 1  # batch 1 was fully resolved, not just confirmed
-    assert any("batch" in f.lower() for f in result["failures"])
+    # session-audit.md A1/A2: `import_confirm` now isolates the one bad note
+    # into its own `failed` entry instead of raising for the whole (size-1)
+    # batch, so the message names the NOTE, not the batch.
+    assert any("could not be stored" in f.lower() for f in result["failures"])
 
     notes = notes_svc.list_notes("u1")
     assert len(notes) == 1

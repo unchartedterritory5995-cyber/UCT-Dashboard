@@ -123,10 +123,16 @@ describe('runImport', () => {
     expect(calls.some((c) => c.url === '/api/j2/notes/n2' && c.method === 'PUT')).toBe(true)
   })
 
-  it('stops the run on a confirm batch failure but keeps processing the earlier successful batch', async () => {
+  it('continues past a failed confirm batch instead of stopping the run (session-audit.md A2)', async () => {
+    // Three batches (200 + 200 + 1): the FIRST batch succeeds, the SECOND
+    // fails at the HTTP level, and the THIRD -- past the failure -- must
+    // still get its own confirm attempt. Before the fix, `commit.js:285`'s
+    // `break` meant a failed batch permanently blocked every batch after
+    // it, index-ordered, on every re-run: a 5,000-note import with one bad
+    // note at index 250 could never import notes 201-5,000.
     const calls = []
     const docs = []
-    for (let i = 0; i < 201; i++) {
+    for (let i = 0; i < 401; i++) {
       const key = `file:${i}.md`
       if (i === 0) {
         docs.push({
@@ -134,6 +140,14 @@ describe('runImport', () => {
           bodyJson: doc([img('import-ref://first.png')]), bodyPlain: 'x',
           media: [{ ref: 'first.png', kind: 'image', name: 'first.png',
                     vfile: { bytes: async () => new Uint8Array([1]), path: 'first.png' } }],
+          links: [],
+        })
+      } else if (i === 400) {
+        docs.push({
+          importKey: key, title: 'Last', tags: [], folderPath: [],
+          bodyJson: doc([img('import-ref://last.png')]), bodyPlain: 'x',
+          media: [{ ref: 'last.png', kind: 'image', name: 'last.png',
+                    vfile: { bytes: async () => new Uint8Array([1]), path: 'last.png' } }],
           links: [],
         })
       } else {
@@ -145,14 +159,20 @@ describe('runImport', () => {
       calls.push({ url, method: opts?.method })
       if (url.endsWith('/import/confirm')) {
         const payload = JSON.parse(opts.body)
-        if (payload.notes.length === 200) {
+        if (payload.notes[0].importKey === 'file:0.md') {
           return new Response(JSON.stringify({
             created: payload.notes.map((n, idx) => ({ importKey: n.importKey, id: `n${idx}` })),
             updated: [], skipped: [],
           }))
         }
-        // the second (1-note) batch fails
-        return new Response(JSON.stringify({ detail: 'db down' }), { status: 500 })
+        if (payload.notes[0].importKey === 'file:200.md') {
+          // the SECOND batch fails at the HTTP level
+          return new Response(JSON.stringify({ detail: 'db down' }), { status: 500 })
+        }
+        // the THIRD batch, past the failed one -- must still be attempted
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:400.md', id: 'nlast' }], updated: [], skipped: [],
+        }))
       }
       if (url.includes('/images')) return new Response(JSON.stringify({ url: '/img/1.png' }))
       return new Response(JSON.stringify({ ok: true }))
@@ -160,19 +180,61 @@ describe('runImport', () => {
 
     const summary = await runImport({ source: 'file', destFolderId: null, docs, onProgress: () => {} })
 
-    expect(summary.created).toBe(200)
-    expect(summary.failedBatch).toEqual({
+    // Batch 1's 200 + batch 3's 1 -- only the failed middle batch's own
+    // notes are missing, never anything past it.
+    expect(summary.created).toBe(201)
+    expect(summary.failedBatches).toEqual([{
       index: 1,
-      notes: 1,
+      notes: 200,
       // the server's {detail: "db down"} body must surface, not just the
       // bare status code
       reason: 'HTTP 500: db down',
       message: expect.stringContaining('Batch 2 failed'),
-    })
-    expect(summary.failedBatch.message).toMatch(/resumes where it stopped/)
+    }])
+    expect(summary.failedBatches[0].message).toMatch(/continued with the remaining batches/)
+    expect(summary.failedBatches[0].message).not.toMatch(/resumes where it stopped/)
     // the first, successfully-confirmed batch's note with media still got its media/link phase
     expect(calls.some((c) => c.url === '/api/j2/notes/n0/images')).toBe(true)
     expect(calls.some((c) => c.url === '/api/j2/notes/n0' && c.method === 'PUT')).toBe(true)
+    // the fix, proven directly: all THREE batches got a confirm attempt,
+    // including the one after the failure.
+    expect(calls.filter((c) => c.url === '/api/j2/notes/import/confirm')).toHaveLength(3)
+    expect(calls.some((c) => c.url === '/api/j2/notes/nlast' && c.method === 'PUT')).toBe(true)
+  })
+
+  it('reports a per-note storage failure from an otherwise-successful batch without discarding its siblings (session-audit.md A1)', async () => {
+    // The server now isolates ONE oversized/malformed note into a `failed`
+    // bucket instead of failing the whole confirm call -- this must show
+    // up as a named failure, not silently vanish, and must not be counted
+    // as created/updated/skipped.
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      calls.push({ url, method: opts?.method })
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:ok.md', id: 'n1' }],
+          updated: [], skipped: [],
+          failed: [{ importKey: 'file:huge.md', error: 'body_json too large (>1MB)' }],
+        }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [
+        { importKey: 'file:ok.md', title: 'OK Note', tags: [], folderPath: [],
+          bodyJson: doc([]), bodyPlain: '', media: [], links: [] },
+        { importKey: 'file:huge.md', title: 'Huge Note', tags: [], folderPath: [],
+          bodyJson: doc([]), bodyPlain: '', media: [], links: [] },
+      ],
+      onProgress: () => {},
+    })
+    expect(summary.created).toBe(1)
+    expect(summary.skipped).toBe(0)
+    expect(summary.failedBatches).toEqual([])
+    expect(summary.failures).toEqual([
+      { name: 'Huge Note', reason: 'body_json too large (>1MB)' },
+    ])
   })
 
   it('makes exactly one fetch call for a note the server reports as skipped', async () => {
