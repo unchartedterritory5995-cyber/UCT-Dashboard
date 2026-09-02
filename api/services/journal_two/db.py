@@ -405,6 +405,50 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
+
+-- ── Notebook search index ───────────────────────────────────────────────────
+-- Standalone (NOT external-content) FTS5 mirror of the searchable columns.
+-- Standalone deliberately: an external-content table keys on rowid, and
+-- j2_notes has a TEXT PRIMARY KEY, so its rowid is not stable across a
+-- VACUUM -- which would silently desync the index. Storing note_id as an
+-- UNINDEXED column costs duplicated text and buys an index that cannot drift.
+-- Mirrors the house pattern in transcript_index.py / education_search.py.
+--
+-- ⛔ body_plain in j2_notes stays authoritative. This table is DERIVED and
+-- fully rebuildable from it (run_notebook_migration_v4). Never write here
+-- except through the triggers below.
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_notes_fts USING fts5(
+    note_id UNINDEXED,
+    user_id UNINDEXED,
+    title,
+    body_plain,
+    tokenize = 'porter unicode61'
+);
+
+-- Triggers, not per-writer calls: j2_notes has 11 production write statements
+-- across notes.py, note_connectors/engine.py and db.py. Wiring each writer is
+-- how an index goes stale on the one path someone forgets -- and the paths
+-- that would be forgotten are the importer and the sync engine, i.e. exactly
+-- the notes a migrating member most needs to find.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+END;
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts WHERE note_id = old.id;
+END;
+
+-- UPDATE OF (not a bare UPDATE): the sync engine's timestamp-neutral
+-- tags/import_hash writes must NOT re-index. A nightly full pass touches
+-- those columns on every synced note.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fts_au
+AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
+    DELETE FROM j2_notes_fts WHERE note_id = old.id;
+    INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
+    VALUES (new.id, new.user_id, new.title, new.body_plain);
+END;
+
 -- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
 -- the initial executescript would run BEFORE run_notebook_migration_v2 adds
 -- the import_key column on a pre-existing (v1-shaped) database, raising
@@ -1067,6 +1111,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v3] aborted: {e}")
 
+    try:
+        run_notebook_migration_v4(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v4] aborted: {e}")
+
     # Note Connectors additive columns (Task 8): `miss_streak` on
     # j2_note_remote_index (2-strikes delete-detection counter) and
     # `conflicts` on j2_note_sync_log. run_notebook_migration_v3 above is
@@ -1441,3 +1490,49 @@ def run_notebook_migration_v3(conn: sqlite3.Connection) -> None:
         flag.touch()
     except Exception:
         pass
+
+
+def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
+    """Backfills j2_notes_fts for DBs whose notes predate the search index.
+
+    Idempotent by CONSTRUCTION, not just by flag: it deletes the whole index
+    and rebuilds it from j2_notes, so a half-finished previous run, a manual
+    re-run, or a restored backup all converge on the same correct state. The
+    flag file only makes the common case cheap.
+
+    The index is DERIVED -- j2_notes.body_plain is authoritative -- so a full
+    rebuild is always safe and never loses data.
+
+    Spec: docs/superpowers/specs/2026-09-01-notebook-migration-program-design.md §4.1
+    """
+    flag = _data_dir() / ".notebook_migration_v4"
+    if flag.exists():
+        return
+
+    has_fts = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'"
+    ).fetchone()
+    if not has_fts:
+        return  # _J2_SCHEMA has not run yet; nothing to backfill into.
+
+    conn.execute("DELETE FROM j2_notes_fts")
+    conn.execute(
+        "INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain) "
+        "SELECT id, user_id, title, body_plain FROM j2_notes"
+    )
+    conn.commit()
+
+    note_count = conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0]
+    if note_count == 0:
+        # Nothing existed to backfill yet -- this DB has no legacy notes
+        # (e.g. ensure_schema() runs this on every fresh install before any
+        # note is ever created). Don't mark done: a flag written against zero
+        # rows would let a not-yet-arrived batch of legacy notes (a restored
+        # backup, a delayed import) slip past the backfill forever. Deferring
+        # costs nothing -- the next boot's DELETE+INSERT is equally free
+        # against an empty table.
+        return
+
+    tmp = flag.with_suffix(".tmp")
+    tmp.write_bytes(b"1")
+    os.replace(tmp, flag)
