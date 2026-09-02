@@ -1,8 +1,10 @@
 // app/src/pages/BuzzRender.jsx — headless, token-gated /buzz board export.
 //
-// Renders the Discord `/buzz` board image: a prose lead, the top tickers with
-// full treatment (bar/count/sparkline/people/heat), and the receding tail
+// Renders the Discord `/buzz` board image: the top tickers with full
+// treatment (bar/count/sparkline/people/heat), and the receding tail
 // (2+ mentions as plain text, once-mentioned names as one dim comma line).
+// ⛔ NO PROSE LEAD — the owner reviewed a rendered board with a two-sentence
+// derived lead at the top and rejected it (2026-09-01). Do not re-add one.
 // A headless browser (chart-renderer) navigates to /r/buzz, waits for
 // window.__buzzReady, and screenshots #buzz-export.
 //
@@ -46,21 +48,6 @@ function Spark({ values, hot }) {
       ))}
     </span>
   )
-}
-
-// Two sentences, derived deterministically from the rows — no LLM, nothing
-// to hallucinate. Sentence 1 is the top ticker by mentions; sentence 2 is the
-// best available heat pick that isn't already sentence 1's ticker (a name
-// can't simultaneously "own the room" and have "woken up" against its own
-// baseline in the same breath).
-function buildLead(data) {
-  const rows = data.rows || []
-  const heat = data.heat || []
-  const totals = data.totals || {}
-  if (!rows.length) return null
-  const top = rows[0]
-  const pick = heat.find((h) => h.ticker !== top.ticker) || null
-  return { top, members: totals.members, pick }
 }
 
 export default function BuzzRender() {
@@ -115,7 +102,6 @@ export default function BuzzRender() {
   const tail = data.tail || []
   const singles = data.singles || []
   const totals = data.totals || {}
-  const lead = buildLead(data)
 
   return (
     <div className={styles.wrap}>
@@ -131,20 +117,6 @@ export default function BuzzRender() {
         </div>
 
         <div className={styles.body}>
-          {lead && (
-            <div className={styles.lead}>
-              <p>
-                <b>{lead.top.ticker}</b> owned the room — {lead.top.people} of{' '}
-                {lead.members ?? '—'} people talking.
-              </p>
-              {lead.pick && (
-                <p>
-                  <b>{lead.pick.ticker}</b> was quiet all morning, then woke up after lunch —{' '}
-                  <b>{lead.pick.ratio}×</b> its normal chatter.
-                </p>
-              )}
-            </div>
-          )}
           <div className={styles.meta}>
             {totals.messages} messages with tickers · {totals.members} members · {totals.tickers} tickers
           </div>

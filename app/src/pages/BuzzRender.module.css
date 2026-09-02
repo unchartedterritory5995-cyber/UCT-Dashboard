@@ -55,11 +55,14 @@
 .lockup span { color: var(--buzz-gold); font-weight: 700; font-size: 13px; letter-spacing: .6px; }
 
 .body { padding: 30px 34px 26px; }
-.lead { font-size: 19px; line-height: 1.5; color: var(--buzz-ink); max-width: 76%; letter-spacing: -.15px; }
-.lead b { color: var(--buzz-gold); font-weight: 600; }
-.lead p + p { margin-top: 5px; }
+/* .meta is now the FIRST thing in .body (the prose lead that used to sit above
+   it was removed 2026-09-01, owner call). A bare 15px margin-top read as
+   cramped directly under the 40px chrome bar -- the board's whole answer to
+   "noisy" was breathing room, so the gap has to stay deliberate even with one
+   fewer element. Reuses 24px, the same "next section" rhythm value `.lbl`
+   already uses below, rather than inventing a new number. */
 .meta {
-  margin-top: 15px;
+  margin-top: 24px;
   padding-bottom: 15px;
   border-bottom: 1px solid var(--buzz-rule);
   font-size: 11.5px;

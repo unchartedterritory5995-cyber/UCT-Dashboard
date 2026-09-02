@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import BuzzRender from '../BuzzRender'
 
@@ -34,11 +34,12 @@ beforeEach(() => {
 describe('BuzzRender', () => {
   it('renders a row per ticker with people and mentions', async () => {
     render(<BuzzRender />)
-    // NVDA legitimately appears twice once data lands: once in the prose
-    // lead ("NVDA owned the room...") and once as the row symbol — the lead
-    // names whichever ticker leads, by design, so this asserts presence
-    // rather than a single unique match.
-    await waitFor(() => expect(screen.getAllByText('NVDA').length).toBeGreaterThan(0))
+    // NVDA renders exactly ONCE — as the row symbol. (Before the 2026-09-01
+    // prose-lead removal, NVDA also appeared in a lead sentence at the top,
+    // which is why this used to assert mere PRESENCE via getAllByText rather
+    // than a single unique match. With the lead gone, the row is the only
+    // place NVDA can appear, so this now asserts the tighter, unique query.)
+    expect(await screen.findByText('NVDA')).toBeInTheDocument()
     expect(screen.getByText('47')).toBeInTheDocument()
     expect(screen.getByText('14 people')).toBeInTheDocument()
   })
@@ -46,8 +47,11 @@ describe('BuzzRender', () => {
   it('shows the heat marker on a row the heat board flagged', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(HOT_ROW_PAYLOAD) })))
     render(<BuzzRender />)
-    // '▲ 6.3×' is unique to the row-level heat marker (the prose lead's
-    // mention of the same ratio has no ▲ glyph), so this is unambiguous.
+    // '▲ 6.3×' is unique to the row-level heat marker. (Before the
+    // 2026-09-01 prose-lead removal, the lead's second sentence also named
+    // this ratio, just without the ▲ glyph — that was the original source of
+    // uniqueness. With the lead gone there is no other element rendering
+    // this ratio at all, so the string is unambiguous on its own terms now.)
     expect(await screen.findByText('▲ 6.3×')).toBeInTheDocument()
   })
 
