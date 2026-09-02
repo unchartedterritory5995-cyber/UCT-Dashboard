@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(high >= ta.highest(high, 20) and volume > ta.sma(volume, 20) ? 1 : 0)

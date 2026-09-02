@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(volume > 2 * ta.sma(volume, 20) and close > open ? 1 : 0)

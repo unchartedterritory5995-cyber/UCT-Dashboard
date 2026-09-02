@@ -558,6 +558,16 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // itself would be supplying a role order nobody measured. Written out, the
   // read-back says the three series out loud and a member sees what was
   // understood. (Building them inline refused at `pine:role-order`, correctly.)
+  // ⭐⭐ THE MACD LINE, AS A SYNTHETIC KEY FOR THE SAME REASON THE DMI LEGS ARE.
+  // Pine has no scalar spelling for it — `ta.macd` answers with three values — so
+  // a destructured part has to name something, and a BARE `macd` would be a name
+  // a member's own script can bind and shadow. A synthetic key cannot be written
+  // in Pine, so it cannot be captured.
+  // ⛔ IT MUST BE THE TABLE `macd`, NOT `ema(fast) - ema(slow)`. `interpret.js`
+  // binds `macd` to the SHIPPED `computeMACD` — "BOUND TO THE SHIPPED
+  // IMPLEMENTATION, NEVER COMPOSED" — so a composed line would be a second
+  // authority over the number the chart already draws.
+  'macdlineleg': { table: 'macd', pineArity: 3, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }] },
   'dmiplusleg': { table: 'plusDI', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   'dmiminusleg': { table: 'minusDI', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   'dmiadxleg': { table: 'adx', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
@@ -889,6 +899,30 @@ const BUILTIN_CALL_TREE = Object.freeze({
     const prev = { type: 'offset', value: a[1].value, args: [a[0]] }
     return cOp('/', [cOp('*', [cNum(100), cOp('-', [a[0], prev])]), prev])
   },
+  // ⚰️⚰️ AND THIS MAP IS ONLY REACHED FOR NAMES THE TABLE DOES **NOT** DECLARE.
+  // Measured 2026-09-01 by writing three entries here that never fired:
+  // `ta.cci(hlc3, 20)`, `ta.mfi(hlc3, 14)` and `ta.vwap(hlc3)` all still refused,
+  // because `cci`, `mfi` and `vwap` ARE table functions, so resolution takes the
+  // table path and never asks this map. `mom` and `roc` fire precisely because
+  // the table declares neither.
+  //
+  // ⭐ THAT MATTERS FOR THE THREE ADAPTERS THAT ARE STILL WANTED. Pine passes a
+  // SOURCE where this table takes price fields, and the shipped implementations
+  // all read the typical price — `computeCCI` and `computeMFI` both open with
+  // `tp[i] = (h + l + c) / 3`, `computeVWAP` weights by the same — so when the
+  // source IS `hlc3` the four-field call is exactly the same column, and when it
+  // is not (`ta.cci(close, 20)` is a real and different indicator) it must
+  // refuse. A `PINE_CALL_SHAPES` entry cannot say that: its `build` is a static
+  // plan and would DROP the source argument silently. What it needs is a
+  // shape-level `sourceMustBe` checked where `plan = shape.build` is assigned —
+  // and the open question there is speculative resolution, since that argument
+  // appears in no slot and would otherwise never be resolved at all.
+  //
+  // ⭐ `ta.mom(source, length)` IS `roc`'S OWN NUMERATOR. Pine's reference calls it
+  // "the difference between the current price and the price `length` bars ago",
+  // which is the `source - source[length]` already sitting inside the line above
+  // — so this costs the table nothing and cannot disagree with `roc`.
+  mom: (a) => cOp('-', [a[0], { type: 'offset', value: a[1].value, args: [a[0]] }]),
   // ta.avg(a, b, ...) is the mean OF ITS ARGUMENTS, not a rolling window. ⛔ Not
   // `sma`: reading it as one would turn a two-series average into a 2-bar average
   // of the first, which parses, scans and is wrong on every bar.
@@ -1574,6 +1608,77 @@ function dmiParts(toks, close, names, env, first) {
     kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
   })
   return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
+}
+
+/** ⭐⭐ THE BUILT-IN TUPLES THIS ENGINE CAN TAKE APART, each part written as an
+ *  ordinary PINE expression over the caller's own argument nodes.
+ *
+ *  ⛔ NOTHING NEW IS DECLARED AND NOTHING IS COMPUTED HERE. Every part is handed
+ *  to the same resolver every other expression goes through, so the arity, the
+ *  argument roles, the lookback and the read-back all come from the table — this
+ *  map only says WHICH expression each element of the tuple is.
+ *
+ *  ⭐ AND BOTH ENTRIES ARE THE REPO'S OWN PUBLISHED RULINGS, not new claims:
+ *
+ *    `bb`   — `interpret.js::windowStdev` states the divisor is population
+ *             precisely "so a user's `sma(close,20) + 2*stdev(close,20)` draws
+ *             the same band the native Bollinger definition draws".
+ *    `macd` — `closedTable.json::_functions_excluded` writes it out: "the signal
+ *             line is `ema(macd(close, 12, 26), 9)` and the histogram is
+ *             `macd(close, 12, 26) - ema(macd(close, 12, 26), 9)`".
+ *
+ *  ⚠️ THE NAMESPACED SPELLINGS ARE DELIBERATE. `ta.sma`, `ta.stdev` and `ta.ema`
+ *  cannot be shadowed by a member's own binding the way a bare name can. */
+const PINE_TUPLE_BUILTINS = Object.freeze({
+  bb: {
+    arity: 3,
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const mid = pc('ta.sma', [a[0], a[1]])
+      const band = bin('*', a[2], pc('ta.stdev', [a[0], a[1]]))
+      return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
+  macd: {
+    arity: 4,
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const line = pc('macdlineleg', [a[0], a[1], a[2]])
+      const signal = pc('ta.ema', [line, a[3]])
+      return [line, signal, bin('-', line, signal)]
+    },
+  },
+})
+
+/** `[a, b, c] = ta.bb(...)` / `ta.macd(...)` → three bindings, or `null`.
+ *
+ *  ⛔ IT RETURNS `null` RATHER THAN REFUSING on every mismatch — a wrong part
+ *  count, a named argument, an unknown callee — so the destructure falls through
+ *  to the guards that already refuse those by name. Refusing here would take the
+ *  message away from the code that knows what went wrong. */
+function builtinTupleParts(toks, close, names, env, first) {
+  const eq = eqAtDmi(toks, close)
+  if (eq < 0) return null
+  let call = null
+  try { call = parseWholeExpression(toks.slice(eq + 1)) } catch { return null }
+  if (!call || call.type !== 'call') return null
+  const bare = normaliseName(String(call.name).split('.').pop())
+  if (!own(PINE_TUPLE_BUILTINS, bare)) return null
+  const spec = PINE_TUPLE_BUILTINS[bare]
+  const raw = call.args || []
+  // ⛔ POSITIONAL ONLY. A named argument would have to be matched against Pine's
+  // own parameter names for THIS function, which this map does not carry; taking
+  // them by position anyway is how `ta.bb(mult = 2, series = close)` would build
+  // a band out of the wrong two arguments.
+  if (raw.some((a) => a && a.name != null)) return null
+  if (raw.length !== spec.arity || names.length !== spec.parts) return null
+  const at = locate(first)
+  return spec.build(raw.map((a) => a.value), first)
+    .map((node) => exprBinding(node, new Map(env), at))
 }
 
 /** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
@@ -3629,7 +3734,23 @@ class Resolver {
       if (VALUE_NAMESPACES.has(ns)) {
         // `ta.vwap`, `ta.obv`, `ta.tr` are VARIABLES in Pine. They reach the table
         // as zero-argument calls, and the table decides whether that is a thing.
-        return this.resolveTableCall(name, name.slice(dot + 1), [], node.tok)
+        const short = name.slice(dot + 1)
+        // ⚰️⚰️ THE COMMENT ABOVE NAMED `ta.tr` AND `ta.tr` DID NOT WORK. Only the
+        // names the TABLE declares reached anything here; `tr` is not a table
+        // function, it is an exact EXPANSION in `BUILTIN_SERIES_TREE`, and that
+        // map was consulted on the BARE-name path forty lines below and nowhere
+        // else. So `tr` translated and `ta.tr` refused `pine:function` — and
+        // since v5 REQUIRES the namespace, the spelling that worked was the one
+        // no modern script is allowed to use
+        // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+        //
+        // ⭐ IT IS ASKED HERE WITHOUT THE SHADOWING DANCE THE BARE PATH NEEDS. Down
+        // there the script's own bindings are checked first, because a member may
+        // define their own `tr` and Pine says their name wins. `ta.tr` is not a
+        // name a script can bind, so there is nothing to lose to and no order to
+        // get wrong.
+        if (own(BUILTIN_SERIES_TREE, short)) return BUILTIN_SERIES_TREE[short]()
+        return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -5881,6 +6002,15 @@ export function translatePine(source, opts = {}) {
       const dmi = close >= 0 && eqAtDmi(toks, close) >= 0
         ? dmiParts(toks, close, names, env, first)
         : null
+      // ⭐ AND THE OTHER BUILT-IN TUPLES, ASKED THE SAME WAY. `ta.bb` and
+      // `ta.macd` are the two a screener actually destructures.
+      const builtinTuple = close >= 0 && !dmi
+        ? builtinTupleParts(toks, close, names, env, first)
+        : null
+      if (builtinTuple) {
+        names.forEach((n, k) => env.set(n.value, builtinTuple[k]))
+        continue
+      }
       if (dmi) {
         names.forEach((n, k) => env.set(n.value, dmi[k]))
         continue

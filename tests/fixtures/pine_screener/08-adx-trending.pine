@@ -1,0 +1,4 @@
+//@version=6
+indicator("screen")
+[plusDi, minusDi, adxv] = ta.dmi(14, 14)
+plot(adxv > 25 and plusDi > minusDi ? 1 : 0)

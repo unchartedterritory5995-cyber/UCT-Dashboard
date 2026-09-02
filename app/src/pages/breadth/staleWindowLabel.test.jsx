@@ -66,6 +66,7 @@ vi.mock('swr', () => ({
       mutate: () => {},
     }
   },
+  useSWRConfig: () => ({ mutate: () => {} }),
 }))
 
 import Breadth, { VIEWS_DAY_CHOICES } from '../Breadth'

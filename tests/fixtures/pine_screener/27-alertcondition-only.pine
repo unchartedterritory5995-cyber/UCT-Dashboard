@@ -1,0 +1,4 @@
+//@version=6
+indicator("screen")
+cond = ta.rsi(close, 14) < 30
+alertcondition(cond, "Oversold")

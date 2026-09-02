@@ -60,6 +60,26 @@ function acceptEveryOffer(src, run, limit = 12) {
   return false
 }
 
+/** ⭐⭐ THE SCRIPTS A MEMBER WOULD WRITE TO SCREEN WITH — the measurement this
+ *  feature is actually for.
+ *
+ *  ⚰️⚰️ `import fidelity` BELOW COUNTS COMMUNITY CHART INDICATORS, and it was
+ *  being read as a progress bar toward a goal it does not measure. Those scripts
+ *  plot, colour backgrounds, place orders and overlay timeframes; they are a
+ *  REGRESSION NET for the importer. Whether a member can WRITE A SCREENER is a
+ *  different question, and it now has its own number. */
+function screenerAuthoring() {
+  const dir = path.join(ROOT, 'tests/fixtures/pine_screener')
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.pine'))
+  let translate = 0
+  for (const f of files) {
+    let o
+    try { o = translatePine(fs.readFileSync(path.join(dir, f), 'utf8')) } catch (e) { continue }
+    if (o.ok) translate += 1
+  }
+  return { translate, total: files.length }
+}
+
 /** Every corpus script, translated through the shipped door. */
 function importFidelity() {
   let translate = 0, total = 0, accepted = 0
@@ -89,12 +109,14 @@ const RAILS = Object.freeze({
   scanning: 'app/src/components/chart/engine/ast/doorScorecard.test.js',
   charting: 'tests/test_ast_conformance.py',
   authoring: 'app/src/components/chart/builder/pineBoxOfferedColumns.test.jsx',
+  screener: 'app/src/components/chart/engine/ast/pine.screenerCorpus.test.js',
   verifiability: 'app/src/components/chart/engine/ast/doorScorecard.test.js',
 })
 
 describe('the product scorecard — every dimension, not just the imported one', () => {
   it('⭐ it prints itself', () => {
     const imp = importFidelity()
+    const scr = screenerAuthoring()
     const conformance = readJson('tests/fixtures/ast/corpus.json').cases.length
     const fns = Object.keys(TABLE.functions).length
     const scalars = Object.keys(TABLE.scalars).length
@@ -105,13 +127,17 @@ DIMENSION        MEASURED                              WHAT PROVES IT
 authoring        ${fns} functions · ${scalars} per-symbol values   the manifest + ${RAILS.authoring.split('/').pop()}
 charting         ${conformance} conformance cases, both lanes      ${RAILS.charting.split('/').pop()}
 scanning         ${imp.translate}/${imp.translate} translating scripts reach a screen   ${RAILS.scanning.split('/').pop()}
+screener author. ${scr.translate}/${scr.total} scripts a member would WRITE to screen  ${RAILS.screener.split('/').pop()}
 alerting         a saved formula is an alert target     ${RAILS.alerting.split('/').pop()}
 sharing          mint → publish → browse → install      ${RAILS.sharing.split('/').pop()}
 verifiability    4-outcome receipt · read-back · roster ${RAILS.verifiability.split('/').pop()}
 strategies       NOT BUILT (Segment A)                  —
 ──────────────────────────────────────────────────────────────────────────────
 import fidelity  ${imp.translate}/${imp.total} on paste · ${imp.accepted}/${imp.total} after accepting the door's own offers
-                 ⚠️ THE ONE CAPPED DIMENSION · benchmark roster: ${benchmarks} symbols
+                 ⚠️ COMMUNITY CHART INDICATORS — a REGRESSION NET, not a target. Most of
+                 the residual is refused correctly: strategies, account state,
+                 runtime arrays. Read the screener author. row for the product goal.
+                 benchmark roster: ${benchmarks} symbols
 `)
     expect(imp.total).toBeGreaterThan(0)
     // ⛔ ACCEPTING AN OFFER CAN NEVER LOSE A SCRIPT. Every script that translates
@@ -120,6 +146,14 @@ import fidelity  ${imp.translate}/${imp.total} on paste · ${imp.accepted}/${imp
     // it goes red if `acceptEveryOffer` ever mangles a source it should have left
     // alone (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
     expect(imp.accepted).toBeGreaterThanOrEqual(imp.translate)
+    // ⛔ THE TWO CORPORA MEASURE DIFFERENT THINGS, and this row is only honest
+    // while both are real — a screener corpus that silently emptied would report
+    // a perfect 0/0. The inequality IS the reframe: scripts written TO SCREEN
+    // pass at a far higher rate than chart indicators pasted in, and if that ever
+    // stops being true the two numbers are measuring the same thing again.
+    const scr2 = screenerAuthoring()
+    expect(scr2.total).toBeGreaterThanOrEqual(30)
+    expect(scr2.translate / scr2.total).toBeGreaterThan(imp.translate / imp.total)
   })
 
   it('⛔ every rail this scorecard points at EXISTS', () => {

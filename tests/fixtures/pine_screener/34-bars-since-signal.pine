@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.barssince(ta.crossover(close, ta.sma(close, 50))) < 5 ? 1 : 0)
