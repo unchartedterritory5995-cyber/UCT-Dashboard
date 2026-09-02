@@ -731,7 +731,7 @@ def _export_concurrency_limit() -> int:
     return 1
 
 
-_EXPORT_SEMAPHORE = threading.Semaphore(_export_concurrency_limit())
+_EXPORT_SEMAPHORE = threading.BoundedSemaphore(_export_concurrency_limit())
 _EXPORT_STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MiB read chunks
 
 
@@ -749,14 +749,43 @@ def release_export_slot() -> None:
 
 def stream_export_file(path: Path):
     """Async generator streaming `path` in bounded chunks. Deletes the file
-    and releases the concurrency slot in a `finally` -- runs on normal
-    completion AND on a cancelled/disconnected response: Starlette's
-    `StreamingResponse` cancels this generator's current await point rather
-    than abandoning it outright, so the `finally` below always executes
-    before the request is torn down. Blocking file I/O is offloaded to a
-    worker thread (`anyio.to_thread.run_sync`) on every call so this never
-    blocks the single shared event loop, matching how every other
-    disk/network-bound call on this pod is written."""
+    and releases the concurrency slot in a `finally` -- and that `finally`
+    runs its cleanup inside a SHIELDED cancel scope
+    (`anyio.CancelScope(shield=True)`) specifically so it survives a
+    cancelled/disconnected response.
+
+    ⛔ This docstring used to assert the opposite -- that Starlette "cancels
+    this generator's current await point rather than abandoning it outright,
+    so the `finally` below always executes before the request is torn down."
+    That was false, and the false claim is how the defect it describes
+    survived review-by-reading. What Starlette 0.41.3 actually does on a
+    client disconnect: it cancels the request's anyio task, which delivers a
+    live `anyio.get_cancelled_exc_class()` exception at EVERY checkpoint
+    reached while that cancel scope is still cancelled -- including a
+    checkpoint reached from *inside* a `finally` block. Before this fix, the
+    `finally`'s own FIRST line -- `await anyio.to_thread.run_sync(f.close)`,
+    itself a checkpoint -- re-raised that same Cancelled immediately, so
+    `path.unlink()` and `release_export_slot()` below it never ran. Measured:
+    5/5 leaks (file handle, temp file, AND the concurrency slot) at every
+    disconnect >=1ms. With the default concurrency limit of 1
+    (`_export_concurrency_limit`), that one leaked slot wedges every
+    member's export at a polite 429 until the pod is redeployed -- a member
+    cancelling a slow download (ordinary behaviour; the export is
+    deliberately slow for large notebooks) silently disables exports for
+    everyone else.
+
+    The shield makes every checkpoint below run to completion regardless of
+    the caller's cancellation state. Each of the three cleanup steps (close
+    the handle, delete the temp file, release the slot) is ALSO
+    independently guarded so a failure in one can never skip another --
+    `release_export_slot()` in particular must run even if closing or
+    deleting the file raised, or the concurrency slot leaks anyway, just via
+    a different exception.
+
+    Blocking file I/O is offloaded to a worker thread
+    (`anyio.to_thread.run_sync`) on every call so this never blocks the
+    single shared event loop, matching how every other disk/network-bound
+    call on this pod is written."""
     async def _iter():
         f = None
         try:
@@ -767,12 +796,16 @@ def stream_export_file(path: Path):
                     break
                 yield chunk
         finally:
-            if f is not None:
-                await anyio.to_thread.run_sync(f.close)
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                pass
-            release_export_slot()
+            with anyio.CancelScope(shield=True):
+                if f is not None:
+                    try:
+                        await anyio.to_thread.run_sync(f.close)
+                    except OSError:
+                        pass
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                release_export_slot()
 
     return _iter()
