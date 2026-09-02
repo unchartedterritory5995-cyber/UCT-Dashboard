@@ -37,6 +37,11 @@ tools/chart_parity_out_*/
 # per run and regenerable; the COMMITTED artifacts of that tool are
 # tests/fixtures/alerts/{replay_bars,fire_log_forming,fire_diff_declared}.json.
 tools/alert_replay_out/
+
+# Entity Master seed-script scratch output (local dev/verification runs of
+# scripts/entity_master_seed.py) — real market data regenerable from the
+# same sources any time; never a committed artifact.
+_local_seed_data/
 tools/_local_backend.log
 
 # SnapTrade smoke-test state (contains a userSecret)

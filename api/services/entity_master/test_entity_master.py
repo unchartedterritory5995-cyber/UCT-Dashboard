@@ -632,3 +632,44 @@ def test_set_vendor_symbol_and_figi_are_idempotent(db_path):
         "SELECT COUNT(*) FROM entity_figi WHERE entity_id = ?", (eid,)
     ).fetchone()[0]
     assert figi_count == 1
+
+
+def test_bulk_mode_defers_rebuild_until_exit(db_path):
+    """Checkpoint 4 perf fix: within a `store.bulk_mode()` block,
+    apply_event() does NOT rebuild the cache per-call, but every row IS
+    correctly committed to SQLite along the way, and the cache IS fully
+    correct immediately after the block exits (one rebuild, not zero)."""
+    schema.init_db(db_path=db_path)
+
+    with store.bulk_mode(db_path):
+        assert store._BULK_MODE is True
+        a = em_api.apply_event(
+            "new_entity", _new_entity_payload("BULK1"), "bd1", "admin_manual", db_path=db_path
+        )
+        assert a.accepted
+        # Still inside the block: the alias exists in SQLite (apply_event
+        # always commits its own transaction) but the in-memory cache has
+        # not been told about it yet.
+        conn = store._conn(db_path)
+        row = conn.execute("SELECT 1 FROM entity_aliases WHERE alias='BULK1'").fetchone()
+        assert row is not None
+
+    assert store._BULK_MODE is False
+    # Exiting the block performed exactly one rebuild — resolve() now sees it.
+    r = em_api.resolve("BULK1", db_path=db_path)
+    assert r.status == "resolved"
+    assert r.entity.entity_id == a.entity_id
+
+
+def test_bulk_mode_rebuilds_even_if_the_block_raises(db_path):
+    schema.init_db(db_path=db_path)
+    with pytest.raises(RuntimeError):
+        with store.bulk_mode(db_path):
+            em_api.apply_event(
+                "new_entity", _new_entity_payload("BULK2"), "bd2", "admin_manual", db_path=db_path
+            )
+            raise RuntimeError("simulated mid-run failure")
+    assert store._BULK_MODE is False
+    # The cache was still rebuilt on the way out despite the exception, so
+    # whatever DID get committed before the failure is visible afterward.
+    assert em_api.resolve("BULK2", db_path=db_path).status == "resolved"

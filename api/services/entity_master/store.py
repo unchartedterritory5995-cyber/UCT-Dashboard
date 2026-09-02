@@ -27,6 +27,40 @@ from api.services.entity_master import schema
 
 _WRITE_LOCK = threading.Lock()
 
+# Bulk-write mode (Checkpoint 4): spec §8.3 is explicit that the cache is
+# "rebuilt from the SQLite store after every write (never partially
+# patched)" — a full rebuild is the ONLY supported shape, justified there by
+# "the write rate is low... identity-change events are rare." That
+# assumption does not hold for the one-time seed script, which issues one
+# write per symbol (tens of thousands in a real run): rebuilding the WHOLE
+# cache after EVERY write is O(n^2) over the run. This flag changes WHEN the
+# (always-full, never-partial) rebuild happens — once at the end of a bulk
+# sequence instead of after each call — without weakening the "never
+# partially patched" design at all. Off by default; only the seed script
+# (and tests of this exact behavior) turn it on.
+_BULK_MODE = False
+
+
+class bulk_mode:
+    """`with store.bulk_mode(db_path):` — suspends apply_event()'s
+    per-call cache rebuild for the duration, then performs exactly ONE full
+    rebuild on exit (even if the block raised, so a failed bulk run still
+    leaves the cache consistent with whatever was actually committed)."""
+
+    def __init__(self, db_path: str | None = None):
+        self.db_path = db_path
+
+    def __enter__(self):
+        global _BULK_MODE
+        _BULK_MODE = True
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        global _BULK_MODE
+        _BULK_MODE = False
+        rebuild_cache(self.db_path)
+        return False
+
 # ── Entity id generation (spec §3) ─────────────────────────────────────────
 # "ent_<26-char Crockford-base32 ULID>" — 48-bit ms timestamp (high bits) +
 # 80-bit crypto-random payload, encoded big-endian so string order matches

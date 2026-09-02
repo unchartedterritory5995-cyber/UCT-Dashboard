@@ -225,7 +225,7 @@ def apply_event(
         _apply_domain_mutation(event_type, entity_id, payload, event_id, db_path)
         store._conn(db_path).commit()
 
-    if event_type in ("new_entity", "alias_added", "alias_retired", "renamed"):
+    if event_type in ("new_entity", "alias_added", "alias_retired", "renamed") and not store._BULK_MODE:
         store.rebuild_cache(db_path)
     return ApplyResult(accepted=True, entity_id=entity_id)
 

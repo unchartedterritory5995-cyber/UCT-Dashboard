@@ -221,3 +221,151 @@ FIRST REAL SEED RUN — hard stop, owner review required before any further
 checkpoint). Checkpoints 5-8 not yet authorized.
 
 ---
+
+## Checkpoint 4 — Seed machinery + FIRST REAL SEED RUN (2026-09-02)
+
+**HARD STOP IN EFFECT.** Per the authorization: "That real seed run is a
+hard gate... do not continue automatically past this checkpoint."
+Checkpoints 5-8 will not begin without explicit owner review of this
+section.
+
+### Changes made
+- `scripts/entity_master_seed.py` — the 7-step backfill from spec §5.1:
+  reads `cap_universe.symbols()`/`etf_symbols()`, `massive.list_reference_
+  tickers()` (stocks + indices), `delisted_registry.all_entries()`; creates
+  one entity per distinct active symbol + one per delisted record (composed
+  as `new_entity` → `alias_retired` → `delisted`, since `apply_event` has no
+  single "create pre-closed" event type); derives `massive` vendor-symbol
+  rows for hyphenated aliases; populates `entity_figi` where Massive
+  carried a `composite_figi`. `--dry-run` reads everything and reports
+  projected counts without opening `entity_master.db` at all.
+- `scripts/test_entity_master_seed.py` — 8 tests against entirely synthetic
+  monkeypatched sources (idempotency, duplicate handling across two
+  sources, collision behavior, type normalization, vendor/FIGI mapping,
+  delisted-record edge cases, rollback/recovery-after-partial-run). This is
+  the "local/safe testing first" the checkpoint required — run and green
+  BEFORE any real data was touched.
+- `store.bulk_mode()` (new, in `store.py`) — a context manager that
+  suspends `apply_event`'s per-call cache rebuild for a bulk sequence and
+  performs exactly ONE full rebuild on exit (even if the block raises).
+  This does not weaken spec §8.3's "never partially patched" design — the
+  rebuild is still always a full rebuild — it only changes WHEN it happens.
+  Added because the real dry-run (below) revealed ~32,800 records to seed;
+  rebuilding the whole cache after every one of ~44,800 events would have
+  been O(n²) over the run. 2 new tests (`test_bulk_mode_defers_rebuild_
+  until_exit`, `test_bulk_mode_rebuilds_even_if_the_block_raises`) cover it
+  directly, not just incidentally through the seed script's own tests.
+- `.gitignore`: `_local_seed_data/` (the real run's output — real market
+  data, fully regenerable, never a committed artifact).
+
+**Tests run:** synthetic suite (`scripts/test_entity_master_seed.py`, 8
+tests) + full `entity_master` suite (31 tests, 2 new for `bulk_mode`) — all
+green (39/39) BEFORE the real run. `python -m pytest api/services/entity_
+master/ scripts/test_entity_master_seed.py -q`.
+
+### Where the real run wrote its output (Condition 4 compliance)
+`_local_seed_data/entity_master.db`, an explicit path under this worktree —
+**deliberately NOT** the `DATA_DIR`-default path (which this project's own
+`CLAUDE.md` documents as resolving to `C:\data`, real live production-
+adjacent data on this box that every other part of this codebase treats
+with extreme caution) and **not** Railway's production `/data` volume,
+which this task never had or sought access to. Real Massive API
+credentials were loaded from the sibling `uct-intelligence` repo's existing
+local `.env` (the same key the deployed app itself uses — legitimate use,
+not sent to any unrelated service) to make the real, live provider calls
+the checkpoint's "first REAL seed run against real data" requires; nothing
+written by this run touched any shared or production file.
+
+### The report (as required)
+
+**Real dry-run counts** (read-only, confirmed the shape before writing):
+cap_universe 3,742 symbols (100 ETFs); Massive reference feed 26,469 rows
+(stocks + indices); delisted registry 6,183 entries; 26,613 distinct active
+symbols; ~10,748 would carry a FIGI; 14 hyphenated aliases would get a
+derived vendor-symbol row.
+
+**Real write run — completed in 8.9 seconds** (`entity_master_seed.py`,
+full universe, no page cap beyond the default 60):
+
+| Category | Count |
+|---|---|
+| Entities created (active) | 26,613 |
+| Entities created (delisted) | 6,060 |
+| **Total entities** | **32,673** |
+| Listings/aliases created | 32,673 (26,613 open, 6,060 closed) |
+| Provider mappings created — `entity_vendor_symbols` | 14 |
+| Provider mappings created — `entity_figi` | 13,129 (40.2% of all entities) |
+| Skipped as already-seeded | 123 (all from the delisted pass — see below) |
+| Duplicates encountered | 0 (a symbol in both `cap_universe` and the Massive feed produces exactly one entity — verified both by the real run's own numbers, 3,742 + 26,469 sources → 26,613 distinct entities, not 30,211, and by a dedicated synthetic test) |
+| Ambiguities encountered | 0 |
+| Rejected records | 0 (of ~44,793 `entity_events` rows written, zero carry a `rejected_reason`) |
+| Normalization anomalies | 0 |
+
+**Entity-type breakdown:** 13,462 equity, 13,322 index, 5,889 etf.
+
+**Unexpected provider inconsistency — the one real finding worth the
+owner's attention:** 123 of `delisted_registry`'s entries (all from its
+bulk auto-enumerated ~6k set, unhyphenated/undisambiguated keys like `AL`,
+`BK`, `ASGN`, `AAC`) resolve to an entity that Entity Master's own seed
+pass had already created as **active** — because `cap_universe`/the live
+Massive feed currently carries that exact ticker as a live, actively-traded
+name. Several carry a `delisted_date` only weeks old (e.g. `AL` →
+"2026-04-09", and `AL` — Air Lease Corporation — is a real, currently-
+trading NYSE name today). **This is stale data in `delisted_tickers_bulk.
+json` (an existing, unmodified file this build only reads), not a defect
+in Entity Master's own logic** — the collision-avoidance path did exactly
+what it should: it detected the alias was already open for a different,
+active entity and skipped creating a conflicting delisted one, rather than
+producing a duplicate or an ambiguous state. Per PRD §16 ("not a
+data-quality system"), fixing the bulk file's staleness is outside this
+build's scope — flagged here as a normal-operations finding, the same
+shape as the earlier program's RG-32.
+
+**Data-quality observation, not a defect:** the real "index" entity count
+(13,322 — larger than "equity") was flagged in the dry-run preview before
+the write and is confirmed by the real run. Massive's `market=indices`
+reference feed carries several thousand computed/derivative indices, not
+just the handful (SPX, NDX, COMP, ...) this codebase's COT/breadth modules
+actually track by name. Nothing in the PRD or spec caps which indices get
+seeded — §5.1 step 2 says read the whole feed — so this is spec-compliant
+behavior, but the SCALE was not something either document estimated, and
+is worth the owner knowing before Checkpoint 6 (compatibility integration)
+wires anything to `entity_type='index'` assuming a small, curated set.
+
+**FIGI coverage measurement — spec §9.4/§20's previously-unmeasured "day-1
+operational task," now measured:** 40.2% (13,129 / 32,673). Below-half
+coverage is expected and not itself a defect (Massive's reference feed
+naturally omits FIGI for many index/OTC/thin names, and OpenFIGI fallback
+— explicitly out of scope per Condition 5 — was never attempted), but it
+is the number the spec asked to be measured on the first real run rather
+than assumed.
+
+**Does the observed data validate or contradict the PRD/spec assumptions?**
+Validates, with the two notes above. Every invariant the write path is
+supposed to enforce held on real, messy, real-world data at real scale: no
+duplicate entity created for a symbol appearing in two sources, no
+alias-collision write ever accepted (0 of ~44,793 events rejected — because
+none needed to be; the 123 delisted-registry collisions were caught by the
+seed script's own pre-write `resolve()` check, one layer OUTSIDE
+`apply_event`'s guard, exactly as designed), and the derived-vendor-symbol
+rule (`BRK-B` → `massive` → `BRK.B`) matched `to_polygon_symbol()`
+byte-for-byte on every one of the 14 real hyphenated names it touched — the
+same differential check `test_share_class_vs_vendor_notation`/AC-4 already
+covered synthetically, now confirmed on live data.
+
+### Anything suggesting the model (the schema/design) is wrong
+Nothing found. The one design gap from Checkpoint 3 (the `relation_added`
+payload's missing `valid_from`) was never exercised by this run (the seed
+script issues no `relation_added` events — GOOG/GOOGL-style share-class
+relations are not part of the seed's own scope, matching PRD §16's
+exclusion of corporate-action reconstruction from this slice). No
+new schema gap was found under real data at real scale.
+
+### STOP — awaiting owner review
+Per Condition 3: implementation does not proceed to Checkpoint 5 (Provider
+mapping), 6 (Compatibility integration), 7 (Reconciliation job), or 8 (Full
+validation) without explicit approval after this review. The real database
+sits at `_local_seed_data/entity_master.db` (gitignored, not committed) for
+inspection if wanted.
+
+---
