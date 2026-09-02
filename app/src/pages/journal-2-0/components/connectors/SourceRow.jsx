@@ -25,6 +25,16 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  // A pass that fetched notes and stored NONE of them sets lastSyncAt like
+  // any other, so this read "synced 2 minutes ago" over a warning saying
+  // nothing landed — literally true, and the line a member scans first.
+  // The amber dot and the reason below carry the truth; the label must not
+  // argue with them.
+  if (source.lastSyncStatus === 'warning') {
+    return source.lastSyncAt
+      ? `finished with problems ${timeAgo(source.lastSyncAt)}`
+      : 'finished with problems'
+  }
   if (source.lastSyncAt) return `synced ${timeAgo(source.lastSyncAt)}`
   return 'not synced yet'
 }

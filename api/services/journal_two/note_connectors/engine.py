@@ -564,8 +564,6 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                 newest = max(r.updated_at for r in refs)
                 connections.update_cursor(user_id, source_id, newest)
 
-        connections.record_sync_result(user_id, source_id, ok=True)
-
         # A1: a pass that fetched refs but stored NONE of them (the "13 of
         # 13 lost" catastrophic case a whole-batch confirm failure used to
         # produce) must not report "ok" and move on. A genuine PARTIAL
@@ -578,6 +576,21 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         )
         status = "warning" if (delete_guard_warning or lost_everything) else "ok"
         error_parts = ([delete_guard_warning] if delete_guard_warning else []) + item_failures
+
+        # ⛔⛔ Recorded HERE, not before the block above, and from the SAME
+        # `status`/`error_parts` the log and the return value use -- one
+        # authority for "how did this pass go". This call used to fire above
+        # as a bare `ok=True`, so a pass that stored 0 of 13 notes returned
+        # status="warning" while writing "ok" with a NULL error to the source
+        # row -- and that row is the one the connectors card reads. `ok=True`
+        # is still right even for a warning: the pass authenticated and
+        # fetched, so it is genuine evidence a previously-'broken' source has
+        # recovered; only what the MEMBER is shown differs.
+        connections.record_sync_result(
+            user_id, source_id, ok=True, status=status,
+            error="; ".join(error_parts) if error_parts else None,
+        )
+
         _finish_log(
             log_id, status=status, counts=counts,
             error="; ".join(error_parts) if error_parts else None,
