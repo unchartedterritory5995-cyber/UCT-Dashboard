@@ -59,6 +59,15 @@ const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
 // are scoped and referenced through `styles.*`), and `:root` custom properties
 // survive scoping, so `var(--buzz-*)` resolves here.
 const BOARD_W = 1000
+
+// Published for the render probe. buzz_image.PROBE_JS measures the drawn board
+// and compares it against THIS value, then discards a PNG whose box does not
+// match — the guard that would have caught the css-modules bug above on its
+// first render instead of two days later. The number therefore has exactly one
+// authority: the same constant that sets the width below. Never restate it
+// in Python; the probe reads it from here.
+if (typeof window !== 'undefined') window.__buzzBoardW = BOARD_W
+
 const EXPORT_STYLE = {
   width: BOARD_W,
   background: 'var(--buzz-page)',
