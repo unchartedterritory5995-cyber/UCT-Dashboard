@@ -1495,16 +1495,39 @@ def unpublish(user_id: Any, def_id: str) -> bool:
 
 
 def listing_status(user_id: Any, def_id: str) -> dict:
-    """Is this definition in the library right now? ⛔ DERIVED FROM BOTH FACTS —
-    the owner's own last word AND whether the share it rides on is still live."""
+    """Is this definition in the library right now?
+
+    ⛔⛔ IT ASKS THE THREE QUESTIONS ``public_library`` ASKS, and it used to ask
+    two. The owner's last word and a live share were checked; the GRAMMAR VERSION
+    the share was minted against was not — while `public_library` skips any row
+    whose ``table_version`` is not the current one, and ``resolve_share`` refuses
+    such a link outright with reason ``table-version``.
+
+    ⚰️ SO A ``tableVersion`` BUMP EMPTIED THE WHOLE LIBRARY AND TOLD EVERY OWNER
+    IT WAS STILL LISTED. Measured against the real store: published at
+    table_version 2, ``public_library()`` returns the entry and this function
+    says ``listed: True``; bump the manifest to 3 — exactly what
+    ``closedTable.json`` records happening 1→2 on 2026-08-26 — and
+    ``public_library()`` returns ZERO entries, ``resolve_share`` refuses, and this
+    function still answered ``listed: True``. Two authorities over one value,
+    and the one a member can see was the wrong one
+    (``lesson_a_second_authority_over_one_value``).
+
+    ⭐ ``stale_grammar`` IS THE REPAIRABLE HALF. "Not listed" with no reason is a
+    dead end; naming it lets a surface say the link was minted against an older
+    grammar and re-sharing relists it.
+    """
     _check_def_id(def_id)
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         row = _newest_listing(c, user_id, def_id)
     asked = bool(row is not None and row["listed"])
-    share_live = share_status(user_id, def_id) is not None
-    return {"def_id": def_id, "listed": asked and share_live,
-            "requested": asked, "shared": share_live}
+    share = share_status(user_id, def_id)
+    share_live = share is not None
+    # ⛔ THE SAME COMPARISON `public_library` MAKES, against the same helper.
+    stale = bool(share_live and int(share["table_version"]) != _current_table_version())
+    return {"def_id": def_id, "listed": asked and share_live and not stale,
+            "requested": asked, "shared": share_live, "stale_grammar": stale}
 
 
 #: How many library entries one page returns. ⚠️ A CAP, NOT A DEFAULT A CALLER MAY

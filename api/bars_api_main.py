@@ -157,8 +157,13 @@ def _start_hotset_push() -> None:
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # The DB was installed synchronously in main() before uvicorn. Here we only
-    # start the post-startup background loops (all light / non-blocking).
+    # ⭐ Install the DB in a BACKGROUND THREAD (uvicorn has already bound the port,
+    # so Railway's readiness check is satisfied — running the install BEFORE uvicorn
+    # made the port bind too late and Railway restart-looped the container at ~40s).
+    # The extract goes to the 50GB volume (TMPDIR set in main), not ephemeral /tmp.
+    # Serving cold-fetches until this completes; then it serves from the R2-installed db.
+    threading.Thread(target=_ensure_local_db_installed, daemon=True,
+                     name="bars-api-boot-install").start()
     _start_periodic_pull()
     try:
         from api.services import bars_wal_checkpointer
@@ -236,10 +241,8 @@ def main() -> None:
         os.environ["TMP"] = _tmp
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] could not set volume TMPDIR (%s): %s", _DATA_DIR, e)
-    # ⭐ Install the DB SYNCHRONOUSLY, before uvicorn — covered by the 600s startup
-    # healthcheck grace, with no live /api/health to starve.
-    _log.info("[bars-api] boot: ensuring local bars.db is installed from R2 …")
-    _ensure_local_db_installed()
+    # The DB install runs in a background thread from the lifespan (AFTER uvicorn
+    # binds the port), so the container passes Railway's readiness check immediately.
     port = int(os.environ.get("PORT", "8080"))
     uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
