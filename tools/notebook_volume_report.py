@@ -16,22 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.services.journal_two.attachment_root import (  # noqa: E402
     attachment_root as _attachment_root,
+    existing_ancestor as _existing_ancestor,
 )
-
-
-def _existing_ancestor(path: str) -> str:
-    """Walk up from `path` to the nearest directory that actually exists, so
-    disk_usage can still report the volume's real free space even before the
-    attachment root itself has been created (e.g. a fresh volume that has
-    never taken an upload yet). Same filesystem either way -- a subdirectory
-    that doesn't exist yet doesn't change how much room is left on it."""
-    p = os.path.abspath(path)
-    while not os.path.isdir(p):
-        parent = os.path.dirname(p)
-        if parent == p:  # reached a filesystem root; stop here
-            break
-        p = parent
-    return p
 
 
 def main() -> None:
@@ -45,7 +31,7 @@ def main() -> None:
                 continue
             files += 1
     root_existed = os.path.isdir(root)
-    usage_path = str(root) if root_existed else _existing_ancestor(str(root))
+    usage_path = str(root) if root_existed else str(_existing_ancestor(root))
     usage = shutil.disk_usage(usage_path)
     print(f"attachment root : {root}")
     if not root_existed:

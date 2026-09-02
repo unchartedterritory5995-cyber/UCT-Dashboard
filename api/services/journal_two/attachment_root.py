@@ -44,6 +44,33 @@ def attachment_root() -> Path:
     return Path(os.environ.get("DATA_DIR", "/data")) / "j2_attachments"
 
 
+def existing_ancestor(path: Path | str) -> Path:
+    """Nearest directory that actually exists, walking up from `path`.
+
+    Free space is a property of the VOLUME, not of one leaf directory --
+    a subdirectory that hasn't been created yet (e.g. before the first
+    attachment has ever been written, or on a brand-new volume) doesn't
+    change how much room is left on the filesystem underneath it.
+
+    A caller that needs `shutil.disk_usage()` on an attachment path MUST
+    resolve through this first: `disk_usage()` itself raises
+    `FileNotFoundError` on a path that doesn't exist yet, which is a
+    "this directory is new" fact, not a "the volume is unreadable" fact.
+    Conflating the two rejected a member's FIRST-EVER upload with a message
+    about free space (review round 2, 2026-09-01) -- fixed by resolving to
+    the nearest existing ancestor before ever calling disk_usage, exactly
+    like `tools/notebook_volume_report.py` (read-only) already did; both now
+    share this one implementation instead of two copies drifting apart.
+    """
+    p = Path(path).resolve()
+    while not p.is_dir():
+        parent = p.parent
+        if parent == p:  # reached a filesystem root; stop here
+            break
+        p = parent
+    return p
+
+
 def read_candidates(rel: Path) -> list[Path]:
     """Absolute paths to try, in order, for a relative attachment path.
     Primary first, then the legacy tree (dedup'd when they coincide)."""

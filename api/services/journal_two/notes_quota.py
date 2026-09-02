@@ -37,6 +37,20 @@ when set (no code change needed to raise/lower it). `_ABSOLUTE_FLOOR_BYTES` is
 a fallback used ONLY if the volume's TOTAL size specifically cannot be read
 (free space is checked separately by `assert_import_headroom` and fails
 closed entirely on its own if IT cannot be read).
+
+FAIL-CLOSED FIX (review round 2, 2026-09-01): `_free_bytes`/`_total_bytes`
+used to call `shutil.disk_usage()` directly on the attachment root. On a
+fresh volume -- or simply before any attachment has ever been written --
+that directory doesn't exist, `disk_usage()` raises `FileNotFoundError`, and
+the guard refused a MEMBER'S FIRST-EVER UPLOAD with a message about free
+space. "The directory does not exist yet" is not "I cannot determine free
+space" -- free space is a property of the VOLUME, not of one leaf directory,
+so the nearest existing ancestor's answer is the correct answer, not an
+approximation. Both functions now route through
+`attachment_root.existing_ancestor()` (shared with the read-only
+`tools/notebook_volume_report.py`, which used this same resolution first --
+one authority instead of two copies) before ever calling `disk_usage`. A
+genuinely unreadable volume still raises OSError and still fails closed.
 """
 from __future__ import annotations
 
@@ -45,7 +59,10 @@ import shutil
 
 from api.services import disk_watchdog
 
-from .attachment_root import attachment_root as _attachment_root
+from .attachment_root import (
+    attachment_root as _attachment_root,
+    existing_ancestor as _existing_ancestor,
+)
 
 # Fallback only -- see _required_reserve_bytes(). Not the primary derivation.
 _ABSOLUTE_FLOOR_BYTES = 2 * 1024**3
@@ -55,12 +72,24 @@ class NoteQuotaExceeded(Exception):
     """Not enough room on the attachment volume to accept this import."""
 
 
+def _disk_usage():
+    """One shared read for both free and total bytes. Resolves to the nearest
+    EXISTING ancestor of the attachment root first (see
+    attachment_root.existing_ancestor) -- free space is a property of the
+    VOLUME, not of a leaf directory that may not exist yet (a fresh volume,
+    or before the first attachment has ever been written). Only a genuine
+    can't-tell-you condition (e.g. the volume itself is unreachable) reaches
+    callers as OSError; a merely-not-yet-created attachment directory does
+    not."""
+    return shutil.disk_usage(_existing_ancestor(_attachment_root()))
+
+
 def _free_bytes() -> int:
-    return shutil.disk_usage(_attachment_root()).free
+    return _disk_usage().free
 
 
 def _total_bytes() -> int:
-    return shutil.disk_usage(_attachment_root()).total
+    return _disk_usage().total
 
 
 def _required_reserve_bytes() -> int:
