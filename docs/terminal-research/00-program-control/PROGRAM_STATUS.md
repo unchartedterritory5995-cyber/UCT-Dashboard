@@ -1,14 +1,14 @@
 # PROGRAM STATUS
 
-**Program day:** 1 (Day 1a in progress — orientation + internal discovery; Day 1b external research awaits the owner's proceed instruction)
+**Program day:** 1 (Day 1b in progress — external landscape research; owner proceed received 2026-09-02 10:41 UTC)
 **Stage:** Phase Zero — research and planning. No implementation.
-**Last updated:** 2026-09-02 08:00 UTC (session 1)
+**Last updated:** 2026-09-02 10:50 UTC (session 1)
 **Deadline health:** GREEN — Step Zero, program control, capability probe, coverage map, and Wave 1 dispatch completed within the first session; no blockers.
 
 ## Checkpoint (Document A format)
 
 ### Progress
-Step Zero verified (worktree, branch, start SHA `9c3df14b9`, charter byte-identical). Program-control layer created (14 control files, contracts, evidence-index script). Capability probe run (10 concurrent tasks measured; four model classes; web/browser/shell tools confirmed). Coverage map of ~105 roles in 8 groups built and converted into waves. Protection rail R0 PASS on all three checks with baselines recorded. Wave 1 COMPLETE: all 17 internal and licensing reports returned and accepted (one with gaps). Orchestrator-only reads of Railway variables (names + flag values) and two admin health endpoints recorded. Internal synthesis dispatched: E-02 data-use classifier, F-03a system map + capability ledger + tech debt, F-03b provider ledger. Orientation memo delivered; awaiting the owner's proceed instruction for external research.
+Step Zero verified (worktree, branch, start SHA `9c3df14b9`, charter byte-identical). Program-control layer created (14 control files, contracts, evidence-index script). Capability probe run (10 concurrent tasks measured; four model classes; web/browser/shell tools confirmed). Coverage map of ~105 roles in 8 groups built and converted into waves. Protection rail R0 PASS on all three checks with baselines recorded. Wave 1 COMPLETE: all 17 internal and licensing reports returned and accepted (one with gaps). Orchestrator-only reads of Railway variables (names + flag values) and two admin health endpoints recorded. Internal synthesis dispatched: E-02 data-use classifier, F-03a system map + capability ledger + tech debt, F-03b provider ledger. Orientation memo delivered; owner said proceed at 10:41 UTC. A usage-limit pause at 08:05 UTC killed the three synthesis tasks before they wrote; re-dispatched. Wave 1b batch A (universe validator + six Bloomberg workflow roles) dispatched.
 
 ### Important discoveries
 * The ecosystem is larger than the seed facts state: the PC runs ~36 UCT scheduled tasks (seed facts list ~10); the dashboard references at least 17 external providers by env name (Finnhub, FRED, Alpha Vantage, TheFly, Perplexity, OpenAI, twitterapi.io, Reddit beyond the seeded FMP/Massive/Finviz/Schwab/yfinance/Anthropic).
@@ -31,7 +31,7 @@ None for internal work. External research awaits approval. Owner inputs batch 1 
 * Catalyst cost guard mis-prices Sonnet 5 (D-12); five clause-vs-code licensing collisions (E-04); local-backend recipes run against live `C:\data` (D-04); three real-time endpoints CONFIRMED unauthenticated (`/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`; R-17).
 
 ### Agent allocation
-Wave 1: 17 internal/licensing tasks. Next: on approval, Wave 1b external landscape (28 tasks in three batches).
+In flight: F-03a, F-03b, E-02 (synthesis) + B-VAL-01 + B-BBG-01..06 = 10. Queued: batch B (10) and batch C (10) of Wave 1b, topped up on completion.
 
 ### Protection rail
 PASS (R0, Day 1a) — see `protection-rail.md`.
