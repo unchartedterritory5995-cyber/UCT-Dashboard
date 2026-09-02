@@ -351,6 +351,34 @@ def heal_recent(days: int = 10) -> dict:
         _LOCK.release()
 
 
+_LAST_AUTO_HEAL_AT = 0.0
+_AUTO_HEAL_COOLDOWN = float(os.environ.get("BREADTH_AUTO_HEAL_COOLDOWN", "600"))  # 10 min
+
+
+def maybe_auto_heal() -> None:
+    """Request-driven self-heal: on a Monitor view, kick a background `heal_recent`
+    at most once per cooldown. This is the COT self-heal pattern — the scheduled
+    boot pass + 30-min loop can miss the window right after a restart (bars still
+    warming → the recompute is low-coverage → skipped), so any visit re-checks the
+    newest days once the bars are warm. Cheap + bounded: a day that heals or is
+    confirmed-agreeing (`_DIV_OK`) isn't recomputed again."""
+    global _LAST_AUTO_HEAL_AT
+    if not _ENABLED:
+        return
+    now = time.time()
+    if now - _LAST_AUTO_HEAL_AT < _AUTO_HEAL_COOLDOWN:
+        return
+    _LAST_AUTO_HEAL_AT = now
+
+    def _run():
+        try:
+            heal_recent(5)
+        except Exception as e:
+            print(f"[breadth-heal] auto-heal error (non-fatal): {e}")
+
+    threading.Thread(target=_run, name="breadth_auto_heal", daemon=True).start()
+
+
 def start_background_heal(delay_seconds: int = 40) -> None:
     """Boot pass (once, shortly after startup) to fix any degraded recent day left
     over from a bad collection. The scheduled post-close pass lives in main.py."""
