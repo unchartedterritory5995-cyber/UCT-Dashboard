@@ -1750,6 +1750,58 @@ def test_coverage_says_how_fresh_the_count_is(mods):
     assert "2:58" in boards.coverage(_at(1, 15)) or "14:58" in boards.coverage(_at(1, 15))
 
 
+def test_full_board_returns_EVERY_ticker_not_just_the_top(mods):
+    """The owner asked for every ticker. `top_board` caps; `full_board` must not."""
+    store, boards = mods
+    now = _at(1, 15)
+    for i in range(40):
+        _put(store, _at(1, 10), f"T{i:03d}", f"u{i}", 1000 + i)
+    assert len(boards.top_board("open", now, limit=5)) == 5
+    assert len(boards.full_board("open", now)) == 40
+
+
+def test_full_board_sparklines_only_the_head(mods):
+    """A sparkline the tail never draws is a wasted scan per ticker."""
+    store, boards = mods
+    now = _at(1, 15)
+    for i in range(20):
+        for k in range(20 - i):                      # descending, so rank is stable
+            _put(store, _at(1, 10), f"T{i:03d}", f"u{i}{k}", 5000 + i * 100 + k)
+    rows = boards.full_board("open", now, spark_top=3)
+    assert all("spark" in r for r in rows[:3])
+    assert all("spark" not in r for r in rows[3:])
+
+
+def test_split_tail_separates_the_once_mentioned(mods):
+    _, boards = mods
+    rows = [{"ticker": "AAA", "mentions": 5}, {"ticker": "BBB", "mentions": 2},
+            {"ticker": "CCC", "mentions": 1}, {"ticker": "DDD", "mentions": 1}]
+    multi, singles = boards.split_tail(rows)
+    assert [r["ticker"] for r in multi] == ["AAA", "BBB"]
+    assert singles == ["CCC", "DDD"]
+
+
+def test_totals_counts_messages_members_and_tickers(mods):
+    store, boards = mods
+    now = _at(1, 15)
+    store.record_mentions([
+        ("1", CH, "alice", "NVDA", _at(1, 10), "exact"),
+        ("1", CH, "alice", "AMD",  _at(1, 10), "exact"),   # same message, 2 tickers
+        ("2", CH, "bob",   "NVDA", _at(1, 11), "exact"),
+    ])
+    assert boards.totals("open", now) == {"messages": 2, "members": 2, "tickers": 2}
+
+
+def test_totals_messages_counts_TICKER_BEARING_messages_only(mods):
+    """⛔ The store holds only ticker-bearing rows, so a channel-wide message
+    total is not derivable from it. This pins what the number actually means so
+    the board can label it honestly rather than implying it counted the room."""
+    store, boards = mods
+    now = _at(1, 15)
+    store.record_mentions([("1", CH, "alice", "NVDA", _at(1, 10), "exact")])
+    assert boards.totals("open", now)["messages"] == 1
+
+
 def test_ticker_detail_reports_people_mentions_and_a_link(mods):
     store, boards = mods
     _put(store, _at(1, 10), "NVDA", "a", 1544451055910129726)
@@ -1897,6 +1949,48 @@ def ticker_detail(ticker: str, window: str, now: int) -> dict:
         "spark": buzz_store.series(ticker.upper(), start, end, SPARK_BUCKETS, chans),
         "link": link,
     }
+
+
+def full_board(window: str, now: int, spark_top: int = 14) -> list[dict]:
+    """EVERY ticker in the window, ranked — the board shows all of them.
+    `top_board` stays for the TEXT reply, which cannot.
+
+    Sparklines only for the first `spark_top`: the tail renders as plain text,
+    and a sparkline nobody draws is one `series()` scan per ticker wasted."""
+    start, end = window_bounds(window, now)
+    chans = _channels()
+    rows = buzz_store.board(start, end, chans, limit=10_000)
+    for r in rows[:spark_top]:
+        r["spark"] = buzz_store.series(r["ticker"], start, end, SPARK_BUCKETS, chans)
+    return rows
+
+
+def split_tail(rows: list[dict]) -> tuple[list[dict], list[str]]:
+    """Split the post-headline tail into (2+ mentions, mentioned-exactly-once).
+    The once-each names collapse to bare symbols on the board — they are the
+    least informative third of any day and must not occupy a third of the image."""
+    multi = [r for r in rows if r["mentions"] >= 2]
+    singles = [r["ticker"] for r in rows if r["mentions"] < 2]
+    return multi, singles
+
+
+def totals(window: str, now: int) -> dict:
+    """Header counts: `{"messages", "members", "tickers"}`.
+
+    ⛔ `messages` is MESSAGES THAT MENTIONED A TICKER, not every message in the
+    channel — the store only ever holds ticker-bearing rows, so a channel total
+    is not derivable from it. The board must label it accordingly ("318 messages
+    with tickers"), or the number silently answers a question nobody asked. Same
+    class as every denominator bug in this repo's history."""
+    start, end = window_bounds(window, now)
+    chans = _channels()
+    cl = (" AND channel_id IN (%s)" % ",".join("?" * len(chans))) if chans else ""
+    r = buzz_store.connect().execute(
+        "SELECT COUNT(DISTINCT message_id) AS m, COUNT(DISTINCT author_id) AS a, "
+        "COUNT(DISTINCT ticker) AS t FROM mentions WHERE ts >= ? AND ts < ?" + cl,
+        [start, end, *chans],
+    ).fetchone()
+    return {"messages": r["m"], "members": r["a"], "tickers": r["t"]}
 
 
 def coverage(now: int) -> str:
@@ -2270,7 +2364,7 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
   "tail":    [ {"ticker","mentions","hot": 2.2|null} ],                          // the tail, ranked
   "singles": ["ABCD","EFGH"],                                                  // mentioned once, compressed
   "heat":   [ {"ticker","ratio"} ],
-  "totals": {"messages": 318, "members": 63, "tickers": 77},
+  "totals": {"messages": 318, "members": 63, "tickers": 77},   // messages = TICKER-BEARING only
   "coverage": "counted through 4:08p", "asOf": 1788303268
 }
 ```
@@ -2323,7 +2417,7 @@ Layout, validated by rendering a 77-ticker mockup at 1400px:
 - **Right column:** the whole remaining tail as compact `TICKER n` chips, **ranked by mentions**, flowing across 4 CSS columns. Names mentioned exactly once collapse into one final de-emphasised line of bare symbols, no counts — that is the least interesting third of any day and it should not occupy a third of the image. Chips for names on the heat board get a gold outline, so the two boards fuse instead of needing a second image.
 
 ⛔ **NOT grouped by theme.** Owner decision 2026-09-01 after seeing it rendered: *"I don't like the theme groups exactly, but I do want to see everything mentioned."* Theme grouping was built and measured first — it needed a taxonomy join, a `min_group` floor that was a guess, and it fragmented into 41 groups of size one before that floor was added. Rank order needs none of that and cannot fragment. `themed_groups` and `ticker_themes` are **dropped from this plan**; the taxonomy join is recorded in the deferred section if it is ever wanted back.
-- **Header:** totals (`318 messages · 63 members · 77 tickers`).
+- **Header:** totals. ⛔ Label the first honestly — **`318 messages with tickers`**, not `318 messages`. The store holds only ticker-bearing rows, so a channel-wide total is not derivable from it, and the short label implies the board counted the whole room.
 
 ⛔ **The tail MUST NOT be an ungrouped list, and grouping MUST use the `min_group` floor** — see Task 6. Rendering the ungrouped/unfloored version is what proved this: 41 groups of size one is worse than no grouping at all.
 
