@@ -10,6 +10,7 @@ import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import { prefetchBars, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
+import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
@@ -404,6 +405,14 @@ function DrillModal({ drill, latestDate, onClose }) {
     }, 250)
     return () => clearTimeout(t)
   }, [selectedIdx, items, chartPeriod])
+
+  // Same-frame scan paint: promote the ±6 neighbors into the synchronous mem cache
+  // (and fetch any cold ones) so the NEXT arrow press paints on the first render via
+  // StockChart's memPeek fallback — the accelerator the drill was missing (its
+  // sliding-window prefetch above only warmed IDB/SWR, so a switch still paid the
+  // async idbGet hop). Order matches the arrow handler (items).
+  const drillSyms = useMemo(() => items.map(i => i.t), [items])
+  useNeighborWarm(drillSyms, items[selectedIdx]?.t, chartPeriod)
   const [flagToast, setFlagToast] = useState(null)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const rowRefs = useRef([])

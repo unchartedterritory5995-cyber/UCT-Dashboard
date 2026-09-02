@@ -11,6 +11,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
+import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -666,6 +667,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     const upcoming = allStocks.slice(idx + 1, idx + 6).map(s => s.sym)
     prefetchBars(upcoming, chartPeriod)
   }, [selectedSym, allStocks, chartPeriod])
+
+  // Same-frame scan paint: promote the ±6 arrow-nav neighbors into the synchronous
+  // mem cache (and fetch any cold ones) so the NEXT arrow press paints on the first
+  // render via StockChart's memPeek fallback — the accelerator Watchlists had and
+  // Theme Tracker was missing. Order matches the arrow handler (allStocks).
+  const allStockSyms = useMemo(() => allStocks.map(s => s.sym), [allStocks])
+  useNeighborWarm(allStockSyms, selectedSym, chartPeriod)
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()
