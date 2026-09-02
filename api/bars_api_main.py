@@ -234,11 +234,18 @@ def main() -> None:
     # extract there was a suspected silent-kill cause). Set in-process so it also
     # overrides any mangled Railway TMPDIR value.
     try:
+        import tempfile
         _tmp = os.path.join(_DATA_DIR, "tmp")
         os.makedirs(_tmp, exist_ok=True)
+        # ⭐ Set BOTH the env vars AND tempfile.tempdir directly. tempfile CACHES its
+        # dir on first use (during imports, before main runs) → the env var alone was
+        # ignored and the ~GB snapshot download went to the tiny ephemeral /tmp →
+        # "[Errno 28] No space left on device" after 78s. Setting tempfile.tempdir
+        # overrides the cache so download_snapshot's mkdtemp uses the 50GB volume.
         os.environ["TMPDIR"] = _tmp
         os.environ["TEMP"] = _tmp
         os.environ["TMP"] = _tmp
+        tempfile.tempdir = _tmp
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] could not set volume TMPDIR (%s): %s", _DATA_DIR, e)
     # The DB install runs in a background thread from the lifespan (AFTER uvicorn
