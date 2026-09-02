@@ -6,8 +6,7 @@ Every fixture is synthetic. No test touches `cap_universe.json`, `C:\\data`,
 or any production file — every database used here is created fresh under
 pytest's `tmp_path`, never at the real `entity_master.db` / `DATA_DIR` path.
 
-Checkpoints 1 (Schema) and 2 (Read primitives). Write-path tests (AC-3, AC-5)
-are added in Checkpoint 3 once `apply_event` exists.
+Checkpoints 1 (Schema), 2 (Read primitives), 3 (Write path).
 """
 import sqlite3
 
@@ -365,3 +364,271 @@ def test_ac9_no_cusip_shaped_identifier():
         if re.search(r"cusip", text, re.IGNORECASE):
             hits.append(f.name)
     assert not hits, f"CUSIP-shaped reference found in: {hits}"
+
+
+# ─── Checkpoint 3 — Write path ─────────────────────────────────────────────
+
+def _new_entity_payload(alias, valid_from="2020-01-01", entity_type="equity"):
+    return {"entity_type": entity_type, "initial_alias": alias, "initial_alias_valid_from": valid_from}
+
+
+def test_new_entity_creates_entity_and_alias(db_path):
+    schema.init_db(db_path=db_path)
+    result = em_api.apply_event(
+        "new_entity", _new_entity_payload("NVDA"), dedup_key="d1", source="admin_manual", db_path=db_path
+    )
+    assert result.accepted
+    assert result.entity_id.startswith("ent_")
+
+    r = em_api.resolve("NVDA", db_path=db_path)
+    assert r.status == "resolved"
+    assert r.entity.entity_id == result.entity_id
+    assert r.entity.lifecycle_state == "active"
+
+
+def test_new_entity_with_figi_populates_entity_figi(db_path):
+    schema.init_db(db_path=db_path)
+    payload = {**_new_entity_payload("AAPL"), "composite_figi": "BBG000B9XRY4", "cik": "0000320193"}
+    result = em_api.apply_event("new_entity", payload, dedup_key="d1", source="admin_manual", db_path=db_path)
+    assert result.accepted
+    conn = store._conn(db_path)
+    row = conn.execute(
+        "SELECT composite_figi FROM entity_figi WHERE entity_id = ?", (result.entity_id,)
+    ).fetchone()
+    assert row == ("BBG000B9XRY4",)
+
+
+def test_alias_collision_rejected_at_write(db_path):
+    """AC-3: attempt an overlapping-alias event; ApplyResult.accepted is
+    False and no row was written (query the table directly, not just the
+    return value)."""
+    schema.init_db(db_path=db_path)
+    r1 = em_api.apply_event(
+        "new_entity", _new_entity_payload("DUPE", "2020-01-01"), "d1", "admin_manual", db_path=db_path
+    )
+    assert r1.accepted
+
+    r2 = em_api.apply_event(
+        "new_entity", _new_entity_payload("DUPE", "2021-01-01"), "d2", "admin_manual", db_path=db_path
+    )
+    assert not r2.accepted
+    assert r1.entity_id in r2.reason
+
+    conn = store._conn(db_path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM entity_aliases WHERE alias = 'DUPE'"
+    ).fetchone()[0]
+    assert count == 1  # the second event's alias row was never written
+
+    entity_count = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    assert entity_count == 1  # the second event's entity row was never written either
+
+    # The rejection itself IS durably recorded, with a named reason.
+    row = conn.execute(
+        "SELECT rejected_reason FROM entity_events WHERE dedup_key = 'd2'"
+    ).fetchone()
+    assert row is not None and row[0] is not None
+
+
+def test_alias_added_and_retired(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("META"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    add = em_api.apply_event(
+        "alias_added",
+        {"entity_id": eid, "alias": "FB2", "valid_from": "2024-01-01"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert add.accepted
+    assert em_api.resolve("FB2", db_path=db_path).status == "resolved"
+
+    retire = em_api.apply_event(
+        "alias_retired",
+        {"entity_id": eid, "alias": "FB2", "valid_to": "2025-01-01"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert retire.accepted
+    assert em_api.resolve("FB2", db_path=db_path).status == "not_found"
+    # ... but the closed row is still in the full history (AC-2 for the write path too).
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert any(a.alias == "FB2" and a.valid_to == "2025-01-01" for a in roster)
+
+
+def test_alias_retired_rejects_when_no_open_row(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("XYZ"), "d1", "admin_manual", db_path=db_path
+    )
+    r = em_api.apply_event(
+        "alias_retired",
+        {"entity_id": created.entity_id, "alias": "NOT-OPEN", "valid_to": "2025-01-01"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+    assert "no open alias" in r.reason
+
+
+def test_delisted_flips_lifecycle_state(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("LEHX"), "d1", "admin_manual", db_path=db_path
+    )
+    r = em_api.apply_event(
+        "delisted", {"entity_id": created.entity_id, "lifecycle_since": "2008-09-15"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    resolved = em_api.resolve("LEHX", db_path=db_path)
+    assert resolved.status == "resolved"  # delisting flips state, doesn't close the alias
+    assert resolved.entity.lifecycle_state == "delisted"
+    assert resolved.entity.lifecycle_since == "2008-09-15"
+
+
+def test_renamed_closes_old_alias_and_opens_new(db_path):
+    """AC-1 via the real write path (not a direct-seed fixture this time)."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("SQ", "2015-11-19"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    r = em_api.apply_event(
+        "renamed",
+        {
+            "entity_id": eid, "old_alias": "SQ", "old_alias_valid_to": "2021-12-10",
+            "new_alias": "XYZ", "new_alias_valid_from": "2021-12-10",
+        },
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    assert em_api.resolve("SQ", db_path=db_path).status == "not_found"
+    assert em_api.resolve("SQ", as_of="2020-01-01", db_path=db_path).entity.entity_id == eid
+    assert em_api.resolve("XYZ", db_path=db_path).entity.entity_id == eid
+
+
+def test_renamed_rejects_on_new_alias_collision_and_does_not_touch_old_alias(db_path):
+    schema.init_db(db_path=db_path)
+    a = em_api.apply_event("new_entity", _new_entity_payload("AAA"), "d1", "admin_manual", db_path=db_path)
+    b = em_api.apply_event("new_entity", _new_entity_payload("BBB"), "d2", "admin_manual", db_path=db_path)
+
+    r = em_api.apply_event(
+        "renamed",
+        {
+            "entity_id": a.entity_id, "old_alias": "AAA", "old_alias_valid_to": "2026-01-01",
+            "new_alias": "BBB", "new_alias_valid_from": "2026-01-01",
+        },
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+    # The old alias must still be OPEN — a rejected rename must not half-apply.
+    assert em_api.resolve("AAA", db_path=db_path).status == "resolved"
+    assert em_api.resolve("AAA", db_path=db_path).entity.entity_id == a.entity_id
+    assert em_api.resolve("BBB", db_path=db_path).entity.entity_id == b.entity_id
+
+
+def test_relation_added(db_path):
+    schema.init_db(db_path=db_path)
+    goog = em_api.apply_event("new_entity", _new_entity_payload("GOOG"), "d1", "admin_manual", db_path=db_path)
+    googl = em_api.apply_event("new_entity", _new_entity_payload("GOOGL"), "d2", "admin_manual", db_path=db_path)
+
+    r = em_api.apply_event(
+        "relation_added",
+        {"entity_id": goog.entity_id, "related_entity_id": googl.entity_id, "kind": "share_class"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    rel = em_api.related_to(goog.entity_id, "share_class", db_path=db_path)
+    assert [e.entity_id for e in rel] == [googl.entity_id]
+
+
+def test_relation_added_rejects_self_relation(db_path):
+    schema.init_db(db_path=db_path)
+    a = em_api.apply_event("new_entity", _new_entity_payload("SELFY"), "d1", "admin_manual", db_path=db_path)
+    r = em_api.apply_event(
+        "relation_added",
+        {"entity_id": a.entity_id, "related_entity_id": a.entity_id, "kind": "share_class"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+
+
+def test_event_replay_is_idempotent(db_path):
+    """AC-5: apply a (list -> rename -> delist) event sequence twice via the
+    same dedup_keys; assert byte-identical resulting table contents (row
+    counts, no duplicate entity_aliases rows)."""
+    schema.init_db(db_path=db_path)
+
+    def _run_sequence():
+        # Read entity_id off apply_event's own return, not by re-resolving
+        # "BB" each pass — after the first pass renames BB -> CC, "BB" is no
+        # longer an open alias, so a resolve("BB")-based lookup would break
+        # on the second (idempotent-replay) pass even though nothing is wrong.
+        created = em_api.apply_event(
+            "new_entity", _new_entity_payload("BB", "2000-01-01"), "list-1", "admin_manual", db_path=db_path
+        )
+        eid = created.entity_id
+        em_api.apply_event(
+            "renamed",
+            {"entity_id": eid, "old_alias": "BB", "old_alias_valid_to": "2010-01-01",
+             "new_alias": "CC", "new_alias_valid_from": "2010-01-01"},
+            "rename-1", "admin_manual", db_path=db_path,
+        )
+        em_api.apply_event(
+            "delisted", {"entity_id": eid, "lifecycle_since": "2015-01-01"},
+            "delist-1", "admin_manual", db_path=db_path,
+        )
+        return eid
+
+    eid_first = _run_sequence()
+    conn = store._conn(db_path)
+    entities_1 = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    aliases_1 = conn.execute("SELECT COUNT(*) FROM entity_aliases").fetchone()[0]
+    events_1 = conn.execute("SELECT COUNT(*) FROM entity_events").fetchone()[0]
+
+    eid_second = _run_sequence()  # same dedup_keys, applied again
+    entities_2 = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    aliases_2 = conn.execute("SELECT COUNT(*) FROM entity_aliases").fetchone()[0]
+    events_2 = conn.execute("SELECT COUNT(*) FROM entity_events").fetchone()[0]
+
+    assert eid_first == eid_second
+    assert (entities_1, aliases_1, events_1) == (entities_2, aliases_2, events_2)
+
+
+def test_apply_event_never_raises_on_malformed_payload(db_path):
+    schema.init_db(db_path=db_path)
+    r = em_api.apply_event("new_entity", {}, "d1", "admin_manual", db_path=db_path)
+    assert not r.accepted
+    r2 = em_api.apply_event("bogus_event_type", {}, "d2", "admin_manual", db_path=db_path)
+    assert not r2.accepted
+    r3 = em_api.apply_event(
+        "alias_added", {"entity_id": "ent_DOES_NOT_EXIST", "alias": "X", "valid_from": "2020-01-01"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert not r3.accepted
+
+
+def test_set_vendor_symbol_and_figi_are_idempotent(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    conn = store._conn(db_path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM entity_vendor_symbols WHERE entity_id = ?", (eid,)
+    ).fetchone()[0]
+    assert count == 1
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    figi_count = conn.execute(
+        "SELECT COUNT(*) FROM entity_figi WHERE entity_id = ?", (eid,)
+    ).fetchone()[0]
+    assert figi_count == 1

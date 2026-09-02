@@ -149,3 +149,75 @@ collision guard, cache rebuild-on-write), Checkpoint 4 (seed machinery +
 first real seed run — HARD STOP), 5-8 not yet authorized.
 
 ---
+
+## Checkpoint 3 — Write path (2026-09-02)
+
+**Changes made:**
+- `store.py`: a pure-Python ULID generator (`new_entity_id()`, per spec
+  §3's "26-line generator, no new dependency"), the write-time collision
+  guard (`colliding_entity_ids()` — the interval-overlap query from spec
+  §8.4), and the low-level table-mutation helpers (`create_entity`,
+  `add_alias`, `close_open_alias`, `has_open_alias`, `set_lifecycle_state`,
+  `add_relation`, `entity_exists`, `record_event`,
+  `get_event_by_dedup_key`) plus the two provider-data write helpers
+  (`upsert_vendor_symbol`, `upsert_figi`).
+- `api.py`: `ApplyResult` dataclass, `apply_event()` (validates, runs the
+  collision guard, records the event, applies the domain mutation, commits,
+  rebuilds the read cache — all under `store._WRITE_LOCK`), plus the public
+  `set_vendor_symbol()`/`set_figi()` wrappers.
+- 15 new tests (29 total): one per event type's happy path + rejection
+  case, AC-3 (collision rejected, verified by querying the table directly,
+  not just the return value), AC-5 (list→rename→delist sequence replayed
+  twice via identical dedup_keys, byte-identical row counts), a
+  never-raises-on-malformed-payload smoke test, and idempotent re-run of
+  both provider-data write helpers.
+
+**Tests run:** `python -m pytest api/services/entity_master/test_entity_master.py -v`
+— 29/29 passed.
+
+**Decisions made:**
+- `entity_id` for a `new_entity` event is generated in Python (ULID, no DB
+  round-trip needed) BEFORE `entity_events` is written, so — despite the
+  DDL comment's "NULL for a 'new_entity' event pre-assignment" phrasing —
+  no row is ever actually written with a NULL `entity_id` and then
+  backfilled; the "pre-assignment" moment is conceptual (before generation
+  in Python), not a required two-step database write. Simpler than a
+  write-then-UPDATE and produces the same observable row.
+- A rejected event is still durably recorded on `entity_events`
+  (`rejected_reason` set, non-NULL) — this was already spec'd (§8.4), but
+  worth stating: rejection is not a silent no-write, it's a write of ONE
+  row (the event ledger entry) and zero rows anywhere else.
+- Validation for every event type happens in one pass, entirely BEFORE any
+  table is touched (`_validate_and_resolve_entity_id`), so a rejected
+  `renamed` event, for example, never half-applies (old alias stays open,
+  new alias is never written) — verified explicitly by
+  `test_renamed_rejects_on_new_alias_collision_and_does_not_touch_old_alias`.
+- `vendor_symbol`/`figi` writes are two dedicated functions
+  (`set_vendor_symbol`/`set_figi`) OUTSIDE `apply_event`'s event vocabulary,
+  matching spec §4.2's `event_type` column, which lists no vendor/FIGI
+  event. Both are structurally incapable of touching `entities`/
+  `entity_aliases` — the concrete implementation of this checkpoint's
+  "provider data maps INTO canonical identity, never silently BECOMES it"
+  condition.
+
+**Deviations from spec (evidence wins, recorded):**
+- Spec §4.3's `relation_added` payload shape is `{entity_id,
+  related_entity_id, kind}` — no `valid_from`, despite
+  `entity_relations.valid_from` being `NOT NULL` in the same document's own
+  DDL (§4.2). Resolved by defaulting to the event's own application date
+  (`_today()`) when the payload omits it, rather than silently working
+  around the gap unnoted or raising on every `relation_added` call the
+  spec's own example payload shape would produce.
+
+**Unexpected discoveries:** The `relation_added` payload/DDL gap above.
+Everything else in §4.3/§8.4 matched the DDL exactly.
+
+**Risks:** None new. The collision guard and idempotent-replay behavior
+are both directly test-covered (AC-3, AC-5) rather than only reasoned
+about.
+
+**Remaining work:** Checkpoint 4 (seed machinery + dry runs, then the
+FIRST REAL SEED RUN — hard stop, owner review required before any further
+checkpoint). Checkpoints 5-8 not yet authorized.
+
+---

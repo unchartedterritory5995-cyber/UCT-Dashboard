@@ -18,11 +18,66 @@ then the cache only ever changes via an explicit caller-triggered rebuild
 (e.g. a test seeding rows directly at the SQLite layer, then calling
 `rebuild_cache()` to observe them through the read primitives).
 """
+import datetime
+import os
 import threading
+import time
 
 from api.services.entity_master import schema
 
 _WRITE_LOCK = threading.Lock()
+
+# ── Entity id generation (spec §3) ─────────────────────────────────────────
+# "ent_<26-char Crockford-base32 ULID>" — 48-bit ms timestamp (high bits) +
+# 80-bit crypto-random payload, encoded big-endian so string order matches
+# creation order. No new dependency: spec §3 explicitly calls for "a 26-line
+# pure-Python ULID generator... sufficient, needs no package addition."
+_CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # excludes I, L, O, U
+
+
+def _new_ulid() -> str:
+    ts_ms = int(time.time() * 1000)
+    rand80 = int.from_bytes(os.urandom(10), "big")
+    value = (ts_ms << 80) | rand80  # 128 bits total
+    chars = []
+    for _ in range(26):
+        chars.append(_CROCKFORD_ALPHABET[value & 0x1F])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+def new_entity_id() -> str:
+    return "ent_" + _new_ulid()
+
+
+def now_iso() -> str:
+    return datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
+
+
+# ── Write-time collision guard (spec §8.4, AC-3) ────────────────────────────
+_FAR_FUTURE = "9999-12-31"  # sentinel upper bound for an open-ended (valid_to=NULL) window
+
+
+def colliding_entity_ids(
+    alias: str,
+    valid_from: str,
+    valid_to: str | None,
+    exclude_entity_id: str | None,
+    db_path: str | None = None,
+) -> list[str]:
+    """entity_id(s) OTHER than `exclude_entity_id` whose currently-recorded
+    `alias` row overlaps the candidate window [valid_from, valid_to). Empty
+    list = no collision, safe to write. Interval-overlap test (NULL treated
+    as +infinity on both sides, per spec §8.4's literal predicate)."""
+    conn = _conn(db_path)
+    upper = valid_to or _FAR_FUTURE
+    rows = conn.execute(
+        "SELECT DISTINCT entity_id FROM entity_aliases "
+        "WHERE alias = ? AND valid_from < ? AND (valid_to IS NULL OR valid_to > ?) "
+        "AND entity_id != ?",
+        (alias, upper, valid_from, exclude_entity_id or ""),
+    ).fetchall()
+    return [r[0] for r in rows]
 
 _local = threading.local()
 
@@ -100,3 +155,149 @@ def alias_candidates_as_of(alias: str, as_of: str, db_path: str | None = None) -
         (alias, as_of, as_of),
     ).fetchall()
     return [r[0] for r in rows]
+
+
+# ── Write helpers (Checkpoint 3) ────────────────────────────────────────────
+# Every function below MUST be called while holding `_WRITE_LOCK` (enforced
+# by convention at the api.py call site, exactly mirroring bars_sqlite.py's
+# own "the lock only orders writers" contract — these functions do not
+# re-acquire the lock themselves, so they compose inside one apply_event()
+# transaction without deadlocking).
+
+def get_event_by_dedup_key(dedup_key: str, db_path: str | None = None):
+    """Row tuple or None. Used for apply_event()'s idempotent-replay check
+    (AC-5) — a second call with the same dedup_key never re-applies any
+    domain mutation, it only re-reads this row."""
+    conn = _conn(db_path)
+    return conn.execute(
+        "SELECT id, entity_id, event_type, rejected_reason FROM entity_events "
+        "WHERE dedup_key = ?",
+        (dedup_key,),
+    ).fetchone()
+
+
+def record_event(
+    dedup_key: str,
+    entity_id: str | None,
+    event_type: str,
+    payload_json: str,
+    source: str,
+    rejected_reason: str | None,
+    db_path: str | None = None,
+) -> int:
+    conn = _conn(db_path)
+    cur = conn.execute(
+        "INSERT INTO entity_events(dedup_key, entity_id, event_type, payload_json, source, applied_at, rejected_reason) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (dedup_key, entity_id, event_type, payload_json, source, now_iso(), rejected_reason),
+    )
+    return cur.lastrowid
+
+
+def create_entity(entity_id: str, entity_type: str, db_path: str | None = None) -> None:
+    conn = _conn(db_path)
+    now = now_iso()
+    conn.execute(
+        "INSERT INTO entities(entity_id, entity_type, lifecycle_state, lifecycle_since, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (entity_id, entity_type, "active", None, now, now),
+    )
+
+
+def add_alias(entity_id: str, alias: str, valid_from: str, event_id: int, db_path: str | None = None) -> None:
+    conn = _conn(db_path)
+    conn.execute(
+        "INSERT INTO entity_aliases(entity_id, alias, valid_from, valid_to, source, created_at) "
+        "VALUES (?,?,?,NULL,?,?)",
+        (entity_id, alias, valid_from, f"event:{event_id}", now_iso()),
+    )
+
+
+def has_open_alias(entity_id: str, alias: str, db_path: str | None = None) -> bool:
+    conn = _conn(db_path)
+    return conn.execute(
+        "SELECT 1 FROM entity_aliases WHERE entity_id = ? AND alias = ? AND valid_to IS NULL",
+        (entity_id, alias),
+    ).fetchone() is not None
+
+
+def close_open_alias(entity_id: str, alias: str, valid_to: str, db_path: str | None = None) -> bool:
+    """Closes the specific currently-OPEN row for (entity_id, alias) —
+    the one mutable field an append-only bitemporal store may touch
+    (spec §8.1: "closing the open end of a range is not rewriting history").
+    Returns False (no-op) if no such open row exists."""
+    conn = _conn(db_path)
+    cur = conn.execute(
+        "UPDATE entity_aliases SET valid_to = ? "
+        "WHERE entity_id = ? AND alias = ? AND valid_to IS NULL",
+        (valid_to, entity_id, alias),
+    )
+    return cur.rowcount > 0
+
+
+def set_lifecycle_state(entity_id: str, lifecycle_state: str, lifecycle_since: str, db_path: str | None = None) -> bool:
+    conn = _conn(db_path)
+    cur = conn.execute(
+        "UPDATE entities SET lifecycle_state = ?, lifecycle_since = ?, updated_at = ? WHERE entity_id = ?",
+        (lifecycle_state, lifecycle_since, now_iso(), entity_id),
+    )
+    return cur.rowcount > 0
+
+
+def add_relation(entity_id: str, related_entity_id: str, kind: str, valid_from: str, event_id: int, db_path: str | None = None) -> None:
+    conn = _conn(db_path)
+    conn.execute(
+        "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (entity_id, related_entity_id, kind, valid_from, f"event:{event_id}", now_iso()),
+    )
+
+
+def entity_exists(entity_id: str, db_path: str | None = None) -> bool:
+    conn = _conn(db_path)
+    return conn.execute(
+        "SELECT 1 FROM entities WHERE entity_id = ?", (entity_id,)
+    ).fetchone() is not None
+
+
+# ── Provider-data write helpers — never touch entities/entity_aliases ──────
+# "Provider-specific data mapping INTO canonical identity, never silently
+# BECOMING canonical identity" (Checkpoint 3 condition): these two functions
+# are the ONLY writers of entity_vendor_symbols/entity_figi, and neither one
+# can ever create an entity, mutate an alias, or change lifecycle state —
+# structurally, not just by convention, since neither table has a foreign
+# key TO entities that this code path writes anywhere but entity_id (an
+# existing id, never generated here).
+
+def upsert_vendor_symbol(
+    entity_id: str, vendor: str, vendor_symbol: str, valid_from: str, source: str,
+    db_path: str | None = None,
+) -> None:
+    """Idempotent: the UNIQUE index on (entity_id, vendor, valid_from) makes
+    a re-run of the same seed/reconciliation input a no-op, never a
+    duplicate row (spec §5.1 step 7's idempotency requirement)."""
+    conn = _conn(db_path)
+    conn.execute(
+        "INSERT INTO entity_vendor_symbols(entity_id, vendor, vendor_symbol, valid_from, valid_to, source, created_at) "
+        "VALUES (?,?,?,?,NULL,?,?) "
+        "ON CONFLICT(entity_id, vendor, valid_from) DO NOTHING",
+        (entity_id, vendor, vendor_symbol, valid_from, source, now_iso()),
+    )
+
+
+def upsert_figi(
+    entity_id: str, composite_figi: str | None, share_class_figi: str | None, source: str,
+    db_path: str | None = None,
+) -> None:
+    """Upsert (entity_figi.entity_id is a PRIMARY KEY — a current-snapshot
+    table, not a dated history, per spec §4.2). A re-run refreshes the
+    value rather than duplicating a row."""
+    conn = _conn(db_path)
+    conn.execute(
+        "INSERT INTO entity_figi(entity_id, composite_figi, share_class_figi, source, updated_at) "
+        "VALUES (?,?,?,?,?) "
+        "ON CONFLICT(entity_id) DO UPDATE SET "
+        "composite_figi=excluded.composite_figi, share_class_figi=excluded.share_class_figi, "
+        "source=excluded.source, updated_at=excluded.updated_at",
+        (entity_id, composite_figi, share_class_figi, source, now_iso()),
+    )
