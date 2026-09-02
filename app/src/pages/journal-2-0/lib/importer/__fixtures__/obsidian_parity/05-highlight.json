@@ -1,0 +1,15 @@
+{
+  "id": "05-highlight",
+  "input_markdown": "# Highlight\n\nThis is ==very important== to remember before sizing up.\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [],
+    "links": [],
+    "task_checked": [],
+    "text": "Highlight This is very important to remember before sizing up."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}

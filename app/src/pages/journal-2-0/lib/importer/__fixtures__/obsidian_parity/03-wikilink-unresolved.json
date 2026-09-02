@@ -1,0 +1,15 @@
+{
+  "id": "03-wikilink-unresolved",
+  "input_markdown": "# Unresolved Wikilink\n\nThere is no page for [[Ghost Note]] yet.\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [],
+    "links": [],
+    "task_checked": [],
+    "text": "Unresolved Wikilink There is no page for Ghost Note yet."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md"
+  ]
+}

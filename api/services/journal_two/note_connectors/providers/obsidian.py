@@ -85,7 +85,7 @@ provider-specific grammar. Two syntaxes, two decisions:
     using the SAME basename-map + path-qualified-suffix-match algorithm
     (`resolveTarget`/`buildBasenameMap`/`resolvePathQualified` in
     `obsidian.js`). A resolved plain wikilink becomes a real CommonMark link
-    `[display](import-link://{import_key})` — `import_key` comes from
+    `[display](<import-link://{import_key}>)` — `import_key` comes from
     `self.import_key(self.vault_id, resolved_path)`, the SAME method
     `engine.py::_touch_remote_index`/`_import_remote_notes` use to compute
     every OTHER note's import_key, so a link that resolves today points at
@@ -105,6 +105,27 @@ provider-specific grammar. Two syntaxes, two decisions:
     to fetch). An unresolved target (either syntax) degrades to plain text
     (the alias, or the target itself) — matching the JS adapter's own
     unresolved fallback — never a broken link or a crash.
+
+    ⛔ Parity-rail finding (2026-09-02, `obsidianParity.contract.test.js` +
+    `obsidian_parity_fixtures_gen.py`): the CommonMark link/image destination
+    `(resolved)`/`(import-link://{key})` above MUST be angle-bracket-wrapped
+    (`(<resolved>)`/`(<import-link://{key}>)`) — a bare destination
+    containing a space is NOT valid CommonMark and markdown-it-py degrades
+    the WHOLE construct to literal visible text (`[disp](a b.md)` renders as
+    the seven characters `[disp](a b.md)`, not a link). Since Obsidian's own
+    default note-naming convention is "Title Case With Spaces.md", this was
+    a near-guaranteed real-world failure on the sync lane while the SAME
+    vault imported correctly via the client drag-in lane (which builds an
+    `<a data-import-link="...">` HTML attribute directly — HTML attribute
+    values tolerate spaces natively, so the client lane never hit this).
+    Found and fixed by the parity rail itself, the day it was built — see
+    the rail's own report for the RED reproduction. `md_to_tiptap` /
+    markdown-it-py percent-encodes the destination when parsing the
+    angle-bracket form (`Target Note.md` -> `href` ending `...Target%20Note.
+    md`); the parity rail's normalizer un-quotes this back to the literal
+    path before comparing lanes, since the encoding is a markdown-parser
+    artifact, not a semantic difference from the client lane's unencoded
+    `href`.
   - `==highlight==` — the target TipTap schema (`tiptap.js::buildExtensions`,
     verified against the installed `@tiptap/starter-kit@3.23.6` +
     `app/package.json`) has NO highlight/mark extension registered at all;
@@ -132,7 +153,54 @@ byte-for-byte. A vault filename containing markdown-significant characters
 (`_`, `*`, a stray `` ` ``) could theoretically pick up unintended emphasis
 from neighboring text. This is a pre-existing class of risk this pre-pass
 does not introduce (any hand-authored markdown has the same property) and
-is left unescaped rather than adding a bespoke markdown-escaper here.
+is left unescaped rather than adding a bespoke markdown-escaper here. The
+angle-bracket destination wrapping added for the space-in-path fix above
+carries the same accepted-risk shape one level further: a vault filename
+containing a literal `<`, `>`, or backslash could in principle break the
+angle-bracket destination form. Vault paths originate from the plugin's own
+filesystem walk, not free-text user input, so this is judged as remote as
+the existing markdown-significant-character risk above, and is accepted on
+the same terms rather than adding a bespoke escaper.
+
+── Deliberately duplicated, kept honest by a rail — NOT an oversight ───────
+
+This provider and `adapters/obsidian.js` are two independent, hand-written
+implementations of the same Obsidian grammar (`[[wikilinks]]`,
+`==highlight==`, task lists, embeds) for two different transports (this
+provider: the plugin's persistent per-vault PUSH sync; the JS adapter: a
+member dragging an exported vault into the file importer, a one-shot local
+batch). That duplication was accepted deliberately — providers owning their
+own format quirks matches the Dropbox precedent, and porting Obsidian's
+grammar into the shared `convert/` layer conflicted with a concurrency
+constraint at the time this was built. "One grammar, two hand-written
+copies" drifts silently unless something watches both copies agree, so
+**do not "fix" the duplication by merging the two lanes** — instead:
+
+  - `convert/obsidian_parity_fixtures_gen.py` (Python, the fixture
+    generator/authority for this rail — mirrors `convert/fixtures_gen.py`'s
+    shape) runs THIS provider's pre-pass + the real converter over a shared
+    set of committed markdown fixtures (`convert/obsidian_fixtures_in/`) and
+    reduces the result to a semantic summary (resolved link targets, image
+    targets, task-checked states, plain text).
+  - `app/.../lib/importer/obsidianParity.contract.test.js` (JS, vitest)
+    loads those committed summaries, re-derives the SAME summary by running
+    `adapters/obsidian.js` + the real client `htmlToNote` pipeline over the
+    identical inputs, and asserts equality. **This is the rail that goes red
+    the moment either lane's pre-pass silently stops handling a construct
+    the other still does** — see that file's own docstring for the
+    RED/GREEN proof this was built against (the space-in-path bug above was
+    found BY this rail, not discovered separately and then encoded into it).
+  - `test_obsidian_parity_fixtures.py` (Python, pytest) is the drift
+    detector on the Python side alone, mirroring
+    `test_note_convert_fixtures.py`: it fails if the committed fixtures
+    under `__fixtures__/obsidian_parity/` are stale relative to what
+    `obsidian_parity_fixtures_gen.py` would produce today.
+
+If you are reading this because you noticed the duplication and are
+tempted to delete one copy: don't, without first checking whether the two
+rails above are still green, and if you DO intentionally change what one
+lane accepts, regenerate the fixtures and expect (and read) a RED
+`obsidianParity.contract.test.js` naming exactly what moved.
 
 Tenant scoping is structural, not credential-derived: every query below
 filters on `(self.user_id, self.vault_id)`, both bound at CONSTRUCTION time
@@ -266,19 +334,26 @@ def _transform_wiki_and_embeds(
                 # registers this as a normal media ref (see module
                 # docstring); this provider's own fetch_media honestly
                 # refuses it (no attachment bytes are ever pushed).
-                return f"![{_basename(resolved)}]({resolved})"
+                # Angle-bracket destination form (`(<...>)`) -- see the
+                # module docstring's "Parity-rail finding" note: a bare
+                # `(resolved)` destination containing a space (Obsidian's
+                # own default note-naming convention) is not a valid
+                # CommonMark link destination and degrades the whole embed
+                # to LITERAL VISIBLE TEXT, never an image.
+                return f"![{_basename(resolved)}](<{resolved}>)"
             # A resolved non-image embed (another note, a PDF, ...) has no
             # transclusion/attachment-chip support here (out of this task's
             # scope) -- degrade to an ordinary link, the most useful thing
             # this converter CAN represent.
             key = import_key_fn(vault_id, resolved)
-            return f"[{_basename(resolved)}](import-link://{key})"
+            return f"[{_basename(resolved)}](<import-link://{key}>)"
 
         display = (raw_alias or raw_target).strip() or raw_target
         if resolved is None:
             return display  # unresolved wikilink -> plain text, never a dead link
         key = import_key_fn(vault_id, resolved)
-        return f"[{display}](import-link://{key})"
+        # Angle-bracket destination form -- same space-safety fix as above.
+        return f"[{display}](<import-link://{key}>)"
 
     return _WIKI_RE.sub(repl, segment)
 

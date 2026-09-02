@@ -1,0 +1,18 @@
+{
+  "id": "04-embed-image",
+  "input_markdown": "# Embed Image\n\n![[chart.png]]\n\nAbove is today's chart.\n",
+  "self_path": "a.md",
+  "server": {
+    "images": [
+      "files/chart.png"
+    ],
+    "links": [],
+    "task_checked": [],
+    "text": "Embed Image Above is today's chart."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "files/chart.png"
+  ]
+}
