@@ -260,9 +260,29 @@ Every post is the **"since the open"** board, so 10:00 is a 30-minute pulse and
 ```bash
 railway variables --service web \
   --set BUZZ_DIGEST_ENABLED=1 \
+  --set BUZZ_DIGEST_CHANNEL=<channel-id>
+railway redeploy --service web --yes
+```
+
+**That is option A — a channel id, no webhook to create.** The bot already holds
+`SEND_MESSAGES`, so a channel id is a complete destination.
+
+⚠️ It can only post where it can *see*. Measured 2026-09-02, the bot is postable
+in exactly ONE channel — `#main-chat` (`1216816863313657886`), the one granted
+in Step 1. For anywhere else, either grant it View Channel + Send Messages there
+too, or use option B.
+
+**Option B — a webhook.** Works for any channel, including ones the bot cannot
+see, but you create it by hand (the bot has no `MANAGE_WEBHOOKS`):
+
+```bash
+railway variables --service web \
+  --set BUZZ_DIGEST_ENABLED=1 \
   --set BUZZ_DIGEST_WEBHOOK=<webhook-url>
 railway redeploy --service web --yes
 ```
+
+If both are set the **channel wins** — it is the more specific instruction.
 
 Change the cadence with `BUZZ_DIGEST_TIMES` (comma-separated `HH:MM`, ET) —
 e.g. `--set BUZZ_DIGEST_TIMES=10:00,12:30,16:15` for three. One scheduler job
