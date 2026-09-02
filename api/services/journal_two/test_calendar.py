@@ -969,3 +969,86 @@ def test_day_detail_account_mode_breakdown(db_conn, monkeypatch):
     assert round(m["unrealizedChange"], 2) == 300.0
     assert round(m["accountBalanceChange"], 2) == round(
         m["realizedPnl"] + m["unrealizedChange"], 2)
+
+
+# ── serve_attachment_path — path-containment guard ───────────────────────────
+#
+# Same defect shape fixed in notes.py::serve_note_image_path: containment was
+# checked against a candidate directory built FROM the caller's user_id
+# (`root_dir = root/user_id/date`), which is a tautology once filename/date are
+# clean (target is always candidate/filename) — it constrains nothing about
+# user_id. `date` is separately constrained to YYYY-MM-DD by
+# `Date.fromisoformat`, so user_id was the one axis with no guard at all.
+
+def _patch_single_attachment_root(monkeypatch, cal, root):
+    """Redirect BOTH candidate resolvers to one controlled root, regardless of
+    which one `serve_attachment_path` currently calls — so a discrimination
+    run (temporarily reverting the containment fix, which also changes which
+    name is called) can't accidentally pass because the unpatched resolver
+    fell through to the real, unrelated attachment root instead of failing to
+    find the planted file for the right reason."""
+    monkeypatch.setattr(cal, "_read_candidates_with_roots",
+                         lambda rel: [(root, root / rel)])
+    monkeypatch.setattr(cal, "_read_candidates", lambda rel: [root / rel])
+
+
+def test_serve_attachment_path_happy_path(monkeypatch, tmp_path):
+    import api.services.journal_two.calendar as cal
+    root = tmp_path / "vol" / "j2_attachments"
+    _patch_single_attachment_root(monkeypatch, cal, root)
+
+    d = root / "u1" / "2026-06-02"
+    d.mkdir(parents=True)
+    (d / "pic.png").write_bytes(b"png")
+
+    assert cal.serve_attachment_path("u1", "2026-06-02", "pic.png") == d / "pic.png"
+
+
+def test_serve_attachment_path_rejects_traversal_filename(monkeypatch, tmp_path):
+    import api.services.journal_two.calendar as cal
+    root = tmp_path / "vol" / "j2_attachments"
+    _patch_single_attachment_root(monkeypatch, cal, root)
+    assert cal.serve_attachment_path("u1", "2026-06-02", "../../x") is None
+
+
+def test_crafted_user_id_cannot_escape_the_attachment_root(monkeypatch, tmp_path):
+    """The axis that was never covered: a crafted user_id walks
+    root/user_id/date right out of the attachment root. Plant a REAL file at
+    the escaped location so a regression would actually get served, not just
+    fail `.exists()`."""
+    import api.services.journal_two.calendar as cal
+    root = tmp_path / "vol" / "j2_attachments"
+    root.mkdir(parents=True)
+    _patch_single_attachment_root(monkeypatch, cal, root)
+
+    # root/<user_id>/2026-06-02, with user_id unwinding all the way past root
+    # and back down into a sibling directory.
+    outside = tmp_path / "outside-user" / "2026-06-02"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()  # sanity: the file is really there
+
+    assert cal.serve_attachment_path(
+        "../../outside-user", "2026-06-02", "secret.png") is None
+
+
+def test_root_anchored_containment_holds_even_if_segment_validation_is_bypassed(
+    monkeypatch, tmp_path,
+):
+    """Fix 1 (root-anchored containment) must survive on its own — it exists
+    to protect a future caller that skips the cheap segment-validation layer.
+    Disable that layer here and confirm the same escape is still refused, so
+    this isn't just re-testing validation under another name."""
+    import api.services.journal_two.calendar as cal
+    monkeypatch.setattr(cal, "_is_safe_path_segment", lambda v: True, raising=False)
+    root = tmp_path / "vol" / "j2_attachments"
+    root.mkdir(parents=True)
+    _patch_single_attachment_root(monkeypatch, cal, root)
+
+    outside = tmp_path / "outside-bypass" / "2026-06-02"
+    outside.mkdir(parents=True)
+    (outside / "secret.png").write_bytes(b"SECRET")
+    assert (outside / "secret.png").exists()
+
+    assert cal.serve_attachment_path(
+        "../../outside-bypass", "2026-06-02", "secret.png") is None

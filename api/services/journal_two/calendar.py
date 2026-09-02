@@ -1038,6 +1038,7 @@ def get_day_notes(
 
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
+    read_candidates_with_roots as _read_candidates_with_roots,
 )
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral on Railway (see
@@ -1099,6 +1100,16 @@ async def save_attachment(
     }
 
 
+def _is_safe_path_segment(value: str) -> bool:
+    """One path segment, same axis `filename` is already checked on below: no
+    separators (so it can't smuggle extra path components) and no leading
+    dot (so it can't be `.`/`..`). Mirrors
+    `notes.py::serve_note_image_path._is_safe_path_segment` — same shape,
+    same fix, applied here to `user_id` (`date` is already constrained to
+    YYYY-MM-DD by `Date.fromisoformat` above)."""
+    return bool(value) and "/" not in value and "\\" not in value and not value.startswith(".")
+
+
 def serve_attachment_path(
     user_id: str,
     date: str,
@@ -1107,14 +1118,27 @@ def serve_attachment_path(
     """Resolve an image filename to a disk path. Returns None if missing
     or attempting to escape the user/date directory (path traversal)."""
     Date.fromisoformat(date)  # validates date format
+    # Cheap, precise layer: user_id must be a single path segment.
+    if not _is_safe_path_segment(user_id):
+        return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
+    # Structural layer: containment is checked against the ATTACHMENT ROOT
+    # itself (primary or legacy — whichever root this candidate came from),
+    # never against the candidate directory built from user_id/date. That
+    # candidate is built FROM the caller's user_id, so a containment check
+    # anchored on it only proves the target sits inside a directory the
+    # caller helped construct — it says nothing about the real root. This
+    # mirrors the notes.py::serve_note_image_path fix exactly (same defect:
+    # the check constrained only the filename axis, which was never the
+    # weak one).
+    #
     # Primary root, then the LEGACY repo-relative tree (see attachment_root.py);
-    # the traversal guard is re-applied per candidate, never skipped.
-    for root_dir in _read_candidates(Path(user_id) / date):
-        target = (root_dir / filename).resolve()
+    # the containment guard is re-applied per candidate, never skipped.
+    for root, base in _read_candidates_with_roots(Path(user_id) / date):
+        target = (base / filename).resolve()
         try:
-            target.relative_to(root_dir.resolve())
+            target.relative_to(root.resolve())
         except ValueError:
             continue
         if target.exists():

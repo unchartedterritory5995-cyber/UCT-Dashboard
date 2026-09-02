@@ -6,8 +6,17 @@ import { MemoryRouter } from 'react-router-dom'
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
 // list or the editor.
 const mockRefresh = vi.fn()
+const mockLoadMore = vi.fn()
+// A vi.fn() wrapper (not a bare factory) so individual tests can distinguish
+// the tab's TWO useJ2Notes calls by their args — the main (filtered) list vs
+// the sidebar's unfiltered `sort: 'title'` fetch — the way FolderSidebar's
+// own test file already does for its multiple hook calls.
+const useJ2NotesMock = vi.fn(() => ({
+  notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(),
+  total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false,
+}))
 vi.mock('../hooks/useJ2Notes', () => ({
-  default: () => ({ notes: [], isLoading: false, error: null, refresh: mockRefresh }),
+  default: (...args) => useJ2NotesMock(...args),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
   default: () => <div data-testid="folder-sidebar" />,
@@ -43,6 +52,12 @@ let lastPostBody = null
 beforeEach(() => {
   lastPostBody = null
   mockRefresh.mockClear()
+  mockLoadMore.mockClear()
+  useJ2NotesMock.mockReset()
+  useJ2NotesMock.mockImplementation(() => ({
+    notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(),
+    total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false,
+  }))
   global.fetch = vi.fn((url, opts) => {
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
@@ -166,5 +181,46 @@ describe('NotebookTab — import', () => {
     expect(mockRefresh).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('fire onImported'))
     expect(mockRefresh).toHaveBeenCalled()
+  })
+})
+
+describe('NotebookTab — pagination (Task 11: the browse path must survive a migrated library)', () => {
+  // The sidebar's OWN unfiltered `sort: 'title'` fetch shares this same
+  // mocked hook — route it to an empty, harmless response so these
+  // assertions are only about the main (filtered) list's wiring.
+  function mockMainList({ notes, total, hasMore = false, isLoadingMore = false }) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes, isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total, hasMore, loadMore: mockLoadMore, isLoadingMore }
+    })
+  }
+
+  it('shows how many of how many notes are loaded — the honest count, not a silent 100-row wall', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 250, hasMore: true })
+    renderTab()
+    expect(screen.getByText('Showing 1 of 250 notes')).toBeInTheDocument()
+  })
+
+  it('renders "Load more" only while more of the total remains unloaded', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 1, hasMore: false })
+    renderTab()
+    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Showing 1 of 1 note')).toBeInTheDocument()
+  })
+
+  it('clicking "Load more" calls the hook\'s loadMore — fetching the next page is delegated, not reimplemented here', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 250, hasMore: true })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /load more/i }))
+    expect(mockLoadMore).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the control and says so while a page is in flight', () => {
+    mockMainList({ notes: [{ id: 'n1', title: 'A' }], total: 250, hasMore: true, isLoadingMore: true })
+    renderTab()
+    const btn = screen.getByRole('button', { name: /loading/i })
+    expect(btn).toBeDisabled()
   })
 })

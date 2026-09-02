@@ -26,6 +26,7 @@ import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
+import { prewarmVisibleList } from '../../../utils/prefetchBars'
 
 const getFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -298,6 +299,16 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   })
   const baseTickers = useMemo(() => (data?.tickers || []).map(t => t.sym), [data])
   const tickersKey = baseTickers.join(',')
+
+  // Make clicking any plotted point fast: warm the whole visible universe's daily
+  // bars into IDB (+ top rows to sync mem) up front, so a click paints from cache
+  // instead of a cold ~150ms /api/bars fetch on landing. Bounded / idle-deferred /
+  // backpressure-guarded + capped (500) inside prewarmVisibleList. Market Map is
+  // click-driven (no arrow nav), so there are no ±neighbors to promote — the
+  // whole-set warm is the instant-scan equivalent here.
+  useEffect(() => {
+    if (baseTickers.length) prewarmVisibleList(baseTickers, { chartTf: 'D' })
+  }, [baseTickers])
 
   // ── Live overlay — fast poll so the dots glide (POST the known ticker set).
   // The server serves a REGULAR-SESSION snapshot that freezes at 4pm, so off-hours

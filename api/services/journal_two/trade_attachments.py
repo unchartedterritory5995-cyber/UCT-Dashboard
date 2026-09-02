@@ -6,8 +6,11 @@ are purged and reinserted with fresh uuids on every full resync. The attachment
 FILES live under the shared `_ATTACHMENT_ROOT` (same tree the day-notes / notebook
 images use), so the P1a nightly R2 backup already covers them.
 
-Validation (5 MB cap, png/jpg/jpeg/gif/webp, raw bytes stored — no re-encode) and
-the path-traversal guard mirror `calendar.py::save_attachment` / `serve_attachment_path`.
+Validation (5 MB cap, png/jpg/jpeg/gif/webp, raw bytes stored — no re-encode) is
+enforced here. The path-traversal guard mirrors `calendar.py::serve_attachment_path`
+exactly: user_id/ref_dir/filename are each validated as a single path segment, AND
+containment is checked against the resolved `_ATTACHMENT_ROOT` itself — never
+against a directory built from those same caller-supplied values.
 """
 from __future__ import annotations
 
@@ -211,19 +214,40 @@ def relocate_ref_dir(user_id: str, old_ref: str, new_ref: str) -> int:
     return moved
 
 
+def _is_safe_path_segment(value: str) -> bool:
+    """One path segment, same axis filename/ref_dir are already checked on
+    below: no separators (so it can't smuggle extra path components) and no
+    leading dot (so it can't be `.`/`..`). Mirrors
+    `calendar.py::_is_safe_path_segment` / `notes.py::_is_safe_path_segment`
+    — same shape, same fix, applied here to user_id."""
+    return bool(value) and "/" not in value and "\\" not in value and not value.startswith(".")
+
+
 def serve_trade_attachment_path(
     user_id: str, ref_dir: str, filename: str,
 ) -> Path | None:
     """Resolve a trade attachment to a disk path, or None if missing or the
     filename attempts to escape the (user, ref_dir) directory (traversal guard)."""
+    # Cheap, precise layer: user_id must be a single path segment (filename
+    # and ref_dir get the same check just below, as they already did).
+    if not _is_safe_path_segment(user_id):
+        return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
     if "/" in ref_dir or "\\" in ref_dir or ref_dir.startswith("."):
         return None
+    # Structural layer: containment is checked against the true attachment
+    # ROOT, never against `base` (= _ATTACHMENT_ROOT/user_id/trades/ref_dir).
+    # `base` is built FROM the caller's user_id, so a containment check
+    # anchored on it only proves the target sits inside a directory the
+    # caller helped construct — it says nothing about the real root. Mirrors
+    # the notes.py::serve_note_image_path / calendar.py::serve_attachment_path
+    # fix exactly (same defect: the check constrained only the filename/ref_dir
+    # axis, which was never the weak one).
     base = _ATTACHMENT_ROOT / user_id / "trades" / ref_dir
     target = (base / filename).resolve()
     try:
-        target.relative_to(base.resolve())
+        target.relative_to(_ATTACHMENT_ROOT.resolve())
     except ValueError:
         return None
     if not target.exists():

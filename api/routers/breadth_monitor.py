@@ -449,6 +449,14 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     year list) and `next_date` (the session after the top row — its ▶ step).
     """
     anchor = anchor if anchor in ("le", "ge") else "le"
+    # Request-driven self-heal (cooldown-gated, background): any Monitor view
+    # re-checks the newest days so a corrupt collection the scheduled passes missed
+    # (or ran too early to fix) gets healed from bars promptly.
+    try:
+        from api.services import breadth_self_heal
+        breadth_self_heal.maybe_auto_heal()
+    except Exception:
+        pass
     try:
         rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
         top = rows[0]["date"] if rows else None
