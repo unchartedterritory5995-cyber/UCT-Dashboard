@@ -378,74 +378,96 @@ Owner reviewed Checkpoint 4's report and approved Checkpoints 5-8, with two
 findings required to be investigated (not fixed) before proceeding. Both are
 now root-caused.
 
-### Finding A — the stale `delisted_tickers_bulk.json`
+### Finding A — CORRECTED during Checkpoint 7 (2026-09-02): the stale file
+### is `cap_universe.json`, NOT `delisted_tickers_bulk.json`
 
-**Origin.** `tools/enumerate_delisted.py` (read in full). A manual, one-off
-script: fetches Massive's `active=true` set (`live`) and `active=false, type=CS`
-set once, computes `bare_live = sym in live` per delisted record, and writes
-`api/data/delisted_tickers_bulk.json`. Its own docstring: "Run with the Massive
-key in the environment... Read-only against the provider; writes one local
-JSON file" — a hand-run tool, never described as recurring.
+**The paragraphs originally here (visible in this file's own git history,
+commit `b78382f63`) reached the wrong diagnosis.** They are not restated —
+this section replaces them, per the same "correct in place, don't silently
+edit history" discipline this codebase's own `CLAUDE.md` uses. What follows
+is the verified account, established while building Checkpoint 7's
+reconciliation job and running its required dry run against real data.
 
-**Refresh cadence.** `git log -- api/data/delisted_tickers_bulk.json` shows
-exactly three commits, all on **2026-08-09** (bulk-enumerate ~6,177 names →
-bare-reused-symbol fix → sector/industry enrichment), and nothing since.
-`grep -rn "enumerate_delisted" api/main.py` returns nothing — it is not
-registered in the APScheduler instance, and it does not appear in `CLAUDE.md`'s
-Task Scheduler roster either. **It has never been regenerated since creation.**
-Today (2026-09-02) is 24 days later. Only 6 of its 6,177 entries carry
-`bare_live=true` (the generator's own at-generation-time live-check); the other
-117 of the 123 collisions Checkpoint 4 found became stale purely from 24 days
-of unrefreshed provider drift after generation — no bug in the generator
-itself, just no refresh mechanism.
+**What actually happened.** Checkpoint 4's real seed run found 123 tickers
+where `delisted_registry` (via `delisted_tickers_bulk.json`) disagreed with
+Entity Master's own seeded "active" state. The original write-up assumed
+the disagreement meant the delisted-registry file was stale, using `AL`
+(Air Lease Corp) as the example — reasoning that because `AL` appears in
+`cap_universe.symbols()`, it must be currently live. **That inference was
+never independently checked against Massive's own data, and it was wrong.**
 
-**Consumers.** `grep -rln "delisted_registry" api/` → `api/routers/bars.py`
-(no actual `delisted_registry.*` call, an unrelated import), `api/routers/
-delisted.py`, `api/routers/ticker_search.py` (already known from Checkpoint 1),
-`api/services/engine.py:717`, `api/services/theme_index.py:142`, `api/services/
-theme_performance.py:143,640`. **The three `engine.py`/`theme_*.py` call sites
-all use `delisted_registry.is_delisted(sym)` as an EXCLUSION FILTER on theme/
-holdings lists** — confirmed, not inferred.
+**Direct verification (Checkpoint 7), querying Massive's live API
+directly** (`GET /v3/reference/tickers?ticker=AL&active=false`):
+```json
+{"ticker": "AL", "name": "Air Lease Corporation", "active": false,
+ "delisted_utc": "2026-04-09T00:00:00Z", ...}
+```
+Massive's OWN authoritative data says `AL` has been delisted since
+2026-04-09 — the **exact date** `delisted_tickers_bulk.json` already had.
+Systematically re-checked all 101 of the original 123 collision-tickers
+that came from `cap_universe.symbols()` specifically: **99 exact date
+matches against Massive's live `active=false` data, 2 with a one-day
+(timezone-rounding) difference, zero found to be genuinely still active.**
+`delisted_tickers_bulk.json` was accurate for every one of these.
 
-**Confirmed current downstream impact (pre-existing, NOT caused by Entity
-Master):** `delisted_registry.is_delisted("AL")` returns `True` today, because
-the bulk file's `AL` entry (bare key, `bare_live` absent/false at generation
-time, single delisting event) still resolves. AL (Air Lease Corp) is a real,
-currently-trading NYSE name on `cap_universe.symbols()` right now. So AL — and
-presumably some fraction of the other 122 — is silently excluded from any
-theme holdings list it should appear in. **This is a real, already-shipping
-product defect, unrelated to and predating Entity Master's own build**;
-Entity Master's seed pass only discovered it as a side effect of
-cross-referencing the file against live data. Reported as `RG-33` in the
-`terminal-research` worktree's `RESEARCH_GAPS.md` (program-wide record) and
-here (this build's own record) — not fixed, per the owner's explicit scope
-boundary.
+**The actually-stale file is `api/data/cap_universe.json`.** `git log`
+shows it was last touched 2026-07-20, and additively ("add 32
+live-but-uncharted tickers, 3710→3742" — not a full membership prune). `AL`
+delisted 2026-04-09, before that July touch, so an additive-only update
+never dropped it. **Entity Master's own seed script (Checkpoint 4) is what
+inherited this staleness**: it trusted `cap_universe.symbols()` membership
+as "active" for any symbol without independently checking Massive's own
+`active` flag, so ~101 tickers `cap_universe.json` still lists (but Massive
+has actually delisted) got seeded as active entities — a genuine defect in
+THIS build's own seed logic, not a downstream consumer's problem to fix.
 
-**Can Entity Master or its reconciliation path be fooled by this staleness?**
-No, by construction, not by an added guard:
-- The **seed script** (Checkpoint 4, already run) reads `delisted_registry.
-  all_entries()` ONLY during the one-time backfill's delisted-entity pass
-  (§5.1 step 4b), and — as already demonstrated by the real run — it always
-  checks `em_api.resolve(ticker, ...)` against ALREADY-CREATED entities before
-  writing anything. All 123 stale records were correctly skipped, not
-  incorrectly applied. Verified again this pass with a fresh read-only query
-  against the real seed database (0 collisions caused any entity mutation).
-- The **reconciliation job** (Checkpoint 7, per spec §10.2) never reads
-  `delisted_registry`/`delisted_tickers_bulk.json` **at all** — its only input
-  is a fresh, live call to `massive.list_reference_tickers(active=True)` at
-  RUN TIME, diffed against the store's own currently-open aliases. This was
-  true in the spec before this investigation and is unchanged by it; Checkpoint
-  7's implementation (below) preserves this — `delisted_registry` does not
-  appear anywhere in `reconciliation.py`'s import list, which is itself part
-  of Checkpoint 7's own test coverage (`test_reconciliation_never_imports_
-  delisted_registry`).
-- **No new code was added to re-check or "fix" the bulk file** — per the
-  owner's explicit instruction, this remains entirely out of Entity Master's
-  scope. The only Entity-Master-side guarantee needed, and the one already
-  verified, is that Entity Master itself cannot be misled by the file's
-  staleness into mutating a live entity — confirmed above on both of its two
-  actual consumers of that file (seed script; reconciliation does not consume
-  it at all).
+**`delisted_registry.is_delisted()` excluding these tickers from
+`theme_index.py`/`theme_performance.py`/`engine.py`'s holdings filters
+(the "confirmed downstream impact" the original write-up flagged) is
+CORRECT behavior, not a defect** — those tickers are genuinely delisted.
+There is no product bug to report here after all; `RG-33` in the
+`terminal-research` worktree has been corrected in place (commit
+`633691038`) rather than left standing.
+
+**Reconciliation's dry run independently confirms the corrected diagnosis
+and demonstrates its own value.** Of the real dry run's 131 proposed
+delistings (detail in Checkpoint 7 below): 101 exactly match the
+originally-flagged collision set, and **30 more are tickers delisted
+SINCE `delisted_tickers_bulk.json`'s 2026-08-09 generation that neither
+static file knows about yet** — reconciliation, reading only live Massive
+data, is demonstrably more current than either.
+
+**Can Entity Master or its reconciliation path be fooled by ANY stale
+legacy dataset (`cap_universe.json`, `delisted_tickers_bulk.json`, or
+otherwise)?** No, by construction:
+- The **seed script** (Checkpoint 4) reads `cap_universe.symbols()` and
+  `delisted_registry.all_entries()` only during the one-time backfill, and
+  — regardless of which file happens to be stale — always checks
+  `em_api.resolve(ticker, ...)` against already-created entities before
+  writing, so a collision is skipped, never silently applied incorrectly.
+  This protection worked as designed both times (Checkpoint 4's original
+  123 collisions, and this corrected understanding of them).
+- The **reconciliation job** (Checkpoint 7, below) never reads
+  `cap_universe.py` OR `delisted_registry.py` **at all** — its only input is
+  a fresh, live call to `massive.list_reference_tickers(active=True)` at
+  RUN TIME. This is what makes it capable of CORRECTING the staleness
+  either static file introduces, rather than being fooled by it — confirmed
+  by `test_reconciliation_never_imports_delisted_registry` (AST-based) and
+  by `reconciliation.py` having no `cap_universe` import either.
+- **No new code was added to "fix" either legacy file.** Per the owner's
+  explicit instruction, that remains out of Entity Master's scope — the
+  reconciliation job corrects ENTITY MASTER's own store going forward; it
+  is not a substitute for refreshing `cap_universe.json` or scheduling
+  `tools/enumerate_delisted.py`, which are separate, narrowly-scoped
+  follow-ups for a normal operations session (per `RG-33`'s corrected
+  entry).
+
+**Lesson recorded for this build's own record:** a symbol's presence in a
+membership list is not itself evidence of current trading status —
+independently check the provider's own status field before asserting
+staleness of a DIFFERENT file. This mistake and its correction are both
+left visible (this section, and `RG-33`) rather than the wrong version
+being quietly edited away.
 
 ### Finding B — the large `index` universe (13,322 entities)
 
