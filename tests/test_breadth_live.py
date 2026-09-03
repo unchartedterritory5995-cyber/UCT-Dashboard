@@ -28,6 +28,15 @@ import pytest
 
 from api.services import breadth_live as bl
 
+
+@pytest.fixture(autouse=True)
+def _no_levels_persist(monkeypatch):
+    """Levels/anchor disk persistence OFF by default so tests don't read/write real
+    snapshots or pollute each other via a shared file. The dedicated persistence
+    tests opt back in with their own tmp DATA_DIR."""
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)
+
+
 # The collector lives in a sibling repo and is NOT deployed with the dashboard,
 # so the drift check below runs only where it is checked out.
 COLLECTOR = Path(
