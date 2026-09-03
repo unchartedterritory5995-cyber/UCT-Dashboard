@@ -991,12 +991,25 @@ def _apply_resolved_body(
     window between confirm and this write (via `notes_svc.update_note`,
     which always bumps `updated_at`), the guard fails (rowcount 0) and this
     returns False — the caller must NOT overwrite in that case; it re-routes
-    the already-resolved content into a conflict sibling instead (spec §6)."""
+    the already-resolved content into a conflict sibling instead (spec §6).
+
+    audit B5: also recomputes `import_media_pending` from the body this call
+    is ABOUT to write (not the note's prior state) — the same substring scan
+    `_find_stranded_placeholder_ids` already uses. Media resolves fully in
+    one pass, so a media-only note clears the flag here. A note whose links
+    are deliberately left as an inert intact placeholder (the per-provider
+    docstrings above: unresolved marks are never stripped, on purpose, so
+    self-heal has a real signal to retry) correctly STAYS pending — that is
+    what lets `import_confirm`'s own media-pending gate re-offer it for
+    resolution on a later sync without waiting on the separate
+    `_find_stranded_placeholder_ids` re-scan to notice."""
     body_plain = notes_svc.extract_plain_text(body)
+    body_blob = json.dumps(body)
+    still_pending = 1 if ("import-ref://" in body_blob or "import-link://" in body_blob) else 0
     cur = conn.execute(
-        "UPDATE j2_notes SET body_json = ?, body_plain = ? "
+        "UPDATE j2_notes SET body_json = ?, body_plain = ?, import_media_pending = ? "
         "WHERE id = ? AND user_id = ? AND updated_at = ?",
-        (json.dumps(body), body_plain, note_id, user_id, expected_updated_at),
+        (body_blob, body_plain, still_pending, note_id, user_id, expected_updated_at),
     )
     conn.commit()
     return cur.rowcount > 0

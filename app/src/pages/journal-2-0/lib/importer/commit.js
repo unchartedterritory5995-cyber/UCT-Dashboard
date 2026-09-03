@@ -252,7 +252,11 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
   const idByKey = {}
   // importKeys of notes actually written this run (created or updated) — the
   // only ones that need the media/link phase. A `skipped` note (fingerprint
-  // unchanged) was already fully committed by an earlier run.
+  // unchanged) was already fully committed by an earlier run — genuinely
+  // true as of audit B5's fix: the server's skip decision now also checks
+  // `import_media_pending`, so a note whose media/link phase never finished
+  // clean (a failed upload, a PUT that never landed) comes back `updated`,
+  // not `skipped`, and lands in `toCommit` below to retry that phase.
   const toCommit = []
 
   const confirmTotal = docs.length
@@ -367,19 +371,26 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
           summary.failures.push({ name: item.name || item.ref, reason: err?.message || String(err) })
         }
       }
-      const { body: rewritten } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
+      const { body: rewritten, droppedMedia } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
       // The confirm step already counted this note as created/updated — that
       // outcome stands regardless of what happens here. A failure below is
       // reported via `failures` (the note's persisted body may still carry
       // literal import-ref://import-link:// placeholders), and — critically —
       // must NOT reject the whole runImport promise: swallow it and move on
       // to the next note so one bad PUT can't strand every note after it.
+      //
+      // audit B5: `importMediaPending` is the honest signal `import_confirm`
+      // gates its skip-on-fingerprint-match decision on. A dropped media ref
+      // means this note's import is NOT actually done — say so, so a later
+      // re-import of the same export retries this note's media instead of
+      // matching its fingerprint and skipping it (and the still-missing
+      // image) forever.
       try {
         const putRes = await fetch(`/api/j2/notes/${noteId}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bodyJson: rewritten }),
+          body: JSON.stringify({ bodyJson: rewritten, importMediaPending: droppedMedia.length > 0 }),
         })
         if (!putRes.ok) {
           summary.failures.push({

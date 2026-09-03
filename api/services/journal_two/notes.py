@@ -323,6 +323,25 @@ def _import_date(value, fallback):
         return fallback
 
 
+def _body_has_import_placeholder(body_json: Any) -> bool:
+    """True when this body still carries an unresolved import-time
+    placeholder — `import-ref://<ref>` (an image/attachmentChip node whose
+    media upload has not yet been confirmed) or `import-link://<key>` (a
+    cross-note link not yet rewritten to a real note URL). A raw substring
+    scan of the serialized JSON, not a node-type walk: correct regardless of
+    which node shape (image, attachmentChip, a link mark nested anywhere in
+    the tree) carries the placeholder, and cheap enough to run on every
+    import_confirm write. False positive only if a note's OWN authored text
+    happens to contain one of these literal strings — harmless: it merely
+    stays "pending" one write longer than strictly necessary, never loses
+    data (see audit B5 / import_confirm's docstring)."""
+    try:
+        blob = json.dumps(body_json)
+    except (TypeError, ValueError):
+        return False
+    return "import-ref://" in blob or "import-link://" in blob
+
+
 # Genuine resource bound on one import-check request — NOT a silent
 # data-hiding cap like the [:5000] slice this replaces (audit B1). That
 # slice truncated one note past the wave's own 5,000-note benchmark, and
@@ -383,6 +402,15 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     }
 
     Returns: {"created": [...], "updated": [...], "skipped": [...], "failed": [...]}
+
+    ⛔⛔ audit B5: a fingerprint match alone does NOT mean `skipped` — a note
+    whose body still carries an unresolved `import-ref://`/`import-link://`
+    placeholder (`import_media_pending`, set here and cleared by
+    `update_note`'s `importMediaPending` once the client's post-confirm
+    media-upload + link-rewrite phase actually finishes clean) is written
+    again and reported via `updated` instead, so a failed media upload gets
+    retried on the member's next import attempt rather than silently and
+    permanently missing its image forever. See `_body_has_import_placeholder`.
 
     ⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (oversized
     body, malformed shape) is isolated to a per-note SAVEPOINT and reported
@@ -453,14 +481,26 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                                         if path else (dest or None))
                 folder_id = path_cache[path] or None
                 row = conn.execute(
-                    "SELECT id, import_hash FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                    "SELECT id, import_hash, import_media_pending FROM j2_notes "
+                    "WHERE user_id = ? AND import_key = ?",
                     (user_id, key)).fetchone()
                 item = {"importKey": key, "id": row["id"] if row else None}
-                if row and row["import_hash"] == h:
+                # audit B5: a fingerprint match alone is NOT "already fully
+                # imported" while media_pending is still set from an earlier
+                # attempt — that flag means a prior media upload or link
+                # rewrite never confirmed success (see update_note's
+                # importMediaPending handling), and skipping here is exactly
+                # how a failed image upload used to vanish forever: the note
+                # re-confirms as `skipped` on every later attempt, so nothing
+                # ever retries it. Fall through to the normal write instead,
+                # which recomputes media_pending below and reports this note
+                # via `updated` so the client's media/link phase runs again.
+                if row and row["import_hash"] == h and not row["import_media_pending"]:
                     skipped.append(item)
                     continue
                 created_at = _import_date(n.get("createdAt"), now)
                 updated_at = _import_date(n.get("updatedAt"), now)
+                media_pending = 1 if _body_has_import_placeholder(body_json) else 0
 
                 # This note's write is isolated in its own SAVEPOINT: a note
                 # that cannot be stored must not discard any sibling note
@@ -476,11 +516,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         conn.execute(
                             "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
                             "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
-                            "imported_at=?, updated_at=? "
+                            "import_media_pending=?, imported_at=?, updated_at=? "
                             "WHERE id=? AND user_id=?",
                             (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
-                             first_image, folder_id, ticker, json.dumps(tags), h, now, updated_at,
-                             row["id"], user_id))
+                             first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
+                             updated_at, row["id"], user_id))
                         _sync_note_embeds(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
@@ -489,11 +529,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         conn.execute(
                             "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
                             "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
-                            "imported_at, created_at, updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "import_media_pending, imported_at, created_at, updated_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (new_id, user_id, folder_id, title, n.get("subtitle") or None,
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
-                             source, key, h, now, created_at, updated_at))
+                             source, key, h, media_pending, now, created_at, updated_at))
                         _sync_note_embeds(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
@@ -1030,6 +1070,17 @@ def update_note(
             if h is not None and not isinstance(h, str):
                 raise NoteValidationError("heroImageUrl must be string or null")
             sets.append("hero_image_url = ?"); params.append(h)
+        if "importMediaPending" in patch:
+            # audit B5: the import commit pipeline's OWN signal for whether
+            # its post-confirm media-upload + link-rewrite phase actually
+            # finished clean on THIS note (`droppedMedia.length > 0` in
+            # commit.js's runImport) — not something an ordinary editor save
+            # ever sends. True keeps (or re-sets) the note as still-pending
+            # so import_confirm retries it on the member's next import
+            # attempt instead of treating a fingerprint match as "done";
+            # False clears it. Absent (every non-import PUT) touches nothing.
+            sets.append("import_media_pending = ?")
+            params.append(1 if patch["importMediaPending"] else 0)
 
         if not sets:
             return _row_to_note(existing)

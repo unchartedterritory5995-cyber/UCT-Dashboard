@@ -177,6 +177,47 @@ describe('runImport', () => {
     expect(calls.some((c) => c.url === '/api/j2/notes/n2' && c.method === 'PUT')).toBe(true)
   })
 
+  it('reports importMediaPending on the final PUT: true when a media upload failed, false when it fully resolved (audit B5)', async () => {
+    // audit B5: a note whose media upload failed must not silently look
+    // "done" to the server -- runImport must tell import_confirm's
+    // media-pending gate the truth about whether THIS note's media/link
+    // phase actually finished clean, so a re-import can retry it instead
+    // of matching its fingerprint and skipping forever.
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [
+            { importKey: 'file:ok.md', id: 'n1' },
+            { importKey: 'file:bad.md', id: 'n2' },
+          ], updated: [], skipped: [] }))
+      }
+      if (url === '/api/j2/notes/n1/images') return new Response(JSON.stringify({ url: '/img/ok.png' }))
+      if (url === '/api/j2/notes/n2/images') return new Response('fail', { status: 500 })
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const mkDoc = (key, ref) => ({
+      importKey: key, title: key, tags: [], folderPath: [],
+      bodyJson: doc([img(`import-ref://${ref}.png`)]), bodyPlain: 'x',
+      media: [{ ref: `${ref}.png`, kind: 'image', name: `${ref}.png`,
+                vfile: { bytes: async () => new Uint8Array([1]), path: `${ref}.png` } }],
+      links: [],
+    })
+    await runImport({
+      source: 'file', destFolderId: null,
+      docs: [mkDoc('file:ok.md', 'ok'), mkDoc('file:bad.md', 'bad')],
+      onProgress: () => {},
+    })
+    // Asserted OUTSIDE the mock's response-building callback -- reading
+    // fetch.mock.calls here, not inside a json()/Response body, is the
+    // point: a wire that silently dropped this field would still pass if
+    // checked only from inside the mock.
+    const putCalls = vi.mocked(fetch).mock.calls.filter((c) => c[1]?.method === 'PUT')
+    const okPut = putCalls.find((c) => c[0] === '/api/j2/notes/n1')
+    const badPut = putCalls.find((c) => c[0] === '/api/j2/notes/n2')
+    expect(JSON.parse(okPut[1].body).importMediaPending).toBe(false)
+    expect(JSON.parse(badPut[1].body).importMediaPending).toBe(true)
+  })
+
   it('continues past a failed confirm batch instead of stopping the run (session-audit.md A2)', async () => {
     // Three batches (200 + 200 + 1): the FIRST batch succeeds, the SECOND
     // fails at the HTTP level, and the THIRD -- past the failure -- must
