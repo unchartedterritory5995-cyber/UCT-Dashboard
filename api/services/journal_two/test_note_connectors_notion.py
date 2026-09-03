@@ -314,12 +314,18 @@ async def test_dispatch_table_covers_every_mapped_block_type():
     h1 = next(h for h in headings if h["attrs"]["level"] == 1)
     assert _plain_text(h1) == "Overview"
 
-    # toggleable heading -> blockquote + bold first line + children
+    # ⛔ toggleable heading -> a real `toggle`, not a blockquote. Notion's own
+    # markdown export renders it as <details><summary>, so the file-import lane
+    # already produces a toggle here; a blockquote would leave this one block
+    # type landing differently depending on whether the member connected their
+    # account or dropped a zip.
     blockquotes = _find_all(doc, "blockquote")
-    toggle_heading_bq = next(bq for bq in blockquotes if "Toggle Heading" in _plain_text(bq))
-    first_para = toggle_heading_bq["content"][0]
-    assert any(m["type"] == "bold" for t in first_para["content"] for m in t.get("marks", []))
-    assert "Hidden under toggle" in _plain_text(toggle_heading_bq)
+    toggles = _find_all(doc, "toggle")
+    toggle_heading = next(t for t in toggles if "Toggle Heading" in _plain_text(t))
+    assert toggle_heading["content"][0]["type"] == "toggleSummary"
+    assert _plain_text(toggle_heading["content"][0]) == "Toggle Heading"
+    assert toggle_heading["content"][1]["type"] == "toggleContent"
+    assert "Hidden under toggle" in _plain_text(toggle_heading["content"][1])
 
     # adjacent bulleted items -> ONE bulletList (list grouping, self-review item)
     bullet_lists = _find_all(doc, "bulletList")
@@ -340,15 +346,22 @@ async def test_dispatch_table_covers_every_mapped_block_type():
     todo_item = next(ti for tl in task_lists for ti in tl["content"] if "Buy milk" in _plain_text(ti))
     assert todo_item["attrs"]["checked"] is True
 
-    # toggle -> blockquote + bold title + children (self-review: bold FIRST line)
-    toggle_bq = next(bq for bq in blockquotes if "Toggle title" in _plain_text(bq))
-    assert any(m["type"] == "bold" for t in toggle_bq["content"][0]["content"] for m in t.get("marks", []))
-    assert "hidden content" in _plain_text(toggle_bq)
+    # toggle -> a real `toggle` node: summary carries the title, content the
+    # children. The same shape the file-import lane builds from <details>.
+    toggle = next(t for t in toggles if "Toggle title" in _plain_text(t))
+    assert _plain_text(toggle["content"][0]) == "Toggle title"
+    assert "hidden content" in _plain_text(toggle["content"][1])
 
-    # callout -> blockquote + bold + emoji prefix
-    callout_bq = next(bq for bq in blockquotes if "Note this" in _plain_text(bq))
-    assert "\U0001F4A1" in _plain_text(callout_bq)
-    assert any(m["type"] == "bold" for t in callout_bq["content"][0]["content"] for m in t.get("marks", []))
+    # callout -> a real `callout` node, with Notion's emoji carried on the
+    # ATTRIBUTE rather than smuggled into the body as a bold text prefix. The
+    # emoji is the member's own content, so it has to survive as data.
+    callouts = _find_all(doc, "callout")
+    callout = next(c for c in callouts if "Note this" in _plain_text(c))
+    assert callout["attrs"]["emoji"] == "\U0001F4A1"
+    assert "\U0001F4A1" not in _plain_text(callout), (
+        "the emoji is on the attribute AND in the body text -- it would render "
+        "twice"
+    )
 
     # quote -> blockquote, NOT bold
     quote_bq = next(bq for bq in blockquotes if "Wise words" in _plain_text(bq))
