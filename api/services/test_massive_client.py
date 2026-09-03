@@ -116,6 +116,19 @@ def test_status_not_ok_raises_not_found():
             mc.get_quote("ZZZNOTREAL")
 
 
+def test_bare_http_404_also_raises_not_found():
+    """Live-verified during the Real-Provider Validation Checkpoint
+    (2026-09-02): a genuinely unsupported/delisted/nonexistent symbol
+    (ZZZNOTREAL, a delisted equity, a plain index ticker with no "I:"
+    prefix) answers with a bare HTTP 404, NOT a 200 body carrying a
+    non-OK `status` field. The initial adapter build only handled the
+    200-body shape and mapped a real 404 to MassiveTransient -- a
+    misclassification this checkpoint's whole purpose is to catch."""
+    with patch.object(mc._http, "get", return_value=_mock_response(404)):
+        with pytest.raises(mc.MassiveNotFound):
+            mc.get_quote("ZZZNOTREAL")
+
+
 def test_401_raises_auth_error_and_caches_forbidden_for_next_call():
     with patch.object(mc._http, "get", return_value=_mock_response(401)) as mock_get:
         with pytest.raises(mc.MassiveAuthError):

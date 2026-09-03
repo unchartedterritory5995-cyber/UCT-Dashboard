@@ -151,6 +151,14 @@ def get_quote(ticker: str, *, entity_id: Optional[str] = None) -> _pe.ProviderRe
         raise _ERR.auth_error(f"Massive get_quote rejected ({resp.status_code})", status=resp.status_code)
     if resp.status_code >= 500:
         raise _ERR.transient(f"Massive get_quote server error ({resp.status_code})", status=resp.status_code)
+    if resp.status_code == 404:
+        # Live-verified during the Real-Provider Validation Checkpoint
+        # (2026-09-02): a genuinely unsupported/delisted/nonexistent symbol
+        # (ZZZNOTREAL, a delisted equity, a plain index ticker with no
+        # "I:" prefix) answers with a bare HTTP 404, NOT a 200 body
+        # carrying a non-OK `status` field. Both are real "not found"
+        # shapes Massive uses; the 200-body one is handled below.
+        raise _ERR.not_found(f"Massive get_quote: {sym!r} not found (HTTP 404)")
     try:
         resp.raise_for_status()
     except Exception as exc:
