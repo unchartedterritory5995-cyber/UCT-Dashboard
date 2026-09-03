@@ -22,7 +22,7 @@ PAGE_SIZE = 100
 PACE_SECONDS = 0.15
 
 
-def _fmp_get(path: str, params: dict, timeout: int = 25):
+def _default_fmp_get(path: str, params: dict, timeout: int = 25):
     """Default `fmp_get` for `latest_page`/`fetch_content` — routes through
     the D1 `fmp_client` adapter directly rather than delegating through
     `earnings_estimates._fmp_get` (this was one of the two confirmed
@@ -72,7 +72,7 @@ def _tradeable(sym: str) -> bool:
 
 def latest_page(page: int, fmp_get: Callable = None) -> list[dict]:
     """One page of the newest transcripts across all issuers."""
-    fmp_get = fmp_get or _fmp_get
+    fmp_get = fmp_get or _default_fmp_get
     rows = fmp_get("/stable/earning-call-transcript-latest",
                    {"page": page, "limit": PAGE_SIZE})
     return rows if isinstance(rows, list) else []
@@ -80,7 +80,7 @@ def latest_page(page: int, fmp_get: Callable = None) -> list[dict]:
 
 def fetch_content(symbol: str, year: int, quarter: int,
                   fmp_get: Callable = None) -> Optional[str]:
-    fmp_get = fmp_get or _fmp_get
+    fmp_get = fmp_get or _default_fmp_get
     rows = fmp_get("/stable/earning-call-transcript",
                    {"symbol": symbol, "year": year, "quarter": quarter}, timeout=40)
     if not isinstance(rows, list) or not rows:
