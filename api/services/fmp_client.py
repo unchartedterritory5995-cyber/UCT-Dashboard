@@ -282,6 +282,19 @@ def get_transcript_content(ticker: str, year: int, quarter: int) -> _pe.Provider
     )
 
 
+def get_earnings_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+    """Earnings-calendar rows for a date RANGE — the one typed function in
+    this module that does NOT take `ticker: str`, since `/stable/
+    earnings-calendar` is a market-wide day/range query, not a per-symbol
+    one. Added for `engine.py::_fmp_calendar_actuals_for_day`, whose own
+    docstring documents why callers must scope `from_date == to_date` to a
+    single day: a multi-day range silently truncates and is not date-fair
+    (live-measured, `api/services/implied_store.py`)."""
+    return _fetch("/stable/earnings-calendar", {"from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_earnings_calendar", data_class="earnings",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
 def get_insider_trading(ticker: str) -> _pe.ProviderResult:
     return _fetch("/stable/insider-trading/search", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_insider_trading", data_class="insider",

@@ -23,7 +23,7 @@ def _reset_state(monkeypatch):
                  "/stable/grades", "/stable/grades-consensus", "/stable/grades-historical",
                  "/stable/price-target-consensus", "/stable/price-target-summary",
                  "/stable/earnings", "/stable/earning-call-transcript-dates",
-                 "/stable/insider-trading/search"):
+                 "/stable/insider-trading/search", "/stable/earnings-calendar"):
         _cache.invalidate(f"fmp_forbidden_{path}")
     yield
 
@@ -181,6 +181,24 @@ def test_income_statement_period_param_only_added_for_quarter():
     with patch.object(fc._session, "get", side_effect=_fake_get):
         fc.get_income_statement("AAPL", period="quarter", limit=24)
     assert captured.get("period") == "quarter"
+
+
+def test_earnings_calendar_takes_a_date_range_not_a_ticker():
+    """The one typed function with a non-ticker signature — confirms the
+    params it actually sends and that a normal date-range response parses."""
+    captured = {}
+
+    def _fake_get(url, params=None, timeout=None):
+        captured.update(params or {})
+        return _mock_response(200, [{"symbol": "AAPL", "date": "2026-08-05"}])
+
+    with patch.object(fc._session, "get", side_effect=_fake_get):
+        result = fc.get_earnings_calendar("2026-08-05", "2026-08-05")
+    assert captured.get("from") == "2026-08-05"
+    assert captured.get("to") == "2026-08-05"
+    assert "symbol" not in captured
+    assert result.value == [{"symbol": "AAPL", "date": "2026-08-05"}]
+    assert result.provenance.source_activity == "fmp_client.get_earnings_calendar"
 
 
 def test_no_two_vendor_errors_share_identity_with_massive_placeholder():
