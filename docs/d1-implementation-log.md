@@ -170,6 +170,103 @@ validation checkpoint required before any further broad migration.** See
 the D1 authorization's Implementation Checkpoint section — this is
 reported to the user as the next decision point, not assumed.
 
+---
+
+## Section 5 — Real-Provider Validation Checkpoint: COMPLETE (2026-09-02)
+
+Per the user's explicit checkpoint authorization, before any broader D1
+migration. Commits: `2d5d0ddb3` (minimum-scope `massive_client.py`),
+`0616369aa` (a real defect the validation itself found and fixed).
+
+**Built for this checkpoint only** (not a `_MassiveRestClient` migration —
+that class and every one of its own call sites stay untouched):
+`api/services/massive_client.py` — typed errors, a non-blocking rate
+limiter, the cached-forbidden idiom, one typed function `get_quote(ticker,
+*, entity_id=None)` that prefers Entity Master's `vendor_symbol(entity_id,
+"massive")` and falls back to `to_polygon_symbol()`. Reuses `massive.py`'s
+existing shared `httpx.Client` rather than opening a second connection
+pool. 15 unit tests, all mocked.
+
+**Live validation run** (bounded, read-only; 16 real FMP calls across 10
+endpoints, 8 real Massive calls; both API keys loaded from
+`uct-intelligence/.env` and never printed): 7 representative
+cases — AAPL (ordinary large-cap), BRK-B (dual-class symbol translation),
+SPY (ETF), SPX (index-type entity), ATLQ (active equity, no FIGI on
+record), AMWD (delisted equity), ZZZNOTREAL (no such entity/symbol).
+
+**A real defect found and fixed**: Massive's snapshot endpoint answered a
+bare HTTP 404 (not the 200-body-with-non-OK-status shape the adapter's
+not-found detection was designed around) for AMWD, SPX, and ZZZNOTREAL —
+`massive_client.py` classified all three as `MassiveTransient` instead of
+`MassiveNotFound`. Fixed with an explicit 404 branch (commit `0616369aa`);
+re-run confirmed all three now classify correctly against live data. This
+is exactly the class of defect the checkpoint exists to catch before it
+reaches a broadly-migrated call site.
+
+**Real semantic differences surfaced, deliberately NOT forced into a false
+shared representation:**
+- FMP still serves a stale/last-known quote (price=48.09, volume=0,
+  dayLow==dayHigh==price) for AMWD, a name Entity Master's own
+  `lifecycle_state` already marks `delisted` — while Massive correctly
+  returns nothing (404/NotFound) for the same symbol. The two providers
+  disagree on what "no data" means for a delisted name; Entity Master's
+  lifecycle flag is not contradicted by either, but a caller must check it
+  rather than trust either provider's silence/non-silence alone.
+- FMP is confirmed 15-minute delayed vs Massive's real-time feed on a live
+  price delta (BRK-B: FMP 505.09 vs Massive day-close 505.24 at the same
+  moment) — the existing `freshness` field (`delayed_15` vs `real_time`)
+  already represents this correctly; not a bug, a confirmation the field
+  is meaningful.
+- Index-type entities (SPX) are NOT resolvable via either adapter's
+  `get_quote` in its current form — FMP needs a different index symbol
+  convention and Massive needs an `"I:"` prefix neither adapter
+  implements. Correctly surfaced as a capability gap (both `get_quote`
+  calls cleanly raised `NotFound`) rather than silently working around it.
+  Not fixed — out of scope for this checkpoint; a future index capability
+  needs its own per-vendor symbol-formatting rule.
+
+**Entity Master boundary, confirmed working end-to-end**: `resolve()`
+correctly resolved all 6 real tickers and returned `not_found` for
+ZZZNOTREAL; `vendor_symbol(entity_id, "massive")` returned the correct
+`BRK.B` mapping for the one seeded dual-class case, and the Entity
+Master-routed path and the `to_polygon_symbol()` fallback path produced
+BYTE-IDENTICAL live Massive responses for BRK-B, confirming they agree.
+`vendor_symbol(entity_id, "fmp")` returned `None` for every entity tested
+— **Entity Master currently has ZERO fmp vendor-symbol rows seeded**
+(confirmed by direct query: 141 `entity_vendor_symbols` rows, all
+`vendor='massive'`, none `vendor='fmp'`). Live FMP responses confirm this
+is NOT a gap: FMP's own `get_quote(BRK-B)` response carries
+`"symbol": "BRK-B"` — FMP already speaks the app's native hyphen form
+natively, so no FMP-side Entity Master translation was ever needed for
+this case.
+
+**Shared `_fmp_get` compatibility path (Section 1 addendum) reconfirmed
+safe**: all 9 external consumers still import cleanly, no circular import,
+`earnings_estimates._fmp_get` still present and byte-unchanged, and the
+module's own 6 internal call sites correctly route through `_fmp_rows`/
+`fmp_client` instead. Those 9 external migrations remain explicitly
+deferred, not touched by this checkpoint.
+
+**Test baseline**: 460/462 across the consolidated sweep of every file this
+whole D1 program has touched (both new client modules, `provider_errors.py`,
+`provider_licensing_class.py`, Entity Master's own suite, all 8 migrated
+FMP call sites' test suites). The only 2 failures are the exact same
+pre-existing `test_implied_backfill.py::TestFiscalJoin` names already
+identified and confirmed unrelated (a hardcoded near-future fixture date
+real time has since passed) — zero new failures introduced by this
+checkpoint.
+
+**Verdict**: `REAL-PROVIDER VALIDATION — PASS WITH CONDITIONS`. FMP's
+already-migrated 8 call sites are validated end-to-end against live data
+with no further changes needed. Massive validation is narrower — one typed
+function (`get_quote`) against real data, no live 401/403/429 exercise (both
+keys valid, no error organically triggered), no coverage of the broader
+capability set `_MassiveRestClient` actually serves in production (movers,
+batch snapshots, daily OHLCV). Recommendation given to the user:
+`PROCEED WITH LIMITED D1 MIGRATION` — the FMP migration work already done
+stands as validated; broader Massive call-site migration should wait for a
+fuller Massive adapter build validated with the same rigor.
+
 ### Existing normalized/shared models, caching, retry, config precedents (confirmed, not re-derived)
 
 - `finnhub_client.py`, `alphavantage_client.py`, `journal_two/broker/
