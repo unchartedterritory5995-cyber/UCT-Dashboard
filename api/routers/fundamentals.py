@@ -22,17 +22,16 @@ fallback are now FMP-primary, Finnhub-fallback.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait
 from typing import Any
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.services.fundamentals import get_fundamentals, _fmt_billions
 from api.services.earnings_table import get_earnings_table
 from api.services import fundamentals_snapshot_store as snap_store
+from api.services import fmp_client
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
@@ -71,7 +70,7 @@ _TIMEOUT = 10
 _SNAP_KIND = "fund_snapshot_v3"       # /api/fundamentals/{ticker} payloads (v3: +inception/inst-own)
 _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snapshot
 
-# ── FMP metrics trio (Task 9) ───────────────────────────────────────────────
+# ── FMP metrics trio (Task 9; D1-migrated onto fmp_client) ──────────────────
 # A SEPARATE, OWN timeout budget from Finnhub's `_TIMEOUT` above — FMP is a
 # different provider entirely and must never share finnhub_client's token
 # bucket / budget. `_FMP_TOTAL_TIMEOUT` is the HARD wall-clock cap on the
@@ -82,8 +81,19 @@ _SNAP_STALE_MAX = 7 * 86400           # serve-stale ceiling for the compact snap
 # volume, mirroring the fixed-width pools already in this codebase
 # (`insider.get_recent_insider_buys` = 10-wide, `fundamentals.compare_fundamentals`
 # = <=6-wide).
+#
+# ⚠️ D1 deviation: `fmp_client`'s typed functions own their own per-request
+# timeout internally (25s default) and don't expose a per-leg override, so
+# the old per-leg `_FMP_PER_CALL_TIMEOUT=6` is gone — `_FMP_TOTAL_TIMEOUT`
+# alone now bounds the request-path wait (via `_futures_wait(timeout=...)` +
+# `shutdown(wait=False, cancel_futures=True)` below); a leg still doesn't
+# block the caller past that budget even if its own HTTP call runs longer.
 _FMP_ENDPOINTS = ("quote", "key-metrics-ttm", "ratios-ttm")
-_FMP_PER_CALL_TIMEOUT = 6      # seconds, per individual FMP leg
+_FMP_METRIC_FNS = {
+    "quote": fmp_client.get_quote,
+    "key-metrics-ttm": fmp_client.get_key_metrics_ttm,
+    "ratios-ttm": fmp_client.get_ratios_ttm,
+}
 _FMP_TOTAL_TIMEOUT = 7         # seconds, hard cap for the whole fan-out
 _FMP_POOL_WORKERS = 3          # exactly len(_FMP_ENDPOINTS) -- bounded, fixed
 
@@ -106,26 +116,6 @@ def _fh_metric_get(ticker: str) -> dict[str, Any]:
     result = data.get("metric") or {}
     cache.set(ck, result, _FH_METRIC_TTL)
     return result
-
-
-def _fmp_get(path: str, params: dict, timeout: int) -> Any:
-    """Fire one FMP `stable/*` GET. Returns parsed JSON (list or dict) or
-    None on any failure (missing key, network error, non-2xx). Own timeout
-    budget, own try/except — never raises, never touches finnhub_client."""
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return None
-    try:
-        r = requests.get(
-            f"https://financialmodelingprep.com/stable/{path}",
-            params={**params, "apikey": key},
-            timeout=timeout,
-        )
-        r.raise_for_status()
-        return r.json()
-    except Exception as exc:
-        _log.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
-        return None
 
 
 def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
@@ -156,7 +146,22 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
     sym = ticker.upper()
 
     def _one(path: str):
-        return path, _fmp_get(path, {"symbol": sym}, timeout=_FMP_PER_CALL_TIMEOUT)
+        """Never raises — mirrors the retired `_fmp_get`'s "None on any
+        failure" contract so the fan-out loop below stays unchanged.
+        FMPNotFound (empty leg) is the expected "no data" state, not a
+        failure worth a log line; every other ProviderError/degraded state
+        logs the same way `_fmp_get` used to."""
+        fn = _FMP_METRIC_FNS[path]
+        try:
+            result = fn(sym)
+        except fmp_client.FMPNotFound:
+            return path, None
+        except Exception as exc:
+            _log.warning("FMP %s failed for %s: %s", path, sym, exc)
+            return path, None
+        if result.degraded is not None:
+            return path, None
+        return path, result.value
 
     merged: dict[str, Any] = {}
     ex = ThreadPoolExecutor(max_workers=_FMP_POOL_WORKERS)
@@ -183,8 +188,8 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
         # _FMP_TOTAL_TIMEOUT a genuinely HARD cap instead of degrading to
         # "sum of per-call timeouts". cancel_futures=True (3.9+) drops any
         # not-yet-started work; already-running threads finish in the
-        # background (each still bounded by its own _FMP_PER_CALL_TIMEOUT)
-        # and are discarded on completion.
+        # background (each still bounded by fmp_client's own 25s default
+        # per-request timeout) and are discarded on completion.
         ex.shutdown(wait=False, cancel_futures=True)
 
     # Honest-degradation: a complete miss self-heals in 5 min (matches
