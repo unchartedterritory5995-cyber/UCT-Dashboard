@@ -75,7 +75,15 @@ def _int_env(name: str, default: int) -> int:
 # margin. W/M are cheap even at long history (few rows), so 300 W ≈ 6y, 300 M ≈
 # 25y. Deeper scroll-back beyond this falls to the existing on-demand fetch.
 PACK_DEPTH = _int_env("BARSPACK_DEPTH", 300)
-NUM_SHARDS = _int_env("BARSPACK_SHARDS", 12)
+# Shard count scales with the universe so each shard stays ~edge-cache-sized
+# (~325 tickers × 3 TFs ≈ a few hundred KB gzipped) — the unit the client streams
+# with bounded concurrency and the CDN caches per file. The universe grew from the
+# ~3.7k liquid cap-list to the full ~13k active stock+ETF feed (2026-09-03), so 12
+# shards (~1,100 tickers each) would have made every shard a ~10MB fetch; 40 keeps
+# the per-shard size where it was. The manifest lists every shard, so the client is
+# fully data-driven — changing this needs no client change (a version bump re-shards
+# and re-ingests). `_shard_of` is crc32 % N, so N is stable within a build only.
+NUM_SHARDS = _int_env("BARSPACK_SHARDS", 40)
 # Refuse to publish a pack smaller than these floors — a truncated/empty build
 # must never overwrite a good latest.json (the delta-exporter's shippable gate).
 MIN_TICKERS = _int_env("BARSPACK_MIN_TICKERS", 1500)
@@ -159,19 +167,114 @@ _HOT_UNIVERSE: list[str] = [
 ]
 
 
+# The resolved pack universe is snapshotted to DATA_DIR for this many days so the
+# ticker SET — and therefore the pack's `seed` (md5 of the included tickers) — stays
+# stable across daily builds. Without it, day-to-day churn in the LIVE reference feed
+# (new listings, delistings, provider flutter) would change the seed on most builds,
+# and since the delta path can only UPDATE existing tickers (never ADD), every seed
+# change forces every browser to re-download the WHOLE pack instead of a tiny delta.
+# The weekly refresh still folds in genuinely-new listings (one full re-ingest each).
+_UNIVERSE_SNAPSHOT_FILE = ".barspack_universe.json"
+_UNIVERSE_SNAPSHOT_TTL_DAYS = _int_env("BARSPACK_UNIVERSE_TTL_DAYS", 7)
+
+
+def _universe_snapshot_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _UNIVERSE_SNAPSHOT_FILE)
+
+
+def _load_universe_snapshot(max_age_days: int) -> list[str] | None:
+    """The persisted universe list if it exists and is younger than max_age_days
+    (and still clears the size floor), else None. Best-effort."""
+    path = _universe_snapshot_path()
+    try:
+        if (time.time() - os.path.getmtime(path)) / 86400.0 > max_age_days:
+            return None
+        with open(path, encoding="utf-8") as f:
+            syms = [str(t).upper() for t in json.load(f) if t]
+        return syms if len(syms) >= MIN_TICKERS else None
+    except Exception:
+        return None
+
+
+def _save_universe_snapshot(syms: list[str]) -> None:
+    """Atomically persist the resolved universe list (tmp → rename). Best-effort."""
+    path = _universe_snapshot_path()
+    try:
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(sorted(syms), f)
+        os.replace(tmp, path)
+    except Exception:
+        pass
+
+
+def _reference_universe_syms() -> set:
+    """Every ACTIVE US stock + ETF from the provider reference feed (~13k) — the
+    real "obscure movers" set that goes far beyond the $300M cap list. This is what
+    makes EVERY name a user could realistically chart (small-cap movers, niche
+    ETFs) an instant zero-network first paint, not just the liquid universe.
+
+    Best-effort: returns empty on any error, so `_universe` degrades to the cap
+    list + theme holdings rather than shrinking the pack (the size floor still
+    guards against publishing a gutted pack). A reference ticker with no bars in
+    the worker's db is dropped later (empty sanitize → skipped), so this only ever
+    ADDS coverage."""
+    out: set = set()
+    try:
+        from api.services import massive
+        for mkt in ("stocks", "etf"):
+            refs = massive.list_reference_tickers(active=True, market=mkt)
+            for d in (refs or []):
+                t = d.get("ticker")
+                if t:
+                    out.add(str(t).upper())
+    except Exception:
+        return set()
+    return out
+
+
 def _universe() -> list[str]:
-    """Pack universe = the $300M+ cap list UNION the Theme Tracker's holdings, so
-    both the broad market AND the specific names the app surfaces in themes are
-    instant. Tickers with no bars in the worker's db are dropped later (empty
-    sanitize → skipped), so this only ever ADDS coverage, never empties."""
+    """Pack universe = the FULL active US stock + ETF reference feed (~13k) UNION
+    the $300M+ cap list UNION the Theme Tracker's holdings. The cap list + themes
+    are a FLOOR the reference feed can never drop (a feed hiccup still ships the
+    liquid + index + theme names). Tickers with no bars in the worker's db are
+    dropped later (empty sanitize → skipped), so this only ever ADDS coverage,
+    never empties.
+
+    The reference-feed component is SNAPSHOTTED (see `_UNIVERSE_SNAPSHOT_TTL_DAYS`)
+    so the ticker set stays stable between refreshes and the pack's seed doesn't
+    churn daily. The floor is unioned on every read, so a cap_universe.json or theme
+    edit still takes effect immediately without waiting for a snapshot refresh."""
+    # Floor: cap list + theme holdings — static, always available, guards the floor.
+    floor: set = set()
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cap_universe.json")
-    base: set = set()
     try:
         with open(path) as f:
-            base = {str(t).upper() for t in json.load(f) if t}
+            floor = {str(t).upper() for t in json.load(f) if t}
     except Exception:
-        base = set()
-    return sorted(base | _theme_holding_syms())
+        floor = set()
+    floor |= _theme_holding_syms()
+
+    # A fresh snapshot keeps the seed stable within the TTL window.
+    snap = _load_universe_snapshot(_UNIVERSE_SNAPSHOT_TTL_DAYS)
+    if snap is not None:
+        return sorted(set(snap) | floor)
+
+    # Snapshot missing/stale → resolve the live active reference feed + persist it.
+    ref = _reference_universe_syms()
+    if ref:
+        resolved = sorted(floor | ref)
+        _save_universe_snapshot(resolved)
+        return resolved
+
+    # Feed unavailable AND no fresh snapshot: prefer a STALE snapshot over the
+    # floor-only list — a transient feed outage must not shrink the pack 13k→3.8k
+    # (which then regrows, costing every browser TWO full re-ingests). Only when
+    # there is no snapshot at all do we ship the floor.
+    stale = _load_universe_snapshot(10 ** 6)  # any age
+    if stale is not None:
+        return sorted(set(stale) | floor)
+    return sorted(floor)
 
 
 def _shard_of(sym: str, num_shards: int) -> int:

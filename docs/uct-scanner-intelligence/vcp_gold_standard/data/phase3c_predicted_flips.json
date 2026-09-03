@@ -1,0 +1,33 @@
+{
+  "_purpose": "Phase 3C Step 6 -- frozen BEFORE implementation validation. The 11 System-D VCP false positives predicted to flip to a correct refusal once the Trend Template precondition ships, plus the 3 explicitly NOT predicted to flip (watchlist items for a separate, unauthorized 'second fix') and the 2 true positives that must not be touched. Derived from docs/uct-scanner-intelligence/vcp_gold_standard/data/{case_answer_key.json,case_packets.json,adjudication.json} -- read-only frozen Phase-3B evidence, not regenerated.",
+  "predicted_to_flip": [
+    {"case_id": "case_0033", "symbol": "EXEL", "eval_label": "t_minus_6mo", "trend_template_150_200": false, "prior_advance": 0.35956112852664573, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0035", "symbol": "CGON", "eval_label": "t_minus_12mo", "trend_template_150_200": false, "prior_advance": 0.8898648648648647, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0036", "symbol": "DTM", "eval_label": "t_minus_12mo", "trend_template_150_200": false, "prior_advance": 0.592666857633916, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0037", "symbol": "BBWI", "eval_label": "t_minus_12mo", "trend_template_150_200": false, "prior_advance": 0.3393429487179487, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0042", "symbol": "BAM", "eval_label": "t_minus_6mo", "trend_template_150_200": false, "prior_advance": 0.4652943992340832, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0045", "symbol": "WMB", "eval_label": "t_minus_12mo", "trend_template_150_200": false, "prior_advance": 0.3602054488610986, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0046", "symbol": "PWP", "eval_label": "current", "trend_template_150_200": false, "prior_advance": 0.44472681067344333, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0048", "symbol": "OSCR", "eval_label": "t_minus_6mo", "trend_template_150_200": false, "prior_advance": 0.4367088607594936, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0049", "symbol": "EQT", "eval_label": "t_minus_12mo", "trend_template_150_200": false, "prior_advance": 0.49280677009873053, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0052", "symbol": "BNTX", "eval_label": "current", "trend_template_150_200": false, "prior_advance": 0.3145805592543275, "reviewer_agreement": "unanimous"},
+    {"case_id": "case_0053", "symbol": "KARO", "eval_label": "t_minus_6mo", "trend_template_150_200": false, "prior_advance": 0.6833890746934224, "reviewer_agreement": "unanimous"}
+  ],
+  "not_predicted_to_flip_watchlist_second_fix": [
+    {"case_id": "case_0034", "symbol": "ADEA", "eval_label": "t_minus_12mo", "trend_template_150_200": true, "reviewer_agreement": "unanimous", "note": "trend_template already True -- not explained by this defect. Genuinely fits the downgraded 'second fix' (sustained prior-advance check), n=1, still NOT authorized this phase."},
+    {"case_id": "case_0039", "symbol": "OMF", "eval_label": "current", "trend_template_150_200": true, "reviewer_agreement": "strong_majority", "note": "trend_template already True. Reviewer reasoning cites 'violent single-day gap-down'/whipsaw, the same broader 'orderliness' gap as the headline Lane-A finding, not the second-fix mechanism."},
+    {"case_id": "case_0056", "symbol": "FTDR", "eval_label": "t_minus_6mo", "trend_template_150_200": true, "reviewer_agreement": "strong_majority", "note": "trend_template already True. Reviewer reasoning cites 'violent single-day gap-down'/'whipsaw', same orderliness gap, not the second-fix mechanism."}
+  ],
+  "true_positives_must_not_flip": [
+    {"case_id": "case_0050", "symbol": "BOKF", "eval_label": "current", "trend_template_150_200": true, "consensus_label": "positive"},
+    {"case_id": "case_0054", "symbol": "VTRS", "eval_label": "current", "trend_template_150_200": true, "consensus_label": "positive"}
+  ],
+  "totals": {
+    "system_d_only_false_positives": 14,
+    "predicted_to_flip": 11,
+    "predicted_to_flip_pct": 78.57142857142857,
+    "watchlist_not_flipping": 3,
+    "true_positives_at_risk": 2,
+    "true_positives_predicted_to_survive_unchanged": 2
+  }
+}

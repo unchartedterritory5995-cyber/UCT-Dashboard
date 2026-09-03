@@ -2652,6 +2652,64 @@ VCP_RATIO_MAX = 0.75
 #: `_vcp_still_in_base` asks.
 VCP_MAX_AGE_BARS = 60
 
+#: Minervini's Trend Template (`[TTLAC]` Section 6, "THE TREND TEMPLATE"): the
+#: gate on the TREND itself, evaluated before any base pattern -- VCP included
+#: -- is even considered. Only the two conditions computable from a single
+#: symbol's own price + moving averages (no cross-sectional RS-rank universe)
+#: are enforced here -- the same choice already made for System A
+#: (api/services/pattern_engine/detectors/uct/vcp.py::_passes_trend_template_precondition,
+#: Phase 3A, 2026-09-02). Named WITHOUT the VCP_ prefix on purpose: these are
+#: the same two numbers Minervini attaches to the Trend Template generally,
+#: not a VCP-specific tunable -- and `tests/test_two_engines_do_not_agree.py`
+#: sweeps VCP_-prefixed module constants specifically to catch drift in the
+#: five per-pattern thresholds its 2026-09-01 agreement measurement covered;
+#: this precondition is a different kind of thing and is not one of them.
+_TREND_TEMPLATE_SMA_SHORT = 150
+_TREND_TEMPLATE_SMA_LONG = 200
+
+
+def _passes_vcp_trend_template_precondition(bars: list) -> bool:
+    """Hard precondition: price above both the 150-day and 200-day SMA, with
+    the 150-day SMA above the 200-day SMA.
+
+    ⛔⛔ THE CONFIRMED DEFECT THIS EXISTS TO FIX (Phase 3C, 2026-09-03). VCP is
+    explicitly a CONTINUATION pattern -- this Structure's own criteria tuple
+    already cites Minervini saying so: "the VCP is going to happen at higher
+    levels, after the stock has already moved up 30, 40, 50 percent or even
+    much more, because the VCP is a continuation pattern as part of a much
+    larger upward move." Before this fix, `vcp_state` enforced only a
+    point-to-point prior-advance check (VCP_PRIOR_ADVANCE over
+    VCP_ADVANCE_LOOKBACK bars) and NOTHING about price's position relative to
+    its own long-term moving averages -- so a sharp point-to-point rally
+    occurring inside an overall downtrend, or a violent whipsaw, could satisfy
+    "prior advance" while the stock sat below a declining long-term trend.
+    `[TTLAC]`'s own worked counter-example is exactly this shape (GoPro):
+    "the 150-day line was below the 200-day, and both were trending down."
+
+    Evidence: on the frozen 82-case VCP gold-standard set
+    (docs/uct-scanner-intelligence/vcp_gold_standard/), of System D's 14
+    reviewer-confirmed false positives unique to this engine, 11 (78.6%) have
+    `trend_template_150_200=False` in the blinded neutral_context reviewers
+    were shown -- reviewers independently rejected these charts as VCPs
+    without ever seeing detector output, citing exactly this gap ("MA order
+    not ascending", "trend_template holds only marginally", etc.). System D's
+    only 2 reviewer-confirmed true positives both already have
+    `trend_template_150_200=True` -- zero measured downside from this fix on
+    the frozen evidence.
+
+    Fails open (returns True) when there isn't 200 bars of history to compute
+    the 200-day SMA -- the same fail-open convention System A already uses for
+    the identical check, and the convention this file's `cheat_state`/`_sma`
+    already follow (`_sma` returns None on insufficient history rather than a
+    partial average).
+    """
+    sma150 = _sma(bars, _TREND_TEMPLATE_SMA_SHORT)
+    sma200 = _sma(bars, _TREND_TEMPLATE_SMA_LONG)
+    if sma150 is None or sma200 is None:
+        return True
+    last_close = bars[-1].get("c") or 0.0
+    return last_close > sma150 and last_close > sma200 and sma150 > sma200
+
 
 def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
     """The current volatility contraction sequence, or None.
@@ -2665,6 +2723,8 @@ def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
     bars = ctx.bars
     swings = ctx.swings
     if not bars or len(swings) < 3:
+        return None
+    if not _passes_vcp_trend_template_precondition(bars):
         return None
 
     # Walk the confirmed swings and collect (high -> next low) pullbacks.
@@ -2826,6 +2886,26 @@ VCP = Structure(
                    "stock has already moved up 30, 40, 50 percent or even much "
                    "more, because the VCP is a continuation pattern as part of "
                    "a much larger upward move."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("Trend Template precondition (Phase 3C, 2026-09-03), "
+                       "1 of 2: price above both the 150-day and 200-day "
+                       "moving averages -- the point-to-point prior-advance "
+                       "criterion above is not a substitute for this; a sharp "
+                       "point-to-point rally can occur inside an overall "
+                       "downtrend."),
+            value="close > sma150 and close > sma200",
+            quote=("Stock price is above both the 150-day (30-week) and the "
+                   "200-day (40-week) moving average price lines."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("Trend Template precondition, 2 of 2: the 150-day "
+                       "moving average is above the 200-day moving average."),
+            value="sma150 > sma200",
+            quote=("The 150-day moving average is above the 200-day moving "
+                   "average."),
             source_id=_MINERVINI, confidence="high",
         ),
         Criterion(
