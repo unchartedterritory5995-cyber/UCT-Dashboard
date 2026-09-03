@@ -41,6 +41,30 @@ describe('evernote adapter', () => {
   })
 })
 
+describe('evernote adapter — mixed-platform drop (audit B4)', () => {
+  it('names the non-.enex files it silently discarded, with a count', async () => {
+    // The Export Guide tells members to "drop them all in together". Evernote's
+    // detect() scores a mixed drop 1.0 and used to swallow every other
+    // platform's files with zero signal. A markdown file that looks like it
+    // came from a Notion/Obsidian export dropped alongside the .enex must be
+    // named, not silently discarded.
+    const notionFile = {
+      path: 'My Notion Page.md', size: 4, lastModified: null,
+      bytes: async () => new TextEncoder().encode('body'),
+    }
+    const { docs, warnings } = await evernoteAdapter.parse([vf, notionFile])
+    expect(docs).toHaveLength(1) // the .enex note still imports
+    const joined = warnings.join(' ')
+    expect(joined).toContain('1 file')
+    expect(joined).toContain('My Notion Page.md')
+  })
+
+  it('warns about nothing when every dropped file is a real .enex', async () => {
+    const { warnings } = await evernoteAdapter.parse([vf])
+    expect(warnings).toEqual([])
+  })
+})
+
 // ---------------------------------------------------------------------------
 // en-media self-closing-tag trap (same HTML5 parsing quirk as en-todo): HTML
 // tree construction ignores the self-closing flag on unknown elements, so

@@ -156,6 +156,27 @@ describe('notion adapter — duplicate stripped-name collision', () => {
   })
 })
 
+describe('notion adapter — mixed-platform drop (audit B4)', () => {
+  it('names a non-Notion file it silently discarded, with a count', async () => {
+    // Notion's parse() is lenient about ANY .md/.html/.csv content (that's
+    // deliberate — detect() already gate-kept the file SET), so the file
+    // types it genuinely never touches are everything else — an Evernote
+    // .enex export dropped in the same batch, say.
+    const evernoteFile = {
+      path: 'Trading Notebook.enex', size: 4, lastModified: null,
+      bytes: async () => new TextEncoder().encode('body'),
+    }
+    const { docs, warnings } = await notionAdapter.parse([
+      vf(`Alpha ${HEX}.md`, '# Alpha'),
+      evernoteFile,
+    ])
+    expect(docs).toHaveLength(1)
+    const joined = warnings.join(' ')
+    expect(joined).toContain('1 file')
+    expect(joined).toContain('Trading Notebook.enex')
+  })
+})
+
 describe('notion adapter — detect (0.7 tier: index.html beside a hex-suffixed dir)', () => {
   it('scores 0.7 when index.html and a hex-suffixed dir are DIRECT siblings', () => {
     const score = notionAdapter.detect([

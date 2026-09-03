@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
+import { reportIgnoredFiles } from './reportIgnored'
 
 // ---------------------------------------------------------------------------
 // mdToHtml — exported for reuse by the Obsidian/Notion adapters (Tasks 10/11).
@@ -74,6 +75,15 @@ async function parse(vfiles, opts = {}) {
   ]
 
   const docs = []
+  // Collected as each doc is built, BEFORE applyFallbackImageBug can strip a
+  // ref back out of doc.media below — a file that was genuinely referenced
+  // (then dropped as junk by that Apple Notes heuristic) already gets its
+  // own specific warning there and must not also be reported as "ignored".
+  const consumed = new Set([
+    ...singleFiles.map((v) => v.path),
+    ...bundles.map((b) => b.textVfile.path),
+    ...vfiles.filter((v) => TEXTBUNDLE_DIR_RE.test(v.path)).map((v) => v.path),
+  ])
   let done = 0
   for (const item of items) {
     try {
@@ -81,6 +91,7 @@ async function parse(vfiles, opts = {}) {
         item.type === 'bundle'
           ? await makeBundleDoc(item, byPath)
           : await makeFileDoc(item.vfile, byPath, warnings)
+      for (const m of doc.media || []) consumed.add(m.ref)
       docs.push(doc)
     } catch (err) {
       const path = item.vfile ? item.vfile.path : item.bundleDir
@@ -91,6 +102,15 @@ async function parse(vfiles, opts = {}) {
   }
 
   warnings.push(...applyFallbackImageBug(docs))
+
+  // audit B4: name whatever this drop contained that generic's own parse()
+  // never touched — most commonly another platform's export dropped in the
+  // same batch (the Export Guide's own "drop them all in together" advice),
+  // silently discarded before this fix. Generic is the catch-all floor
+  // adapter, so this only ever fires for a file type nothing here recognizes
+  // at all (not ordinary supporting assets, which are counted above).
+  const ignored = vfiles.filter((v) => !consumed.has(v.path))
+  warnings.push(...reportIgnoredFiles(ignored, genericAdapter.label))
 
   return { docs, warnings }
 }

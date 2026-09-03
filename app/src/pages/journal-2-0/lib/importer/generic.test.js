@@ -207,6 +207,26 @@ describe('generic adapter — .docx', () => {
   })
 })
 
+describe('generic adapter — mixed-platform drop (audit B4)', () => {
+  it('names an unrecognized file it silently discarded, with a count', async () => {
+    const evernoteFile = {
+      path: 'Trading Notebook.enex', size: 4, lastModified: null,
+      bytes: async () => new TextEncoder().encode('body'),
+    }
+    const { docs, warnings } = await genericAdapter.parse([vf('a.md', '# A'), evernoteFile])
+    expect(docs).toHaveLength(1)
+    const joined = warnings.join(' ')
+    expect(joined).toContain('1 file')
+    expect(joined).toContain('Trading Notebook.enex')
+  })
+
+  it('does not warn about a referenced image or a textbundle asset', async () => {
+    const png = { path: 'Vault/img/a.png', size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) }
+    const { warnings } = await genericAdapter.parse([vf('Vault/note.md', '![alt](img/a.png)'), png])
+    expect(warnings).toEqual([])
+  })
+})
+
 describe('dataUriMimeToExt', () => {
   it('maps known image MIME types to extensions', () => {
     expect(dataUriMimeToExt('image/png')).toBe('png')

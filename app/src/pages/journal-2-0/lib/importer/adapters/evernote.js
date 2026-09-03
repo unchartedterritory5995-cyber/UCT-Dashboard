@@ -60,6 +60,7 @@
  */
 
 import SparkMD5 from 'spark-md5'
+import { reportIgnoredFiles } from './reportIgnored'
 
 const ENEX_EXT = /\.enex$/i
 const ENML_PROLOG_RE = /^\s*<\?xml[^>]*\?>\s*<!DOCTYPE[^>]*>\s*/i
@@ -110,6 +111,14 @@ async function parse(vfiles, opts = {}) {
     done += 1
     onProgress?.({ phase: 'parsing', done, total: enexFiles.length })
   }
+
+  // audit B4: Evernote resources travel as base64 INSIDE the .enex XML, never
+  // as separate files, so any non-.enex vfile in the drop is by construction
+  // something this adapter did not use — most commonly another platform's
+  // export, dropped alongside per the Export Guide's own "drop them all in
+  // together" advice. Name it instead of discarding it with no signal.
+  const ignored = vfiles.filter((v) => !ENEX_EXT.test(v.path))
+  warnings.push(...reportIgnoredFiles(ignored, evernoteAdapter.label))
 
   return { docs, warnings }
 }

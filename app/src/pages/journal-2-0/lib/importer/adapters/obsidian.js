@@ -69,6 +69,7 @@
 
 import { mdToHtml, resolveRelativeMedia, dedupeMedia } from './generic'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
+import { reportIgnoredFiles } from './reportIgnored'
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
@@ -147,6 +148,18 @@ async function parse(vfiles, opts = {}) {
     done += 1
     onProgress?.({ phase: 'parsing', done, total: items.length })
   }
+
+  // audit B4: name whatever this drop contained that the vault never
+  // touched — neither a note, nor media a note referenced, nor Obsidian's
+  // own `.obsidian/`/`.trash/` housekeeping. Most commonly another
+  // platform's export dropped in the same batch (the Export Guide's own
+  // "drop them all in together" advice), silently discarded before this fix.
+  const consumed = new Set(items.map((v) => v.path))
+  for (const doc of docs) {
+    for (const m of doc.media || []) consumed.add(m.ref)
+  }
+  const ignored = vfiles.filter((v) => !consumed.has(v.path) && !SKIP_DIR_RE.test(v.path))
+  warnings.push(...reportIgnoredFiles(ignored, obsidianAdapter.label))
 
   return { docs, warnings }
 }
