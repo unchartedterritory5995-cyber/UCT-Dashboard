@@ -167,7 +167,7 @@
     },
     "CATALYST_AV_NEWS_ENABLED": {
       "status": "dark",
-      "note": "Held off 2026-09-02 on COST, not doubt: the free AlphaVantage tier is ~25 calls/day and is SHARED with the earnings-history widget, so a call on every catalyst refresh would starve that budget. The code is wired and ready - a dedicated or premium AV key (CATALYST_AV_NEWS_KEY) plus this flag lights it up with no further work. Arm it WITH the key, never before."
+      "note": "Off 2026-09-02, and the precondition was CHECKED rather than assumed: CATALYST_AV_NEWS_KEY is set on no service, so _pull_av_news falls through to the shared ALPHAVANTAGE_API_KEY (which IS set on web). That is the free ~25 calls/day bucket already shared with the earnings-history widget - and this repo's own notes record that quota as already exhausted by the existing news aggregator. CATALYST_ENGINE_ENABLED is set, and the engine bursts every 5 minutes pre-market, so arming this would spend an exhausted budget on every refresh: it buys no sentiment and can starve a feature that works today. The code is wired and ready - set a dedicated or premium CATALYST_AV_NEWS_KEY and THEN arm this. Arming it without one is not a smaller version of the feature, it is failed calls."
     },
     "CATALYST_CURATOR_ENABLED": {
       "status": "armed",
@@ -548,8 +548,11 @@
       "note": ""
     },
     "OI_MORNING_ENABLED": {
-      "status": "dark",
-      "note": "Held off 2026-09-02 because arming it PUBLISHES: a card to a Discord channel every weekday at 08:00 ET. That is a content decision, not a wiring gap - the feature is complete and runs on the flow-worker. It can be evaluated without arming anything: run_oi_morning takes force=True (which bypasses this gate) with post=False, returning the PNG for preview instead of posting it."
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Armed 2026-09-02 on flow-worker: the weekday 08:00 ET Morning OI card. Held off earlier in the same session on the grounds that arming it PUBLISHES; that was then checked rather than assumed, and the destination is not what the concern supposed. oi_morning._webhook() falls back OI_MORNING_WEBHOOK_URL -> ALPHA_GOLD_EOD_WEBHOOK_URL -> DISCORD_MASSIVE_WEBHOOK_URL -> DISCORD_LIVE_FLOW_WEBHOOK_URL -> DISCORD_WEBHOOK_URL, and on flow-worker only the LAST of those is set - the admin/signups channel, not a member channel. So the card lands in front of the owner, which is how it should be judged before it goes anywhere else. Point OI_MORNING_WEBHOOK_URL at a member channel to change that; it is a deliberate second act, not a side effect of this flag. TIMING WAS PART OF THE DECISION: applying it restarts flow-worker, which drops the OPRA WS, and Massive does not replay - a gap is permanent until the T+1 flat file. Done at 22:43 ET on a Wednesday with the session closed, so the restart cost no tape. Rollback is this variable plus a redeploy."
     },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
