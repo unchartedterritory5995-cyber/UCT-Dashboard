@@ -68,6 +68,27 @@ const ITEMS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
+    title: 'Callout',
+    description: 'Highlighted box with an icon',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent({
+      type: 'callout',
+      attrs: { emoji: '💡' },
+      content: [{ type: 'paragraph' }],
+    }).run(),
+  },
+  {
+    title: 'Toggle',
+    description: 'Collapsible section',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent({
+      type: 'toggle',
+      attrs: { open: true },
+      content: [
+        { type: 'toggleSummary', content: [{ type: 'text', text: 'Toggle' }] },
+        { type: 'toggleContent', content: [{ type: 'paragraph' }] },
+      ],
+    }).run(),
+  },
+  {
     title: 'Image',
     description: 'Insert an image from your computer',
     command: ({ editor, range }) => {

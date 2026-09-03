@@ -63,6 +63,15 @@ def main() -> None:
             {"type": "attachmentChip", "attrs": {
                 "href": "/api/j2/notes/attachments/u1/n1/file/report.pdf",
                 "name": "report.pdf"}},
+            {"type": "callout", "attrs": {"emoji": "\U0001F4A1"},
+             "content": [{"type": "paragraph", "content": [
+                 {"type": "text", "text": "a tip worth keeping"}]}]},
+            {"type": "toggle", "attrs": {"open": True}, "content": [
+                {"type": "toggleSummary", "content": [
+                    {"type": "text", "text": "More detail"}]},
+                {"type": "toggleContent", "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "hidden until expanded"}]}]},
+            ]},
         ],
     }
 

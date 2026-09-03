@@ -400,6 +400,39 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         return f"> [{label}]"
     if ntype == "table":
         return _table(node, resolver)
+    if ntype == "callout":
+        # Round-trips through the SAME shape the importer reads (see
+        # calloutNode.js / importer/convert.js::mapCalloutsAndToggles):
+        # Notion's own classic Markdown export represents a callout as a raw
+        # `<aside>` HTML island with the emoji inline as the leading
+        # character of the text. `<aside>` is a CommonMark "type 6" HTML
+        # block, which TERMINATES AT THE FIRST BLANK LINE -- so nested
+        # blocks are joined with a single "\n", never "\n\n", or the
+        # closing `</aside>` would land outside the block and reappear as
+        # literal text on re-import.
+        emoji = str(attrs.get("emoji") or "\U0001F4A1")
+        inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+        first_line = f"{emoji} {inner}" if inner else emoji
+        return f"<aside>\n{first_line}\n</aside>"
+    if ntype == "toggle":
+        # content = [toggleSummary, toggleContent] by schema, but this reads
+        # them by NAME rather than by position -- never raise on a
+        # future/older client that reorders or omits one (module docstring).
+        summary_node = next(
+            (c for c in (kids or []) if isinstance(c, dict) and c.get("type") == "toggleSummary"), None)
+        content_node = next(
+            (c for c in (kids or []) if isinstance(c, dict) and c.get("type") == "toggleContent"), None)
+        summary_text = _inline((summary_node or {}).get("content"), resolver)
+        body_kids = (content_node or {}).get("content") or []
+        body = "\n".join(b for b in (_block(c, resolver) for c in body_kids) if b != "")
+        # Same CommonMark type-6-HTML-block constraint as callout above:
+        # `<details>`/`<summary>` are BOTH in the html-block tag list, so no
+        # blank line may appear between the opening and closing tags.
+        return f"<details>\n<summary>{summary_text}</summary>\n{body}\n</details>"
+    if ntype == "toggleSummary":
+        return _inline(kids, resolver)
+    if ntype == "toggleContent":
+        return "\n".join(_block(c, resolver) for c in (kids or []))
 
     # Unknown node (a block added after this exporter was written): keep the
     # member's text rather than dropping it or raising.

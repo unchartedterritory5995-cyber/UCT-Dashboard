@@ -155,5 +155,18 @@ d('our own export round-trips through our own importer', () => {
     expect(doc.html).toContain('import-ref://attachments/u1/n1/hero/cover.png')
     expect(doc.html).toContain('import-ref://attachments/u1/n1/inline/chart.png')
     expect(doc.html).toContain('import-ref://attachments/u1/n1/file/report.pdf')
+
+    // A callout and a toggle went out through notes_export.py's Notion-
+    // shaped <aside>/<details> markup and survive the round trip as the
+    // SAME raw HTML islands the notion adapter itself passes through
+    // untouched (notion.js's own docstring: "for the converter" -- see
+    // calloutNode.js/toggleNode.js + importer/convert.js for the half that
+    // turns them into real editor nodes, exercised separately in
+    // convert.test.js against this exact shape).
+    expect(doc.html).toContain('<aside>')
+    expect(doc.html).toContain('a tip worth keeping')
+    expect(doc.html).toContain('<details>')
+    expect(doc.html).toContain('<summary>More detail</summary>')
+    expect(doc.html).toContain('hidden until expanded')
   })
 })

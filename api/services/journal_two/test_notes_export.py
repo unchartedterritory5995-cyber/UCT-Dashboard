@@ -70,6 +70,65 @@ def test_table_renders_as_a_markdown_table():
     assert md == "| Sym | R |\n| --- | --- |\n| NVDA | 2.1 |"
 
 
+def test_callout_exports_as_an_aside_with_the_emoji_inline():
+    """Round-trips through the SAME shape the importer reads (calloutNode.js /
+    importer/convert.js) -- Notion's own classic export shape."""
+    md = tiptap_to_markdown(_doc({
+        "type": "callout", "attrs": {"emoji": "\U0001F4A1"},
+        "content": [_para("tip the reader should not miss")],
+    }))
+    assert md == "<aside>\n\U0001F4A1 tip the reader should not miss\n</aside>"
+
+
+def test_callout_defaults_the_emoji_when_missing():
+    md = tiptap_to_markdown(_doc({"type": "callout", "content": [_para("x")]}))
+    assert md.startswith("<aside>\n\U0001F4A1 x")
+
+
+def test_callout_never_puts_a_blank_line_inside_the_aside_block():
+    """<aside> is a CommonMark type-6 HTML block, which terminates at the
+    FIRST blank line. A blank line between multiple paragraphs would leave
+    `</aside>` outside the block on re-import, surfacing as literal text."""
+    md = tiptap_to_markdown(_doc({
+        "type": "callout", "attrs": {"emoji": "⚠️"},
+        "content": [_para("line one"), _para("line two")],
+    }))
+    body = md[len("<aside>\n"):-len("\n</aside>")]
+    assert "\n\n" not in body
+
+
+def test_toggle_exports_as_details_summary_open_by_default_in_the_editor():
+    md = tiptap_to_markdown(_doc({
+        "type": "toggle", "attrs": {"open": True},
+        "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "More detail"}]},
+            {"type": "toggleContent", "content": [_para("Hidden until expanded.")]},
+        ],
+    }))
+    assert md == "<details>\n<summary>More detail</summary>\nHidden until expanded.\n</details>"
+
+
+def test_toggle_never_puts_a_blank_line_inside_the_details_block():
+    """<details>/<summary> are BOTH CommonMark type-6 html-block tags."""
+    md = tiptap_to_markdown(_doc({
+        "type": "toggle",
+        "content": [
+            {"type": "toggleSummary", "content": [{"type": "text", "text": "s"}]},
+            {"type": "toggleContent", "content": [_para("line one"), _para("line two")]},
+        ],
+    }))
+    body = md[len("<details>\n"):-len("\n</details>")]
+    assert "\n\n" not in body
+
+
+def test_toggle_survives_a_missing_or_reordered_child_without_raising():
+    """Never raise on a future/older client's node shape (module docstring)."""
+    md = tiptap_to_markdown(_doc({"type": "toggle", "content": [
+        {"type": "toggleContent", "content": [_para("body only, no summary")]},
+    ]}))
+    assert "body only, no summary" in md
+
+
 def test_widget_embed_exports_its_search_text_not_an_empty_line():
     """A live chart cannot exist in markdown, but silently exporting nothing
     would make the note look like it lost content. The widget's own
