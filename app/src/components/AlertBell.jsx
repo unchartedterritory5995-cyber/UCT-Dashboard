@@ -11,6 +11,7 @@
 //      a sign-out → sign-in on the same tab would carry the previous member's
 //      seen-id set into the next member's session and chime on their first poll.
 import { useState, useRef, useEffect, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
@@ -79,6 +80,7 @@ export default function AlertBell() {
   // throwing. Signed out = no poll = no feed = no sound.
   const auth = useContext(AuthContext)
   const userId = auth?.user?.id ?? null
+  const navigate = useNavigate()
 
   // The SWR key carries the identity. Two consequences, both deliberate:
   // a null key means SWR does not fetch at all while signed out, and a
@@ -183,6 +185,19 @@ export default function AlertBell() {
     mutate()
   }
 
+  // S7 first slice (owner authorization, 2026-09-03): deep-link into the
+  // existing research surface when an alert's own data names one — additive,
+  // no new component. Alerts with no research_url keep today's mark-read-only
+  // behavior unchanged.
+  function handleItemClick(a) {
+    if (!a.read) markRead(a.id)
+    const url = a.data?.research_url
+    if (url) {
+      setOpen(false)
+      navigate(url)
+    }
+  }
+
   function handleBellClick() {
     setOpen(o => !o)
     // Request notification permission on first bell click
@@ -247,8 +262,8 @@ export default function AlertBell() {
             {items.map(a => (
               <div
                 key={a.id}
-                className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''}`}
-                onClick={() => !a.read && markRead(a.id)}
+                className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''} ${a.data?.research_url ? styles.itemLinked : ''}`}
+                onClick={() => handleItemClick(a)}
               >
                 <span className={styles.itemIcon}><UIcon name={TYPE_ICONS[a.type] || 'bell'} size={16} /></span>
                 <div className={styles.itemBody}>

@@ -94,6 +94,7 @@ from api.routers import fmp_adapter_status as fmp_adapter_status_router
 from api.routers import massive_adapter_status as massive_adapter_status_router
 from api.routers import provenance_quote as provenance_quote_router
 from api.routers import provenance_bar as provenance_bar_router
+from api.routers import alert_taxonomy as alert_taxonomy_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -2662,6 +2663,20 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("community store ready")
     except Exception as e:
         logging.getLogger(__name__).exception(f"community store init failed: {e}")
+
+    # S7 first slice: initialize alert_taxonomy.db + register the
+    # document-arrival trigger type on EVERY replica (unconditional,
+    # independent of the scheduler-lock-gated sweep job below) so any
+    # replica can serve the registration API even when it does not own the
+    # scheduler. Idempotent upsert -- safe on every boot.
+    try:
+        from api.services.alert_taxonomy import db as _at_db
+        from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+        _at_db.init_db()
+        _at_doc_arrival.register()
+        logging.getLogger(__name__).info("alert_taxonomy: document-arrival trigger type registered")
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
 
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
@@ -5978,6 +5993,34 @@ async def lifespan(app: FastAPI):
                            id="awareness_engine_scan",
                            max_instances=1, replace_existing=True)
 
+        # S7 first slice (owner authorization, 2026-09-03) -- document-arrival,
+        # the only genuinely new S7 scheduler entry (every other trigger type
+        # rides an existing cycle and is explicitly out of scope this pass).
+        # Independent of COMPASS_AUTOMATION_ENABLED -- alerts are not a
+        # Compass/voice automation feature, so this is a standalone flag gate,
+        # not routed through _add_compass_job.
+        if os.environ.get("ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED", "0") == "1":
+            def _document_arrival_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.document_arrival import run_document_arrival_sweep
+                    result = run_document_arrival_sweep()
+                    print(f"[alert_taxonomy] document-arrival sweep: "
+                          f"checked={result['checked']} fired={result['fired']} "
+                          f"errors={len(result['errors'])}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] document-arrival sweep failed: {e}")
+
+            _scheduler.add_job(
+                _document_arrival_sweep_job,
+                trigger=CronTrigger(minute="*/20", timezone=_ET),
+                id="alert_taxonomy_document_arrival",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 document-arrival alerts ENABLED (every 20 min)")
+        else:
+            print("[startup] S7 document-arrival alerts PAUSED "
+                  "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -7143,6 +7186,7 @@ app.include_router(fmp_adapter_status_router.router)  # /api/admin/fmp-adapter-s
 app.include_router(massive_adapter_status_router.router)  # /api/admin/massive-adapter-status — D1 §7.3
 app.include_router(provenance_quote_router.router)  # /api/provenance/quote — S8 Step 2 live D1 wiring
 app.include_router(provenance_bar_router.router)  # /api/provenance/bar — S8 <Cited> narrow interim form
+app.include_router(alert_taxonomy_router.router)  # /api/alerts/taxonomy/* — S7 document-arrival first slice
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)

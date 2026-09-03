@@ -14,6 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { mutate as swrMutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
 import AlertBell from './AlertBell'
@@ -44,14 +45,25 @@ function alert(id, title) {
   }
 }
 
-/** Render the bell as `userId` (null = signed out). */
+/** Render the bell as `userId` (null = signed out). AlertBell mounts inside
+ *  App.jsx's Router in production (it now uses useNavigate for S7's
+ *  document-arrival deep-link) — MemoryRouter matches that reality. */
 function renderAs(userId) {
   const value = { user: userId ? { id: userId, email: `${userId}@t.test` } : null, loading: false }
   return render(
-    <AuthContext.Provider value={value}>
-      <AlertBell />
-    </AuthContext.Provider>,
+    <MemoryRouter>
+      <AuthContext.Provider value={value}>
+        <AlertBell />
+      </AuthContext.Provider>
+    </MemoryRouter>,
   )
+}
+
+/** Renders the current route's pathname so a test can assert navigation
+ *  actually happened, without mocking react-router-dom itself. */
+function RouteSpy() {
+  const location = useLocation()
+  return <div data-testid="route-spy">{location.pathname}</div>
 }
 
 let feed = []
@@ -130,9 +142,11 @@ describe('AlertBell identity scoping', () => {
     feed = [alert('b_1', 'Alert: u_b ONE'), alert('b_2', 'Alert: u_b TWO')]
     await act(async () => {
       rerender(
-        <AuthContext.Provider value={{ user: { id: 'u_b' }, loading: false }}>
-          <AlertBell />
-        </AuthContext.Provider>,
+        <MemoryRouter>
+          <AuthContext.Provider value={{ user: { id: 'u_b' }, loading: false }}>
+            <AlertBell />
+          </AuthContext.Provider>
+        </MemoryRouter>,
       )
       await new Promise(r => setTimeout(r, 50))
     })
@@ -140,5 +154,53 @@ describe('AlertBell identity scoping', () => {
     await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument())
     expect(playAlertSound).not.toHaveBeenCalled()
     expect(showBrowserNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe('AlertBell -- S7 document-arrival deep-link (owner authorization, 2026-09-03)', () => {
+  it('navigates to an alert\'s research_url on click, in addition to marking it read', async () => {
+    feed = [{ ...alert('a_1', 'New 8-K — AAPL'), data: { sym: 'AAPL', research_url: '/research/AAPL' } }]
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthContext.Provider value={{ user: { id: 'u_a' }, loading: false }}>
+          <AlertBell />
+          <RouteSpy />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = await screen.findByText('New 8-K — AAPL')
+
+    await act(async () => {
+      item.closest('[class*="item"]').click()
+      await new Promise(r => setTimeout(r, 10))
+    })
+
+    const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
+    expect(readCalls.length).toBeGreaterThan(0)
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/AAPL')
+  })
+
+  it('an alert with no research_url keeps today\'s mark-read-only behavior', async () => {
+    feed = [alert('a_1', 'Regular alert')]  // data: {} — no research_url
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = await screen.findByText('Regular alert')
+
+    await act(async () => {
+      item.closest('[class*="item"]').click()
+      await new Promise(r => setTimeout(r, 10))
+    })
+
+    const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
+    expect(readCalls.length).toBeGreaterThan(0)
   })
 })
