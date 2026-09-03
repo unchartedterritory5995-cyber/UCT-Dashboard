@@ -18,6 +18,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
+from api.services.journal_two.calendar import et_today
 from api.services.journal_two import coach_data_assembler
 
 
@@ -135,7 +136,13 @@ def _hard_checks(*, user_id: str, account_id: str, params: dict, conn) -> dict |
                     "risk_pct": risk_pct,
                 }
 
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET, not UTC. `paper_only_days` holds dates the MEMBER picked on a
+    # calendar this product renders as the ET trading-session day
+    # (journal_two/calendar.py: "canonical trading-session day"). Asking
+    # the UTC calendar expires their own guardrail four hours early --
+    # at 8pm ET a day they explicitly marked paper-only starts returning
+    # a green verdict. Same defect as interventions.py had (2026-09-02).
+    today_iso = et_today()
     paper_row = conn.execute(
         "SELECT paper_only_days FROM j2_accounts WHERE id = ? AND user_id = ?",
         (account_id, user_id),

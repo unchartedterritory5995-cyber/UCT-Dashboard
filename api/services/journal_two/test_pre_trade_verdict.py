@@ -56,7 +56,11 @@ def test_hard_check_muted_setup_returns_skip(db_conn):
 def test_hard_check_paper_only_day_returns_skip(db_conn):
     from api.services.journal_two import pre_trade_verdict as ptv
     acc = _seed_account(db_conn)
-    today = datetime.now(timezone.utc).date().isoformat()
+    # The member marks a paper-only day on an ET calendar, so "today"
+    # here must be the ET trading day too -- seeding the UTC date puts
+    # it on the NEXT session for the four hours after 8pm ET.
+    from api.services.journal_two.calendar import et_today
+    today = et_today()
     db_conn.execute(
         "UPDATE j2_accounts SET paper_only_days = ? WHERE id = ?",
         (json.dumps([{"date": today, "reason": "compass_chat"}]), acc["id"]),
@@ -105,7 +109,10 @@ def test_hard_check_account_size_unset_returns_error(db_conn):
 def test_hard_check_daily_loss_limit_breached_returns_skip(db_conn):
     from api.services.journal_two import pre_trade_verdict as ptv
     acc = _seed_account(db_conn)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET trading day -- the daily-loss check buckets on the ET session
+    # spine now, so a UTC-dated seed lands on the wrong day.
+    from api.services.journal_two.calendar import et_today
+    today_iso = et_today()
     db_conn.execute(
         """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,
            entry_price, entry_date, exit_price, exit_date, original_stop, setup,

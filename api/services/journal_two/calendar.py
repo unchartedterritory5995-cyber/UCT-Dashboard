@@ -86,6 +86,28 @@ def to_et_date(iso_utc: str) -> str:
     return dt.astimezone(ET).strftime("%Y-%m-%d")
 
 
+def et_today() -> str:
+    """Today's trading-session day as YYYY-MM-DD, in America/New_York.
+
+    The right-hand side of any "did this happen today" comparison against the
+    `COALESCE(trading_day_et, substr(exit_date,1,10))` spine. Asking the UTC
+    calendar instead is not a rounding error: UTC midnight is 8pm ET, so a
+    member trading the evening session rolls onto a new "day" mid-session.
+    `interventions.py` did exactly that until 2026-09-02, and the consequence
+    was a consecutive-loss counter that silently reset at 8pm ET -- a
+    step-away warning that went quiet precisely when tilt is most likely.
+
+    ⚠️ There are eight hand-written `_et_today()` copies elsewhere in this
+    codebase (`broker/historical_equity.py`, `broker/fleet_monitor.py`,
+    `broker/mirror_check.py`, and others) -- and this module, the documented
+    home of the trading-day spine, currently IMPORTS one of them at the
+    equity-series call site below rather than owning it. This is the copy
+    that should survive; new callers use it, and those eight are a
+    consolidation waiting to happen, not a licence to write a ninth.
+    """
+    return datetime.now(UTC).astimezone(ET).strftime("%Y-%m-%d")
+
+
 def _row_et_day(r, ts_key: str) -> str | None:
     """ET trading day for a row: the stamped trading_day_et spine column
     when present, else legacy to_et_date() on the row's timestamp column.
