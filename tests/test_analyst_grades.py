@@ -120,6 +120,97 @@ def test_zero_count_consensus_is_dropped(monkeypatch):
     assert res["price_target"]["consensus"] == 100
 
 
+def test_consensus_and_price_target_carry_d1_provenance_meta(monkeypatch):
+    """S8 vertical slice (owner authorization, 2026-09-03): the two cards
+    EstimatesTab renders through <Provenance>/<FreshnessBadge> must receive
+    D1's real typed envelope, not just the flattened values -- and the
+    other two legs (actions, trend) must NOT gain a `_meta` key, since
+    nothing consumes it there and `_fmp_row`'s existing contract is
+    untouched by design."""
+    def _consensus_result(ticker, **kw):
+        return pe.ProviderResult(
+            value=[{"strongBuy": 1, "buy": 69, "hold": 34, "sell": 7, "strongSell": 0, "consensus": "Buy"}],
+            provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_grades_consensus",
+                                           source_observed_at=1735689600.0),
+            licensing_class="R",
+            freshness="end_of_day",
+        )
+
+    def _pt_consensus_result(ticker, **kw):
+        return pe.ProviderResult(
+            value=[{"targetHigh": 400, "targetLow": 253, "targetConsensus": 327, "targetMedian": 325}],
+            provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_price_target_consensus"),
+            licensing_class="R",
+            freshness="end_of_day",
+        )
+
+    monkeypatch.setattr(ag.fmp_client, "get_grades_consensus", _consensus_result)
+    monkeypatch.setattr(ag.fmp_client, "get_price_target_consensus", _pt_consensus_result)
+    monkeypatch.setattr(ag.fmp_client, "get_price_target_summary", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag.fmp_client, "get_analyst_grades", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag.fmp_client, "get_grades_historical", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag, "cache", _FakeCache())
+
+    res = ag.get_analyst_grades("AAPL")
+
+    con_meta = res["consensus"]["_meta"]
+    assert con_meta["vendor"] == "fmp"
+    assert con_meta["sourceActivity"] == "fmp_client.get_grades_consensus"
+    assert con_meta["sourceObservedAt"] == 1735689600.0
+    assert con_meta["freshnessClass"] == "end_of_day"
+    assert con_meta["degraded"] is None
+
+    pt_meta = res["price_target"]["_meta"]
+    assert pt_meta["sourceActivity"] == "fmp_client.get_price_target_consensus"
+    assert pt_meta["freshnessClass"] == "end_of_day"
+
+    # recent_actions/trend still use the untouched _fmp_row/_fmp_rows path.
+    assert res["recent_actions"] == []
+    assert res["trend"] == []
+
+
+def test_a_degraded_but_still_usable_consensus_row_surfaces_that_honestly(monkeypatch):
+    """cached_forbidden means the vendor answered with older data it can no
+    longer freshly confirm -- an honest, distinct fact from a hard miss.
+    _fmp_row_with_meta must NOT collapse this to None the way a genuine
+    failure is; the frontend's mapAvailability() reads this exact shape."""
+    def _degraded_result(ticker, **kw):
+        return pe.ProviderResult(
+            value=[{"strongBuy": 1, "buy": 2, "hold": 0, "sell": 0, "strongSell": 0, "consensus": "Buy"}],
+            provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_grades_consensus"),
+            licensing_class="R",
+            freshness="stale",
+            degraded="cached_forbidden",
+        )
+
+    monkeypatch.setattr(ag.fmp_client, "get_grades_consensus", _degraded_result)
+    monkeypatch.setattr(ag.fmp_client, "get_price_target_consensus", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag.fmp_client, "get_price_target_summary", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag.fmp_client, "get_analyst_grades", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag.fmp_client, "get_grades_historical", lambda t, **kw: _result([]))
+    monkeypatch.setattr(ag, "cache", _FakeCache())
+
+    res = ag.get_analyst_grades("AAPL")
+    assert res["consensus"]["total"] == 3
+    assert res["consensus"]["_meta"]["degraded"] == "cached_forbidden"
+
+
+def test_a_hard_miss_still_returns_no_row_and_no_meta(monkeypatch):
+    """degraded WITHOUT a usable row (e.g. circuit_open) is unchanged from
+    today's behavior -- a miss, same as any other failure."""
+    def _circuit_open(ticker, **kw):
+        return pe.ProviderResult(
+            value=None,
+            provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_grades_consensus"),
+            licensing_class="R",
+            degraded="circuit_open",
+        )
+
+    row, meta = ag._fmp_row_with_meta(_circuit_open, "AAPL")
+    assert row is None
+    assert meta is None
+
+
 def test_the_four_legs_run_CONCURRENTLY_not_one_after_another(monkeypatch):
     """Pinned with a barrier, not a stopwatch.
 

@@ -72,8 +72,45 @@ def _fmp_rows(fn, ticker: str, **kwargs) -> list:
     return result.value if isinstance(result.value, list) else []
 
 
+def _fmp_row_with_meta(fn, ticker: str, **kwargs) -> tuple[Optional[dict], Optional[dict]]:
+    """Same contract as `_fmp_row`, but ALSO returns D1's own typed provenance
+    envelope (`ProviderResult.provenance`/`.freshness`/`.degraded`) alongside
+    the extracted row — used ONLY by the two legs (`_consensus`,
+    `_price_target`) whose cards render S8 `<Provenance>`/`<FreshnessBadge>`
+    UI. `_fmp_row`/`_fmp_rows` are left untouched (same contract, same
+    failure semantics) so `_recent_actions`/`_trend` and every existing
+    caller of this module are byte-for-byte unaffected.
+
+    Unlike `_fmp_row`, a `degraded` result is NOT converted to a hard miss
+    when it still carries a usable row (e.g. `cached_forbidden` — the vendor's
+    own memory of a fact a fresh call can no longer confirm): the row is
+    honest, older data, and the caller renders that fact through
+    `availabilityContract.js`'s existing `ENTITLEMENT_DENIED` state rather
+    than losing the card entirely. A `degraded` result with NO row (e.g.
+    `circuit_open`) still returns `(None, None)`, same as any other miss.
+    """
+    try:
+        result = fn(ticker, **kwargs)
+    except Exception:
+        return None, None
+    row = _first(result.value) if result.value else None
+    if row is None:
+        return None, None
+    meta = {
+        "vendor": result.provenance.vendor,
+        "sourceActivity": result.provenance.source_activity,
+        "fetchedAt": result.provenance.fetched_at,
+        "sourceObservedAt": result.provenance.source_observed_at,
+        "tieBreak": result.provenance.tie_break,
+        "freshnessClass": result.freshness,
+        "licensingClass": result.licensing_class,
+        "degraded": result.degraded,
+    }
+    return row, meta
+
+
 def _consensus(ticker: str) -> Optional[dict]:
-    row = _fmp_row(fmp_client.get_grades_consensus, ticker)
+    row, meta = _fmp_row_with_meta(fmp_client.get_grades_consensus, ticker)
     if not row:
         return None
     buckets = {k: int(row.get(k) or 0) for k in
@@ -81,11 +118,12 @@ def _consensus(ticker: str) -> Optional[dict]:
     total = sum(buckets.values())
     if total == 0:
         return None
-    return {**buckets, "total": total, "label": row.get("consensus") or None}
+    return {**buckets, "total": total, "label": row.get("consensus") or None, "_meta": meta}
 
 
 def _price_target(ticker: str) -> Optional[dict]:
-    con = _fmp_row(fmp_client.get_price_target_consensus, ticker) or {}
+    con, con_meta = _fmp_row_with_meta(fmp_client.get_price_target_consensus, ticker)
+    con = con or {}
     summ = _fmp_row(fmp_client.get_price_target_summary, ticker) or {}
     out = {
         "high":      _num(con.get("targetHigh")),
@@ -98,6 +136,7 @@ def _price_target(ticker: str) -> Optional[dict]:
                          "avg": _num(summ.get("lastQuarterAvgPriceTarget"))},
         "last_year":    {"count": int(summ.get("lastYearCount") or 0),
                          "avg": _num(summ.get("lastYearAvgPriceTarget"))},
+        "_meta": con_meta,
     }
     if out["consensus"] is None and out["last_quarter"]["avg"] is None:
         return None

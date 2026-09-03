@@ -158,6 +158,21 @@ export default function FinancialsTab({ sym, showGrids = true }) {
 
   return (
     <div className={styles.finWrap}>
+      {/* S3 continuation (owner authorization, 2026-09-03): entity
+          resolution now flows through get_financials(), reported honestly
+          when it hasn't happened yet -- but NO <Provenance>/<FreshnessBadge>
+          UI on this tab this pass. Unlike Estimates, none of this tab's
+          displayed VALUES are D1-sourced yet (see useFinancials.js's
+          backend, financials.py's own module docstring: the FMP statement
+          endpoints are an explicitly deferred enhancement, their field
+          shapes unverified anywhere in this codebase) -- attaching a trust
+          badge to a number D1 didn't actually produce would be exactly the
+          fabricated-provenance failure S8 exists to prevent. */}
+      {fin.entity && fin.entity.status !== 'resolved' && (
+        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+          Symbol not yet linked to a canonical identity ({fin.entity.status}).
+        </div>
+      )}
       {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,
           which feeds StatementPanels, returns the FISCAL period — so for a
           September-fiscal-year company like AAPL the same quarter appears as

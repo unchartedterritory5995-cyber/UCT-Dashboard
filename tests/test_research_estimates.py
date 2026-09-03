@@ -1,8 +1,11 @@
 """Tests for the research estimates service + router."""
 import pandas as pd
+import pytest
 
 from api.services.research import estimates as est
 from api.services.cache import cache
+from api.services.entity_master import schema, store
+from api.services.entity_master import api as em_api
 
 
 class TestForward:
@@ -121,6 +124,73 @@ class TestGetEstimatesCachePolicy:
         )
         assert out["consensus"] is None
         assert ttl == est._CACHE_TTL
+
+
+class TestEntityResolution:
+    """S3 vertical slice (owner authorization, 2026-09-03): get_estimates
+    resolves through Entity Master and routes D1's fmp call through the
+    resolved vendor symbol -- real Entity Master, isolated DB per test."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_entity_master(self, tmp_path, monkeypatch):
+        db_path = str(tmp_path / "em_default.db")
+        monkeypatch.setattr(schema, "DB_PATH", db_path)
+        store._local.conns = {}
+        store._ALIAS_CACHE.clear()
+        store._CACHE_LOADED = False
+        schema.init_db(db_path=db_path)
+        yield
+        store._local.conns = {}
+        store._ALIAS_CACHE.clear()
+        store._CACHE_LOADED = False
+        cache.invalidate("research_est::BRK-B")
+        cache.invalidate("research_est::UNSEEDED")
+
+    def _yf_empty_but_ok(self, s):
+        return {"eps_est": None, "rev_est": None, "eps_trend": None, "eps_rev": None, "ud": None}
+
+    def test_get_estimates_reports_entity_resolution(self, monkeypatch):
+        eid = em_api.apply_event(
+            "new_entity", {"entity_type": "equity", "initial_alias": "UNSEEDED",
+                          "initial_alias_valid_from": "2020-01-01"},
+            dedup_key="test:unseeded", source="admin_manual",
+        ).entity_id
+        monkeypatch.setattr(est, "_fetch", self._yf_empty_but_ok)
+        monkeypatch.setattr(est, "get_analyst_grades", lambda s: None)
+        out = est.get_estimates("unseeded")
+        assert out["entity"] == {"status": "resolved", "entityId": eid}
+
+    def test_an_unresolved_symbol_still_gets_a_full_response(self, monkeypatch):
+        monkeypatch.setattr(est, "_fetch", self._yf_empty_but_ok)
+        monkeypatch.setattr(est, "get_analyst_grades", lambda s: None)
+        out = est.get_estimates("NOBODYKNOWSTHIS")
+        assert out["entity"] == {"status": "not_found", "entityId": None}
+        assert out["forward"] == []  # the rest of the page still works
+
+    def test_the_resolved_vendor_symbol_is_what_reaches_the_fmp_leg(self, monkeypatch):
+        """The exact BRK-B/BRK.B case: the route param and the symbol D1 is
+        actually called with must differ, on purpose, when Entity Master
+        has a real vendor mapping."""
+        eid = em_api.apply_event(
+            "new_entity", {"entity_type": "equity", "initial_alias": "BRK-B",
+                          "initial_alias_valid_from": "2020-01-01"},
+            dedup_key="test:brkb", source="admin_manual",
+        ).entity_id
+        em_api.set_vendor_symbol(eid, "fmp", "BRK.B", "2020-01-01", source="admin_manual")
+
+        seen = {}
+
+        def _spy_grades(ticker):
+            seen["ticker"] = ticker
+            return {"consensus": {"label": "Buy"}, "price_target": None, "recent_actions": []}
+
+        monkeypatch.setattr(est, "_fetch", self._yf_empty_but_ok)
+        monkeypatch.setattr(est, "get_analyst_grades", _spy_grades)
+
+        out = est.get_estimates("BRK-B")
+        assert seen["ticker"] == "BRK.B"        # D1 called with the VENDOR symbol
+        assert out["sym"] == "BRK-B"             # the page still shows the route's own symbol
+        assert out["entity"]["status"] == "resolved"
 
 
 class TestRoute:

@@ -1,6 +1,49 @@
 import useEstimates from '../hooks/useEstimates'
 import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
+import Provenance from '../../../components/provenance/Provenance'
+import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
+import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
+import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
+import { computeSessionStale } from '../../../components/provenance/sessionStale'
+import { sessionModel } from '../../../components/dashboard/sessionModel'
+import useMarketOpen from '../../../hooks/useMarketOpen'
 import styles from '../ResearchPage.module.css'
+
+/** S8/S11 vertical slice (owner authorization, 2026-09-03): the Analyst
+ *  consensus and Price target cards' data already flows through D1
+ *  (`fmp_client.get_grades_consensus`/`get_price_target_consensus`, via
+ *  `analyst_grades.py`) -- this composes the trust strip D1's own
+ *  provenance/freshness envelope now carries (`_meta` from the backend)
+ *  onto those two cards specifically, not the whole tab: the yfinance-
+ *  sourced forward/revisions/rating-changes sections below have no D1
+ *  envelope to show and are left exactly as they render today. */
+function TrustStrip({ meta, sessionContext }) {
+  if (!meta) return null
+  const availability = mapAvailability({ value: true, degraded: meta.degraded })
+  const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
+  const sessionStale = computeSessionStale(asOfIso)
+  return (
+    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+      <Provenance
+        value="FMP"
+        availability={availability}
+        provenance={availability === AVAILABLE ? {
+          sourceActivity: meta.sourceActivity,
+          timestamp: asOfIso,
+          tieBreak: meta.tieBreak,
+        } : null}
+      />
+      {availability === AVAILABLE && (
+        <FreshnessBadge
+          freshnessClass={meta.freshnessClass}
+          asOf={asOfIso}
+          sessionState={sessionContext}
+          sessionStale={sessionStale}
+        />
+      )}
+    </div>
+  )
+}
 
 function fmtBig(v) {
   if (v == null) return '—'
@@ -50,6 +93,7 @@ function actionClass(a) {
 
 export default function EstimatesTab({ sym }) {
   const { data, isLoading } = useEstimates(sym)
+  const session = useMarketOpen()
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading estimates…</div></div></div>
@@ -63,9 +107,16 @@ export default function EstimatesTab({ sym }) {
   const pt = e.price_target || null
   const ptr = pt ? ptRecency(pt) : null
   const empty = !fwd.length && !rev.length && !rc.length && !con && !pt
+  const sessionContext = sessionModel(session)
 
   return (
     <div className={styles.finWrap}>
+      {e.entity && e.entity.status !== 'resolved' && (
+        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+          Symbol not yet linked to a canonical identity ({e.entity.status}).
+        </div>
+      )}
+
       {con && (
         <section className={styles.card}>
           <div className={styles.ct}>Analyst consensus</div>
@@ -87,6 +138,7 @@ export default function EstimatesTab({ sym }) {
               </span>
             ))}
           </div>
+          <TrustStrip meta={con._meta} sessionContext={sessionContext} />
         </section>
       )}
 
@@ -109,6 +161,7 @@ export default function EstimatesTab({ sym }) {
               </div>
             )}
           </div>
+          <TrustStrip meta={pt._meta} sessionContext={sessionContext} />
         </section>
       )}
 

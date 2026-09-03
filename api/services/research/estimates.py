@@ -16,6 +16,7 @@ from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.yfinance_pool import run_in_pool
 from api.services.analyst_grades import get_analyst_grades
+from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
 
@@ -137,11 +138,14 @@ def get_estimates(sym):
     if cached is not None:
         return cached
 
+    entity, fmp_symbol = resolve_entity(sym, vendor="fmp")
+
     raw = _fetch(sym)
     fetch_ok = bool(raw)   # {} means _fetch's exception path fired
     raw = raw or {}
     out = {
         "sym": sym,
+        "entity": entity,
         "forward": _forward(raw.get("eps_est"), raw.get("rev_est")),
         "revisions": _revisions(raw.get("eps_trend"), raw.get("eps_rev")),
         "rating_changes": _rating_changes(raw.get("ud")),
@@ -151,10 +155,13 @@ def get_estimates(sym):
 
     # Enrich with FMP Ultimate analyst data: sell-side consensus buckets, price
     # targets, and a richer/more-reliable rating-change feed (override yfinance's
-    # upgrades_downgrades only when FMP actually returns actions).
+    # upgrades_downgrades only when FMP actually returns actions). Routed
+    # through S3's resolved `fmp_symbol` (falls back to `sym` on any
+    # resolution/vendor-symbol miss) rather than the raw route param, so a
+    # renamed/reused ticker reaches D1 as the entity's real FMP symbol.
     grades_ok = True
     try:
-        grades = get_analyst_grades(sym)
+        grades = get_analyst_grades(fmp_symbol)
     except Exception:
         grades = None
         grades_ok = False
