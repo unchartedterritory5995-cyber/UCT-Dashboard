@@ -32,7 +32,35 @@ sys.path.insert(0, str(REPO))
 
 from api.services import feature_flag_index as ffi  # noqa: E402
 
-SERVICES = ("web", "worker", "flow-worker")
+#: ⚰️ THIS WAS A HARDCODED THREE — ("web", "worker", "flow-worker") — while the
+#: project had FIVE services. `BARS_API_ENABLED=1` was live on `bars-api` the whole
+#: time and this tool listed it under "still awaiting a decision": the exact fiction
+#: the ledger exists to prevent, manufactured BY the thing that checks for it. The
+#: other direction is worse — a flag armed only on an unlisted service reads as
+#: `claims_armed_but_unset` ("the entry is fiction") about an entry that is true, so
+#: acting on this tool could have UNSET a live gate.
+#:
+#: ⛔ SO THE ROSTER IS DERIVED, AND A FAILURE TO DERIVE IT REFUSES rather than
+#: falling back to a shorter list. A partial roster is not a smaller audit; it is a
+#: confidently wrong one, which is the same rule `_vars_for` already follows for an
+#: empty read.
+def _services() -> tuple[str, ...]:
+    exe = shutil.which("railway")
+    if not exe:
+        raise RailwayUnavailable(
+            "the `railway` CLI is not on PATH — cannot enumerate services")
+    try:
+        r = subprocess.run([exe, "status", "--json"],
+                           capture_output=True, text=True, timeout=90, check=False)
+        edges = json.loads(r.stdout)["services"]["edges"]
+        names = tuple(sorted(e["node"]["name"] for e in edges))
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as e:
+        raise RailwayUnavailable(
+            f"could not enumerate the project's services ({e}) — refusing to audit "
+            f"against a partial roster, which is what made bars-api invisible") from e
+    if not names:
+        raise RailwayUnavailable("the project reported no services")
+    return names
 
 
 class RailwayUnavailable(RuntimeError):
@@ -69,7 +97,7 @@ def _vars_for(service: str) -> set[str]:
 
 def audit() -> dict:
     ledger = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
-    live: dict[str, set[str]] = {s: _vars_for(s) for s in SERVICES}
+    live: dict[str, set[str]] = {s: _vars_for(s) for s in _services()}
     anywhere = set().union(*live.values()) if live else set()
 
     claims_armed_but_unset = sorted(

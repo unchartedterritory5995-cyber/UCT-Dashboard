@@ -58,32 +58,37 @@ describe('a member can write their own Pine screener', () => {
     }
   })
 
-  it('⭐⭐ 36 translate, and the TWO that do not are named with their reason', () => {
+  it('⭐⭐ every script a member would write to screen now translates', () => {
     // ⏳ THE FLOOR MOVES ONE WAY. Raising it is the point of this file; a drop
     // reds here with the roster rather than as a silent number change.
     const passed = RESULTS.length - MISSES.length
-    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(36)
+    expect(passed, `misses: ${MISSES.join(', ')}`).toBeGreaterThanOrEqual(38)
 
-    // ⛔⛔ A ROSTER, NOT A COUNT — and the two halves are different KINDS of
-    // residual, which is the whole reason to name them:
+    // ⛔⛔ A ROSTER, NOT A COUNT. Three generations of residual have come off it,
+    // and the KIND of each removal is the part worth keeping:
     //
-    // ✅ 31-cci-oversold AND 32-money-flow-oversold WERE ON THIS ROSTER AND CAME
-    //    OFF IT. They needed a shape-level `sourceMustBe`, since Pine passes a
-    //    SOURCE where this table takes high/low/close and a static `build` plan
-    //    would have DROPPED that argument silently. See
-    //    `pine.sourceAdapters.test.js`.
+    // ✅ 31-cci-oversold AND 32-money-flow-oversold needed a shape-level
+    //    `sourceMustBe`: Pine passes a SOURCE where this table takes high/low/
+    //    close, and a static `build` plan would have DROPPED that argument
+    //    silently. See `pine.sourceAdapters.test.js`.
     //
-    //   33-obv-rising          ─┐ WHAT IS LEFT IS A RULING, NOT A GAP. Pine's
-    //   34-bars-since-signal   ─┘ `ta.obv` and `ta.barssince` accumulate from the
-    //     first bar ever drawn; this table's `obvN` and `barssince` take a window.
-    //     An unbounded accumulator would end static decidability — the property
-    //     that lets ONE definition sweep every symbol without being evaluated
-    //     first. These stay refused on purpose, and a member who needs them is
-    //     told the window to give.
-    expect(MISSES).toEqual([
-      '33-obv-rising [pine:function]',
-      '34-bars-since-signal [pine:function]',
-    ])
+    // ✅ 33-obv-rising AND 34-bars-since-signal came off WITHOUT WIDENING THE
+    //    VOCABULARY, which is why they could come off at all. This roster used to
+    //    say they were "a ruling, not a gap" because `ta.obv` and `ta.barssince`
+    //    accumulate from the first bar ever drawn, and an unbounded accumulator
+    //    would end static decidability — the property that lets ONE definition
+    //    sweep every symbol without being evaluated first.
+    //
+    //    ⭐ THAT RULING WAS RIGHT ABOUT THE FUNCTIONS AND TOO WIDE ABOUT THE
+    //    SCRIPTS. Neither script asks for an unbounded value: `obv > obv[1]` is a
+    //    DIFFERENCE, in which the arbitrary seed cancels, and
+    //    `barssince(c) < 5` is a comparison whose answer is identical for every
+    //    count the window would cap. Both are now rewritten to the bounded forms
+    //    the table already declared — `obvN(1) > 0` and `barssince(c, 5) < 5` —
+    //    as EXACT identities, not conveniences. The unbounded names are still
+    //    refused everywhere the context does not bound them, which
+    //    `pine.contextBounded.test.js` pins from both directions.
+    expect(MISSES).toEqual([])
   })
 
   it('⭐⭐ every translation is a FORMULA THE ENGINE PARSES, not just an `ok`', () => {
