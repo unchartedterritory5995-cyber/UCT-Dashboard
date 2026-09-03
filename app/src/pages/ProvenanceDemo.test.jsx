@@ -191,6 +191,70 @@ describe('accessibility of the page shell', () => {
   })
 })
 
+describe('session-stale wiring (S11 continuation): real, distinct from source-stale', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('a value observed before the session boundary that has since crossed shows "view needs refresh"', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-01-15T15:00:00Z')) // 10:00am ET, regular session (opened 9:30am)
+    mockFetchOnce({
+      symbol: 'AAPL',
+      vendors: {
+        massive: {
+          value: { day: { c: 505.24 } },
+          // 9:00am ET — pre-market, BEFORE the 9:30am open boundary that has since passed.
+          provenance: { source_activity: 'massive.get_quote', source_observed_at: Math.floor(new Date('2026-01-15T14:00:00Z').getTime() / 1000) },
+          freshness: 'real_time',
+        },
+      },
+    })
+    render(<ProvenanceDemo />)
+    await waitFor(() => expect(screen.getByTestId('vendor-row-massive')).toBeTruthy())
+    expect(screen.getByTestId('vendor-row-massive').querySelector('[data-testid="session-stale-note"]')).toBeTruthy()
+  })
+
+  it('a value observed within the current session shows no session-stale note, even though its own source data is real_time', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-01-15T15:00:00Z')) // 10:00am ET, regular session
+    mockFetchOnce({
+      symbol: 'AAPL',
+      vendors: {
+        massive: {
+          value: { day: { c: 505.24 } },
+          // 9:45am ET — AFTER the 9:30am open boundary, same session as "now".
+          provenance: { source_activity: 'massive.get_quote', source_observed_at: Math.floor(new Date('2026-01-15T14:45:00Z').getTime() / 1000) },
+          freshness: 'real_time',
+        },
+      },
+    })
+    render(<ProvenanceDemo />)
+    await waitFor(() => expect(screen.getByTestId('vendor-row-massive')).toBeTruthy())
+    expect(screen.getByTestId('vendor-row-massive').querySelector('[data-testid="session-stale-note"]')).toBeNull()
+  })
+
+  it('D1 source-stale and S11 session-stale are independent: a source-stale value from the current session shows source-stale text but no session-stale note', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-01-15T15:00:00Z'))
+    mockFetchOnce({
+      symbol: 'ATLQ',
+      vendors: {
+        fmp: {
+          value: [{ price: 9.97 }],
+          provenance: { source_activity: 'x', source_observed_at: Math.floor(new Date('2026-01-15T14:45:00Z').getTime() / 1000) },
+          freshness: 'stale', // D1's own source-stale classification
+        },
+      },
+    })
+    render(<ProvenanceDemo />)
+    await waitFor(() => expect(screen.getByTestId('vendor-row-fmp')).toBeTruthy())
+    const row = screen.getByTestId('vendor-row-fmp')
+    expect(row.querySelector('[data-testid="source-stale-note"]')).toBeTruthy()
+    expect(row.querySelector('[data-testid="session-stale-note"]')).toBeNull()
+  })
+})
+
 describe('the <Cited> bar-citation example (narrow interim form, SPEC-S8 §4.5)', () => {
   it('a real recorded bar renders through <Cited>, present state', async () => {
     mockFetchRouted({

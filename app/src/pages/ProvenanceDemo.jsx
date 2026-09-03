@@ -24,6 +24,7 @@ import FreshnessBadge from '../components/provenance/FreshnessBadge'
 import Cited from '../components/provenance/Cited'
 import { mapAvailability, AVAILABLE } from '../components/provenance/availabilityContract'
 import { formatPrice, epochSecondsToIso } from '../components/provenance/presentationFormat'
+import { computeSessionStale } from '../components/provenance/sessionStale'
 import { sessionModel } from '../components/dashboard/sessionModel'
 import useMarketOpen from '../hooks/useMarketOpen'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -49,7 +50,7 @@ function headlinePrice(vendor, rawValue) {
   return null
 }
 
-function VendorRow({ vendor, result }) {
+function VendorRow({ vendor, result, sessionContext }) {
   const availability = mapAvailability(result)
   const label = VENDOR_LABEL[vendor] || vendor
 
@@ -64,6 +65,13 @@ function VendorRow({ vendor, result }) {
 
   const price = headlinePrice(vendor, result.value)
   const asOfIso = epochSecondsToIso(result.provenance?.source_observed_at)
+  // S11 continuation: the real session-aware computation (PRD-S8 §9.6),
+  // replacing Step 1/2's "sessionStale is caller-supplied only, always
+  // false" placeholder. Recomputed on every render of this page — which
+  // already ticks every 60s via the parent's shared `useMarketOpen()`
+  // interval, so this needs no timer of its own (S11 "avoid... duplicate
+  // market-clock calculations").
+  const sessionStale = computeSessionStale(asOfIso)
 
   return (
     <div className={styles.row} data-testid={`vendor-row-${vendor}`}>
@@ -76,7 +84,12 @@ function VendorRow({ vendor, result }) {
           tieBreak: result.provenance.tie_break,
         }}
       />
-      <FreshnessBadge freshnessClass={result.freshness} asOf={asOfIso} />
+      <FreshnessBadge
+        freshnessClass={result.freshness}
+        asOf={asOfIso}
+        sessionState={sessionContext}
+        sessionStale={sessionStale}
+      />
     </div>
   )
 }
@@ -174,7 +187,7 @@ export default function ProvenanceDemo() {
       ) : (
         <div className={styles.rows}>
           {Object.entries(state.data?.vendors || {}).map(([vendor, result]) => (
-            <VendorRow key={vendor} vendor={vendor} result={result} />
+            <VendorRow key={vendor} vendor={vendor} result={result} sessionContext={sessionState} />
           ))}
         </div>
       )}
