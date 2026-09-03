@@ -4602,7 +4602,17 @@ export default function StockChart({
   // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
   // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
   const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
-  const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
+  // No-blink first paint (2026-09-03): a standalone D/W/M chart fetches its FULL depth as the
+  // SINGLE first request, instead of the viewport-first shallow(600)→deep two-stage that
+  // repaints ~900 ms later ("blink" back to full history). The deep fetch already happens
+  // unconditionally via the dwell-warm below, so this is FEWER fetches, not more — it just
+  // makes the one deep fetch BE the first paint. Scoped to backgroundWarm charts (grid cells
+  // pass backgroundWarm=false → keep viewport-first, the herd guard) and to D/W/M (intraday
+  // full depth is 20-32k bars — too heavy for a first paint; intraday keeps viewport-first).
+  // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
+  const _deepFirstPaint = backgroundWarm && !barsOverridePending
+    && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
+  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
