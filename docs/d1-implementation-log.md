@@ -70,6 +70,36 @@ The AST census tool (§21.1 of the spec) is built to find the TRUE, full set
 `QUARANTINE` list (the exact mechanism spec §22 already designs for a
 multi-PR migration), not silently exempted or silently expanded into scope.
 
+**Addendum (found while migrating `earnings_estimates.py`'s own 6 call
+sites onto `fmp_client`): the true FMP surface is larger still, and a
+`financialmodelingprep.com` string grep structurally cannot find the rest
+of it.** `earnings_estimates._fmp_get` is not private to that module — this
+Section already noted `transcript_indexer.py` and `analyst_grades.py` as
+delegators, but tracing every import of `earnings_estimates._fmp_get`
+(`grep -rn "from api.services.earnings_estimates import _fmp_get\|earnings_estimates\._fmp_get"`)
+finds **7 more**, none of which construct their own
+`financialmodelingprep.com` URL and so are invisible to the grep the 15-file
+count above is built on: `api/routers/research.py` (2 call sites),
+`api/services/bars_sanitize.py` (`/stable/profile`, `/stable/splits`),
+`api/services/call_recap_warmer.py`, `api/services/fundamentals.py` (the
+*services* one — distinct from the already-migrated `api/routers/
+fundamentals.py`), `api/services/ipo_calendar.py`, `api/services/ir_webcast.py`,
+`api/services/screener/earnings_dates.py`. A generic low-level HTTP helper
+being imported and called directly by other modules is a call-site-discovery
+blind spot a literal-URL grep cannot see by construction — the AST census
+tool (§21.1) must resolve `_fmp_get` imports/call sites too, not just
+`financialmodelingprep.com` literals, or it will undercount again the same
+way this Section's own first pass did.
+
+**Consequence for this build:** `earnings_estimates._fmp_get` stays
+defined, byte-for-byte unchanged, rather than deleted — it is now confirmed
+load-bearing for at least 9 external modules outside this build's approved
+scope. Only the 6 originally-scoped call sites *inside* `earnings_estimates.py`
+itself were migrated onto `fmp_client` (via a new internal `_fmp_rows`
+wrapper); every external consumer of `_fmp_get` is untouched, per the same
+anti-scope-creep boundary as the 10-file quarantine above. See commit
+`c0a6a5dae`.
+
 ### Massive
 
 **The spec's count is accurate — confirmed, no correction needed.**
