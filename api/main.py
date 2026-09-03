@@ -261,11 +261,19 @@ def _grade_snapshot_catchup_background():
 # NEVER crash the FastAPI app or trip the Railway healthcheck.
 
 def _run_patterns_track_outcomes():
-    """APScheduler job: resolve open pattern detections (entry/stop/target hits)."""
+    """APScheduler job: resolve open pattern detections (entry/stop/target hits).
+
+    Phase 3B (2026-09-03): was a hardcoded lookback_hours=72 -- confirmed via
+    real production data to silently abandon nearly all classical/structure/
+    uct-family detections (multi-week resolution horizons) before they ever
+    resolved. Now defers to memory.track_outcomes()'s own corrected default
+    (memory.TRACK_OUTCOMES_LOOKBACK_HOURS, env-overridable) so there is one
+    authority for the value, not two copies that can drift.
+    """
     _plog = logging.getLogger(__name__)
     try:
         from api.services.pattern_engine.memory import track_outcomes
-        n = track_outcomes(lookback_hours=72)
+        n = track_outcomes()
         _plog.info("[patterns] track_outcomes: resolved %d detections", n)
         print(f"[patterns] track_outcomes: resolved {n} detections")
     except Exception as e:

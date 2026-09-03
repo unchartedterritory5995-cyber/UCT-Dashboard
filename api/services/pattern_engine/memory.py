@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import time
 from typing import Optional
 
@@ -31,14 +32,45 @@ _VALID_FEEDBACK_RATINGS = {"great", "good", "miss", "wrong"}
 #: expire once a row is older than track_outcomes' 48h lookback.
 ACTIVE_WINDOW_SECS = 7 * 24 * 60 * 60
 
-#: Retention for pattern_detections. Nothing reads past ACTIVE_WINDOW_SECS
-#: (scan/join/voice window 7d; track_outcomes looks back 48h; stats aggregate
-#: from what remains), so rows past this only grow the file: measured 2026-08-26,
-#: prod patterns.db hit 13.57 GB / 1.54M rows in 6 weeks with no prune. With this
-#: retention, pattern_stats becomes a ROLLING-window aggregate rather than
-#: since-forever — the honest read, and the n_resolved>0 gate downstream already
-#: handles thin windows.
-PRUNE_RETENTION_DAYS = 10
+#: Retention for pattern_detections. Rows past this only grow the file: measured
+#: 2026-08-26, prod patterns.db hit 13.57 GB / 1.54M rows in 6 weeks with no
+#: prune. With this retention, pattern_stats becomes a ROLLING-window aggregate
+#: rather than since-forever — the honest read, and the n_resolved>0 gate
+#: downstream already handles thin windows.
+#:
+#: Phase 3B data-foundation correction (2026-09-03): the prior value (10 days)
+#: was measured against real production data (`C:\data\patterns.db`, a local
+#: read-only mirror) to be structurally inadequate for the historical-score
+#: prerequisite: candlestick-family detections (short resolution horizon)
+#: resolved at 21-77%, but classical/structure/uct-family detections (VCP,
+#: double_top, head_shoulders, flat_base, etc. -- multi-week resolution
+#: horizons, per e.g. vcp.py's own docstring "VCPs frequently extend 30-100%
+#: over the following 4-12 weeks") resolved at 0.0-0.5% (vcp itself: 515
+#: detections, 0 resolved). The 10-day window was pruning these rows before
+#: TRACK_OUTCOMES_LOOKBACK_HOURS below (also corrected, from 72h) ever gave
+#: them a realistic chance to hit target/stop/expire. New default (120 days)
+#: is chosen to exceed the corrected lookback (90 days) with a ~30-day margin
+#: for recompute_stats() to aggregate resolved rows before they're pruned --
+#: not "keep forever" (see PATTERN_PRUNE_RETENTION_DAYS to tune). This is a
+#: DATA-FOUNDATION change only: it does not alter classification confidence,
+#: pattern quality, or expose any new score -- every detector's
+#: historical_score component is still the hardcoded 50.0 neutral prior.
+PRUNE_RETENTION_DAYS = int(os.environ.get("PATTERN_PRUNE_RETENTION_DAYS", "120"))
+
+#: Default lookback for track_outcomes() -- see PRUNE_RETENTION_DAYS above for
+#: the evidence. 72 hours (the prior production value, passed explicitly by
+#: main.py's scheduled job) meant a detection's status was NEVER re-evaluated
+#: past 3 days from detection, regardless of the pattern's real resolution
+#: horizon -- silently abandoning nearly all classical/structure/uct-family
+#: detections mid-flight before prune_old() then deleted them. 90 days
+#: comfortably covers VCP's own documented 4-12 week typical follow-through.
+#: Configurable via PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS; a future
+#: per-pattern-family horizon (candlesticks need far less than 90 days) is a
+#: real refinement NOT built this phase -- a single shared window is the
+#: minimum correction that fixes the confirmed defect.
+TRACK_OUTCOMES_LOOKBACK_HOURS = int(
+    os.environ.get("PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS", str(90 * 24))
+)
 
 
 def _hash_key(sym: str, tf: str, pattern_id: str, start_t: int, end_t: int) -> str:
@@ -218,7 +250,7 @@ def prune_old(retention_days: int = PRUNE_RETENTION_DAYS, batch: int = 50_000) -
         conn.close()
 
 
-def track_outcomes(lookback_hours: int = 48) -> int:
+def track_outcomes(lookback_hours: int = TRACK_OUTCOMES_LOOKBACK_HOURS) -> int:
     """Walk forward bars to resolve open detections.
 
     For each detection with status in ("forming", "ready", "triggered") detected
