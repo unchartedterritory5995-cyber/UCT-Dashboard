@@ -23,8 +23,38 @@ PACE_SECONDS = 0.15
 
 
 def _fmp_get(path: str, params: dict, timeout: int = 25):
-    from api.services.earnings_estimates import _fmp_get as g
-    return g(path, params, timeout=timeout)
+    """Default `fmp_get` for `latest_page`/`fetch_content` — routes through
+    the D1 `fmp_client` adapter directly rather than delegating through
+    `earnings_estimates._fmp_get` (this was one of the two confirmed
+    delegators recorded in D1's own call-site census, `docs/
+    d1-implementation-log.md` Section 1).
+
+    Kept at this exact call signature (path/params/timeout -> raw rows, or
+    [] when genuinely empty) so `run_index_sweep`'s test-injectable
+    `fmp_get` seam is unchanged — every existing test in
+    `test_transcript_indexer.py` supplies its own `fmp_get` and never
+    reaches this function. `FMPNotFound` (a genuinely empty page or a
+    not-yet-available transcript — the expected end-of-feed / no-content
+    state) becomes `[]`, matching the retired delegation's "empty JSON
+    list, not an exception" behavior so `run_index_sweep`'s pagination
+    terminates cleanly on the feed's last page instead of logging a
+    spurious failure every sweep. Any OTHER `ProviderError` is left to
+    propagate — both call sites below already wrap their `fmp_get` call in
+    a try/except."""
+    from api.services import fmp_client
+    try:
+        if path == "/stable/earning-call-transcript-latest":
+            result = fmp_client.get_transcript_latest_page(params["page"])
+        elif path == "/stable/earning-call-transcript":
+            result = fmp_client.get_transcript_content(
+                params["symbol"], params["year"], params["quarter"])
+        else:
+            raise ValueError(f"unrecognized transcript_indexer FMP path: {path!r}")
+    except fmp_client.FMPNotFound:
+        return []
+    if result.degraded is not None:
+        return []
+    return result.value
 
 
 def _tradeable(sym: str) -> bool:
