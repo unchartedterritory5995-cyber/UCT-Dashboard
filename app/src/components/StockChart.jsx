@@ -944,14 +944,17 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
 // localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
 // cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-// ⛔ TEMPORARILY DISABLED (2026-09-02): the split-fetch fetches + caches deep sealed
-// history correctly (IDB confirmed back to a ticker's IPO), but the RENDER selector
-// (`bars = ... _idbFresh && idbBars.length > data.bars.length ? idbBars : data.bars`)
-// draws only the ~600-bar first-paint tail — the deep merged idbBars is loaded but never
-// rendered, so every daily chart appeared to "stop at ~2024". Reverting to the pre-8/31
-// path (deep history via /api/bars) restores full history for everyone. Re-enable to a
-// canary % ONLY after the split-fetch render/merge path is fixed + verified end-to-end.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
+// RE-ENABLED to a 25% canary (2026-09-03) after the render bug was fixed + verified.
+// The render bug (disabled 2026-09-02): with split on, /api/bars is capped to the ~600-bar
+// tail and deep history lives only in idbBars, which the selector gated behind `_idbFresh`
+// — false every weekday after 16:00 ET (idbStaleDaily) — so the deep merged series was
+// discarded and daily charts "stopped at ~2024". FIXED by `_splitDeepUsable` (render the
+// deep idbBars under split-fetch, bypassing only the STALENESS gates the fresh tail heals,
+// keeping the correctness gates). VERIFIED end-to-end on prod (localStorage opt-in): AMT
+// renders to its 1999 IPO, deep history served from the Cloudflare edge in ~2ms, no errors.
+// Ramp: 25 → 100 once the canary holds. Instant revert: set this to 0 + redeploy, or
+// per-browser window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 25
 
 function _barsHistoryBucket() {
   try {
