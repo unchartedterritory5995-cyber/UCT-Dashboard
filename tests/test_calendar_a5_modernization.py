@@ -117,6 +117,23 @@ class TestFmpCalendarDay:
             data, meta = cal._fmp_calendar_day(datetime.date(2026, 9, 8))
         assert data is None and meta is None
 
+    def test_a_genuinely_empty_day_returns_empty_list_not_none(self):
+        """2026-09-03 range_empty follow-up. `not_found_if=_empty_list` on the
+        shared typed method raises FMPNotFound for a real, empty JSON array —
+        the right call for that method's per-symbol callers, wrong for a
+        market-wide calendar day, where zero rows is a legitimate, common
+        outcome. Must NOT collapse into the same (None, None) signal as an
+        actual transport failure, or a quiet day looks identical to FMP
+        being unreachable."""
+        import datetime
+        from api.services import fmp_client
+        with mock.patch("api.services.fmp_client.get_earnings_calendar",
+                        side_effect=fmp_client.FMPNotFound("no rows", vendor="fmp")):
+            data, meta = cal._fmp_calendar_day(datetime.date(2026, 9, 8))
+        assert data == []
+        assert data is not None
+        assert meta is None
+
 
 class TestFmpRangeWeek:
     def test_meta_comes_from_a_successful_chunk(self):
@@ -279,3 +296,122 @@ class TestDividendsCalendarModernization:
         assert syms_seen == {"DUAL"}
         assert all(e["entity"] == {"status": "resolved", "entityId": "em_DUAL"} for e in out)
         assert calls == ["DUAL"]   # resolved once, not once per event
+
+
+# ── range_empty vs range_error (2026-09-03 follow-up) ────────────────────────
+# Root cause: `source` used to stay "range_empty" whenever NEITHER provider
+# contributed a row -- which was true both for a genuinely quiet range (both
+# providers reached, both correctly answered "nothing here") and a real
+# provider outage (neither could be reached at all). A member had no way to
+# tell "no events" from "we couldn't check." These tests pin the split.
+
+import datetime as _dt
+
+
+def _monday():
+    return cal._monday_of(_dt.date(2026, 9, 21))
+
+
+class TestBuildRangeWeekSourceSplit:
+    def _build(self, monkeypatch, *, fh_raw, fmp_result):
+        monkeypatch.setattr(cal, "_load_cap_universe", lambda: set())
+        monkeypatch.setattr(cal, "_fh_get_month", lambda a, b: fh_raw)
+        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: fmp_result)
+        monkeypatch.setattr(cal, "_finviz_week_filter", lambda monday, today: None)
+        monkeypatch.setattr(cal, "_curate_econ_events", lambda *a, **kw: None)
+        monkeypatch.setattr(cal, "_attach_names", lambda *a, **kw: None)
+        monkeypatch.setattr(cal, "_attach_date_moves", lambda *a, **kw: None)
+        monkeypatch.setattr(cal, "_attach_entities", lambda *a, **kw: None)
+        return cal._build_range_week(_monday())
+
+    def test_both_providers_genuinely_empty_is_not_an_error(self, monkeypatch):
+        """Finnhub reached (empty earningsCalendar) AND FMP reached (empty
+        list, not None) -- a real, confirmed-quiet week. Must stay
+        "range_empty", never "range_error"."""
+        payload = self._build(
+            monkeypatch,
+            fh_raw={"earningsCalendar": []},
+            fmp_result=([], None),
+        )
+        assert payload["source"] == "range_empty"
+
+    def test_both_providers_failing_is_an_honest_error(self, monkeypatch):
+        """Finnhub's call itself failed (raw None) AND FMP's call itself
+        failed (rows None) -- the real outage case the original code's own
+        comment described but the original logic never actually detected."""
+        payload = self._build(
+            monkeypatch,
+            fh_raw=None,
+            fmp_result=(None, None),
+        )
+        assert payload["source"] == "range_error"
+
+    def test_one_leg_failing_and_the_other_confirming_empty_is_not_an_error(self, monkeypatch):
+        """Only one provider needs to actually answer for the "empty" to be
+        trustworthy -- Finnhub down, FMP confirms zero."""
+        payload = self._build(
+            monkeypatch,
+            fh_raw=None,
+            fmp_result=([], None),
+        )
+        assert payload["source"] == "range_empty"
+
+    def test_a_populated_week_is_unaffected(self, monkeypatch):
+        payload = self._build(
+            monkeypatch,
+            fh_raw={"earningsCalendar": [
+                {"symbol": "AAPL", "date": _monday().isoformat(), "hour": "bmo",
+                 "epsEstimate": 1.5, "epsActual": None,
+                 "revenueEstimate": None, "revenueActual": None},
+            ]},
+            fmp_result=(None, None),
+        )
+        assert payload["source"] == "range_finnhub"
+        assert payload["days"][_monday().isoformat()]["bmo"][0]["sym"] == "AAPL"
+
+
+class TestRangeErrorDownstreamTreatment:
+    def test_range_week_cache_uses_the_short_ttl_only_for_range_error(self, monkeypatch):
+        monkeypatch.setattr(cal.cache, "get", lambda k: None)
+        sets = []
+        monkeypatch.setattr(cal.cache, "set", lambda k, v, ttl=None: sets.append((k, v, ttl)))
+        monkeypatch.setattr(cal, "_build_range_week",
+                            lambda monday: {"source": "range_error", "days": {}})
+        monkeypatch.setattr(cal, "_week_dates_for", lambda monday: [monday])
+        monkeypatch.setattr(cal, "_today_et", lambda: _dt.date(2099, 1, 1))
+        cal._get_or_build_range_week(_monday())
+        assert sets[-1][2] == 120
+
+    def test_range_week_cache_uses_the_normal_ttl_for_a_genuinely_empty_week(self, monkeypatch):
+        monkeypatch.setattr(cal.cache, "get", lambda k: None)
+        sets = []
+        monkeypatch.setattr(cal.cache, "set", lambda k, v, ttl=None: sets.append((k, v, ttl)))
+        monkeypatch.setattr(cal, "_build_range_week",
+                            lambda monday: {"source": "range_empty", "days": {}})
+        monkeypatch.setattr(cal, "_week_dates_for", lambda monday: [monday])
+        monkeypatch.setattr(cal, "_today_et", lambda: _dt.date(2099, 1, 1))  # week is "past"
+        cal._get_or_build_range_week(_monday())
+        assert sets[-1][2] == cal._RANGE_WEEK_TTL_PAST
+
+    def test_month_assembly_flags_degraded_only_for_range_error(self, monkeypatch):
+        monkeypatch.setattr(cal, "_get_or_build_range_week",
+                            lambda monday: {"source": "range_empty", "days": {}})
+        monkeypatch.setattr(cal.cache, "get", lambda k: None)
+        monkeypatch.setattr(cal.cache, "set", lambda *a, **kw: None)
+        result = cal.get_month_calendar(year=2026, month=9)
+        assert result["month"] == "2026-09"  # never raised, degraded path taken silently
+
+    def test_month_assembly_still_degrades_on_range_error(self, monkeypatch):
+        calls = {"n": 0}
+
+        def _fake_range_week(monday):
+            calls["n"] += 1
+            return {"source": "range_error", "days": {}}
+        monkeypatch.setattr(cal, "_get_or_build_range_week", _fake_range_week)
+        monkeypatch.setattr(cal.cache, "get", lambda k: None)
+        sets = []
+        monkeypatch.setattr(cal.cache, "set", lambda k, v, ttl=None: sets.append((k, v, ttl)))
+        cal.get_month_calendar(year=2026, month=9)
+        assert calls["n"] > 0
+        # A degraded month is cached for 120s (self-heal), not the full TTL.
+        assert sets[-1][2] == 120

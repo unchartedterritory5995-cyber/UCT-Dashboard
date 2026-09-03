@@ -666,8 +666,10 @@ export default function Calendar() {
     if (!data || view !== 'table') return
     // Never stamp the landing key on an error/empty payload — the scroll
     // can't succeed there, and stamping would suppress the landing after a
-    // successful Retry of the same week.
-    if (data.source === 'error' || data.source === 'out_of_range') return
+    // successful Retry of the same week. `range_error` (2026-09-03) is the
+    // honest "both providers failed" signal — NOT `range_error+finviz`,
+    // which carries real salvaged rows and lands normally.
+    if (data.source === 'error' || data.source === 'out_of_range' || data.source === 'range_error') return
     // Wait for the personalization set on the CURRENT week before landing: the
     // Brief rail grows above the feed once my-sets resolves (its cluster height
     // is unknown until then), and scrolling before that growth leaves today
@@ -747,7 +749,14 @@ export default function Calendar() {
   )
 
   // ── Loading / error states (below the always-live header) ────────────────
-  if (error || (data && (data.source === 'error' || data.source === 'out_of_range'))) {
+  // `range_error` (2026-09-03 range_empty follow-up) is the honest signal
+  // that both earnings providers failed for a paged week — reusing this
+  // EXACT existing banner rather than a new one, per that fix's own scope.
+  // `range_error+finviz` (Finviz salvaged real rows despite both primaries
+  // failing) is deliberately excluded — there is real data to show, so it
+  // falls through to normal rendering instead of hiding it behind an error.
+  if (error || (data && (data.source === 'error' || data.source === 'out_of_range'
+                         || data.source === 'range_error'))) {
     return (
       <div className={styles.page}>
         {headerEl}

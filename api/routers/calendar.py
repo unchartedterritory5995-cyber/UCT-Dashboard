@@ -1590,14 +1590,25 @@ def _fmp_calendar_day(day: date) -> tuple[list[dict] | None, dict | None]:
     with ZERO of them dated day 1, and a 14-day call dropped days 0-1
     entirely. FMP silently truncates a multi-day range and the truncation is
     NOT date-fair, so chunking one call per day is the only way a wide range
-    stays complete. Returns `(None, None)` on failure — the caller treats
-    that as "this day contributed nothing" (never a whole-provider failure —
-    one bad day-chunk must not blank the rest of the range). The `dict` half
+    stays complete. Returns `(None, None)` on a genuine transport failure —
+    the caller treats that as "this day contributed nothing" (never a
+    whole-provider failure — one bad day-chunk must not blank the rest of
+    the range). Returns `([], None)`, NOT `(None, None)`, when FMP was
+    reached successfully and genuinely has no rows for the day (2026-09-03
+    range_empty follow-up): `not_found_if=_empty_list` on the shared typed
+    method raises `FMPNotFound` for an empty JSON array, which is the right
+    read for that method's other, per-symbol callers but WRONG here — a
+    market-wide calendar day legitimately has zero rows on a quiet day, and
+    folding that into the same signal as a real network/auth failure is
+    exactly the ambiguity `_build_range_week`'s `range_empty`/`range_error`
+    split exists to resolve; see that function's docstring. The `dict` half
     is the D1 provenance/freshness envelope, `None` whenever rows are."""
     from api.services import fmp_client
     ds = day.isoformat()
     try:
         result = fmp_client.get_earnings_calendar(ds, ds)
+    except fmp_client.FMPNotFound:
+        return [], None
     except Exception as exc:
         _logger.warning("Calendar range: FMP fetch failed for %s: %s", ds, exc)
         return None, None
@@ -1700,6 +1711,12 @@ def _build_range_week(monday: date) -> dict:
     sym_index: dict[str, dict[str, dict]] = {ds: {} for ds in days}
 
     raw = _fh_get_month(week_start, week_end)
+    # 2026-09-03 range_empty follow-up: captured BEFORE the `or {}` below
+    # collapses "Finnhub's call itself failed" (`raw is None`) into the same
+    # falsy shape as "Finnhub succeeded and genuinely had nothing" (`raw ==
+    # {"earningsCalendar": []}`) — see the `source` decision after the FMP
+    # leg for why the distinction matters.
+    fh_call_failed = raw is None
     fh_rows = (raw or {}).get("earningsCalendar") or []
     if fh_rows:
         source = "range_finnhub"
@@ -1742,6 +1759,12 @@ def _build_range_week(monday: date) -> dict:
     # Finnhub 429s/errors entirely (fh_rows == [] above; `source` stays
     # "range_empty" until this leg proves otherwise).
     fmp_rows, fmp_earnings_meta = _fmp_range_week(week_start, week_end)
+    # `fmp_rows is None` now means FMP genuinely never got a usable answer for
+    # ANY day in the range (`_fmp_calendar_day` returns `[]`, not `None`, for
+    # a day it reached successfully and found nothing — see that function's
+    # docstring) — so this is an honest transport-failure signal, not a mix
+    # of "failed" and "queried clean, zero results" the way it used to be.
+    fmp_call_failed = fmp_rows is None
     if fmp_rows:
         source = "range_fmp" if source == "range_empty" else f"{source}+fmp"
         for row in fmp_rows:
@@ -1779,6 +1802,21 @@ def _build_range_week(monday: date) -> dict:
             }
             days[ds]["tbd"].append(entry)
             sym_index.setdefault(ds, {})[sym] = entry
+
+    # 2026-09-03 range_empty follow-up. `source` is still exactly
+    # "range_empty" at this point iff NEITHER primary leg contributed a row —
+    # which used to mean two different things a member could not tell apart:
+    # a genuinely quiet range (both legs reached, both correctly answered
+    # "nothing here" — a real, common outcome for a far-future or holiday
+    # week) and a real provider outage (neither leg could even be reached).
+    # Flip to "range_error" ONLY when both calls themselves failed — a
+    # single successful call reporting zero is still an honest, trustworthy
+    # "empty," never an error. The Finviz leg below can still upgrade this
+    # to "range_error+finviz" if it rescues real rows despite both primary
+    # legs failing — that compound value is deliberately NOT treated as an
+    # error by the frontend (see Calendar.jsx), since real data did arrive.
+    if source == "range_empty" and fh_call_failed and fmp_call_failed:
+        source = "range_error"
 
     # ── Finviz Elite leg for a PAST week ──────────────────────────────────
     # `_backfill_past_days` gave the CURRENT week a third source; this closes
@@ -1869,7 +1907,14 @@ def _get_or_build_range_week(monday: date) -> dict | None:
         except Exception as exc:
             _logger.warning("Calendar: range week build failed for %s: %s", monday, exc)
             return None
-        if payload.get("source") == "range_empty":
+        # 2026-09-03 range_empty follow-up: "range_error" is the honest
+        # failure signal now (both primary providers unreachable) — a plain
+        # "range_empty" means they were BOTH reached and genuinely found
+        # nothing, which is a real, stable answer worth the normal TTL below,
+        # not a suspected outage. `startswith` also catches "range_error+finviz"
+        # (Finviz salvaged some rows despite both primaries failing — still
+        # worth a fast recheck, since the primaries themselves are still down).
+        if (payload.get("source") or "").startswith("range_error"):
             # Both providers failed (e.g. a transient Finnhub 429). Caching that
             # for hours would resurrect the empty-calendar trust bug — keep it
             # only long enough to absorb a click-storm, then self-heal.
@@ -1952,7 +1997,10 @@ def get_month_calendar(year: int = 0, month: int = 0):
     monday = _monday_of(first)
     while monday <= last:
         wk = _get_or_build_range_week(monday)
-        if wk is None or wk.get("source") == "range_empty":
+        # 2026-09-03 range_empty follow-up: "range_error" is the honest
+        # failure signal now — a plain "range_empty" week is a genuinely
+        # confirmed-quiet week, not a degraded one (see _build_range_week).
+        if wk is None or (wk.get("source") or "").startswith("range_error"):
             degraded = True
         for ds, day in ((wk or {}).get("days") or {}).items():
             if not ds.startswith(month_prefix):
