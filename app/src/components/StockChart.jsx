@@ -5122,6 +5122,19 @@ export default function StockChart({
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
+  // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
+  // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
+  // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
+  // today-dated tail as "provisional" every weekday after 16:00 ET — would discard that
+  // deep history and truncate the chart to the ~600-bar tail (the exact reason split-fetch
+  // was disabled 2026-09-02: "stops at 2024"). Those gates guard against painting a STALE
+  // cache, but here the fresh data.bars tail heals idbBars on the overlap (server wins),
+  // so staleness is moot. Keep only the CORRECTNESS gates — the ready key, basis match,
+  // and last-bar sanity — because a wrong-basis or corrupt deep history CANNOT be healed
+  // by merging just the recent tail. Split-gated, so split OFF = identical to before.
+  const _splitDeepUsable = _splitOn && idbBars?.length > 0
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !_idbDailyLastInsane && !_idbBasisMismatch
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -5172,7 +5185,7 @@ export default function StockChart({
             // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
-            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
             : (_idbFresh
                 ? idbBars
                 : (_netMatches
