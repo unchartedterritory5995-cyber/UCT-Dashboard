@@ -427,26 +427,14 @@ const AWAITING_A_DECISION = {
     'app/src/pages/optionsFlow/flowFactsEntry.js':
     'NOT dead, and the SAME SHAPE as cotFactsEntry above — the ENTRY POINT of the flow facts bundle: app/scripts/build-flow-facts.mjs builds it into app/dist/flow-facts.cjs (npm run build), and api/services/flow_aggregate.py runs that bundle by subprocess to serve GET /api/flow/aggregate. It exists so the SERVER can run the browser own parseCSV + processFlowData rather than a Python port of them, which would put a second authority on the numbers members trade on. A walk from App.jsx cannot see a build-script entry, so it is recorded here.',
 
-  // ── S8 (Provenance & Freshness) STEP 1 — PRD-S8/SPEC-S8, authorized ──────
-  // 2026-09-02. §19 Step 1 is explicit: build these components now, wire
-  // them into a real panel in Step 2+ (gated on S10's shared formatter and
-  // the D1 freshness-enum decision named in SPEC-S8 §5.2a — neither is done).
-  // A COUNTDOWN, not a parking space: delete each entry the moment its file
-  // gains a real, mounted caller.
-  'app/src/components/provenance/Provenance.jsx':
-    'S8 STEP 1 — built + tested (SPEC-S8 §4.2/§19 Step 1: the degraded '
-    + '"provenance unavailable" state). Not yet mounted on any page; its full '
-    + 'hover/click popover needs S10 (§19 Step 2), which does not exist yet.',
-  'app/src/components/provenance/FreshnessBadge.jsx':
-    'S8 STEP 1 — built + tested (SPEC-S8 §4.3/§19 Step 1: built on '
-    + 'sessionModel.js). Not yet mounted on any page; live-wiring it to real '
-    + 'D1 output needs the freshness-enum decision in SPEC-S8 §5.2a resolved '
-    + 'first, per the owner\'s explicit "before FreshnessBadge live wiring" gate.',
-  'app/src/components/provenance/freshnessContract.js':
-    'S8 STEP 1 — the exhaustive D1→S8 freshness mapping (owner-authorized '
-    + '2026-09-02), tested directly in freshnessContract.test.js. Reachable '
-    + 'only through FreshnessBadge.jsx above, which is itself not yet '
-    + 'mounted — this entry moves with that one.',
+  // ⚰️ S8 STEP 1's three entries (Provenance.jsx, FreshnessBadge.jsx,
+  // freshnessContract.js) LIVED HERE UNTIL STEP 2 (2026-09-02), which wired
+  // them into a real, reachable route (`pages/ProvenanceDemo.jsx` at
+  // `/provenance-demo`, App.jsx). This is the reassuring direction the
+  // `thinkscript.js` note above describes: the rail caught the wire landing
+  // and demanded the stale exemptions be removed, rather than staying green
+  // by accident. See `pages/ProvenanceDemo.jsx`'s own header for what it is
+  // and is not (a capability demo, not a product-placement decision).
 
   // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
   // AND ITS ENTRY SAID "MOUNTS AT W3.7 … through ImportBox's translateThinkScript".
