@@ -1,6 +1,20 @@
-"""Tests for the FMP 13F institutional-ownership enrichment on the research Ownership tab."""
+"""Tests for the FMP 13F institutional-ownership enrichment on the research
+Ownership tab. D1 note (2026-09-03): _thirteen_f now calls fmp_client's typed
+get_institutional_ownership_summary/...holders directly, so these tests mock
+fmp_client rather than the retired ee._fmp_get path-string dispatcher."""
 import datetime
 import api.services.research.ownership as om
+from api.services import provider_errors as pe
+
+
+def _result(value, *, degraded=None):
+    return pe.ProviderResult(
+        value=value,
+        provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test"),
+        licensing_class="R",
+        freshness="historical",
+        degraded=degraded,
+    )
 
 
 def test_recent_quarters_newest_first():
@@ -24,15 +38,15 @@ def test_thirteen_f_composes_from_newest_filed_quarter(monkeypatch):
          "ownership": 0.01, "marketValue": 271860, "isNew": True, "isSoldOut": False},
     ]
 
-    def fake_fmp(path, params, timeout=10):
-        if "positions-summary" in path:
-            return [summary_2026q1] if params["quarter"] == 1 else []   # Q2 empty, Q1 has data
-        if "extract-analytics/holder" in path:
-            assert params["quarter"] == 1 and params["year"] == 2026     # same quarter as summary
-            return holders
-        return None
+    def fake_summary(ticker, *, year, quarter):
+        return _result([summary_2026q1] if quarter == 1 else [])   # Q2 empty, Q1 has data
 
-    monkeypatch.setattr(om.ee, "_fmp_get", fake_fmp)
+    def fake_holders(ticker, *, year, quarter, limit=12):
+        assert quarter == 1 and year == 2026     # same quarter as summary
+        return _result(holders)
+
+    monkeypatch.setattr(om.fmp_client, "get_institutional_ownership_summary", fake_summary)
+    monkeypatch.setattr(om.fmp_client, "get_institutional_ownership_holders", fake_holders)
     monkeypatch.setattr(om.datetime, "date", _FixedDate)   # pin today → Q2 2026
 
     tf = om._thirteen_f("AAPL")
@@ -45,10 +59,14 @@ def test_thirteen_f_composes_from_newest_filed_quarter(monkeypatch):
     assert tf["holders"][0]["name"] == "VANGUARD GROUP INC"
     assert tf["holders"][0]["change_shares"] == 26856752
     assert tf["holders"][1]["is_new"] is True
+    # D1 provenance envelope now rides alongside the composed 13F payload.
+    assert tf["_meta"]["vendor"] == "fmp"
+    assert tf["_meta"]["freshnessClass"] == "historical"
 
 
 def test_thirteen_f_none_when_no_filing(monkeypatch):
-    monkeypatch.setattr(om.ee, "_fmp_get", lambda path, params, timeout=10: [])
+    monkeypatch.setattr(om.fmp_client, "get_institutional_ownership_summary",
+                        lambda ticker, *, year, quarter: _result([]))
     assert om._thirteen_f("ZZ") is None
 
 

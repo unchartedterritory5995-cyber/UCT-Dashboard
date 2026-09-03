@@ -1,14 +1,24 @@
 """Ownership for the research page: institutional holders, short interest /
 float, and insider activity.
 
-Institutional + short/float come from yfinance (info + institutional_holders)
-via the bounded pool; insider activity reuses the existing Finnhub-backed
-``get_insider_activity`` service. Cached 12h -- but only when the two HARD
-provider legs (the yfinance pull, the insider feed) resolved without raising.
-A 13F filing genuinely not existing for a ticker (most small/mid caps) or an
-insider feed that legitimately has nothing recent are NOT failures -- only an
-exception from the underlying fetch is treated as one, so a quiet ticker
-doesn't get needlessly refetched every few minutes.
+2026-09-03 modernization (A6/A7 vertical slice): canonical identity now
+resolves through Entity Master (`resolve_entity`) before any provider call.
+Float/shares-outstanding and Form 13F now route through D1
+(`fmp_client.get_shares_float` / `get_institutional_ownership_summary` /
+`...holders`), each carrying a real provenance/freshness envelope. Insider
+activity reuses the existing `get_insider_activity` service, called with the
+entity-resolved FMP symbol. The institutional-holders TABLE and the short-
+interest FIELDS (shares_short/short_pct_float/days_to_cover/
+prior_month_short) stay on yfinance — no D1 adapter exists for either today,
+and this pass does not invent a speculative one (see the D1 completion
+report for the deferred-work note).
+
+Cached 12h -- but only when the two HARD provider legs (the yfinance pull,
+the insider feed) resolved without raising. A 13F filing genuinely not
+existing for a ticker (most small/mid caps) or an insider feed that
+legitimately has nothing recent are NOT failures -- only an exception from
+the underlying fetch is treated as one, so a quiet ticker doesn't get
+needlessly refetched every few minutes.
 """
 from __future__ import annotations
 
@@ -16,10 +26,11 @@ import datetime
 import logging
 import math
 
-from api.services import earnings_estimates as ee
+from api.services import fmp_client
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.insider import get_insider_activity
+from api.services.research.entity_resolution import resolve_entity
 from api.services.yfinance_pool import run_in_pool
 
 _logger = logging.getLogger(__name__)
@@ -41,6 +52,35 @@ def _pct(frac):
     """fraction (0.0073) -> percent (0.73), rounded."""
     f = _num(frac)
     return round(f * 100, 2) if f is not None else None
+
+
+def _fmp_row_meta(fn, *args, **kwargs):
+    """Same 'never raises, (row, meta)' contract as analyst_grades.py's
+    `_fmp_row_with_meta` -- copied locally (that helper is module-private
+    there too) rather than shared, until a third caller justifies promoting
+    it. `meta` is the D1 provenance/freshness envelope shaped for
+    ResearchPage's TrustStrip (`_meta.sourceObservedAt`/`.freshnessClass`/
+    etc.) -- `None` on any miss, never fabricated."""
+    try:
+        result = fn(*args, **kwargs)
+    except Exception:
+        return None, None
+    if result.degraded is not None and not result.value:
+        return None, None
+    row = result.value[0] if isinstance(result.value, list) and result.value else None
+    if not isinstance(row, dict):
+        return None, None
+    meta = {
+        "vendor": result.provenance.vendor,
+        "sourceActivity": result.provenance.source_activity,
+        "fetchedAt": result.provenance.fetched_at,
+        "sourceObservedAt": result.provenance.source_observed_at,
+        "tieBreak": result.provenance.tie_break,
+        "freshnessClass": result.freshness,
+        "licensingClass": result.licensing_class,
+        "degraded": result.degraded,
+    }
+    return row, meta
 
 
 def _institutional(holders_df, info):
@@ -87,7 +127,7 @@ def _institutional(holders_df, info):
 
 
 def _fmp_share_counts(symbol):
-    """Float + shares outstanding from FMP `stable/shares-float`.
+    """Float + shares outstanding via D1 (`fmp_client.get_shares_float`).
 
     PRIMARY over yfinance because yfinance mixes SHARE CLASSES on dual-class
     tickers: it reports a whole-company float against a single-class share
@@ -102,27 +142,30 @@ def _fmp_share_counts(symbol):
 
     On single-class megacaps the two agree (NVDA/MSFT float matched to the
     share), so this is a correctness fix for the broken tail, not a change in
-    what the common case shows. Returns {} on any failure so the caller falls
-    back to yfinance rather than blanking the card.
+    what the common case shows. Returns ({}, None) on any failure so the
+    caller falls back to yfinance rather than blanking the card.
     """
-    try:
-        data = ee._fmp_get("/stable/shares-float", {"symbol": symbol})
-    except Exception as exc:
-        _logger.warning("FMP shares-float failed for %s: %s", symbol, exc)
-        return {}
-    row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
+    row, meta = _fmp_row_meta(fmp_client.get_shares_float, symbol)
     if not row:
-        return {}
+        return {}, None
     return {
         "float_shares": _num(row.get("floatShares")),
         "shares_outstanding": _num(row.get("outstandingShares")),
-    }
+    }, meta
 
 
-def _short(info, share_counts=None):
+def _reconcile_share_counts(info, fmp_counts):
+    """FMP first (see `_fmp_share_counts` docstring for the dual-class-mixing
+    bug this fixes), yfinance only where FMP had nothing.
+
+    A float larger than shares outstanding is arithmetically impossible —
+    float is a SUBSET of shares outstanding. If a pair still contradicts
+    itself after the FMP swap, we cannot tell WHICH side is wrong, so we
+    publish neither: an em dash is honest, two confident numbers that can't
+    both be true are not. Never "repair" by clamping one to the other —
+    that invents a figure no provider reported."""
     info = info or {}
-    counts = share_counts or {}
-    # FMP first, yfinance only where FMP had nothing (see _fmp_share_counts).
+    counts = fmp_counts or {}
     float_shares = counts.get("float_shares")
     if float_shares is None:
         float_shares = _num(info.get("floatShares"))
@@ -130,23 +173,19 @@ def _short(info, share_counts=None):
     if shares_out is None:
         shares_out = _num(info.get("sharesOutstanding"))
 
-    # A float larger than shares outstanding is arithmetically impossible —
-    # float is a SUBSET of shares outstanding. If a pair still contradicts
-    # itself after the FMP swap, we cannot tell WHICH side is wrong, so we
-    # publish neither: an em dash is honest, two confident numbers that can't
-    # both be true are not. Never "repair" by clamping one to the other —
-    # that invents a figure no provider reported.
     if float_shares is not None and shares_out is not None and float_shares > shares_out:
         _logger.warning("share counts inconsistent (float %s > outstanding %s) — suppressing both",
                         float_shares, shares_out)
         float_shares = shares_out = None
+    return float_shares, shares_out
 
+
+def _short(info):
+    info = info or {}
     return {
         "shares_short": _num(info.get("sharesShort")),
         "short_pct_float": _pct(info.get("shortPercentOfFloat")),
         "days_to_cover": _num(info.get("shortRatio")),
-        "float_shares": float_shares,
-        "shares_outstanding": shares_out,
         "prior_month_short": _num(info.get("sharesShortPriorMonth")),
     }
 
@@ -169,28 +208,26 @@ def _recent_quarters(today=None):
 
 
 def _thirteen_f(symbol):
-    """Form 13F institutional ownership (FMP Ultimate): a position-flow summary +
-    the top institutional holders for the most recent filed quarter. Returns
-    {quarter, summary, holders} or None. Best-effort; never raises."""
+    """Form 13F institutional ownership via D1 (`fmp_client.
+    get_institutional_ownership_summary` / `...holders`): a position-flow
+    summary + the top institutional holders for the most recent filed
+    quarter. Returns {quarter, summary, holders, _meta} or None. Best-effort;
+    never raises."""
     quarter = None
     summ = None
+    meta = None
     for year, q in _recent_quarters():
-        try:
-            data = ee._fmp_get("/stable/institutional-ownership/symbol-positions-summary",
-                               {"symbol": symbol, "year": year, "quarter": q})
-        except Exception:
-            data = None
-        if isinstance(data, list) and data and isinstance(data[0], dict):
-            quarter, summ = (year, q), data[0]
+        row, m = _fmp_row_meta(fmp_client.get_institutional_ownership_summary, symbol, year=year, quarter=q)
+        if row:
+            quarter, summ, meta = (year, q), row, m
             break
     if not summ:
         return None
 
     year, q = quarter
     try:
-        hraw = ee._fmp_get("/stable/institutional-ownership/extract-analytics/holder",
-                           {"symbol": symbol, "year": year, "quarter": q,
-                            "page": 0, "limit": _TF_MAX_HOLDERS})
+        hresult = fmp_client.get_institutional_ownership_holders(symbol, year=year, quarter=q, limit=_TF_MAX_HOLDERS)
+        hraw = hresult.value if hresult.degraded is None else None
     except Exception:
         hraw = None
     holders = []
@@ -225,6 +262,7 @@ def _thirteen_f(symbol):
             "put_call_ratio":      _num(summ.get("putCallRatio")),
         },
         "holders": holders,
+        "_meta": meta,
     }
 
 
@@ -254,6 +292,8 @@ def get_ownership(sym):
     if cached is not None:
         return cached
 
+    entity, fmp_symbol = resolve_entity(sym, vendor="fmp")
+
     raw = _fetch_yf(sym)
     yf_ok = bool(raw)          # {} means _fetch_yf's exception path fired
     raw = raw or {}
@@ -262,13 +302,13 @@ def get_ownership(sym):
     insider = []
     insider_ok = True
     try:
-        insider = (get_insider_activity(sym) or [])[:10]
+        insider = (get_insider_activity(fmp_symbol) or [])[:10]
     except Exception as exc:
         insider_ok = False
         _logger.warning("insider activity failed for %s: %s", sym, exc)
 
     try:
-        thirteen_f = _thirteen_f(sym)
+        thirteen_f = _thirteen_f(fmp_symbol)
     except Exception as exc:
         # _thirteen_f already swallows its own per-endpoint failures
         # internally and returns None for "no 13F filed" too (common and
@@ -279,15 +319,23 @@ def get_ownership(sym):
         thirteen_f = None
 
     try:
-        share_counts = _fmp_share_counts(sym)
+        share_counts_raw, share_counts_meta = _fmp_share_counts(fmp_symbol)
     except Exception as exc:  # defensive: _fmp_share_counts already swallows
         _logger.warning("share counts failed for %s: %s", sym, exc)
-        share_counts = {}
+        share_counts_raw, share_counts_meta = {}, None
+
+    float_shares, shares_out = _reconcile_share_counts(info, share_counts_raw)
 
     out = {
         "sym": sym,
+        "entity": entity,
         "institutional": _institutional(raw.get("inst"), info),
-        "short": _short(info, share_counts),
+        "short": _short(info),
+        "share_counts": {
+            "float_shares": float_shares,
+            "shares_outstanding": shares_out,
+            "_meta": share_counts_meta,
+        },
         "insider": insider,
         "thirteen_f": thirteen_f,
     }

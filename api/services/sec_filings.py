@@ -13,6 +13,7 @@ from typing import Any
 import requests
 
 from api.services.cache import TTLCache
+from api.services.research.entity_resolution import resolve_entity
 
 _log = logging.getLogger(__name__)
 
@@ -114,6 +115,12 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
         if len(out) >= count:
             break
 
+    # No vendor= -- CIK identity resolution stays SEC's own company_tickers.json
+    # (Entity Master has no CIK-mapping capability; inventing one is out of
+    # this pass's scope). This only adds the S3 honesty field the research
+    # tab renders; document_arrival.py's S7 predicate path is untouched.
+    entity, _ = resolve_entity(ticker)
+
     return {
         "ticker": ticker.upper(),
         "company": company,
@@ -121,6 +128,7 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
         "form_filter": form_type.upper() if form_type else "ANY",
         "count": len(out),
         "filings": out,
+        "entity": entity,
     }
 
 

@@ -78,6 +78,9 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("fmp", "analyst_grades"): LicensingClassEntry(
         "R", "Analyst grades/ratings — no DDLA assumed.", "A3",
     ),
+    ("fmp", "ownership"): LicensingClassEntry(
+        "R", "Shares float / institutional ownership (13F) — no DDLA assumed, same A3 posture as this vendor's other data classes.", "A3",
+    ),
 }
 
 _DEFAULT = LicensingClassEntry(

@@ -3,15 +3,21 @@
 A Composite 0-99 + component ratings (EPS, Relative Strength, Growth, Value,
 SMR, Accumulation/Distribution, Sponsorship) + a "Stock Checkup" pass/fail
 checklist, computed on-demand per ticker from data we already fetch
-(get_fundamentals + get_ownership + 1y price/volume history).
+(get_fundamentals + get_ownership + 1y price/volume history). This is a
+UCT-DERIVED score, never a third-party analyst rating — no vendor "rating"
+field is ever read here, and the payload/UI must never carry a provider
+badge on the composite or its components (2026-09-03 A6/A7 pass).
 
-**v1 scoring is threshold-calibrated (absolute), not universe-percentile.**
-The design's nightly cap_universe percentile job + peer-rank is a future
-optimization; this ships a working, useful Ratings tab now. Scores map metric
-values to 0-99 via hand-calibrated bands documented inline. Cached 12h -- but
-only when the three underlying fetches (fundamentals, ownership, price
-history) all resolved without raising; a leg that failed shortens the TTL
-instead of pinning a partial composite for half a day.
+Universe-percentile ranking (`ratings_db`/`ratings_universe`, a nightly
+cap_universe distribution job) has been LIVE in production since at least
+2026-08-09 (`RATINGS_PERCENTILE_ENABLED=1`) — `_pctile()` below hits it for
+any metric with enough sampled tickers, falling back to the hand-calibrated
+absolute bands only when a metric's universe sample is too thin (cold-start,
+an on-demand ticker, or a metric the nightly job hasn't populated yet). Do
+not describe this as "a future optimization" — it is the common path today.
+Cached 12h -- but only when the three underlying fetches (fundamentals,
+ownership, price history) all resolved without raising; a leg that failed
+shortens the TTL instead of pinning a partial composite for half a day.
 """
 from __future__ import annotations
 
@@ -20,6 +26,7 @@ import logging
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.fundamentals import get_fundamentals
+from api.services.research.entity_resolution import resolve_entity
 from api.services.research.ownership import get_ownership
 from api.services.research import ratings_db
 from api.services.yfinance_pool import fetch_history
@@ -28,7 +35,7 @@ _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12h -- only when every leg resolved
 _FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
-_METHOD_ABSOLUTE = "Threshold-calibrated v1 — absolute scoring; universe-percentile ranking is a future enhancement."
+_METHOD_ABSOLUTE = "Threshold-calibrated v1 — absolute scoring (this metric's universe sample is too thin for a percentile rank)."
 
 
 def _method_percentile(n) -> str:
@@ -284,6 +291,12 @@ def get_ratings(sym):
     if cached is not None:
         return cached
 
+    # No vendor= here: none of this tab's three inputs route through FMP
+    # directly (get_fundamentals/get_ownership/fetch_history are yfinance +
+    # get_ownership's own internal D1 legs) — mirrors financials.py's
+    # no-vendor form. Never blocks the fetches below on a miss.
+    entity, _ = resolve_entity(sym)
+
     fund = {}
     fund_ok = True
     try:
@@ -307,6 +320,7 @@ def get_ratings(sym):
 
     closes = vols = None
     last_close = None
+    price_as_of = None
     hist_ok = True
     try:
         df = fetch_history(sym, period="1y")
@@ -314,6 +328,10 @@ def get_ratings(sym):
             closes = list(df["Close"])
             vols = list(df["Volume"])
             last_close = closes[-1] if closes else None
+            try:
+                price_as_of = str(df.index[-1])[:10]
+            except Exception:
+                price_as_of = None
     except Exception as exc:
         hist_ok = False
         _logger.warning("ratings: history failed for %s: %s", sym, exc)
@@ -389,6 +407,7 @@ def get_ratings(sym):
 
     out = {
         "sym": sym,
+        "entity": entity,
         "composite": composite,
         "components": {
             "eps": eps, "rs": rs, "growth": growth, "value": value,
@@ -404,6 +423,13 @@ def get_ratings(sym):
         "sector": sector,
         "group_rs": group_rs,          # RS percentile within sector (1-99)
         "group_sector_n": group_sector_n,  # # names in the sector pool
+        # Honest freshness disclosure for a UCT-DERIVED composite (never a
+        # provider badge — this is UCT's own computation, not a vendor
+        # rating): the price leg's last-bar date is the one concrete as-of
+        # available today. Fundamentals/ownership as-of dates are not yet
+        # surfaced by their own services (get_fundamentals/get_ownership) —
+        # deferred rather than fabricated.
+        "price_as_of": price_as_of,
     }
     complete = fund_ok and own_ok and hist_ok
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)

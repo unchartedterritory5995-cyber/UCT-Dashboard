@@ -356,6 +356,35 @@ def get_insider_trading(ticker: str) -> _pe.ProviderResult:
                    not_found_if=_empty_list, freshness="end_of_day")
 
 
+def get_shares_float(ticker: str) -> _pe.ProviderResult:
+    """Float + shares-outstanding — added for the Ownership tab's D1
+    migration (2026-09-03). Share counts move slowly (a company action, not
+    an intraday event), same tier as key-metrics/ratios."""
+    return _fetch("/stable/shares-float", {"symbol": ticker.upper()},
+                   source_activity="fmp_client.get_shares_float", data_class="ownership",
+                   not_found_if=_empty_list, freshness="end_of_day")
+
+
+def get_institutional_ownership_summary(ticker: str, *, year: int, quarter: int) -> _pe.ProviderResult:
+    """One quarter's Form 13F position-flow summary — added for the
+    Ownership tab's D1 migration (2026-09-03). A genuinely historical
+    filing (13Fs lag ~45 days), not an end-of-day snapshot."""
+    return _fetch("/stable/institutional-ownership/symbol-positions-summary",
+                   {"symbol": ticker.upper(), "year": year, "quarter": quarter},
+                   source_activity="fmp_client.get_institutional_ownership_summary", data_class="ownership",
+                   not_found_if=_empty_list, freshness="historical")
+
+
+def get_institutional_ownership_holders(ticker: str, *, year: int, quarter: int, limit: int = 12) -> _pe.ProviderResult:
+    """Top holders for one 13F quarter — added for the Ownership tab's D1
+    migration (2026-09-03). Same freshness class as the summary leg above;
+    both describe the identical filing quarter."""
+    return _fetch("/stable/institutional-ownership/extract-analytics/holder",
+                   {"symbol": ticker.upper(), "year": year, "quarter": quarter, "page": 0, "limit": limit},
+                   source_activity="fmp_client.get_institutional_ownership_holders", data_class="ownership",
+                   not_found_if=_empty_list, freshness="historical")
+
+
 def get_income_statement(ticker: str, *, period: str = "quarter", limit: int) -> _pe.ProviderResult:
     params = {"symbol": ticker.upper(), "limit": limit}
     if period == "quarter":

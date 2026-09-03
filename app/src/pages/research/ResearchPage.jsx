@@ -14,7 +14,14 @@ import FilingsTab from './tabs/FilingsTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
 
-const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings & Events']
+// 2026-09-03 A6/A7 pass: "Filings & Events" corrected to "Filings" — the tab
+// has only ever rendered SEC filings (FilingsTab.jsx), never events/calendar
+// content; the label over-promised functionality that was never built. If a
+// real Events surface is authorized later (A5's Events & Calendar territory,
+// out of this pass's scope), give it its own tab rather than reviving this
+// label — do not read "Events" back into Filings just because the old label
+// implied it once.
+const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -22,7 +29,7 @@ const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Ca
 const SECTION_TO_TAB = {
   overview: 'Overview', financials: 'Financials', estimates: 'Estimates',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
-  filings: 'Filings & Events',
+  filings: 'Filings',
 }
 
 export default function ResearchPage() {
@@ -66,7 +73,7 @@ export default function ResearchPage() {
       {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
-      {active === 'Filings & Events' && <FilingsTab sym={sym} />}
+      {active === 'Filings' && <FilingsTab sym={sym} />}
     </div>
   )
 }

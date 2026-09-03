@@ -1,5 +1,6 @@
 """Tests for the research ratings service + router."""
 import pytest
+import pandas as pd
 
 from api.services.research import ratings as rt
 from api.services.research import ratings
@@ -249,3 +250,80 @@ class TestCompositeCoverageIsDisclosed:
         assert "accdis" in ratings._coverage(60, 70, 80, 50, 90, None)["missing"]
         assert "accdis" in ratings._coverage(60, 70, 80, 50, 90, "?")["missing"]
         assert "accdis" not in ratings._coverage(60, 70, 80, 50, 90, "B")["missing"]
+
+
+# ── 2026-09-03 A6/A7 pass: canonical-entity resolution (S3) and the honest,
+#    non-D1 price_as_of disclosure. Ratings is a 100% UCT-derived composite
+#    (never a third-party analyst rating) -- these do not re-test the
+#    pre-existing scoring math above, only the new wiring. ─────────────────
+
+class TestEntityResolution:
+    def setup_method(self):
+        cache.invalidate("research_rat::TEST")
+
+    def _stub_legs(self, monkeypatch, *, history=None):
+        monkeypatch.setattr(ratings, "get_fundamentals", lambda sym: {})
+        monkeypatch.setattr(ratings, "get_ownership", lambda sym: {})
+        monkeypatch.setattr(ratings, "fetch_history", lambda sym, period="1y": history)
+
+    def test_entity_field_present_and_never_blocks_the_fetch(self, monkeypatch):
+        monkeypatch.setattr(ratings, "resolve_entity",
+                            lambda sym: ({"status": "not_found", "entityId": None}, sym))
+        self._stub_legs(monkeypatch)
+        out = ratings.get_ratings("test")
+        assert out["entity"] == {"status": "not_found", "entityId": None}
+        # The fetch still ran and produced a shaped payload despite the miss.
+        assert "composite" in out and "components" in out
+
+    def test_resolved_entity_is_reported_honestly(self, monkeypatch):
+        monkeypatch.setattr(ratings, "resolve_entity",
+                            lambda sym: ({"status": "resolved", "entityId": "em_1"}, sym))
+        self._stub_legs(monkeypatch)
+        out = ratings.get_ratings("test")
+        assert out["entity"]["status"] == "resolved"
+        assert out["entity"]["entityId"] == "em_1"
+
+    def test_no_vendor_symbol_swap_is_requested(self, monkeypatch):
+        """None of Ratings' three legs call FMP directly (get_ownership does
+        its own internal D1 resolution) -- resolve_entity is called with no
+        `vendor=`, mirroring financials.py's no-vendor form."""
+        seen = {}
+
+        def fake_resolve(sym, **kw):
+            seen["kwargs"] = kw
+            return {"status": "resolved", "entityId": "em_1"}, sym
+
+        monkeypatch.setattr(ratings, "resolve_entity", fake_resolve)
+        self._stub_legs(monkeypatch)
+        ratings.get_ratings("test")
+        assert seen["kwargs"] == {}
+
+
+class TestPriceAsOf:
+    def setup_method(self):
+        cache.invalidate("research_rat::TEST")
+
+    def _stub_legs(self, monkeypatch, *, history=None):
+        monkeypatch.setattr(ratings, "resolve_entity",
+                            lambda sym: ({"status": "resolved", "entityId": "em_1"}, sym))
+        monkeypatch.setattr(ratings, "get_fundamentals", lambda sym: {})
+        monkeypatch.setattr(ratings, "get_ownership", lambda sym: {})
+        monkeypatch.setattr(ratings, "fetch_history", lambda sym, period="1y": history)
+
+    def test_price_as_of_reads_the_last_bar_date(self, monkeypatch):
+        idx = pd.to_datetime(["2026-09-01", "2026-09-02"])
+        df = pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1200]}, index=idx)
+        self._stub_legs(monkeypatch, history=df)
+        out = ratings.get_ratings("test")
+        assert out["price_as_of"] == "2026-09-02"
+
+    def test_price_as_of_is_none_when_history_is_unavailable(self, monkeypatch):
+        self._stub_legs(monkeypatch, history=None)
+        out = ratings.get_ratings("test")
+        assert out["price_as_of"] is None
+
+    def test_price_as_of_never_fabricated_from_an_empty_frame(self, monkeypatch):
+        empty = pd.DataFrame({"Close": [], "Volume": []})
+        self._stub_legs(monkeypatch, history=empty)
+        out = ratings.get_ratings("test")
+        assert out["price_as_of"] is None
