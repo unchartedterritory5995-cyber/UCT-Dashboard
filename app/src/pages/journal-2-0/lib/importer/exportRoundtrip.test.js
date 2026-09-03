@@ -68,6 +68,23 @@ function buildRealExportVfiles() {
 const hasPython = pythonAvailable()
 const d = hasPython ? describe : describe.skip
 
+// A silent skip here deletes the ONLY proof of this file's headline claim
+// while the suite still reads green, and a skip count is the easiest thing in
+// a summary to slide past ("9 passed, 2 skipped" has been cited as
+// verification in this repo before). Staying non-blocking is right -- a
+// frontend-only checkout should not be forced to install Python -- but the
+// skip has to say what it COSTS, somewhere the default reporter prints.
+// ⛔ Not in the describe title: vitest's default reporter renders a skipped
+// file as a bare "3 skipped" and never shows the name. Measured, not assumed.
+// console.warn IS surfaced, so the warning goes there.
+if (!hasPython) {
+  console.warn(
+    '\n⛔ export round-trip NOT VERIFIED in this run: `python` is not on PATH, so the '
+    + 'archive under test was never built. Whether the importer can read our own '
+    + 'export is UNPROVEN here -- these skipped tests are the only thing that checks it.\n',
+  )
+}
+
 d('our own export round-trips through our own importer', () => {
   let vfiles
 
