@@ -1,5 +1,20 @@
-"""Tests for the composed analyst-grades service (FMP Ultimate)."""
+"""Tests for the composed analyst-grades service (FMP Ultimate).
+
+D1 note: the module now calls `fmp_client`'s typed functions directly
+(rather than building its own `ee._fmp_get` path string), so these tests
+mock the `fmp_client` functions by name instead of dispatching on a URL
+path substring.
+"""
 import api.services.analyst_grades as ag
+from api.services import provider_errors as pe
+
+_FRAG_TO_ATTR = {
+    "grades-consensus": "get_grades_consensus",
+    "price-target-consensus": "get_price_target_consensus",
+    "price-target-summary": "get_price_target_summary",
+    "grades-historical": "get_grades_historical",
+    "grades": "get_analyst_grades",
+}
 
 
 class _FakeCache:
@@ -13,14 +28,25 @@ class _FakeCache:
         self.d[k] = v
 
 
+def _result(value):
+    return pe.ProviderResult(
+        value=value,
+        provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test"),
+        licensing_class="R",
+    )
+
+
 def _routes(monkeypatch, mapping):
-    """Patch ee._fmp_get to dispatch by path substring → fixture list."""
-    def fake(path, params, timeout=10):
-        for frag, payload in mapping.items():
-            if frag in path:
-                return payload
-        return None
-    monkeypatch.setattr(ag.ee, "_fmp_get", fake)
+    """Patch every `fmp_client` function this module touches to return its
+    mapped fixture list (or an empty list when unmapped, matching the
+    fixture keys the old path-substring dispatcher used)."""
+    for frag, attr in _FRAG_TO_ATTR.items():
+        value = mapping.get(frag, [])
+
+        def _fn(ticker, __value=value, **kw):
+            return _result(__value)
+
+        monkeypatch.setattr(ag.fmp_client, attr, _fn)
     monkeypatch.setattr(ag, "cache", _FakeCache())
 
 
@@ -72,7 +98,12 @@ def test_partial_sources_null_only_their_slice(monkeypatch):
 
 def test_all_empty_returns_none_and_caches_miss(monkeypatch):
     cache = _FakeCache()
-    monkeypatch.setattr(ag.ee, "_fmp_get", lambda path, params, timeout=10: [])
+
+    def _empty(ticker, **kw):
+        return _result([])
+
+    for attr in _FRAG_TO_ATTR.values():
+        monkeypatch.setattr(ag.fmp_client, attr, _empty)
     monkeypatch.setattr(ag, "cache", cache)
     assert ag.get_analyst_grades("NADA") is None
     assert cache.get("analyst_grades_NADA") == {"_miss": True}

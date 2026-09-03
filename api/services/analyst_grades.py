@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from api.services import earnings_estimates as ee
+from api.services import fmp_client
 from api.services.cache import cache as _cache_singleton
 
 _log = logging.getLogger(__name__)
@@ -45,8 +45,35 @@ def _first(data):
     return data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
 
 
+def _fmp_row(fn, ticker: str, **kwargs) -> Optional[dict]:
+    """The first row from a `fmp_client` typed function, or None on ANY
+    outcome that isn't a genuine row (not configured, network error,
+    rate-limited, degraded, or genuinely no data) — mirrors the retired
+    `ee._fmp_get`'s "None on any failure, never raises" contract exactly,
+    so `get_analyst_grades`'s per-leg `all_answered` accounting (which was
+    written assuming the FMP call itself never raises) stays unchanged."""
+    try:
+        result = fn(ticker, **kwargs)
+    except Exception:
+        return None
+    if result.degraded is not None:
+        return None
+    return _first(result.value)
+
+
+def _fmp_rows(fn, ticker: str, **kwargs) -> list:
+    """Same contract as `_fmp_row`, for a leg that wants the whole list."""
+    try:
+        result = fn(ticker, **kwargs)
+    except Exception:
+        return []
+    if result.degraded is not None:
+        return []
+    return result.value if isinstance(result.value, list) else []
+
+
 def _consensus(ticker: str) -> Optional[dict]:
-    row = _first(ee._fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=4))
+    row = _fmp_row(fmp_client.get_grades_consensus, ticker)
     if not row:
         return None
     buckets = {k: int(row.get(k) or 0) for k in
@@ -58,8 +85,8 @@ def _consensus(ticker: str) -> Optional[dict]:
 
 
 def _price_target(ticker: str) -> Optional[dict]:
-    con = _first(ee._fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)) or {}
-    summ = _first(ee._fmp_get("/stable/price-target-summary", {"symbol": ticker}, timeout=4)) or {}
+    con = _fmp_row(fmp_client.get_price_target_consensus, ticker) or {}
+    summ = _fmp_row(fmp_client.get_price_target_summary, ticker) or {}
     out = {
         "high":      _num(con.get("targetHigh")),
         "low":       _num(con.get("targetLow")),
@@ -78,7 +105,7 @@ def _price_target(ticker: str) -> Optional[dict]:
 
 
 def _recent_actions(ticker: str) -> list[dict]:
-    data = ee._fmp_get("/stable/grades", {"symbol": ticker, "limit": 40}, timeout=4)
+    data = _fmp_rows(fmp_client.get_analyst_grades, ticker, limit=40)
     if not isinstance(data, list):
         return []
     out: list[dict] = []
@@ -98,7 +125,7 @@ def _recent_actions(ticker: str) -> list[dict]:
 
 
 def _trend(ticker: str) -> list[dict]:
-    data = ee._fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": _MAX_TREND}, timeout=4)
+    data = _fmp_rows(fmp_client.get_grades_historical, ticker, limit=_MAX_TREND)
     if not isinstance(data, list):
         return []
     out: list[dict] = []
