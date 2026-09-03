@@ -97,8 +97,20 @@ async def test_import_confirm_creates_and_skips_on_repost():
 
 
 @pytest.mark.asyncio
-async def test_import_confirm_rejects_invalid_bodyJson():
-    """POST /notes/import/confirm with invalid bodyJson returns 400."""
+async def test_import_confirm_REPORTS_an_invalid_bodyJson_without_failing_the_batch():
+    """⚰️ THIS ASSERTED 400, AND THE CONTRACT DELIBERATELY MOVED.
+
+    A bad note used to reject the whole request. `audit B4/B5` changed that on
+    purpose — `import_confirm` returns
+    `{created, updated, skipped, failed}` and a note that cannot be validated
+    lands in `failed` with its reason, because one bad file "must never roll back
+    its healthy siblings' writes". Naming what was discarded IS the feature; a
+    400 threw away the good notes to report the bad one.
+
+    ⛔ SO THE RAIL IS NOT DELETED, IT IS RE-POINTED. What has to stay true is
+    that the bad note is REPORTED rather than silently dropped, and that it does
+    not take the batch with it.
+    """
     payload = {
         "source": "test",
         "destFolderId": None,
@@ -118,9 +130,16 @@ async def test_import_confirm_rejects_invalid_bodyJson():
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
-    assert r.status_code == 400
-    # The error message may be "body_json must be valid JSON" or similar
-    assert "body" in r.json()["detail"].lower()
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # The note is NAMED in `failed`, with a reason that points at the field.
+    assert len(body["failed"]) == 1, body
+    assert body["failed"][0]["importKey"] == "invalid_body:1"
+    assert "body" in body["failed"][0]["error"].lower(), body["failed"][0]
+    # ⛔ AND IT WAS NOT SILENTLY WRITTEN. Reporting a note as failed while
+    # creating it anyway would satisfy the line above and be worse than a 400.
+    assert body["created"] == []
+    assert body["updated"] == []
 
 
 @pytest.mark.asyncio

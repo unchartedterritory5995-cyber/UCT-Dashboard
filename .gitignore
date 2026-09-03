@@ -12,6 +12,12 @@ data/
 # Voice KB corpus is version-controlled — deploys with the code
 !api/data/voice_kb/
 !api/data/voice_kb/**
+# Phase 3B Lane A VCP gold-standard validation evidence (rubric, candidate
+# pool, frozen case packets, blinded review results, adjudication + metrics)
+# is version-controlled -- it is the reproducible evidence trail for the
+# program's decision log, not regenerable scratch output.
+!docs/uct-scanner-intelligence/vcp_gold_standard/data/
+!docs/uct-scanner-intelligence/vcp_gold_standard/data/**
 *.json.bak
 backups/
 .superpowers/
