@@ -89,11 +89,11 @@
       "note": ""
     },
     "BARS_PROXY_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "web"
       ],
-      "note": "DELIBERATELY OFF, in its author's own words: the commit that added it (b82b6ac58) says it \"ships FULLY DARK: with BARS_ORIGIN_URL unset and BARS_PROXY_ENABLED unset it serves locally exactly as before\". Like the BARS_HISTORY_* pair above it is HALF A SWITCH -- api/routers/bars.py forwards only when BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT, and the proxy needs BARS_ORIGIN_URL besides, so arming this alone changes nothing and arming it without the origin URL is the failure mode to watch for. It is a CANARY gate, meant to be ramped 0->5->25->100 via BARS_PROXY_PCT with rollback by env var and no code deploy; any error falls back to local serve. Arm it as the Path B Phase 2 cutover, by ramp, not by flipping it to 100. ⚠️ Declared by a passer-by, not its author: the flag arrived in the 2026-09-02 Path B bars-serving-tier work (merge 64bb2e2c3) and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make; tools/flag_ledger_audit.py settles `where` against Railway."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the /api/bars proxy to the origin tier. Gated a second time by BARS_PROXY_PCT, so this flag alone does not decide how much traffic is proxied."
     },
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
@@ -166,9 +166,8 @@
       "note": ""
     },
     "CATALYST_AV_NEWS_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Held off 2026-09-02 on COST, not doubt: the free AlphaVantage tier is ~25 calls/day and is SHARED with the earnings-history widget, so a call on every catalyst refresh would starve that budget. The code is wired and ready - a dedicated or premium AV key (CATALYST_AV_NEWS_KEY) plus this flag lights it up with no further work. Arm it WITH the key, never before."
     },
     "CATALYST_CURATOR_ENABLED": {
       "status": "armed",
@@ -255,9 +254,8 @@
       "note": ""
     },
     "COMPASS_HEALTH_EMAIL_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Off 2026-09-02 by decision: this gates ONLY the scheduler SEND of the weekly operator email. The compute and the status endpoint are ungated and always callable, so the numbers (chat volume, active users, tool-failure rate) are available on demand without it. Off therefore means no weekly email is being sent, NOT no health data. Whether the owner wants a recurring email is theirs to say, and nothing is lost while it is off."
     },
     "COMPASS_WEEKLY_DIGEST_ENABLED": {
       "status": "armed",
@@ -316,9 +314,8 @@
       "note": ""
     },
     "DEEP_CACHE_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Off 2026-09-02, and superseded in direction. It builds a bars_cache_deep directory on the pod at boot; the architecture has since moved deep history OFF the web pod to a worker origin plus Cloudflare (BARS_HISTORY_ORIGIN_ENABLED / BARS_HISTORY_PROXY_ENABLED, both armed) precisely so the web pod never holds that volume of data. Arming this would push back toward the failure it was moved away from."
     },
     "DEEP_HISTORY_WARM_ENABLED": {
       "status": "armed",
@@ -370,9 +367,8 @@
       "note": ""
     },
     "EARNINGS_PREWARM_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn."
     },
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
@@ -410,9 +406,8 @@
       "note": ""
     },
     "FLOW_PRUNE_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Deliberately unarmed, re-confirmed 2026-09-02, and it should stay that way absent an explicit decision. There is NO restore path: the R2 backups run at 02:30 ET, AFTER the 20:00 ET prune, so every snapshot is already post-prune, and flow_backup.py has no restore function at all. Unarmed, the nightly job still reports precisely what it WOULD remove, so the information is available without the risk. The first armed run would be the largest delete this table has ever seen."
     },
     "FLOW_READS_PROXY_ENABLED": {
       "status": "armed",
@@ -422,14 +417,12 @@
       "note": ""
     },
     "FLOW_REST_BACKFILL_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Off 2026-09-02 pending its own dry run. It recovers a WS disconnect window same-day via Massive REST, and is PARTIAL by construction: REST options-trades are per-contract, so only the enumerable Q-pool is recoverable and newly-surfacing contracts still wait for the T+1 flat file - which heals the gap anyway, one day later. The module's own instruction is to run the read-only audit (flow_gap_autofill) BEFORE enabling. Arm it after that audit, not before."
     },
     "FMP_BULK_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Off 2026-09-02: an optimization layer only. It pulls whole-market FMP fundamentals so the per-ticker yfinance call and its politeness sleep are skipped for covered symbols, and every miss falls back to that per-ticker path - which is armed and correct. Off costs latency, never correctness. Not armed because the bulk endpoint availability on the current FMP plan is unverified, and an unverified arm here buys a log full of warnings rather than a speedup."
     },
     "FUNDAMENTALS_MONITOR_ENABLED": {
       "status": "armed",
@@ -460,9 +453,8 @@
       "note": ""
     },
     "INDICATOR_VISION_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "Screenshot-to-indicator. Shipped 2026-08-29 but arrived UNMOUNTED, so arming the flag alone may not surface it — check the mount before flipping."
+      "status": "dark",
+      "note": "Off 2026-09-02, consistent with every other LLM feature in this repo shipping dark. The shape is deliberate and should not be fixed: the router mounts UNCONDITIONALLY and the handler asks the flag at call time, so the route answers a real, readable refusal instead of a 405 on a path that exists in the source. Arming spends a vision-model call per uploaded image, priced through cost_guard."
     },
     "INTRADAYPACK_ENABLED": {
       "status": "armed",
@@ -556,9 +548,8 @@
       "note": ""
     },
     "OI_MORNING_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Held off 2026-09-02 because arming it PUBLISHES: a card to a Discord channel every weekday at 08:00 ET. That is a content decision, not a wiring gap - the feature is complete and runs on the flow-worker. It can be evaluated without arming anything: run_oi_morning takes force=True (which bypasses this gate) with post=False, returning the PNG for preview instead of posting it."
     },
     "PROVIDER_COVERAGE_MONITOR_ENABLED": {
       "status": "armed",
@@ -582,9 +573,8 @@
       "note": ""
     },
     "SCAN_LIVE_SWEEP_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "Built and tested during the 2026-08-29 Scanner Hub consolidation, never armed. Decide: arm it, or retire it with the two tabs it was built beside."
+      "status": "dark",
+      "note": "Deliberately unarmed, re-confirmed 2026-09-02, per the live-scan retirement (2026-08-29): that surface was retired while its engine was kept. Worth knowing before touching it: the job is registered UNCONDITIONALLY and the flag is read PER CALL inside live_sweep_job and again inside run_sweep(mode=live), so arming and rolling back are both env-var-only, with no deploy either way. Downstream rendering already assumes scan_hits_live is empty."
     },
     "SCAN_SWEEP_ENABLED": {
       "status": "armed",
@@ -622,9 +612,8 @@
       "note": ""
     },
     "STANDING_FLOW_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "dark",
+      "note": "Superseded, and setting it would change nothing - confirmed 2026-09-02. On 2026-08-22 the cron was switched, per owner, from run_standing_cron (60-day Open Flow) to run_weekly_cron (a true 5-day week). The scheduler registration and both run_weekly and run_standing accept EITHER this flag or WEEKLY_FLOW_ENABLED, and WEEKLY_FLOW_ENABLED=1 IS set on flow-worker, so the Friday 16:15 ET job is already registered and firing. This flag now survives only as a redundant second arm for a job that is already armed; the 60-day board it was named for is no longer scheduled."
     },
     "STREAM_BARS_ENABLED": {
       "status": "armed",
@@ -704,48 +693,46 @@
       "note": ""
     },
     "HISTORY_PREWARM_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "worker"
       ],
-      "note": "DELIBERATELY OFF, awaiting a NAMED prerequisite -- which is what makes this dark rather than pending. `api/services/history_prewarm.py`'s own module docstring states it: \"gated by HISTORY_PREWARM_ENABLED (default OFF -- activate once Cloudflare Tiered Cache + Cache Reserve are on)\". ARM IT ONLY AFTER CONFIRMING BOTH ARE ENABLED IN CLOUDFLARE. The sweep walks the whole symbol universe through the public domain to stock the edge; with Cache Reserve OFF that traffic reaches the ORIGIN instead of being absorbed, which is a universe-wide load against the single web pod rather than the cache-filling pass it is meant to be. It runs on the WORKER, off the user request path, and is gentle and sequential so an overlapping pass cannot load the pod -- but that bounds the rate, not the destination. ⚠️ Classified by a passer-by, not its author: the flag arrived in the 'instant-charts Phase 5' commit and tripped test_every_off_by_default_gate_is_declared. Cloudflare's dashboard state is not visible from the repo or from Railway, so the prerequisite could not be checked here -- which is precisely why the answer is 'off with a reason' and not 'on'."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Sweeps every symbol's sealed D/W/M history through the public Cloudflare domain so Cache Reserve holds it and no first-time user in any region hits the origin cold."
     },
     "BARS_API_ENABLED": {
-      "status": "pending",
-      "since": "2026-09-02",
+      "status": "armed",
       "where": [
-        "(unverified -- run tools/flag_ledger_audit.py against Railway)"
+        "bars-api"
       ],
-      "note": "⚠️ STATUS IS PENDING, NOT ARMED, and the distinction is the point: this file's own rule is that `armed` means SET ON AT LEAST ONE RAILWAY SERVICE, and nothing in this repo can see Railway. A concurrent session recorded it pending on 2026-09-02 for exactly that reason and was right to; this entry keeps that judgment and only corrects the claim that came with it (\"no rationale on record\" -- there is one, below). Settle it with tools/flag_ledger_audit.py. A SERVICE SELECTOR, not a feature gate -- same family as WORKER_ENABLED and FLOW_WORKER_ENABLED, and read in the same place: railway.json's startCommand dispatcher (`if [ \"${BARS_API_ENABLED:-0}\" = \"1\" ]; then exec python -m api.bars_api_main`). It selects the dedicated bars-SERVING tier, whose whole purpose is that app/partner deploys can never restart chart serving. It is therefore DELIBERATELY unset on web/worker -- unset is the correct value there, and arming it on web would turn the web pod into the bars tier and take the app down. Marked armed because the tier has demonstrably RUN: api/bars_api_main.py records two boot traps it survived on a real pod (init_db-before-pull, and a lifespan-thread extract that starved /api/health into a Railway restart loop) -- findings you cannot make without deploying it. ⚠️ Declared by a passer-by, not its author: the flag arrived undeclared in the 2026-09-02 Path B bars-serving-tier work and tripped test_every_off_by_default_gate_is_declared. What it DOES is read off railway.json and api/bars_api_main.py; whether it is SET is not something this branch can know."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
     },
     "BARS_HISTORY_ORIGIN_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "worker"
       ],
-      "note": "DELIBERATELY OFF UNTIL A NAMED CUTOVER, which is why this is dark rather than pending. `api/worker_main.py` states it: the worker serves the same edge-cacheable sealed history as the web's `/api/bars-history` but from the worker's deep store, \"so Cloudflare can cache deep history worldwide without the web ever holding or fetching the 20 GB (the 2026-08-31 OOM class)\", and it is \"Gated OFF + lazy-imported (boot path UNCHANGED until cutover)\". It is READ-ONLY -- `serve_bars_history` never fetches or writes -- so the risk of arming it is load and routing, not data. Arm it as part of the Phase 5 cutover, with `BARS_HISTORY_PROXY_ENABLED` below, not independently. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Lets the worker serve /api/bars-history as a READ-ONLY origin for the deep ~20GB history db, so Cloudflare can cache deep history worldwide without the web pod ever holding or fetching it (the 2026-08-31 OOM class)."
     },
     "BARS_HISTORY_PROXY_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "web"
       ],
-      "note": "DELIBERATELY OFF UNTIL THE SAME CUTOVER, and it is HALF A SWITCH: `api/routers/bars.py` routes to the worker origin only \"when BARS_HISTORY_PROXY_ENABLED=1 AND BARS_HISTORY_ORIGIN_URL is set\", so arming this alone changes nothing and arming it without the origin URL is the failure mode to watch for. It is the web-side half of the pair whose worker-side half is `BARS_HISTORY_ORIGIN_ENABLED`; the two are one decision, not two. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Makes the web pod's /api/bars-history a reverse-proxy to that worker origin; the web pod keeps only shallow history. On a proxy error it falls back to its own local history rather than 5xx-ing."
     },
     "INSTANT_UNIVERSE_ENABLED": {
-      "status": "pending",
-      "since": "2026-09-01",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "worker"
       ],
-      "note": "PENDING, NOT DARK, AND THE DIFFERENCE IS DELIBERATE. Its two siblings above say WHY they are off -- 'until cutover'. This one's comment in `api/services/bars_prewarm.py` says only \"Gated OFF by default; flip INSTANT_UNIVERSE_ENABLED=1 on the worker\", which is an instruction for arming it, not a reason it is off. What the surrounding comment DOES explain is the design: the extra D/W/M universe is warmed as a separate boot-only pass rather than folded into `tickers`, so intraday warming stays bound to the active set (\"no 26k intraday blow-up\") and the 5-minute refresh loop is untouched. That is a rationale for the SHAPE, not for the OFF. DECIDE: arm it on the worker, or mark it dark with the reason it is waiting. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Widens the boot-only D/W/M warm pass to the whole reference universe. Deliberately kept OUT of the 5-minute refresh loop and the intraday active set, so it cannot cause a 26k-symbol intraday blow-up."
     },
     "PERMANENT_DAILY_FRESHNESS_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "worker"
       ],
-      "note": "DELIBERATELY OFF, and the author said so in two places rather than one: the commit that added it (b6338dce) is titled \"after-close full-universe DAILY freshness sweep (dark)\", and the block comment in `api/services/bars_prewarm.py` reads \"Gated dark by PERMANENT_DAILY_FRESHNESS_ENABLED\". That agreement is why this is `dark` and not `pending` -- the intent is recorded, not inferred by me. ⚠️ WHAT IT DOES WHEN ARMED, because the blast radius is the reason it ships off: once per completed session the WORKER re-warms the WHOLE universe's daily bars (ticker_list ∪ _dwm_extra) off-peak, which is a full-universe fetch pass, a bars.db rewrite and a whole-db R2 snapshot. `_scan_stale` + `_boot_can_skip` make day-2 onward near-free (a 1-bar delta), so the cost is concentrated in the FIRST armed run. Buffer hour past the close is PERMANENT_FRESHNESS_HOUR_ET (default 17 = 5pm ET). ⛔ DECLARED BY A THIRD PARTY 2026-09-01: this entry was added by the pattern-library branch because the flag arrived undeclared through a master merge and turned `test_every_off_by_default_gate_is_declared` red. It records the AUTHOR'S stated intent and the code's own behaviour -- nothing about whether it should be armed, which is not this branch's call to make."
+      "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
     }
   }
 }

@@ -28,6 +28,7 @@ deterministic.
 from __future__ import annotations
 
 import json
+import types
 from pathlib import Path
 
 import pytest
@@ -178,3 +179,130 @@ def test_no_flag_is_declared_twice():
         + "\n\nJSON keeps the LAST one, so the earlier entry is invisible to "
           "every reader except a human. Merge them into one entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# ⚰️ THE AUDITOR'S OWN ROSTER DRIFTED, AND IT MANUFACTURED THE FICTION IT EXISTS
+# TO CATCH.
+#
+# `tools/flag_ledger_audit.py` compared the ledger against a HARDCODED
+# `SERVICES = ("web", "worker", "flow-worker")` while the project had five.
+# `BARS_API_ENABLED=1` was live on `bars-api` the whole time, and the audit
+# reported it under "still awaiting a decision" — so the ledger was told to
+# decide something that was already decided and running.
+#
+# ⛔ The other direction is the dangerous one: a flag armed ONLY on an unlisted
+# service lands in `claims_armed_but_unset`, whose headline reads "the entry is
+# fiction". Acting on that would mean UNSETTING a live gate on the strength of a
+# service nobody looked at.
+#
+# This rail is OFFLINE — it reads the tool's source, never Railway — so it keeps
+# the suite deterministic while still failing if the roster is retyped.
+# ---------------------------------------------------------------------------
+
+def _audit_source() -> str:
+    return (REPO / "tools" / "flag_ledger_audit.py").read_text(encoding="utf-8")
+
+
+def test_the_audit_derives_its_service_roster_and_does_not_type_one():
+    """⭐ The roster must come FROM the project, so a sixth service is covered the
+    day it is created rather than the day someone remembers this file."""
+    import ast
+
+    src = _audit_source()
+    tree = ast.parse(src)
+
+    # ⛔ NON-VACUITY: the module really does parse and really does name the
+    # deriving function, so the absence check below cannot pass over an empty read.
+    fns = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "_services" in fns, (
+        "flag_ledger_audit no longer defines _services(); if the roster moved, "
+        "move this rail with it rather than deleting it")
+
+    # A module-level assignment whose value is a literal collection of service
+    # names is the shape that broke. Find any, and fail BY NAME.
+    typed = []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            if isinstance(node.value, (ast.Tuple, ast.List, ast.Set)):
+                strs = [e.value for e in node.value.elts
+                        if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+                if any(s in {"web", "worker", "flow-worker", "bars-api",
+                             "chart-renderer"} for s in strs):
+                    typed.append(f"{target.id} = {strs}")
+    assert typed == [], (
+        "the audit's service roster is hardcoded again:\n  " + "\n  ".join(typed)
+        + "\nDerive it from the project — a partial roster is not a smaller audit, "
+          "it is a confidently wrong one.")
+
+
+def _load_audit_module():
+    """Import the tool by path — it lives in tools/, which is not a package."""
+    import importlib.util
+
+    path = REPO / "tools" / "flag_ledger_audit.py"
+    spec = importlib.util.spec_from_file_location("_fla_under_test", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _stub_cli(monkeypatch, mod, stdout):
+    """Make the module think a railway CLI exists and returns `stdout`.
+
+    ⛔ OFFLINE. Nothing here reaches Railway; the point is to drive the failure
+    branches, which a live read can never be relied upon to produce.
+    """
+    monkeypatch.setattr(mod.shutil, "which", lambda _n: "railway")
+    monkeypatch.setattr(
+        mod.subprocess, "run",
+        lambda *a, **k: types.SimpleNamespace(stdout=stdout, stderr="", returncode=0))
+
+
+def test_services_returns_the_roster_the_project_reports():
+    """⛔ NON-VACUITY, and it comes FIRST. Without a case proving _services() can
+    SUCCEED, the two refusal tests below would be satisfied by a function that
+    raised unconditionally."""
+    import pytest as _pytest
+
+    mod = _load_audit_module()
+    monkeypatch = _pytest.MonkeyPatch()
+    try:
+        _stub_cli(monkeypatch, mod, json.dumps(
+            {"services": {"edges": [{"node": {"name": "web"}},
+                                    {"node": {"name": "bars-api"}}]}}))
+        assert mod._services() == ("bars-api", "web")
+    finally:
+        monkeypatch.undo()
+
+
+@pytest.mark.parametrize("stdout,why", [
+    ('{"services": {"edges": []}}', "an empty roster"),
+    ('{"services": {}}', "a response missing the edges"),
+    ("not json at all", "unparseable output"),
+    ("", "no output"),
+])
+def test_services_refuses_rather_than_auditing_a_partial_roster(stdout, why):
+    """⭐⭐ REFUSING IS THE POINT, and it is EXECUTED rather than grepped for.
+
+    An earlier version of this rail counted the string `RailwayUnavailable` in the
+    source and required two. Deleting the empty-roster guard left the other two
+    raises in place, so the count still passed — a rail green over the exact defect
+    it named. This drives the branches instead.
+
+    A shrunken roster is not a smaller audit: a flag armed only on an unlisted
+    service reads as `claims_armed_but_unset`, whose headline calls a TRUE entry
+    fiction, and acting on that would unset a live gate.
+    """
+    mod = _load_audit_module()
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        _stub_cli(monkeypatch, mod, stdout)
+        with pytest.raises(mod.RailwayUnavailable):
+            mod._services()
+    finally:
+        monkeypatch.undo()
