@@ -1,0 +1,446 @@
+====================================================================================================
+FAMILY: bull_flag | Bull Flag (classical continuation, pattern-engine)
+====================================================================================================
+GEOMETRY COLOR: RED
+  rationale: The emitted GEOMETRY fields themselves are genuine (anchors, timestamps, and levels are all computed directly from real bar data, not fabricated) — so on pure "is there a shape to draw" grounds this would be YELLOW. But RED is the honest sequencing call: this family carries a P0 (fabricated narrative statistics shipped on literally every detection, to both paid users and the Compass LLM coach) plus two P1 correctness defects that affect WHICH detections fire at all (D4's confidence-floor silently drops geometrically-valid patterns; D7's reproduced illiquid/corporate-action false positive). Inv
+DETECTOR ACTION: CORRECT_DETECTOR_LOGIC
+  evidence: This is a multi-part recommendation the single-enum field can't fully capture, so ranking by urgency: (1) EQUALLY URGENT, ship together: RETAIN_EXPLANATION_FIX for the fabricated narrative statistics (bull_flag.py:388-389, 404-406, 411-413 -- remove or ground the 67%, 30-50%, 55-65%, Raschke-equivalence, and Kullamägi claims) -- this is the P0 and touches zero detection logic, so it's the cheapest, highest-value fix available. (2) CORRECT_DETECTOR_LOGIC for the two genuine correctness bugs that 
+PROVENANCE READINESS: Pattern-engine detectors (bull_flag included) do NOT have a real Criterion system — that exists only in base_catalog (System-D) structures, per the task's own framing, and this audit confirms it: bull_flag's Detection carries no per-criterion id/name, no observed-value/expected-value/operator pair, no required-vs-optional flag, no per-criterion pass/fail, no source citation, and no algorithm-version field. What DOES exist that a future provenance layer could build on: the underlying measured val
+BLINDED VALIDATION recommended=False size=15
+  rationale: Not decision-critical right now. This code-level audit already surfaces decisive, well-evidenced, directly-fixable defects (fabricated narrative statistics; a missing counter-trend-slope criterion; a confidence-floor bug that lets unrelated context suppress valid geometry; a reproduced illiquid/corporate-action false positive) that don't require human-labeled charts to resolve -- they require read
+QUANT METRICS available=None
+  summary: 
+CANONICAL GEOMETRY REQUIREMENT: A bull-flag-shaped continuation pattern needs, at minimum: (1) the flagpole as its own geometric object with a start timestamp/price and end timestamp/price (currently present via pivot_ts/anchors, but not tagged as a distinct 'pole' sub-object -- it's inferred from anchor ordering); (2) the flag channel as two boundary trendlines carrying an explicit SLOPE-DIRECTION field relative to the pole (currently absent -- the schema has no way to say 'this channel slopes with/against/flat relative to the pole', which is exactly the criterion this audit found missing from the code); (3) an explicit fla
+
+DEFECT CLASS FINDINGS:
+  [P0] D1 UNSUPPORTED NARRATIVE CLAIMS found=True
+    what_it_is (bull_flag.py:388-389) claims 'Tom Bulkowski's Encyclopedia of Chart Patterns puts follow-through reliability near ~67%' — Bulkowski's own flags.html (docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:483) reports a 44-45% BREAK-EVEN FAILURE rate and calls flags 'Not ranked'/the weakest pattern; no 67% figure for regular flags exists anywhere in the corpus. why_it_matters
+  [P1] D2 PATTERN-DEFINITION MISMATCH found=True
+    No counter-trend-slope test exists: _try_extract_pattern (bull_flag.py:99-189) and channel_width_parallel_score (primitives/geometry.py:219-260) test only width-parallelism, never slope sign, though Bulkowski/Murphy/E&M (docs/.../01-bulkowski-classic-patterns.md:472; docs/.../06-edwards-magee-murphy-canon.md:482) treat 'slopes against the trend' as near-definitional. Verified the one fixture named
+  [P2] D3 INCONSISTENT/LEGACY THRESHOLDS found=True
+    _MIN_POLE_PCT=0.08, _MAX_POLE_BARS=20, _MIN_FLAG_RETRACE=0.15/_MAX_FLAG_RETRACE=0.50, _MIN_PARALLEL_SCORE=0.55 (bull_flag.py:38-44) are all uncited engineering guesses — every primary source consulted explicitly states it publishes no such numbers for a regular Flag (only the UNRELATED High-and-Tight-Flag has a published 90%/2mo pole rule, correctly NOT reused here). _MAX_FLAG_BARS=20 coincides wi
+  [P1] D4 CLASSIFICATION VS QUALITY CONFUSION found=True
+    Worked arithmetic on bull_flag.py:70-79: a candidate passing EVERY hard identity gate (geom_score~50 at gate boundaries, vol_score~0 at a barely-passing 0.99 flag/pole volume ratio, ctx_score=42 with a distribution DCR signature and no CAN SLIM bonus, hist_score fixed 50) computes confidence = 0.40*50+0.25*0+0.20*42+0.15*50 = 35.9, below the 50.0 floor at bull_flag.py:78-79 -> 'continue', never em
+  [P2] D5 LIFECYCLE AMBIGUITY found=True
+    status is hardcoded literal 'ready' at emission (bull_flag.py:517) for every detection regardless of how many bars into the 3-20 bar flag window it is; 'forming'/'triggered' are never used by this detector. A 3-bar-old freshly-qualified flag and an 18-bar-old about-to-expire one are labeled identically. Completed/failed/expired transitions exist only via generic downstream memory.track_outcomes (a
+  [P3] D6 DUPLICATED SEMANTICS found=True
+    No live duplicate exists today (confirmed: zero 'bull_flag'/'bull-flag' hits in base_catalog.py). pattern_join.py's own docstring (api/services/screener/pattern_join.py:23-33) still describes an active 'collision by design' with a cheap heuristic screener column sharing the bull_flag key on a 0-1 scale -- that heuristic module (referenced there as api/services/screener/patterns.py) is fully retire
+  [P1] D7 FALSE-POSITIVE-PRONE LOGIC found=True
+    Reproduced live via a throwaway script (not committed): a $1.00 penny stock at 250-500 shares/day volume with a single-bar +13% jump (indistinguishable from a reverse-split artifact, halt gap, or thin-volume spike) followed by 10 quiet consolidation bars fires a 92.5%-confidence Bull Flag with full narrative and entry/stop/target levels. No liquidity floor, no minimum price, no split/gap-artifact 
+  [P0] D8 STALE/WEAK DEFINITIONS OR CITATIONS found=True
+    Same underlying evidence as D1 viewed from the citation-accuracy angle: the module docstring's 'Geometric definition' (bull_flag.py:6-11) is honest and uncited (good), but the narrative's named citations are checkably wrong -- Bulkowski's 67% (contradicted by his own 44-45% failure-rate data), E&M's 30-50% retrace (absent from the corpus's E&M extract entirely), and the Raschke Holy Grail equivale
+  [P2] D9 GEOMETRY/PROVENANCE/SCANNER-CHART DISCONNECT found=True
+    geometry.anchors (bull_flag.py:478-483) ARE real bar-derived trendline endpoints (not fabricated); levels (bull_flag.py:493-501) ARE real bar-derived horizontal prices; start_t/end_t/pivot_ts (bull_flag.py:471-475) are real timestamps. But: no explicit flag-low pivot marker is exposed (only the fitted regression endpoints); zero gap/event geometry (context.days_to_earnings exists in types.py:91 bu
+
+P-ISSUES:
+  [P0] Narrative fabricates statistics attributed to real, checkable sources
+    what_it_is claims Bulkowski measured '~67% reliability when volume confirms breakout' -- his own page (in this program's own research corpus) reports a 44-45% break-even FAILURE rate and calls flags 'the weakest pattern' in his measured data, an almost opposite conclusion. why_it_matters claims 'Edw
+    evidence: bull_flag.py:388-389, 404-406, 411-413 vs docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:483 and docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md:476-500; tests/pattern_engine/detectors/test_bull_flag.py:49-74 (lengt
+  [P1] Confidence floor lets unrelated context/quality inputs suppress a geometrically-valid pattern
+    A candidate that passes every hard identity gate (pole%, pole bars, flag bars, retrace, parallel score, volume contraction) can still be discarded because trend_stage/ma_alignment/rs_trend/DCR/CAN-SLIM inputs -- none of which describe the SHAPE -- drag the blended confidence below the 50.0 floor. Wo
+    evidence: bull_flag.py:70-79, 238-274 (ctx_score formula); floor check at bull_flag.py:78-79
+  [P1] No liquidity/corporate-action guard -- reproduced firing on a penny-stock/split-artifact case
+    A $1.00 stock trading 250-500 shares/day with a single-bar +13% jump (indistinguishable from a reverse-split adjustment, halt gap, or thin-volume spike) fires a 92.5%-confidence 'textbook' Bull Flag with a full rich narrative and real entry/stop/target levels.
+    evidence: Reproduced live via a throwaway, non-committed script against api.services.pattern_engine.detectors.classical.bull_flag.detect_bull_flag; no min-price/min-volume/split-guard exists anywhere in bull_flag.py
+  [P1] No counter-trend-slope criterion, though every primary source treats it as near-definitional
+    Bulkowski, Murphy, and Edwards & Magee all describe the flag channel as tilting AGAINST the pole's direction. channel_width_parallel_score tests only width-consistency, never slope sign. The one fixture named for this case is rejected for an unrelated reason (weak synthetic pole), not by any slope c
+    evidence: bull_flag.py:157-167 + primitives/geometry.py:219-260 (no slope-sign logic); docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:472; docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md:482; tests/fixtures/bull_flag/ascendin
+  [P1] Hard volume-contraction gate is calibrated stricter than the source data supports
+    Bulkowski's own measured frequency for declining flag volume is 74-77%, not 100%. The code rejects any candidate whose flag volume isn't strictly below pole volume, with no soft-scoring alternative -- silently discarding roughly a quarter of real-world bull flags by the source's own numbers.
+    evidence: bull_flag.py:64-68, 205-220 (_flag_volume_contracted hard gate) vs docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:477 ('volume -- 74% (up breakouts) to 77% (down breakouts) downward -- high (frequency)')
+  [P2] All core geometric thresholds are uncited engineering guesses
+    _MIN_POLE_PCT, _MAX_POLE_BARS, _MIN_FLAG_RETRACE/_MAX_FLAG_RETRACE, _MIN_PARALLEL_SCORE are presented in the module docstring as a settled 'Geometric definition' with no provenance note, though every primary source explicitly states it publishes no such numbers for a regular flag. Not a bug per se (
+    evidence: bull_flag.py:1-17, 38-44; docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:479 ('missing: a numeric steepness threshold... this is the load-bearing criterion and it carries no number')
+  [P2] Zero fixture coverage for real-world 'ugly case' categories
+    The 15-fixture battery is entirely synthetic geometric-boundary cases. No fixture exists for penny-stock/illiquid conditions, corporate-action artifacts, or earnings/event gaps -- exactly the category the D7 repro above exploited.
+    evidence: tests/fixtures/bull_flag/ (15 files, all via _generate.py's clean synthetic OHLCV builder); Phase-0 'False-Positive Sweep' used only 2000 random-walk bars (docs/superpowers/phase-reports/2026-05-11-phase-0-verification.md)
+  [P2] MA-alignment scoring boost is not time-scoped to the pullback bar
+    nearest_rising_ma_alignment computes MAs off the tail of the FULL bars array passed in, not sliced up to the flag-low bar's index -- so the up-to-+22-point geometry-score boost can reflect today's MA state rather than the state at the moment the flag low actually formed. Shared infra affecting every
+    evidence: narrative_helpers_structure.py:33-45 (compute_structure_quality called with full bars) + primitives/structure_quality.py:107-140 (_sma/_ema use closes[-period:] of the whole array)
+  [P3] pattern_join.py's D6 collision documentation is stale
+    pattern_join.py's docstring still warns of an active naming collision between bull_flag's pattern-engine confidence (0-100) and a cheap heuristic screener column sharing the same key name (0-1 scale). That heuristic module was fully retired 2026-08-30 and no longer exists -- the collision it warns a
+    evidence: api/services/screener/pattern_join.py:23-33 vs api/services/screener/filters.py:766-786 (RETIRED dict, dated 2026-08-30); no api/services/screener/patterns.py file exists
+  [P3] Lifecycle is effectively binary at the detector level
+    status is hardcoded 'ready' on every emission regardless of how far into the 3-20 bar flag window the pattern is; forming/triggered states are never used by this detector, only by generic shared downstream machinery.
+    evidence: bull_flag.py:517
+
+
+====================================================================================================
+FAMILY: bullish_engulfing_bearish_engulfing | Bullish Engulfing / Bearish Engulfing (two-bar candlestick reversal family)
+====================================================================================================
+GEOMETRY COLOR: RED
+  rationale: Not a geometry-mechanics problem — exact-candle timestamps/anchors are genuinely present and good. RED because of correctness-adjacent defects that must be fixed before this family's output (narrative and structured score alike) can be trusted further: (1) D2's trend-gate is a local proxy that can pass on the exact geometry+context combination the research corpus itself documents as a DIFFERENT, opposite-outcome pattern (Last Engulfing Top/Bottom) -- a genuine pattern-identity correctness gap, not a wording issue; (2) D4/D7, reproduced live, show a geometrically weak/noisy/illiquid-plausible c
+DETECTOR ACTION: CORRECT_DETECTOR_LOGIC
+  evidence: D2 (reversal-context gate does not verify a genuine prior trend and can pass on geometry the research corpus documents as a different, opposite-outcome pattern) and D4/D7 (reproduced live: a geometrically weak, wick-dominated, penny-stock-plausible candidate clears the confidence floor purely via unrelated volume+context compensation, with no liquidity/price/corporate-action floor anywhere in the gate) are both correctness defects in the detection logic itself, not narrative wording -- they dete
+PROVENANCE READINESS: Pattern-engine detectors (this family included) have NO Criterion-style provenance system at all -- no origin/source_id/quote/operator/expected_value/required_optional/pass_fail/algorithm_version fields anywhere in the Detection shape. That system exists ONLY in base_catalog structures (api/services/screener/base_catalog.py's `ALL_STRUCTURES`/`criteria`, the thing tests/test_quotes_are_grounded.py actually walks). What this family exposes today is: a flat `geometry.extras` dict of raw numeric ev
+BLINDED VALIDATION recommended=False size=20
+  rationale: Not decision-critical right now. The code-level audit already resolved the open questions a blinded review would otherwise be needed to answer: the gate-logic gap (D2), the compensable-weak-geometry gap (D4/D7), and the fabricated historical_score (D1) are all directly demonstrable from the code and one live repro, not matters of subjective visual judgment the way VCP's contraction-sequence calls 
+QUANT METRICS available=True
+  summary: Bulkowski's Encyclopedia of Chart Patterns provides real measured statistics for both patterns (corrected by Phase 3A, re-confirmed this audit): bullish engulfing 63% tested reversal rate, frequency rank 12, overall performance rank 84/103; bearish engulfing 79% tested reversal rate, frequency rank 11, overall performance rank 91/103 (docs/superpowers/research/candles/02-two-bar-patterns.md:225-227). Critically, Bulkowski also measured the SAME geometry in the opposite trend (Last Engulfing Top/
+CANONICAL GEOMETRY REQUIREMENT: A single-candle-pair family like engulfing needs, at minimum: (1) the exact two candle indices/timestamps (already present here via pivot_ts/anchors -- keep this shape as the template for other single/double-candle candlestick detectors); (2) an explicit prior-trend classification field distinct from the local swing/SMA proxy used for gating -- i.e. the schema should carry BOTH "local context passed" (what fires the pattern) AND "broader trend regime at fire time" (e.g. the stage_analysis detector's output) as two separate fields, so a consumer (or a future audit) can tell apart a genuine-down
+
+DEFECT CLASS FINDINGS:
+  [P1] D1 found=True
+    (a) `quality_components.historical_score` is a hardcoded literal 50.0 in both files (bullish_engulfing.py:95, bearish_engulfing.py:96) — a structured field named 'historical' that never reads real pattern-history data (pattern_stats/expectancy_R exist elsewhere in the codebase but are never consulted here), contributing a fixed 7.5 points (15% weight) to every confidence score regardless of the pa
+  [P1] D2 found=True
+    The reversal-context gate (_is_swing_low/_below_sma50/_recent_decline_pct for bullish, mirrored for bearish) never reads context['trend_stage'] (confirmed by full-file read — trend_stage is read only for a scoring bonus at bullish_engulfing.py:323-325 / bearish_engulfing.py:319-321, and for narrative phrasing, never the gate). A local 10-bar swing low or 15-bar 5%+ pullback INSIDE a genuine Stage-
+  [P2] D3 found=True
+    Provenance classified per threshold: _MIN_ENGULF_BODY_RATIO=1.2 -> sourced (matches research corpus's own recommended fix, 02-two-bar-patterns.md:1235). below_50sma as a gate component -> sourced (research's own D5 fix explicitly names close-vs-SMA50, :1245). DCR strong/weak cutoffs (0.70/0.30) -> sourced to Bonde/Stockbee via primitives/dcr.py's own docstring (cross-family primitive, not candlest
+  [P1] D4 found=True
+    Reproduced live via a throwaway script against the real detect_bullish_engulfing function: a synthetic penny-stock two-bar pair with curr_bar_body_pct=0.085 (91.5% wick) and geometry_score=26.73/100 still clears the identity gate and the 50.0 confidence floor at confidence=57.19, because volume_score=100 and context_score=70 compensate (0.40*26.73+0.25*100+0.20*70+0.15*50=57.19). This is D4's 'cal
+  [P3] D5 found=True
+    status is hardcoded to the literal 'ready' in both files' _build_detection return (bullish_engulfing.py:610, bearish_engulfing.py:607); outcome is hardcoded None. No 'forming'/'triggered'/'confirmed'/'failed'/'invalidated' state is ever produced, even though the detector's own what_to_watch_for/failure_signal prose describes exactly such a lifecycle (pre-confirmation 'suspended animation', next-ba
+  [none] D6 found=False
+    No base_catalog structure and no other pattern_engine detector implements engulfing under a different name -- grep of base_catalog found nothing, and no last_engulfing_top/bottom module exists in api/services/pattern_engine/detectors/**. Not a duplication defect; if anything the risk runs the other way (under-differentiation -- see D2). bullish_harami/bearish_harami, piercing/dark_cloud_cover, and
+  [P1] D7 found=True
+    No minimum price floor, no minimum average-volume/liquidity floor, and no absolute body-size floor exist anywhere in _try_extract or the identity gate -- only a RELATIVE 1.2x ratio between two arbitrarily small bodies. Reproduced live (see D4 entry) with a sub-$1 synthetic penny-stock scenario that fires at confidence 57.19 despite 91.5%-wick candles. No split/reverse-split artifact guard exists e
+  [P1] D8 found=True
+    Corpus-searched exactly as test_quotes_are_grounded.py does for base_catalog (grep across docs/superpowers/research/candles/** and docs/superpowers/research/setups/CRITERIA_bulkowski_measured.md). Three unsupported/misattributed claims found beyond the two numbers Phase 3A fixed: (1) 'Peter Brandt teaches the engulfing as a discretionary trade trigger with explicit rules...' (bullish_engulfing.py:
+  [P2] D9 found=True
+    Strong on exact-candle geometry (start_t/end_t/pivot_ts/anchors with real timestamps -- sufficient for chart highlighting) but weak on structured provenance: no Criterion-style object anywhere in this family (no origin/source_id/quote/operator/expected_value/pass_fail fields -- everything besides the prose narrative is a flat extras dict). The actual SMA50 value used by the gate is computed intern
+
+P-ISSUES:
+  [P0] None found at P0 for this family
+    No defect here rises to blocking-all-use severity in isolation (unlike, e.g., a total data-loss or silent-corruption class elsewhere in this program) -- the P1 items below are the ceiling for this family.
+    evidence: n/a
+  [P1] Reversal-context gate is a local-dip proxy, not a genuine prior-trend check
+    The hard gate (swing_low/below_50sma/decline% for bullish; mirrored for bearish) never consults context['trend_stage'], so an ordinary pullback inside a genuine uptrend can pass it and fire 'Bullish Engulfing,' even though the research corpus documents that exact geometry+context combination as the 
+    evidence: bullish_engulfing.py:84-90 (gate), :323-325 (trend_stage read only for scoring, never the gate); docs/superpowers/research/candles/02-two-bar-patterns.md:825-865 and :1237-1249
+  [P1] Weak/noisy geometry is rescued over the confidence floor by unrelated volume+context scoring
+    Reproduced live: a synthetic sub-$1, 91.5%-wick two-bar pair (geometry_score=26.73/100) still fires at confidence 57.19 because volume_score=100 and context_score=70 compensate. No liquidity, price, or corporate-action floor exists anywhere in the gate.
+    evidence: throwaway repro script against detect_bullish_engulfing (this audit, not committed); formula at bullish_engulfing.py:97-99
+  [P1] quality_components.historical_score is a hardcoded constant, not a historical measurement
+    Both files set hist_score = 50.0 unconditionally and feed it into 15% of the published confidence score under a field name ('historical_score') that implies a real backtest-derived figure. Real pattern-history data (pattern_stats/expectancy_R) exists elsewhere in this codebase but is never consulted
+    evidence: bullish_engulfing.py:95, bearish_engulfing.py:96; contrast api/services/screener/pattern_join.py's own documentation of pattern_stats/expectancy_R existing and being joined elsewhere
+  [P1] Three unsupported/misattributed author citations reach paying members' narrative text
+    Peter Brandt (zero mentions anywhere in the candlestick research corpus), Greg Morris's Candlestick Charting Explained (the corpus's own bibliography records this book as never obtained/read), and Edwards & Magee 1948 (appears only in an unrelated chart-pattern corpus and predates Western candlestic
+    evidence: bullish_engulfing.py:5-7,447-449,462-469; bearish_engulfing.py:6-8,440-441,456-465; corpus grep this audit: 0 matches for Brandt/Homma/Sakata in docs/superpowers/research/candles/**; docs/superpowers/research/candles/04-continuation-and-long-patterns
+  [P1] Bearish engulfing's stated failure rate is internally inconsistent with its own corrected success figure
+    bearish_engulfing.py states 'fail roughly 40% of the time' in the same file whose corrected (Phase 3A) success figure is 79%, which implies ~21% failure, not 40% -- apparently an uncorrected copy of the bullish detector's failure_signal text (bullish's 63% success -> ~37% fail is a reasonable 'rough
+    evidence: bearish_engulfing.py:521 vs the corrected '79%' at bearish_engulfing.py:459-461
+  [P2] No structured per-criterion provenance (Criterion-style object)
+    Unlike base_catalog structures, this family has no origin/source_id/quote/operator/expected_value/pass_fail structure -- only prose narrative plus a flat extras dict. A future provenance surface (criterion/observed/expected/pass-fail) has nothing to read from today.
+    evidence: geometry.extras shape at bullish_engulfing.py:571-584 / bearish_engulfing.py:568-581 -- no Criterion-shaped fields anywhere
+  [P2] Discarded SMA50 value and unread days_to_earnings
+    The actual 50-SMA value computed for the gate is thrown away (only a boolean survives); context['days_to_earnings'] is passed in but never read by either detector.
+    evidence: _below_sma50/_above_sma50 compute `sma` locally and return only a bool (bullish_engulfing.py:193-200, bearish_engulfing.py:192-199); grep of both files shows no reference to days_to_earnings
+  [P3] No lifecycle tracking despite lifecycle-shaped narrative
+    status is hardcoded 'ready' and outcome hardcoded None always, even though what_to_watch_for/failure_signal describe a pre-confirmation/triggered/invalidated lifecycle in prose.
+    evidence: bullish_engulfing.py:610-611, bearish_engulfing.py:607-608
+  [P3] Detection['tf'] is always the empty string
+    The returned Detection object never records which timeframe produced it.
+    evidence: bullish_engulfing.py:560, bearish_engulfing.py:557
+
+
+====================================================================================================
+FAMILY: high_tight_flag | High Tight Flag / Power Play
+====================================================================================================
+GEOMETRY COLOR: RED
+  rationale: Characterizing System A (pattern-engine), the only side of this family that emits any geometry payload at all — System D is fully stateless (no t/bar_index anywhere in base_catalog.py:2466-2473) and is RED-by-inapplicability for direct chart-geometry purposes, not a calibration question. On System A, this is RED rather than YELLOW because the defect is not merely absent geometry to be enriched — it is a confirmed, reproducible correctness bug in the geometry that IS already returned and consumed: two of the four `anchors` (flag_low, flag_high) and the third `pivot_ts` entry all carry the wrong
+DETECTOR ACTION: CORRECT_DETECTOR_LOGIC
+  evidence: System A (the only side of this family carrying a P0 finding) has demonstrated, reproducible correctness defects, not merely a calibration or documentation gap: (1) narrative text fabricates specific statistics and sizing advice attributed to two named real practitioners with zero corpus support (high_tight_flag.py:538-546, confirmed by exhaustive grep of docs/superpowers/research/), emitted unconditionally on every live, Compass-reachable firing; (2) a concrete false-positive case was construct
+PROVENANCE READINESS: System D (base_catalog) already has the closest thing in this family to a real provenance system: `Criterion(condition, value, quote, source_id, confidence, missing, missing_kind, origin)` (base_catalog.py:73-100) is applied exhaustively to HIGH_TIGHT_FLAG — 11 Criterion entries, each in exactly one of the three declared provenance states (sourced/refused/ours), with `source_id` pointing at named research (`_IBD_HTF`, `_ONEIL_SUMMARY`, base_catalog.py:1654,2390) and `missing_kind` distinguishing
+BLINDED VALIDATION recommended=False size=0
+  rationale: Not decision-critical right now, and not really executable at any meaningful size. The measured real-world union across both engines is 4 symbols out of 1,397 sampled (both=0, base_only=1, engine_only=3, tests/test_two_engines_do_not_agree.py:244) — there simply are not enough live firings to power a blinded sample the way VCP's 82-case study could (VCP fires at a rate that supports sampling; this
+QUANT METRICS available=None
+  summary: 
+CANONICAL GEOMETRY REQUIREMENT: This is a flagpole-plus-flag family, so a future canonical geometry schema needs, at minimum: (1) the flagpole as two genuinely distinct anchor points — a swing-low base (bar index + timestamp + price) and the pole-top pivot (bar index + timestamp + price), which System A already gets right for these two points; (2) the flag/consolidation boundary as a real two-timestamp zone or channel spanning its own start bar (pole-top+1) through its own end bar — NOT, as currently shipped, two points that both collapse onto the last scanned bar, which is the exact defect found here; (3) the flag's actual 
+
+DEFECT CLASS FINDINGS:
+  [P0] D1 UNSUPPORTED NARRATIVE CLAIMS found=True
+    high_tight_flag.py:538-546 attributes specific statistics and trading advice to two named real practitioners — 'Mark Ritchie II... ~80%+ continuation' and 'Kristjan Kullamägi treats the HTF... his single highest-conviction monster move indicator... maximum position size' — with zero support anywhere in docs/superpowers/research/ (grep for 'Ritchie', 'monster move', 'maximum position size' across t
+  [P1] D2 PATTERN-DEFINITION MISMATCH found=True
+    System A's identity gates (high_tight_flag.py:70-76: MIN_POLE_PCT=0.90, MIN_POLE_BARS=3, MIN_FLAG_BARS=3, MAX_FLAG_RETRACE floor=0.0, no pole-gain ceiling) sit outside both cited primary sources' published bounds (IBD 100-120%/20-40bars/10-25% depth/15-25bars, docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md:224-234; Minervini 100%+/no-stated-ceiling-but-VCP-gated/floor '10 or 12 days
+  [P1] D3 INCONSISTENT/LEGACY THRESHOLDS found=True
+    high_tight_flag.py:70-77 constants (_MIN_POLE_PCT=0.90, _MIN_POLE_BARS=3, _MAX_FLAG_VOLUME_RATIO=0.60, _CONFIDENCE_FLOOR=50.0) carry no provenance marker of any kind (pattern-engine has no Criterion-equivalent type at all). base_catalog.py:2393-2404 (HTF_POLE_MIN_GAIN=1.00, HTF_POLE_MAX_GAIN=1.20, HTF_POLE_MIN_BARS=20, HTF_FLAG_MIN_DEPTH=0.10) are the SAME concept's thresholds, each cited to a quo
+  [P2] D4 CLASSIFICATION VS QUALITY CONFUSION found=True
+    high_tight_flag.py:113-118: confidence = 0.40*geometry + 0.25*volume + 0.20*context + 0.15*historical, and `if confidence < _CONFIDENCE_FLOOR: continue` (117-118) runs BEFORE any Detection is returned or stored — this is an emission gate, not a display-only score. context_score (lines 375-387) is a pure market/regime/CAN-SLIM soft signal unrelated to the pole+flag geometry; a geometrically textboo
+  [P3] D5 LIFECYCLE AMBIGUITY found=True
+    The storage layer (api/services/pattern_engine/memory.py:253-425, track_outcomes) supports forming/ready/triggered -> completed/failed/expired, but high_tight_flag.py:663 hardcodes status='ready' on every emitted Detection regardless of whether price is still inside the flag (forming) or has already partially cleared it (triggered) — the detector never emits either of those two states. Low severit
+  [none] D6 DUPLICATED SEMANTICS found=True
+    Characterized, not a defect: base_catalog.py:44-68's own header comment records a 2026-08-31 owner ruling that System D is authoritative for WHETHER the structure is present (sourced/gated/provenance-carrying) and System A is authoritative for WHERE TO ENTER one (it alone emits entry/stop/target levels; System D does not). tests/test_two_engines_do_not_agree.py:244 confirms the two barely overlap 
+  [P0] D7 FALSE-POSITIVE-PRONE LOGIC found=True
+    Reproduced directly (throwaway script, not committed): a synthetic 15-bar series with a 3-bar pole (high_tight_flag.py:72's exact floor) and gains of 119%/500%/1500% each fired at confidence=82.5 (well above the 50 floor, high_tight_flag.py:117), with flag_volume_ratio as low as 0.013. No liquidity check exists in code despite the module docstring's explicit claim of one ('Liquidity: stock should 
+  [P1] D8 STALE/WEAK DEFINITIONS OR CITATIONS found=True
+    (a) high_tight_flag.py:18-19's liquidity-gate claim is fictional relative to the code (see D7). (b) The Ritchie/Kullamägi/'monster move'/'maximum position size' claims (lines 538-546) have zero support in docs/superpowers/research/ (grep confirmed, zero hits repo-wide for 'Ritchie'; zero hits for the two phrases). (c) The docstring's attribution 'popularized by Pradeep Bonde (Stockbee)' (line 3-4)
+  [P1] D9 GEOMETRY/PROVENANCE/SCANNER-CHART DISCONNECT found=True
+    high_tight_flag.py:488-493: anchors[2] (flag_low) and anchors[3] (flag_high) are BOTH stamped with `int(last_bar['t'])` instead of the bar index where each price actually occurred (flag_low_idx is computed at line 209/233 but never used for the anchor's timestamp); pivot_ts[2] (line 500) has the same bug. The live consumer app/src/components/chart/patternShapes/TrendlinePair.jsx (header comment li
+
+P-ISSUES:
+  [P0] Narrative fabricates named-practitioner statistics and sizing advice with zero source support
+    Every firing of the pattern-engine detector emits prose attributing a specific ~80%+ continuation statistic to 'Mark Ritchie II' and 'maximum position size / monster move' trading advice to Kristjan Kullamägi. Neither claim exists anywhere in the fetched research corpus. This text reaches members li
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:538-546; grep -rli 'ritchie' docs/superpowers/research/ -> zero hits; grep -rli 'monster move|maximum position size' docs/superpowers/research/ -> zero hits; live reachability confirmed via
+  [P0] Detector fires confidently on a reproducible thin-liquidity/corporate-action-style artifact
+    A synthetic 3-bar pole (the code's own documented floor) with an uncapped gain (119%/500%/1500% all tested) and near-dead flag volume fires at confidence 82.5, well above the 50 floor, despite the module docstring's explicit but non-existent liquidity gate claim.
+    evidence: Reproduced via throwaway script against api/services/pattern_engine/detectors/uct/high_tight_flag.py:detect_high_tight_flag; floors at lines 70-76 (_MIN_POLE_PCT=0.90, no ceiling; _MIN_POLE_BARS=3); liquidity claim at lines 18-19 with zero enforcing 
+  [P1] Chart-overlay geometry is provably wrong for this pattern
+    The flag_low and flag_high anchors (and the third pivot_ts entry) are both stamped with the LAST bar's timestamp rather than the bar each price actually occurred on. The live renderer that consumes this shape draws a degenerate vertical tick instead of a flag-boundary line.
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:488-493,500 (both anchors[2] and anchors[3] use last_bar['t']); app/src/components/chart/patternShapes/TrendlinePair.jsx:1-6,59-69 (the confirmed consumer, drawing anchors[2]->anchors[3] as
+  [P1] Identity gates for the same concept diverge sharply and undocumentedly between the two engines
+    The pattern-engine's pole/flag bar-count floors and retrace floor are far looser than both the published sources it cites and its own sibling implementation in base_catalog, with no citation for the loosening and no upper bound on pole gain at all.
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:70-76 vs api/services/screener/base_catalog.py:2393-2404; both vs docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md:224-234 and bases/03-minervini-vcp-powerplay.md:451-458; drif
+  [P1] Docstring claims a liquidity gate that the code never implements
+    The module docstring states 'Liquidity: stock should be liquid (avg daily volume >= 200K) (this gate is skipped in synthetic fixtures)' as though it exists in the live path. No such check exists anywhere in the file, in fixtures or production.
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:18-19; full-file grep for 'liquid|200_000|200000|avg_daily_volume' finds no enforcing code
+  [P2] Composite confidence blends soft context into the hard emission gate
+    The 50-point confidence floor that determines whether a Detection is emitted at all is 20%-weighted by market context (trend stage, MA alignment, RS trend, DCR, CAN SLIM) — a geometrically valid, hard-gate-passing HTF can be silently dropped purely for weak context, and nothing distinguishes that fr
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:113-118 (confidence formula + floor-gated continue), 375-410 (_score_context / _dcr_score_adjustment / _can_slim_score_adjustment)
+  [P2] Test battery never exercises the engine's own documented extreme floors
+    Every positive fixture uses pole_bars >= 22 and flag_retrace_pct >= 0.12; the code's actual floors (pole_bars=3, retrace=0.0) and the absence of a pole-gain ceiling are never tested, so the exact code paths behind the P0 reproduction are untested.
+    evidence: tests/fixtures/high_tight_flag/_generate.py:176-218 (positive fixture parameters); api/services/pattern_engine/detectors/uct/high_tight_flag.py:70-76 (the untested floors)
+  [P3] Detector never emits the richer forming/triggered lifecycle states its own storage layer supports
+    status is hardcoded to 'ready' on every emission regardless of whether the flag is still developing or has already partially triggered, even though memory.py's track_outcomes machinery supports forming/ready/triggered distinctly.
+    evidence: api/services/pattern_engine/detectors/uct/high_tight_flag.py:663; api/services/pattern_engine/memory.py:253-425
+
+
+====================================================================================================
+FAMILY: oneil_ascending_flat_base | Ascending Base + Flat Base (O'Neil Base Family)
+====================================================================================================
+GEOMETRY COLOR: RED
+  rationale: RED reflects the family's most member-visible engine — System A's flat_base.py, which is what actually reaches Compass's find_patterns_on_ticker/scan_active_patterns and therefore members — where this audit reproduced three real correctness defects (fabricated narrative statistics attributed to a named real trader and to unnamed 'O'Neil historical studies' with zero code-level backing; a confidence floor that silently drops dozens of geometrically-valid, volume-confirmed detections as an identity gate; and zero price/liquidity gate, reproduced firing 'institutional sponsorship' language on a s
+DETECTOR ACTION: CORRECT_DETECTOR_LOGIC
+  evidence: Split by engine. System A's flat_base.py (pattern_engine/detectors/uct/flat_base.py) needs CORRECT_DETECTOR_LOGIC before anything else: it ships fabricated/unsourced narrative claims to paying members (D1, P0), its confidence floor demonstrably discards real geometrically-valid detections as an identity gate rather than a confidence signal (D4, P0, reproduced), and it has no price/liquidity gate (D7, P0, reproduced firing on a sub-$1 illiquid synthetic series with 'institutional sponsorship' lan
+PROVENANCE READINESS: Two very different starting points, split cleanly by engine. System D (base_catalog.py) already has a real, structured Criterion system for BOTH flat-base and ascending-base: every rule carries condition/value/quote/source_id/confidence/origin, and is machine-classified into exactly one of sourced/refused/ours (base_catalog.py:19-30, 73-100), independently verified quote-for-quote against the research corpus in this audit and covered by a standing rail (tests/test_quotes_are_grounded.py). What's
+BLINDED VALIDATION recommended=False size=30
+  rationale: Not decision-critical for either structure right now, because the audit's own evidence is code-level and cheaper to fix than a blinded study would be to run. Flat-base: the negative finding (lift -10.56pp, n=21,634, CI clear of a 30-trial null) is already a large, powered, automated measurement of System D's operationalization — a human blinded review would test visual/definitional agreement, not 
+QUANT METRICS available=True
+  summary: Flat-base (System D lift ledger, docs/base_lift_ledger.json): n=21,634 base-occurrences across 3,456 tickers, rate=17.2% vs baseline 27.76%, lift=-0.1056 (CI [-0.1132,-0.0988]), does not clear a 30-trial random-data null (-0.0934) — published=false, a real negative finding, not merely 'unmeasured.' Ascending-base (System D lift ledger, single-engine): n=799, rate=28.91% vs baseline 27.14%, lift=+0.0177 (CI [-0.0139,+0.0531], includes zero), graded against only 5 of the required 30 null trials — 
+CANONICAL GEOMETRY REQUIREMENT: This family needs two related but distinct primitives. Flat Base needs a "base rectangle": exact start/end bar+timestamp, the base_high/base_low rails (the horizontal zone), the pivot level (base_high + a source-cited pad), and the preceding advance leg's own anchors so the "rests an advance" relationship is visible rather than merely asserted in prose. System A (pattern_engine/detectors/uct/flat_base.py) already computes essentially all of this — it needs its existing anchors/extras wired into a shared schema, not new geometry work. System D (base_catalog.flat_base_state) computes the identic
+
+DEFECT CLASS FINDINGS:
+  [P0] D1 UNSUPPORTED NARRATIVE CLAIMS found=True
+    System A flat_base.py's narrative makes several specific claims the detector's own code never verifies. (1) what_it_is/why_it_matters assert flat bases gaining 25%+ 'produce 18-30% follow-through with high frequency in O'Neil's historical studies' — this exact figure appears nowhere in docs/superpowers/research/bases/*.md (grepped the whole corpus for '18-30'/'18 to 30': zero matches), and the cod
+  [P1] D2 PATTERN-DEFINITION MISMATCH found=True
+    System A's flat_base.py implements numeric thresholds that diverge from the firm's own sourced IBD research without citation or acknowledgment: min base length 15 bars/3 weeks (_MIN_BASE_BARS, flat_base.py:68) vs IBD's sourced 'It needs at least five weeks to form. Shorter patterns are not adequate' (25 bars, FLAT_MIN_BARS in base_catalog.py:1077, quote at docs/superpowers/research/bases/02-oneil-
+  [P1] D3 INCONSISTENT/LEGACY THRESHOLDS found=True
+    Direct threshold diff (tests/test_two_engines_do_not_agree.py:342-358) shows flat-base's two engines use different numbers for the same rule with no reconciliation: FLAT_MIN_BARS=25 (base) vs _MIN_BASE_BARS=15 (engine); FLAT_MAX_DEPTH=0.15 (base, sourced) vs _MAX_BASE_DEPTH=0.12 (engine, unsourced); FLAT_PRIOR_ADVANCE=0.20 (base) vs _MIN_PRIOR_ADVANCE=0.25 (engine); System A additionally hard-gate
+  [P0] D4 CLASSIFICATION VS QUALITY CONFUSION found=True
+    Confirmed by direct reproduction and code trace, System A flat_base.py ONLY: detect_flat_base's composite confidence (0.40*geom + 0.25*vol + 0.20*context + 0.15*historical, flat_base.py:114-118) is compared against _CONFIDENCE_FLOOR=50.0 and any candidate below it is discarded via `continue` (line 117-118) with no fallback reporting — the context_score component (flat_base.py:389-403) blends trend
+  [P2] D5 LIFECYCLE AMBIGUITY found=True
+    System A flat-base: Detection.status supports forming|ready|triggered|completed|failed|expired (types.py:143) and memory.track_outcomes() genuinely walks status forward to completed/failed/expired (memory.py:253-425) — but detect_flat_base always emits status='ready' (flat_base.py:708) and never 'forming' or 'triggered', because the detector only fires once every hard gate (including the confidenc
+  [P1] D6 DUPLICATED SEMANTICS found=True
+    Flat Base: genuinely two engines answering the SAME name, and measured to disagree substantially — cross-engine kappa=0.198 ('slight'), both=20/base-only=47/engine-only=77/neither=1253 over a 1,397-ticker universe (tests/test_two_engines_do_not_agree.py:243, MEASURED_SELF_AGREEMENT=(1397,1397) proves the harness itself is not vacuous). The repo's own standing ruling (flat_base.py:41-66) decides th
+  [P0] D7 FALSE-POSITIVE-PRONE LOGIC found=True
+    Neither engine gates on price or liquidity for either structure — confirmed by grep (no 'min_price'/'penny'/'liquidity'/'adv_dollars' anywhere in base_catalog.py or flat_base.py) and by direct reproduction. (1) System A flat-base: a synthetic $0.35/share series with ~$750/day dollar volume fires detect_flat_base at confidence 67.6 and ships a narrative claiming 'institutional sponsorship' (scratch
+  [P1] D8 STALE/WEAK DEFINITIONS OR CITATIONS found=True
+    System D (base_catalog.py) is clean here for both structures — verified directly against docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md:170-214 (every quoted sentence for FLAT_BASE and ASCENDING_BASE matches the corpus verbatim), and tests/test_quotes_are_grounded.py independently sweeps ALL of base_catalog's ~153 quotes against the corpus (docstring: 'a full audit on 2026-08-31 fou
+  [P1] D9 GEOMETRY/PROVENANCE/SCANNER-CHART DISCONNECT found=True
+    System A flat-base preserves rich per-detection geometry (Detection.geometry.anchors: 4 real bar timestamps+prices forming the rectangle; pivot_ts: 5 named timestamps; levels: entry/stop/target with basis strings; quality_components: the 4 scores) — this is close to chart-overlay-ready. It has NO structured per-criterion pass/fail (the narrative is prose only; no Criterion-equivalent). System D co
+
+P-ISSUES:
+  [P0] Flat-base narrative fabricates a specific unsourced performance statistic
+    System A's flat_base.py narrative states flat bases after a 25%+ advance 'produce 18-30% follow-through with high frequency in O'Neil's historical studies,' presented as fact to paying members. This figure appears nowhere in the firm's own 15-source research corpus, and the code's own historical_sco
+    evidence: api/services/pattern_engine/detectors/uct/flat_base.py:112 (hist_score=50.0), :592-595 (the claim); grep of docs/superpowers/research/bases/*.md for '18-30'/'18 to 30' returns zero matches
+  [P0] Flat-base narrative attributes a fabricated named technique to a real, identifiable trader
+    The narrative asserts Kristjan Kullamägi 'has built a substantial portion of his playbook around... the 4-week-tight base' with closes inside a 3-4% range. This repo's own dedicated research file on Kullamägi documents his three actual named setups and states explicitly that he publishes NO numeric 
+    evidence: api/services/pattern_engine/detectors/uct/flat_base.py:580-586; docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:79 ('Kullamägi publishes NO numeric contraction schedule'); no '4-week-tight' match anywhere in docs/superpowers/resea
+  [P0] Flat-base confidence floor silently drops geometrically-valid, volume-confirmed detections (identity/quality confusion)
+    detect_flat_base's composite confidence blends context_score (trend stage, MA alignment, RS trend, CAN-SLIM grade, DCR signature) into a single floor (50.0) that gates whether ANY detection is returned. Reproduced: with a neutral (not hostile) context, dozens of candidates that pass every geometric 
+    evidence: api/services/pattern_engine/detectors/uct/flat_base.py:78-131 (the gate loop, esp. lines 114-118); reproduced in scratchpad/repro_flatbase_gate.py — output: 'depth=0.115 vratio=0.5: 69 geometry+volume-qualifying candidates, detector fires=False'
+  [P0] Neither engine gates on price or liquidity for either structure
+    No price floor or dollar-volume/liquidity check exists anywhere in flat_base.py (System A) or base_catalog.py's flat_base_state/ascending_base_state (System D). Reproduced concretely: a synthetic $0.35/share, ~$750/day-dollar-volume series fires System A's flat base at confidence 67.6 with 'institut
+    evidence: scratchpad/repro_flatbase_penny.py (fires: True, confidence 67.6); scratchpad/repro_ascbase_penny.py (ascending_base_state True, pivot=0.225 on a stock trading 0.10-0.125); no price/liquidity term anywhere in api/services/screener/base_catalog.py or 
+  [P1] Flat-base's two engines implement materially different, unreconciled numeric thresholds
+    System D's FLAT_MIN_BARS=25 (sourced, 5 weeks) vs System A's _MIN_BASE_BARS=15 (unsourced, 3 weeks); System D's FLAT_MAX_DEPTH=0.15 (sourced) vs System A's _MAX_BASE_DEPTH=0.12 (unsourced); System D's FLAT_PRIOR_ADVANCE=0.20 vs System A's _MIN_PRIOR_ADVANCE=0.25. System D classifies every threshold'
+    evidence: tests/test_two_engines_do_not_agree.py:342-358 (the direct AST-derived diff table); api/services/screener/base_catalog.py:1077,1083,1107; api/services/pattern_engine/detectors/uct/flat_base.py:68,70,72
+  [P1] Flat-base's System D measurement shows negative lift; System A's narrative makes unhedged positive claims about the same textbook concept
+    System D's own operationalization of flat-base was measured over n=21,634 base-occurrences (3,456 tickers) and found lift=-0.1056 (CI [-0.1132,-0.0988]), which does not clear a 30-trial random-data null — a real, powered, negative finding, and 'published: false' in the ledger. Meanwhile System A's n
+    evidence: docs/base_lift_ledger.json structures['flat-base'] (lift=-0.1056, n=21634, published=false); tests/test_two_engines_do_not_agree.py:243 (kappa/agreement counts)
+  [P1] Ascending-base lift measurement is underpowered and self-flagged as not yet gradeable
+    n=799, 95% CI [-1.39pp,+5.31pp] includes zero, and the row was only graded against 5 of the required 30 null trials — the ledger's own reasons array states the row must be re-run with --null-trials 30 before it can be evaluated at all, let alone published. This is a mechanical follow-up, not a desig
+    evidence: docs/base_lift_ledger.json structures['ascending-base'] (null_trials=5, reasons include 'a published row requires 30... re-run with --null-trials 30')
+  [P2] Real per-detection geometry computed by System D is discarded before reaching any consumer
+    flat_base_state() and ascending_base_state() each compute genuine geometric state for the specific ticker/date (base high/low/depth/pivot/drift for flat-base; three (high,low) pivot pairs with bar_index, span, prior_advance for ascending-base) but bases.classify() keeps only the boolean result of s.
+    evidence: api/services/screener/bases.py:146-239 (_collect_relations keeps only s.detect(ctx) -> bool; classify()'s return dict has no timestamp/pivot/level field)
+  [P2] Flat-base (System A) never reports the 'forming' lifecycle state
+    Detection.status supports forming|ready|triggered|completed|failed|expired and memory.track_outcomes() genuinely advances a detection's status forward over time, but detect_flat_base always emits status='ready' — a base still building toward the minimum bar count is never surfaced as 'forming', only
+    evidence: api/services/pattern_engine/types.py:143 (the Literal); api/services/pattern_engine/detectors/uct/flat_base.py:708 ('status': 'ready', hardcoded)
+  [P3] Existing flat-base fixtures do not cover false-positive-prone scenarios this audit found
+    The 15-fixture battery (tests/fixtures/flat_base/) covers geometric edge cases (too deep, too short, sloped, already-broken, choppy, downtrend context) but has zero coverage for penny-stock/illiquid names, corporate-action artifacts (splits), or extreme-volatility series — exactly the classes D7 fou
+    evidence: tests/fixtures/flat_base/_generate.py (5 positive + 8 negative + 2 edge fixtures, none price/liquidity/split-themed)
+  [P3] Two different point-in-time cross-engine measurement snapshots for flat-base are both left live in source
+    flat_base.py's header comment cites a 744-ticker snapshot (both=7, '13% agreement') distinct from the current authoritative test fixture's 1,397-ticker snapshot (both=20, kappa=0.198) — the two broadly agree on the rate, but keeping two point-in-time numbers live in two places is exactly the 'second
+    evidence: api/services/pattern_engine/detectors/uct/flat_base.py:42-66; tests/test_two_engines_do_not_agree.py:243
+
+
+====================================================================================================
+FAMILY: power_earnings_gap+episodic_pivot | Power Earnings Gap (PEG) &amp; Episodic Pivot (EP)
+====================================================================================================
+GEOMETRY COLOR: RED
+  rationale: Correctness must be addressed before geometry investment pays off. Three concrete correctness problems, not merely enrichment gaps: (1) episodic_pivot.py extracts the bar's open price and then never uses it for anything — the pattern's own namesake requires a gap, and the code doesn't test for one, so a geometrically valid EP detection today could be a same-day range-expansion breakout with zero opening gap, which is a different pattern than either cited source describes; (2) the family's whole premise is an earnings-driven event, yet neither detector reads the earnings-date field the engine s
+DETECTOR ACTION: CORRECT_DETECTOR_LOGIC
+  evidence: Combines several classes of finding that each independently point to CORRECT_DETECTOR_LOGIC over a lighter action: (1) episodic_pivot.py extracts `ep_open` but never uses it — the pattern's own namesake requires a gap and the code never computes one (D2/D9, power_earnings_gap.py has no such gap-computation gap, only episodic_pivot.py does); (2) neither detector reads the earnings-date context field that exists in the schema, so the family's central name-promise is structurally unverifiable as sh
+PROVENANCE READINESS: This family has NO Criterion system today — that architecture exists only in base_catalog (System-D), which this family has no twin in (confirmed: grep of api/services/screener/base_catalog.py for both pattern names/aliases returns nothing). Pattern-engine detections carry `quality_components` (4 unlabeled floats: geometry/volume/context/historical, with fixed weights 0.40/0.25/0.20/0.15 visible in code) and `geometry.extras` (a flat dict of raw computed values — gap_pct, gap_volume_ratio, ep_ra
+BLINDED VALIDATION recommended=False size=15
+  rationale: Not decision-critical right now. The defects found (EP never computes a gap despite its own namesake being a gap pattern; neither detector reads the earnings-date field the engine already carries; fabricated/misattributed performance statistics in the narrative; no price/liquidity floor) are all provable from the code and the repo's own research corpus alone — none of them turn on a human's subjec
+QUANT METRICS available=True
+  summary: Fixture battery counts (both files, tests/pattern_engine/detectors/test_{power_earnings_gap,episodic_pivot}.py): power_earnings_gap has 17 fixtures (test_power_earnings_gap.py enforces >=5 positive/>=8 negative/>=2 edge via test_fixture_battery_has_minimum_coverage); episodic_pivot has 14 fixtures under the same minimums. Each file has exactly 4 test functions: (1) the parametrized per-fixture battery (asserts fires/doesn't-fire + confidence band + geometry shape), (2) the minimum-coverage count
+CANONICAL GEOMETRY REQUIREMENT: A gap-and-continuation family like this needs: (1) an explicit GAP GEOMETRY primitive — prior-bar close, gap-bar open/high/low/close, and the resulting gap percentage, packaged as a typed object (today it's scalar keys inside `geometry.extras`, and the "Episodic Pivot" detector doesn't even compute it despite its namesake requiring one); (2) an EVENT MARKER slot carrying an earnings-date/catalyst reference with a source and a distance-to-event value, wired to a REAL data source (the engine's own `Context.days_to_earnings` field exists in the schema today but is a permanent `None` stub) — witho
+
+DEFECT CLASS FINDINGS:
+  [P0] D1 Unsupported narrative claims found=True
+    power_earnings_gap.py:489 attributes the whole pattern to 'Pradeep Bonde of Stockbee' — contradicted by the repo's own research corpus: docs/superpowers/research/setups/setup_criteria.json:316-326 finds 'NO PUBLISHED NUMERIC DEFINITION OF THE POWER EARNINGS GAP BY MARK MINERVINI WAS FOUND ANYWHERE' with contested attribution to '@traderstewie at Art of Trading' — never Bonde — and docs/superpowers
+  [P0] D2 Pattern-definition mismatch found=True
+    Neither detector reads or gates on any earnings/event field. api/services/pattern_engine/primitives/context.py:170 hardcodes `"days_to_earnings": None` in build_context — the field exists in the Context schema (types.py) but is never computed; grep confirms zero references to 'earnings' or 'days_to_earnings' as a gating condition in either power_earnings_gap.py or episodic_pivot.py. This is indepe
+  [P1] D3 Inconsistent/legacy thresholds found=True
+    power_earnings_gap.py's Phase 3A citation (docs/uct-scanner-intelligence/decision-log.md:51-56, code comment lines 11-18) sources _MIN_GAP_PCT=0.08 to 'Bonde's own 2010 Stockbee post' defining '5+ points OR 8%+ gain'. Cross-checked against 08-qullamaggie-stockbee-momentum.md:550, that exact formula ('(C-C1)>=5...OR...8%...') is Bonde's 2010 EPISODIC PIVOT scan, not anything called 'Power Earnings 
+  [none] D4 Classification vs quality confusion found=False
+    Read line-by-line: both files' return-None logic in _try_extract is entirely identity gates (gap%, volume ratio, post-gap-hold, tightness, pending-breakout for PEG; close-strength, range-ratio, volume-ratio, base-depth+breakout for EP) — none of it is quality-derived. `_hostile_context` is a genuine hard reject (Stage4 AND stacked_bearish AND rs_down) applied AFTER extraction succeeds, not a quali
+  [P2] D5 Lifecycle ambiguity found=True
+    Both detectors hardcode `"status": "ready"` at every emission (power_earnings_gap.py:625, episodic_pivot.py:596) — neither ever emits 'forming' or 'triggered', despite types.py's Detection.status Literal supporting all six values. The shared engine-wide `memory.track_outcomes` (memory.py:253-384) DOES track a real entry_hit/stop_hit/target_hit walk-forward and flips status to completed/failed/expi
+  [P2] D6 Duplicated semantics found=True
+    No base_catalog/System-D twin exists for either pattern (grep of api/services/screener/base_catalog.py for 'power_earnings_gap'/'episodic_pivot'/'PEG'/'Episodic' returns nothing) — confirmed single-implementation, pattern-engine only, per the task's own premise. Within pattern-engine, the two detectors are genuinely distinct geometric structures (multi-day gap-hold continuation vs single-bar range
+  [P0] D7 False-positive-prone logic found=True
+    Neither detector has any minimum price or minimum dollar-volume floor — the only degenerate-input checks are `prior_close<=0` (PEG) and `avg_range<=0 or avg_volume<=0` (EP). Empirically reproduced (throwaway script, not committed): a synthetic $0.45 stock with a 20-bar base at 150K daily volume, a 9% gap on 480K volume (3.2x), and 5 tight post-gap bars fires power_earnings_gap at confidence 78.62 
+  [P0] D8 Stale/weak definitions or citations found=True
+    Same underlying evidence as D1/D3, restated for the citation-quality angle specifically: power_earnings_gap.py's docstring and narrative repeatedly assert a single, confident origin story ('codified by Pradeep Bonde of Stockbee') for a pattern whose best-documented public attribution (setup_criteria.json:316-326, this repo's own research) is 'NO PUBLISHED NUMERIC DEFINITION...WAS FOUND ANYWHERE' w
+  [P1] D9 Geometry/provenance/scanner-chart disconnect found=True
+    Both detectors DO preserve real, reconstructable geometry: explicit start_t/end_t/pivot_ts (raw unix timestamps), anchors (price+t pairs at the key bars), and rich scalar fields in geometry.extras (gap_open/high/low/close, post_gap_high/low for PEG; base_high/low/height, ep_high/low/close for EP) plus the shared higher-low/MA-alignment structure_extras. But none of this is packaged as the engine's
+
+P-ISSUES:
+  [P0] episodic_pivot.py never tests for a gap despite being named 'Episodic Pivot'
+    ep_open is extracted (line 113) and stored in the candidate dict (line 189) but never read again anywhere in the file. Neither Bonde's nor Kullamägi's published 'Episodic Pivot' (both explicitly gap patterns, 4-10%+ per the research corpus) is what this code detects — it detects a same-day range-exp
+    evidence: api/services/pattern_engine/detectors/uct/episodic_pivot.py:113,189 (ep_open computed, never reused); grep for 'gap' in the file returns zero hits; docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:170 (Kullamägi: 'Gap up 10%+ Big v
+  [P0] Neither detector checks earnings-date proximity despite the family's names promising an earnings/event link
+    context['days_to_earnings'] is hardcoded None by build_context and never populated; grep confirms zero references to it (or 'earnings' as a gate) in either detector file. As shipped, 'Power Earnings Gap' is a pure price-gap+volume-surge+tight-hold detector and cannot distinguish an earnings gap from
+    evidence: api/services/pattern_engine/primitives/context.py:170 ('days_to_earnings': None); grep of both detector files for 'earnings'/'days_to_earnings' as gating logic returns no hits; independently corroborated by docs/superpowers/research/setups/setup_crit
+  [P0] Narrative text states fabricated performance statistics and false author attributions as fact
+    Multiple specific, checkable claims (30-100% extension in 4-12 weeks, 70%+ continuation rate, Kullamägi wanting a 3-5-week base, 'Power Earnings Gap' being Bonde's, Lance Breitstein and 'Burnt Toast' EP variants) are either directly contradicted by or entirely absent from this repo's own research co
+    evidence: power_earnings_gap.py:489-490,502-503,508-511; episodic_pivot.py:465-467,469-473,489-493; contradicted by docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:172-173,569-576,785-793 and docs/superpowers/research/setups/setup_criteria.
+  [P0] No minimum price or dollar-volume floor lets thin/illiquid names fire at high confidence
+    Only degenerate-input guards exist (prior_close<=0 for PEG; avg_range/avg_volume<=0 for EP) — no price floor, no dollar-volume floor. Reproduced: a synthetic $0.45 stock on 150K-480K share volume fires power_earnings_gap at 78.62 confidence with full entry/stop/target levels.
+    evidence: api/services/pattern_engine/detectors/uct/power_earnings_gap.py:126-165 (no price/dollar-volume check); empirical reproduction in this session (throwaway script, not committed) — PEG fired confidence=78.62 on bars priced $0.45→$0.49→~$0.50.
+  [P1] Phase 3A's gap-threshold citation is sourced to the wrong pattern's primary material
+    The 0.08 floor is correctly transcribed from Bonde's 2010 material but that formula is Bonde's Episodic Pivot scan, not anything called 'Power Earnings Gap' — no Bonde source for 'Power Earnings Gap' exists at all per the research corpus.
+    evidence: power_earnings_gap.py:11-18 comment citing 'Bonde's own 2010 Stockbee post'; docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:550 (the actual 2010 formula, filed under 'Episodic Pivot — Bonde's version', not PEG); docs/uct-scanner-
+  [P1] Duplicated context-scoring code gives both patterns the identical trend-context reward despite theoretically opposite prior-trend requirements
+    _score_context, _hostile_context, and four narrative-phrase helpers are byte-identical across both files, so EP gets the same soft bonus for a pre-existing Stage 2 uptrend that PEG's research entry calls 'the discriminator that separates PEG from EP' — while Kullamägi's own EP requires the stock NOT
+    evidence: api/services/pattern_engine/detectors/uct/power_earnings_gap.py:322-348 vs episodic_pivot.py:281-307 (identical text); docs/superpowers/research/setups/setup_criteria.json:308 ('the discriminator that separates PEG from EP'); docs/superpowers/researc
+  [P2] No Criterion-shaped explanation exists for either detector; sub-scores are computed then discarded
+    quality_components exposes only the 4 top-level weighted scores; the finer internal components (gap_score/tightness_score/holding_score/bars_score for PEG; flatness/range/close/length for EP) are computed inside _score_geometry but never returned, so no future UI can show which specific sub-criterio
+    evidence: power_earnings_gap.py:246-307 (_score_geometry computes 4 named sub-scores, only the summed `base` survives into the return); episodic_pivot.py:211-266 (same shape).
+  [P2] Status lifecycle is coarse and 'triggered' is a dead value for this family
+    Both detectors hardcode status='ready' and rely entirely on the shared engine-wide outcome tracker (completed/failed/expired), which never writes an intermediate 'triggered' state even though it internally computes entry_hit.
+    evidence: power_earnings_gap.py:625, episodic_pivot.py:596 (hardcoded 'ready'); api/services/pattern_engine/memory.py:253-384 (track_outcomes never sets status='triggered').
+  [P3] Geometry primitives (Pivot, Trendline, Zone) are never populated despite the engine defining typed shapes for them
+    pivot_ts is a bare timestamp list rather than the engine's typed Pivot objects; no Trendline is ever fit for the base/consolidation boundary; the post-gap/pre-EP zone is fully computable but never packaged as a Zone object — future chart-overlay work would need to derive these from scalar extras rat
+    evidence: api/services/pattern_engine/types.py (Pivot, Trendline TypedDicts, defined engine-wide, unused by this family); power_earnings_gap.py:469-473 and episodic_pivot.py:422-427 (pivot_ts as bare int list).
+
+
+====================================================================================================
+FAMILY: pullback_to_50sma | Pullback to 50-SMA (O'Neil 2nd Buy Point)
+====================================================================================================
+GEOMETRY COLOR: YELLOW
+  rationale: 
+DETECTOR ACTION: RETAIN_GEOMETRY_ENRICHMENT
+  evidence: The Phase-4A narrative fix is real, verified, and holds under this audit's own independent re-check (only one further D1/D8 instance found: the pocket-pivot misattribution, a small honest-labeling fix, not a logic change). The detector's core identity logic (D2) faithfully encodes its stated concept and does not need replacement or consolidation (D6 clean — sibling MA-pullback detectors are genuinely distinct, not duplicates). The one CORRECTNESS-grade finding — D7's single-bar-spike false posit
+PROVENANCE READINESS: Pattern-engine detectors (this family included) have NO Criterion system at all — that machinery exists only in base_catalog.py's Structure classes, which this family has no twin of. Today a Detection exposes: free-text narrative (5 prose fields, no per-claim structure), a geometry.extras dict of ~15 named scalar facts, and a quality_components dict of 4 score composites. None resemble {criterion, observed_value, expected_value, operator, required_optional, pass_fail, source, algorithm_version}.
+BLINDED VALIDATION recommended=False size=0
+  rationale: A blinded/gold-standard review answers "does this detector's identity criteria match what a skilled discretionary trader would call a real second-buy-point setup on a real chart?" — a question about visual/contextual judgment. That is NOT what's wrong here. Every defect found (D7's single-bar-spike false positive, the dead scoring branches, the unanchored start_t, the pocket-pivot misattribution) 
+QUANT METRICS available=None
+  summary: 
+CANONICAL GEOMETRY REQUIREMENT: This is an "MA pullback" family (like pullback_to_10ema/21ema/200sma): a future canonical geometry schema needs (1) an MA-interaction primitive carrying the MA type/period/value/slope plus the specific touch bar's distance from it — already present as loose extras, not a typed geometry object; (2) a properly ANCHORED prior-advance leg — a (start_idx/start_t, start_price) → (end_idx/end_t, end_price) pivot pair for the qualifying advance, not the current arbitrary "30 bars before the test bar" start_t, so a chart overlay can actually draw the leg the 30%+ claim is about; (3) an order-of-extreme
+
+DEFECT CLASS FINDINGS:
+  [P2] D1 Unsupported narrative claims found=True
+    Phase 4A (commit e3d76a15f) fixed the 4 instances it targeted and verified via 14 new tests + preserved 17 pre-existing ones — CONFIRMED real and complete for its own scope (git show e3d76a15f). One further instance survives outside that scope: what_to_watch_for (pullback_to_50sma.py:494) reads 'O'Neil's 'pocket pivot' style volume signature' — attributing a Morales/Kacher-originated term to O'Nei
+  [none] D2 Pattern-definition mismatch found=False
+    Code gates faithfully encode the docstring's stated conditions. No corpus file titled 'second buy point' exists (zero hits for 'second buy'/'2nd buy' anywhere under docs/superpowers/research/), so the SETUP CONCEPT rests on the general base-taxonomy file's adjacent 30% rule (D8), not a dedicated citation — a provenance gap, not a code-vs-docstring mismatch.
+  [P2] D3 Inconsistent/legacy thresholds found=True
+    pullback_to_50sma.py:51-54 (0.02/3/0.30/120) vs pullback_to_200sma.py:63-66 (0.03/5/0.40/200) are internally consistent with each other's stated rationale, not a drift defect. But none of the touch/reclaim/volume-band mechanics appear anywhere in docs/superpowers/research/ — unsourced/ours, honestly labeled as such in code comments post-Phase-4A. Only the 30% floor and 7-8% stop are corpus-traceab
+  [P3] D4 Classification vs quality confusion found=False
+    Confirmed via worst-case algebra: every hard gate boundary coincides with the first 'good' scoring tier, so minimum achievable confidence once all gates pass is ~50.98 — the 50.0 floor essentially never suppresses a hard-gate-passing candidate. This also reveals three DEAD scoring branches: touch_score 'else: 50.0' (line 216), advance_score 'else: 40.0' (line 237), reclaim_score 'else: 30.0' (line
+  [P2] D5 Lifecycle ambiguity found=True
+    status is hardcoded 'ready' (line 375), outcome hardcoded None (line 376) on every detection, never varying. A separate 4-hourly patterns_track_outcomes job exists engine-wide outside this file. The narrative itself describes multi-stage outcomes in prose the structured Detection object has no field to represent.
+  [none] D6 Duplicated semantics found=False
+    Confirmed single-engine (base_catalog.py grep: zero matches). Within pattern-engine, pullback_to_200sma is a sibling MA-pullback detector with DIFFERENT MA period, touch tolerance (2% vs 3%), advance floor (30% vs 40%), reclaim window (3 vs 5 bars), stop basis (0.5 vs 1.0 ATR), and target multiple (0.4x vs 0.5x) — both docstrings explicitly cross-reference each other as intentionally distinct. Gen
+  [P1] D7 False-positive-prone logic found=True
+    CONSTRUCTED AND CONFIRMED via a throwaway repro script: a single isolated one-day spike bar inside the 120-bar prior-advance lookback inflates prior_advance_pct to 61.6% (real non-spike advance ~10.1%). Detector FIRES (confidence 81.0, all other gates pass), narrative states 'the stock has advanced 62% over the past 111 bars, comfortably above O'Neil's 30% minimum threshold.' Root cause: pullback_
+  [P2] D8 Stale/weak citations found=True
+    (1) Pocket-pivot misattribution — same evidence as D1. (2) The 30% prior-advance figure is corpus-traceable only to bases/02-oneil-ibd-base-taxonomy.md:77 ('prior uptrend required before the base... confidence: med, no IBD editorial column states this number'), sourced from a provenance-unverified handout and a third-party book summary. That citation is about the PRE-BASE qualifying advance, not e
+  [P2] D9 Geometry/provenance/scanner-chart disconnect found=True
+    geometry.anchors carries only ONE point (the SMA horizontal line); prior_low/prior_high exist only as un-timestamped floats in extras. start_t (line 349) is bars[pullback_bar_idx-30]['t'] — an ARBITRARY 30-bar-back marker, NOT tied to prior_low_idx (which was 111 bars back in the D7 repro). A chart overlay drawing the pattern region from start_t to end_t would exclude the actual advance leg. Posit
+
+P-ISSUES:
+  [P1] Single-bar spike inflates prior_advance_pct and produces a false-positive detection with a confident, wrong narrative
+    prior_advance_pct is computed as (max(high) - min(low)) / min(low) over a 120-bar window with no check that the high postdates the low, no outlier guard, and no floor on how much of the 'advance' one single bar contributes. A one-day spike (halt/reopen, unadjusted-split artifact, flash print, single
+    evidence: api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:80-93. Reproduced in a throwaway scratchpad script: a single isolated spike bar (high 60% above the surrounding price, reverting same bar) placed inside the 120-bar window makes the detec
+  [P2] start_t geometry anchor is arbitrary, not tied to the actual qualifying advance
+    The Detection's start_t (what a future chart overlay would use to know where the pattern 'begins') is hardcoded as 30 bars before the test bar, unrelated to prior_low_idx (the bar where the qualifying 30%+ advance actually started, which can be 100+ bars earlier). A chart drawing the pattern region 
+    evidence: api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:349 — start_t = bars[max(0, pullback_bar_idx-30)]['t']. prior_low_idx (computed lines 88-92) is never used for start_t; in the D7 repro prior_advance_bars=111 while start_t only reaches b
+  [P2] 'Pocket pivot' attributed to O'Neil in narrative; corpus attributes it to Morales/Kacher
+    narrative.what_to_watch_for describes the ideal trigger-bar volume signature as "O'Neil's 'pocket pivot' style volume signature" — but the repo's own dedicated research file on the concept credits Gil Morales and Chris Kacher, not O'Neil. Same defect class Phase 4A fixed elsewhere in this file, just
+    evidence: api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:494 vs docs/superpowers/research/bases/14-base-quantification-crosssource.md:241 ('Kacher / Morales — pocket pivot') and the entirety of docs/superpowers/research/bases/07-morales-kacher-
+  [P2] 30% prior-advance threshold's corpus citation is for a different (adjacent) O'Neil concept, at medium confidence with provenance caveats
+    The docstring/narrative present 30% as O'Neil's documented second-buy-point threshold. The only matching corpus citation is about the prior uptrend required BEFORE A BASE forms (a first-buy-point/base-qualification concept), rated 'confidence: med' with both underlying sources flagged elsewhere in t
+    evidence: docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md:77; grep for 'second buy'/'2nd buy' across docs/superpowers/research/ returns zero hits outside this detector's own docstring/narrative.
+  [P2] Detector carries no lifecycle beyond a hardcoded 'ready' status
+    Every Detection has status='ready' and outcome=None at creation, with no field distinguishing a just-fired setup from one whose reclaim held, extended, or failed, despite the narrative describing multi-stage outcomes in prose.
+    evidence: api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:375-376.
+  [P3] Three scoring branches are dead code given their own gate boundaries
+    _score_geometry's touch_score 'else: 50.0', advance_score's 'else: 40.0', and _score_volume's reclaim_score 'else: 30.0' are each unreachable because the corresponding hard gate already bounds the input to the range that triggers the next tier up. Not a live defect (confidence floor confirmed to nev
+    evidence: api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:216, :237, :268 vs the gates at :103, :85, :140 respectively.
+  [P3] Test fixture battery has zero D7-class adversarial coverage and never varies reclaim lag
+    All 15 fixtures vary only 3 parameters (trend_pct, test_vol_ratio, reclaim_vol_ratio); every fixture places the reclaim bar immediately (1 bar) after the test bar, so the stated 1-3 bar reclaim window's 2nd/3rd-bar paths are never exercised, and there is no penny-stock, low-liquidity, gap/spike, or 
+    evidence: tests/fixtures/pullback_to_50sma/_generate.py:22-70 (reclaim_bar always appended immediately after test_bar) and lines 140-190 (all 15 _write() calls).
+
+
+====================================================================================================
+FAMILY: vcp | Volatility Contraction Pattern (VCP)
+====================================================================================================
+GEOMETRY COLOR: GREEN
+  rationale: System A (pattern-engine detect_vcp, the WHERE-to-enter surface) already emits genuinely chart-overlay-capable geometry today: an anchor list of real (t,price) points spanning start-high through each contraction low to the pivot, a parallel pivot_ts timestamp array, computed entry/stop/target price lines with named bases, and a geometry.extras block carrying n_contractions/contraction_pcts/pattern_bars/MA-interaction fields. That is visualizable with minor wiring, not a redesign -- hence GREEN rather than YELLOW. The gaps that keep it from a clean GREEN-plus are real but narrow: no zone polygo
+DETECTOR ACTION: RETAIN_EXPLANATION_FIX
+  evidence: Detection logic itself is validated: Phase 3A/3C's Trend Template precondition fix was proposed against a frozen, blinded 82-case gold-standard evidence set and then re-validated with 11/11 pre-registered predicted flips landing exactly as predicted plus zero unintended regressions on a full rerun (phase3c_revalidation.json targeted_summary + metrics_pre_fix/post_fix). Geometry is already rich enough for chart overlay on System A (anchors, pivot_ts, structured extras) -- so RETAIN_GEOMETRY_ENRIC
+PROVENANCE READINESS: Two very different starting points on the same axis. System D (base_catalog.VCP Structure, base_catalog.py:2806-2987) already has a real, static Criterion system: each of the ~13 Criterion objects carries condition/value/quote/source_id/confidence, plus explicit missing/missing_kind fields for anything Minervini did not publish -- this is genuinely the reference implementation the task asked this family to characterize. But that provenance lives at the STRUCTURE-definition level, not the per-det
+BLINDED VALIDATION recommended=False size=12
+  rationale: VCP already received the most rigorous validation in the program: an 82-case blinded gold-standard study (4 independent reviewer personas per case: Minervini-native, classical-TA, quant-literalist, adversarial false-positive-hunter), a frozen rubric (rubric_v2.md, with a 4th INSUFFICIENT_DATA identity state added specifically to stop reviewers guessing), Wilson-style 95% CIs on every precision/rec
+QUANT METRICS available=True
+  summary: Overall (82 cases, 48 with a clean positive/negative consensus label, 34 excluded as ambiguous/unresolved): System A precision 0.40 (95% CI 0.168-0.687), recall 0.50 (CI 0.215-0.785), F1 0.444, FPR 0.15, FNR 0.5. System D (pre-fix baseline as measured in the 82-case set) precision 0.111 (CI 0.031-0.328), recall 0.25 (CI 0.071-0.591), F1 0.154, FPR 0.4, FNR 0.75. Post-Phase-3C-fix System D: precision 0.286, recall 0.25 (unchanged), F1 0.267, tp=2/fp=5/fn=6/tn=35 (metrics_post_fix in phase3c_reval
+CANONICAL GEOMETRY REQUIREMENT: VCP's geometry is a SEQUENCE, not a single shape: a future canonical schema needs an ordered list of contraction spans (each a {high: (t,price), low: (t,price), depth_pct, avg_volume} tuple, 2-6 of them), the pivot (the final contraction's high, as both a price level and an anchor point), the trend-continuation precondition state (a boolean plus the 150/200-day SMA values that produced it, since that precondition now independently gates both engines and is itself citable per-symbol evidence), and the base's top/floor as a horizontal band (for zone rendering) distinct from the entry/stop/target
+
+DEFECT CLASS FINDINGS:
+  [P1] D1 Unsupported narrative claims found=True
+    vcp.py:795-797 (why_it_matters): 'Historically, VCPs with {n}+ contractions and a final tightening below 8% produce 25%+ moves within 8-12 weeks when they trigger cleanly on volume.' This is a specific, quantitative win-rate/return claim shown to paying users. The detector's own code computes no such statistic (no backtest, no historical outcome tracking anywhere in vcp.py), and the primary source
+  [P2] D2 Pattern-definition mismatch found=True
+    System A's _MAX_PATTERN_BARS=90 (vcp.py:78; docstring line 14-15 says 'Window: 30-90 bars (typically 6-13 weeks)') hard-excludes any base longer than ~18 weeks -- but Minervini's own published worked examples run to 27 weeks (NFLX) and 40 weeks (VIVO) per docs/superpowers/research/bases/03-minervini-vcp-powerplay.md:159,235-236. The docstring's 'typically' framing is honest about the common case b
+  [P2] D3 Inconsistent/legacy thresholds found=True
+    Two thresholds for the identical Minervini-sourced concept diverge between engines with no comment acknowledging it: (1) prior-advance floor -- System A _MIN_PRIOR_ADVANCE=0.20 (vcp.py:100) vs System D VCP_PRIOR_ADVANCE=0.30 (base_catalog.py:2622); Minervini's own text never states an example below 30% ('30, 40, 50 percent or even much more', research doc line 148-149), so System A's 20% is below 
+  [P2] D4 Classification vs quality confusion found=True
+    System A's confidence FLOOR gates identity on a blended score that includes quality/context inputs, not pure geometry: 'if confidence < _CONFIDENCE_FLOOR: continue' (vcp.py:176-177, floor=50.0) where confidence = 0.40*geom + 0.25*vol + 0.20*ctx + 0.15*hist (vcp.py:173-174) -- so a geometrically genuine contraction sequence can be refused entirely (not merely scored lower) because context_score or 
+  [P2] D5 Lifecycle ambiguity found=True
+    types.py:143 defines Detection.status as Literal['forming','ready','triggered','completed','failed','expired'], but vcp.py:884 hardcodes 'ready' unconditionally on every emitted detection -- there is no code path that ever assigns any other value (confirmed this is engine-wide, not VCP-specific, via a grep across all 29+ pattern_engine/detectors/**/*.py files, all of which literal-string 'ready').
+  [none] D6 Duplicated semantics found=True
+    CLOSED CANONICAL SPLIT, characterized not relitigated per instructions. Two independently-maintained implementations answer different questions per the Phase-2C/3A decision (vcp.py:50-75 header, docs/uct-scanner-intelligence/decision-log.md): System D (base_catalog.vcp_state) is authoritative for WHETHER (screener base_matches + provenance panel), System A (detect_vcp) is authoritative for WHERE-T
+  [P2] D7 False-positive-prone logic found=True
+    Fixture coverage (tests/fixtures/vcp/, 16 files) is reasonable on structural adversarial cases: already_broken.json (post-breakout), no_uptrend.json + rs_negative.json (hostile context), choppy_no_pattern.json, flat_data.json, expanding_contractions.json (not tightening), below_trend_template.json (Phase 3A's own regression case). NOT covered by any synthetic fixture: penny-stock/low-liquidity, co
+  [P2] D8 Stale/weak definitions or citations found=True
+    Two instances. (1) The narrative-layer claims flagged under D1 (25%+ moves; Kullamägi/Pierpont attribution) are uncited against this repo's own research corpus. (2) docs/uct-scanner-intelligence/decision-log.md documents only 'Phase 3A' (lines 13-125, dated 2026-09-02); it has NO Phase 3C entry, even though base_catalog.py's own code comments explicitly reference 'Phase 3C, 2026-09-03' twice (line
+  [P2] D9 Geometry/provenance/scanner-chart disconnect found=True
+    System A returns real, usable anchor geometry: geometry.anchors is a list of {t,price} points (start_high, each contraction low, pivot high; vcp.py:734-742), pivot_ts (vcp.py:747-751), and geometry.extras carries n_contractions/contraction_pcts/pivot_price/last_contraction_low/pattern_bars plus structure_extras(c) (higher_low, aligned_ma, ma_distance_pct per the case_answer_key.json sample) -- gen
+
+P-ISSUES:
+  [P1] Fabricated performance statistic in user-facing narrative
+    why_it_matters claims VCPs with N+ contractions and a sub-8% final tightening 'produce 25%+ moves within 8-12 weeks when they trigger cleanly on volume.' No such win-rate/return statistic is computed anywhere in the codebase or published in the primary source this family cites.
+    evidence: vcp.py:795-797 (the claim) vs docs/superpowers/research/bases/03-minervini-vcp-powerplay.md:165-170 ('measured_performance: none published... no win rate, no failure rate, no sample size, no period, and no base rate').
+  [P1] System D's post-fix precision remains low, already measured by this family's own evidence
+    After the Phase 3C Trend Template fix, System D's precision on the 82-case gold-standard set rose from 11.1% to only 28.6% (still below System A's 40%), with recall unchanged at 25% and a false-negative rate of 75%. This is not a new finding requiring further review -- it is already documented, evid
+    evidence: docs/uct-scanner-intelligence/vcp_gold_standard/data/phase3c_revalidation.json metrics_post_fix: {tp:2, fp:5, fn:6, tn:35, precision:0.286, recall:0.25, f1:0.267}; metrics.json overall.system_d.false_negative_rate:0.75.
+  [P2] Same primary-source concept encoded with divergent, unexplained thresholds across the two engines
+    Prior-advance floor: System A 20% vs System D 30% (Minervini's own text never states below 30%). Tightening-ratio ceiling: System A 0.85 vs System D 0.75 (0.75 is the loosest ratio DERIVED from Minervini's own 5 published examples). No comment in either file acknowledges the sibling engine's differe
+    evidence: vcp.py:98,100 vs base_catalog.py:2622,2640; docs/superpowers/research/bases/03-minervini-vcp-powerplay.md:148-149,244-246.
+  [P2] Hard pattern-length cap excludes the primary source's own canonical long-base examples
+    System A's _MAX_PATTERN_BARS=90 (~18 weeks) hard-refuses any base longer than that, but Minervini's own worked examples in the source material run to 27 weeks (NFLX) and 40 weeks (VIVO).
+    evidence: vcp.py:78 (_MAX_PATTERN_BARS=90) vs docs/superpowers/research/bases/03-minervini-vcp-powerplay.md:159,235-236.
+  [P2] Context signals do double duty as a hard identity gate and a soft quality score
+    _hostile_context (a hard return-None gate) and _score_context (a 20%-weighted soft score) both consume the identical trend_stage/ma_alignment/rs_trend fields. Separately, the confidence floor (50.0) gates identity on a blended score that includes a hardcoded-constant 'historical_score' of 50.0 that 
+    evidence: vcp.py:165-166 (gate call), vcp.py:466-477 (_hostile_context), vcp.py:602-616 (_score_context), vcp.py:171,176-177,101 (floor + constant historical_score).
+  [P2] No corporate-action / penny-stock / extreme-liquidity fixture in the synthetic test battery
+    None of the 16 VCP fixture files targets a split/reverse-split artifact, a penny stock, or an extreme-volatility distortion. A one-off constructed reverse-split repro did not fire, but only one such shape was tested and the fixture battery has no standing regression coverage for this class.
+    evidence: tests/fixtures/vcp/ (16 files enumerated, none named for this class); tests/fixtures/vcp/_generate.py has no split/penny/reverse_split token.
+  [P3] Detection.status is hardcoded 'ready' engine-wide, discarding a schema-supported and evidence-proven-meaningful lifecycle axis
+    types.py's Detection.status supports 6 literal states; every pattern-engine detector (confirmed across all detectors/**/*.py, not VCP-specific) emits only 'ready'. The gold-standard's own rubric requires 8 lifecycle states and metrics.json's by_lifecycle breakdown shows lifecycle materially predicts
+    evidence: types.py:143; vcp.py:884; docs/uct-scanner-intelligence/vcp_gold_standard/data/metrics.json by_lifecycle (e.g. TRIGGERING system_a precision 1.0/recall 0.4 vs overall 0.4/0.5).
+  [P3] decision-log.md is stale relative to the code and evidence directory it exists to index
+    The program's persistent cross-session decision log documents only Phase 3A. base_catalog.py's own comments twice reference a completed 'Phase 3C, 2026-09-03', and a full, internally-consistent Phase 3C evidence set exists on disk, but no Phase 3C entry was ever added to decision-log.md.
+    evidence: docs/uct-scanner-intelligence/decision-log.md (Phase 3A only, lines 13-125); base_catalog.py:2675,2692 ('Phase 3C, 2026-09-03'); docs/uct-scanner-intelligence/vcp_gold_standard/data/phase3c_predicted_flips.json + phase3c_revalidation.json (both popul

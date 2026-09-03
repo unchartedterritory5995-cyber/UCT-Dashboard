@@ -5,17 +5,21 @@ A Power Earnings Gap is a gap-up event where a stock gaps significantly
 post-gap consolidation. The combination of price gap + volume surge + tight
 post-gap action signals that institutions are aggressively buying the new
 fundamentals (typically post-earnings, but also FDA approvals, acquisitions,
-guidance raises). PEGs frequently extend 30-100% over the following 4-12
-weeks because the gap creates a clean break above all prior overhead supply.
+guidance raises). The gap creates a clean break above all prior overhead
+supply, which is why holding it without a fill is treated as a bullish tell.
 
-Gap-size calibration (Phase 3A, 2026-09-02): Bonde's own 2010 Stockbee post
-defines the qualifying gap as "a price move of 5+ points OR 8%+ gain" — an
-OR of an absolute-dollar move and a percentage move. This detector has only
-ever had a single percentage-based gate, so the correction adopts the
-percentage branch (8%) as that gate's floor rather than inventing a new
-dollar-based alternate condition (out of scope for a narrow calibration fix).
-This is stricter than Bonde's rule for high-priced names that would clear
-"5+ points" below 8% — a known, accepted limitation, not an oversight.
+Gap-size calibration (Phase 3A, 2026-09-02): Bonde's 2010 Stockbee post
+"What are Episodic Pivots and how to find them" defines a qualifying gap as
+"a price move of 5+ points OR 8%+ gain" — an OR of an absolute-dollar move
+and a percentage move. That post describes Bonde's Episodic Pivot setup, not
+a Power-Earnings-Gap-specific writeup; Bonde has never published a gap-size
+threshold under the "Power Earnings Gap" name, so this detector reuses his
+EP number as the closest sourced calibration reference available. This
+detector has only ever had a single percentage-based gate, so the correction
+adopts the percentage branch (8%) as that gate's floor rather than inventing
+a new dollar-based alternate condition (out of scope for a narrow calibration
+fix). This is stricter than Bonde's EP rule for high-priced names that would
+clear "5+ points" below 8% — a known, accepted limitation, not an oversight.
 
 Geometric definition:
   - Detection window: last 30 bars (PEG must be recent)
@@ -45,6 +49,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
@@ -71,6 +76,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_power_earnings_gap(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Power Earnings Gap patterns. Emits 0 or 1 detection."""
     if len(bars) < _AVG_LOOKBACK + _MIN_POST_GAP_BARS + 1:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Only degenerate-
+    # input guards existed before this (prior_close<=0) — no price floor,
+    # no dollar-volume floor. Reproduced live: a synthetic $0.45 stock on
+    # 150K-480K share volume fired at confidence 78.62 with full
+    # entry/stop/target levels.
+    if not liquidity_floor(bars).passes:
         return []
 
     last_bar_idx = len(bars) - 1
@@ -499,24 +512,18 @@ def _build_detection(bars, c, confidence, context,
         f"into a tight consolidation that holds above the gap-up open. The "
         f"{post_gap_bars}-bar post-gap action here has averaged {post_gap_range_pct:.2f}% "
         f"daily range, well inside the gap bar's {gap_range_pct:.2f}% range - that "
-        f"contraction is the supply-absorbed tell. Bonde's research shows PEGs that hold "
-        f"the gap for 3-10 bars before breaking out frequently extend 30-100%+ over the "
-        f"following 4-12 weeks. Kristjan Kullamägi has published extensive empirical work "
-        f"on earnings-driven gaps in liquid growth names, finding that PEGs in stocks "
-        f"already in confirmed uptrends with relative strength above the broader market "
-        f"have the highest follow-through profile of any swing setup he tracks. Mark "
-        f"Minervini's 'earnings breakout' rules — a clean gap-up on volume followed by "
-        f"a tight 3-7 bar consolidation above the gap-open — align almost exactly with "
-        f"Bonde's PEG criteria, suggesting that two independent traditions of empirical "
-        f"momentum research have converged on the same structural read."
+        f"contraction is the supply-absorbed tell: buyers who chased the gap have not "
+        f"been shaken out, and sellers testing the gap have not been able to push price "
+        f"back into the prior range."
     )
 
     why_it_matters = (
         f"This PEG is forming in {stage_phrase} with {ma_phrase} moving-average alignment "
         f"and {rs_phrase} relative strength versus the broader market, which is supportive "
         f"context for continuation. The {gap_pct_pct:.1f}% gap on {volume_ratio:.1f}x "
-        f"volume crossed both of Bonde's hard gates - 4% minimum gap and 3x minimum "
-        f"volume - with significant margin, indicating this isn't a borderline event but "
+        f"volume crossed both of this detector's hard gates - {_MIN_GAP_PCT * 100:.0f}% "
+        f"minimum gap and {_MIN_VOLUME_RATIO:.0f}x minimum volume - with significant "
+        f"margin, indicating this isn't a borderline event but "
         f"a high-conviction institutional move that's already been ratified by the tape. "
         f"The fact that the gap has held for {post_gap_bars} bars without a fill (the "
         f"closest test came within {gap_fill_pct:.2f}% of the gap-up open at "

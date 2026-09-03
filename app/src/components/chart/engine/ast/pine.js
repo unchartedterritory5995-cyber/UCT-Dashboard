@@ -1123,6 +1123,30 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`. `pine.derived.test.js`
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
+/**
+ * Built-ins this engine has RULED on BY NAME, so the refusal teaches instead of
+ * shrugging. Same arrangement as `_functions_excluded` one layer down: a name we
+ * have actually thought about gets the thinking, not the generic sentence.
+ *
+ * ⭐ EARNED BY MEASUREMENT. On a 48-script corpus written blind to this engine,
+ * `syminfo.mintick` was the single most common blocker — SEVEN scripts — and
+ * every one of its nine uses was the SAME idiom. A generic "the grammar does not
+ * hold this" told those authors nothing they could act on.
+ */
+const BUILTIN_RULED = Object.freeze({
+  'syminfo.mintick':
+    "It is the symbol's minimum price increment, which differs per symbol and is "
+    + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
+    + '`math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar '
+    + 'whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero '
+    + 'denominator is reported as NOT COMPUTABLE for that symbol rather than '
+    + 'quietly replaced, so write `(close - low) / (high - low)` and a halted, '
+    + 'zero-range bar is left unanswered instead of being scored as though it '
+    + 'closed on its low. ⚠️ That is a REAL difference, not a simplification: '
+    + 'Pine answers 0 on such a bar and this engine answers nothing, which is why '
+    + 'the edit is yours to make rather than one taken silently on your behalf.',
+})
+
 export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
   // here it fell into the generic arm and answered with the WHOLE declared
@@ -1773,6 +1797,54 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       return [line, signal, bin('-', line, signal)]
     },
   },
+  // ⭐⭐ KELTNER, AND THE SMOOTHER IS THE WHOLE POINT.
+  //
+  // ⛔⛔ `ta.kc` SMOOTHS TRUE RANGE WITH `ema`, NOT WITH `atr`. Almost every
+  // third-party Keltner — and TradingView's own CHART indicator of that name —
+  // uses ATR/RMA (Wilder alpha 1/L). `ta.kc` does not: the vendor's published
+  // equivalent is `ta.ema(span, length)`, alpha 2/(L+1). At L=20 that is 0.0952
+  // against 0.05, about twice the responsiveness, so writing `atr(...)` here
+  // would compute confidently and be wrong on every mature bar. That is exactly
+  // the look-alike this engine refuses elsewhere (`_functions_excluded.obv`, the
+  // MIN/lowest trap), and it is the single easiest mistake to make in this entry.
+  //
+  // ⚠️ THE VENDOR'S OWN PROSE IS WRONG HERE AND ITS CODE IS RIGHT: the reference
+  // calls `mult` a "standard deviation factor", which is copy-paste from `ta.bb`
+  // — there is no standard deviation anywhere in the formula. Trust the code.
+  //
+  // ⭐ ONE length DRIVES BOTH the basis and the range; there is no separate ATR
+  // length. The tuple is [middle, upper, lower], middle FIRST — many libraries
+  // order it (upper, middle, lower), and getting that wrong silently swaps a
+  // member's bands.
+  //
+  // ⚠️ VENDOR NOTE, in the same spirit as the one already on `atr`: this engine
+  // seeds `ema` with the mean of the first full window while Pine seeds it with
+  // the first source value, and `ta.kc` runs `ema` TWICE (basis and range), so
+  // warm-up bars differ from TradingView's and converge. Structure is exact;
+  // early bars are not bit-identical.
+  //
+  // `ta.tr` is used rather than a hand-written max-of-three so the range can
+  // never drift from the one the rest of the engine draws.
+  kc: {
+    arity: [3, 4],
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const nm = (name) => ({ type: 'name', name, tok })
+      // `useTrueRange` defaults to TRUE and must be a literal to be read here;
+      // Pine types it `simple bool`, and `true`/`false` parse as 1/0.
+      const flag = a[3]
+      const isNum = (n, v) => n && n.type === 'number' && Number(n.value) === v
+      let span = null
+      if (flag === undefined || isNum(flag, 1)) span = nm('ta.tr')
+      else if (isNum(flag, 0)) span = bin('-', nm('high'), nm('low'))
+      else return null
+      const mid = pc('ta.ema', [a[0], a[1]])
+      const band = bin('*', a[2], pc('ta.ema', [span, a[1]]))
+      return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
 })
 
 /** `[a, b, c] = ta.bb(...)` / `ta.macd(...)` → three bindings, or `null`.
@@ -1796,10 +1868,17 @@ function builtinTupleParts(toks, close, names, env, first) {
   // them by position anyway is how `ta.bb(mult = 2, series = close)` would build
   // a band out of the wrong two arguments.
   if (raw.some((a) => a && a.name != null)) return null
-  if (raw.length !== spec.arity || names.length !== spec.parts) return null
+  // ⭐ AN ENTRY MAY DECLARE SEVERAL ARITIES. `ta.kc` ships with and without its
+  // trailing `useTrueRange`, and both are the same tuple.
+  const arities = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+  if (!arities.includes(raw.length) || names.length !== spec.parts) return null
   const at = locate(first)
-  return spec.build(raw.map((a) => a.value), first)
-    .map((node) => exprBinding(node, new Map(env), at))
+  // ⛔ AND A BUILDER MAY DECLINE. `ta.kc`'s flag has to be a literal to be read
+  // statically; anything else falls through to the ordinary refusal rather than
+  // being guessed at.
+  const built = spec.build(raw.map((a) => a.value), first)
+  if (!built) return null
+  return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
 /** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
@@ -4107,6 +4186,14 @@ class Resolver {
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
+      // shrug — the same precedence `_functions_excluded` takes over the
+      // sixty-four-name dump one layer down.
+      if (own(BUILTIN_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
+          locate(node.tok))
+      }
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
@@ -6217,9 +6304,10 @@ function tupleRefusalTail(call, names, env) {
       return '`' + shown + '`' + ' is taken apart BY POSITION here, so its arguments have to '
         + 'be positional too — a named one could build the answer out of the wrong two'
     }
-    if (supplied.length !== spec.arity) {
-      return '`' + shown + '`' + ' takes ' + spec.arity + ' arguments and was given '
-        + supplied.length
+    const wanted = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+    if (!wanted.includes(supplied.length)) {
+      return '`' + shown + '`' + ' takes ' + wanted.join(' or ')
+        + ' arguments and was given ' + supplied.length
     }
     if (names.length !== spec.parts) {
       return '`' + shown + '`' + ' answers with ' + spec.parts + ' values and '

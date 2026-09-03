@@ -1,0 +1,211 @@
+{
+  "family_key": "pullback_to_50sma",
+  "family_label": "Pullback to 50-SMA (O'Neil 2nd Buy Point)",
+  "validation_card_markdown": "# Family Validation Card \u2014 Pullback to 50-SMA (O'Neil 2nd Buy Point)\n\n## Identity\n- **Canonical name:** Pullback to 50-SMA (O'Neil 2nd Buy Point)\n- **Pattern ID:** `pullback_to_50sma`\n- **Aliases:** none found in code or docs beyond the display name itself\n- **Pattern family:** MA-pullback continuation, sibling to `pullback_to_10ema`, `pullback_to_21ema` (Minervini SEPA), `pullback_to_200sma` (Weinstein/Minervini major-trend)\n- **Direction:** bullish only\n- **Timeframe support:** daily bars only (`tf` field left blank `\"\"` at construction; no explicit multi-TF branching in the detector; consumers stamp `sym`/`tf` externally per `api/routers/patterns.py` wiring)\n\n## Current Implementation\n- **Repo path:** `api/services/pattern_engine/detectors/uct/pullback_to_50sma.py` (function `detect_pullback_to_50sma`, 561 lines)\n- **Engine:** Pattern-engine only. Confirmed via `grep` over `api/services/screener/base_catalog.py` (31 Structure entries) \u2014 zero matches for `pullback_to_50sma`/`second buy`/`2nd buy`. No System-D/base_catalog twin exists.\n- **Consumers (grep-verified):**\n  - `api/routers/patterns.py:89` \u2014 registered via import; `:568` PATTERN_CATALOG metadata entry\n  - `api/services/pattern_vision/orchestrator.py:23`, `rubrics.py:12,21,129` \u2014 LLM-vision rubric entry\n  - `api/main.py:394` `_run_patterns_universe_scan` (daily, 1:00 AM ET, UNCONDITIONAL \u2014 no visible feature flag around this `add_job` block) scans the full cap_universe and writes to `pattern_detections` via `memory.store_detection`\n  - `api/services/screener/pattern_join.py` \u2014 `read_pattern_fields` reads `pattern_detections`, joins to screener rows (the \"only universe-wide reader\" per its own comment)\n  - Compass bridge (`find_patterns_on_ticker`/`scan_active_patterns`/`list_pattern_types` in `voice_tool_impls.py` + `coach_chat_tools.py`) and `grade_ticker.py` per CLAUDE.md's Compass Brain Bridge section\n- **Active/user-facing status:** REACHABLE, confirmed by a fresh check: the scheduler `add_job` block at `api/main.py:6225-6231` has no enable-flag guard visible around it, unlike several other jobs in the same file that DO check an env var before running. Not listed in CLAUDE.md's \"DOCUMENTED BUT UNREACHABLE\" table.\n\n## Definition\n- **Current UCT definition** (docstring, `pullback_to_50sma.py:14-27`): Stage 2 uptrend, prior gain \u226530% from breakout, rising 50-SMA, low touches/tests the 50-SMA within 2%, close reclaims within 1-3 bars, test volume lower than reclaim volume, stacked bullish alignment (close > 10 > 20 > 50).\n- **External/practitioner reference:** No dedicated corpus file for \"second buy point\" exists (`grep` for \"second buy\"/\"2nd buy\" across all of `docs/superpowers/research/` returns zero hits). The only related corpus material is `docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md`, which covers O'Neil's BASE taxonomy and the pre-base 30% \"prior uptrend\" qualifier \u2014 a related but distinct concept from the post-breakout re-entry this detector targets.\n- **Disagreement:** the 30% figure is treated by the code/narrative as *the* second-buy-point threshold; the corpus's only matching citation is medium-confidence and about a different (pre-base) qualifying condition. See D8.\n- **Threshold provenance:** 30% prior advance = sourced-but-adjacent (med confidence, provenance-caveated sources); 7-8% stop = sourced (high confidence); 2% touch tolerance, 3-bar reclaim lag, 0.9x/1.3x volume bands, 120-bar lookback = **ours** (unsourced engineering choices, honestly labeled as such in code comments post-Phase-4A).\n\n## Detection Inputs\nRaw OHLCV bars (`o/h/l/c/v/t`) + a `context` dict with `trend_stage`, `ma_alignment`, `rs_trend`, `dcr_signature`, `recent_dcr_avg`, `can_slim_grade`, `can_slim_score`, `regime`, `volume_signature` (narrative phrasing only). `sector_strength_rank`/`nearest_resistance`/`nearest_support`/`days_to_earnings` are present in context but **not read** by this detector at all.\n\n## Pattern Identity Conditions (hard gates, return `[]` if unmet)\n1. `n >= 210` total bars \u00b7 2. `trend_stage == 2` \u00b7 3. `ma_alignment == \"stacked_bullish\"` \u00b7 4. 50-SMA rising (20-bar comparison) \u00b7 5. Prior advance (max high \u2212 min low over trailing 120 bars)/min low \u2265 30% \u00b7 6. A bar in the last 5 bars with low \u2264 SMA\u00d71.02 (\"touch\") \u00b7 7. A close above the SMA within 3 bars after touch (\"reclaim\") \u00b7 8. Test-bar volume \u2264 1.3\u00d7 20-bar avg \u00b7 9. Reclaim-bar volume \u2265 0.9\u00d7 20-bar avg \u00b7 10. ATR(14) > 0\n\n## Quality Conditions (soft, score-only)\n`geom_score` (touch distance, SMA slope, advance depth, + structure-quality boost) 40% \u00b7 `vol_score` (test/reclaim volume bands) 25% \u00b7 `ctx_score` (rs_trend, DCR signature, CAN SLIM grade) 20% \u00b7 `hist_score` (hardcoded 50.0, never computed) 15%. Composite must clear a 50.0 floor \u2014 confirmed via worst-case algebra to be nearly always cleared once all hard gates pass (min \u2248 50.98), so this floor is largely inert in practice.\n\n## Lifecycle Conditions\nNone from the detector itself. `status` is hardcoded `\"ready\"`; `outcome` is hardcoded `None` at creation. A separate 4-hourly `patterns_track_outcomes` job exists engine-wide but is outside this file.\n\n## Invalidators\nDescribed only in prose (`failure_signal`): close below stop; O'Neil's 7-8% hard stop; a \"failed second buy\" fade back to the 50-SMA on declining volume; broader leadership degradation \u2014 none of the latter are computed or checked by the detector itself.\n\n## Geometry Available / Missing\nSee the Geometry Readiness Matrix. Rich exact scalars (test/reclaim bar OHLCV, SMA value/slope, volume ratios, ATR, entry/stop/target) but no typed/anchored pivots for the advance leg, no trendlines, no zones, no gap/event geometry, no lifecycle state.\n\n## Narrative/Explanation Summary\nFive-field prose object. Phase 4A (`e3d76a15f`, 2026-09-03) removed 4 confirmed unsupported claims. This audit found the fix real and complete for its own scope, plus one further instance outside that scope: \"O'Neil's 'pocket pivot' style volume signature\" misattributes a Morales/Kacher-originated concept to O'Neil.\n\n## Confidence/Quality Scoring Summary\n`confidence = round(0.40*geom_score + 0.25*vol_score + 0.20*ctx_score + 0.15*hist_score, 2)`, floored at 50.0. `hist_score` is a static placeholder (50.0), never computed \u2014 15% of the composite is inert/constant.\n\n## Known Tests\n- `tests/pattern_engine/detectors/test_pullback_to_50sma.py` (4 tests: per-fixture battery, minimum coverage, narrative richness \u2265700 chars/field, geometry-extras richness)\n- `tests/pattern_engine/detectors/test_pullback_to_50sma_narrative_accuracy.py` (Phase 4A regression suite)\n- `tests/fixtures/pullback_to_50sma/` \u2014 15 fixtures (5 positive/8 negative/2 edge), varying exactly 3 parameters. Misses any adversarial/D7 case and any reclaim-lag variation beyond \"immediately next bar.\"\n\n## Known Failure Modes (D7)\nConfirmed and reproduced: a single isolated one-bar price spike inside the 120-bar prior-advance lookback can inflate `prior_advance_pct` well past the 30% floor even when the real sustained advance is ~10%, producing a false-positive detection (confidence 81.0) with a fully confident, wrong narrative and a corrupted R:R target.\n\n## Research Evidence Summary\n- 30% prior advance: `bases/02-oneil-ibd-base-taxonomy.md:77` (med confidence, adjacent pre-base concept)\n- 7-8% stop: `bases/02-oneil-ibd-base-taxonomy.md:260,300` (high confidence)\n- Distribution-day count never published: `bases/02-oneil-ibd-base-taxonomy.md:326` (confirms Phase 4A's citation was accurate)\n- \"Pocket pivot\" origin: `bases/07-morales-kacher-pocket-pivot-bgu.md` + `14-base-quantification-crosssource.md:241` (attributes to Morales/Kacher)\n- No file anywhere in the corpus addresses \"second buy point\" as its own concept.\n\n## Validation Status\n**Never blind/gold-standard reviewed.** Unlike VCP (`docs/uct-scanner-intelligence/vcp_gold_standard/`, an 82-case deliberate study), this family has had zero human-judgment validation \u2014 only the Phase 4A narrative-wording fix.\n\n## Recommended Action\n**RETAIN_GEOMETRY_ENRICHMENT** \u2014 core identity logic is sound (D2/D6 clean); the dominant defects (D7 spike vulnerability, D9 unanchored `start_t`) are both geometry/robustness gaps in the SAME prior-advance calculation, addressable without a rewrite.",
+  "defect_class_findings": [
+    {
+      "defect_class": "D1 Unsupported narrative claims",
+      "found": true,
+      "severity": "P2",
+      "detail": "Phase 4A (commit e3d76a15f) fixed the 4 instances it targeted and verified via 14 new tests + preserved 17 pre-existing ones \u2014 CONFIRMED real and complete for its own scope (git show e3d76a15f). One further instance survives outside that scope: what_to_watch_for (pullback_to_50sma.py:494) reads 'O'Neil's 'pocket pivot' style volume signature' \u2014 attributing a Morales/Kacher-originated term to O'Neil directly. Same defect species Phase 4A fixed elsewhere in this file, just not one of the 4 caught."
+    },
+    {
+      "defect_class": "D2 Pattern-definition mismatch",
+      "found": false,
+      "severity": "none",
+      "detail": "Code gates faithfully encode the docstring's stated conditions. No corpus file titled 'second buy point' exists (zero hits for 'second buy'/'2nd buy' anywhere under docs/superpowers/research/), so the SETUP CONCEPT rests on the general base-taxonomy file's adjacent 30% rule (D8), not a dedicated citation \u2014 a provenance gap, not a code-vs-docstring mismatch."
+    },
+    {
+      "defect_class": "D3 Inconsistent/legacy thresholds",
+      "found": true,
+      "severity": "P2",
+      "detail": "pullback_to_50sma.py:51-54 (0.02/3/0.30/120) vs pullback_to_200sma.py:63-66 (0.03/5/0.40/200) are internally consistent with each other's stated rationale, not a drift defect. But none of the touch/reclaim/volume-band mechanics appear anywhere in docs/superpowers/research/ \u2014 unsourced/ours, honestly labeled as such in code comments post-Phase-4A. Only the 30% floor and 7-8% stop are corpus-traceable."
+    },
+    {
+      "defect_class": "D4 Classification vs quality confusion",
+      "found": false,
+      "severity": "P3",
+      "detail": "Confirmed via worst-case algebra: every hard gate boundary coincides with the first 'good' scoring tier, so minimum achievable confidence once all gates pass is ~50.98 \u2014 the 50.0 floor essentially never suppresses a hard-gate-passing candidate. This also reveals three DEAD scoring branches: touch_score 'else: 50.0' (line 216), advance_score 'else: 40.0' (line 237), reclaim_score 'else: 30.0' (line 268) are each unreachable given their corresponding hard gate's boundary. Not a live D4 defect, but a code-quality issue worth listing."
+    },
+    {
+      "defect_class": "D5 Lifecycle ambiguity",
+      "found": true,
+      "severity": "P2",
+      "detail": "status is hardcoded 'ready' (line 375), outcome hardcoded None (line 376) on every detection, never varying. A separate 4-hourly patterns_track_outcomes job exists engine-wide outside this file. The narrative itself describes multi-stage outcomes in prose the structured Detection object has no field to represent."
+    },
+    {
+      "defect_class": "D6 Duplicated semantics",
+      "found": false,
+      "severity": "none",
+      "detail": "Confirmed single-engine (base_catalog.py grep: zero matches). Within pattern-engine, pullback_to_200sma is a sibling MA-pullback detector with DIFFERENT MA period, touch tolerance (2% vs 3%), advance floor (30% vs 40%), reclaim window (3 vs 5 bars), stop basis (0.5 vs 1.0 ATR), and target multiple (0.4x vs 0.5x) \u2014 both docstrings explicitly cross-reference each other as intentionally distinct. Genuinely distinct concepts, not duplicates; consolidation not indicated."
+    },
+    {
+      "defect_class": "D7 False-positive-prone logic",
+      "found": true,
+      "severity": "P1",
+      "detail": "CONSTRUCTED AND CONFIRMED via a throwaway repro script: a single isolated one-day spike bar inside the 120-bar prior-advance lookback inflates prior_advance_pct to 61.6% (real non-spike advance ~10.1%). Detector FIRES (confidence 81.0, all other gates pass), narrative states 'the stock has advanced 62% over the past 111 bars, comfortably above O'Neil's 30% minimum threshold.' Root cause: pullback_to_50sma.py:82-84 computes prior_low/prior_high as simple min/max over the window with no order-of-extremes or outlier guard. Downstream target computation also corrupted (R:R=19.6 in repro). Existing 15-fixture battery has zero spike/gap/penny-stock/corporate-action fixtures and never varies reclaim lag beyond 1 bar."
+    },
+    {
+      "defect_class": "D8 Stale/weak citations",
+      "found": true,
+      "severity": "P2",
+      "detail": "(1) Pocket-pivot misattribution \u2014 same evidence as D1. (2) The 30% prior-advance figure is corpus-traceable only to bases/02-oneil-ibd-base-taxonomy.md:77 ('prior uptrend required before the base... confidence: med, no IBD editorial column states this number'), sourced from a provenance-unverified handout and a third-party book summary. That citation is about the PRE-BASE qualifying advance, not explicitly the second-buy-point re-entry concept this detector implements; no corpus file addresses second-buy-point as its own concept."
+    },
+    {
+      "defect_class": "D9 Geometry/provenance/scanner-chart disconnect",
+      "found": true,
+      "severity": "P2",
+      "detail": "geometry.anchors carries only ONE point (the SMA horizontal line); prior_low/prior_high exist only as un-timestamped floats in extras. start_t (line 349) is bars[pullback_bar_idx-30]['t'] \u2014 an ARBITRARY 30-bar-back marker, NOT tied to prior_low_idx (which was 111 bars back in the D7 repro). A chart overlay drawing the pattern region from start_t to end_t would exclude the actual advance leg. Positively: test/reclaim bar OHLC, exact indices/timestamps, SMA value/slope, both volume ratios, ATR, entry/stop/target are all exact and present in extras."
+    }
+  ],
+  "geometry_matrix_row": {
+    "exact_candles": "yes \u2014 test_bar and reclaim_bar OHLCV exact via indices, stored as extras",
+    "start_timestamp": "partial \u2014 start_t exists but is an arbitrary 'test_bar_idx minus 30' marker, not anchored to the actual advance start (prior_low_idx, 100+ bars earlier in the D7 repro)",
+    "end_timestamp": "yes \u2014 end_t = last_bar['t'], exact",
+    "pivots": "partial \u2014 test/reclaim bar indices+timestamps exact; prior_low/prior_high (the advance-defining pivots) are un-timestamped raw floats only",
+    "trendlines": "no \u2014 none computed or stored",
+    "horizontal_levels": "yes \u2014 the 50-SMA value is the one anchored horizontal_line geometry",
+    "zones": "no \u2014 no buy-zone/base-zone polygon stored",
+    "ma_interactions": "yes \u2014 sma_50_value, slope, higher-low/nearest-rising-MA structure boost all computed and stored",
+    "gap_geometry": "no \u2014 no gap detection; this is also the D7 vulnerability surface (an unflagged spike/gap can corrupt prior_advance_pct)",
+    "event_markers": "no \u2014 no earnings/catalyst markers read or stored (days_to_earnings present in context but never read)",
+    "lifecycle": "no \u2014 status hardcoded 'ready', outcome hardcoded None; no emerging/triggering/confirmed/failed states from this file",
+    "explanation_criteria": "no \u2014 no typed Criterion system exists in pattern-engine; explanation is unstructured 5-field prose with no per-criterion pass/fail/observed/expected record",
+    "confidence_inputs": "yes \u2014 quality_components exposes the 4 weighted score components, though hist_score is a hardcoded placeholder",
+    "quality_inputs": "partial \u2014 sub-component scores (touch/slope/advance inside geom_score; test/reclaim inside vol_score) are computed but discarded, not persisted"
+  },
+  "geometry_readiness_color": "YELLOW",
+  "provenance_readiness": "Pattern-engine detectors (this family included) have NO Criterion system at all \u2014 that machinery exists only in base_catalog.py's Structure classes, which this family has no twin of. Today a Detection exposes: free-text narrative (5 prose fields, no per-claim structure), a geometry.extras dict of ~15 named scalar facts, and a quality_components dict of 4 score composites. None resemble {criterion, observed_value, expected_value, operator, required_optional, pass_fail, source, algorithm_version}. Concretely: 'observed_value' is present for every gate (extras has the exact numbers). 'criterion'/'expected_value'/'operator' could be reconstructed by naming the 8 hard gates in code, but none are named as such in the output today \u2014 only implicit in control flow, and the thresholds themselves live only in module constants a consumer would have to hardcode separately. 'required_optional' is absent \u2014 nothing in the output distinguishes a hard gate from a soft scoring input. 'pass_fail' is absent per-criterion \u2014 only the binary fact of whether a Detection exists at all; a consumer cannot tell 'not this pattern' from 'gate 3 of 10 failed by this much.' 'source' is absent \u2014 no field says whether a fact came from raw OHLCV, the context dict, or a derived computation. 'algorithm_version' is absent anywhere in the Detection shape \u2014 a logic/threshold change (like Phase 4A's own fix) leaves no version marker, so detections fired before/after a change are indistinguishable to a consumer. Building real provenance here would mean threading a criteria[] list through the gate sequence (recording each check's operator/threshold/observed value and returning a partial/graded result on first failure instead of a bare `return []`) \u2014 a family-wide, likely engine-wide gap, not a defect specific to this file's threshold values.",
+  "detector_action": "RETAIN_GEOMETRY_ENRICHMENT",
+  "detector_action_evidence": "The Phase-4A narrative fix is real, verified, and holds under this audit's own independent re-check (only one further D1/D8 instance found: the pocket-pivot misattribution, a small honest-labeling fix, not a logic change). The detector's core identity logic (D2) faithfully encodes its stated concept and does not need replacement or consolidation (D6 clean \u2014 sibling MA-pullback detectors are genuinely distinct, not duplicates). The one CORRECTNESS-grade finding \u2014 D7's single-bar-spike false positive, confirmed reproducible with confidence 81.0 and a coherent-sounding narrative built on a corrupted 61.6% 'advance' that's really ~10% \u2014 is real and would mislead a member, but it is a scoped, well-understood geometry-integrity gap (missing order-of-extremes / outlier-robustness check on the prior_advance calculation), not evidence the whole approach is wrong. The dominant findings (P1 D7, P2 D9 unanchored start_t / untyped pivots) are both enrichments to the SAME prior-advance-geometry calculation, not a rewrite of the identity logic \u2014 hence RETAIN_GEOMETRY_ENRICHMENT rather than RETAIN_AS_IS (would leave a demonstrated false-positive path live) or CORRECT_DETECTOR_LOGIC (the gating logic itself, thresholds aside, is sound and D4-clean).",
+  "p_issues": [
+    {
+      "priority": "P1",
+      "title": "Single-bar spike inflates prior_advance_pct and produces a false-positive detection with a confident, wrong narrative",
+      "description": "prior_advance_pct is computed as (max(high) - min(low)) / min(low) over a 120-bar window with no check that the high postdates the low, no outlier guard, and no floor on how much of the 'advance' one single bar contributes. A one-day spike (halt/reopen, unadjusted-split artifact, flash print, single-bar data error) anywhere in the window can single-handedly satisfy the 30% floor even when the real sustained move is well under it, and the target computation (using the same corrupted prior_advance_height) produces an absurd R:R.",
+      "evidence": "api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:80-93. Reproduced in a throwaway scratchpad script: a single isolated spike bar (high 60% above the surrounding price, reverting same bar) placed inside the 120-bar window makes the detector fire with confidence=81.0, extras['prior_advance_pct']=61.61 (real non-spike advance \u224810.1%), and narrative.headline reads 'prior advance 62% over 111 bars' while narrative.what_it_is states 'comfortably above O'Neil's 30% minimum threshold that qualifies the name as a leader.' Target R:R computed at 19.6."
+    },
+    {
+      "priority": "P2",
+      "title": "start_t geometry anchor is arbitrary, not tied to the actual qualifying advance",
+      "description": "The Detection's start_t (what a future chart overlay would use to know where the pattern 'begins') is hardcoded as 30 bars before the test bar, unrelated to prior_low_idx (the bar where the qualifying 30%+ advance actually started, which can be 100+ bars earlier). A chart drawing the pattern region from start_t to end_t would exclude the advance leg the narrative is about.",
+      "evidence": "api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:349 \u2014 start_t = bars[max(0, pullback_bar_idx-30)]['t']. prior_low_idx (computed lines 88-92) is never used for start_t; in the D7 repro prior_advance_bars=111 while start_t only reaches back 30 bars."
+    },
+    {
+      "priority": "P2",
+      "title": "'Pocket pivot' attributed to O'Neil in narrative; corpus attributes it to Morales/Kacher",
+      "description": "narrative.what_to_watch_for describes the ideal trigger-bar volume signature as \"O'Neil's 'pocket pivot' style volume signature\" \u2014 but the repo's own dedicated research file on the concept credits Gil Morales and Chris Kacher, not O'Neil. Same defect class Phase 4A fixed elsewhere in this file, just not one of the 4 targeted instances.",
+      "evidence": "api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:494 vs docs/superpowers/research/bases/14-base-quantification-crosssource.md:241 ('Kacher / Morales \u2014 pocket pivot') and the entirety of docs/superpowers/research/bases/07-morales-kacher-pocket-pivot-bgu.md, which never attributes it to O'Neil."
+    },
+    {
+      "priority": "P2",
+      "title": "30% prior-advance threshold's corpus citation is for a different (adjacent) O'Neil concept, at medium confidence with provenance caveats",
+      "description": "The docstring/narrative present 30% as O'Neil's documented second-buy-point threshold. The only matching corpus citation is about the prior uptrend required BEFORE A BASE forms (a first-buy-point/base-qualification concept), rated 'confidence: med' with both underlying sources flagged elsewhere in the same file as provenance-uncertain.",
+      "evidence": "docs/superpowers/research/bases/02-oneil-ibd-base-taxonomy.md:77; grep for 'second buy'/'2nd buy' across docs/superpowers/research/ returns zero hits outside this detector's own docstring/narrative."
+    },
+    {
+      "priority": "P2",
+      "title": "Detector carries no lifecycle beyond a hardcoded 'ready' status",
+      "description": "Every Detection has status='ready' and outcome=None at creation, with no field distinguishing a just-fired setup from one whose reclaim held, extended, or failed, despite the narrative describing multi-stage outcomes in prose.",
+      "evidence": "api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:375-376."
+    },
+    {
+      "priority": "P3",
+      "title": "Three scoring branches are dead code given their own gate boundaries",
+      "description": "_score_geometry's touch_score 'else: 50.0', advance_score's 'else: 40.0', and _score_volume's reclaim_score 'else: 30.0' are each unreachable because the corresponding hard gate already bounds the input to the range that triggers the next tier up. Not a live defect (confidence floor confirmed to never actually suppress a hard-gate-passing candidate, worst case ~50.98), but misleading to a future maintainer.",
+      "evidence": "api/services/pattern_engine/detectors/uct/pullback_to_50sma.py:216, :237, :268 vs the gates at :103, :85, :140 respectively."
+    },
+    {
+      "priority": "P3",
+      "title": "Test fixture battery has zero D7-class adversarial coverage and never varies reclaim lag",
+      "description": "All 15 fixtures vary only 3 parameters (trend_pct, test_vol_ratio, reclaim_vol_ratio); every fixture places the reclaim bar immediately (1 bar) after the test bar, so the stated 1-3 bar reclaim window's 2nd/3rd-bar paths are never exercised, and there is no penny-stock, low-liquidity, gap/spike, or corporate-action fixture anywhere in the battery.",
+      "evidence": "tests/fixtures/pullback_to_50sma/_generate.py:22-70 (reclaim_bar always appended immediately after test_bar) and lines 140-190 (all 15 _write() calls)."
+    }
+  ],
+  "explanation_truth_table": [
+    {
+      "claim": "This is William O'Neil's classic 'second buy point' from CAN SLIM, codified in How to Make Money in Stocks (1988)",
+      "supporting_fact": "General CAN SLIM/O'Neil attribution is broadly correct as a description of the concept; no corpus file specifically dedicated to 'second buy point' exists to directly ground this exact phrase",
+      "source_field": "narrative.what_it_is",
+      "support_type": "inferred",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "comfortably above O'Neil's 30% minimum threshold that qualifies the name as a leader worth re-entering on a test",
+      "supporting_fact": "extras.prior_advance_pct is a real computed number vs the 30% constant; but the 30% citation is medium-confidence and about a different (pre-base) concept, AND prior_advance_pct itself can be corrupted by a single-bar spike (D7)",
+      "source_field": "geometry.extras.prior_advance_pct",
+      "support_type": "direct",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "The 50-day moving average sits at $X and is rising at Y% over the trailing 20 bars",
+      "supporting_fact": "extras.sma_50_value and sma_50_slope_pct_over_20 are exact computed values from the same bars",
+      "source_field": "geometry.extras.sma_50_value / sma_50_slope_pct_over_20",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "the reclaim closed back above the 50-day on volume X% of average",
+      "supporting_fact": "extras.reclaim_volume_ratio is exact; post-Phase-4A the 'expanding' language is already conditioned on reclaim_vol>=1.0, internally consistent with the 0.9x gate floor",
+      "source_field": "geometry.extras.reclaim_volume_ratio",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "this detector does not independently verify all seven CAN SLIM pillars, only trend stage, moving-average stack, relative-strength direction, and prior-advance/volume geometry",
+      "supporting_fact": "Matches the actual gate list, with one nuance: rs_trend is read only as a soft score input (_score_context), not a hard gate \u2014 the claim slightly overstates rs_trend's role by grouping it with the hard-gated items",
+      "source_field": "code control flow (hard gates vs _score_context)",
+      "support_type": "direct",
+      "safe": true,
+      "action": "qualify"
+    },
+    {
+      "claim": "O'Neil publishes the second-buy-point RULE... but no measured hit rate, sample size, or benchmark for it in the primary text",
+      "supporting_fact": "Correct as a negative claim \u2014 no hit-rate statistic for this setup exists anywhere in docs/superpowers/research/, consistent with the corpus's own base-rate-discipline file",
+      "source_field": "narrative.why_it_matters",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "O'Neil's 'pocket pivot' style volume signature",
+      "supporting_fact": "The corpus's own dedicated file attributes 'pocket pivot' to Morales and Kacher, not O'Neil",
+      "source_field": "narrative.what_to_watch_for",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Cut your losses at 7-8% regardless of the structural stop",
+      "supporting_fact": "Directly corroborated, high confidence: bases/02-oneil-ibd-base-taxonomy.md:260,300",
+      "source_field": "narrative.failure_signal",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "refined through 50+ years of IBD (Investor's Business Daily) leadership research",
+      "supporting_fact": "IBD was founded in 1984 (~42 years as of 2026); '50+ years' is only defensible read as O'Neil's own career rather than IBD specifically, which the sentence does not distinguish",
+      "source_field": "narrative.what_it_is",
+      "support_type": "inferred",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "Position sizing... risking 1% of account implies roughly N% of equity per position",
+      "supporting_fact": "Self-contained arithmetic derivation from stop_distance_pct computed in the same function, not an external claim needing citation",
+      "source_field": "levels computation",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    }
+  ],
+  "blinded_validation_rationale": "A blinded/gold-standard review answers \"does this detector's identity criteria match what a skilled discretionary trader would call a real second-buy-point setup on a real chart?\" \u2014 a question about visual/contextual judgment. That is NOT what's wrong here. Every defect found (D7's single-bar-spike false positive, the dead scoring branches, the unanchored start_t, the pocket-pivot misattribution) is a code-level defect provable by reading the function and constructing one Python fixture \u2014 no human chart-reading judgment is needed to see that a stock which round-tripped a one-day spike and is otherwise flat gets the same \"prior_advance_pct: 61%, comfortably above O'Neil's 30% minimum\" narrative as a genuine leader. Fixing those is an engineering task, not a labeling task. A blinded review would be the right NEXT step only after the corpus-integrity gates (order-of-extremes check on prior_advance, geometry anchoring of start_t) are patched \u2014 reviewing human-judgment fit against a detector whose geometry can be corrupted by one bad bar wastes reviewer time relabeling artifacts of the bug rather than judging the setup concept.",
+  "blinded_validation_recommended": false,
+  "blinded_validation_suggested_size": 0,
+  "canonical_geometry_requirement": "This is an \"MA pullback\" family (like pullback_to_10ema/21ema/200sma): a future canonical geometry schema needs (1) an MA-interaction primitive carrying the MA type/period/value/slope plus the specific touch bar's distance from it \u2014 already present as loose extras, not a typed geometry object; (2) a properly ANCHORED prior-advance leg \u2014 a (start_idx/start_t, start_price) \u2192 (end_idx/end_t, end_price) pivot pair for the qualifying advance, not the current arbitrary \"30 bars before the test bar\" start_t, so a chart overlay can actually draw the leg the 30%+ claim is about; (3) an order-of-extremes-validated advance (the schema should refuse to accept a high/low pair where the low postdates the high, or carry a validated \"monotonic-enough\" flag) so a corrupted single-bar spike cannot silently satisfy the geometry \u2014 this directly closes the D7 finding; (4) explicit test-bar and reclaim-bar pivots (already have indices/timestamps) tagged as such in a typed pivots array rather than only living in extras/anchors as loosely-typed floats; (5) a lifecycle field distinct from the current always-\"ready\" status, so a chart or scanner can show whether the reclaim later held, failed, or is still pending \u2014 none of which this or any pattern-engine detector currently tracks."
+}

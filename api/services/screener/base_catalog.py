@@ -40,6 +40,7 @@ Sources: the 15-lane sweep in `docs/superpowers/research/bases/`.
 from dataclasses import dataclass
 
 from api.services.pattern_engine.primitives import cup, shape
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from typing import Callable, Optional
 
 #: Darvas's own count. Sourced — see the DARVAS_BOX criteria below.
@@ -1257,7 +1258,7 @@ def _prior_advance(bars, k, look: int = FLAT_ADVANCE_LOOKBACK):
     return ((entry - lo) / lo) if lo > 0 else None
 
 
-def flat_base_qualifies(st: Optional[dict]) -> bool:
+def flat_base_qualifies(st: Optional[dict], bars: Optional[list] = None) -> bool:
     """Does a base state clear every gate the Flat Base structure applies?
 
     ⛔⛔ ONE DEFINITION, ONE PLACE. `flat_base_state` finds the SHAPE; these
@@ -1268,6 +1269,14 @@ def flat_base_qualifies(st: Optional[dict]) -> bool:
     4.5%. A structure built out of another must not be looser than the thing
     it is built from, and the only way to guarantee that is for both to ask
     the same function.
+
+    `bars` (Phase 6 Group 2): the same bars/end window passed to the
+    `flat_base_state` call that produced `st` -- the liquidity/price-floor
+    gate judges the base's OWN base period, not necessarily the full current
+    series (a base composed deep in a `base_on_base`/`base_stack` search is
+    evaluated against the bars at the time IT formed). Optional and skipped
+    when omitted so existing internal callers that don't yet pass it degrade
+    to the pre-Group-2 gates rather than raising.
     """
     if st is None:
         return False
@@ -1275,7 +1284,15 @@ def flat_base_qualifies(st: Optional[dict]) -> bool:
         return False
     if st["drift"] > FLAT_MAX_DRIFT:
         return False
-    return (st["prior_advance"] or 0.0) >= FLAT_PRIOR_ADVANCE
+    if (st["prior_advance"] or 0.0) < FLAT_PRIOR_ADVANCE:
+        return False
+    # Reproduced live: a synthetic $0.35/share series with ~$750/day dollar
+    # volume fired flat_base at confidence 67.6 with "institutional
+    # sponsorship" narrative -- no price/liquidity gate existed anywhere in
+    # base_catalog.py.
+    if bars is not None and not liquidity_floor(bars).passes:
+        return False
+    return True
 
 
 def _detect_flat_base(ctx) -> bool:
@@ -1287,7 +1304,7 @@ def _detect_flat_base(ctx) -> bool:
     label two-fifths of the market carries would say nothing, and that is the
     failure the coverage harness was built after.
     """
-    return flat_base_qualifies(flat_base_state(ctx.bars))
+    return flat_base_qualifies(flat_base_state(ctx.bars), ctx.bars)
 
 
 FLAT_BASE = Structure(
@@ -1453,7 +1470,7 @@ def base_on_base_state(bars) -> Optional[dict]:
     """
     head_max = _head_max_array(bars)
     b2 = flat_base_state(bars, head_max=head_max)
-    if not flat_base_qualifies(b2):
+    if not flat_base_qualifies(b2, bars):
         return None
     n = len(bars)
     start2 = n - b2["bars"]
@@ -1464,7 +1481,7 @@ def base_on_base_state(bars) -> Optional[dict]:
     floor = max(FLAT_MIN_BARS, start2 - BOB_MAX_GAP)
     for e1 in range(top, floor - 1, -BOB_SEARCH_STEP):
         b1 = flat_base_state(bars, end=e1, head_max=head_max)
-        if not flat_base_qualifies(b1):
+        if not flat_base_qualifies(b1, bars[:e1]):
             continue
         pivot1 = b1["pivot"]
         if pivot1 <= 0:
@@ -1500,7 +1517,7 @@ def base_stack(bars, max_bases: int = BOB_MAX_STACK) -> list:
     head_max = _head_max_array(bars)
     while len(out) < max_bases:
         b = flat_base_state(bars, end=end, head_max=head_max)
-        if not flat_base_qualifies(b):
+        if not flat_base_qualifies(b, bars[:end]):
             break
         start = end - b["bars"]
         out.append({"start": start, "end": end, "base": b})
@@ -3047,6 +3064,13 @@ def ascending_base_state(ctx) -> Optional[dict]:
     bars = ctx.bars
     swings = ctx.swings
     if not bars or len(swings) < ASC_PULLBACKS * 2:
+        return None
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live:
+    # ascending_base_state fired True with pivot=0.225 on a stock trading
+    # $0.10-$0.125 -- no price/liquidity gate existed anywhere in this file
+    # for either structure.
+    if not liquidity_floor(bars).passes:
         return None
 
     pairs = []

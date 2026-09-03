@@ -1,0 +1,258 @@
+{
+  "blinded_validation_rationale": "Not decision-critical right now. The defects found (EP never computes a gap despite its own namesake being a gap pattern; neither detector reads the earnings-date field the engine already carries; fabricated/misattributed performance statistics in the narrative; no price/liquidity floor) are all provable from the code and the repo's own research corpus alone \u2014 none of them turn on a human's subjective read of a chart. A blinded chart review would be reviewing detections whose entity identity (\"this was an earnings gap\") is not something the code can currently establish, so the review's own cases could not be labeled as PEG-vs-not with any more authority than the code already has. Recommend resolving the D1/D2 findings (or deliberately re-scoping the name/narrative to what the code actually detects) first. After that, if the team wants a sanity check that the *geometry* (gap+volume+hold / range-expansion+base) reads as a real setup on live charts, a small blinded set is reasonable \u2014 this is a single/multi-bar price-volume event, not a multi-week base topology requiring the kind of subjective judgment VCP's 82-case study existed to resolve.",
+  "blinded_validation_recommended": false,
+  "blinded_validation_suggested_size": 15,
+  "canonical_geometry_requirement": "A gap-and-continuation family like this needs: (1) an explicit GAP GEOMETRY primitive \u2014 prior-bar close, gap-bar open/high/low/close, and the resulting gap percentage, packaged as a typed object (today it's scalar keys inside `geometry.extras`, and the \"Episodic Pivot\" detector doesn't even compute it despite its namesake requiring one); (2) an EVENT MARKER slot carrying an earnings-date/catalyst reference with a source and a distance-to-event value, wired to a REAL data source (the engine's own `Context.days_to_earnings` field exists in the schema today but is a permanent `None` stub) \u2014 without this the family cannot honestly claim \"earnings\" in its name; (3) a ZONE primitive for the post-gap consolidation (PEG) and the pre-EP base (EP) \u2014 both are already fully computable bounded price\u00d7time rectangles in the code, just not packaged as reusable zone objects; (4) a Criterion-shaped explanation list (id/condition/observed/expected/operator/pass-fail/source) so a chart overlay or a member-facing explanation can show which specific gate a candidate passed or failed, instead of today's rolled-up 4-float `quality_components` and unstructured prose.",
+  "defect_class_findings": [
+    {
+      "defect_class": "D1 Unsupported narrative claims",
+      "found": true,
+      "severity": "P0",
+      "detail": "power_earnings_gap.py:489 attributes the whole pattern to 'Pradeep Bonde of Stockbee' \u2014 contradicted by the repo's own research corpus: docs/superpowers/research/setups/setup_criteria.json:316-326 finds 'NO PUBLISHED NUMERIC DEFINITION OF THE POWER EARNINGS GAP BY MARK MINERVINI WAS FOUND ANYWHERE' with contested attribution to '@traderstewie at Art of Trading' \u2014 never Bonde \u2014 and docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md (25 primary Bonde sources) never uses the term 'Power Earnings Gap' for anything Bonde published; it appears only once, at line 222, as O'Neil/IBD's name for a buyable gap-up. power_earnings_gap.py:8-9/502-503 asserts 'Bonde's research shows PEGs...frequently extend 30-100%+ over the following 4-12 weeks' and episodic_pivot.py:489-493 asserts 'Bonde's published track record on EPs...shows the pattern has a 70%+ continuation rate' \u2014 both fabricated; 08-qullamaggie-stockbee-momentum.md:785-793 states plainly 'Nothing in this file is a measured setup statistic...No base rate accompanies any of them' for every one of Bonde's actually-published setups. episodic_pivot.py:465-467 claims Kullam\u00e4gi's EP wants 'a clean 3-5 week base' \u2014 his own quoted words at 08-...md:172 say 'gone sideways for 3-6 months or more', an order-of-magnitude contradiction the code's own _MIN_BASE_BARS=15/_MAX_BASE_BARS=60 (3-12 weeks) also doesn't match. episodic_pivot.py:469-473 cites 'Lance Breitstein's intraday opening-drive EP read' and \"Burnt Toast's small-cap variant\" \u2014 zero occurrences of either name anywhere in docs/superpowers/research/ (grep-confirmed)."
+    },
+    {
+      "defect_class": "D2 Pattern-definition mismatch",
+      "found": true,
+      "severity": "P0",
+      "detail": "Neither detector reads or gates on any earnings/event field. api/services/pattern_engine/primitives/context.py:170 hardcodes `\"days_to_earnings\": None` in build_context \u2014 the field exists in the Context schema (types.py) but is never computed; grep confirms zero references to 'earnings' or 'days_to_earnings' as a gating condition in either power_earnings_gap.py or episodic_pivot.py. This is independently corroborated by a DIFFERENT initiative's research: setup_criteria.json:261 ('a news, filing or earnings-date column. There is none') and :328 ('An earnings-date or surprise column. Without it, \"this gap was an EARNINGS gap\" is unsayable'). As implemented, power_earnings_gap.py is a pure price-gap(>=8%)+volume-surge(>=3x)+tight-post-gap-hold detector with only a SOFT trend-context score \u2014 structurally identical in kind to Bonde's actual '4% Breakout' scan, not a verified earnings pattern; confirmed empirically firing at 78.62 confidence on a synthetic $0.45 stock with no earnings context (see D7). Separately and more severely for episodic_pivot.py: `ep_open = ep_bar[\"o\"]` is extracted (line 113) and stored in the candidate dict (line 189) but NEVER read again anywhere in the file (grep-confirmed) \u2014 no open-vs-prior-close gap ratio is ever computed. Both Bonde's and Kullam\u00e4gi's published 'Episodic Pivot' are explicitly gap patterns (10%+ per Kullam\u00e4gi, 4-8%+ per Bonde per 08-...md), yet this code's EP gate is a same-day range-expansion + close-location + volume-surge + prior-base test with no gap concept at all \u2014 a materially different structure than either namesake source, and the vision-judge rubric for this same pattern (api/services/pattern_vision/rubrics.py:142-155) explicitly lists 'A large gap-up (clear gap on the chart)' and 'Price holding the gap, not filling it' as a must-have/disqualifier that the detector code cannot possibly verify."
+    },
+    {
+      "defect_class": "D3 Inconsistent/legacy thresholds",
+      "found": true,
+      "severity": "P1",
+      "detail": "power_earnings_gap.py's Phase 3A citation (docs/uct-scanner-intelligence/decision-log.md:51-56, code comment lines 11-18) sources _MIN_GAP_PCT=0.08 to 'Bonde's own 2010 Stockbee post' defining '5+ points OR 8%+ gain'. Cross-checked against 08-qullamaggie-stockbee-momentum.md:550, that exact formula ('(C-C1)>=5...OR...8%...') is Bonde's 2010 EPISODIC PIVOT scan, not anything called 'Power Earnings Gap' \u2014 the threshold is real and correctly transcribed, but its citation is attached to the wrong pattern's primary source. _MAX_GAP_PCT=1.00 is honestly self-labeled 'HYPOTHESIS-tier, not sourced to a specific external figure' (decision-log.md:54-56) \u2014 good practice, unsourced-guess classification correct as-is. _MIN_VOLUME_RATIO=3.0 (PEG) has no citation anywhere in code or decision-log; setup_criteria.json's own PEG entry shows firm templates disagreeing between 2x and 3x for this exact number, and the code cites neither. episodic_pivot.py has NO source citation anywhere for any of its five numeric gates (_MIN_RANGE_RATIO=2.0, _MIN_VOLUME_RATIO=2.0, _MIN_CLOSE_STRENGTH=0.70, _MAX_BASE_DEPTH=0.25, base bars 15-60) despite its docstring naming Bonde/Kullam\u00e4gi \u2014 none of these five numbers appear anywhere in either author's published material per the research file (Kullam\u00e4gi's own EP gap is 10%+, dormancy 3-6 months; neither publishes a range-expansion multiple, a close-strength threshold, or a base-depth percentage for EP). Classification: ours/unsourced-guess for all five."
+    },
+    {
+      "defect_class": "D4 Classification vs quality confusion",
+      "found": false,
+      "severity": "none",
+      "detail": "Read line-by-line: both files' return-None logic in _try_extract is entirely identity gates (gap%, volume ratio, post-gap-hold, tightness, pending-breakout for PEG; close-strength, range-ratio, volume-ratio, base-depth+breakout for EP) \u2014 none of it is quality-derived. `_hostile_context` is a genuine hard reject (Stage4 AND stacked_bearish AND rs_down) applied AFTER extraction succeeds, not a quality-score gate masquerading as identity. The only floor on emission is `confidence < _CONFIDENCE_FLOOR(50)` which is a real quality gate, but it gates EMISSION of an already-identified candidate (best-of-window selection), not classification of what counts as a PEG/EP \u2014 a low-scoring but geometrically valid candidate is correctly excluded from output, not mislabeled as a different pattern. No instance found of a high-context-score candidate being called the pattern despite failing identity gates."
+    },
+    {
+      "defect_class": "D5 Lifecycle ambiguity",
+      "found": true,
+      "severity": "P2",
+      "detail": "Both detectors hardcode `\"status\": \"ready\"` at every emission (power_earnings_gap.py:625, episodic_pivot.py:596) \u2014 neither ever emits 'forming' or 'triggered', despite types.py's Detection.status Literal supporting all six values. The shared engine-wide `memory.track_outcomes` (memory.py:253-384) DOES track a real entry_hit/stop_hit/target_hit walk-forward and flips status to completed/failed/expired, but this is identical machinery shared by all ~50 detectors, not family-specific richness, and it never writes an intermediate 'triggered' status even though it computes entry_hit_t. So this family (like every pattern-engine detector) can distinguish only 'freshly-detected, unresolved' vs 'completed/failed/expired' \u2014 no emerging/developing/mature/extended distinction, and 'triggered' is a dead status value for this whole family that nothing ever writes."
+    },
+    {
+      "defect_class": "D6 Duplicated semantics",
+      "found": true,
+      "severity": "P2",
+      "detail": "No base_catalog/System-D twin exists for either pattern (grep of api/services/screener/base_catalog.py for 'power_earnings_gap'/'episodic_pivot'/'PEG'/'Episodic' returns nothing) \u2014 confirmed single-implementation, pattern-engine only, per the task's own premise. Within pattern-engine, the two detectors are genuinely distinct geometric structures (multi-day gap-hold continuation vs single-bar range-expansion-from-base breakout) \u2014 not literal duplicates. However `_score_context`, `_hostile_context`, `_can_slim_score_adjustment`, `_dcr_score_adjustment`, `_ma_alignment_phrase`, `_trend_stage_description`, and `_rs_trend_phrase` are byte-identical copy-pasted functions across both files (confirmed by direct text comparison of both full files). This means both patterns reward the IDENTICAL trend/MA/RS context (Stage 1/2 + stacked_bullish + RS up) despite the research corpus establishing these two setups have theoretically OPPOSITE prior-trend requirements: setup_criteria.json:308 names PEG's pre-existing Stage-2-uptrend requirement as '\ud83d\udd34 the discriminator that separates PEG from EP', while Kullam\u00e4gi's own EP write-up (08-...md:172-173) requires the stock has NOT rallied in the prior 3-6 months. The code's shared, duplicated scoring gives EP a soft bonus for the exact prior-uptrend context that, per the pattern's own namesake author, should disqualify it as a surprise."
+    },
+    {
+      "defect_class": "D7 False-positive-prone logic",
+      "found": true,
+      "severity": "P0",
+      "detail": "Neither detector has any minimum price or minimum dollar-volume floor \u2014 the only degenerate-input checks are `prior_close<=0` (PEG) and `avg_range<=0 or avg_volume<=0` (EP). Empirically reproduced (throwaway script, not committed): a synthetic $0.45 stock with a 20-bar base at 150K daily volume, a 9% gap on 480K volume (3.2x), and 5 tight post-gap bars fires power_earnings_gap at confidence 78.62 with a full entry/stop/target ($0.51/$0.44/$0.55, R:R 0.57) \u2014 a textbook thin-penny-stock false-positive-prone shape the code cannot distinguish from a real large-cap earnings gap. Existing fixtures (tests/fixtures/power_earnings_gap/) cover a stock-split/reverse-split artifact (split_artifact_gap.json, 150% gap correctly rejected by the ceiling) and a hostile-context downtrend (downtrend_context.json) but NO penny-stock/low-dollar-volume fixture, NO thin-liquidity fixture, and NO fixture for the case tested here. episodic_pivot.py has the same absence of a price/liquidity floor and no corresponding fixture either."
+    },
+    {
+      "defect_class": "D8 Stale/weak definitions or citations",
+      "found": true,
+      "severity": "P0",
+      "detail": "Same underlying evidence as D1/D3, restated for the citation-quality angle specifically: power_earnings_gap.py's docstring and narrative repeatedly assert a single, confident origin story ('codified by Pradeep Bonde of Stockbee') for a pattern whose best-documented public attribution (setup_criteria.json:316-326, this repo's own research) is 'NO PUBLISHED NUMERIC DEFINITION...WAS FOUND ANYWHERE' with contested, non-Bonde attribution. The module's own Phase 3A comment (lines 11-18) cites 'Bonde's own 2010 Stockbee post' for a threshold that traces to Bonde's Episodic Pivot scan, not any Power Earnings Gap material \u2014 a citation genuinely present in the research corpus, just attached to the wrong entity. episodic_pivot.py's 'Burnt Toast' and 'Lance Breitstein EP' citations have literally zero corpus support (grep-confirmed absent from all of docs/superpowers/research/)."
+    },
+    {
+      "defect_class": "D9 Geometry/provenance/scanner-chart disconnect",
+      "found": true,
+      "severity": "P1",
+      "detail": "Both detectors DO preserve real, reconstructable geometry: explicit start_t/end_t/pivot_ts (raw unix timestamps), anchors (price+t pairs at the key bars), and rich scalar fields in geometry.extras (gap_open/high/low/close, post_gap_high/low for PEG; base_high/low/height, ep_high/low/close for EP) plus the shared higher-low/MA-alignment structure_extras. But none of this is packaged as the engine's own typed primitives: `Pivot` (types.py) has price/type/strength/bar_index fields never populated here \u2014 pivot_ts is a bare timestamp list; `Trendline` is never constructed (no base/consolidation boundary fit); the post-gap consolidation zone (PEG) and the pre-EP base (EP) are fully computable bounded rectangles in the code but never emitted as a Zone object. `quality_components` exposes only the 4 top-level weighted scores (geometry/volume/context/historical); the finer internal sub-scores (gap_score/tightness_score/holding_score/bars_score for PEG; flatness/range/close/length for EP) are computed in `_score_geometry` but discarded \u2014 never surfaced in the return dict, so a future chart overlay or explanation UI cannot show WHY the geometry score landed where it did, only the rolled-up number."
+    }
+  ],
+  "detector_action": "CORRECT_DETECTOR_LOGIC",
+  "detector_action_evidence": "Combines several classes of finding that each independently point to CORRECT_DETECTOR_LOGIC over a lighter action: (1) episodic_pivot.py extracts `ep_open` but never uses it \u2014 the pattern's own namesake requires a gap and the code never computes one (D2/D9, power_earnings_gap.py has no such gap-computation gap, only episodic_pivot.py does); (2) neither detector reads the earnings-date context field that exists in the schema, so the family's central name-promise is structurally unverifiable as shipped (D2, task-flagged as first-order); (3) both narratives assert specific, checkable statistics and attributions that this repo's own research corpus directly contradicts or cannot find any support for (D1/D8) \u2014 this is not a wording nuance, it is presenting fabricated numbers as sourced fact to paying members; (4) no price/liquidity floor lets a thin penny-stock fire at high confidence, empirically reproduced (D7). None of these are addressed by adding tests alone (RETAIN_ADD_TESTS), by geometry enrichment alone (the geometry that exists is basically fine for what the code actually detects), or by a narrative-only fix (RETAIN_EXPLANATION_FIX would leave EP's missing gap computation and the missing earnings join untouched). CALIBRATE doesn't fit \u2014 the core issue isn't threshold tuning, it's that the code doesn't test the thing its name and narrative claim it tests. REPLACE is not warranted \u2014 the geometric core of both detectors (gap+volume+hold; range-expansion+base breakout) is sound, well-gated, and reasonably tested for what it actually is.",
+  "explanation_truth_table": [
+    {
+      "claim": "Power Earnings Gap was codified by Pradeep Bonde of Stockbee",
+      "supporting_fact": "None found; research corpus finds no Bonde attribution for this name at all",
+      "source_field": "narrative.what_it_is (power_earnings_gap.py:489-490)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "PEGs that hold the gap 3-10 bars frequently extend 30-100%+ over 4-12 weeks (Bonde's research)",
+      "supporting_fact": "Bonde publishes no measured performance statistic for any setup he authored (08-qullamaggie-stockbee-momentum.md:785-793)",
+      "source_field": "narrative.what_it_is / module docstring",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Kullam\u00e4gi has published empirical work finding PEGs in confirmed-uptrend, RS-strong stocks have the highest follow-through of any swing setup he tracks",
+      "supporting_fact": "Kullam\u00e4gi's own EP write-up requires the OPPOSITE \u2014 no rally in the prior 3-6 months (08-...md:172-173)",
+      "source_field": "narrative.what_it_is (power_earnings_gap.py:504-507)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Minervini's earnings breakout rules use a tight 3-7 bar consolidation above the gap-open, aligning with Bonde's PEG criteria",
+      "supporting_fact": "No published numeric Minervini PEG definition exists anywhere on the record (setup_criteria.json:318-326); 'Bonde's PEG criteria' repeats the false attribution above",
+      "source_field": "narrative.what_it_is (power_earnings_gap.py:508-511)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "The gap crossed Bonde's hard gates \u2014 4% minimum gap and 3x minimum volume",
+      "supporting_fact": "The code's actual floor is 8% (post-Phase-3A), not 4% \u2014 this sentence is also stale against the detector's own constant",
+      "source_field": "narrative.why_it_matters (power_earnings_gap.py:518-519)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "[gap-and-hold event] signals that the new fundamentals have caused a wholesale revaluation",
+      "supporting_fact": "No earnings/catalyst check exists anywhere in the code; the same shape fires on a synthetic thin penny stock with no fundamental event (D7 repro)",
+      "source_field": "narrative.what_it_is (power_earnings_gap.py:495-496)",
+      "support_type": "none",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "Kullam\u00e4gi refined Bonde's EP with a clean 3-5 week base immediately preceding the print",
+      "supporting_fact": "Kullam\u00e4gi's own quoted words require 3-6 MONTHS of dormancy, not 3-5 weeks (08-...md:172)",
+      "source_field": "narrative.what_it_is (episodic_pivot.py:465-467)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Lance Breitstein's intraday opening-drive EP read applies the same framework to the 9:30 AM bar",
+      "supporting_fact": "Zero mentions of Breitstein anywhere in docs/superpowers/research/",
+      "source_field": "narrative.what_it_is (episodic_pivot.py:469-471)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Burnt Toast's small-cap variant focuses on the EP as a catalyst-driven character-change signal",
+      "supporting_fact": "Zero mentions of 'Burnt Toast' anywhere in docs/superpowers/research/",
+      "source_field": "narrative.what_it_is (episodic_pivot.py:472-473)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Bonde's published track record on EPs shows a 70%+ continuation rate",
+      "supporting_fact": "Bonde publishes no win rate, base rate, or sample for EP anywhere (08-...md:569-576, explicit 'measured_performance: none published')",
+      "source_field": "narrative.why_it_matters (episodic_pivot.py:489-491)",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "The gap-bar's volume ratio and price gap (numeric values)",
+      "supporting_fact": "Directly computed and checkable from the input bars (power_earnings_gap.py:148,162)",
+      "source_field": "geometry.extras.gap_pct / gap_volume_ratio",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Post-gap consolidation held above the gap-up open with margin X%",
+      "supporting_fact": "Directly computed as min_post_gap_low vs gap_open (power_earnings_gap.py:172-178,199)",
+      "source_field": "geometry.extras.gap_fill_pct",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Range expansion of Nx the 20-bar average, volume Nx the average, close in the top N% of range",
+      "supporting_fact": "Directly computed gate values (episodic_pivot.py:136-142,120-123)",
+      "source_field": "geometry.extras.ep_range_ratio / ep_volume_ratio / close_strength",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "This EP is forming in [Stage phrase] with [MA phrase] alignment and [RS phrase] relative strength",
+      "supporting_fact": "Directly read from the passed-in context dict (trend_stage/ma_alignment/rs_trend), inferred phrasing but grounded in real values",
+      "source_field": "narrative.why_it_matters (context-derived phrases)",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    }
+  ],
+  "family_key": "power_earnings_gap+episodic_pivot",
+  "family_label": "Power Earnings Gap (PEG) &amp; Episodic Pivot (EP)",
+  "geometry_matrix_row": {
+    "exact_candles": "partial \u2014 full OHLCV of the key bar(s) lives in geometry.extras (gap_open/high/low/close for PEG; ep_high/low/close for EP) and anchors[]/pivot_ts[] carry price+timestamp pairs, but there is no typed Candle/bar-index field \u2014 identity is reconstructable, not natively addressable.",
+    "start_timestamp": "yes \u2014 start_t is an explicit int unix-seconds field (prior_bar[\"t\"] for PEG, base_start_bar[\"t\"] for EP).",
+    "end_timestamp": "yes \u2014 end_t = last_bar[\"t\"] for both.",
+    "pivots": "partial \u2014 pivot_ts is a bare list of raw timestamps (no price, type, strength, or bar_index); the engine's typed Pivot object is never populated by this family.",
+    "trendlines": "no \u2014 neither file ever constructs a Trendline; no base/consolidation boundary is fit as a line.",
+    "horizontal_levels": "partial \u2014 entry/stop/target and gap_open/gap_close/post_gap_high/low (PEG) or base_high/base_low (EP) are real scalar price levels in the output, but stored as flat numbers, not as structured Level objects with touches/reason.",
+    "zones": "partial \u2014 the post-gap consolidation window (PEG) and the pre-EP base window (EP) are fully computable bounded price\u00d7time rectangles from stored indices/prices, but never packaged as a distinct zone geometry object.",
+    "ma_interactions": "partial \u2014 nearest_rising_ma_alignment computes a real aligned_ma/value/distance_pct against the pullback low (shared structure_quality helper), surfaced as flat scalars in geometry.extras, not a typed MA-interaction object, and only against the pullback low rather than the gap/EP bar itself.",
+    "gap_geometry": "PEG=yes (gap_pct, gap_open/high/low/close, prior_close all explicit and gated) / EP=no \u2014 ep_open is extracted (line 113) and never read again; no gap ratio is ever computed despite EP being a namesake gap pattern in both cited authors' published material.",
+    "event_markers": "no \u2014 no earnings-date, catalyst, or news marker anywhere; context[\"days_to_earnings\"] is a permanent None stub never read by either detector.",
+    "lifecycle": "partial \u2014 hardcoded status=\"ready\" at emission for both; the shared engine-wide memory.track_outcomes job resolves to completed/failed/expired via a real entry/stop/target walk-forward, but 'forming' and 'triggered' are dead status values this family never writes.",
+    "explanation_criteria": "no \u2014 no structured Criterion objects (id/condition/operator/observed/expected/pass-fail/source); narrative is unstructured prose and quality_components exposes only 4 rolled-up floats with no per-gate breakdown.",
+    "confidence_inputs": "yes \u2014 quality_components exposes the 4 weighted sub-scores (geometry/volume/context/historical) and the fixed weights (0.40/0.25/0.20/0.15) are visible in code.",
+    "quality_inputs": "yes for the top-level 4 scores (same field as confidence_inputs); no for the finer internal sub-formula components (e.g. gap_score/tightness_score/holding_score/bars_score for PEG), which are computed in _score_geometry but discarded before the return dict is built."
+  },
+  "geometry_readiness_color": "RED",
+  "geometry_readiness_rationale": "Correctness must be addressed before geometry investment pays off. Three concrete correctness problems, not merely enrichment gaps: (1) episodic_pivot.py extracts the bar's open price and then never uses it for anything \u2014 the pattern's own namesake requires a gap, and the code doesn't test for one, so a geometrically valid EP detection today could be a same-day range-expansion breakout with zero opening gap, which is a different pattern than either cited source describes; (2) the family's whole premise is an earnings-driven event, yet neither detector reads the earnings-date field the engine schema already carries (it's a permanent None stub), so no detection from this family can honestly be called an 'earnings' gap as shipped \u2014 and the narrative asserts the earnings link as established fact on every detection anyway; (3) the narrative text carries specific, checkable statistics and attributions (a 30-100%/4-12wk extension figure, a 70%+ continuation rate, named authors for claims those authors never published, a 3-5-week base that contradicts the cited author's own 3-6-month figure) that this repo's own research corpus directly contradicts. These are member-facing, presented as fact, and wrong. Enriching geometry (pivots, zones, trendlines) on top of a detector that mislabels its own subject and states fabricated statistics would just make the wrong story more convincing-looking.",
+  "p_issues": [
+    {
+      "priority": "P0",
+      "title": "episodic_pivot.py never tests for a gap despite being named 'Episodic Pivot'",
+      "description": "ep_open is extracted (line 113) and stored in the candidate dict (line 189) but never read again anywhere in the file. Neither Bonde's nor Kullam\u00e4gi's published 'Episodic Pivot' (both explicitly gap patterns, 4-10%+ per the research corpus) is what this code detects \u2014 it detects a same-day range-expansion+close-location+volume-surge breakout from a base, which could fire on a stock that opened flat and ran up intraday with zero opening gap.",
+      "evidence": "api/services/pattern_engine/detectors/uct/episodic_pivot.py:113,189 (ep_open computed, never reused); grep for 'gap' in the file returns zero hits; docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:170 (Kullam\u00e4gi: 'Gap up 10%+ Big volume') and :550 (Bonde's 2010 scan requires an 8%+ or $5+ open-vs-prior-close move)."
+    },
+    {
+      "priority": "P0",
+      "title": "Neither detector checks earnings-date proximity despite the family's names promising an earnings/event link",
+      "description": "context['days_to_earnings'] is hardcoded None by build_context and never populated; grep confirms zero references to it (or 'earnings' as a gate) in either detector file. As shipped, 'Power Earnings Gap' is a pure price-gap+volume-surge+tight-hold detector and cannot distinguish an earnings gap from an FDA-approval gap, a short squeeze, or (per the D7 repro) illiquid noise.",
+      "evidence": "api/services/pattern_engine/primitives/context.py:170 ('days_to_earnings': None); grep of both detector files for 'earnings'/'days_to_earnings' as gating logic returns no hits; independently corroborated by docs/superpowers/research/setups/setup_criteria.json:261 and :328, a separate initiative reaching the same conclusion about the same two pattern names."
+    },
+    {
+      "priority": "P0",
+      "title": "Narrative text states fabricated performance statistics and false author attributions as fact",
+      "description": "Multiple specific, checkable claims (30-100% extension in 4-12 weeks, 70%+ continuation rate, Kullam\u00e4gi wanting a 3-5-week base, 'Power Earnings Gap' being Bonde's, Lance Breitstein and 'Burnt Toast' EP variants) are either directly contradicted by or entirely absent from this repo's own research corpus, and are shown to paying members on every detection.",
+      "evidence": "power_earnings_gap.py:489-490,502-503,508-511; episodic_pivot.py:465-467,469-473,489-493; contradicted by docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:172-173,569-576,785-793 and docs/superpowers/research/setups/setup_criteria.json:316-326; zero corpus hits for 'Breitstein'/'Burnt Toast' outside this file."
+    },
+    {
+      "priority": "P0",
+      "title": "No minimum price or dollar-volume floor lets thin/illiquid names fire at high confidence",
+      "description": "Only degenerate-input guards exist (prior_close<=0 for PEG; avg_range/avg_volume<=0 for EP) \u2014 no price floor, no dollar-volume floor. Reproduced: a synthetic $0.45 stock on 150K-480K share volume fires power_earnings_gap at 78.62 confidence with full entry/stop/target levels.",
+      "evidence": "api/services/pattern_engine/detectors/uct/power_earnings_gap.py:126-165 (no price/dollar-volume check); empirical reproduction in this session (throwaway script, not committed) \u2014 PEG fired confidence=78.62 on bars priced $0.45\u2192$0.49\u2192~$0.50."
+    },
+    {
+      "priority": "P1",
+      "title": "Phase 3A's gap-threshold citation is sourced to the wrong pattern's primary material",
+      "description": "The 0.08 floor is correctly transcribed from Bonde's 2010 material but that formula is Bonde's Episodic Pivot scan, not anything called 'Power Earnings Gap' \u2014 no Bonde source for 'Power Earnings Gap' exists at all per the research corpus.",
+      "evidence": "power_earnings_gap.py:11-18 comment citing 'Bonde's own 2010 Stockbee post'; docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:550 (the actual 2010 formula, filed under 'Episodic Pivot \u2014 Bonde's version', not PEG); docs/uct-scanner-intelligence/decision-log.md:51-56."
+    },
+    {
+      "priority": "P1",
+      "title": "Duplicated context-scoring code gives both patterns the identical trend-context reward despite theoretically opposite prior-trend requirements",
+      "description": "_score_context, _hostile_context, and four narrative-phrase helpers are byte-identical across both files, so EP gets the same soft bonus for a pre-existing Stage 2 uptrend that PEG's research entry calls 'the discriminator that separates PEG from EP' \u2014 while Kullam\u00e4gi's own EP requires the stock NOT have rallied in the prior 3-6 months.",
+      "evidence": "api/services/pattern_engine/detectors/uct/power_earnings_gap.py:322-348 vs episodic_pivot.py:281-307 (identical text); docs/superpowers/research/setups/setup_criteria.json:308 ('the discriminator that separates PEG from EP'); docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md:172-173."
+    },
+    {
+      "priority": "P2",
+      "title": "No Criterion-shaped explanation exists for either detector; sub-scores are computed then discarded",
+      "description": "quality_components exposes only the 4 top-level weighted scores; the finer internal components (gap_score/tightness_score/holding_score/bars_score for PEG; flatness/range/close/length for EP) are computed inside _score_geometry but never returned, so no future UI can show which specific sub-criterion drove the score.",
+      "evidence": "power_earnings_gap.py:246-307 (_score_geometry computes 4 named sub-scores, only the summed `base` survives into the return); episodic_pivot.py:211-266 (same shape)."
+    },
+    {
+      "priority": "P2",
+      "title": "Status lifecycle is coarse and 'triggered' is a dead value for this family",
+      "description": "Both detectors hardcode status='ready' and rely entirely on the shared engine-wide outcome tracker (completed/failed/expired), which never writes an intermediate 'triggered' state even though it internally computes entry_hit.",
+      "evidence": "power_earnings_gap.py:625, episodic_pivot.py:596 (hardcoded 'ready'); api/services/pattern_engine/memory.py:253-384 (track_outcomes never sets status='triggered')."
+    },
+    {
+      "priority": "P3",
+      "title": "Geometry primitives (Pivot, Trendline, Zone) are never populated despite the engine defining typed shapes for them",
+      "description": "pivot_ts is a bare timestamp list rather than the engine's typed Pivot objects; no Trendline is ever fit for the base/consolidation boundary; the post-gap/pre-EP zone is fully computable but never packaged as a Zone object \u2014 future chart-overlay work would need to derive these from scalar extras rather than read them directly.",
+      "evidence": "api/services/pattern_engine/types.py (Pivot, Trendline TypedDicts, defined engine-wide, unused by this family); power_earnings_gap.py:469-473 and episodic_pivot.py:422-427 (pivot_ts as bare int list)."
+    }
+  ],
+  "provenance_readiness": "This family has NO Criterion system today \u2014 that architecture exists only in base_catalog (System-D), which this family has no twin in (confirmed: grep of api/services/screener/base_catalog.py for both pattern names/aliases returns nothing). Pattern-engine detections carry `quality_components` (4 unlabeled floats: geometry/volume/context/historical, with fixed weights 0.40/0.25/0.20/0.15 visible in code) and `geometry.extras` (a flat dict of raw computed values \u2014 gap_pct, gap_volume_ratio, ep_range_ratio, close_strength, etc.), but neither is shaped as criterion/observed-value/expected-value/operator/required-optional/pass-fail/source/algorithm-version. Concretely: a future provenance surface COULD expose per-gate pass/fail today by re-deriving it from the extras dict against the module's own named constants (_MIN_GAP_PCT, _MIN_VOLUME_RATIO, etc. \u2014 all present as named module-level constants, real and grep-able), but the detector itself does not currently emit that structure \u2014 it only emits the input values and the final boolean (fired or not). There is no `source` field anywhere in the output tying a value to Bonde/Kullam\u00e4gi/Minervini text (the citation exists only in prose docstrings and narrative, several of which this audit found to be wrong). There is no `algorithm-version` field on any pattern-engine detection \u2014 decision-log.md:112-119 confirms the whole pattern-engine has no per-detector version field at all, only informal 'Phase N' comment tags (this family's is tagged 'Phase 3A, 2026-09-02' in power_earnings_gap.py's comments, per that convention). Building real provenance for this family would mean: (1) porting the base_catalog Criterion pattern into pattern-engine (an engine-wide change, out of scope for this single family), or (2) minimally, restructuring _score_geometry's discarded sub-scores plus the existing named constants into a returned list of {criterion, observed, expected, operator, pass} tuples specific to these two files.",
+  "quantitative_metrics_available": true,
+  "quantitative_metrics_summary": "Fixture battery counts (both files, tests/pattern_engine/detectors/test_{power_earnings_gap,episodic_pivot}.py): power_earnings_gap has 17 fixtures (test_power_earnings_gap.py enforces >=5 positive/>=8 negative/>=2 edge via test_fixture_battery_has_minimum_coverage); episodic_pivot has 14 fixtures under the same minimums. Each file has exactly 4 test functions: (1) the parametrized per-fixture battery (asserts fires/doesn't-fire + confidence band + geometry shape), (2) the minimum-coverage count assertion, (3) narrative-richness (character-length only, not factual accuracy \u2014 700-1100 chars for PEG body fields, 300+ chars for EP), (4) geometry-extras-field-presence + gate-boundary sanity (e.g. gap_pct>=8.0<=100.0). No test anywhere checks earnings-date logic (none exists to check), narrative factual accuracy, price/liquidity floors, or D7-style adversarial cases beyond one split-artifact fixture and one hostile-downtrend fixture. Confidence formula for both: `0.40*geometry_score + 0.25*volume_score + 0.20*context_score + 0.15*historical_score(fixed 50.0)`, floor 50.0 to emit, best-of-window (single detection returned even when multiple candidates in the scan window qualify).",
+  "validation_card_markdown": "# Family Validation Card \u2014 Power Earnings Gap (PEG) & Episodic Pivot (EP)\n\nTwo related, event-shaped gap/breakout continuation detectors, audited together per D6 (relatedness) while remaining two independent structures.\n\n---\n\n## PEG \u2014 Power Earnings Gap\n\n### Identity\n- **Canonical name:** Power Earnings Gap (PEG). **Aliases:** none in code; narrative additionally frames it against \"News Gappers\" (`api/services/pattern_vision/eval.py:20` maps both to `power_earnings_gap`).\n- **Family:** UCT gap-continuation, single detection window.\n- **Direction:** bullish only.\n- **Timeframe support:** whatever `bars` the caller passes \u2014 no explicit TF gate in the detector; typically Daily via the universe scan.\n\n### Current Implementation\n- **Path:** `api/services/pattern_engine/detectors/uct/power_earnings_gap.py` (633 lines).\n- **Engine:** pattern-engine only. No `base_catalog`/System-D twin (grep of `api/services/screener/base_catalog.py` for the name/aliases is empty \u2014 verified).\n- **Consumers (grep-confirmed):**\n  - `api/routers/patterns.py` \u2014 registers the detector, exposes `GET /api/patterns/{sym}` / `/scan` / `/types` (`require_paid`). The two frontend files the router's own comment names (`pages/Patterns.jsx`, `pages/patterns/PatternFilter.jsx`) **do not exist** in `app/src/pages` (confirmed by file search) \u2014 consistent with CLAUDE.md's note that `/patterns` has no route/nav entry as of 2026-09-01.\n  - `api/services/journal_two/coach_chat_tools.py:798-891` + `api/services/voice_tool_impls.py:2046-2199` \u2014 **live, real consumer**: Compass's `find_patterns_on_ticker`/`scan_active_patterns`/`list_pattern_types` tools (behind `BRAIN_TOOLS_ENABLED`), both voice and text chat, query `pattern_engine.memory`/`pattern_db` directly.\n  - `api/services/screener/pattern_join.py` \u2192 `snapshot_builder.py:1051` \u2014 **live, real consumer**: nightly screener snapshot build reads `pattern_detections` and surfaces per-pattern flags in screener rows.\n  - `api/services/pattern_vision/{eval,orchestrator,rubrics}.py` \u2014 the LLM vision-judge layer (gated `PATTERN_VISION_ENABLED`, default \"1\" in code at `api/main.py:2336`; user memory states it is currently OFF in prod \u2014 **not independently re-verified against live Railway in this audit**, flagged as unverified).\n- **Active/reachable:** the detection engine itself is actively scheduled and running \u2014 `_run_patterns_universe_scan` (daily 1:00 AM ET), `_run_patterns_leaders_scan` (hourly), `_run_patterns_track_outcomes` (every 4h), `_run_patterns_prune` (daily) \u2014 all registered in `api/main.py:6200-6234`. The dedicated standalone `/patterns` page is dead; the pattern IS reachable via Compass (AI chat/voice) and via screener row flags.\n\n### Definition\n- **Code/docstring:** last-30-bar gap-bar search; gap_pct>=8% (<=100% ceiling); volume>=3x 20-bar avg; 3-10 post-gap bars; post-gap low holds above `gap_open*0.99`; post-gap tightness < 0.70x the gap bar's range; not-yet-broken-out gate.\n- **External/practitioner reference:** the family's own research corpus (`docs/superpowers/research/setups/setup_criteria.json:316-326`) finds **no published numeric definition of \"Power Earnings Gap\" by Mark Minervini anywhere**, with attribution contested to `@traderstewie`. The code instead attributes it to Bonde/Stockbee \u2014 a THIRD, unsupported attribution (see D1/D8 below).\n- **Disagreements/threshold provenance:** see D3 finding \u2014 the 8% floor is a real Bonde number, but sourced from Bonde's *Episodic Pivot* scan, not any PEG material.\n\n### Detection Inputs\nOHLCV bars only, plus `context` dict: `trend_stage`, `ma_alignment`, `rs_trend`, `regime`, `can_slim_grade`/`can_slim_score`, `dcr_signature`/`recent_dcr_avg`. **`context[\"days_to_earnings\"]` exists in the schema and is never read** (it is also always `None` \u2014 see D2).\n\n### Pattern Identity Conditions (hard gates, `_try_extract`)\ngap_pct\u2208[0.08,1.00]; volume_ratio>=3.0 (20-bar pre-gap avg); post_gap_bars\u2208[3,10]; min_post_gap_low > gap_open*0.99; avg(last-3 post-gap ranges) < 0.70*gap_range; last close not already > prior post-gap high*1.005; `_hostile_context` reject (Stage4 AND stacked_bearish AND rs_down).\n\n### Quality Conditions (soft, score-only)\n`_score_geometry` (gap size, tightness, holding margin, bar-count sweet-spot 4-7), `_score_volume` (3x=50\u21925x=100), `_score_context` (Stage 1/2 bonus, MA/RS bonus, DCR/CAN-SLIM adjustments) \u2014 none of these gate identity (confirmed line-by-line, D4 clean).\n\n### Lifecycle Conditions\nEmits `status=\"ready\"` always; shared engine `memory.track_outcomes` resolves to completed/failed/expired via price walk-forward.\n\n### Invalidators\nNarrative-only: close below gap-day low (stop basis); \"drifting lower highs/lows over 5+ bars.\" Not code-enforced beyond the stop level in `levels`.\n\n### Geometry Available / Missing\nSee the shared Geometry Readiness Matrix below (both patterns share it).\n\n### Narrative/Explanation Summary\nRich, paragraph-length prose citing Bonde, Kullam\u00e4gi, and Minervini with specific numeric claims. **Multiple claims are fabricated or misattributed** \u2014 see D1 findings and the Explanation Truth Table.\n\n### Confidence/Quality Scoring\n`0.40*geom + 0.25*vol + 0.20*ctx + 0.15*hist(fixed 50.0)`, floor 50 to emit, best confidence in the scan window wins (single detection).\n\n### Known Tests\n`tests/pattern_engine/detectors/test_power_earnings_gap.py` \u2014 4 test functions: fixture battery (17 fixtures: >=5 positive/>=8 negative/>=2 edge), coverage-count assertion, narrative length (not accuracy), geometry-extras presence + gate-boundary sanity. No earnings/liquidity/narrative-truth coverage.\n\n### Known Failure Modes (D7)\nNo price/dollar-volume floor \u2014 empirically fires (confidence 78.62) on a synthetic $0.45 stock. Split-artifact and hostile-downtrend fixtures exist; penny-stock/thin-liquidity does not.\n\n### Research Evidence Summary\n`docs/superpowers/research/bases/08-qullamaggie-stockbee-momentum.md` (Bonde's real published body of work \u2014 no \"Power Earnings Gap\" anywhere in it) and `docs/superpowers/research/setups/setup_criteria.json:297-329` (a separate initiative's PEG entry: contested Minervini attribution, no numeric definition found, the pre-existing-Stage-2-trend \"discriminator\" the code doesn't hard-gate on).\n\n### Validation Status\nNever blinded-reviewed; no gold-standard test set exists (only `docs/uct-scanner-intelligence/vcp_gold_standard/` exists in the repo, for VCP).\n\n### Recommended Action\n**CORRECT_DETECTOR_LOGIC** \u2014 see `detector_action_evidence`.\n\n---\n\n## EP \u2014 Episodic Pivot\n\n### Identity\n- **Canonical name:** Episodic Pivot. **Family:** UCT single-bar breakout-from-base. **Direction:** bullish only (\"Phase 2 ships only bullish EPs\" per docstring). **Timeframe:** caller-supplied bars, typically Daily.\n\n### Current Implementation\n- **Path:** `api/services/pattern_engine/detectors/uct/episodic_pivot.py` (604 lines). Same engine/consumer picture as PEG above (both imported together in `api/routers/patterns.py:70-71`, both wired into the same Compass tools and screener join).\n\n### Definition\n- **Code:** finds an EP bar in the last 5 bars with close_strength>=0.70, range_ratio>=2.0x (20-bar avg), volume_ratio>=2.0x, preceded by a 15-60 bar base (depth<=25%) whose high the EP bar's close breaks.\n- **External reference:** Kullam\u00e4gi (`08-...md:157-229`) requires a 10%+ GAP, 3-6 MONTH dormancy, a fundamental growth/beat gate, and disqualifies a stock that already rallied. Bonde's version (`08-...md:535-613`) requires a 4-8%+ gap plus specific volume-surge/float/EPS/neglect criteria. **The code implements neither's gap requirement at all** \u2014 see D2.\n\n### Detection Inputs\nOHLCV bars + same `context` dict as PEG. `days_to_earnings` unread here too.\n\n### Pattern Identity Conditions (hard gates)\nclose_strength>=0.70; range_ratio>=2.0; volume_ratio>=2.0; a base window (15-60 bars, tried longest-first) with depth<=25% whose high the EP bar's close exceeds; `_hostile_context` reject.\n\n### Quality Conditions\n`_score_geometry` (base flatness, range expansion, close strength, base-length sweet-spot 20-40), `_score_volume`, `_score_context` \u2014 identical formula/weights to PEG, and (D6) byte-identical helper functions.\n\n### Lifecycle / Invalidators\nSame shared engine lifecycle as PEG. Invalidation: close below EP-day low (stop basis).\n\n### Narrative/Explanation Summary\nCites Bonde, Kullam\u00e4gi, Lance Breitstein, and \"Burnt Toast\" \u2014 several claims fabricated or unsupported; see D1 and the Explanation Truth Table.\n\n### Confidence/Quality Scoring\nIdentical formula to PEG.\n\n### Known Tests\n`tests/pattern_engine/detectors/test_episodic_pivot.py` \u2014 same 4-function shape, 14 fixtures (>=5/>=8/>=2 minimum). No gap-related test exists because the code has no gap concept to test.\n\n### Known Failure Modes\nSame liquidity-floor gap as PEG (untested empirically for EP specifically in this session, but the code path is structurally identical \u2014 no price/volume floor beyond degenerate-input guards).\n\n### Research Evidence Summary\nSame `08-qullamaggie-stockbee-momentum.md` file (Kullam\u00e4gi's and Bonde's two independently-published, materially different EP definitions, both requiring a gap and a fundamental catalyst) plus `docs/superpowers/research/setups/setup_criteria.json:224-265` (a separate initiative's independent EP entry, reaching the same \"no catalyst column\" conclusion).\n\n### Validation Status\nNever blinded-reviewed; no gold-standard set.\n\n### Recommended Action\n**CORRECT_DETECTOR_LOGIC** (shared with PEG; EP additionally needs its missing gap computation addressed).\n\n---\n\n## D6 \u2014 How PEG and EP relate\nGenuinely distinct geometric structures (multi-day gap-and-hold vs single-bar range-expansion-from-base) \u2014 not duplicates. But their context-scoring machinery (`_score_context`, `_hostile_context`, four narrative-phrase helpers) is literally copy-pasted between the two files, so both reward the identical trend/MA/RS profile despite the research corpus establishing they should have opposite prior-trend requirements (PEG wants an existing uptrend; EP's own namesake authors want the *absence* of one). Not recommending consolidation \u2014 recommending the shared code be *differentiated*, not merged.\n\n---\n\n## Geometry Readiness Matrix, Provenance Readiness, P-issues, Explanation Truth Table\n\nSee the structured fields (`geometry_matrix_row`, `provenance_readiness`, `p_issues`, `explanation_truth_table`) \u2014 identical content, provided there to satisfy the schema without duplicating ~150 lines of markdown here.\n\n## Overall color: RED (both structures) \u2014 see `geometry_readiness_rationale`."
+}
