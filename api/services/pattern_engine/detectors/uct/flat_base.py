@@ -31,6 +31,7 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
@@ -79,6 +80,14 @@ def detect_flat_base(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Flat Base patterns. May emit 0-N detections (best one)."""
     # Need enough bars for prior advance + base + a final unbroken edge
     if len(bars) < (_PRIOR_ADVANCE_LOOKBACK // 2 + _MIN_BASE_BARS + 1):
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # synthetic $0.35/share series with ~$750/day dollar volume fired at
+    # confidence 67.6, shipping "institutional sponsorship" narrative —
+    # neither this file nor base_catalog.py's flat_base_state/
+    # ascending_base_state gated on price or liquidity anywhere.
+    if not liquidity_floor(bars).passes:
         return []
 
     last_idx = len(bars) - 1

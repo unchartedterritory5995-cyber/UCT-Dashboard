@@ -51,6 +51,7 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.primitives.dcr import compute_dcr, dcr_strength
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -66,6 +67,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_bearish_engulfing(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect bearish-engulfing 2-bar patterns. Emits 0 or 1 Detection (most recent)."""
     if len(bars) < _MIN_BARS:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate (mirrors
+    # bullish_engulfing.py — same detector shape, same reproduced
+    # false-positive class: a low-liquidity, weak-geometry pair still
+    # clearing the confidence floor via volume/context compensation with
+    # no price or liquidity floor anywhere in the gate).
+    if not liquidity_floor(bars).passes:
         return []
 
     detections: List[Detection] = []

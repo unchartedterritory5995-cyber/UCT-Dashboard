@@ -29,6 +29,7 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     structure_narrative_sentence,
 )
 from api.services.pattern_engine.primitives.geometry import channel_width_parallel_score
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_pair_parallel
 from api.services.pattern_engine.types import Bar, Detection
@@ -48,6 +49,15 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_bull_flag(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect bull flag patterns in the bars. May emit 0-N detections."""
     if len(bars) < 30:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # $1.00 penny stock at 250-500 shares/day with a single-bar +13% jump
+    # (indistinguishable from a reverse-split/halt-gap artifact) followed
+    # by quiet consolidation bars fired at 92.5% confidence with no floor
+    # anywhere in the gate. Reject the whole series before any candidate
+    # extraction — an illiquid series should never reach scoring.
+    if not liquidity_floor(bars).passes:
         return []
 
     detections: List[Detection] = []

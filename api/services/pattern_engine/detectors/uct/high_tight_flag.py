@@ -15,8 +15,10 @@ Geometric definition:
     <=25% of the pole height.
   - Channel: parallel or slightly down-sloping; pennant convergence ok.
   - Volume: must contract dramatically in the flag (<=60% of pole avg).
-  - Liquidity: stock should be liquid (avg daily volume >= 200K)
-    (this gate is skipped in synthetic fixtures).
+  - Liquidity: shared liquidity/price-floor primitive (Phase 6 Group 2,
+    api/services/pattern_engine/primitives/liquidity.py) — this docstring
+    used to claim an "avg daily volume >= 200K" gate that the code never
+    implemented anywhere; that claim is corrected here rather than repeated.
   - Direction: bullish
 
 Scoring (composite 0-100):
@@ -36,6 +38,7 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
 )
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
@@ -80,6 +83,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_high_tight_flag(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect High Tight Flag patterns. May emit 0-N detections (best one)."""
     if len(bars) < (_MIN_POLE_BARS + _MIN_FLAG_BARS + 5):
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # synthetic 3-bar pole (this file's own documented floor) with gains
+    # of 119%/500%/1500% and flag_volume_ratio as low as 0.013 fired at
+    # confidence 82.5, well above the 50 floor — despite the module
+    # docstring's explicit but previously-fictional liquidity-gate claim.
+    if not liquidity_floor(bars).passes:
         return []
 
     pivots = detect_pivots(bars, window=3)

@@ -49,6 +49,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
@@ -75,6 +76,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_power_earnings_gap(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Power Earnings Gap patterns. Emits 0 or 1 detection."""
     if len(bars) < _AVG_LOOKBACK + _MIN_POST_GAP_BARS + 1:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Only degenerate-
+    # input guards existed before this (prior_close<=0) — no price floor,
+    # no dollar-volume floor. Reproduced live: a synthetic $0.45 stock on
+    # 150K-480K share volume fired at confidence 78.62 with full
+    # entry/stop/target levels.
+    if not liquidity_floor(bars).passes:
         return []
 
     last_bar_idx = len(bars) - 1

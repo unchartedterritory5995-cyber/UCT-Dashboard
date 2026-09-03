@@ -51,6 +51,7 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.primitives.dcr import compute_dcr, dcr_strength
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -66,6 +67,16 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_bullish_engulfing(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect bullish-engulfing 2-bar patterns. Emits 0 or 1 Detection (most recent)."""
     if len(bars) < _MIN_BARS:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # synthetic penny-stock two-bar pair (91.5%-wick, geometry_score=26.73/100)
+    # still cleared the identity gate and the confidence floor at 57.19,
+    # because volume_score and context_score compensated — no price floor,
+    # no liquidity floor, and only a RELATIVE 1.2x body ratio existed
+    # anywhere in the gate. Reject the whole series before any candidate
+    # extraction.
+    if not liquidity_floor(bars).passes:
         return []
 
     detections: List[Detection] = []
