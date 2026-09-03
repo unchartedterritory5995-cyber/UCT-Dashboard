@@ -99,6 +99,11 @@ export default function Layout({ children }) {
           <main className={styles.main}>
             {children ?? <Outlet />}
           </main>
+          {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
+              expanded rail reads as a DRAWER over the page (content clearly behind
+              it) instead of the panel edge "cutting off" the page title/content.
+              Driven purely by CSS `:has(nav:hover)` — see Layout.module.css. */}
+          <div className={styles.navScrim} aria-hidden="true" />
           <FeedbackWidget />
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />

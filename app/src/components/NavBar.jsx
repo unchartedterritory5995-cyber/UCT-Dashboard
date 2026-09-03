@@ -2,7 +2,6 @@
 import { NavLink, Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
-import AlertBell from './AlertBell'
 import UIcon from './ui/UIcon'
 import { NAV_GROUPS } from './navGroups'
 import styles from './NavBar.module.css'
@@ -13,20 +12,26 @@ const fetcher = (url) =>
 
 // Exported so navGroups.test.js can verify every entry maps into exactly one
 // NAV_GROUPS bucket, without restating this list a second time in the test.
+// Order WITHIN each group is this array's relative order (GROUPED_NAV_ITEMS
+// preserves it); which group an item lands in is navGroups.js. Grouped here
+// with comments so the two read together.
 export const NAV_ITEMS = [
-  { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
-  { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
+  // HOME
+  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
+  // MARKETS
+  { to: '/dashboard',    label: 'Dashboard',     icon: 'dashboard' },
   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
-  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
-  { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
+  // CHARTS
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
+  // JOURNAL
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },
   { to: '/journal',      label: 'Journal',       icon: 'journal' },
   { to: '/community',    label: 'Community',     icon: 'community' },
@@ -59,9 +64,18 @@ const GROUPED_NAV_ITEMS = (() => {
 })()
 
 export default function NavBar() {
-  const { user, isPaid } = useAuth()
+  const { user, isPaid, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
+
+  // Account-card plan label (mirrors MoreSheet's identity header).
+  const planLabel = isAdmin
+    ? 'Admin'
+    : isPaid
+      ? (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'Pro')
+      : 'Free'
+  const accountName = user?.display_name || user?.email || 'Guest'
+  const accountInitial = (user?.display_name || user?.email || '?')[0].toUpperCase()
 
   // P5-C unification: Compass unread count on the Journal nav link.
   // Polls /api/voice/insights/pending every 30s. Voice/Compass is paid-only
@@ -158,14 +172,46 @@ export default function NavBar() {
         {GROUPED_NAV_ITEMS.map((group) => (
           <div key={group.key} className={styles.navGroup}>
             {group.label && <div className={styles.groupLabel}>{group.label}</div>}
-            {group.items.map(renderItem)}
+            {/* Support lives in the compact utility cluster at the bottom, not the
+                main list — filter it out here so it isn't rendered twice. */}
+            {group.items.filter((i) => i.to !== '/support').map(renderItem)}
           </div>
         ))}
       </div>
       <div className={styles.bottomItems}>
-        <div className={styles.alertSlot}>
-          <AlertBell />
-        </div>
+        {/* Account card — identity header for the footer (avatar + name + plan).
+            Fills the rail's lower space and gives one-tap account access. Avatar
+            is served per-user with an initials fallback (mirrors MoreSheet). */}
+        <Link
+          to="/settings"
+          className={styles.accountCard}
+          title={`${accountName} — ${planLabel}`}
+          aria-label={`Account: ${accountName}, ${planLabel}`}
+        >
+          <span className={styles.accountAvatar}>
+            {user?.id && (
+              <img
+                src={`/api/auth/avatar/${user.id}`}
+                alt=""
+                className={styles.accountAvatarImg}
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+              />
+            )}
+            <span
+              className={styles.accountInitials}
+              style={user?.id ? { display: 'none' } : undefined}
+            >
+              {accountInitial}
+            </span>
+          </span>
+          <span className={styles.accountText}>
+            <span className={styles.accountName}>{accountName}</span>
+            <span className={styles.accountPlan}>{planLabel}</span>
+          </span>
+        </Link>
+        {/* Alerts bell temporarily removed from the sidebar (owner request). To
+            restore: re-add <div className={styles.alertSlot}><AlertBell /></div>
+            here and the AlertBell import + .alertSlot style. */}
         {isAdmin && (
           <NavLink
             to="/admin"
@@ -203,6 +249,7 @@ export default function NavBar() {
             <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
           </Link>
         )}
+        {renderItem(NAV_ITEMS.find((i) => i.to === '/support'))}
         <a
           href={WEBSITE_URL}
           target="_blank"
