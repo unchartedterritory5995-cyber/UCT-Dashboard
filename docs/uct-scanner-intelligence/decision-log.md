@@ -261,25 +261,42 @@ diffed at zero lines against the prior Package-B commit.
 
 ### Revalidation
 - All 5 target cases (BRBS/EDIT/WPM/RXRX/NVAX) confirmed REFUSED pre-change,
-  SURVIVES post-change, matching the owner decision.
+  SURVIVES post-change, matching the owner decision. This is the strong,
+  deterministic evidence for the change — synthetic-fixture inputs, exact
+  and reproducible.
+- Deterministic fixture battery (test-first): `boundary_band_5pct_gap.json`
+  (5% case, confirmed to FAIL under the pre-change 8% floor before the fix)
+  and `below_4pct_gap_still_refused.json` (3% control, refused under either
+  interpretation) both pass as specified. A precise, hand-built boundary
+  test (`test_gap_gate_boundary_is_inclusive_at_exactly_4_percent` +
+  neighbors, exact round-number prices, no fixture-generator rounding
+  noise) confirms the gate's `<` comparison is inclusive at exactly 4.00%
+  — added after independent review flagged that "clearly above" (5%) and
+  "clearly below" (3%) cases alone don't pin the exact operator semantics.
 - Full-universe rescan (3693 symbols, same universe as the original
   pre-registration): firing count 3→7 (was 26 pre-Group-3-gap-gate, 3 under
-  8%, 7 under 4%). **Zero new firings outside the already-characterized
-  26-case set** — every case firing under 4% was already known and audited;
-  no new false-positive class introduced.
+  8%, 7 under 4%), with no firing outside the already-characterized 26-case
+  set. **Caveat, not a controlled experiment:** `C:\data\bars.db` is a
+  live, continuously-updated mirror, and it advanced between the original
+  pre-registration scan and this revalidation (both run within the same
+  long session) — so this is a live-data sanity check corroborating the
+  deterministic evidence above, not a frozen, strictly-controlled
+  before/after comparison. The deterministic fixtures are what actually
+  establish the threshold's correctness; the rescan shows no unexpected
+  live-universe consequence, no more and no less.
 - One expected case (EL, one of the original 3 survivors under 8%) no
-  longer fires — confirmed benign: its EP bar aged past the detector's
-  5-bar recency window because `C:\data\bars.db` (a live, continuously-
-  updated mirror) advanced ~11 trading days between the original
-  pre-registration scan and this revalidation, both run within the same
-  long session. Its underlying gap_pct (11.24%) is unchanged and still
-  valid; only its "recent" status expired, which is the detector's
-  intended behavior for a live-scan freshness gate, not a threshold defect.
+  longer fires in the rescan — confirmed benign: its EP bar aged past the
+  detector's 5-bar recency window because bars.db advanced ~11 trading days
+  between the two scans. Its underlying gap_pct (11.24%) is unchanged and
+  still valid; only its "recent" status expired, which is the detector's
+  intended behavior for a live-scan freshness gate, not a threshold defect
+  — this is exactly the kind of data-currency artifact the caveat above
+  exists to name.
 - Evidence: `docs/uct-scanner-intelligence/tier1_validation/data/
   phase6_group3_owner_4pct_revalidation_2026-09-04.json`.
 
 ### Full regression
-`tests/pattern_engine/` (2351 passed, 9 pre-existing unrelated xfails) +
+`tests/pattern_engine/` (2355 passed, 9 pre-existing unrelated xfails) +
 Compass/scheduler consumer set (64 passed) green. `power_earnings_gap.py`
 and `context.py` confirmed untouched (zero diff).
 

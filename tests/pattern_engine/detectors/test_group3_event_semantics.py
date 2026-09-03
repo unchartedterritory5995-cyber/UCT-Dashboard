@@ -72,6 +72,58 @@ def test_a_genuine_gap_ep_still_fires():
     assert detections[0]["geometry"]["extras"]["gap_pct"] >= EP_MIN_GAP_PCT * 100.0 - 0.01
 
 
+def _hand_built_ep_bars(gap_pct):
+    """A minimal, exact-price EP setup for testing _MIN_GAP_PCT's boundary
+    precisely -- clean round numbers throughout so gap_pct is computed
+    exactly, with no cent-rounding noise from the JSON fixture generator's
+    `round(x, 2)` calls (which drift a *requested* 4.00% target to a
+    *measured* ~3.99%, as found while adding this test)."""
+    bars = []
+    t = 1700000000
+    DT = 86400
+    # 40 quiet base bars at exactly 100.00 (tight, low volume) -- comfortably
+    # above _AVG_LOOKBACK(20) + _MIN_BASE_BARS(15) = 35, the minimum history
+    # detect_episodic_pivot's main loop requires before it will even
+    # consider the most recent bar as a candidate.
+    for i in range(40):
+        bars.append({"t": t, "o": 100.0, "h": 100.5, "l": 99.5, "c": 100.0, "v": 1000.0})
+        t += DT
+    prior_close = bars[-1]["c"]
+    ep_open = round(prior_close * (1.0 + gap_pct), 10)  # exact, not cent-rounded
+    bars.append({
+        "t": t, "o": ep_open, "h": ep_open + 8.0, "l": ep_open - 0.5,
+        "c": ep_open + 7.0, "v": 5000.0,
+    })
+    return bars
+
+
+def test_gap_gate_boundary_is_inclusive_at_exactly_4_percent():
+    """⭐ Reviewer-flagged (ChatGPT, Package-B relay review 2026-09-04):
+    the gate is `if gap_pct < _MIN_GAP_PCT: return None`, so a gap of
+    EXACTLY 4.00% must be ACCEPTED (inclusive floor), not refused. Uses
+    hand-built exact prices, not the fixture generator, so there is no
+    rounding ambiguity about which side of the line the case actually
+    lands on."""
+    bars = _hand_built_ep_bars(gap_pct=EP_MIN_GAP_PCT)
+    ctx = build_context(bars, sym="TEST")
+    detections = detect_episodic_pivot(bars, ctx)
+    assert detections, "a gap of exactly 4.00% must fire under the inclusive `<` gate"
+
+
+def test_gap_gate_boundary_refuses_just_below_4_percent():
+    bars = _hand_built_ep_bars(gap_pct=EP_MIN_GAP_PCT - 0.001)
+    ctx = build_context(bars, sym="TEST")
+    detections = detect_episodic_pivot(bars, ctx)
+    assert detections == [], "a gap just below 4.00% must still be refused"
+
+
+def test_gap_gate_boundary_accepts_just_above_4_percent():
+    bars = _hand_built_ep_bars(gap_pct=EP_MIN_GAP_PCT + 0.001)
+    ctx = build_context(bars, sym="TEST")
+    detections = detect_episodic_pivot(bars, ctx)
+    assert detections, "a gap just above 4.00% must fire"
+
+
 def test_gap_pct_is_exposed_in_geometry_extras():
     bars, ctx = _load("clean_textbook")
     d = detect_episodic_pivot(bars, ctx or build_context(bars, sym="TEST"))[0]

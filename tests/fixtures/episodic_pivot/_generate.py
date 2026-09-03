@@ -425,6 +425,22 @@ def main():
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 90.0})
 
+    # Owner decision 2026-09-04 (8pct->4pct): a gap just above the new 4%
+    # floor must fire. NOTE: this generator's cent-level price rounding
+    # means ep_gap_pct is a TARGET, not an exact output (measured ~4.09%
+    # here, not 4.00%) -- the mathematically exact `<` boundary test
+    # (gap_pct == 0.04 precisely) is a hand-crafted case in
+    # tests/pattern_engine/detectors/test_group3_event_semantics.py
+    # instead, where round-number prices avoid this fixture generator's
+    # rounding noise entirely.
+    _write("boundary_gap_near_4pct", "edge",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=3.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.041, seed=47),
+           GOOD_CONTEXT,
+           {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0})
+
     print("\nDone - 15 fixtures written.")
 
 
