@@ -11,13 +11,16 @@
 // can be either, both, or neither. See `freshnessContract.js`'s header for
 // why this distinction exists and the naming it enforces.
 //
-// ⚠️ STEP 1 SCOPE: `sessionStale` is caller-supplied only. This component
-// computes NOTHING from elapsed time — a real "has this value gone stale
-// for THIS session" computation needs S11's fuller session/holiday model
-// (SPEC-S8 §19 Step 3) and is deliberately not built here. `sessionState`
-// (sessionModel()'s own `{label, tone}` output) is rendered as session
-// CONTEXT only (open/pre-market/after-hours/closed), never used to derive
-// `sessionStale` — that upgrade is Step 3's, additive, per SPEC-S8 §12.
+// ⚠️ `sessionStale` is CALLER-SUPPLIED ONLY — this component still computes
+// NOTHING from elapsed time itself, by design (it renders; it does not
+// decide). The real "has this value gone stale for THIS session"
+// computation now exists (S11 shipped 2026-09-03 — SPEC-S8 §19 Step 3) in
+// `components/provenance/sessionStale.js::computeSessionStale`, which reads
+// S11's real session/holiday model (`lib/marketClock/marketClock.js`); see
+// `ProvenanceDemo.jsx` for the live wiring. `sessionState`
+// (sessionModel()'s own `{label, tone}` output) stays session CONTEXT only
+// (open/pre-market/after-hours/closed) and is never used here to derive
+// `sessionStale` — the two props remain independent inputs a caller passes.
 //
 // ⚠️ Entitlement/licensing state (D1's `entitlement_denied`) is a SEPARATE,
 // orthogonal dimension from freshness — per the owner's explicit ruling this
