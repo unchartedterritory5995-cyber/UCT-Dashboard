@@ -1,0 +1,13 @@
+# Build output (built by esbuild from src/ — never hand-edit)
+main.js
+
+# Dependencies
+node_modules/
+
+# Obsidian's own per-vault plugin data if this repo is ever symlinked into a
+# test vault for manual verification
+data.json
+
+# Editor / OS
+.DS_Store
+*.log

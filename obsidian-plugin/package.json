@@ -1,0 +1,23 @@
+{
+	"name": "uct-notebook-sync",
+	"version": "0.1.0",
+	"description": "Obsidian plugin: one-way sync of vault markdown into UCT Intelligence Notebook.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"keywords": [],
+	"author": "UCT Intelligence",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^22.15.17",
+		"esbuild": "0.25.5",
+		"obsidian": "latest",
+		"typescript": "^5.8.3",
+		"vitest": "^2.1.9"
+	}
+}

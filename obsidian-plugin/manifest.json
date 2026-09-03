@@ -1,0 +1,10 @@
+{
+	"id": "uct-notebook-sync",
+	"name": "UCT Notebook Sync",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "One-way sync of this vault's markdown notes into your UCT Intelligence Notebook (Journal 2.0).",
+	"author": "UCT Intelligence",
+	"authorUrl": "https://uctintelligence.com",
+	"isDesktopOnly": true
+}
