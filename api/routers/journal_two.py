@@ -1550,6 +1550,21 @@ def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/notes/enrichment/scan")
+def notes_enrichment_scan_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    """The arrival-screen enrichment offer (spec §8.1): scan a set of a
+    member's own notes for ticker mentions using the SAME matcher `/buzz`
+    runs in production (`api.services.buzz_extract` — see
+    `api/services/journal_two/enrichment.py`). Read-only: this never writes
+    a chart embed itself, it only names candidates for the member to accept
+    (`POST /notes/{note_id}/embeds`, already shipped)."""
+    note_ids = payload.get("noteIds")
+    if note_ids is not None and not isinstance(note_ids, list):
+        raise HTTPException(status_code=400, detail="noteIds must be a list")
+    from api.services.journal_two import enrichment
+    return enrichment.scan_notes_for_tickers(user["id"], note_ids or [])
+
+
 @router.get("/notes/{note_id}")
 def get_note_endpoint(
     note_id: str,

@@ -21,6 +21,7 @@ export function sanitizeHtml(html) {
     }
   })
   mapCheckboxLists(doc)
+  mapCalloutsAndToggles(doc)
   rewriteImportLinks(doc)
   return doc.body.innerHTML
 }
@@ -38,6 +39,67 @@ export function rewriteImportLinks(doc) {
     const key = a.getAttribute('data-import-link')
     if (key) a.setAttribute('href', `import-link://${key}`)
     a.removeAttribute('data-import-link')
+  })
+}
+
+// A leading emoji + optional single trailing space, e.g. "\u{1F4A1} tip".
+// One grapheme + an optional variation selector (built via fromCharCode
+// rather than embedded as a literal source character, which is invisible
+// and easy to corrupt in an editor) — covers the overwhelming majority of
+// Notion's own callout icon set (single-codepoint emoji). A ZWJ/skin-tone-
+// modifier sequence simply doesn't match, and the whole line is kept as body
+// text with the default emoji — degraded, never dropped.
+const VARIATION_SELECTOR_16 = String.fromCharCode(0xfe0f)
+const LEADING_EMOJI_RE = new RegExp(`^(\\p{Extended_Pictographic}${VARIATION_SELECTOR_16}?)[ \\t]*`, 'u')
+
+// Notion's classic Markdown export represents a callout as `<aside>…</aside>`
+// (emoji inline as the leading character of the text) and a toggle as
+// `<details><summary>…</summary>…</details>` — see calloutNode.js/
+// toggleNode.js for the evidence this is built against. Both HTML islands
+// pass through `mdToHtml` untouched (per notion.js's own docstring, "for the
+// converter" — this is that converter); this is where they become something
+// the Callout/Toggle node schemas can parse.
+export function mapCalloutsAndToggles(doc) {
+  doc.querySelectorAll('aside').forEach((aside) => {
+    aside.setAttribute('data-type', 'callout')
+    const first = aside.childNodes[0]
+    if (first && first.nodeType === 3) { // TEXT_NODE
+      const trimmed = first.textContent.replace(/^\s+/, '')
+      const m = LEADING_EMOJI_RE.exec(trimmed)
+      if (m) {
+        aside.setAttribute('data-emoji', m[1])
+        first.textContent = trimmed.slice(m[0].length)
+      }
+    }
+  })
+
+  doc.querySelectorAll('details').forEach((details) => {
+    details.setAttribute('data-type', 'toggle')
+    // Imported toggles start OPEN regardless of the source's own `open`
+    // attribute (classic export never carries it meaningfully): a freshly
+    // migrated library should read as "everything arrived", not require
+    // clicking every toggle to confirm nothing was lost.
+    details.setAttribute('data-open', 'true')
+
+    let summary = details.querySelector(':scope > summary')
+    if (!summary) {
+      // Malformed/older source with no <summary> — synthesize an empty one
+      // rather than dropping the whole block (the toggle schema requires
+      // exactly one toggleSummary child).
+      summary = doc.createElement('summary')
+      details.insertBefore(summary, details.firstChild)
+    }
+    summary.setAttribute('data-type', 'toggleSummary')
+
+    const wrap = doc.createElement('div')
+    wrap.setAttribute('data-type', 'toggleContent')
+    let node = summary.nextSibling
+    while (node) {
+      const next = node.nextSibling
+      wrap.appendChild(node)
+      node = next
+    }
+    details.appendChild(wrap)
   })
 }
 

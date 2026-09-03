@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import ImportWizard from './ImportWizard'
 
 // jsdom lacks DataTransfer; drive the wizard through its file-input path.
@@ -791,5 +791,204 @@ describe('ImportWizard — re-import classification survives deferred body conve
     expect(sentBody).toBeTruthy()
     expect(sentBody.content?.length || 0).toBeGreaterThan(0)
     expect(JSON.stringify(sentBody)).toContain('NOHASH_MARKER_1313')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Wave 5 — the arrival screen (spec §9) and post-migration enrichment (§8.1).
+// ---------------------------------------------------------------------------
+describe('ImportWizard — the arrival screen (§9)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function mockArrival({ scan } = {}) {
+    return vi.fn(async (url, opts) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (u.endsWith('/import/confirm')) {
+        const body = JSON.parse(opts.body)
+        return new Response(JSON.stringify({
+          created: body.notes.map((n) => ({ importKey: n.importKey, id: `id-${n.importKey}` })),
+          updated: [], skipped: [],
+        }))
+      }
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) {
+        return new Response(JSON.stringify(scan ?? { candidates: [], scanned: 0, truncated: false }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    })
+  }
+
+  it('shows a per-folder breakdown DERIVED from actual server outcomes, not the preview guess', async () => {
+    // The confirm mock deliberately reports Sub/inner.md as `skipped` (not
+    // `created`, whatever the preview may have guessed) — this is what makes
+    // the test able to fail if the table read the preview's `docStatus`
+    // instead of `summaryResult.outcomes`.
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (u.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:root.md', id: 'id-root' }],
+        updated: [],
+        skipped: [{ importKey: 'file:Sub/inner.md', id: 'id-inner' }],
+      }))
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 1 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [
+      makeFile('root.md', 'root.md', '# Root'),
+      makeFile('inner.md', 'Sub/inner.md', '# Inner'),
+    ]
+    const input = screen.getByTestId('import-dir-input')
+    fireEvent.change(input, { target: { files } })
+    await waitFor(() => expect(screen.getByText(/2 notes/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => expect(screen.getByText(/Imported 1 note\./i)).toBeInTheDocument())
+
+    const unfiledRow = screen.getByRole('row', { name: /^Unfiled/i })
+    const unfiledCells = within(unfiledRow).getAllByRole('cell').map((c) => c.textContent)
+    expect(unfiledCells).toEqual(['Unfiled', '1', '0', '—']) // arrived, unchanged, needs-attention
+
+    const subRow = screen.getByRole('row', { name: /^Sub/i })
+    const subCells = within(subRow).getAllByRole('cell').map((c) => c.textContent)
+    expect(subCells).toEqual(['Sub', '0', '1', '—'])
+  })
+
+  it('names notes the member excluded on the previous screen', async () => {
+    vi.stubGlobal('fetch', mockArrival())
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const files = [makeFile('a.md', 'a.md', '# A'), makeFile('b.md', 'b.md', '# B')]
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files } })
+    await waitFor(() => expect(screen.getByText(/2 notes/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /^B$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => expect(screen.getByText(/Imported 1 note\./i)).toBeInTheDocument())
+
+    expect(screen.getByText(/1 note left out of this import/i)).toBeInTheDocument()
+  })
+
+  it('the audit-B1 truncation warning survives onto the arrival screen, not just the preview', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({
+        existing: {}, checked: 5000, total: 6000, truncated: true,
+      }))
+      if (u.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:hello.md', id: 'n1' }], updated: [], skipped: [] }))
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 1 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/5,000 of 6,000/)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => expect(screen.getByText(/Imported 1 note\./i)).toBeInTheDocument())
+
+    expect(screen.getByText(/5,000 of 6,000/)).toBeInTheDocument()
+  })
+})
+
+describe('ImportWizard — post-migration enrichment offer (§8.1)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function mockEnrichment({ scan, embedsBody, putOk = true } = {}) {
+    return vi.fn(async (url, opts) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (u.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:hello.md', id: 'id-1' }], updated: [], skipped: [] }))
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify(scan))
+      if (/\/notes\/[^/]+\/embeds$/.test(u)) {
+        return new Response(JSON.stringify(embedsBody ?? {
+          note: { bodyJson: { type: 'doc', content: [{ type: 'paragraph' }, { type: 'widgetEmbed', attrs: { widgetId: 'chart' } }] } },
+        }))
+      }
+      if (opts?.method === 'PUT' && /\/notes\/[^/]+$/.test(u)) {
+        return new Response(JSON.stringify({ note: putOk ? {} : null }), { status: putOk ? 200 : 500 })
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    })
+  }
+
+  async function importOneNote() {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => expect(screen.getByText(/Imported 1 note\./i)).toBeInTheDocument())
+  }
+
+  it('scans the newly-written notes and offers the exact count found — with no offer at all when nothing matches', async () => {
+    const fetchMock = mockEnrichment({ scan: { candidates: [], scanned: 1, truncated: false } })
+    vi.stubGlobal('fetch', fetchMock)
+    await importOneNote()
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/enrichment/scan'))).toBe(true)
+    })
+    // Assertion OUTSIDE the mock callback, on the recorded call.
+    const scanCall = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/enrichment/scan'))
+    expect(JSON.parse(scanCall[1].body)).toEqual({ noteIds: ['id-1'] })
+    expect(screen.queryByText(/mentioning tickers/i)).not.toBeInTheDocument()
+  })
+
+  it('offers, applies (one embed POST per ticker), and truly UNDOES (a real PUT restoring the pre-append body)', async () => {
+    const fetchMock = mockEnrichment({
+      scan: { candidates: [{ id: 'id-1', title: 'Hello', tickers: ['NVDA'] }], scanned: 1, truncated: false },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await importOneNote()
+
+    await waitFor(() => expect(screen.getByText(/We found 1 note mentioning tickers/i)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /add live charts/i }))
+    await waitFor(() => expect(screen.getByText(/Added 1 live chart to 1 note\./i)).toBeInTheDocument())
+    // The undo holds pre-enrichment bodies in component state, so it dies with
+    // this window. A bare Undo button reads as durable; the member has to be
+    // told the window is closing or "reversible" is only half true.
+    expect(screen.getByTestId('enrich-undo-window')).toBeInTheDocument()
+    expect(screen.getByText(/until you close this window/i)).toBeInTheDocument()
+
+    const embedCall = fetchMock.mock.calls.find((c) => /\/notes\/id-1\/embeds$/.test(String(c[0])))
+    expect(embedCall).toBeTruthy()
+    expect(embedCall[1].method).toBe('POST')
+    const sentAttrs = JSON.parse(embedCall[1].body).attrs
+    expect(sentAttrs.widgetId).toBe('chart')
+    expect(sentAttrs.params.symbol).toBe('NVDA')
+
+    fireEvent.click(screen.getByRole('button', { name: /^undo$/i }))
+    await waitFor(() => expect(screen.getByText(/Undone/i)).toBeInTheDocument())
+
+    const undoCall = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT' && /\/notes\/id-1$/.test(String(c[0])))
+    expect(undoCall).toBeTruthy()
+    // The undo PUT carries the doc with exactly its own last (the embed we
+    // just added) content node removed — proving this is a real reversal,
+    // not a client-side hide.
+    const restoredBody = JSON.parse(undoCall[1].body).bodyJson
+    expect(restoredBody.content).toEqual([{ type: 'paragraph' }])
+  })
+
+  it('"Not now" dismisses the offer and writes nothing', async () => {
+    const fetchMock = mockEnrichment({
+      scan: { candidates: [{ id: 'id-1', title: 'Hello', tickers: ['NVDA'] }], scanned: 1, truncated: false },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await importOneNote()
+
+    await waitFor(() => expect(screen.getByText(/We found 1 note mentioning tickers/i)).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /not now/i }))
+
+    expect(screen.queryByText(/mentioning tickers/i)).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some((c) => /\/embeds$/.test(String(c[0])))).toBe(false)
   })
 })

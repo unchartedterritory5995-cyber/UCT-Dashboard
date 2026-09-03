@@ -285,6 +285,86 @@
   border-color: #dcbb5e;
   color: var(--accent);
 }
+/* Callout — a Notion import block (spec: docs/superpowers/specs/2026-09-01-
+   notebook-migration-program-design.md §8 item 2). The icon is DATA (the
+   member's own emoji, carried over from the source), not chrome, so it
+   renders as plain text -- no UIcon. */
+.proseEditor [data-type="callout"] {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+}
+.proseEditor [data-type="callout"] .uctCalloutIcon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1.5;
+  user-select: none;
+}
+.proseEditor [data-type="callout"] .uctCalloutBody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.proseEditor [data-type="callout"] .uctCalloutBody > :first-child { margin-top: 0; }
+.proseEditor [data-type="callout"] .uctCalloutBody > :last-child { margin-bottom: 0; }
+
+/* Toggle — the other Notion import block. Real <details>/<summary> under the
+   hood (toggleNode.js's node view); the chevron is UI CHROME, so it is a
+   hand-drawn inline SVG matching UIcon's `chevronRight` glyph geometry
+   (UIcon itself can't be reached from generated editor HTML -- see the
+   attachmentChip comment above). */
+.proseEditor [data-type="toggle"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 14px 0;
+}
+.proseEditor .uctToggleChevron {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+}
+.proseEditor .uctToggleChevron:hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
+.proseEditor .uctToggleChevron svg { transition: transform 0.12s ease; }
+.proseEditor [data-type="toggle"][data-open="true"] .uctToggleChevron svg { transform: rotate(90deg); }
+/* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
+@media (max-width: 1024px) {
+  .proseEditor .uctToggleChevron { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
+}
+.proseEditor .uctToggleDetails { flex: 1 1 auto; min-width: 0; }
+.proseEditor .uctToggleDetails > summary {
+  cursor: text;
+  font-weight: 600;
+  list-style: none;
+}
+.proseEditor .uctToggleDetails > summary::-webkit-details-marker { display: none; }
+.proseEditor .uctToggleDetails > [data-type="toggleContent"] {
+  margin: 6px 0 0;
+  padding-left: 2px;
+}
+.proseEditor .uctToggleDetails > [data-type="toggleContent"] > :first-child { margin-top: 0; }
+.proseEditor .uctToggleDetails > [data-type="toggleContent"] > :last-child { margin-bottom: 0; }
+/* Collapsed: the body stays in the document (never removed -- see
+   toggleNode.js), only hidden. The native <details> element already does
+   this for its own children, so this rule is a belt for the STATIC (no node
+   view) renderHTML fallback path, which sets no such behavior on its own. */
+.proseEditor [data-type="toggle"][data-open="false"] .uctToggleDetails > [data-type="toggleContent"] {
+  display: none;
+}
 .proseEditor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--color-text-muted, #98a0aa);

@@ -13,9 +13,9 @@ so state that WOULD have been a `_Ctx` object in `mddoc.py` is threaded
 explicitly through every recursive call instead.
 
 **Dispatch table** (`NotionBlockConverter._dispatch`, built in `__init__`):
-paragraph / heading_1-3 (+ toggleable -> blockquote+bold title) /
+paragraph / heading_1-3 (+ toggleable -> toggle) /
 bulleted_list_item / numbered_list_item / to_do -> taskItem / toggle ->
-blockquote+bold title / callout -> blockquote+bold title(+emoji) / quote /
+toggle / callout -> callout(+emoji) / quote /
 code(+caption) / divider / table(+table_row) / child_database (<=50 rows ->
 inline table, >50 -> per-row pages, spec's "wizard parity" threshold) /
 child_page -> import-link:// / link_to_page -> import-link:// / synced_block
@@ -523,8 +523,14 @@ class NotionBlockConverter:
         toggleable = bool(data.get("is_toggleable"))
         children_nodes = await self._children_of(block, media, extra_pages)
         if toggleable:
-            bold_line = [_add_mark(n, "bold") for n in inline]
-            return None, [{"type": "blockquote", "content": [_para(bold_line), *children_nodes]}]
+            # Same reasoning as _toggle above: Notion's own markdown export
+            # renders a toggleable heading as <details><summary>, so the
+            # file-import lane already produces a toggle here. Emitting a
+            # blockquote would leave this one block type diverging between the
+            # two lanes. The heading LEVEL is lost either way -- <summary>
+            # cannot hold a heading node, and the file lane loses it too --
+            # so this trades styling metadata for the two lanes agreeing.
+            return None, [self._toggle_node(inline, children_nodes)]
         heading = {"type": "heading", "attrs": {"level": level}, "content": inline}
         return None, [heading, *children_nodes]
 
@@ -547,24 +553,49 @@ class NotionBlockConverter:
         node = {"type": "taskItem", "attrs": {"checked": bool(data.get("checked"))}, "content": content}
         return "task", [node]
 
+    # ⛔ These used to degrade to a blockquote with a bold first line, because
+    # when this connector was written the editor had no callout or toggle node
+    # to target. It has both now (2026-09-02, `lib/calloutNode.js` /
+    # `lib/toggleNode.js`), and the FILE-import lane maps Notion's exported
+    # `<aside>` / `<details>` straight onto them. Leaving these as blockquotes
+    # would mean the SAME Notion page lands in two different shapes depending
+    # on whether the member connected their account or dropped a zip -- one
+    # grammar, two implementations, which is the defect shape this codebase
+    # keeps paying for. Both lanes now produce the same nodes.
     async def _toggle(self, block, media, extra_pages):
-        return await self._blockquote_with_bold_title(block, media, extra_pages, icon=None)
+        return None, [self._toggle_node(
+            _rich_text_to_inline((block.get("toggle") or {}).get("rich_text")),
+            await self._children_of(block, media, extra_pages),
+        )]
 
     async def _callout(self, block, media, extra_pages):
-        icon = (block.get("callout") or {}).get("icon") or {}
+        data = block.get("callout") or {}
+        icon = data.get("icon") or {}
         emoji = icon.get("emoji") if icon.get("type") == "emoji" else None
-        return await self._blockquote_with_bold_title(block, media, extra_pages, icon=emoji)
+        # The emoji is the member's own content carried over from Notion, not
+        # UI chrome. `calloutNode` defaults it to 💡 when absent, so only send
+        # the attribute when Notion actually gave us one.
+        content = [_para(_rich_text_to_inline(data.get("rich_text"))),
+                   *await self._children_of(block, media, extra_pages)]
+        node = {"type": "callout", "content": content}
+        if emoji:
+            node["attrs"] = {"emoji": emoji}
+        return None, [node]
 
-    async def _blockquote_with_bold_title(self, block, media, extra_pages, *, icon):
-        """toggle/callout -> blockquote with a bold first line, per the
-        task brief's self-review checklist wording verbatim. `icon` (a
-        callout's emoji, if any) is prefixed onto the bold line."""
-        btype = block["type"]
-        inline = [_add_mark(n, "bold") for n in _rich_text_to_inline((block.get(btype) or {}).get("rich_text"))]
-        if icon:
-            inline = [{"type": "text", "text": f"{icon} ", "marks": [{"type": "bold"}]}, *inline]
-        content = [_para(inline), *await self._children_of(block, media, extra_pages)]
-        return None, [{"type": "blockquote", "content": content}]
+    @staticmethod
+    def _toggle_node(summary_inline, children_nodes):
+        """`toggle` is `toggleSummary toggleContent` (see lib/toggleNode.js).
+        `toggleContent` is `block+`, so an empty toggle still needs one
+        paragraph or the document fails schema validation on load -- an empty
+        toggle is a real thing a member can create in Notion."""
+        return {
+            "type": "toggle",
+            "content": [
+                {"type": "toggleSummary", "content": summary_inline},
+                {"type": "toggleContent",
+                 "content": children_nodes or [_para([])]},
+            ],
+        }
 
     async def _quote(self, block, media, extra_pages):
         inline = _rich_text_to_inline((block.get("quote") or {}).get("rich_text"))

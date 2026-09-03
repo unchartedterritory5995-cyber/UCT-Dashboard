@@ -52,6 +52,33 @@ describe('htmlToNote', () => {
     expect(linkMark.attrs.href).toBe('import-link://obsidian:Vault/Foo.md')
   })
 
+  it('turns a Notion-shaped <aside> callout into a callout node with the emoji split out', () => {
+    // Byte-for-byte the shape of __fixtures__/notion/My Page…/…: the emoji
+    // is inline as the leading character of the aside's text, no wrapper.
+    const { bodyJson, bodyPlain } = htmlToNote(
+      '<aside>\n💡 This is a callout — a tip the reader should not miss.\n</aside>',
+    )
+    const callout = bodyJson.content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.attrs.emoji).toBe('💡')
+    expect(bodyPlain).toContain('This is a callout')
+    expect(bodyPlain).not.toContain('💡 This is a callout') // emoji lifted out of the body text
+  })
+
+  it('turns a Notion-shaped <details><summary> into a toggle, open by default', () => {
+    const { bodyJson, bodyPlain } = htmlToNote(
+      '<details><summary>More detail</summary>\nHidden until expanded.\n</details>',
+    )
+    const toggle = bodyJson.content[0]
+    expect(toggle.type).toBe('toggle')
+    expect(toggle.attrs.open).toBe(true)
+    expect(toggle.content[0].type).toBe('toggleSummary')
+    expect(toggle.content[0].content[0].text).toBe('More detail')
+    expect(toggle.content[1].type).toBe('toggleContent')
+    expect(bodyPlain).toContain('More detail')
+    expect(bodyPlain).toContain('Hidden until expanded')
+  })
+
   it('converts label-wrapped checkboxes to taskItems with correct state', () => {
     const { bodyJson } = htmlToNote(
       '<ul class="contains-task-list">' +

@@ -14,6 +14,8 @@ import { SlashMenuExtension } from '../components/notebook/SlashMenu'
 import { VideoTimestamp } from './videoTimestampNode'
 import { AttachmentChip } from './attachmentChip'
 import { WidgetEmbed } from './widgetEmbedNode'
+import { Callout } from './calloutNode'
+import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -55,6 +57,11 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // unregistering WidgetEmbed would delete every embed from every note on
     // next open. Unknown WIDGETS are handled inside its node view.
     WidgetEmbed,
+    // Notion's two most common structural blocks (callouts and toggles) —
+    // see calloutNode.js / toggleNode.js. Same "never remove" rule as
+    // WidgetEmbed above once notes containing these exist.
+    Callout,
+    Toggle, ToggleSummary, ToggleContent,
   ]
 }
 
