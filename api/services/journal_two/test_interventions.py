@@ -34,6 +34,11 @@ def _seed_account(db_conn, user_id="u_i"):
     return acc
 
 
+def _et_today() -> str:
+    from api.services.journal_two.calendar import et_today
+    return et_today()
+
+
 def _insert_closed_trade(conn, *, user_id, account_id, exit_iso, result="Win",
                           pnl_dollar=500, r_multiple=1.0):
     tid = str(uuid.uuid4())
@@ -93,7 +98,11 @@ def test_rapid_fire_does_not_fire_for_2_trades(db_conn):
 def test_daily_loss_approach_fires_at_75pct_of_limit(db_conn):
     from api.services.journal_two import interventions as iv
     acc = _seed_account(db_conn)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET, not UTC: "today" is the trading-session day now (2026-09-02).
+    # Seeding by the UTC date puts these trades on the NEXT ET session
+    # for the four hours after 8pm ET, which is the very window the
+    # product bug lived in.
+    today_iso = _et_today()
     # Limit is 3% of 100k = $3000. 75% = $2250. Insert losses summing to -$2500.
     _insert_closed_trade(
         db_conn, user_id="u_i", account_id=acc["id"],
@@ -110,7 +119,11 @@ def test_daily_loss_approach_fires_at_75pct_of_limit(db_conn):
 def test_daily_loss_approach_no_fire_when_well_below(db_conn):
     from api.services.journal_two import interventions as iv
     acc = _seed_account(db_conn)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET, not UTC: "today" is the trading-session day now (2026-09-02).
+    # Seeding by the UTC date puts these trades on the NEXT ET session
+    # for the four hours after 8pm ET, which is the very window the
+    # product bug lived in.
+    today_iso = _et_today()
     _insert_closed_trade(
         db_conn, user_id="u_i", account_id=acc["id"],
         exit_iso=f"{today_iso}T14:00:00+00:00",
@@ -129,7 +142,11 @@ def test_daily_loss_approach_no_fire_when_well_below(db_conn):
 def test_loss_streak_fires_at_3_consecutive(db_conn):
     from api.services.journal_two import interventions as iv
     acc = _seed_account(db_conn)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET, not UTC: "today" is the trading-session day now (2026-09-02).
+    # Seeding by the UTC date puts these trades on the NEXT ET session
+    # for the four hours after 8pm ET, which is the very window the
+    # product bug lived in.
+    today_iso = _et_today()
     for h in (10, 11, 13):
         _insert_closed_trade(
             db_conn, user_id="u_i", account_id=acc["id"],
@@ -146,7 +163,11 @@ def test_loss_streak_fires_at_3_consecutive(db_conn):
 def test_loss_streak_does_not_fire_with_winner_between(db_conn):
     from api.services.journal_two import interventions as iv
     acc = _seed_account(db_conn)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
+    # ET, not UTC: "today" is the trading-session day now (2026-09-02).
+    # Seeding by the UTC date puts these trades on the NEXT ET session
+    # for the four hours after 8pm ET, which is the very window the
+    # product bug lived in.
+    today_iso = _et_today()
     _insert_closed_trade(
         db_conn, user_id="u_i", account_id=acc["id"],
         exit_iso=f"{today_iso}T10:00:00+00:00",
@@ -368,3 +389,102 @@ def test_single_account_mode_unaffected_by_portfolio_rules(db_conn):
     rules = {a["rule"] for a in active}
     assert "loss_streak" in rules
     assert not any(r.startswith("portfolio_") for r in rules)
+
+
+# ── The trading day is ET, not the UTC calendar day ─────────────────────────
+# `journal_two/calendar.py`'s own docstring calls America/New_York "the
+# canonical trading-session day (per design spec §4)", and accounts.py,
+# analytics.py and calendar.py all bucket on the
+# COALESCE(trading_day_et, substr(exit_date,1,10)) spine. interventions.py was
+# the one module in journal_two still asking the UTC calendar.
+#
+# That is not cosmetic. UTC midnight is 7pm CT / 8pm ET, so a member trading
+# the evening session had their consecutive-loss counter silently RESET
+# mid-session, and the intervention that exists to tell them to step away
+# never fired -- exactly when tilt is most likely.
+#
+# ⛔ These tests pin the ET behaviour deterministically by freezing the day
+# (`iv.et_today`) rather than by seeding relative to the wall clock. The
+# pre-existing tests in this file seed at `now - N minutes` against a UTC-date
+# filter, which is why three of them went red for a 40-minute window after
+# every UTC midnight -- a test that fails on the clock rather than the code.
+
+
+def _insert_stamped_trade(conn, *, user_id, account_id, exit_iso, trading_day_et,
+                          result="Loss", pnl_dollar=-100, r_multiple=-1.0):
+    """A trade carrying the `trading_day_et` spine, the way trades.py stamps
+    every real trade (`compute_trading_day_et` on insert AND update). The
+    older helper above deliberately leaves it NULL, so it exercises only the
+    legacy fallback -- the production path had no coverage here at all."""
+    tid = str(uuid.uuid4())
+    conn.execute(
+        """INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares,
+           entry_price, entry_date, exit_price, exit_date, original_stop, setup,
+           notes, pnl_dollar, pnl_percent, r_multiple, hold_days, result,
+           context_at_entry, created_at, account_id, mistake_tags, emotion_tags,
+           fees, regime, trading_day_et)
+           VALUES (?, ?, ?, 'NVDA', 'Long', 100, 100.0, ?, 105.0, ?, 98.0,
+           'Bull Flag', NULL, ?, ?, ?, 0, ?, '{}', ?, ?, '[]', '[]', 0, NULL, ?)""",
+        (tid, user_id, str(uuid.uuid4()),
+         exit_iso, exit_iso, pnl_dollar, pnl_dollar / 1000.0, r_multiple, result,
+         exit_iso, account_id, trading_day_et),
+    )
+    conn.commit()
+    return tid
+
+
+def test_loss_streak_counts_an_evening_session_already_tomorrow_in_utc(db_conn, monkeypatch):
+    """The 8pm ET member. Three losses, one ET session, two UTC dates."""
+    from api.services.journal_two import interventions as iv
+    acc = _seed_named_account(db_conn, "u_et", "Default")
+    monkeypatch.setattr(iv, "et_today", lambda: "2026-09-02")
+
+    # 20:10, 20:20, 20:30 ET on 2026-09-02 -- i.e. 00:10-00:30 UTC on 09-03.
+    for hhmm in ("00:10", "00:20", "00:30"):
+        _insert_stamped_trade(
+            db_conn, user_id="u_et", account_id=acc["id"],
+            exit_iso=f"2026-09-03T{hhmm}:00+00:00", trading_day_et="2026-09-02",
+        )
+
+    active = iv.evaluate_interventions(user_id="u_et", account_id=acc["id"], conn=db_conn)
+    assert "loss_streak" in {a["rule"] for a in active}, (
+        "three losses inside ONE ET evening session did not register as a "
+        "streak -- the member is mid-session and the counter reset under them"
+    )
+
+
+def test_yesterdays_et_session_does_not_leak_into_today(db_conn, monkeypatch):
+    """The control. Without it the test above passes for a rule that simply
+    stopped filtering by day at all."""
+    from api.services.journal_two import interventions as iv
+    acc = _seed_named_account(db_conn, "u_et2", "Default")
+    monkeypatch.setattr(iv, "et_today", lambda: "2026-09-03")
+
+    for hhmm in ("00:10", "00:20", "00:30"):
+        _insert_stamped_trade(
+            db_conn, user_id="u_et2", account_id=acc["id"],
+            exit_iso=f"2026-09-03T{hhmm}:00+00:00", trading_day_et="2026-09-02",
+        )
+
+    active = iv.evaluate_interventions(user_id="u_et2", account_id=acc["id"], conn=db_conn)
+    assert "loss_streak" not in {a["rule"] for a in active}, (
+        "yesterday's ET session counted toward today's streak"
+    )
+
+
+def test_portfolio_loss_streak_also_uses_the_et_session(db_conn, monkeypatch):
+    """The `_all_` bucket shares the defect and must share the fix."""
+    from api.services.journal_two import interventions as iv
+    a1 = _seed_named_account(db_conn, "u_et3", "Default")
+    a2 = _seed_named_account(db_conn, "u_et3", "Cash")
+    monkeypatch.setattr(iv, "et_today", lambda: "2026-09-02")
+
+    # The portfolio rule's threshold is 4+, not the per-account 3+.
+    for i, acc in enumerate([a1, a2, a1, a2]):
+        _insert_stamped_trade(
+            db_conn, user_id="u_et3", account_id=acc["id"],
+            exit_iso=f"2026-09-03T00:{10 + i * 5}:00+00:00", trading_day_et="2026-09-02",
+        )
+
+    active = iv.evaluate_interventions(user_id="u_et3", account_id="_all_", conn=db_conn)
+    assert "portfolio_loss_streak" in {a["rule"] for a in active}

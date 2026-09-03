@@ -16,11 +16,12 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import date as Date, datetime, timezone, timedelta
 from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
+from api.services.journal_two.calendar import _row_et_day, et_today
 from api.services.journal_two.coach_scope import is_unified, resolve_account_scope
 
 
@@ -114,6 +115,36 @@ def _check_rapid_fire(conn, *, user_id, account_id) -> dict | None:
     return None
 
 
+# ⛔ Bucketing a trade into "today" is a TWO-sided question, and both sides
+# have to speak the same calendar. Until 2026-09-02 both sides here spoke
+# UTC: `substr(exit_date,1,10)` on the row, `datetime.now(timezone.utc)` on
+# the comparison. UTC midnight is 8pm ET, so a member trading the evening
+# session rolled onto a new "day" mid-session and the consecutive-loss
+# counter reset under them -- the step-away warning going quiet exactly when
+# tilt is likeliest. Every other module in journal_two (accounts, analytics,
+# calendar) already buckets on the ET trading-session day; this was the
+# holdout.
+#
+# ⛔ The fix is NOT simply comparing against an ET date in SQL. A row without
+# the stamped `trading_day_et` spine (legacy rows predating it) still yields
+# its UTC prefix, so comparing that to an ET day mismatches for the same four
+# hours -- a half-conversion, worse than either whole one.
+# `calendar._row_et_day` is this codebase's answer and resolves both cases:
+# the stamped column when present, a DST-correct `to_et_date()` conversion
+# when not. accounts.py:931 filters exactly this way. SQL narrows to a
+# generous UTC window; Python decides.
+def _rows_on_et_day(rows, day: str) -> list:
+    """The rows whose ET trading-session day is `day`, spine-aware."""
+    return [r for r in rows if _row_et_day(r, "exit_date") == day]
+
+
+def _utc_lower_bound(day: str) -> str:
+    """A safe lexicographic floor for a UTC-ISO `exit_date` when looking for
+    ET day `day`. ET is behind UTC, so one calendar day back always covers
+    it, and `_rows_on_et_day` does the exact filtering afterwards."""
+    return (Date.fromisoformat(day) - timedelta(days=1)).isoformat()
+
+
 def _check_daily_loss_approach(conn, *, user_id, account_id) -> dict | None:
     """Net daily P&L past 75% of dailyLossLimitPct."""
     settings = accounts_service.get_account_settings(user_id, account_id, conn=conn) or {}
@@ -122,13 +153,12 @@ def _check_daily_loss_approach(conn, *, user_id, account_id) -> dict | None:
     if limit_pct is None or account_size <= 0:
         return None
     threshold_dollar = -0.75 * float(limit_pct) * account_size / 100.0
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    rows = conn.execute(
-        """SELECT pnl_dollar FROM j2_trades
-           WHERE user_id = ? AND account_id = ?
-             AND substr(exit_date, 1, 10) = ?""",
-        (user_id, account_id, today_iso),
-    ).fetchall()
+    today_iso = et_today()
+    rows = _rows_on_et_day(conn.execute(
+        """SELECT pnl_dollar, exit_date, trading_day_et FROM j2_trades
+           WHERE user_id = ? AND account_id = ? AND exit_date >= ?""",
+        (user_id, account_id, _utc_lower_bound(today_iso)),
+    ).fetchall(), today_iso)
     net = sum(float(r["pnl_dollar"] or 0) for r in rows)
     if net <= threshold_dollar:
         return {
@@ -144,14 +174,13 @@ def _check_daily_loss_approach(conn, *, user_id, account_id) -> dict | None:
 
 def _check_loss_streak(conn, *, user_id, account_id) -> dict | None:
     """3+ consecutive losses today (no winner since the streak started)."""
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    rows = conn.execute(
-        """SELECT result, exit_date FROM j2_trades
-           WHERE user_id = ? AND account_id = ?
-             AND substr(exit_date, 1, 10) = ?
+    today_iso = et_today()
+    rows = _rows_on_et_day(conn.execute(
+        """SELECT result, exit_date, trading_day_et FROM j2_trades
+           WHERE user_id = ? AND account_id = ? AND exit_date >= ?
            ORDER BY exit_date DESC""",
-        (user_id, account_id, today_iso),
-    ).fetchall()
+        (user_id, account_id, _utc_lower_bound(today_iso)),
+    ).fetchall(), today_iso)
     streak = 0
     for r in rows:
         if r["result"] == "Loss":
@@ -248,13 +277,12 @@ def _check_portfolio_daily_loss(conn, *, user_id, account_id) -> dict | None:
     if not have_any_limit:
         return None
     ph = ",".join("?" * len(ids))
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    rows = conn.execute(
-        f"""SELECT pnl_dollar FROM j2_trades
-            WHERE user_id = ? AND account_id IN ({ph})
-              AND substr(exit_date, 1, 10) = ?""",
-        [user_id, *ids, today_iso],
-    ).fetchall()
+    today_iso = et_today()
+    rows = _rows_on_et_day(conn.execute(
+        f"""SELECT pnl_dollar, exit_date, trading_day_et FROM j2_trades
+            WHERE user_id = ? AND account_id IN ({ph}) AND exit_date >= ?""",
+        [user_id, *ids, _utc_lower_bound(today_iso)],
+    ).fetchall(), today_iso)
     net = sum(float(r["pnl_dollar"] or 0) for r in rows)
     if net <= total_threshold:
         return {
@@ -275,14 +303,13 @@ def _check_portfolio_loss_streak(conn, *, user_id, account_id) -> dict | None:
     if not ids:
         return None
     ph = ",".join("?" * len(ids))
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    rows = conn.execute(
-        f"""SELECT result FROM j2_trades
-            WHERE user_id = ? AND account_id IN ({ph})
-              AND substr(exit_date, 1, 10) = ?
+    today_iso = et_today()
+    rows = _rows_on_et_day(conn.execute(
+        f"""SELECT result, exit_date, trading_day_et FROM j2_trades
+            WHERE user_id = ? AND account_id IN ({ph}) AND exit_date >= ?
             ORDER BY exit_date DESC""",
-        [user_id, *ids, today_iso],
-    ).fetchall()
+        [user_id, *ids, _utc_lower_bound(today_iso)],
+    ).fetchall(), today_iso)
     streak = 0
     for r in rows:
         if r["result"] == "Loss":
