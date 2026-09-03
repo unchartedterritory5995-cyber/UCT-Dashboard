@@ -113,6 +113,63 @@ already established for those two files. `_MassiveRestClient` at
 `to_polygon_symbol()` at line 40 all confirmed present exactly as the spec
 describes.
 
+---
+
+## Section 4 — FMP call-site migration: COMPLETE (2026-09-02)
+
+All 8 originally-scoped FMP call sites (the 6 PRD-named files plus the 2
+the spec's own pass additionally found — `analyst_grades.py` and
+`engine.py`) are migrated off ad-hoc `requests.get` onto the typed
+`fmp_client` adapter. Commits, in order: `6235cfc2b` (fmp_client.py itself),
+`42115935d` (insider.py), `d82f6730a` (routers/fundamentals.py),
+`a137a6c7d` (catalyst/analyst_actions.py), `c0a6a5dae` (earnings_estimates.py,
+its own 6 internal call sites), `842bd3c52` (log addendum), `3a6dea330`
+(transcript_indexer.py), `5c94118bd` (research/financial_history.py),
+`9596b6461` (analyst_grades.py), `efa9f0a53` (engine.py, + a new
+`fmp_client.get_earnings_calendar` typed function for `/stable/
+earnings-calendar`, the one endpoint not ticker-scoped).
+
+**Pattern that repeated across every file:** delete or leave the module's
+own ad-hoc `_fmp_get`-shaped helper (kept, unchanged, wherever an
+UNSCOPED external module also imports it directly — see the Section 1
+addendum above), add a thin per-module wrapper around the relevant
+`fmp_client` typed function(s) that preserves that module's OWN existing
+"None/[]/{} on any failure, never raises" contract (some modules needed
+`FMPNotFound` treated as silent-empty specifically so a genuinely-empty
+result doesn't get logged as a failure; `analyst_grades.py` needed EVERY
+exception caught silently, matching its own per-leg `all_answered` cache-TTL
+accounting, which was written assuming the FMP call itself never raises),
+repoint the call site(s), then repoint or rewrite whatever test file mocked
+the old helper. Existing tests that mock a module's own high-level function
+(not the FMP layer itself) needed no changes at all — confirmed file by
+file rather than assumed.
+
+**Total test surface exercised across the 8 migrations:** the full
+`earnings_estimates.py`-adjacent sweep (502/504, 2 pre-existing/unrelated
+failures — see Section 1 addendum's neighbor above) plus the ~46-file
+broader `engine.py`-adjacent sweep (801 passed, 6 errors all a pre-existing
+missing-npm-package Node environment gap in `test_definition_concierge.py`,
+unrelated) plus every migrated file's own direct test suite. No regression
+found outside the two confirmed-pre-existing, confirmed-unrelated failures.
+
+**Not done, deliberately out of scope for this build (per the same
+anti-scope-creep boundary, tracked for the AST census's QUARANTINE list):**
+the 10 files Section 1 found via the `financialmodelingprep.com` string
+grep that neither the PRD nor the spec named, PLUS the (larger) set found
+via the Section 1 addendum's `_fmp_get`-import trace (9 external consumers
+of `earnings_estimates._fmp_get`) minus the 2 of those 9 that this pass
+migrated anyway because they were on the original 8-file list
+(`transcript_indexer.py`, and — via `earnings_estimates.py` itself already
+counting — nothing else double-counts). `engine.py`'s own 2 remaining
+inline FMP calls (`/stable/news/general-latest`, `/stable/news/stock`,
+lines ~2342/2376) are likewise untouched.
+
+**Not yet done — the Massive adapter, Entity Master integration, guard
+census tools, admin status endpoints, and the mandatory real-provider
+validation checkpoint required before any further broad migration.** See
+the D1 authorization's Implementation Checkpoint section — this is
+reported to the user as the next decision point, not assumed.
+
 ### Existing normalized/shared models, caching, retry, config precedents (confirmed, not re-derived)
 
 - `finnhub_client.py`, `alphavantage_client.py`, `journal_two/broker/
