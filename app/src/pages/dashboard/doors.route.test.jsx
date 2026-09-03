@@ -144,7 +144,18 @@ describe('🔴 every Zone D door opens onto a real route', () => {
       // OUTSIDE it. So the sidebar appearing IS the statement "this URL
       // matched a real Layout route", and its absence is what the catch-all
       // looks like. A control below pins that NotFound renders no sidebar.
-      expect(await screen.findByTestId('nav-sidebar', {}, { timeout: 10000 }),
+      // ⚰️ 10s -> 30s, AND THE TEST TIMEOUT WAS NEVER THE BINDING ONE. This
+      // case already allows 45s (below), but Testing Library's async timeout is
+      // its OWN budget and `testTimeout` does not raise it — so under a full
+      // 974-file parallel run the heaviest door (/calendar) blew the inner 10s
+      // while 35s of the outer allowance sat unused, and the suite went red
+      // intermittently on a route that resolves fine. Measured: this file passes
+      // alone in 14.5s and reds only in company
+      // (`lesson_a_rail_can_be_green_alone_and_red_in_company`).
+      // ⛔ THIS RAIL MEASURES WHETHER THE ROUTE RESOLVES, NOT HOW FAST. Timing is
+      // not the claim, so a longer wait weakens nothing: a door that does not
+      // resolve never renders the sidebar at any timeout.
+      expect(await screen.findByTestId('nav-sidebar', {}, { timeout: 30000 }),
         `Zone D's "${door.label}" card links to ${href}, and App never mounted `
         + 'the app chrome there — the URL fell through to the catch-all. Either '
         + 'the route was removed or doors.js drifted from it.')
