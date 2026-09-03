@@ -3,7 +3,13 @@
  * Spec: docs/superpowers/specs/2026-08-11-notebook-import-design.md
  *
  * Three exports:
- *  - checkExisting(docs)  -> POST /api/j2/notes/import/check   ({existing})
+ *  - checkExisting(docs)  -> POST /api/j2/notes/import/check
+ *    ({existing, checked, total, truncated}) — `truncated` is only ever true
+ *    past the server's own resource cap (tens of thousands of keys in one
+ *    request); below it every key in `docs` is checked, in full (audit B1:
+ *    this used to silently cap at 5,000 with no signal at all, so a
+ *    >5,000-note library's tail came back "not existing" and duplicated on
+ *    re-import instead of updating).
  *  - rewriteBody(bodyJson, {mediaUrls, idByKey}) -> {body, droppedMedia}, PURE
  *  - runImport({source, destFolderId, docs, onProgress}) -> summary
  */
@@ -18,7 +24,7 @@ const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay wel
 
 /**
  * @param {Array<{importKey: string}>} docs
- * @returns {Promise<{existing: Record<string, {id: string, updatedAt: string, importHash: string}>}>}
+ * @returns {Promise<{existing: Record<string, {id: string, updatedAt: string, importHash: string}>, checked: number, total: number, truncated: boolean}>}
  */
 export async function checkExisting(docs) {
   const importKeys = docs.map((d) => d.importKey)
@@ -246,7 +252,11 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
   const idByKey = {}
   // importKeys of notes actually written this run (created or updated) — the
   // only ones that need the media/link phase. A `skipped` note (fingerprint
-  // unchanged) was already fully committed by an earlier run.
+  // unchanged) was already fully committed by an earlier run — genuinely
+  // true as of audit B5's fix: the server's skip decision now also checks
+  // `import_media_pending`, so a note whose media/link phase never finished
+  // clean (a failed upload, a PUT that never landed) comes back `updated`,
+  // not `skipped`, and lands in `toCommit` below to retry that phase.
   const toCommit = []
 
   const confirmTotal = docs.length
@@ -361,19 +371,26 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
           summary.failures.push({ name: item.name || item.ref, reason: err?.message || String(err) })
         }
       }
-      const { body: rewritten } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
+      const { body: rewritten, droppedMedia } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
       // The confirm step already counted this note as created/updated — that
       // outcome stands regardless of what happens here. A failure below is
       // reported via `failures` (the note's persisted body may still carry
       // literal import-ref://import-link:// placeholders), and — critically —
       // must NOT reject the whole runImport promise: swallow it and move on
       // to the next note so one bad PUT can't strand every note after it.
+      //
+      // audit B5: `importMediaPending` is the honest signal `import_confirm`
+      // gates its skip-on-fingerprint-match decision on. A dropped media ref
+      // means this note's import is NOT actually done — say so, so a later
+      // re-import of the same export retries this note's media instead of
+      // matching its fingerprint and skipping it (and the still-missing
+      // image) forever.
       try {
         const putRes = await fetch(`/api/j2/notes/${noteId}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bodyJson: rewritten }),
+          body: JSON.stringify({ bodyJson: rewritten, importMediaPending: droppedMedia.length > 0 }),
         })
         if (!putRes.ok) {
           summary.failures.push({

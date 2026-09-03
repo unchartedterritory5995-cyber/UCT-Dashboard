@@ -116,22 +116,57 @@ _used_connect_code_nonces: dict[str, float] = {}
 # I6 (2026-09-02 review): "a pre-disconnect code redeems afterward into a
 # full reconnection (device + connector + source)" -- single-use nonce
 # tracking alone does nothing for a code that was minted but never yet
-# redeemed at disconnect time. Process-local per-user epoch counter (same
-# accepted single-pod shape as `_used_connect_code_nonces` above): every
-# mint embeds the user's CURRENT epoch in the signed payload;
-# `invalidate_outstanding_codes` (called from `revoke_devices` below, on
-# every disconnect) bumps it. A code minted under an epoch that has since
-# been bumped fails `_verify_connect_code`'s epoch check even though its
-# HMAC/TTL/single-use checks all still pass on their own. Embedding the
-# epoch IN the signed payload (rather than comparing the code's mint
-# timestamp against a separately-tracked "disconnected at" wall-clock
-# value) makes this tamper-evident for free and immune to same-second
-# wall-clock ties a timestamp comparison would have to reason about.
-_connect_code_epoch: dict[str, int] = {}
+# redeemed at disconnect time. Per-user epoch counter: every mint embeds
+# the user's CURRENT epoch in the signed payload; `invalidate_outstanding_
+# codes` (called from `revoke_devices` below, on every disconnect) bumps
+# it. A code minted under an epoch that has since been bumped fails
+# `_verify_connect_code`'s epoch check even though its HMAC/TTL/single-use
+# checks all still pass on their own. Embedding the epoch IN the signed
+# payload (rather than comparing the code's mint timestamp against a
+# separately-tracked "disconnected at" wall-clock value) makes this
+# tamper-evident for free and immune to same-second wall-clock ties a
+# timestamp comparison would have to reason about.
+#
+# ⛔⛔ PERSISTED to `j2_obsidian_connect_epoch` (2026-09-02 audit finding 4)
+# -- this used to be a bare process-local dict, "same accepted single-pod
+# shape as `_used_connect_code_nonces` below". That was wrong for THIS
+# value specifically: a restart (this repo redeploys constantly --
+# `feedback_never_delay_a_deploy`) reset every user's epoch back to 0,
+# silently REOPENING I6 for the remainder of any outstanding code's
+# 15-minute TTL on every single deploy, and a second worker would disagree
+# with the first about whose epoch is current -- an already-disconnected
+# member's connect flow would only fail closed when mint and redeem
+# happened to land on the SAME worker. Read/written live on every
+# mint/verify/invalidate; no in-process cache, so there is nothing here
+# left to go stale across workers or a restart.
+#
+# `_used_connect_code_nonces` below is DELIBERATELY NOT ALSO FIXED. Its
+# single-process assumption is real (a restart or a second worker reopens
+# the single-use replay window for the remainder of a code's TTL) but this
+# task is scoped to the epoch only, and the two failure shapes differ:
+# this pod is single-replica today, so a second worker is latent for
+# both, but a RESTART is live and routine for this repo, and only the
+# epoch's restart failure is a silent, permanent-until-someone-notices
+# security regression (I6 fully reopens). A lost nonce is a narrower,
+# bounded replay window that closes itself at the code's own TTL. Do not
+# assume the nonce set is safe because the epoch now is -- it is not; it
+# would need the identical treatment (a durable single-use record, keyed
+# on the nonce, checked-and-inserted atomically) before either this pod
+# goes multi-replica or "restart" needs to stop being an acceptable gap.
 
 
 def _current_epoch(user_id: str) -> int:
-    return _connect_code_epoch.get(user_id, 0)
+    """Read LIVE from the database on every call -- see the ⛔⛔ block
+    above. No default local cache: two workers (or two calls on this one
+    worker, separated by a redeploy in between) must always agree."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT epoch FROM j2_obsidian_connect_epoch WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return row["epoch"] if row is not None else 0
+    finally:
+        conn.close()
 
 
 def invalidate_outstanding_codes(user_id: str) -> None:
@@ -141,8 +176,24 @@ def invalidate_outstanding_codes(user_id: str) -> None:
     embeds the new epoch and verifies normally -- this closes the
     redeem/revoke race without touching the redeem/reconnect path at all.
     Idempotent-safe to call repeatedly (each call moves the epoch strictly
-    forward, so calling it twice in a row is harmless, just extra-safe)."""
-    _connect_code_epoch[user_id] = _current_epoch(user_id) + 1
+    forward, so calling it twice in a row is harmless, just extra-safe).
+
+    Persisted (audit finding 4) -- can now raise on a genuine DB failure,
+    unlike the in-memory dict this replaced. See the call site in
+    `revoke_devices`: it is called FIRST, before any device/staging row is
+    touched, specifically so a failure here aborts the whole disconnect
+    rather than deleting devices while leaving a stale, still-valid
+    outstanding code behind."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO j2_obsidian_connect_epoch (user_id, epoch) VALUES (?, 1) "
+            "ON CONFLICT(user_id) DO UPDATE SET epoch = epoch + 1",
+            (user_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _now_iso() -> str:
@@ -378,7 +429,12 @@ def revoke_devices(user_id: str) -> int:
     grants nothing back to us), a failure here means the vulnerability this
     function exists to close would still be open -- it must never look
     like it succeeded when it didn't."""
-    invalidate_outstanding_codes(user_id)  # I6 -- in-memory, never fails; do first
+    # I6 -- done FIRST, before any row below is touched. Persisted (audit
+    # finding 4): this can now raise on a genuine DB failure, and if it
+    # does, nothing below runs either -- a member's outstanding codes and
+    # their device rows are revoked as one fate, never "codes intact,
+    # devices gone" or the reverse.
+    invalidate_outstanding_codes(user_id)
     conn = get_connection()
     try:
         conn.execute("DELETE FROM j2_obsidian_staging WHERE user_id = ?", (user_id,))

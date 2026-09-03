@@ -33,7 +33,13 @@ def test_the_three_tables_exist():
     c = _conn()
     names = {r[0] for r in c.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'j2_obsidian%'")}
-    assert names == {"j2_obsidian_devices", "j2_obsidian_staging", "j2_obsidian_manifest"}
+    # + j2_obsidian_connect_epoch (audit finding 4, 2026-09-02): the
+    # persisted connect-code epoch, added beside the three Task 1 ingest
+    # tables this test predates.
+    assert names == {
+        "j2_obsidian_devices", "j2_obsidian_staging", "j2_obsidian_manifest",
+        "j2_obsidian_connect_epoch",
+    }
 
 
 def test_a_device_token_is_unique_per_vault_and_user():
@@ -398,3 +404,41 @@ def test_revoke_devices_deletes_every_row_for_that_user_only(env):
 
 def test_revoke_devices_is_a_safe_no_op_when_none_exist(env):
     assert obsidian_link.revoke_devices("nobody-has-ever-connected") == 0
+
+
+# ── finding 4 (2026-09-02 review, single-process assumptions #1): the
+# connect-code epoch must survive a worker restart ───────────────────────────
+
+def test_the_connect_code_epoch_survives_a_process_restart(env):
+    """`_connect_code_epoch` used to be a bare process-local dict. This repo
+    redeploys constantly (`feedback_never_delay_a_deploy`), and every
+    redeploy reset every user's epoch back to 0 -- silently REOPENING I6 (a
+    pre-disconnect code redeeming into a full reconnection) for the
+    remainder of any outstanding code's 15-minute TTL. `importlib.reload`
+    re-executes the module's top level exactly like a fresh worker process
+    would -- it is what would reset a bare in-memory dict back to `{}`.
+    Must go RED against the pre-fix in-memory dict: the invalidated code
+    would pass verification again once the reload "restarts" the epoch."""
+    pre_code = obsidian_link.mint_connect_code("user-a")
+    obsidian_link.invalidate_outstanding_codes("user-a")
+
+    import importlib
+    importlib.reload(obsidian_link)
+
+    with pytest.raises(errors.NoteConnAuthError):
+        obsidian_link.redeem_connect_code(pre_code, "vault-restart", "V")
+
+    # A genuinely NEW code, minted after the "restart", still works — the
+    # fix must not lock the member out of a real reconnect.
+    fresh_code = obsidian_link.mint_connect_code("user-a")
+    device_id, token = obsidian_link.redeem_connect_code(fresh_code, "vault-restart", "V")
+    assert device_id and token
+
+
+def test_invalidate_outstanding_codes_is_scoped_to_one_user(env):
+    """A second user's epoch (and therefore their outstanding codes) must
+    be untouched by another user's disconnect."""
+    code_b = obsidian_link.mint_connect_code("user-b")
+    obsidian_link.invalidate_outstanding_codes("user-a")
+    device_id, token = obsidian_link.redeem_connect_code(code_b, "vault-1", "B's Vault")
+    assert device_id and token

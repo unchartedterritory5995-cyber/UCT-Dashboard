@@ -28,6 +28,7 @@
  */
 
 import { mdToHtml } from './generic'
+import { reportIgnoredFiles } from './reportIgnored'
 
 const NOTION_FILE_RE = / [0-9a-f]{32}\.(md|html|csv)$/i
 const NOTION_DIR_RE = / [0-9a-f]{32}$/i
@@ -130,6 +131,20 @@ async function parse(vfiles, opts = {}) {
   }
 
   warnings.push(...resolveImportKeyCollisions(docs, rawPaths))
+
+  // audit B4: name whatever this drop contained that Notion's own parse()
+  // never touched — neither as a page/csv source, a legitimate shadowed
+  // .md twin of a winning .html export, nor media referenced from a
+  // produced doc's body. Most commonly another platform's export dropped
+  // in the same batch (per the Export Guide's own "drop them all in
+  // together" advice), silently discarded before this fix.
+  const consumed = new Set(items.map((v) => v.path))
+  for (const mdPath of shadow.keys()) consumed.add(mdPath)
+  for (const doc of docs) {
+    for (const m of doc.media || []) consumed.add(m.ref)
+  }
+  const ignored = vfiles.filter((v) => !consumed.has(v.path))
+  warnings.push(...reportIgnoredFiles(ignored, notionAdapter.label))
 
   return { docs, warnings }
 }

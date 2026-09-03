@@ -396,6 +396,16 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     import_key      TEXT,
     import_hash     TEXT,
     imported_at     TEXT,
+    -- audit B5: 1 while this note's body still carries an unresolved
+    -- import-time placeholder (import-ref://<media> or import-link://
+    -- <note>) that the client's post-confirm media-upload + link-rewrite
+    -- phase has not yet resolved. import_confirm sets it on every
+    -- create/update; update_note clears (or re-sets) it when the client
+    -- reports how that phase went. See import_confirm's docstring — a note
+    -- stuck at 1 is NOT let the confirm fingerprint mark it "skipped", so a
+    -- failed media upload gets retried on the member's next import attempt
+    -- instead of being silently and permanently missing forever.
+    import_media_pending INTEGER,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -613,6 +623,21 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     vault_path  TEXT NOT NULL,
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- 2026-09-02 adversarial audit, "single-process assumptions" #1:
+-- obsidian_link.py's connect-code epoch (closes I6 -- a pre-disconnect
+-- code redeeming into a full reconnection) used to live in a bare
+-- process-local dict. A restart (this repo redeploys constantly) reset
+-- every user's epoch back to 0, silently reopening I6 for the remainder
+-- of any outstanding code's 15-minute TTL, and a second worker would
+-- disagree with the first about whose epoch is current. One row per user
+-- who has ever disconnected Obsidian; a missing row means epoch 0 (never
+-- disconnected), read live on every mint/verify -- see obsidian_link.py's
+-- `_current_epoch` / `invalidate_outstanding_codes`.
+CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
+    user_id TEXT PRIMARY KEY,
+    epoch   INTEGER NOT NULL DEFAULT 0
 );
 
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
@@ -1133,6 +1158,12 @@ _PHASE_2_ALTERS = [
     # save + lazily backfilled when a note is opened. NULL = no image (or not yet
     # computed for a legacy note that hasn't been opened/saved since this shipped).
     "ALTER TABLE j2_notes ADD COLUMN first_image_url TEXT",
+    # audit B5: see the column's comment on the fresh CREATE TABLE above.
+    # A DB that ran ensure_schema() before this shipped never gained the
+    # column any other way — there is no versioned migration for it because
+    # a bare idempotent ALTER (this list's own pattern) is a genuine fit for
+    # one nullable column with no data to backfill.
+    "ALTER TABLE j2_notes ADD COLUMN import_media_pending INTEGER",
 ]
 
 

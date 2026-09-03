@@ -321,6 +321,87 @@ def test_import_check_reports_existing(conn):
     assert "x:1" in out["existing"] and "x:2" not in out["existing"]
 
 
+def test_import_check_does_not_silently_truncate_a_library_past_5000_keys(conn):
+    """audit B1: `import_check` used to slice `[:5000]` with no signal to the
+    caller. 5,000 is the wave's own benchmark size, so a note sitting one
+    past that boundary is exactly the case that matters — it must still be
+    reported as existing, and the response must never claim a truncation
+    that didn't happen when the whole request fit."""
+    # A real note sitting well past the old 5,000-key cutoff.
+    notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                     "notes": [_mk_import_note("x:5500")]}, conn=conn)
+    keys = [f"x:{i}" for i in range(6000)]  # includes "x:5500"
+    out = notes_svc.import_check("u1", keys, conn=conn)
+    assert "x:5500" in out["existing"], (
+        "a key past the old [:5000] cutoff was not checked at all — it would "
+        "come back classified as a new note (a create), duplicating an "
+        "existing one on re-import"
+    )
+    assert out.get("truncated") is not True
+    assert out["checked"] == 6000
+    assert out["total"] == 6000
+
+
+def _mk_import_note_with_media(key, ref="abc123"):
+    return {
+        "importKey": key, "title": "With media",
+        "bodyJson": {"type": "doc", "content": [
+            {"type": "image", "attrs": {"src": f"import-ref://{ref}"}}]},
+        "tags": [], "folderPath": ["Inbox"],
+        "createdAt": "2024-03-01T12:00:00Z", "updatedAt": "2024-03-02T12:00:00Z",
+    }
+
+
+def test_import_confirm_marks_media_pending_until_the_client_confirms_it_resolved(conn):
+    """audit B5: a note whose body still carries an unresolved import-ref://
+    placeholder must not be treated as fully imported. If the client's
+    post-confirm media upload fails, the note must be retried on the next
+    import attempt instead of matching its fingerprint and coming back
+    `skipped` forever (the exact permanent-data-loss shape the audit found:
+    a failed image upload silently stripped the image and never retried)."""
+    out = notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                           "notes": [_mk_import_note_with_media("x:img")]}, conn=conn)
+    note_id = out["created"][0]["id"]
+    row = conn.execute("SELECT import_media_pending FROM j2_notes WHERE id=?", (note_id,)).fetchone()
+    assert row["import_media_pending"] == 1
+
+    # The client's media upload FAILED: rewriteBody dropped the unresolved
+    # image node and the commit pipeline reports the failure honestly.
+    notes_svc.update_note("u1", note_id, {
+        "bodyJson": {"type": "doc", "content": []},
+        "importMediaPending": True,
+    }, conn=conn)
+
+    # Member re-drops the SAME export. The fingerprint (over the ORIGINAL
+    # import payload, unchanged) must not let this note skip past retry.
+    again = notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                             "notes": [_mk_import_note_with_media("x:img")]}, conn=conn)
+    assert any(item["importKey"] == "x:img" for item in again["updated"]), (
+        "a note whose media previously failed must be retried, not silently "
+        "marked skipped forever"
+    )
+    assert not any(item["importKey"] == "x:img" for item in again["skipped"])
+
+
+def test_import_confirm_skips_a_note_once_its_media_is_confirmed_resolved(conn):
+    """The other half of the B5 fix: once the client reports the media
+    phase actually succeeded, the note is genuinely done and re-importing
+    the same export must not needlessly re-process it forever."""
+    out = notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                           "notes": [_mk_import_note_with_media("x:img2")]}, conn=conn)
+    note_id = out["created"][0]["id"]
+
+    notes_svc.update_note("u1", note_id, {
+        "bodyJson": {"type": "doc", "content": [
+            {"type": "image", "attrs": {"src": "/api/j2/notes/attachments/real.png"}}]},
+        "importMediaPending": False,
+    }, conn=conn)
+
+    again = notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                             "notes": [_mk_import_note_with_media("x:img2")]}, conn=conn)
+    assert any(item["importKey"] == "x:img2" for item in again["skipped"])
+
+
 def test_import_confirm_isolates_one_bad_note_and_commits_its_healthy_siblings(conn):
     """⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (here, a
     malformed body) must not roll back the whole batch. This test used to

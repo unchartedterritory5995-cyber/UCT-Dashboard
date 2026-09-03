@@ -164,3 +164,28 @@ describe('obsidian adapter — link anchors (#Heading / #^block) resolve to the 
     expect(a.html).toContain('Note#^abc123')
   })
 })
+
+describe('obsidian adapter — mixed-platform drop (audit B4)', () => {
+  it('names a non-vault file it silently discarded, with a count', async () => {
+    const evernoteFile = {
+      path: 'Trading Notebook.enex', size: 4, lastModified: null,
+      bytes: async () => new TextEncoder().encode('body'),
+    }
+    const { docs, warnings } = await obsidianAdapter.parse([
+      vf('Vault/n.md', '# N\nbody'),
+      evernoteFile,
+    ])
+    expect(docs).toHaveLength(1)
+    const joined = warnings.join(' ')
+    expect(joined).toContain('1 file')
+    expect(joined).toContain('Trading Notebook.enex')
+  })
+
+  it('does not warn about its own .obsidian/ config files', async () => {
+    const { warnings } = await obsidianAdapter.parse([
+      vf('Vault/n.md', '# N\nbody'),
+      vf('Vault/.obsidian/workspace.json', '{}'),
+    ])
+    expect(warnings).toEqual([])
+  })
+})
