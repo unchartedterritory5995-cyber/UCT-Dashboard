@@ -82,3 +82,95 @@ def test_degraded_states_are_distinguishable_from_each_other_and_from_none():
     # The three are mutually distinguishable — no two collapse to the same signature.
     signatures = {genuine.degraded, cached_forbidden.degraded, circuit_open.degraded}
     assert len(signatures) == 3
+
+
+# ── D1 provenance/freshness hardening (2026-09-02) ──────────────────────────
+
+def test_auth_error_403_is_classified_as_entitlement_denied():
+    fmp = pe.make_vendor_errors("fmp", class_prefix="FMP")
+    err = fmp.auth_error("rejected", status=403)
+    assert err.entitlement_denied is True
+
+
+def test_auth_error_401_is_classified_as_not_entitlement_denied():
+    massive = pe.make_vendor_errors("massive")
+    err = massive.auth_error("rejected", status=401)
+    assert err.entitlement_denied is False
+
+
+def test_auth_error_with_no_recognized_status_is_unknown_not_guessed():
+    fmp = pe.make_vendor_errors("fmp", class_prefix="FMP")
+    err = fmp.auth_error("rejected")  # no status kwarg at all
+    assert err.entitlement_denied is None
+
+
+def test_freshness_from_observed_age_returns_normal_when_no_timestamp_evidence():
+    assert pe.freshness_from_observed_age(None, normal="real_time") == "real_time"
+    assert pe.freshness_from_observed_age(None, normal="delayed_15") == "delayed_15"
+
+
+def test_freshness_from_observed_age_returns_normal_when_recent():
+    now = 2_000_000_000.0
+    recent = now - 300  # 5 minutes old
+    assert pe.freshness_from_observed_age(recent, normal="real_time", now=now) == "real_time"
+
+
+def test_freshness_from_observed_age_returns_stale_past_the_threshold():
+    now = 2_000_000_000.0
+    old = now - pe.STALE_AFTER_SECONDS - 1
+    assert pe.freshness_from_observed_age(old, normal="real_time", now=now) == "stale"
+    assert pe.freshness_from_observed_age(old, normal="delayed_15", now=now) == "stale"
+
+
+def test_freshness_from_observed_age_does_not_flip_at_a_normal_weekend_gap():
+    """A Friday-close-to-Monday-reopen gap (under 3.5 days) must never
+    read as stale -- that would be exactly the false-equivalence class
+    this hardening pass exists to prevent (a closed market misread as a
+    dead symbol)."""
+    now = 2_000_000_000.0
+    weekend_old = now - (3.5 * 86_400)
+    assert pe.freshness_from_observed_age(weekend_old, normal="real_time", now=now) == "real_time"
+
+
+def test_provenance_record_source_observed_at_defaults_to_none():
+    prov = pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_quote")
+    assert prov.source_observed_at is None
+
+
+def test_provider_result_to_dict_is_json_safe_and_complete():
+    prov = pe.ProvenanceRecord(
+        vendor="massive", source_activity="massive.get_quote",
+        fetched_at=111.0, source_observed_at=100.0, tie_break="entity_master",
+    )
+    result = pe.ProviderResult(
+        value={"c": 230.0}, provenance=prov, licensing_class="R", freshness="real_time",
+    )
+    d = result.to_dict()
+    assert d == {
+        "value": {"c": 230.0},
+        "provenance": {
+            "vendor": "massive",
+            "source_activity": "massive.get_quote",
+            "fetched_at": 111.0,
+            "tie_break": "entity_master",
+            "source_observed_at": 100.0,
+        },
+        "licensing_class": "R",
+        "freshness": "real_time",
+        "degraded": None,
+        "degraded_since": None,
+    }
+    import json
+    json.dumps(d)  # must not raise -- genuinely JSON-safe
+
+
+def test_freshness_none_means_unknown_and_stale_is_a_distinct_literal():
+    """Both states this hardening pass formalized must never collapse into
+    each other: None ("not established") and "stale" ("established as
+    old") are different facts about a result."""
+    prov = pe.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_quote")
+    unknown = pe.ProviderResult(value={}, provenance=prov, licensing_class="R", freshness=None)
+    stale = pe.ProviderResult(value={}, provenance=prov, licensing_class="R", freshness="stale")
+    assert unknown.freshness is not stale.freshness
+    assert unknown.freshness is None
+    assert stale.freshness == "stale"

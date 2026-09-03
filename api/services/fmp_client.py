@@ -168,13 +168,23 @@ def _fetch(
     path: str, params: dict, *, source_activity: str, data_class: str,
     not_found_if: Optional[Callable[[Any], bool]] = None,
     freshness: Optional[_pe.FreshnessClass] = None, timeout: Optional[int] = None,
+    observed_at_of: Optional[Callable[[Any], Optional[float]]] = None,
 ) -> _pe.ProviderResult:
     """The shared body every typed function below calls. Owns: raising
     FMPNotFound via the caller-supplied predicate (FMP has no status field
     that means "not found" — spec §9.5 — so this cannot be generic at the
     transport layer, only at this per-endpoint layer), stamping provenance
     and the licensing-class lookup, and translating a cached-forbidden
-    sentinel into a degraded ProviderResult."""
+    sentinel into a degraded ProviderResult.
+
+    `observed_at_of` (D1 provenance/freshness hardening, 2026-09-02) is an
+    optional per-endpoint hook, same shape as `not_found_if`, that extracts
+    the vendor's OWN observation timestamp from the raw response -- only
+    `get_quote` supplies one today (FMP's `/stable/quote` carries a real
+    `timestamp` field, live-verified 2026-09-02). Every other typed
+    function leaves this `None`, so `source_observed_at` stays `None` and
+    `freshness` is unaffected -- this hook is additive, not a behavior
+    change for the 16 endpoints that don't opt in."""
     licensing_class = _plc.licensing_class_for("fmp", data_class)
     raw = _get_raw(path, params, timeout=timeout)
     if isinstance(raw, _CachedForbidden):
@@ -188,11 +198,18 @@ def _fetch(
         )
     if not_found_if is not None and not_found_if(raw):
         raise _ERR.not_found(f"FMP {path}: no data for this request")
+    observed_at = observed_at_of(raw) if observed_at_of is not None else None
+    final_freshness = (
+        _pe.freshness_from_observed_age(observed_at, normal=freshness)
+        if freshness is not None else freshness
+    )
     return _pe.ProviderResult(
         value=raw,
-        provenance=_pe.ProvenanceRecord(vendor="fmp", source_activity=source_activity),
+        provenance=_pe.ProvenanceRecord(
+            vendor="fmp", source_activity=source_activity, source_observed_at=observed_at,
+        ),
         licensing_class=licensing_class,
-        freshness=freshness,
+        freshness=final_freshness,
     )
 
 
@@ -220,11 +237,25 @@ def _fmp_index_symbol(ticker: str) -> str:
     return t if t.startswith("^") else f"^{t}"
 
 
+def _quote_observed_at(raw: Any) -> Optional[float]:
+    """FMP's `/stable/quote` row carries its own `timestamp` (unix epoch
+    seconds) -- live-verified 2026-09-02 against both an actively-traded
+    name (AAPL) and a thin/illiquid one (ATLQ); both rows carried a real
+    `timestamp`. Returns None (never fabricated) when the field is absent
+    or the response isn't the expected one-row list."""
+    if isinstance(raw, list) and raw and isinstance(raw[0], dict):
+        ts = raw[0].get("timestamp")
+        if isinstance(ts, (int, float)):
+            return float(ts)
+    return None
+
+
 def get_quote(ticker: str, *, entity_type: Optional[str] = None) -> _pe.ProviderResult:
     sym = _fmp_index_symbol(ticker) if entity_type == "index" else ticker.upper()
     return _fetch("/stable/quote", {"symbol": sym},
                    source_activity="fmp_client.get_quote", data_class="fundamentals",
-                   not_found_if=_empty_list, freshness="delayed_15")
+                   not_found_if=_empty_list, freshness="delayed_15",
+                   observed_at_of=_quote_observed_at)
 
 
 def get_key_metrics_ttm(ticker: str) -> _pe.ProviderResult:

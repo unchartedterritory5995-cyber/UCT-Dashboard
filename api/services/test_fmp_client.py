@@ -97,6 +97,57 @@ def test_get_quote_index_prefix_is_a_noop_when_already_prefixed():
     assert captured["symbol"] == "^SPX"
 
 
+# ── D1 provenance/freshness hardening (2026-09-02) ──────────────────────────
+
+def test_get_quote_recent_timestamp_stays_delayed_15_and_populates_provenance():
+    recent_ts = time.time() - 900  # 15 minutes ago
+    with patch.object(fc._session, "get", return_value=_mock_response(200, [{"symbol": "AAPL", "timestamp": recent_ts}])):
+        result = fc.get_quote("AAPL")
+    assert result.freshness == "delayed_15"
+    assert result.provenance.source_observed_at == recent_ts
+
+
+def test_get_quote_stale_timestamp_reports_stale_not_delayed_15():
+    """Live-validation finding #2: a stale/delisted-adjacent symbol can
+    answer with a real quote row whose own timestamp is old, rather than
+    an error -- this must not be reported as the normal delayed_15 tier."""
+    stale_ts = time.time() - fc._pe.STALE_AFTER_SECONDS - 3600
+    with patch.object(fc._session, "get", return_value=_mock_response(200, [{"symbol": "ATLQ", "timestamp": stale_ts}])):
+        result = fc.get_quote("ATLQ")
+    assert result.freshness == "stale"
+
+
+def test_get_quote_missing_timestamp_keeps_delayed_15_never_fabricates():
+    with patch.object(fc._session, "get", return_value=_mock_response(200, [{"symbol": "AAPL"}])):
+        result = fc.get_quote("AAPL")
+    assert result.freshness == "delayed_15"
+    assert result.provenance.source_observed_at is None
+
+
+def test_other_typed_endpoints_do_not_populate_source_observed_at():
+    """observed_at_of is opt-in per endpoint -- confirms it stays None
+    (not accidentally guessed) for an endpoint that never supplied the
+    hook."""
+    with patch.object(fc._session, "get", return_value=_mock_response(200, [{"pe": 30}])):
+        result = fc.get_key_metrics_ttm("AAPL")
+    assert result.provenance.source_observed_at is None
+    assert result.freshness == "end_of_day"
+
+
+def test_403_sets_entitlement_denied_true_on_the_raised_error():
+    with patch.object(fc._session, "get", return_value=_mock_response(403)):
+        with pytest.raises(fc.FMPAuthError) as exc_info:
+            fc.get_quote("AAPL")
+    assert exc_info.value.entitlement_denied is True
+
+
+def test_401_sets_entitlement_denied_false_on_the_raised_error():
+    with patch.object(fc._session, "get", return_value=_mock_response(401)):
+        with pytest.raises(fc.FMPAuthError) as exc_info:
+            fc.get_quote("AAPL")
+    assert exc_info.value.entitlement_denied is False
+
+
 def test_401_raises_auth_error():
     with patch.object(fc._session, "get", return_value=_mock_response(401)):
         with pytest.raises(fc.FMPAuthError) as exc_info:

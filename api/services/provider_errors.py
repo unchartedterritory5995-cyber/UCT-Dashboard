@@ -53,7 +53,29 @@ class ProviderNotConfigured(ProviderError):
 
 class ProviderAuthError(ProviderError):
     """The vendor rejected the credential (401/403, NOT the cached-forbidden-
-    endpoint case — see ProviderResult.degraded, §6.4)."""
+    endpoint case — see ProviderResult.degraded, §6.4).
+
+    `entitlement_denied` (D1 provenance/freshness hardening, 2026-09-02)
+    distinguishes two real, evidence-backed cases this class used to
+    collapse into one: 403 means the credential is VALID but this specific
+    resource/plan-tier is not entitled to it (Massive's live-confirmed
+    index-quote gap is the evidence for this exact case); 401 means the
+    credential itself was rejected. Derived automatically from `status` —
+    True for 403, False for 401, `None` when the raising site didn't supply
+    a recognized status. Never guessed beyond what the HTTP status already
+    tells us; a "provider does not support this capability at all" state
+    (distinct from "not entitled under the current plan") has no live
+    evidence separating it from 403 in this codebase today, so it is not
+    invented as a fourth class here."""
+
+    def __init__(self, message: str, **kw):
+        super().__init__(message, **kw)
+        if self.status == 403:
+            self.entitlement_denied = True
+        elif self.status == 401:
+            self.entitlement_denied = False
+        else:
+            self.entitlement_denied = None
 
 
 class ProviderRateLimited(ProviderError):
@@ -127,17 +149,71 @@ def make_vendor_errors(vendor: str, class_prefix: Optional[str] = None) -> Vendo
 
 # ── The result envelope (spec §6.1-6.4) ─────────────────────────────────────
 
-FreshnessClass = Literal["real_time", "delayed_15", "end_of_day", "historical"]
+# "stale" added by the D1 provenance/freshness hardening pass (2026-09-02):
+# real, evidence-backed state distinct from the other four -- a vendor
+# answered successfully (not NotFound, not degraded) but its OWN reported
+# observation timestamp is old enough that the value should not be trusted
+# as current. This is exactly finding #2 from the D1 Real-Provider
+# Validation Checkpoint (a stale/delisted symbol can get a stale FMP quote
+# rather than an error) generalized into the freshness taxonomy instead of
+# living only as prose in a checkpoint doc.
+FreshnessClass = Literal["real_time", "delayed_15", "end_of_day", "historical", "stale"]
 DegradedReason = Literal["cached_forbidden", "circuit_open"]
+
+# How old a quote-shaped result's OWN vendor-reported observation timestamp
+# must be before it is classified "stale" rather than its normal tier.
+# Deliberately coarse and NOT session-aware (a real market calendar --
+# knowing today is a holiday, weekend, or half-day -- is a future S8/S11
+# concern, not D1's): 5 days is comfortably longer than any weekend+holiday
+# gap this program has to reason about (a Friday close before a Monday
+# holiday reopens Tuesday, under 3.5 days), so a value older than this is
+# evidence the symbol is not trading normally (delisted/halted/illiquid),
+# not merely "the market happens to be closed right now."
+STALE_AFTER_SECONDS = 5 * 86_400
+
+
+def freshness_from_observed_age(
+    observed_at: Optional[float], *, normal: FreshnessClass, now: Optional[float] = None,
+) -> FreshnessClass:
+    """Shared, evidence-based freshness classification used by every
+    adapter's quote-shaped typed methods, so the "how stale is too stale"
+    rule lives in exactly one place instead of drifting per-vendor. Returns
+    `normal` (the vendor's documented/expected tier -- "real_time" for
+    Massive, "delayed_15" for FMP) when `observed_at` is missing (nothing
+    to evidence staleness with -- never fabricated) or recent; returns
+    "stale" only when the vendor's OWN observation timestamp says so. This
+    must never be driven by request recency -- "we just asked the vendor"
+    is not evidence the underlying value is current, which is exactly the
+    bug this same hardening pass fixed in `massive.get_quote` (it used to
+    report freshness="real_time" regardless of what the vendor's status
+    field said)."""
+    if observed_at is None:
+        return normal
+    now = now if now is not None else time.time()
+    if now - observed_at > STALE_AFTER_SECONDS:
+        return "stale"
+    return normal
 
 
 @dataclass(frozen=True)
 class ProvenanceRecord:
-    """Spec §6.2, generalizing bar_provenance.py's narrower shape."""
+    """Spec §6.2, generalizing bar_provenance.py's narrower shape.
+
+    `source_observed_at` (D1 hardening, 2026-09-02) is the vendor's OWN
+    reported observation/last-trade timestamp for the value -- distinct
+    from `fetched_at`, which is only when D1 made the request. This is the
+    "source/market data time" vs "request time" distinction: a request
+    made at 4:05pm ET for a stock that last traded at 4:00pm ET has a
+    `fetched_at` five minutes newer than its `source_observed_at`, and
+    that gap is real information, not noise. `None` when the vendor's
+    response carries no such timestamp for this capability -- never
+    backfilled from `fetched_at`, which would silently misrepresent
+    request time as observation time."""
     vendor: str
     source_activity: str  # e.g. "fmp_client.get_key_metrics_ttm"
     fetched_at: float = field(default_factory=time.time)  # epoch; caller may override for tests
     tie_break: Optional[str] = None
+    source_observed_at: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -147,10 +223,41 @@ class ProviderResult:
     rendered as real data (PRD §9.4/§9.6, the "quiet market" anti-pattern
     this whole system exists to prevent). `degraded_since` is populated only
     when `degraded == "cached_forbidden"` (the original 403's timestamp,
-    spec §6.4)."""
+    spec §6.4).
+
+    `freshness=None` is a deliberate, documented state meaning "not
+    established" (D1 hardening, 2026-09-02) -- distinct from every named
+    FreshnessClass value, including "stale". A consumer (AI or otherwise)
+    must read `None` as UNKNOWN, never coerce it to "real_time" or any
+    other assumed default; "unknown" was intentionally not added as its
+    own string literal since `None` already carries that meaning everywhere
+    in this envelope (`Optional[FreshnessClass]`), and a redundant literal
+    would just create two spellings of the same fact."""
     value: Any
     provenance: ProvenanceRecord
     licensing_class: str
     freshness: Optional[FreshnessClass] = None
     degraded: Optional[DegradedReason] = None
     degraded_since: Optional[float] = None
+
+    def to_dict(self) -> dict:
+        """AI/consumer-facing serialization (D1 hardening, 2026-09-02) --
+        a stable, documented, JSON-safe shape so a future AI/intelligence
+        surface doesn't need to know this is a dataclass or hand-roll
+        `dataclasses.asdict`. Every field here is already a primitive/
+        Optional[primitive], so this is a plain recursive-free conversion,
+        not new machinery."""
+        return {
+            "value": self.value,
+            "provenance": {
+                "vendor": self.provenance.vendor,
+                "source_activity": self.provenance.source_activity,
+                "fetched_at": self.provenance.fetched_at,
+                "tie_break": self.provenance.tie_break,
+                "source_observed_at": self.provenance.source_observed_at,
+            },
+            "licensing_class": self.licensing_class,
+            "freshness": self.freshness,
+            "degraded": self.degraded,
+            "degraded_since": self.degraded_since,
+        }

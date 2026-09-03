@@ -86,6 +86,96 @@ def test_get_quote_delayed_status_reports_delayed_freshness_not_real_time():
     assert result.value == {"day": {"c": 230.0}}
 
 
+# ── D1 provenance/freshness hardening (2026-09-02) ──────────────────────────
+
+def test_get_quote_recent_updated_timestamp_stays_normal_freshness_and_populates_provenance():
+    c = _client()
+    recent_ns = int(time.time() * 1e9) - 300_000_000_000  # 5 minutes ago, in ns
+    body = {"status": "OK", "ticker": {"day": {"c": 230.0}, "updated": recent_ns}}
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_quote("AAPL")
+    assert result.freshness == "real_time"
+    assert result.provenance.source_observed_at == pytest.approx(recent_ns / 1e9, abs=1.0)
+
+
+def test_get_quote_stale_updated_timestamp_reports_stale_not_real_time():
+    """The exact case D1's live-validation findings named: a symbol that
+    answers 200/status=OK (not NotFound) but whose own last-observed
+    timestamp is old enough that it should not be trusted as current."""
+    c = _client()
+    stale_ns = int((time.time() - m._pe.STALE_AFTER_SECONDS - 3600) * 1e9)
+    body = {"status": "OK", "ticker": {"day": {"c": 9.97}, "updated": stale_ns}}
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_quote("ATLQ")
+    assert result.freshness == "stale"
+    assert result.value == {"day": {"c": 9.97}, "updated": stale_ns}
+
+
+def test_get_quote_falls_back_to_lastTrade_t_when_updated_is_absent():
+    c = _client()
+    recent_ns = int(time.time() * 1e9) - 60_000_000_000
+    body = {"status": "OK", "ticker": {"lastTrade": {"t": recent_ns, "p": 230.0}}}
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_quote("AAPL")
+    assert result.provenance.source_observed_at == pytest.approx(recent_ns / 1e9, abs=1.0)
+
+
+def test_get_quote_missing_timestamp_evidence_keeps_normal_freshness_never_fabricates():
+    c = _client()
+    body = {"status": "OK", "ticker": {"day": {"c": 230.0}}}  # no updated, no lastTrade
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_quote("AAPL")
+    assert result.freshness == "real_time"
+    assert result.provenance.source_observed_at is None
+
+
+def test_get_quote_401_sets_entitlement_denied_false_on_the_raised_error():
+    c = _client()
+    with patch.object(m._http, "get", return_value=_mock_response(401)):
+        with pytest.raises(m.MassiveAuthError) as exc_info:
+            c.get_quote("AAPL")
+    assert exc_info.value.entitlement_denied is False
+
+
+def test_get_quote_403_sets_entitlement_denied_true_on_the_raised_error():
+    """Massive's live-confirmed index-quote gap is exactly this case: a
+    valid key, rejected with 403 because the plan/tier lacks the
+    entitlement -- distinct from an invalid credential (401)."""
+    c = _client()
+    with patch.object(m._http, "get", return_value=_mock_response(403)):
+        with pytest.raises(m.MassiveAuthError) as exc_info:
+            c.get_quote("SPX")
+    assert exc_info.value.entitlement_denied is True
+
+
+def test_get_batch_quotes_reports_stale_when_any_resolved_ticker_is_stale():
+    c = _client()
+    stale_ns = int((time.time() - m._pe.STALE_AFTER_SECONDS - 3600) * 1e9)
+    fresh_ns = int(time.time() * 1e9) - 60_000_000_000
+    body = {"tickers": [
+        {"ticker": "AAPL", "day": {"c": 230.0}, "updated": fresh_ns},
+        {"ticker": "ATLQ", "day": {"c": 9.97}, "updated": stale_ns},
+    ]}
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_batch_quotes(["AAPL", "ATLQ"])
+    assert result.freshness == "stale"  # worst case, not silently "real_time"
+
+
+def test_get_batch_quotes_all_fresh_reports_real_time():
+    c = _client()
+    fresh_ns = int(time.time() * 1e9) - 60_000_000_000
+    body = {"tickers": [{"ticker": "AAPL", "day": {"c": 230.0}, "updated": fresh_ns}]}
+    with patch.object(m._http, "get", return_value=_mock_response(200, body)):
+        result = c.get_batch_quotes(["AAPL"])
+    assert result.freshness == "real_time"
+
+
+def test_get_batch_quotes_empty_input_freshness_is_none_not_real_time():
+    c = _client()
+    result = c.get_batch_quotes([])
+    assert result.freshness is None
+
+
 def test_get_quote_dot_symbol_translation_for_dual_class_ticker():
     c = _client()
     captured = {}

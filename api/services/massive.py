@@ -227,6 +227,25 @@ class _MassiveRestClient:
                 pass
         return to_polygon_symbol(ticker)
 
+    @staticmethod
+    def _ticker_observed_at(ticker_data: dict) -> Optional[float]:
+        """The vendor's OWN reported observation timestamp for one ticker's
+        snapshot (D1 provenance/freshness hardening, 2026-09-02) -- live-
+        verified shape: the top-level `updated` field on a ticker object is
+        epoch NANOSECONDS (confirmed live 2026-09-02: `updated` and
+        `lastTrade.t` agree to within a second of each other for a live
+        quote). `lastTrade.t` is the fallback when `updated` is absent.
+        Returns None (never a fabricated guess) when neither field is
+        present or parseable -- e.g. a pre-market snapshot with no trade
+        yet today."""
+        raw = ticker_data.get("updated")
+        if not isinstance(raw, (int, float)):
+            lt = ticker_data.get("lastTrade")
+            raw = lt.get("t") if isinstance(lt, dict) else None
+        if not isinstance(raw, (int, float)) or raw <= 0:
+            return None
+        return raw / 1e9
+
     def get_quote(self, ticker: str, *, entity_id: Optional[str] = None) -> _pe.ProviderResult:
         """Single-ticker snapshot, D1 typed contract. Live-validated during
         the Real-Provider Validation Checkpoint (2026-09-02) against AAPL,
@@ -260,10 +279,20 @@ class _MassiveRestClient:
         # FMP's genuinely-15-min-delayed quote uses) is the closest honest
         # fit -- imprecise on the exact minutes, but never claims real-time
         # when the vendor itself says otherwise.
-        freshness = "real_time" if status == "OK" else "delayed_15"
+        ticker_data = data.get("ticker") or {}
+        observed_at = self._ticker_observed_at(ticker_data)
+        normal = "real_time" if status == "OK" else "delayed_15"
+        # D1 provenance/freshness hardening (2026-09-02): a quote whose OWN
+        # observation timestamp is stale (finding #2 -- a delisted/illiquid
+        # symbol can answer 200/status=OK with an old last print, not an
+        # error) must not be reported as `normal` just because the HTTP
+        # call itself succeeded.
+        freshness = _pe.freshness_from_observed_age(observed_at, normal=normal)
         return _pe.ProviderResult(
-            value=data.get("ticker") or {},
-            provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_quote"),
+            value=ticker_data,
+            provenance=_pe.ProvenanceRecord(
+                vendor="massive", source_activity="massive.get_quote", source_observed_at=observed_at,
+            ),
             licensing_class=_plc.licensing_class_for("massive", "quotes"),
             freshness=freshness,
         )
@@ -287,11 +316,15 @@ class _MassiveRestClient:
         if not self._api_key:
             raise _ERR.not_configured("MASSIVE_API_KEY not set")
         if not tickers:
+            # D1 provenance/freshness hardening (2026-09-02): no request
+            # was made and there is nothing to have a freshness opinion
+            # about -- `None` (unknown/not-applicable), never a claimed
+            # "real_time" for zero data.
             return _pe.ProviderResult(
                 value={},
                 provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),
                 licensing_class=_plc.licensing_class_for("massive", "quotes"),
-                freshness="real_time",
+                freshness=None,
             )
         entity_ids = entity_ids or {}
         poly_to_canon = {
@@ -315,11 +348,33 @@ class _MassiveRestClient:
                 continue
             canon = poly_to_canon.get(poly_sym, poly_sym)
             out[canon] = t
+        # D1 provenance/freshness hardening (2026-09-02): the batch
+        # endpoint's top-level "status" field is NOT usable for freshness --
+        # live-verified 2026-09-02 to read "OK" on every successful HTTP
+        # call regardless of any individual ticker's staleness (it is a
+        # request-success indicator, not a per-symbol delay signal; this
+        # was checked rather than assumed, per "do not guess"). What each
+        # ticker DOES carry is its own `updated`/`lastTrade.t` observation
+        # timestamp, so freshness here is the WORST CASE across the batch:
+        # if any resolved ticker's own timestamp is stale, the whole result
+        # is reported "stale" rather than falsely claiming "real_time" for
+        # tickers that are fine. This is a result-level (not per-ticker)
+        # aggregate because ProviderResult has no field-level granularity
+        # yet -- the S8 Provenance & Freshness spec's own §4/PRD explicitly
+        # defers that exact decision, so this does not attempt to invent it
+        # here. A genuinely per-ticker freshness feature is future work,
+        # not silently done via a lossy aggregate.
+        oldest_age_freshness = "real_time"
+        for t in out.values():
+            observed_at = self._ticker_observed_at(t)
+            if _pe.freshness_from_observed_age(observed_at, normal="real_time") == "stale":
+                oldest_age_freshness = "stale"
+                break
         return _pe.ProviderResult(
             value=out,
             provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),
             licensing_class=_plc.licensing_class_for("massive", "quotes"),
-            freshness="real_time",
+            freshness=oldest_age_freshness,
         )
 
     def get_top_movers(self, direction: str = "gainers", limit: int = 20) -> list:
