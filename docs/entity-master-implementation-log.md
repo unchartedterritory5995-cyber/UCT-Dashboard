@@ -894,3 +894,36 @@ left standing.
 **Tests run (final):** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — **76/76 passed** (72 from Checkpoints 1-7 + 4 new in `test_adversarial_checkpoint8.py`).
 
 ---
+
+## ACCEPTED WITH CONDITIONS (owner, 2026-09-02) — tracked follow-ups
+
+Entity Master's completion report was accepted with three conditions,
+explicitly preserved as tracked requirements (not closed, not implied-done
+by D1 or any later system):
+
+1. **Admin/ops routes (spec §7.3/7.4) must exist before any operational
+   reliance on manual reconcile/event triggers.** Not built by Checkpoints
+   1-8 (see "Remaining technical debt"). Blocks: relying on
+   `POST /reconcile` or `POST /event` as a real operational lever. Does
+   NOT block D1 or any read/write use of Entity Master's existing
+   primitives.
+2. **Reconciliation scheduling remains DISABLED unless explicitly
+   authorized for unattended execution.** `reconciliation.py` is built,
+   tested, and dry-run/real-run-proven (Checkpoint 7) but deliberately
+   NOT registered in `api/main.py`'s APScheduler. This must stay true
+   until a separate, explicit owner authorization to wire it in.
+3. **`cap_universe.json` refresh remains a separate normal-operations /
+   data-quality task.** Confirmed root cause (Checkpoint 7/8's Finding-A
+   correction): it is the actually-stale file, not
+   `delisted_tickers_bulk.json`. Not fixed by this build, per explicit
+   scope boundary; must not be pulled into D1 or any future Terminal-Next
+   implementation slice either — it is a normal-ops fix on an
+   already-existing file, unrelated to Terminal-Next's architecture.
+
+None of these three block Provider Abstraction Layer (D1), per the
+owner's explicit authorization. D1 work continues below, in this same
+implementation log, under its own checkpoint numbering (D1 is a
+different system from S3/Entity Master, sharing this worktree's
+implementation record for continuity).
+
+---
