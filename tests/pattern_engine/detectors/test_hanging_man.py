@@ -100,3 +100,30 @@ def test_levels_are_bearish_setup():
     assert levels["stop"] > last_bar["h"]
     # Target BELOW entry (bearish target)
     assert levels["target_primary"] < levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3A: Bulkowski citation correction regression
+# ---------------------------------------------------------------------------
+
+def test_bulkowski_citation_is_accurate():
+    """The narrative previously cited Bulkowski's 59% figure as if it supported
+    the bearish-reversal read ("reliability LOWER than commonly believed —
+    around 59%"). That 59% is actually the rate the pattern acts as a BULLISH
+    continuation — meaning the bearish thesis this detector flags is correct
+    less than half the time on raw geometry alone. Guards against the
+    inverted framing reappearing."""
+    fixtures = load_all_fixtures("hanging_man", include_internal=False)
+    pos = [f for f in fixtures if f.category == "positive"]
+    assert pos
+    fixture = pos[0]
+    ctx = fixture.context if fixture.context is not None else build_context(fixture.bars, sym="TEST")
+    detections = detect_hanging_man(fixture.bars, ctx)
+    assert detections
+    text = detections[0]["narrative"]["what_it_is"]
+    assert "bullish continuation" in text.lower(), (
+        f"expected the corrected bullish-continuation framing in narrative: {text!r}"
+    )
+    assert "reliability LOWER than commonly believed" not in text, (
+        f"stale inverted framing still present: {text!r}"
+    )

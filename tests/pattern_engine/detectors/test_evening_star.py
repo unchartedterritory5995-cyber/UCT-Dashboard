@@ -229,3 +229,25 @@ def test_levels_are_bearish_setup():
     pattern_high = max(f.bars[-3]["h"], f.bars[-2]["h"], f.bars[-1]["h"])
     assert levels["stop"] > pattern_high
     assert levels["target_primary"] < levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3A: Bulkowski citation correction regression
+# ---------------------------------------------------------------------------
+
+def test_bulkowski_citation_is_accurate():
+    """The narrative previously claimed evening-star follow-through reliability
+    "mirrors" the bullish morning star at ~78%. Bulkowski's actual figures are
+    72% for evening star vs 78% for morning star — not a mirror — though the
+    evening star's overall performance RANK (4th of 103) is stronger than the
+    morning star's (12th of 103). Guards against the misquote reappearing."""
+    fixtures = load_all_fixtures("evening_star", include_internal=False)
+    pos = [f for f in fixtures if f.category == "positive"]
+    assert pos
+    fixture = pos[0]
+    ctx = fixture.context if fixture.context is not None else build_context(fixture.bars, sym="TEST")
+    detections = detect_evening_star(fixture.bars, ctx)
+    assert detections
+    text = detections[0]["narrative"]["what_it_is"]
+    assert "72%" in text, f"expected the corrected 72% Bulkowski figure in narrative: {text!r}"
+    assert "mirroring the bullish" not in text, f"stale 'mirroring' framing still present: {text!r}"

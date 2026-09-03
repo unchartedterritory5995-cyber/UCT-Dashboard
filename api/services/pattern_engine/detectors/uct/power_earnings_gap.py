@@ -1,18 +1,29 @@
 """Power Earnings Gap (PEG) detector — Pradeep Bonde / Stockbee.
 
 A Power Earnings Gap is a gap-up event where a stock gaps significantly
-(>=4%) on dramatic volume (>=3x avg), then HOLDS the gap with tight
+(>=8%) on dramatic volume (>=3x avg), then HOLDS the gap with tight
 post-gap consolidation. The combination of price gap + volume surge + tight
 post-gap action signals that institutions are aggressively buying the new
 fundamentals (typically post-earnings, but also FDA approvals, acquisitions,
 guidance raises). PEGs frequently extend 30-100% over the following 4-12
 weeks because the gap creates a clean break above all prior overhead supply.
 
+Gap-size calibration (Phase 3A, 2026-09-02): Bonde's own 2010 Stockbee post
+defines the qualifying gap as "a price move of 5+ points OR 8%+ gain" — an
+OR of an absolute-dollar move and a percentage move. This detector has only
+ever had a single percentage-based gate, so the correction adopts the
+percentage branch (8%) as that gate's floor rather than inventing a new
+dollar-based alternate condition (out of scope for a narrow calibration fix).
+This is stricter than Bonde's rule for high-priced names that would clear
+"5+ points" below 8% — a known, accepted limitation, not an oversight.
+
 Geometric definition:
   - Detection window: last 30 bars (PEG must be recent)
   - Gap bar identification: the bar with the largest gap_pct in the last 30
     bars where:
-      * gap_pct = (open - prior_close) / prior_close >= 0.04 (>=4% gap up)
+      * gap_pct = (open - prior_close) / prior_close >= 0.08 (>=8% gap up)
+      * gap_pct <= 1.00 (a gap this large is almost certainly an unadjusted
+        stock-split/reverse-split artifact, not a real earnings gap)
       * volume >= 3 * avg_volume(20 prior bars)
   - Post-gap window: 3-10 bars after the gap bar
   - Continuation gate: min(post_gap_lows) > gap_open * 0.99 (haven't filled
@@ -45,7 +56,10 @@ _PATTERN_ID = "power_earnings_gap"
 
 _DETECTION_WINDOW = 30           # last N bars to scan for the gap bar
 _AVG_LOOKBACK = 20               # bars before gap for avg volume
-_MIN_GAP_PCT = 0.04              # >=4% gap-up
+_MIN_GAP_PCT = 0.08              # >=8% gap-up (Bonde: "5+ points OR 8%+ gain")
+_MAX_GAP_PCT = 1.00              # >=100% "gap" is almost certainly an unadjusted
+                                  # stock-split/reverse-split artifact, not a
+                                  # real earnings gap
 _MIN_VOLUME_RATIO = 3.0          # >=3x 20-bar avg volume
 _MIN_POST_GAP_BARS = 3           # need 3-10 bars after the gap
 _MAX_POST_GAP_BARS = 10
@@ -129,9 +143,12 @@ def _try_extract(bars: List[Bar], gap_idx: int) -> Optional[dict]:
     if gap_range <= 0:
         return None
 
-    # 1. Gap percentage gate
+    # 1. Gap percentage gate (floor: real earnings gap; ceiling: reject
+    #    unadjusted stock-split/reverse-split artifacts masquerading as gaps)
     gap_pct = (gap_open - prior_close) / prior_close
     if gap_pct < _MIN_GAP_PCT:
+        return None
+    if gap_pct > _MAX_GAP_PCT:
         return None
 
     # 2. Volume gate: gap_bar volume vs 20-bar avg BEFORE the gap
@@ -228,19 +245,18 @@ def _hostile_context(context: dict) -> bool:
 
 def _score_geometry(c: dict) -> float:
     """Geometry score components:
-       - gap_score: bigger gap = better (4% = 50, 8% = 85, 10%+ = 100)
+       - gap_score: bigger gap = better (8% = 85, 10%+ = 100). The two lower
+         bands below 8% are unreachable here — the gap-percentage gate in
+         _try_extract already rejects gp < _MIN_GAP_PCT (0.08) before a
+         candidate ever reaches scoring.
        - tightness_score: tighter post-gap action = better
        - holding_score: how far above gap_open the lows held
     """
     gp = c["gap_pct"]
     if gp >= 0.10:
         gap_score = 100.0
-    elif gp >= 0.08:
-        gap_score = 85.0 + (gp - 0.08) / 0.02 * 15.0
-    elif gp >= 0.06:
-        gap_score = 70.0 + (gp - 0.06) / 0.02 * 15.0
     elif gp >= _MIN_GAP_PCT:
-        gap_score = 50.0 + (gp - _MIN_GAP_PCT) / 0.02 * 20.0
+        gap_score = 85.0 + (gp - _MIN_GAP_PCT) / 0.02 * 15.0
     else:
         gap_score = 0.0
 
