@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
@@ -17,8 +17,13 @@ const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
  * stops propagation on match, so it wins the shortcut everywhere including
  * /settings — mirroring SymbolSearch.jsx's own capture-phase Escape handling,
  * the codebase's existing pattern for exactly this kind of precedence.
+ *
+ * Exposes an imperative `open()` via ref so the visible NavBar/MobileNav
+ * triggers (2026-09-03 discoverability slice) can open the SAME palette a
+ * click/tap invokes — the component stays otherwise fully self-contained
+ * (no controlled open/onClose props), preserving the original architecture.
  */
-export default function CommandPalette() {
+const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -38,6 +43,16 @@ export default function CommandPalette() {
   useEffect(() => { openRef.current = open }, [open])
 
   const close = () => setOpen(false)
+
+  // Visible-trigger open path (NavBar/MobileNav click or tap) — same open
+  // logic as the hotkey's "not yet open" branch, exposed for a parent ref.
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      if (openRef.current) { inputRef.current?.focus(); return }
+      openerRef.current = document.activeElement
+      setOpen(true)
+    },
+  }), [])
 
   // ── Global hotkey — registered ONCE for the component's lifetime. ──────
   useEffect(() => {
@@ -102,7 +117,9 @@ export default function CommandPalette() {
     setActiveIdx(0)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const q = query.trim()
-    if (!q) {
+    // '?' is the in-box help mode (P10, IA §8.3 / §17.4 — "the grammar
+    // documents itself from inside the box") — never a search query.
+    if (!q || q === '?') {
       setResults([])
       setLoading(false)
       setError(false)
@@ -132,7 +149,9 @@ export default function CommandPalette() {
     return () => clearTimeout(debounceRef.current)
   }, [query, open])
 
-  const qUpper = query.trim().toUpperCase()
+  const trimmedQuery = query.trim()
+  const isHelp = trimmedQuery === '?'
+  const qUpper = trimmedQuery.toUpperCase()
   const displayRows = useMemo(() => {
     if (!qUpper) return []
     const hasExact = results.some(r => String(r.ticker).toUpperCase() === qUpper)
@@ -161,6 +180,7 @@ export default function CommandPalette() {
       setActiveIdx(i => Math.max(0, i - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
+      if (isHelp) return
       // Zero-network-wait guarantee: unless the user explicitly arrowed to a
       // different row, Enter always goes to the typed value directly.
       if (navByArrowRef.current && displayRows[activeIdx]) {
@@ -209,13 +229,24 @@ export default function CommandPalette() {
         </div>
 
         <div className={styles.resultList} id={listboxId} role="listbox" aria-label="Search results">
-          {!qUpper && (
-            <div className={styles.resultEmpty}>Type a ticker or company name to jump to its research page.</div>
+          {isHelp && (
+            <div className={styles.helpPanel}>
+              <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page.</p>
+              <ul>
+                <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
+                <li><kbd>↵</kbd> open the selected or typed symbol</li>
+                <li><kbd>Esc</kbd> close</li>
+                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
+              </ul>
+            </div>
           )}
-          {qUpper && displayRows.length === 0 && !loading && (
+          {!isHelp && !qUpper && (
+            <div className={styles.resultEmpty}>Type a ticker or company name to jump to its research page. Type <strong>?</strong> for help.</div>
+          )}
+          {!isHelp && qUpper && displayRows.length === 0 && !loading && (
             <div className={styles.resultEmpty}>No matches for &quot;{query.trim()}&quot;.</div>
           )}
-          {displayRows.map((r, i) => (
+          {!isHelp && displayRows.map((r, i) => (
             <button
               key={`${r.ticker}-${i}`}
               id={`uct-cmdk-row-${i}`}
@@ -253,4 +284,6 @@ export default function CommandPalette() {
     </div>,
     document.body,
   )
-}
+})
+
+export default CommandPalette

@@ -7,10 +7,23 @@
  * the zero-network-wait typed-Enter path vs. explicit arrow-navigation, and
  * click-to-select navigation into /research/:sym.
  */
+import { useRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
+
+// 2026-09-03 discoverability slice: NavBar/MobileNav open the SAME palette
+// via this exact ref shape (paletteRef.current.open()) — mirrors Layout.jsx.
+function PaletteWithExternalTrigger() {
+  const ref = useRef(null)
+  return (
+    <>
+      <button onClick={() => ref.current?.open()}>external-open</button>
+      <CommandPalette ref={ref} />
+    </>
+  )
+}
 
 function RouteSpy() {
   const location = useLocation()
@@ -205,5 +218,81 @@ describe('CommandPalette — search + selection', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     // '###' fails TICKER_LIKE, so no synthetic row is appended either.
     await screen.findByText(/no matches for/i)
+  })
+})
+
+describe('CommandPalette — visible-trigger open path (2026-09-03 discoverability slice)', () => {
+  // NavBar/MobileNav call ref.current.open() exactly like this — proves the
+  // SAME palette opens via a non-keyboard path, not a second implementation.
+  it('opens via an external ref.current.open() call, focuses the input', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <PaletteWithExternalTrigger />
+        <RouteSpy />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByText('external-open'))
+    await screen.findByRole('dialog', { name: 'Command palette' })
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
+  })
+
+  it('a second open() call while already open is a no-op, not a close', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <PaletteWithExternalTrigger />
+        <RouteSpy />
+      </MemoryRouter>,
+    )
+    const trigger = screen.getByText('external-open')
+    fireEvent.click(trigger)
+    await screen.findByRole('dialog', { name: 'Command palette' })
+    fireEvent.click(trigger)
+    // Still open — a stray second click (e.g. a mis-click through the backdrop
+    // area) must never silently close the palette out from under the user.
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument()
+  })
+
+  it('the Ctrl+K hotkey still opens it the same way after adding ref support', async () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <PaletteWithExternalTrigger />
+        <RouteSpy />
+      </MemoryRouter>,
+    )
+    act(() => pressCtrlK())
+    await screen.findByRole('dialog', { name: 'Command palette' })
+  })
+})
+
+describe('CommandPalette — "?" in-box help mode (P10, IA §8.3/§17.4)', () => {
+  it('typing "?" shows help instead of running it as a search query', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: '?' } })
+    await screen.findByText(/global search/i)
+    expect(screen.getByText(/reopen this from anywhere/i)).toBeInTheDocument()
+    // '?' must never hit the network as if it were a ticker query.
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('Enter on "?" does nothing — no navigation to /research/%3F', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: '?' } })
+    await screen.findByText(/global search/i)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/dashboard')
+    expect(screen.getByRole('dialog', { name: 'Command palette' })).toBeInTheDocument()
+  })
+
+  it('the empty-state hint tells the user "?" is available', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    // The '?' sits inside its own <strong>, splitting the sentence across text
+    // nodes — read the listbox's full textContent rather than match one node.
+    const listbox = screen.getByRole('listbox', { name: 'Search results' })
+    await waitFor(() => expect(listbox.textContent).toMatch(/type a ticker or company name.*\?.*for help/i))
   })
 })
