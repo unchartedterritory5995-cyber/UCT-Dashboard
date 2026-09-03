@@ -72,6 +72,20 @@ def test_get_quote_returns_provider_result_with_value_and_provenance():
     assert result.degraded is None
 
 
+def test_get_quote_delayed_status_reports_delayed_freshness_not_real_time():
+    """Section 10 adversarial-review finding: get_quote used to hardcode
+    freshness="real_time" even when the vendor's own status field said
+    DELAYED -- the exact false-equivalence class the D1 authorization
+    singled out. status="DELAYED" is already an accepted (non-not-found)
+    branch below; the ProviderResult it produces must say so."""
+    c = _client()
+    delayed_body = {"status": "DELAYED", "ticker": {"day": {"c": 230.0}}}
+    with patch.object(m._http, "get", return_value=_mock_response(200, delayed_body)):
+        result = c.get_quote("AAPL")
+    assert result.freshness == "delayed_15"
+    assert result.value == {"day": {"c": 230.0}}
+
+
 def test_get_quote_dot_symbol_translation_for_dual_class_ticker():
     c = _client()
     captured = {}

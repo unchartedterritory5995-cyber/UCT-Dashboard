@@ -249,11 +249,23 @@ class _MassiveRestClient:
         status = data.get("status")
         if status not in ("OK", "DELAYED"):
             raise _ERR.not_found(f"Massive get_quote: no data for {sym!r} (status={status!r})")
+        # Section 10 adversarial-review finding: this used to hardcode
+        # "real_time" regardless of the vendor's own status field, which is
+        # exactly the false-equivalence class the D1 authorization singled
+        # out ("realtime vs delayed... If the abstraction is hiding a
+        # difference a Terminal user... would care about, correct the
+        # contract"). Massive's plan/entitlement can answer DELAYED for a
+        # given symbol; FreshnessClass has no vendor-agnostic "delayed,
+        # exact minutes unknown" literal, so "delayed_15" (the same label
+        # FMP's genuinely-15-min-delayed quote uses) is the closest honest
+        # fit -- imprecise on the exact minutes, but never claims real-time
+        # when the vendor itself says otherwise.
+        freshness = "real_time" if status == "OK" else "delayed_15"
         return _pe.ProviderResult(
             value=data.get("ticker") or {},
             provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_quote"),
             licensing_class=_plc.licensing_class_for("massive", "quotes"),
-            freshness="real_time",
+            freshness=freshness,
         )
 
     def get_batch_quotes(self, tickers: list[str], *, entity_ids: Optional[dict] = None) -> _pe.ProviderResult:

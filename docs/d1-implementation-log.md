@@ -279,3 +279,107 @@ fuller Massive adapter build validated with the same rigor.
   configuration boundary (`os.environ.get(...)`), reused, not duplicated.
 
 ---
+
+## Phase B — Limited D1 migration + completion (2026-09-02)
+
+Authorized by the user's "PROCEED WITH LIMITED D1 MIGRATION" message following
+the checkpoint above. D1-only scope; the 9-item live-validation-findings
+preamble (changePercentage≠todaysChangePerc, legitimate no-data disagreement,
+Massive bare-404, index formatting at the adapter boundary not Entity Master,
+Entity Master integration path preserved, `_fmp_get` compatibility path
+intentional) governed every decision below.
+
+**§10.1 architecture correction (self-caught, no user correction needed)**:
+the checkpoint-era `massive_client.py` was a standalone parallel module: spec
+§10.1 mandates extending `_MassiveRestClient` **in place**. Deleted
+`massive_client.py`/`test_massive_client.py`; rebuilt `get_quote`/
+`get_batch_quotes`/the rate limiter/typed errors/Entity Master integration/the
+404 fix directly inside `api/services/massive.py`, new suite
+`test_massive_d1.py`. Every pre-existing `_MassiveRestClient` method's
+external contract (never raises, `{}`/`[]`/`None`) stays byte-identical —
+acceptance criterion 9.
+
+**Real bugs fixed along the way** (not invented — found by writing real
+tests): `get_batch_snapshots`/`get_batch_rich_snapshots` never translated
+dual-class tickers (BRK-B/BF-B) before hitting Massive's batch endpoint,
+silently dropping them from both methods' results; both now route through
+`to_polygon_symbol()` internally, contract unchanged externally.
+
+**Symbol formatting, live-verified (2026-09-02), not guessed**: FMP indices
+use a caret prefix (`^SPX`/`^GSPC`/`^DJI`/`^IXIC`/`^VIX`, all 5 confirmed
+live) — `fmp_client._fmp_index_symbol`, applied only when `entity_type=
+"index"`. Massive index access is a **403 entitlement/plan-tier gap**, not a
+symbol-format problem — `stocks/tickers/SPX`, `I:SPX`, `I:GSPC` all 404, and
+the dedicated `v3/snapshot/indices` endpoint answered 403 (not 404) for both
+`I:SPX` and `SPX`, proving the key/plan lacks the entitlement outright.
+Decision: no Massive index-symbol transform was built (it would be pointless
+against a 403) — documented as a real, unfixed, named capability gap instead
+of invented symmetry with FMP.
+
+**AST guard census** (`tools/{fmp,massive}_guard_census.py` + 16 tests):
+literal-domain-string + `_fmp_get*`-naming-pattern walk over `api/**`, with a
+QUARANTINE list (12 FMP entries, 17 Massive entries) and a permanent
+PARTNER_EXEMPT list (2 entries — Ravi's files, never touch without ack). Both
+censuses currently report **0 unquarantined violations**. Two genuine bugs the
+census's own positive-control tests caught before they shipped: an f-string
+literal double-counted (a `JoinedStr` AST node and its child `Constant` both
+matched — fixed by tracking `id()`s of every `JoinedStr` child and skipping
+them in the bare-`Constant` pass); `transcript_indexer._fmp_get` was an
+already-migrated function whose name coincidentally matched the naming
+pattern — fixed by rename (`_default_fmp_get`), not by weakening the census.
+
+**`served_total` counter added to both adapters** (§18.2's evidence-ladder OC
+field needs a served/denied pair off zero since process start; only
+`denied_total` existed before). Incremented once per real network attempt,
+right after the rate-limit token check succeeds, in `fmp_client._get_raw` /
+`massive._typed_get`.
+
+**Admin/status endpoints** (§7.3): `GET /api/admin/{fmp,massive}-adapter-
+status`, no-auth read-only (mirrors `provider-coverage`'s established
+convention; confirmed outside `admin_guard.py`'s `GUARDED_PREFIXES`, so no
+conflict with the admin-guard's default-deny). Reports `budget()` state, the
+KP/CR/OC evidence-ladder fields (CA stays `null` — no automated promotion
+path, per spec), and an honest `coverage_db_registered: false` (§18.1's
+field-registration work is separate, not done this phase). Never exposes the
+key value, only whether it is present.
+
+**Section 10 adversarial review caught one real D1 defect**: `massive.
+get_quote` hardcoded `freshness="real_time"` even on the `status="DELAYED"`
+branch it already accepted as valid — a false-equivalence bug of exactly the
+class the live-validation findings warned about, just within one vendor
+instead of across two. Fixed: `freshness = "real_time" if status == "OK"
+else "delayed_15"` (the closest available `FreshnessClass` literal; Massive
+doesn't publish an exact delay-minutes figure the way FMP's genuinely-15-min
+tier does, so the label is honest about direction, imprecise on magnitude —
+documented as such in the code comment). Regression test added. **Not**
+extended to `get_batch_quotes`: unlike the single-ticker endpoint, nothing in
+this codebase's existing (pre-D1) batch-snapshot handling has ever read an
+overall status field off that endpoint's response, and there is no live
+evidence it carries per-call delay signaling — inventing that check without
+verification would be exactly the "don't guess" violation the index-symbol
+section warned against. Left as named, acknowledged technical debt instead.
+
+**Consolidated regression sweep, this phase** (every file the whole D1
+program — Phase A + Phase B — has touched, 34 test files): **401 passed, 0
+failed.** Cross-checked against `tests/test_implied_backfill.py` (not a D1
+file, but part of the prior checkpoint's stated 460/462 baseline): **60
+passed, 2 failed** — `TestFiscalJoin::test_off_calendar_filer_gets_the_right_
+quarter` and `TestFiscalJoin::test_future_announcements_are_excluded`, same
+two names as the prior checkpoint, still a hardcoded near-future fixture date
+that has since passed, still unrelated to D1. **Combined: 461 passed / 2
+pre-existing-unrelated failed / 463 total** — zero new failures. (The total
+grew from 462 to 463 because this phase added more test files to the sweep
+than the checkpoint counted, per "measure it, don't quote it" — not because
+a test vanished.)
+
+**Consumer census, measured fresh this phase**: the earlier checkpoint's "9
+external `_fmp_get` consumers" figure is now measured at **11** files
+(`api/routers/research.py`, `api/services/{bars_sanitize,
+call_recap_warmer,earnings_history_fmp,fundamentals,industry_map,
+ipo_calendar,ir_webcast}.py`, `api/services/screener/{analyst_pass,
+earnings_dates}.py`, `api/services/ticker_logos.py`) — reported as measured,
+not reconciled against the earlier estimate, consistent with this program's
+own "measure it, don't quote it" discipline. All 11 remain untouched,
+per the explicit "do not opportunistically migrate" instruction.
+
+---
