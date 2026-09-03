@@ -1,0 +1,230 @@
+{
+  "family_key": "bull_flag",
+  "family_label": "Bull Flag (classical continuation, pattern-engine)",
+  "validation_card_markdown": "# Family Validation Card \u2014 Bull Flag\n\n## Identity\n- **Canonical name:** `bull_flag` / display name `\"Bull Flag\"` (`bull_flag.py:37,468`)\n- **Aliases:** none in this system. No `\"bull-flag\"` or `\"flag\"` key exists in `api/services/screener/base_catalog.py` (verified: zero matches) \u2014 confirmed no base_catalog/System-D twin, matching the dispatch premise.\n- **Family:** classical continuation pattern (`category: \"classical\"`, `bull_flag.py:469`)\n- **Direction:** bullish only (`direction: \"bullish\"`, `bull_flag.py:470`). A separate sibling file `bear_flag.py` handles the bearish mirror \u2014 a distinct detector, not this one.\n- **Timeframe support:** the detector itself is timeframe-agnostic (works on whatever `bars` it's given), but every live scheduled caller passes daily bars only (`bars_sqlite.get_bars(sym, \"D\", 200)`, `api/main.py:359`). `tf` is written into the Detection as whatever the caller passed (`bull_flag.py:466`, always `\"\"` inside the detector itself \u2014 the caller stamps it: `api/main.py:373-374` sets `d[\"tf\"] = \"D\"`). No intraday scheduled scan exists for this family today.\n\n## Current Implementation\n- **Path:** `api/services/pattern_engine/detectors/classical/bull_flag.py` (525 lines). This is the **Phase-0 pilot/template** for the entire classical-detector family \u2014 `docs/superpowers/plans/2026-05-11-pattern-recognition-phase-1-classical-core.md:5,7,21,175,194,339` states all 10+ later classical detectors were built by copying this file's structure and the exact 0.40/0.25/0.20/0.15 confidence formula. Any systemic defect found here has a real chance of having propagated to the ~30 other classical detectors, though auditing them is out of scope for this card.\n- **Engine:** pattern-engine only (System A equivalent). No System-D/base_catalog twin exists.\n- **Consumers (grepped, confirmed live):**\n  1. `api/routers/patterns.py:47` imports it to trigger registration; router mounted in `api/main.py:85`, gated `require_paid` on `/scan`, `/types`, `/{sym}`.\n  2. `api/main.py:_scan_patterns_daily` (shared helper) runs `detect_all()` \u2014 which includes `bull_flag` \u2014 on an **hourly leader-universe pass** (`patterns_leaders_scan`, `api/main.py:6214-6220`) and a **daily 1:00 AM ET full-cap-universe pass** (`patterns_universe_scan`, `api/main.py:6225-6231`). Neither is flag-gated; both run unconditionally on every deploy.\n  3. `api/services/screener/pattern_join.py` \u2014 the **only universe-wide reader** \u2014 joins `bull_flag` (and every other pattern_id) into screener rows as `pattern_engine_conf` (0-100 scale), read by `pages/Screener.jsx` via the `base_render`/pattern columns.\n  4. Compass \u2014 both voice (`voice_tool_impls.py:_find_patterns_on_ticker/_scan_active_patterns/_list_pattern_types`, registered `voice_tool_impls.py:3106-3136`) and text chat (`journal_two/coach_chat_tools.py:1584-1619`, `_BRAIN_TOOLS`) \u2014 narrate `bull_flag` detections directly to users via the LLM coach.\n  5. `api/routers/admin_patterns.py` \u2192 `/admin/patterns` (a real mounted route in `App.jsx:542`, admin-only).\n- **Active/user-facing status \u2014 verified fresh, not trusted from either source blindly:** CLAUDE.md's own memory index says the **Patterns page UI** was retired (`project_patterns_page_retirement_2026_08_26`: \"engine KEPT\"), and I confirmed by grep that `App.jsx` contains **no `/patterns` route** \u2014 only `/admin/patterns`. So `routers/patterns.py`'s own docstring claim (\"only consumers are `pages/Patterns.jsx`\") is itself **stale** (the page is gone). The engine is very much alive, though: it runs on two unconditional schedulers, feeds the screener's pattern column and both Compass surfaces. **Net: bull_flag is live, reachable, and paid-user-facing today \u2014 just not through a standalone `/patterns` page.**\n\n## Definition\n- **Current UCT definition** (docstring, `bull_flag.py:1-17`): pole = \u22658% advance, \u226420 bars; flag = 3-20 bars; retrace 15-50% of pole height; channel parallel-score \u22650.55; volume must contract flag-vs-pole (hard gate).\n- **External/practitioner reference** \u2014 three independent primary sources, all pulled from `docs/superpowers/research/bases/`:\n  - **Bulkowski** (`01-bulkowski-classic-patterns.md:470-486`): duration **\"less than 3 weeks\"** (invalidated beyond); flagpole \"unusually steep... several days\" with **no published number**; measure rule uses flagpole swing (46% frequency); **measured performance: 44%/45% break-even FAILURE rate, 9%/8% average rise/decline, \"Not ranked\"** in his 39-pattern table; flags are explicitly called **\"the weakest pattern... in Bulkowski's own numbers.\"**\n  - **Murphy** (`06-edwards-magee-murphy-canon.md:484`): duration **\"one to three weeks.\"**\n  - **Edwards & Magee** (`06-edwards-magee-murphy-canon.md:479-496`): definition explicitly requires the flag **\"slopes back moderately against the prevailing trend\"**; duration \"five days to three weeks typical, **hard limit four weeks**, suspicion past three weeks\"; volume test is **\"strictly-decreasing... appreciably and constantly\"**; the measured-move anchor is the **prior breakout point**, not the swing low (a cross-pattern dependency this detector doesn't implement); semilog/log-space measuring caveat.\n- **Disagreements between UCT code and the primary sources:**\n  1. **No counter-trend-slope test at all.** Every primary source treats \"channel tilts against the pole's direction\" as definitional. `_try_extract_pattern`/`channel_width_parallel_score` (`bull_flag.py:157-167`, `primitives/geometry.py:219-260`) test only width-parallelism, never the sign of the fitted slope. Verified by reading both functions fully \u2014 no slope-sign comparison exists anywhere. The one fixture with \"ascending\" in its name (`ascending_flag_in_downtrend.json`) does NOT test this: instrumented directly, it is rejected because its synthetic pole_pct measures **0.42%** (below the 8% floor), not because of a slope check.\n  2. **`_MAX_FLAG_BARS=20`** sits at E&M's hard 4-week ceiling but exceeds Bulkowski's and Murphy's stricter \"less than 3 weeks\" (~15 trading days) definition \u2014 uncited in code either way.\n  3. **Volume-contraction is a hard, absolute gate** (`bull_flag.py:205-220`) \u2014 reject if flag-avg-volume \u2265 pole-avg-volume, no exceptions. Bulkowski's own measured data says only **74-77%** of real flags show declining volume \u2014 the code's binary gate is calibrated to reject roughly a quarter of genuine flags outright, with no soft-scoring fallback.\n  4. **Retrace band 15-50%** \u2014 no primary source publishes a numeric retrace-percentage rule for a regular Flag (all three explicitly say so). The code's own **narrative text fabricates a citation** for this (\"Edwards & Magee describe 30-50% as ideal\") \u2014 see D1/D8 below; no such figure exists anywhere in the corpus's E&M material.\n- **Threshold provenance:** see D3 table below \u2014 every numeric geometric threshold is uncited \"ours\"/unsourced-guess; the confidence-floor and formula weights are legitimate platform-engineering choices (\"ours,\" not attempting to encode literature).\n\n## Detection Inputs\nRaw OHLCV bars (`Bar` TypedDict: t/o/h/l/c/v) plus the `Context` dict (`trend_stage`, `rs_trend`, `ma_alignment`, `volume_signature`, `regime`, `dcr_signature`, `recent_dcr_avg`, `can_slim_grade`, `can_slim_score`). **Unused Context fields:** `nearest_resistance`, `nearest_support`, `days_to_earnings`, `sector_strength_rank` are all present in the `Context` TypedDict (`types.py:83-98`) but never referenced anywhere in `bull_flag.py` (grep-confirmed zero hits for \"earnings\"/\"gap\"/\"split\"). Pivots come from `detect_pivots(bars, window=3)` (fixed window, not configurable). MA-alignment reads from `structure_quality.nearest_rising_ma_alignment`, itself computed off `bars[-period:]` (the tail of the FULL bars array passed in, not sliced to the pullback bar \u2014 see D9).\n\n## Pattern Identity Conditions (hard gates \u2014 return `[]`/`None`/`continue`)\n- `len(bars) < 30` \u2192 `[]` (`bull_flag.py:50-51`)\n- `len(pivots) < 3` \u2192 `[]` (`bull_flag.py:56-57`)\n- `pole_height <= 0` or `pole_pct < 0.08` \u2192 `None` (`bull_flag.py:126-131`)\n- `pole_bars <= 0` or `> 20` \u2192 `None` (`bull_flag.py:133-135`)\n- `flag_bars_count < 3` or `> 20` \u2192 `None` (`bull_flag.py:137-139`)\n- `retrace < 0.15` or `> 0.50` \u2192 `None` (`bull_flag.py:153-155`)\n- `parallel_score < 0.55` \u2192 `None` (`bull_flag.py:165-167`)\n- flag-volume-contraction hard gate: flag avg vol must be strictly `<` pole avg vol \u2192 `continue` (`bull_flag.py:64-68, 205-220`)\n- **confidence `< 50.0` \u2192 `continue`, i.e. discarded even after passing every gate above** (`bull_flag.py:78-79`) \u2014 this is the D4 finding: this \"gate\" is a blended score that includes context/quality inputs unrelated to shape identity.\n\n## Quality Conditions (soft, score-only)\n- `geom_score` (40% weight): pole magnitude, retrace-vs-0.30 ideal, parallel-score, duration-vs-8-bar ideal, + structure boost (`bull_flag.py:192-202`)\n- `vol_score` (25%): how far below 1.0 the flag/pole volume ratio is (`bull_flag.py:223-235`)\n- `ctx_score` (20%): trend_stage==2 (+25), stacked_bullish MA (+15), rs up (+10), DCR adjustment (\u00b112/-8), CAN SLIM bonus (+8/+15) (`bull_flag.py:238-274`)\n- `hist_score` (15%): **hardcoded `50.0`** on every single detection ever emitted \u2014 disclosed in the module docstring as \"Phase 7 wires actual stats\" but never disclosed in the narrative or API contract (`bull_flag.py:73`)\n\n## Lifecycle Conditions\nNone at the detector level. `status` is always literally `\"ready\"` at emission (`bull_flag.py:517`) \u2014 `forming`/`triggered` are never used by this detector. Generic downstream `memory.track_outcomes` (4-hourly job) can later flip status to `completed`/`failed`/`expired` based on price crossing entry/stop/target or a 30-day expiry \u2014 but that machinery is shared across all detectors, not bull_flag-specific.\n\n## Invalidators\nNarrated only (prose, `failure_signal`, `bull_flag.py:440-459`): close below flag low, or a weak-volume breakout that fades back inside the channel (\"upthrust\"). Not structurally tracked as a field \u2014 no `invalidation_price` or `invalidation_condition` key in the Detection; a reader would have to re-derive it from `levels.stop`.\n\n## Geometry Available / Missing\nSee the Geometry Readiness Matrix below for the exhaustive 14-capability breakdown. Summary: real bar-derived anchors/timestamps/levels exist (not fabricated), but no zone geometry, no gap/event geometry, no flag-low-specific pivot marker, and no structured per-criterion explanation object.\n\n## Narrative/Explanation Summary\nFive prose fields (`headline`, `what_it_is`, `why_it_matters`, `what_to_watch_for`, `failure_signal`), each padded to a mandated length by `test_narrative_richness` (\u2265700 chars per body field, \u226590 for headline \u2014 **checks length only, never truthfulness**). `what_it_is` and `why_it_matters` contain **multiple specific, checkable claims that do not survive comparison against the research corpus** \u2014 see D1 below. This is the headline finding of this audit.\n\n## Confidence/Quality Scoring Summary\n`confidence = round(0.40*geom + 0.25*vol + 0.20*ctx + 0.15*hist, 2)`, floor 50.0, all weights uncited \"ours\" engineering choices (`bull_flag.py:75-79`).\n\n## Known Tests\n- `tests/pattern_engine/detectors/test_bull_flag.py` (75 lines): parametrized fixture battery (loads all 15 fixtures), a coverage-count assertion (\u22655 positive/\u22658 negative/\u22652 edge), and `test_narrative_richness` (length-only check on one positive fixture).\n- `tests/fixtures/bull_flag/` \u2014 15 fully-synthetic JSON fixtures + `_generate.py` generator. Covers geometric boundary cases (pole too short, flag too deep/wide, choppy, volume expanding, boundary min-pole/max-retrace). **Covers zero real-world \"ugly case\" categories** \u2014 no penny-stock/illiquid fixture, no corporate-action (split/reverse-split) fixture, no earnings-gap fixture, no stale/aged-pattern fixture. What it claims to cover (\"15/15 fixtures pass,\" Phase-0 report) vs what it actually covers (pure geometric edge cases on clean synthetic OHLCV) is a real gap \u2014 see D7.\n- Phase-0 verification (`docs/superpowers/phase-reports/2026-05-11-phase-0-verification.md`) ran a \"False-Positive Sweep\" across **2000 synthetic random-walk bars** (0 detections, 0 flagged) \u2014 proves the detector doesn't fire on pure noise, proves nothing about structurally-plausible-but-spurious real data (exactly the D7 gap this card reproduces).\n\n## Known Failure Modes (D7 investigation)\n**Reproduced live** (throwaway script, not committed): a $1.00 penny stock trading 250-500 shares/day, with a single-bar +13% jump (indistinguishable from a reverse-split adjustment, halt-resumption gap, or thin-volume spike) followed by 10 quiet bars, fires a **92.5%-confidence \"Bull Flag\"** with a full rich narrative, real entry $1.15/stop $1.11/target $1.30, R:R 3.75-4.0. No liquidity floor, no price floor, no split/gap-artifact guard exists anywhere in the code.\n\n## Research Evidence Summary\nBulkowski flags.html (`docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:470-486`), Murphy Ch.6 + Edwards & Magee Ch.11 (`docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md:476-500`). Both are real, substantive primary-source extracts with page-level citations. The detector's OWN narrative, however, invents figures (67% reliability, 55-65% follow-through, 30-50% ideal retrace) that contradict or are absent from this very corpus \u2014 the research exists and is good; the code just doesn't use it faithfully.\n\n## Validation Status\n**Never blinded-reviewed or gold-standard tested.** Confirmed: `docs/uct-scanner-intelligence/` contains only `vcp_gold_standard/` and `decision-log.md` \u2014 no `bull_flag` folder, no cross-engine comparison (there is no second engine to compare against), zero prior validation evidence of any kind. This is a genuine first-pass audit, as the dispatch note stated.\n\n## Recommended Action\nSee `detector_action` field + evidence below \u2014 multi-part: fix the narrative fabrications (RETAIN_EXPLANATION_FIX-shaped work) AND correct two logic defects (the missing slope gate and the confidence-floor-gates-identity bug, CORRECT_DETECTOR_LOGIC-shaped) AND add real-world ugly-case fixtures (RETAIN_ADD_TESTS-shaped). No engine consolidation, no base_catalog port recommended \u2014 none is warranted by the evidence.\n",
+  "defect_class_findings": [
+    {
+      "defect_class": "D1 UNSUPPORTED NARRATIVE CLAIMS",
+      "found": true,
+      "severity": "P0",
+      "detail": "what_it_is (bull_flag.py:388-389) claims 'Tom Bulkowski's Encyclopedia of Chart Patterns puts follow-through reliability near ~67%' \u2014 Bulkowski's own flags.html (docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:483) reports a 44-45% BREAK-EVEN FAILURE rate and calls flags 'Not ranked'/the weakest pattern; no 67% figure for regular flags exists anywhere in the corpus. why_it_matters (bull_flag.py:404-406) attributes '30-50% as ideal' retrace to Edwards & Magee \u2014 not found anywhere in the E&M canon extract (docs/.../06-edwards-magee-murphy-canon.md:476-500), which publishes no retrace percentage at all. why_it_matters (bull_flag.py:411-413) invents a '55-65% follow-through in 6-8 weeks' figure with no corpus support whatsoever. what_it_is (bull_flag.py:385-387) claims Kullam\u00e4gi 'operates almost exclusively on this pattern' \u2014 the corpus (docs/.../08-qullamaggie-stockbee-momentum.md) documents exactly 3 named setups (Breakout/EP/Parabolic Short), none called 'flag', with the Breakout's consolidation being 2wks-2mo near an MA, not a pole+channel flag. None of these claims trace to any field the detector actually computes; test_narrative_richness (tests/pattern_engine/detectors/test_bull_flag.py:49-74) checks only string LENGTH, never truthfulness, so all of this ships on every detection."
+    },
+    {
+      "defect_class": "D2 PATTERN-DEFINITION MISMATCH",
+      "found": true,
+      "severity": "P1",
+      "detail": "No counter-trend-slope test exists: _try_extract_pattern (bull_flag.py:99-189) and channel_width_parallel_score (primitives/geometry.py:219-260) test only width-parallelism, never slope sign, though Bulkowski/Murphy/E&M (docs/.../01-bulkowski-classic-patterns.md:472; docs/.../06-edwards-magee-murphy-canon.md:482) treat 'slopes against the trend' as near-definitional. Verified the one fixture named for this case (ascending_flag_in_downtrend.json) is rejected for an unrelated reason (pole_pct=0.42%, instrumented directly), not by any slope check. Additionally the hard volume-contraction gate (bull_flag.py:205-220) is absolute where the source data (Bulkowski, 74-77% frequency) says it's only a majority tendency, not universal \u2014 the code silently rejects the real-world minority outright."
+    },
+    {
+      "defect_class": "D3 INCONSISTENT/LEGACY THRESHOLDS",
+      "found": true,
+      "severity": "P2",
+      "detail": "_MIN_POLE_PCT=0.08, _MAX_POLE_BARS=20, _MIN_FLAG_RETRACE=0.15/_MAX_FLAG_RETRACE=0.50, _MIN_PARALLEL_SCORE=0.55 (bull_flag.py:38-44) are all uncited engineering guesses \u2014 every primary source consulted explicitly states it publishes no such numbers for a regular Flag (only the UNRELATED High-and-Tight-Flag has a published 90%/2mo pole rule, correctly NOT reused here). _MAX_FLAG_BARS=20 coincides with E&M's 4-week hard cap but exceeds Bulkowski/Murphy's stricter 3-week ceiling, uncited either way. _CONFIDENCE_FLOOR=50.0 and the 0.40/0.25/0.20/0.15 weights (bull_flag.py:75-79) are legitimate 'ours' platform choices, not mis-sourced literature numbers. No base_catalog twin exists to diff thresholds against (confirmed)."
+    },
+    {
+      "defect_class": "D4 CLASSIFICATION VS QUALITY CONFUSION",
+      "found": true,
+      "severity": "P1",
+      "detail": "Worked arithmetic on bull_flag.py:70-79: a candidate passing EVERY hard identity gate (geom_score~50 at gate boundaries, vol_score~0 at a barely-passing 0.99 flag/pole volume ratio, ctx_score=42 with a distribution DCR signature and no CAN SLIM bonus, hist_score fixed 50) computes confidence = 0.40*50+0.25*0+0.20*42+0.15*50 = 35.9, below the 50.0 floor at bull_flag.py:78-79 -> 'continue', never emitted. ctx_score (bull_flag.py:238-274) is built from trend_stage/ma_alignment/rs_trend/DCR/CAN-SLIM-grade, none of which bear on whether the SHAPE is a bull flag \u2014 a geometrically textbook flag on a Stage-1/3/4 stock, mixed MAs, or a C-grade CAN SLIM name can be silently suppressed by this unrelated context score."
+    },
+    {
+      "defect_class": "D5 LIFECYCLE AMBIGUITY",
+      "found": true,
+      "severity": "P2",
+      "detail": "status is hardcoded literal 'ready' at emission (bull_flag.py:517) for every detection regardless of how many bars into the 3-20 bar flag window it is; 'forming'/'triggered' are never used by this detector. A 3-bar-old freshly-qualified flag and an 18-bar-old about-to-expire one are labeled identically. Completed/failed/expired transitions exist only via generic downstream memory.track_outcomes (a 4-hourly job shared by every detector), not detector-specific logic."
+    },
+    {
+      "defect_class": "D6 DUPLICATED SEMANTICS",
+      "found": true,
+      "severity": "P3",
+      "detail": "No live duplicate exists today (confirmed: zero 'bull_flag'/'bull-flag' hits in base_catalog.py). pattern_join.py's own docstring (api/services/screener/pattern_join.py:23-33) still describes an active 'collision by design' with a cheap heuristic screener column sharing the bull_flag key on a 0-1 scale -- that heuristic module (referenced there as api/services/screener/patterns.py) is fully retired (confirmed via filters.py:766-786 RETIRED dict, entry dated 2026-08-30; the file itself no longer exists). This is stale documentation describing a since-resolved collision, zero live impact -- a D8-adjacent finding filed under D6 since it's specifically about duplicated-semantics claims."
+    },
+    {
+      "defect_class": "D7 FALSE-POSITIVE-PRONE LOGIC",
+      "found": true,
+      "severity": "P1",
+      "detail": "Reproduced live via a throwaway script (not committed): a $1.00 penny stock at 250-500 shares/day volume with a single-bar +13% jump (indistinguishable from a reverse-split artifact, halt gap, or thin-volume spike) followed by 10 quiet consolidation bars fires a 92.5%-confidence Bull Flag with full narrative and entry/stop/target levels. No liquidity floor, no minimum price, no split/gap-artifact detection exists anywhere in bull_flag.py. The 15-fixture battery (tests/fixtures/bull_flag/) is entirely synthetic geometric-boundary cases (too-short pole, too-deep/wide flag, choppy, volume-expanding) -- zero fixtures for penny-stock/illiquid, corporate-action, or event-gap scenarios. The Phase-0 'False-Positive Sweep' (2000 synthetic random-walk bars, 0 flagged) proves only that the detector ignores pure noise, not that it rejects structurally-plausible artifacts."
+    },
+    {
+      "defect_class": "D8 STALE/WEAK DEFINITIONS OR CITATIONS",
+      "found": true,
+      "severity": "P0",
+      "detail": "Same underlying evidence as D1 viewed from the citation-accuracy angle: the module docstring's 'Geometric definition' (bull_flag.py:6-11) is honest and uncited (good), but the narrative's named citations are checkably wrong -- Bulkowski's 67% (contradicted by his own 44-45% failure-rate data), E&M's 30-50% retrace (absent from the corpus's E&M extract entirely), and the Raschke Holy Grail equivalence (the corpus's own Holy Grail entry, docs/.../11-raschke-connors-crabel-shortterm.md:388-441, requires ADX(14)>30-rising plus a specific EMA-touch/stop mechanism this detector never checks, and the corpus itself analogizes the Holy Grail's shape to a DIFFERENT pattern, the high-tight-flag). These are not merely unverified -- they are actively contradicted by the very research corpus this program maintains."
+    },
+    {
+      "defect_class": "D9 GEOMETRY/PROVENANCE/SCANNER-CHART DISCONNECT",
+      "found": true,
+      "severity": "P2",
+      "detail": "geometry.anchors (bull_flag.py:478-483) ARE real bar-derived trendline endpoints (not fabricated); levels (bull_flag.py:493-501) ARE real bar-derived horizontal prices; start_t/end_t/pivot_ts (bull_flag.py:471-475) are real timestamps. But: no explicit flag-low pivot marker is exposed (only the fitted regression endpoints); zero gap/event geometry (context.days_to_earnings exists in types.py:91 but is never read by bull_flag.py, confirmed by grep); the MA-interaction extras (aligned_ma/ma_distance_pct, from narrative_helpers_structure.py -> structure_quality.py:107-140) are computed off closes[-period:] of the FULL bars array passed in, not sliced to the pullback-low bar's actual index -- so the 'aligned MA' read can reflect today's MA state rather than the state at the moment the flag low formed (shared infra used by every continuation detector via narrative_helpers_structure.py, not bull_flag-specific). No structured per-criterion explanation object exists -- only 4 aggregate quality_components scalars plus free prose."
+    }
+  ],
+  "geometry_readiness_color": "RED",
+  "geometry_readiness_rationale": "The emitted GEOMETRY fields themselves are genuine (anchors, timestamps, and levels are all computed directly from real bar data, not fabricated) \u2014 so on pure \"is there a shape to draw\" grounds this would be YELLOW. But RED is the honest sequencing call: this family carries a P0 (fabricated narrative statistics shipped on literally every detection, to both paid users and the Compass LLM coach) plus two P1 correctness defects that affect WHICH detections fire at all (D4's confidence-floor silently drops geometrically-valid patterns; D7's reproduced illiquid/corporate-action false positive). Investing in geometry/chart-overlay enrichment on top of that would be building presentation polish on an output whose recall/precision and narrative truthfulness are not yet trustworthy. Fix D1/D8 (narrative) and D2/D4/D7 (logic) first; the underlying anchor/timestamp geometry needs comparatively little rework once that's done.",
+  "geometry_matrix_row": {
+    "exact_candles": "partial \u2014 pole_base/pole_top/last-bar are exact real timestamps (pivot_ts, bull_flag.py:473-475); the flag-LOW pivot bar itself is computed internally (flag_low_idx) but never exposed as its own anchor, only the fitted regression-line endpoints are given",
+    "start_timestamp": "yes \u2014 start_t = pole_base bar's real timestamp, bull_flag.py:471",
+    "end_timestamp": "yes \u2014 end_t = last bar's real timestamp, bull_flag.py:472; note the flag body is architecturally forced to always end at the last available bar (flag_bars_count = len(bars)-1-pole_top_idx), so a completed HISTORICAL flag can never be represented",
+    "pivots": "partial \u2014 pole_base/pole_top pivots feed pivot_ts (3 timestamps); the flag_low pivot (central to the higher-low check) is computed but not independently exposed",
+    "trendlines": "yes \u2014 upper_line/lower_line anchors (4 points) are genuine least-squares fits over real flag-bar highs/lows, bull_flag.py:157-163, 478-483",
+    "horizontal_levels": "yes \u2014 entry/stop/target_primary in levels are real bar-derived horizontal prices, bull_flag.py:493-501",
+    "zones": "no \u2014 no rectangle/area polygon geometry beyond the two trendlines; no explicit flag-body zone",
+    "ma_interactions": "partial \u2014 aligned_ma/ma_distance_pct present in extras via structure_quality, but computed off the tail of the whole bars array rather than scoped to the pullback-low bar's actual point in time (shared infra, narrative_helpers_structure.py -> structure_quality.py)",
+    "gap_geometry": "no \u2014 zero gap-detection logic anywhere in the file (grep-confirmed)",
+    "event_markers": "no \u2014 context.days_to_earnings exists in the Context TypedDict but is never read by bull_flag.py (grep-confirmed zero 'earnings'/'gap'/'split' references)",
+    "lifecycle": "partial \u2014 status hardcoded 'ready' at emission (bull_flag.py:517), forming/triggered never used by this detector; completed/failed/expired exist only via generic downstream memory.track_outcomes, not detector-specific",
+    "explanation_criteria": "no \u2014 no structured per-criterion pass/fail/observed-value/expected-value object exists (unlike base_catalog's Criterion system); only 4 aggregate quality_components scalars plus free-form prose narrative",
+    "confidence_inputs": "yes \u2014 quality_components exposes the 4 weighted sub-scores (geometry/volume/context/historical), and geometry.extras carries the underlying measured values (pole_pct, retrace_pct, parallel_score, flag_bars)",
+    "quality_inputs": "yes \u2014 same quality_components dict, though historical_score is a hardcoded 50.0 placeholder on every detection, never disclosed as such to a downstream reader"
+  },
+  "provenance_readiness": "Pattern-engine detectors (bull_flag included) do NOT have a real Criterion system \u2014 that exists only in base_catalog (System-D) structures, per the task's own framing, and this audit confirms it: bull_flag's Detection carries no per-criterion id/name, no observed-value/expected-value/operator pair, no required-vs-optional flag, no per-criterion pass/fail, no source citation, and no algorithm-version field. What DOES exist that a future provenance layer could build on: the underlying measured values already live in the internal `candidate` dict (`c[\"pole_pct\"]`, `c[\"retrace_pct\"]`, `c[\"parallel_score\"]`, `c[\"flag_count\"]`, the volume ratio) and in `geometry.extras` \u2014 they are just folded into 4 opaque `quality_components` scalars and free prose rather than surfaced as named criteria with their own pass/fail + observed/expected pair. Retrofitting a Criterion object per hard gate (pole_pct >= 0.08, flag_bars in [3,20], retrace in [0.15,0.50], parallel_score >= 0.55, volume-contraction) would be straightforward since every one of those checks already computes both the observed value and the threshold inline (bull_flag.py:126-220) \u2014 the values exist, they are simply not exposed in a structured shape today. No algorithm-version field exists anywhere in the Detection TypedDict (types.py) for any pattern-engine detector, so that would need to be added platform-wide, not per-family.",
+  "p_issues": [
+    {
+      "priority": "P0",
+      "title": "Narrative fabricates statistics attributed to real, checkable sources",
+      "description": "what_it_is claims Bulkowski measured '~67% reliability when volume confirms breakout' -- his own page (in this program's own research corpus) reports a 44-45% break-even FAILURE rate and calls flags 'the weakest pattern' in his measured data, an almost opposite conclusion. why_it_matters claims 'Edwards & Magee describe 30-50% as ideal' retrace -- no such figure exists anywhere in the corpus's E&M extract. A third figure ('55-65% follow-through in 6-8 weeks') has no support anywhere. These ship on every single detection, to every paid user and to the Compass LLM coach, with zero test coverage checking truthfulness (only string length is asserted).",
+      "evidence": "bull_flag.py:388-389, 404-406, 411-413 vs docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:483 and docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md:476-500; tests/pattern_engine/detectors/test_bull_flag.py:49-74 (length-only assertion)"
+    },
+    {
+      "priority": "P1",
+      "title": "Confidence floor lets unrelated context/quality inputs suppress a geometrically-valid pattern",
+      "description": "A candidate that passes every hard identity gate (pole%, pole bars, flag bars, retrace, parallel score, volume contraction) can still be discarded because trend_stage/ma_alignment/rs_trend/DCR/CAN-SLIM inputs -- none of which describe the SHAPE -- drag the blended confidence below the 50.0 floor. Worked arithmetic: geom~50, vol~0 (barely-passing volume ratio), ctx=42 (distribution DCR, no CAN SLIM bonus), hist=50 fixed => confidence=35.9, rejected.",
+      "evidence": "bull_flag.py:70-79, 238-274 (ctx_score formula); floor check at bull_flag.py:78-79"
+    },
+    {
+      "priority": "P1",
+      "title": "No liquidity/corporate-action guard -- reproduced firing on a penny-stock/split-artifact case",
+      "description": "A $1.00 stock trading 250-500 shares/day with a single-bar +13% jump (indistinguishable from a reverse-split adjustment, halt gap, or thin-volume spike) fires a 92.5%-confidence 'textbook' Bull Flag with a full rich narrative and real entry/stop/target levels.",
+      "evidence": "Reproduced live via a throwaway, non-committed script against api.services.pattern_engine.detectors.classical.bull_flag.detect_bull_flag; no min-price/min-volume/split-guard exists anywhere in bull_flag.py"
+    },
+    {
+      "priority": "P1",
+      "title": "No counter-trend-slope criterion, though every primary source treats it as near-definitional",
+      "description": "Bulkowski, Murphy, and Edwards & Magee all describe the flag channel as tilting AGAINST the pole's direction. channel_width_parallel_score tests only width-consistency, never slope sign. The one fixture named for this case is rejected for an unrelated reason (weak synthetic pole), not by any slope check -- confirmed by direct instrumentation.",
+      "evidence": "bull_flag.py:157-167 + primitives/geometry.py:219-260 (no slope-sign logic); docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:472; docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md:482; tests/fixtures/bull_flag/ascending_flag_in_downtrend.json instrumented at pole_pct=0.0042 (below the 0.08 gate)"
+    },
+    {
+      "priority": "P1",
+      "title": "Hard volume-contraction gate is calibrated stricter than the source data supports",
+      "description": "Bulkowski's own measured frequency for declining flag volume is 74-77%, not 100%. The code rejects any candidate whose flag volume isn't strictly below pole volume, with no soft-scoring alternative -- silently discarding roughly a quarter of real-world bull flags by the source's own numbers.",
+      "evidence": "bull_flag.py:64-68, 205-220 (_flag_volume_contracted hard gate) vs docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:477 ('volume -- 74% (up breakouts) to 77% (down breakouts) downward -- high (frequency)')"
+    },
+    {
+      "priority": "P2",
+      "title": "All core geometric thresholds are uncited engineering guesses",
+      "description": "_MIN_POLE_PCT, _MAX_POLE_BARS, _MIN_FLAG_RETRACE/_MAX_FLAG_RETRACE, _MIN_PARALLEL_SCORE are presented in the module docstring as a settled 'Geometric definition' with no provenance note, though every primary source explicitly states it publishes no such numbers for a regular flag. Not a bug per se (the sources genuinely don't give numbers) but currently undocumented as an assumption.",
+      "evidence": "bull_flag.py:1-17, 38-44; docs/superpowers/research/bases/01-bulkowski-classic-patterns.md:479 ('missing: a numeric steepness threshold... this is the load-bearing criterion and it carries no number')"
+    },
+    {
+      "priority": "P2",
+      "title": "Zero fixture coverage for real-world 'ugly case' categories",
+      "description": "The 15-fixture battery is entirely synthetic geometric-boundary cases. No fixture exists for penny-stock/illiquid conditions, corporate-action artifacts, or earnings/event gaps -- exactly the category the D7 repro above exploited.",
+      "evidence": "tests/fixtures/bull_flag/ (15 files, all via _generate.py's clean synthetic OHLCV builder); Phase-0 'False-Positive Sweep' used only 2000 random-walk bars (docs/superpowers/phase-reports/2026-05-11-phase-0-verification.md)"
+    },
+    {
+      "priority": "P2",
+      "title": "MA-alignment scoring boost is not time-scoped to the pullback bar",
+      "description": "nearest_rising_ma_alignment computes MAs off the tail of the FULL bars array passed in, not sliced up to the flag-low bar's index -- so the up-to-+22-point geometry-score boost can reflect today's MA state rather than the state at the moment the flag low actually formed. Shared infra affecting every continuation detector, not bull_flag-specific.",
+      "evidence": "narrative_helpers_structure.py:33-45 (compute_structure_quality called with full bars) + primitives/structure_quality.py:107-140 (_sma/_ema use closes[-period:] of the whole array)"
+    },
+    {
+      "priority": "P3",
+      "title": "pattern_join.py's D6 collision documentation is stale",
+      "description": "pattern_join.py's docstring still warns of an active naming collision between bull_flag's pattern-engine confidence (0-100) and a cheap heuristic screener column sharing the same key name (0-1 scale). That heuristic module was fully retired 2026-08-30 and no longer exists -- the collision it warns about is moot.",
+      "evidence": "api/services/screener/pattern_join.py:23-33 vs api/services/screener/filters.py:766-786 (RETIRED dict, dated 2026-08-30); no api/services/screener/patterns.py file exists"
+    },
+    {
+      "priority": "P3",
+      "title": "Lifecycle is effectively binary at the detector level",
+      "description": "status is hardcoded 'ready' on every emission regardless of how far into the 3-20 bar flag window the pattern is; forming/triggered states are never used by this detector, only by generic shared downstream machinery.",
+      "evidence": "bull_flag.py:517"
+    }
+  ],
+  "explanation_truth_table": [
+    {
+      "claim": "Bull Flag formally codified by Edwards & Magee, 1948 'Technical Analysis of Stock Trends'",
+      "supporting_fact": "Corpus confirms E&M Ch.11 covers Flags/Pennants; general historical attribution matches the corpus's own sourcing",
+      "source_field": "narrative.what_it_is",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Refined across decades by Stan Weinstein, William O'Neil, and Brian Shannon",
+      "supporting_fact": "No corpus evidence ties any of these three specifically to refining the FLAG pattern (Weinstein=Stage analysis, O'Neil=CAN SLIM/cup-handle, Shannon=VWAP)",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Linda Raschke teaches this same setup as her 'Holy Grail' -- a flag pullback to the 20EMA",
+      "supporting_fact": "Corpus's Holy Grail entry requires ADX(14)>30-and-rising plus a specific EMA-touch stop-entry mechanism this detector never checks, and the corpus itself analogizes the Holy Grail's shape to a DIFFERENT pattern (high-tight-flag), not to 'this same setup'",
+      "source_field": "narrative.what_it_is",
+      "support_type": "inferred",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Kullam\u00e4gi operates almost exclusively on this pattern, hunting daily flags inside weekly breakouts",
+      "supporting_fact": "Corpus documents exactly 3 named Kullam\u00e4gi setups (Breakout/EP/Parabolic Short), none called 'flag'; his Breakout consolidation is 2wks-2mo near an MA, structurally different from a pole+parallel-channel flag",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Bulkowski's Encyclopedia puts follow-through reliability near ~67% when volume confirms breakout",
+      "supporting_fact": "Bulkowski's own flags.html (in this program's corpus) reports a 44-45% break-even FAILURE rate and calls flags 'Not ranked'/the weakest pattern -- directly contradicted",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Continuation studies on bull flags trace back to Schabacker (1932)",
+      "supporting_fact": "Corpus names Schabacker only via a vendor monograph discussing double tops, no date, no flag-specific reference",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "Retrace is in the textbook 'healthy shake-out' band; Edwards & Magee describe 30-50% as ideal",
+      "supporting_fact": "No retrace-percentage figure of any kind appears in the corpus's E&M extract for flags",
+      "source_field": "narrative.why_it_matters",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Bull flags with these characteristics produce measured-move follow-through in 6-8 weeks roughly 55-65% of the time",
+      "supporting_fact": "No source in the corpus publishes any such figure at any horizon for flags",
+      "source_field": "narrative.why_it_matters",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "{pole_pct}% pole over {pole_bars} bars, {retrace_pct}% retrace inside a {flag_count}-bar parallel channel; entry/target/R:R figures",
+      "supporting_fact": "Directly computed from the candidate dict (c['pole_pct'], c['retrace_pct'], c['flag_count']) and the levels dict",
+      "source_field": "narrative.headline / geometry.extras / levels",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Volume contracting to {flag_vol_pct}% of the pole's average",
+      "supporting_fact": "Directly computed via _flag_volume_ratio and gated by _flag_volume_contracted",
+      "source_field": "narrative.what_it_is / geometry.extras",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    }
+  ],
+  "blinded_validation_recommended": false,
+  "blinded_validation_suggested_size": 15,
+  "blinded_validation_rationale": "Not decision-critical right now. This code-level audit already surfaces decisive, well-evidenced, directly-fixable defects (fabricated narrative statistics; a missing counter-trend-slope criterion; a confidence-floor bug that lets unrelated context suppress valid geometry; a reproduced illiquid/corporate-action false positive) that don't require human-labeled charts to resolve -- they require reading the primary sources (already gathered) and fixing the code. Unlike VCP -- the flagship setup whose 82-case study was a deliberate, large investment justified by VCP's central role in the platform's screening/sizing logic -- bull_flag is a commodity continuation pattern whose own primary-source literature (Bulkowski) rates it the WEAKEST classical pattern by measured performance; over-investing in a blinded review before fixing known code defects would validate a broken implementation. If a blinded check is ever run, do it AFTER the fixes land, as a small smoke-test (~15-20 real charts) confirming the corrected slope/liquidity/volume gates behave sensibly on live data -- not a foundational gold-standard study.",
+  "canonical_geometry_requirement": "A bull-flag-shaped continuation pattern needs, at minimum: (1) the flagpole as its own geometric object with a start timestamp/price and end timestamp/price (currently present via pivot_ts/anchors, but not tagged as a distinct 'pole' sub-object -- it's inferred from anchor ordering); (2) the flag channel as two boundary trendlines carrying an explicit SLOPE-DIRECTION field relative to the pole (currently absent -- the schema has no way to say 'this channel slopes with/against/flat relative to the pole', which is exactly the criterion this audit found missing from the code); (3) an explicit flag-low pivot marker distinct from the fitted lower-trendline endpoints (currently the flag low is computed internally but never surfaced as its own anchor); (4) a breakout trigger level and measured-move target as first-class horizontal levels (already present via the `levels` dict); (5) per-criterion provenance (observed value, threshold, pass/fail, and a source tag distinguishing MEASURED-from-bars fields from SCORED-from-context fields) so a future schema can keep the geometry's trustworthiness separate from the confidence-floor's context-blending -- today those are conflated into one opaque `confidence` number, which is precisely how a geometrically valid flag can go unreported.",
+  "detector_action": "CORRECT_DETECTOR_LOGIC",
+  "detector_action_evidence": "This is a multi-part recommendation the single-enum field can't fully capture, so ranking by urgency: (1) EQUALLY URGENT, ship together: RETAIN_EXPLANATION_FIX for the fabricated narrative statistics (bull_flag.py:388-389, 404-406, 411-413 -- remove or ground the 67%, 30-50%, 55-65%, Raschke-equivalence, and Kullam\u00e4gi claims) -- this is the P0 and touches zero detection logic, so it's the cheapest, highest-value fix available. (2) CORRECT_DETECTOR_LOGIC for the two genuine correctness bugs that affect WHAT fires: the confidence-floor letting unrelated context/quality inputs suppress geometrically-valid detections (bull_flag.py:78-79), and the missing counter-trend-slope gate that every primary source treats as near-definitional (bull_flag.py:157-167). (3) RETAIN_ADD_TESTS for real-world ugly-case fixtures (penny-stock/illiquid, corporate-action/split, earnings-gap) that the current 15-fixture synthetic-only battery cannot catch -- directly motivated by the reproduced 92.5%-confidence penny-stock/split-artifact false positive. (4) CALIBRATE, lower priority, for the hard absolute volume-contraction gate given Bulkowski's own 74-77% (not 100%) measured frequency. I selected CORRECT_DETECTOR_LOGIC as the single top-line action because the confidence-floor and slope-gate defects are the ones that determine which detections a paying user or Compass ever SEES at all -- upstream of the narrative-fix's value -- but the narrative fix should ship in the same pass, not be deferred. No engine consolidation and no base_catalog port are recommended; none is supported by the evidence (no base_catalog twin exists, and the pattern_join.py-documented screener-column collision this family used to have is already retired)."
+}

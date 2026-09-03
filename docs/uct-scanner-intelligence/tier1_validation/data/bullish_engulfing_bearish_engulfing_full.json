@@ -1,0 +1,241 @@
+{
+  "family_key": "bullish_engulfing_bearish_engulfing",
+  "family_label": "Bullish Engulfing / Bearish Engulfing (two-bar candlestick reversal family)",
+  "validation_card_markdown": "## Family Validation Card \u2014 Bullish Engulfing + Bearish Engulfing\n\n### Identity\n- **Canonical/current names:** `bullish_engulfing` / `bearish_engulfing` (pattern IDs, `_PATTERN_METADATA` in `api/routers/patterns.py:418-429`). Display names \"Bullish Engulfing\" / \"Bearish Engulfing\".\n- **Aliases:** none in-repo. The research corpus documents that the SAME geometry in the opposite prior trend is a *different* pattern \u2014 \"Last Engulfing Top\" / \"Last Engulfing Bottom\" (Bulkowski) \u2014 which is **not implemented** anywhere in this repo (no `last_engulfing_*` detector module exists). See D2.\n- **Pattern family:** candlestick, two-bar reversal (\"*tsutsumi*\" \u2014 \u5305\u307f).\n- **Direction:** bullish_engulfing \u2192 bullish; bearish_engulfing \u2192 bearish.\n- **Timeframe support:** the detector is TF-agnostic (consumes whatever `bars`/`tf` the caller passes), but the returned `Detection[\"tf\"]` field is hardcoded to `\"\"` in both files (`bullish_engulfing.py:560`, `bearish_engulfing.py:557`) \u2014 the object never self-describes which timeframe produced it. The universe scan (`api/main.py::_run_patterns_universe_scan`, daily 1:00 AM ET) runs it on `tf=\"D\"` only.\n\n### Current Implementation\n- Files: `api/services/pattern_engine/detectors/candlestick/bullish_engulfing.py` (618 lines), `.../bearish_engulfing.py` (615 lines).\n- **System:** pattern_engine only (System D). No base_catalog structure implements engulfing (grep of `base_catalog` found nothing) \u2014 no cross-system duplicate to reconcile (D6).\n- **Registration:** `register(_PATTERN_ID, detect_*)` at module import; imported (and thus registered) by `api/routers/patterns.py:119-120`.\n- **Consumers (grep-verified):**\n  1. `GET /api/patterns/{sym}` (`api/routers/patterns.py:679-700`, `require_paid`) \u2014 chart overlay. Default `confirmed_only=True` returns only Opus-vision-**confirmed** verdicts (`pv_store.get_confirmed`); the raw rule-engine detection this family produces is reached only with `?confirmed_only=false`, via `memory.get_active_detections`.\n  2. Compass voice + text-chat tools (`_find_patterns_on_ticker` etc. in `api/services/voice_tool_impls.py:2046+`, `_BRAIN_TOOLS`/pattern bridge tools in `coach_chat_tools.py` per CLAUDE.md \"Pattern Engine bridge\") \u2014 no category filter found; candlestick detections reach these tools.\n  3. **Explicitly EXCLUDED from the screener.** `api/services/screener/pattern_join.py:141-160`: `_SCREENER_EXCLUDED_CATEGORIES = (\"candlestick\",)`, owner ruling 2026-08-30 \u2014 \"THE CANDLE LIBRARY OWNS SCREENER COLUMNS, THE ENGINE OWNS THE CHART OVERLAY, AND NEITHER CROSSES.\" (Measured then: 16 candlestick detector ids were leaking into `pattern_engine_ids` on 68.8% of covered symbols before the exclusion.) So bullish/bearish_engulfing produce **zero** screener rows/flags.\n- **Active/user-facing status \u2014 fresh check, not trusted from either source:** the pattern_engine universe scan (`api/main.py:6225-6231`, `patterns_universe_scan`, daily 1:00 AM ET cron, unconditional \u2014 no env-flag gate found around this specific `add_job`) runs the full detector registry (all 85 detectors, including this pair) against `cap_universe.json` and stores results via `memory.py`. `CLAUDE.md`'s \"DOCUMENTED BUT UNREACHABLE\" table does **not** list this family or its router \u2014 `/api/patterns/{sym}` is a live, mounted route (confirmed by reading `patterns.py` directly, not by trusting the table). **Conclusion: reachable and actually running on real data daily**, via the chart-overlay route and the Compass tool bridge; **not** reachable via the screener (by design, not by defect).\n\n### Definition\n- **Current UCT code definition** (`_try_extract`, both files): prior bar strictly opposite-coloured; both bodies positive; containment (`curr_o <= prev_c` and `curr_c >= prev_o`, non-strict on both ends \u2014 allows a double body-tie in isolation, see D3/note below); **and** `curr_body >= 1.2 * prev_body`. This is gated by a **hard reversal-context precondition** before any confidence is computed: for bullish, `at_swing_low (10-bar, \u22645% of range) OR below_50sma OR recent_decline_pct(15-bar) >= 5%`; mirror for bearish (`at_swing_high OR above_50sma OR recent_advance_pct >= 5%`). Failing the gate \u2192 `continue` (no Detection built at all) \u2014 this is a genuine identity-affecting hard gate, not merely a quality adjustment.\n- **External/practitioner reference definition** (`docs/superpowers/research/candles/02-two-bar-patterns.md:151-228`, TA-Lib `CDLENGULFING` C source, Nison's 3 criteria, Bulkowski's Identification Guidelines, CandleScanner, StockCharts): opposite-coloured bodies (unanimous, with a doji exception Nison allows and TA-Lib disallows), full body containment ignoring shadows (unanimous), a **genuine, clearly-definable prior trend** as part of the *definition itself* (Nison criterion #1; required by Nison/Bulkowski/CandleScanner/StockCharts; explicitly NOT applied by TA-Lib, which the corpus calls out as TA-Lib's own admitted gap), and (per the research corpus's own recommended fix for a defective prior implementation) a body-size floor / ratio such as `body(2) >= 1.2*body(1)`.\n- **Disagreements between UCT code and reference:**\n  1. **Trend requirement is satisfied by a LOCAL proxy, not a genuine trend.** The code's gate never reads `context[\"trend_stage\"]` (confirmed by reading both files in full \u2014 `trend_stage` is read only for a scoring bonus and for narrative phrasing, never the gate). A short-term 10-bar swing low or a 15-bar 5%+ pullback **inside a Stage-2 uptrend** satisfies the gate. Per the research corpus, that is precisely the geometry+context combination Bulkowski separately measured as \"Last Engulfing Top\"/\"Last Engulfing Bottom\" territory (opposite historical outcome from plain engulfing \u2014 see D2 below). This is the single most consequential definitional gap.\n  2. Double body-tie (`o==prev_c AND c==prev_o` simultaneously) is not explicitly rejected in the containment check \u2014 but in practice the `1.2x` ratio requirement forces `curr_body != prev_body` whenever the tie holds (a double tie implies `curr_body == prev_body`, ratio 1.0 < 1.2, rejected). Net effect: **not currently exploitable**, but this is incidental, not a documented design decision.\n- **Threshold provenance** \u2014 see D3 defect-class section below for the full classification table.\n\n### Detection Inputs\n- Raw OHLCV: `bars[i][\"o\"/\"h\"/\"l\"/\"c\"/\"v\"]` for bar N and bar N-1, plus a 10-bar lookback (swing) and 15-bar lookback (decline/advance %) and a 50-bar closes window (SMA50) \u2014 all computed from `bars` alone.\n- `context` dict fields actually read: `dcr_signature`, `nearest_support` (bullish) / `nearest_resistance` (bearish) for target selection and a scoring bonus, `trend_stage` (scoring bonus + narrative phrase only, never the gate), `ma_alignment` (narrative phrase only), `rs_trend` (narrative phrase only), `regime` (narrative phrase only), `recent_dcr_avg` (narrative phrase only). **Not read at all:** `days_to_earnings`, `sector_strength_rank` (both present in the context shape used by the test fixtures but never referenced in either detector file).\n- No indicator/pivot/event/earnings data is fetched independently by the detector \u2014 everything besides raw bars comes from the passed-in `context` dict, built upstream by `primitives/context.build_context`.\n\n### Pattern Identity Conditions (hard gates \u2014 return `None`/skip)\n1. `len(bars) >= 6` (module-level `_MIN_BARS`).\n2. Bar N-1 strictly opposite-coloured to bar N (red-then-green for bullish; green-then-red for bearish).\n3. Both bodies `> 0`.\n4. Containment: `curr_o <= prev_c` and `curr_c >= prev_o` (bullish; mirrored for bearish) \u2014 non-strict both ends.\n5. `curr_body >= 1.2 * prev_body`.\n6. **Reversal-context gate** (see Definition, above) \u2014 `continue`s the whole candidate, no Detection built, no confidence computed.\n7. `confidence >= 50.0` (`_CONFIDENCE_FLOOR`) \u2014 technically a post-hoc gate on the blended score, not on geometry alone (see D4).\n\n### Quality Conditions (soft, score-only)\n- `geometry_score` (45% engulfment-ratio tier + 30% body-as-%-of-range + 25% \"closure\" excess) \u2014 weight 0.40 of confidence.\n- `volume_score` (bar-N vs bar-N-1 volume ratio tiers) \u2014 weight 0.25.\n- `context_score` (swing/50SMA/decline tier bonuses + DCR alignment + DCR-signature match + support/resistance proximity + trend-stage bonus, base 25, capped 100) \u2014 weight 0.20.\n- `historical_score` \u2014 **hardcoded literal `50.0` in both files, always.** Not derived from any real historical measurement (no read of `pattern_stats`/`expectancy_R`, which DO exist elsewhere in this same codebase per `pattern_join.py`'s own docs). See D1.\n\n### Lifecycle Conditions\nNone functionally. `status` is hardcoded to the literal `\"ready\"` in both files' `_build_detection` return; `outcome` is hardcoded `None`. See D5.\n\n### Invalidators\nDescribed only in prose (`failure_signal`): close back below bar N's low (bullish) / above bar N's high (bearish) invalidates; several \"insidious failure mode\" narrative bullets (weak-volume fake-out, strong-downtrend-pause context, resistance/support overhead, accumulation/distribution-signature-already-established). **None of this is checked by code on a later bar** \u2014 the detector only ever evaluates the two-bar pair at scan time; there is no re-visit/expire/invalidate mechanism.\n\n### Geometry Available / Geometry Missing\n**Available:** exact two-candle timestamps (`start_t`, `end_t`, `pivot_ts`), price anchors (`anchors: [{t, price}]` for both bars), a rich flat `extras` dict (both bodies' %-of-range, engulfment ratio, both bars' DCR, volume ratio, `pattern_high`/`pattern_low` as a 2-bar zone, boolean context flags, decline/advance %, DCR-strength label), computed `levels` (entry/stop/target/target_basis/R:R), and per-component `quality_components`.\n**Missing:** any structured per-criterion pass/fail record (no `Criterion`-style object \u2014 no `origin`/`source_id`/`quote`/`operator`/`expected_value` anywhere in this family, unlike base_catalog structures); the actual SMA50 *value* used by the gate (only the boolean survives into `extras`); any MA-touch geometry beyond the boolean; any gap-size field; any event/earnings-proximity field (context carries `days_to_earnings` but this detector never reads it); any `algorithm_version`/`schema_version` tag (repo-wide gap, per `decision-log.md`'s Phase 3A \"Algorithm versioning\" note); the `tf` field on the Detection itself (always `\"\"`).\n\n### Narrative / Explanation Summary\nBoth files' `what_it_is` open with a shared historical-lineage claim (Nison 1991 + \"Munehisa Homma's 18th-century Sakata trading rules\" + \"reinforced by Robert Edwards & John Magee ... 1948\"), cite Bulkowski's rank/percentage (correct post-Phase-3A), then add characterizations attributed to Greg Morris's *Candlestick Charting Explained* and to Peter Brandt's \"explicit rules.\" `why_it_matters` narrates the supply/demand story using live numbers (all real, code-derived) plus DCR-signature framing. `what_to_watch_for`/`failure_signal` give forward-looking (not-yet-observed) confirmation/invalidation rules and a stated aggregate failure rate. **D1 found four narrative-text findings independent of the two numbers Phase 3A already fixed** (see D1/D8 below) plus one structured-field finding (`historical_score` fabrication).\n\n### Confidence / Quality Scoring Summary\n`confidence = round(0.40*geometry_score + 0.25*volume_score + 0.20*context_score + 0.15*historical_score(\u226150.0), 2)`; floor 50.0 to emit at all; at most one Detection returned per call (the most recent qualifying pair in a 5-bar scan window, `_SCAN_LOOKBACK=5`).\n\n### Known Tests\n- `tests/pattern_engine/detectors/test_bullish_engulfing.py` (225 lines) / `test_bearish_engulfing.py` (238 lines). Cover: fixture battery (15+15 fixtures: \u22655 positive/\u22658 negative/\u22652 edge each, verified present), narrative-length floors (\u2265700 chars/field, \u226590 headline), geometry-extras-key presence, entry/stop/target sign checks, the reversal-context gate (both directions, with a paired positive control proving it's context-selective not a blanket suppressor), and (Phase 3A) `test_bulkowski_citation_is_accurate` asserting `\"63%\"`/`\"79%\"` present and `\"73%\"` absent from `what_it_is`.\n- **What they do NOT cover:** the Greg Morris / Peter Brandt / Edwards-Magee attribution claims (no test touches `what_it_is` beyond the Bulkowski-number substring check); the bearish \"roughly 40%\" internal inconsistency; the `historical_score` fabrication; the trend-gate/Last-Engulfing ambiguity (D2); the penny-stock/no-liquidity-floor false-positive class (D7, reproduced live in this audit, not in the fixture battery); the double-tie theoretical edge case.\n- `tests/test_quotes_are_grounded.py` \u2014 **does not cover this family at all.** It scans only `base_catalog.ALL_STRUCTURES`; pattern_engine detectors have no quote/source_id field structure for it to walk.\n\n### Known Failure Modes (D7)\nReproduced live (throwaway script, not committed): a synthetic sub-$1 \"penny stock\" 30-bar decline followed by a wick-dominated two-bar pair (`curr_bar_body_pct = 0.085`, i.e. 91.5% wick / 8.5% body, `geometry_score = 26.73/100`) still clears the `1.2x` ratio, the reversal-context gate, and the `50.0` confidence floor (**confidence 57.19**) purely because `volume_score=100` and `context_score=70` compensate \u2014 see full repro under D4/D7 below. No price floor, no liquidity/avg-volume floor, and no split/reverse-split artifact guard exist anywhere in this detector (contrast `power_earnings_gap.py`'s Phase-3A-added `_MAX_GAP_PCT` split-artifact ceiling, decision-log.md item 3 \u2014 no analogous guard exists here).\n\n### Research Evidence Summary\nPrimary corpus: `docs/superpowers/research/candles/02-two-bar-patterns.md:151-228` (Nison/Bulkowski/TA-Lib/CandleScanner engulfing rules, verbatim quotes) and `:825-865` + `:1198-1269` (Last Engulfing Top/Bottom identity + the \"(f) DEFECTS IN THE CURRENT ENGULFING RULE\" section, D1-D8, which is written about an EARLIER/different engulfing implementation under review \u2014 not this pattern_engine detector \u2014 but is directly on-point for auditing this one). `docs/superpowers/research/setups/CRITERIA_bulkowski_measured.md` has **zero** engulfing entries (it is a base_catalog/structure corpus, not candlestick). Corpus searches (this audit, verbatim `grep`) found **zero** matches for \"Brandt\", \"Homma\", or \"Sakata\" anywhere in `docs/superpowers/research/candles/**`; \"Edwards\"/\"Magee\" appear only in the unrelated `docs/superpowers/research/bases/**` corpus (classical chart-pattern canon, not candlesticks); Greg Morris's *Candlestick Charting Explained* is on the corpus's own source list as **\"borrow-only; not read for this document\"** (`04-continuation-and-long-patterns.md:1243`).\n\n### Validation Status\n**Never blinded-reviewed or gold-standard tested.** No `docs/uct-scanner-intelligence/*engulfing*` or `*candlestick*` gold-standard artifact exists (contrast VCP's `docs/uct-scanner-intelligence/vcp_gold_standard/` + Phase 2C's six frozen real-data cases, per `decision-log.md`). Phase 3A's only touch on this family was the narrow Bulkowski-number citation fix (`decision-log.md` Lane A item 1) \u2014 it did not review the gate logic, the fabricated `historical_score`, or the other citations.\n\n### Recommended Action\n**CORRECT_DETECTOR_LOGIC** (with a bundled explanation fix). Evidence: (1) D2 \u2014 the reversal-context gate is a local proxy that does not verify the \"clearly definable prior trend\" the pattern's own name and narrative claim, and the research corpus documents a real, measured, opposite-outcome pattern (Last Engulfing Top/Bottom) living in exactly the geometry the gate lets through; (2) D4/D7 \u2014 reproduced live: geometrically weak/noisy candidates clear the confidence floor via volume+context compensation, with zero liquidity/price/corporate-action floor; (3) D1 \u2014 the structured `quality_components.historical_score` field is a hardcoded constant misrepresented by its own name; (4) D1/D8 \u2014 three independent, corpus-checked, unsupported/misattributed citations (Edwards & Magee, Greg Morris, Peter Brandt) reach paying members' narrative text, plus one internally-inconsistent derived number (bearish \"roughly 40%\" fail rate vs. the same file's own 79% success figure). None of these is a \"replace the architecture\" problem \u2014 the geometry/gate/scoring skeleton is sound and the exact-candle timestamp geometry is genuinely good; the fixes are targeted (tighten the trend gate to actually consult `trend_stage`, add a liquidity/price floor, wire or remove `historical_score`, correct/remove the three unsupported citations and the bearish fail-rate number).\n",
+  "defect_class_findings": [
+    {
+      "defect_class": "D1",
+      "found": true,
+      "severity": "P1",
+      "detail": "(a) `quality_components.historical_score` is a hardcoded literal 50.0 in both files (bullish_engulfing.py:95, bearish_engulfing.py:96) \u2014 a structured field named 'historical' that never reads real pattern-history data (pattern_stats/expectancy_R exist elsewhere in the codebase but are never consulted here), contributing a fixed 7.5 points (15% weight) to every confidence score regardless of the pattern's actual track record. (b) both files' `what_it_is` unconditionally asserts 'extended the prevailing downtrend'/'prevailing uptrend' (bullish_engulfing.py:451, bearish_engulfing.py:445) even though the reversal-context gate that fires the detection never verifies a genuine prevailing trend (see D2) \u2014 a structural claim the code does not verify. (c) bearish_engulfing.py:521 states 'fail roughly 40% of the time' immediately downstream of the file's own corrected 79% Bulkowski success figure (line ~459), which implies ~21% failure, not 40% \u2014 an internal inconsistency within the same detector's own narrative fields, i.e. exactly the class of 'other quoted/cited claims' beyond the two numbers Phase 3A fixed."
+    },
+    {
+      "defect_class": "D2",
+      "found": true,
+      "severity": "P1",
+      "detail": "The reversal-context gate (_is_swing_low/_below_sma50/_recent_decline_pct for bullish, mirrored for bearish) never reads context['trend_stage'] (confirmed by full-file read \u2014 trend_stage is read only for a scoring bonus at bullish_engulfing.py:323-325 / bearish_engulfing.py:319-321, and for narrative phrasing, never the gate). A local 10-bar swing low or 15-bar 5%+ pullback INSIDE a genuine Stage-2 uptrend satisfies the gate. Per docs/superpowers/research/candles/02-two-bar-patterns.md:825-865 and :1237-1249 (\u00a7D5 of that doc's own defect list), identical geometry in the opposite prior trend is a documented DIFFERENT pattern (Last Engulfing Top/Bottom) with Bulkowski-measured OPPOSITE historical behavior (68%/65% continuation vs 63%/79% reversal), and roughly half of all engulfing-shaped geometry in the wild is measured to be the opposite pattern. This detector has one label where the research corpus says the definition requires trend-disambiguation."
+    },
+    {
+      "defect_class": "D3",
+      "found": true,
+      "severity": "P2",
+      "detail": "Provenance classified per threshold: _MIN_ENGULF_BODY_RATIO=1.2 -> sourced (matches research corpus's own recommended fix, 02-two-bar-patterns.md:1235). below_50sma as a gate component -> sourced (research's own D5 fix explicitly names close-vs-SMA50, :1245). DCR strong/weak cutoffs (0.70/0.30) -> sourced to Bonde/Stockbee via primitives/dcr.py's own docstring (cross-family primitive, not candlestick-specific). _MIN_DECLINE_FOR_REVERSAL/_MIN_ADVANCE_FOR_REVERSAL=0.05, _SWING_LOOKBACK=10 + 5% swing-low/high band, confidence weights 0.40/0.25/0.20/0.15, confidence floor 50.0, and the 'volume >= 1.3x 20-bar avg' + 'DCR >= 0.65/<=0.35' confirmation-bar thresholds in the narrative -> unsourced-guess (ours), no citation anywhere in code or corpus. No cross-system (base_catalog) duplicate threshold exists to diff against since no base_catalog engulfing structure exists."
+    },
+    {
+      "defect_class": "D4",
+      "found": true,
+      "severity": "P1",
+      "detail": "Reproduced live via a throwaway script against the real detect_bullish_engulfing function: a synthetic penny-stock two-bar pair with curr_bar_body_pct=0.085 (91.5% wick) and geometry_score=26.73/100 still clears the identity gate and the 50.0 confidence floor at confidence=57.19, because volume_score=100 and context_score=70 compensate (0.40*26.73+0.25*100+0.20*70+0.15*50=57.19). This is D4's 'call something the pattern merely because it scores well on unrelated context [and volume]' clause, empirically confirmed rather than merely read from the docstring. The confidence floor is a single blended score, not a geometry-specific gate, so weak/noisy geometry is not actually rejected when other unrelated dimensions are strong."
+    },
+    {
+      "defect_class": "D5",
+      "found": true,
+      "severity": "P3",
+      "detail": "status is hardcoded to the literal 'ready' in both files' _build_detection return (bullish_engulfing.py:610, bearish_engulfing.py:607); outcome is hardcoded None. No 'forming'/'triggered'/'confirmed'/'failed'/'invalidated' state is ever produced, even though the detector's own what_to_watch_for/failure_signal prose describes exactly such a lifecycle (pre-confirmation 'suspended animation', next-bar trigger conditions, invalidation on breaking bar N's low/high). The lifecycle exists only as advisory prose for a human reader, never as a tracked/updated field."
+    },
+    {
+      "defect_class": "D6",
+      "found": false,
+      "severity": "none",
+      "detail": "No base_catalog structure and no other pattern_engine detector implements engulfing under a different name -- grep of base_catalog found nothing, and no last_engulfing_top/bottom module exists in api/services/pattern_engine/detectors/**. Not a duplication defect; if anything the risk runs the other way (under-differentiation -- see D2). bullish_harami/bearish_harami, piercing/dark_cloud_cover, and outside_bar are confirmed genuinely distinct patterns (outside_bar uses high/low containment vs engulfing's body containment, per the research corpus's own explicit distinction, 02-two-bar-patterns.md:153-154)."
+    },
+    {
+      "defect_class": "D7",
+      "found": true,
+      "severity": "P1",
+      "detail": "No minimum price floor, no minimum average-volume/liquidity floor, and no absolute body-size floor exist anywhere in _try_extract or the identity gate -- only a RELATIVE 1.2x ratio between two arbitrarily small bodies. Reproduced live (see D4 entry) with a sub-$1 synthetic penny-stock scenario that fires at confidence 57.19 despite 91.5%-wick candles. No split/reverse-split artifact guard exists either, unlike the sibling power_earnings_gap.py detector which Phase 3A gave a _MAX_GAP_PCT ceiling explicitly for this purpose (decision-log.md Lane A item 3). Existing fixtures (15 bullish + 15 bearish, incl. very_small_engulfing_body.json, boundary_engulfment_1_2x.json, prev_bar_too_large.json) cover geometric edge cases but none is a low-priced/illiquid or corporate-action scenario."
+    },
+    {
+      "defect_class": "D8",
+      "found": true,
+      "severity": "P1",
+      "detail": "Corpus-searched exactly as test_quotes_are_grounded.py does for base_catalog (grep across docs/superpowers/research/candles/** and docs/superpowers/research/setups/CRITERIA_bulkowski_measured.md). Three unsupported/misattributed claims found beyond the two numbers Phase 3A fixed: (1) 'Peter Brandt teaches the engulfing as a discretionary trade trigger with explicit rules...' (bullish_engulfing.py:466-469, bearish_engulfing.py:462-465) -- 'Brandt' has zero matches anywhere in the candles corpus; Brandt appears only in the unrelated docs/superpowers/research/bases/10-grimes-brandt-evidence.md (base/VCP patterns). (2) 'Greg Morris's Candlestick Charting Explained frames the bullish/bearish engulfing as...' (bullish_engulfing.py:462-464, bearish_engulfing.py:456-458) -- that exact book is on the corpus's own source list as 'borrow-only; not read for this document' (04-continuation-and-long-patterns.md:1243), the same defect class as the minervini_ttlac citation-to-an-unread-book finding the grounding rail exists to catch, except this is prose attribution with no existing automated check. (3) 'reinforced by Robert Edwards & John Magee in Technical Analysis of Stock Trends (1948)' (docstrings line 6-7/6-8, narrative line ~447/441) -- Edwards & Magee appear only in docs/superpowers/research/bases/** (classical Western chart-pattern canon), never in the candlestick corpus; their 1948 book predates Western exposure to Japanese candlestick methods by decades, making the specific claim implausible on its face as well as unsourced. CRITERIA_bulkowski_measured.md has zero engulfing entries -- not the relevant corpus for this family."
+    },
+    {
+      "defect_class": "D9",
+      "found": true,
+      "severity": "P2",
+      "detail": "Strong on exact-candle geometry (start_t/end_t/pivot_ts/anchors with real timestamps -- sufficient for chart highlighting) but weak on structured provenance: no Criterion-style object anywhere in this family (no origin/source_id/quote/operator/expected_value/pass_fail fields -- everything besides the prose narrative is a flat extras dict). The actual SMA50 value used by the gate is computed internally then discarded (only a boolean survives into extras) -- a chart overlay wanting to draw the reference level the gate actually used cannot get it from the Detection. context['days_to_earnings'] is passed in but never read by either file. Detection['tf'] is hardcoded to the empty string in both files (bullish_engulfing.py:560, bearish_engulfing.py:557) so the object never self-describes its own timeframe. No algorithm_version/schema_version field, matching the repo-wide gap decision-log.md already documents."
+    }
+  ],
+  "geometry_readiness_color": "RED",
+  "geometry_readiness_rationale": "Not a geometry-mechanics problem \u2014 exact-candle timestamps/anchors are genuinely present and good. RED because of correctness-adjacent defects that must be fixed before this family's output (narrative and structured score alike) can be trusted further: (1) D2's trend-gate is a local proxy that can pass on the exact geometry+context combination the research corpus itself documents as a DIFFERENT, opposite-outcome pattern (Last Engulfing Top/Bottom) -- a genuine pattern-identity correctness gap, not a wording issue; (2) D4/D7, reproduced live, show a geometrically weak/noisy/illiquid-plausible candidate clearing the confidence floor via unrelated volume+context compensation, with zero liquidity or corporate-action guard; (3) the structured quality_components.historical_score field is a hardcoded constant misrepresented by its own name, which is a correctness defect in the machine-readable output itself, not merely prose; (4) three unsupported/misattributed author citations (Edwards & Magee, Greg Morris, Peter Brandt) and one internally-inconsistent derived percentage reach paying members' narrative text. Geometry enrichment (Criterion-style structured provenance, the discarded SMA50 value, tf field) is also missing, but that alone would only be YELLOW -- the identity/scoring correctness issues are what push this to RED.",
+  "detector_action": "CORRECT_DETECTOR_LOGIC",
+  "detector_action_evidence": "D2 (reversal-context gate does not verify a genuine prior trend and can pass on geometry the research corpus documents as a different, opposite-outcome pattern) and D4/D7 (reproduced live: a geometrically weak, wick-dominated, penny-stock-plausible candidate clears the confidence floor purely via unrelated volume+context compensation, with no liquidity/price/corporate-action floor anywhere in the gate) are both correctness defects in the detection logic itself, not narrative wording -- they determine whether the family fires at all and on what. D1's historical_score=50.0 hardcode is a correctness defect in the structured (non-prose) output. These are bundled with an explanation fix (D1/D8's three unsupported citations plus the bearish 'roughly 40%' inconsistency) rather than a separate action because all six defects sit in the same two files and none requires an architecture change -- the geometry/gate/scoring skeleton and the exact-candle timestamp output are sound and worth keeping.",
+  "p_issues": [
+    {
+      "priority": "P0",
+      "title": "None found at P0 for this family",
+      "description": "No defect here rises to blocking-all-use severity in isolation (unlike, e.g., a total data-loss or silent-corruption class elsewhere in this program) -- the P1 items below are the ceiling for this family.",
+      "evidence": "n/a"
+    },
+    {
+      "priority": "P1",
+      "title": "Reversal-context gate is a local-dip proxy, not a genuine prior-trend check",
+      "description": "The hard gate (swing_low/below_50sma/decline% for bullish; mirrored for bearish) never consults context['trend_stage'], so an ordinary pullback inside a genuine uptrend can pass it and fire 'Bullish Engulfing,' even though the research corpus documents that exact geometry+context combination as the opposite-outcome 'Last Engulfing Top' pattern.",
+      "evidence": "bullish_engulfing.py:84-90 (gate), :323-325 (trend_stage read only for scoring, never the gate); docs/superpowers/research/candles/02-two-bar-patterns.md:825-865 and :1237-1249"
+    },
+    {
+      "priority": "P1",
+      "title": "Weak/noisy geometry is rescued over the confidence floor by unrelated volume+context scoring",
+      "description": "Reproduced live: a synthetic sub-$1, 91.5%-wick two-bar pair (geometry_score=26.73/100) still fires at confidence 57.19 because volume_score=100 and context_score=70 compensate. No liquidity, price, or corporate-action floor exists anywhere in the gate.",
+      "evidence": "throwaway repro script against detect_bullish_engulfing (this audit, not committed); formula at bullish_engulfing.py:97-99"
+    },
+    {
+      "priority": "P1",
+      "title": "quality_components.historical_score is a hardcoded constant, not a historical measurement",
+      "description": "Both files set hist_score = 50.0 unconditionally and feed it into 15% of the published confidence score under a field name ('historical_score') that implies a real backtest-derived figure. Real pattern-history data (pattern_stats/expectancy_R) exists elsewhere in this codebase but is never consulted here.",
+      "evidence": "bullish_engulfing.py:95, bearish_engulfing.py:96; contrast api/services/screener/pattern_join.py's own documentation of pattern_stats/expectancy_R existing and being joined elsewhere"
+    },
+    {
+      "priority": "P1",
+      "title": "Three unsupported/misattributed author citations reach paying members' narrative text",
+      "description": "Peter Brandt (zero mentions anywhere in the candlestick research corpus), Greg Morris's Candlestick Charting Explained (the corpus's own bibliography records this book as never obtained/read), and Edwards & Magee 1948 (appears only in an unrelated chart-pattern corpus and predates Western candlestick literature by decades) are all cited by name with specific characterizations attributed to them.",
+      "evidence": "bullish_engulfing.py:5-7,447-449,462-469; bearish_engulfing.py:6-8,440-441,456-465; corpus grep this audit: 0 matches for Brandt/Homma/Sakata in docs/superpowers/research/candles/**; docs/superpowers/research/candles/04-continuation-and-long-patterns.md:1243 (Morris book 'not read for this document')"
+    },
+    {
+      "priority": "P1",
+      "title": "Bearish engulfing's stated failure rate is internally inconsistent with its own corrected success figure",
+      "description": "bearish_engulfing.py states 'fail roughly 40% of the time' in the same file whose corrected (Phase 3A) success figure is 79%, which implies ~21% failure, not 40% -- apparently an uncorrected copy of the bullish detector's failure_signal text (bullish's 63% success -> ~37% fail is a reasonable 'roughly 40%').",
+      "evidence": "bearish_engulfing.py:521 vs the corrected '79%' at bearish_engulfing.py:459-461"
+    },
+    {
+      "priority": "P2",
+      "title": "No structured per-criterion provenance (Criterion-style object)",
+      "description": "Unlike base_catalog structures, this family has no origin/source_id/quote/operator/expected_value/pass_fail structure -- only prose narrative plus a flat extras dict. A future provenance surface (criterion/observed/expected/pass-fail) has nothing to read from today.",
+      "evidence": "geometry.extras shape at bullish_engulfing.py:571-584 / bearish_engulfing.py:568-581 -- no Criterion-shaped fields anywhere"
+    },
+    {
+      "priority": "P2",
+      "title": "Discarded SMA50 value and unread days_to_earnings",
+      "description": "The actual 50-SMA value computed for the gate is thrown away (only a boolean survives); context['days_to_earnings'] is passed in but never read by either detector.",
+      "evidence": "_below_sma50/_above_sma50 compute `sma` locally and return only a bool (bullish_engulfing.py:193-200, bearish_engulfing.py:192-199); grep of both files shows no reference to days_to_earnings"
+    },
+    {
+      "priority": "P3",
+      "title": "No lifecycle tracking despite lifecycle-shaped narrative",
+      "description": "status is hardcoded 'ready' and outcome hardcoded None always, even though what_to_watch_for/failure_signal describe a pre-confirmation/triggered/invalidated lifecycle in prose.",
+      "evidence": "bullish_engulfing.py:610-611, bearish_engulfing.py:607-608"
+    },
+    {
+      "priority": "P3",
+      "title": "Detection['tf'] is always the empty string",
+      "description": "The returned Detection object never records which timeframe produced it.",
+      "evidence": "bullish_engulfing.py:560, bearish_engulfing.py:557"
+    }
+  ],
+  "explanation_truth_table": [
+    {
+      "claim": "Bulkowski's Encyclopedia puts bullish engulfing's reversal rate at 63% (rank 84/103)",
+      "supporting_fact": "docs/superpowers/research/candles/02-two-bar-patterns.md:225-227 verbatim Bulkowski stats",
+      "source_field": "narrative.what_it_is",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Bearish engulfing's reversal rate is 79% (rank 91/103), meaningfully stronger than bullish's 63%, not a mirror image",
+      "supporting_fact": "docs/superpowers/research/candles/02-two-bar-patterns.md:225-227",
+      "source_field": "narrative.what_it_is",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Codified by Steve Nison in 'Japanese Candlestick Charting Techniques' (1991)",
+      "supporting_fact": "docs/superpowers/research/candles/02-two-bar-patterns.md:186-192 verbatim Nison criteria",
+      "source_field": "narrative.what_it_is / docstring",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Rooted in Munehisa Homma's 18th-century Sakata trading rules",
+      "supporting_fact": "no match for Homma or Sakata anywhere in docs/superpowers/research/candles/** (grep, this audit)",
+      "source_field": "narrative.what_it_is / docstring",
+      "support_type": "none",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "Reinforced by Robert Edwards & John Magee in 'Technical Analysis of Stock Trends' (1948)",
+      "supporting_fact": "Edwards & Magee appear only in docs/superpowers/research/bases/** (classical chart-pattern corpus), never in docs/superpowers/research/candles/**; their 1948 book predates Western candlestick literature",
+      "source_field": "narrative.what_it_is / docstring",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Greg Morris's 'Candlestick Charting Explained' frames the [bullish/bearish] engulfing as one of the [highest-edge/cleanest] two-bar [reversals/topping signals] when accompanied by volume expansion",
+      "supporting_fact": "the exact same book is recorded in the corpus's own source list as 'borrow-only; not read for this document' (docs/superpowers/research/candles/04-continuation-and-long-patterns.md:1243)",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Peter Brandt teaches the engulfing as a discretionary trade trigger with explicit rules (clear downtrend, full body engulfment, next-bar confirmation above/below the midpoint)",
+      "supporting_fact": "zero matches for 'Brandt' anywhere in docs/superpowers/research/candles/** (grep, this audit); Brandt appears only in the unrelated bases/10-grimes-brandt-evidence.md",
+      "source_field": "narrative.what_it_is",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "Bullish engulfing patterns fail roughly 40% of the time when traded alone without confirmation",
+      "supporting_fact": "consistent with the file's own 63% success figure (100-63=37, 'roughly 40%' is a defensible rounding)",
+      "source_field": "narrative.failure_signal",
+      "support_type": "inferred",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "Bearish engulfing patterns fail roughly 40% of the time when traded alone without confirmation",
+      "supporting_fact": "inconsistent with the SAME file's own 79% success figure, which implies ~21% failure -- not 40%",
+      "source_field": "narrative.failure_signal",
+      "support_type": "none",
+      "safe": false,
+      "action": "remove"
+    },
+    {
+      "claim": "This bullish engulfing appears ... extended the prevailing downtrend into a new low (asserted unconditionally on every fire)",
+      "supporting_fact": "the reversal-context gate that fires this detection only checks a local 10-bar swing-low / 15-bar 5%+ decline / below-50SMA proxy, never context['trend_stage'] -- it does not verify a genuine 'prevailing' downtrend",
+      "source_field": "narrative.what_it_is",
+      "support_type": "inferred",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "quality_components.historical_score reflects the pattern's historical performance",
+      "supporting_fact": "hist_score is a hardcoded literal 50.0 in both files, never computed from real pattern-history data",
+      "source_field": "quality_components.historical_score (structured field, not prose)",
+      "source": "structured",
+      "support_type": "none",
+      "safe": false,
+      "action": "qualify"
+    },
+    {
+      "claim": "Confirmation entry/stop/target levels and their basis (2R measured move / nearest support-resistance)",
+      "supporting_fact": "directly computed from pattern_high/pattern_low and context's nearest_support/nearest_resistance in _build_detection",
+      "source_field": "levels",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    },
+    {
+      "claim": "The current bar's DCR of X% places its close in [position] of the session range -- an institutional-buying/distribution fingerprint",
+      "supporting_fact": "compute_dcr is a real, code-computed value; DCR framing is sourced to Bonde/Stockbee per primitives/dcr.py's own docstring",
+      "source_field": "narrative.what_it_is / why_it_matters",
+      "support_type": "direct",
+      "safe": true,
+      "action": "keep"
+    }
+  ],
+  "provenance_readiness": "Pattern-engine detectors (this family included) have NO Criterion-style provenance system at all -- no origin/source_id/quote/operator/expected_value/required_optional/pass_fail/algorithm_version fields anywhere in the Detection shape. That system exists ONLY in base_catalog structures (api/services/screener/base_catalog.py's `ALL_STRUCTURES`/`criteria`, the thing tests/test_quotes_are_grounded.py actually walks). What this family exposes today is: a flat `geometry.extras` dict of raw numeric evidence (real, code-derived), a `quality_components` breakdown into named score buckets (three real, one -- historical_score -- fabricated), and free-form prose narrative that makes claims the structured fields only partially back. To expose criterion/observed/expected/operator/pass-fail per the base_catalog model, this family would need a genuinely new schema for pattern_engine detectors generally (not something to build for this one family in isolation) -- the six hard-gate conditions and four soft-score components enumerated in this card are exactly the candidate criteria such a schema would need to enumerate, but none of them exists as a discrete, machine-readable pass/fail record today.",
+  "quantitative_metrics_available": true,
+  "quantitative_metrics_summary": "Bulkowski's Encyclopedia of Chart Patterns provides real measured statistics for both patterns (corrected by Phase 3A, re-confirmed this audit): bullish engulfing 63% tested reversal rate, frequency rank 12, overall performance rank 84/103; bearish engulfing 79% tested reversal rate, frequency rank 11, overall performance rank 91/103 (docs/superpowers/research/candles/02-two-bar-patterns.md:225-227). Critically, Bulkowski also measured the SAME geometry in the opposite trend (Last Engulfing Top/Bottom) at 68%/65% -- opposite direction from the labeled pattern -- with near-identical frequency ranks (14/13 vs 12/11), meaning roughly half of naturally-occurring engulfing-shaped geometry is the other pattern (:851-860). No UCT-side backtest/expectancy figures exist for this family specifically -- the codebase's own pattern_stats/expectancy_R mechanism (referenced in pattern_join.py) is never joined into these two detectors' historical_score, which is why that field is a hardcoded 50.0 rather than a real number.",
+  "blinded_validation_recommended": false,
+  "blinded_validation_suggested_size": 20,
+  "blinded_validation_rationale": "Not decision-critical right now. The code-level audit already resolved the open questions a blinded review would otherwise be needed to answer: the gate-logic gap (D2), the compensable-weak-geometry gap (D4/D7), and the fabricated historical_score (D1) are all directly demonstrable from the code and one live repro, not matters of subjective visual judgment the way VCP's contraction-sequence calls are. Fix the trend-gate and floor issues first; a blinded review of the FIXED detector would then be verifying a code change, not resolving ambiguity. If one is ever run, this is a much smaller undertaking than VCP's 82-case study (which graded a genuinely subjective multi-week structure) -- engulfing is a 2-candle, mechanically-checkable geometry, so ~20 cases stratified across bullish/bearish and 'genuine trend' vs 'local-dip-inside-opposite-trend' would be enough to empirically confirm whether the D2 mislabeling risk materializes on real data.",
+  "canonical_geometry_requirement": "A single-candle-pair family like engulfing needs, at minimum: (1) the exact two candle indices/timestamps (already present here via pivot_ts/anchors -- keep this shape as the template for other single/double-candle candlestick detectors); (2) an explicit prior-trend classification field distinct from the local swing/SMA proxy used for gating -- i.e. the schema should carry BOTH \"local context passed\" (what fires the pattern) AND \"broader trend regime at fire time\" (e.g. the stage_analysis detector's output) as two separate fields, so a consumer (or a future audit) can tell apart a genuine-downtrend engulfing from a local-dip-in-an-uptrend one without re-deriving it; (3) a real MA-interaction value (not just a boolean) wherever a moving-average is part of the gate, since the boolean alone cannot support a chart overlay drawing the actual reference line; and (4) a genuine historical/expectancy field sourced from the pattern_stats table that already exists in this codebase, replacing the current hardcoded placeholder, so 'historical_score' in quality_components means what its name says."
+}
