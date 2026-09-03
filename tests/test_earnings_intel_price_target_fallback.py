@@ -21,11 +21,21 @@ Requirements this file locks in:
      fails still gets the short failure TTL.
   4. The FMP call is a different provider — it must never touch Finnhub's
      token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`).
-  5. The FMP call carries a bounded timeout (never an unbounded call on the
-     shared request-path threadpool).
+  5. The FMP call is bounded (never an unbounded call on the shared
+     request-path threadpool) and never raises out of this call site.
   6. Absent vs a genuine 0.0 are distinguished in both directions.
+
+D1 note: the FMP leg now routes through the shared `fmp_client` adapter.
+Rather than mocking a raw HTTP layer, these tests mock the two `fmp_client`
+typed functions this path touches directly
+(`get_price_target_consensus` / `get_grades_consensus`) — `_fmp_rows`
+(earnings_estimates.py's thin wrapper) is left REAL so its own
+exception-catching/None-on-failure contract is actually exercised.
+Per-call timeout bounding (old requirement 5) now lives inside `fmp_client`
+itself (its own bounded `_DEFAULT_TIMEOUT`, verified independently in
+test_fmp_client.py) rather than being threaded through from this call site.
 """
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -95,6 +105,42 @@ def _fh_responder(*, earnings_ok=True, rec_ok=True, pt_ok=True):
     return fake_get
 
 
+def _fmp_result(value):
+    from api.services import provider_errors as pe
+    return pe.ProviderResult(
+        value=value,
+        provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test"),
+        licensing_class="R",
+    )
+
+
+def _fmp_not_found(ticker):
+    raise ee.fmp_client.FMPNotFound("no data", vendor="fmp")
+
+
+def _fmp_value_or_not_found(value):
+    """A fmp_client-shaped fn: returns `value` wrapped as a ProviderResult,
+    or raises FMPNotFound when `value` is falsy — the two states `_fmp_rows`
+    both collapse to None, mirroring the retired `_fmp_get`'s "None on any
+    failure" contract this file was originally written against."""
+    def _fn(ticker):
+        if not value:
+            raise ee.fmp_client.FMPNotFound("no data", vendor="fmp")
+        return _fmp_result(value)
+    return _fn
+
+
+def _mock_price_target(monkeypatch, value):
+    monkeypatch.setattr(ee.fmp_client, "get_price_target_consensus", _fmp_value_or_not_found(value))
+
+
+def _mock_consensus_rejects(monkeypatch):
+    """The consensus leg (FMP-primary per Task 5) isn't this file's concern —
+    make it fail cleanly so get_earnings_intel falls back to Finnhub for that
+    leg without a real network call."""
+    monkeypatch.setattr(ee.fmp_client, "get_grades_consensus", _fmp_not_found)
+
+
 def _captured_ttl(monkeypatch):
     """Run get_earnings_intel and return (result, ttl_it_cached_with)."""
     seen = {}
@@ -120,10 +166,13 @@ def test_finnhub_success_short_circuits_fmp(monkeypatch):
     regardless of the price-target outcome — this test only locks in the
     price-target leg's own Finnhub-primary/FMP-fallback ordering.)"""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=True))
-    with patch.object(ee, "_fmp_get", return_value=None) as fmp_spy:
-        result = ee.get_earnings_intel(SYM)
-    pt_paths = [c.args[0] for c in fmp_spy.call_args_list]
-    assert "/stable/price-target-consensus" not in pt_paths
+    _mock_consensus_rejects(monkeypatch)
+    pt_spy = MagicMock(side_effect=_fmp_not_found)
+    monkeypatch.setattr(ee.fmp_client, "get_price_target_consensus", pt_spy)
+
+    result = ee.get_earnings_intel(SYM)
+
+    assert pt_spy.call_count == 0
     assert result["price_target"] == {
         "targetHigh": 500.0, "targetLow": 300.0, "targetMean": 420.0,
         "targetMedian": 415.0, "lastUpdated": "2026-08-01",
@@ -134,24 +183,14 @@ def test_finnhub_success_short_circuits_fmp(monkeypatch):
 
 def test_finnhub_yields_nothing_falls_back_to_fmp_consensus_endpoint(monkeypatch):
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    calls = []
+    _mock_consensus_rejects(monkeypatch)
+    pt_spy = MagicMock(side_effect=_fmp_value_or_not_found(_FMP_PT_CONSENSUS))
+    monkeypatch.setattr(ee.fmp_client, "get_price_target_consensus", pt_spy)
 
-    def fake_fmp_get(path, params, timeout=10):
-        calls.append((path, dict(params), timeout))
-        # Same fixture shape for every path on purpose — this test only cares
-        # about the price-target leg; the consensus leg (called first, see
-        # Task 5) correctly rejects this shape (no buy/hold/sell keys) and
-        # falls back to Finnhub on its own, exercised by other tests.
-        return _FMP_PT_CONSENSUS
-
-    monkeypatch.setattr(ee, "_fmp_get", fake_fmp_get)
     result = ee.get_earnings_intel(SYM)
 
-    pt_calls = [c for c in calls if c[0] == "/stable/price-target-consensus"]
-    assert len(pt_calls) == 1
-    path, params, timeout = pt_calls[0]
-    assert path == "/stable/price-target-consensus"
-    assert params["symbol"] == SYM
+    assert pt_spy.call_count == 1
+    assert pt_spy.call_args.args[0] == SYM
 
     pt = result["price_target"]
     assert pt is not None
@@ -165,7 +204,8 @@ def test_fmp_fallback_never_fabricates_target_mean_from_consensus_field(monkeypa
     from Finnhub's `targetMean` — it must never be smuggled in under that
     name. lastUpdated is likewise unavailable from this FMP endpoint."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
     result = ee.get_earnings_intel(SYM)
     pt = result["price_target"]
     assert pt["targetMean"] is None
@@ -177,7 +217,8 @@ def test_fmp_fallback_keeps_all_five_keys_of_the_finnhub_shape(monkeypatch):
     """Downstream consumers (OverviewTab.jsx, voice_market_tools.py) key off
     these exact field names — the fallback must never change the shape."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
     result = ee.get_earnings_intel(SYM)
     assert set(result["price_target"].keys()) == {
         "targetHigh", "targetLow", "targetMean", "targetMedian", "lastUpdated",
@@ -189,7 +230,8 @@ def test_fmp_fallback_keeps_all_five_keys_of_the_finnhub_shape(monkeypatch):
 def test_fmp_fallback_preserves_a_genuine_zero_target(monkeypatch):
     row = [{"symbol": SYM, "targetHigh": 0.0, "targetLow": 0.0, "targetMedian": 50.0}]
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: row)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, row)
     result = ee.get_earnings_intel(SYM)
     pt = result["price_target"]
     # a real 0.0 must survive as 0.0, not collapse to None
@@ -201,7 +243,8 @@ def test_fmp_fallback_preserves_a_genuine_zero_target(monkeypatch):
 def test_fmp_fallback_treats_an_absent_field_as_none_not_zero(monkeypatch):
     row = [{"symbol": SYM, "targetHigh": 480.0, "targetMedian": 405.0}]  # targetLow absent
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: row)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, row)
     result = ee.get_earnings_intel(SYM)
     pt = result["price_target"]
     assert pt["targetLow"] is None
@@ -214,7 +257,8 @@ def test_fmp_fallback_returns_none_when_row_has_no_usable_numeric_field(monkeypa
     treats the leg as genuinely missing."""
     row = [{"symbol": SYM}]
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: row)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, row)
     result = ee.get_earnings_intel(SYM)
     assert result["price_target"] is None
 
@@ -226,7 +270,8 @@ def test_price_target_filled_by_fmp_is_no_longer_partial_gets_full_ttl(monkeypat
     the FMP fallback. That leg is no longer missing, so the FULL 6h TTL
     applies, same as if Finnhub itself had answered it."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
     result, ttl = _captured_ttl(monkeypatch)
     assert len(result["beat_history"]) == 1
     assert result["consensus"] is not None
@@ -240,7 +285,8 @@ def test_price_target_still_missing_when_fmp_also_fails_keeps_short_ttl(monkeypa
     price-target leg — it must still be treated as missing (short TTL), not
     silently promoted to 'complete' just because a fallback was attempted."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: None)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, None)
     result, ttl = _captured_ttl(monkeypatch)
     assert len(result["beat_history"]) == 1
     assert result["consensus"] is not None
@@ -256,7 +302,8 @@ def test_all_legs_failing_including_fmp_still_negative_caches(monkeypatch):
     monkeypatch.setattr(
         ee.requests, "get",
         _fh_responder(earnings_ok=False, rec_ok=False, pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: None)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, None)
     result, ttl = _captured_ttl(monkeypatch)
     assert result is None
     assert ttl == ee._INTEL_FAIL_TTL
@@ -274,11 +321,19 @@ def test_fmp_fallback_succeeds_despite_an_active_finnhub_cooldown(monkeypatch):
     calls = []
 
     def fh_should_not_fire(url, params=None, timeout=None):
+        if "financialmodelingprep.com" in url:
+            # get_earnings_intel's beat_history leg (earnings_history_fmp.
+            # fmp_beat_history, out of this file's migration scope) still
+            # resolves the legacy `ee._fmp_get` at call time and legitimately
+            # probes FMP here — not a Finnhub call, so not what this guard
+            # is watching for.
+            return _Resp(200, [])
         calls.append(url)
         raise AssertionError("a Finnhub HTTP call escaped the active cooldown")
 
     monkeypatch.setattr(ee.requests, "get", fh_should_not_fire)
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
 
     result = ee.get_earnings_intel(SYM)
 
@@ -298,11 +353,15 @@ def test_fmp_fallback_succeeds_despite_an_exhausted_finnhub_token_bucket(monkeyp
     calls = []
 
     def fh_should_not_fire(url, params=None, timeout=None):
+        if "financialmodelingprep.com" in url:
+            # See the matching comment in the cooldown test above.
+            return _Resp(200, [])
         calls.append(url)
         raise AssertionError("a Finnhub HTTP call escaped the exhausted token bucket")
 
     monkeypatch.setattr(ee.requests, "get", fh_should_not_fire)
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
 
     result = ee.get_earnings_intel(SYM)
 
@@ -316,7 +375,8 @@ def test_fmp_call_never_consumes_a_finnhub_bucket_token(monkeypatch):
     (earnings, recommendation, price-target — the last one empty), and the
     FMP fallback runs on top. Exactly 3 tokens should be spent, not 4."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: _FMP_PT_CONSENSUS)
+    _mock_consensus_rejects(monkeypatch)
+    _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
 
     before = fhc._fh_bucket_tokens
     ee.get_earnings_intel(SYM)
@@ -325,34 +385,18 @@ def test_fmp_call_never_consumes_a_finnhub_bucket_token(monkeypatch):
     assert abs((before - after) - 3.0) < 0.05
 
 
-# ── Requirement 5: the FMP call is bounded (never unbounded on the request path)
+# ── Requirement 5: the FMP call is bounded and never raises out of this
+#    call site (bounding itself now lives inside fmp_client — see module
+#    docstring) ───────────────────────────────────────────────────────────
 
-def test_fmp_price_target_call_has_a_bounded_timeout(monkeypatch):
-    monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
-    captured = {}
+def test_fmp_price_target_fallback_never_raises_even_if_fmp_client_does(monkeypatch):
+    """Per-call timeout bounding now lives inside `fmp_client` itself (its
+    own bounded `_DEFAULT_TIMEOUT`, verified independently in
+    test_fmp_client.py) rather than being threaded through from this call
+    site. What this call site still owns is never letting a raised
+    ProviderError escape — `_fmp_rows` catches everything and returns None."""
+    def boom(ticker):
+        raise ee.fmp_client.FMPTransient("simulated timeout", vendor="fmp")
 
-    def fake_fmp_get(path, params, timeout=10):
-        captured["timeout"] = timeout
-        return _FMP_PT_CONSENSUS
-
-    monkeypatch.setattr(ee, "_fmp_get", fake_fmp_get)
-    ee.get_earnings_intel(SYM)
-
-    assert captured["timeout"] is not None
-    assert isinstance(captured["timeout"], (int, float))
-    assert 0 < captured["timeout"] <= 10
-
-
-def test_fmp_price_target_fallback_unit_is_bounded_and_never_raises(monkeypatch):
-    """Direct unit coverage of _fmp_price_target_fallback in isolation."""
-    def fake_fmp_get(path, params, timeout=10):
-        assert timeout is not None and timeout > 0
-        raise TimeoutError("simulated hang")  # _fmp_get itself swallows this in prod;
-        # here we prove _fmp_price_target_fallback doesn't need to catch it because
-        # _fmp_get's own try/except already returns None on any exception.
-
-    def fake_fmp_get_safe(path, params, timeout=10):
-        return None  # what _fmp_get actually returns after swallowing an exception
-
-    monkeypatch.setattr(ee, "_fmp_get", fake_fmp_get_safe)
+    monkeypatch.setattr(ee.fmp_client, "get_price_target_consensus", boom)
     assert ee._fmp_price_target_fallback(SYM) is None

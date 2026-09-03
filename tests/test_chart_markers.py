@@ -116,10 +116,10 @@ class TestGetChartMarkersRevenue:
              "epsActual": None, "epsEstimated": 1.4, "revenueActual": None, "revenueEstimated": None},
         ]
 
-        def fake_fmp_get(path, params, timeout=10):
-            return fmp_rows if path == "/stable/earnings" else None
+        def fake_rows(ticker, fn, **kwargs):
+            return fmp_rows if fn is earnings_estimates.fmp_client.get_earnings else None
 
-        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+        with patch.object(earnings_estimates, "_fmp_rows", side_effect=fake_rows), \
              patch.object(earnings_estimates, "_fh_get", return_value=None):
             result = earnings_estimates.get_chart_markers("MU")
 
@@ -153,7 +153,7 @@ class TestGetChartMarkersRevenue:
         def fake_fh_get(path, params):
             return eps_payload if path == "/stock/earnings" else None
 
-        with patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+        with patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get):
             result = earnings_estimates.get_chart_markers("MU")
 
@@ -189,14 +189,14 @@ class TestGetChartMarkersQuarter:
             {"quarter": 3, "fiscalYear": 2024, "date": d2_call},
         ]
 
-        def fake_fmp_get(path, params, timeout=10):
-            if path == "/stable/earnings":
+        def fake_rows(ticker, fn, **kwargs):
+            if fn is earnings_estimates.fmp_client.get_earnings:
                 return fmp_earnings
-            if path == "/stable/earning-call-transcript-dates":
+            if fn is earnings_estimates.fmp_client.get_transcript_dates:
                 return transcript_dates
             return None
 
-        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+        with patch.object(earnings_estimates, "_fmp_rows", side_effect=fake_rows), \
              patch.object(earnings_estimates, "_fh_get", return_value=None):
             result = earnings_estimates.get_chart_markers("MU")
 
@@ -210,12 +210,12 @@ class TestGetChartMarkersQuarter:
         fmp_earnings = [{"date": d1, "epsActual": 1.0, "epsEstimated": 0.9,
                          "revenueActual": 1e9, "revenueEstimated": 1e9}]
 
-        def fake_fmp_get(path, params, timeout=10):
-            if path == "/stable/earnings":
+        def fake_rows(ticker, fn, **kwargs):
+            if fn is earnings_estimates.fmp_client.get_earnings:
                 return fmp_earnings
             return []  # transcript-dates empty → no quarter, but marker still shows
 
-        with patch.object(earnings_estimates, "_fmp_get", side_effect=fake_fmp_get), \
+        with patch.object(earnings_estimates, "_fmp_rows", side_effect=fake_rows), \
              patch.object(earnings_estimates, "_fh_get", return_value=None):
             result = earnings_estimates.get_chart_markers("MU")
 
@@ -235,7 +235,7 @@ class TestGetChartMarkersResilience:
             return None
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(earnings_estimates, "_yf_corporate_actions",
                           return_value=([("2024-06-10", 10.0)], [])):
             result = earnings_estimates.get_chart_markers("FAILMIX")
@@ -259,7 +259,7 @@ class TestGetChartMarkersResilience:
         ]
         _fresh_cache("DIVPARSE")
         with patch.object(earnings_estimates, "_fh_get", return_value=None), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], yf_divs)):
             result = earnings_estimates.get_chart_markers("DIVPARSE")
 
@@ -309,7 +309,7 @@ class TestGetChartMarkersDiskPersistence:
             return [{"period": "2026-04-01", "actual": 1.0, "estimate": 0.9}] if path == "/stock/earnings" else []
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None):
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None):
             r1 = earnings_estimates.get_chart_markers("DISKME")
             after_build = calls["n"]
             # Clear ONLY memory (simulates a redeploy) — the disk copy must serve
@@ -344,7 +344,7 @@ class TestGetChartMarkersCachePolicy:
         blank that would be served effectively forever on every future
         redeploy)."""
         with patch.object(earnings_estimates, "_fh_get", side_effect=RuntimeError("boom")), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None):
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None):
             result = earnings_estimates.get_chart_markers("EMPTYMKT")
 
         assert result == {"earnings": [], "splits": [], "dividends": []}
@@ -360,7 +360,7 @@ class TestGetChartMarkersCachePolicy:
             return real_set(key, value, ttl)
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=RuntimeError("boom")), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(cache, "set", spy):
             earnings_estimates.get_chart_markers("EMPTYMKT")
 
@@ -381,7 +381,7 @@ class TestGetChartMarkersCachePolicy:
 
         with patch.object(earnings_estimates, "_fh_get",
                           side_effect=lambda path, params: eps_payload if path == "/stock/earnings" else []), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(cache, "set", spy):
             result = earnings_estimates.get_chart_markers("EMPTYMKT")
 
@@ -416,7 +416,7 @@ class TestChartMarkersRoute:
             return None
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
-             patch.object(earnings_estimates, "_fmp_get", return_value=None), \
+             patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
              patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], [(recent, 0.50)])):
             client = self._client()
             r = client.get("/api/chart/markers/RT")
