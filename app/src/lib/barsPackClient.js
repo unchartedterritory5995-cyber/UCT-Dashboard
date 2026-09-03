@@ -18,7 +18,7 @@
  * swallowed and falls through to the existing warm-server fetch + skeleton, so
  * the pack is strictly additive and can never regress a chart.
  */
-import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
+import { idbImportPack, idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
 
 const SHARD_CONCURRENCY = 2
 
@@ -39,6 +39,7 @@ const PACK_DAILY = {
   base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed',
   hotVersionKey: 'barspack.hotVersion',
   ingestBatchSize: 60, ingestYield: true,
+  presenceSuffix: '_D',   // one `${sym}_D` key per universe ticker — see _packDataPresent
 }
 // The intraday pack is a large FRESH ingest (5m+60m, whole universe) that runs
 // mid-session the first time it's enabled — so it ingests in SMALL, YIELDING batches so
@@ -47,7 +48,12 @@ const PACK_DAILY = {
 const PACK_INTRADAY = {
   base: '/api/intradaypack', versionKey: 'intradaypack.version', seedKey: 'intradaypack.seed',
   ingestBatchSize: 30, ingestYield: true,
+  presenceSuffix: '_5',   // the intraday pack seeds 5m + 60m; count the 5m key per ticker
 }
+
+// A stamped pack whose stored key count is below this fraction of the manifest's
+// ticker_count is treated as MISSING (failed ingest / eviction) → re-ingested.
+const PACK_PRESENCE_MIN_FRACTION = 0.5
 
 let _started = false
 
@@ -136,6 +142,21 @@ function _connectionTooCostly() {
   return false
 }
 
+// Is the pack's pre-seed actually in IDB? The universe pack seeds one
+// `${sym}${cfg.presenceSuffix}` key per ticker, so a stored count well below the
+// manifest's ticker_count means the pre-seed is gone (a stamped-but-failed ingest, or
+// eviction) even though the localStorage version stamp still says "done". In that case
+// the caller re-ingests instead of trusting the stamp. Probe failures / no ticker_count
+// return true (don't force a needless re-download).
+export async function _packDataPresent(cfg, manifest) {
+  const expected = Number(manifest && manifest.ticker_count) || 0
+  if (!cfg.presenceSuffix || expected <= 0) return true
+  try {
+    const have = await idbCountKeys(cfg.presenceSuffix)
+    return have >= expected * PACK_PRESENCE_MIN_FRACTION
+  } catch { return true }
+}
+
 async function _run(cfg) {
   if (_connectionTooCostly()) return
 
@@ -154,8 +175,18 @@ async function _run(cfg) {
   let localV = null, localSeed = null
   try { localV = localStorage.getItem(cfg.versionKey); localSeed = localStorage.getItem(cfg.seedKey) } catch { /* ignore */ }
 
-  // Already current (same data AND same ticker set) → nothing to do.
-  if (localV === version && (!manifest.seed || localSeed === manifest.seed)) return
+  // Verify the pre-seed is ACTUALLY in IDB (not merely stamped). Computed once and reused
+  // for the delta gate below, since a delta can't reconstruct a missing/evicted universe.
+  const dataPresent = await _packDataPresent(cfg, manifest)
+
+  // Already current (same data AND same ticker set) AND the data is really there → skip.
+  // A stamped-but-empty store (an _ingestFull that reported success on failed shards, or
+  // IDB eviction that outlived the tiny localStorage stamp) falls through to re-ingest —
+  // that dead-stamp state is what left browsers cold on every un-viewed name (and every
+  // name for a fresh user). See _packDataPresent.
+  if (localV === version && (!manifest.seed || localSeed === manifest.seed) && dataPresent) {
+    return
+  }
 
   // Best-effort persistent storage so the pack survives storage pressure.
   try { if (navigator.storage?.persist) await navigator.storage.persist() } catch { /* ignore */ }
@@ -163,14 +194,18 @@ async function _run(cfg) {
   // The ticker SET changed (universe gained names, e.g. GRWG added) → a delta
   // can't seed a brand-new ticker, so force a full re-ingest.
   const seedChanged = !!manifest.seed && localSeed !== manifest.seed
-  // Returning browser only a few days behind (and same ticker set) → cheap delta.
-  // Otherwise (never seeded, seed changed, or too far behind) → full pack.
+  // Delta only when a few days behind, same ticker set, AND the base universe is actually
+  // present to merge into. If the pre-seed is missing (evicted / stamped-but-empty), a
+  // delta would apply a handful of recent bars to nothing — force a FULL re-ingest.
   const canDelta = localV && manifest.delta && !seedChanged
                    && _daysBetween(localV, version) <= MAX_DELTA_CATCHUP_DAYS
+                   && dataPresent
   const ok = canDelta ? await _ingestDelta(cfg, version) : await _ingestFull(cfg, version, manifest.shards)
 
-  // Stamp version + seed ONLY on a complete ingest; a partial (quota-aborted)
-  // run retries next load rather than declaring this version done.
+  // Stamp version + seed ONLY on a genuinely complete ingest — _ingestFull returns
+  // false on any shard download failure / quota abort / zero rows written, so a run
+  // that didn't actually land the universe retries next load instead of declaring
+  // this version done (the dead-stamp bug that left the whole pack un-ingested).
   if (ok) {
     try {
       localStorage.setItem(cfg.versionKey, version)
@@ -181,26 +216,37 @@ async function _run(cfg) {
 
 // Full pack: download every shard (bounded concurrency), import each as it
 // arrives so a partial download still yields partial instant coverage.
-async function _ingestFull(cfg, version, shards) {
+export async function _ingestFull(cfg, version, shards) {
   const queue = shards.slice()
   let cursor = 0
   let aborted = false
+  let shardFailures = 0
+  let totalWritten = 0
   async function worker() {
     while (cursor < queue.length && !aborted) {
       const s = queue[cursor++]
       const shardIdx = _shardIdx(s)
       if (!Number.isFinite(shardIdx)) continue
       let entries
-      try { entries = await _fetchShard(cfg, version, shardIdx) } catch { continue }
-      if (!entries.length) continue
+      try { entries = await _fetchShard(cfg, version, shardIdx) } catch { shardFailures++; continue }
+      // A real shard carries hundreds of tickers; an empty result here is NOT a valid
+      // empty shard — `_fetchShard` returns [] on a non-ok response, so this is a 404 /
+      // network failure. Count it, so a run that downloaded nothing can never be mistaken
+      // for a complete ingest (the bug that stamped a dead pack during a shard outage).
+      if (!entries.length) { shardFailures++; continue }
       try {
         const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
+        totalWritten += (res.written || 0)
         if (res.aborted) aborted = true
-      } catch { /* best-effort */ }
+      } catch { shardFailures++ }
     }
   }
   await Promise.all(Array.from({ length: SHARD_CONCURRENCY }, worker))
-  return !aborted
+  // Declare success (→ the caller stamps the version) ONLY when the ingest genuinely
+  // landed the universe: no quota abort, EVERY shard downloaded + imported, and rows were
+  // actually written. A run that fetched nothing (all-404 during a deploy, offline) or hit
+  // quota returns false → it retries next load instead of stamping a permanently-empty pack.
+  return !aborted && shardFailures === 0 && totalWritten > 0
 }
 
 // Delta: one small file, merged into existing entries + re-stamps savedAt.
