@@ -944,7 +944,14 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
 // localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
 // cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
+// ⛔ TEMPORARILY DISABLED (2026-09-02): the split-fetch fetches + caches deep sealed
+// history correctly (IDB confirmed back to a ticker's IPO), but the RENDER selector
+// (`bars = ... _idbFresh && idbBars.length > data.bars.length ? idbBars : data.bars`)
+// draws only the ~600-bar first-paint tail — the deep merged idbBars is loaded but never
+// rendered, so every daily chart appeared to "stop at ~2024". Reverting to the pre-8/31
+// path (deep history via /api/bars) restores full history for everyone. Re-enable to a
+// canary % ONLY after the split-fetch render/merge path is fixed + verified end-to-end.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
 
 function _barsHistoryBucket() {
   try {
