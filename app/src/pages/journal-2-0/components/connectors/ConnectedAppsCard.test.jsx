@@ -73,6 +73,19 @@ describe('ConnectedAppsCard — upsell', () => {
     expect(screen.getByRole('button', { name: /upgrade to connect/i })).toBeInTheDocument()
     expect(screen.queryByTestId('connector-tile-roam')).not.toBeInTheDocument()
   })
+
+  // Spec 8.2: "Nobody moves a decade of writing into a product they cannot
+  // leave." The member on THIS path has not paid and is deciding whether to
+  // commit their library at all, so the reassurance has to be here, not only
+  // behind the paywall it is meant to get them through.
+  it('tells an unconverted member their notes can leave, before asking them to commit', async () => {
+    mockIsPaid = false
+    global.fetch = vi.fn()
+    render(<ConnectedAppsCard />)
+    expect(screen.getByTestId('export-reassurance')).toBeInTheDocument()
+    expect(screen.getByText(/never locked in/i)).toBeInTheDocument()
+    expect(screen.getByText(/markdown/i)).toBeInTheDocument()
+  })
 })
 
 describe('ConnectedAppsCard — provider matrix', () => {

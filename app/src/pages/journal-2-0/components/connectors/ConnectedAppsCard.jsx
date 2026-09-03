@@ -114,6 +114,15 @@ export default function ConnectedAppsCard() {
             Connect Roam, Craft, Notion, Dropbox, OneNote, OneDrive, or Obsidian
             and your notes sync into the Notebook automatically — no export, no drag-and-drop.
           </p>
+          {/* Spec §8.2 again, and this is the version that matters most: this
+              member has not paid yet and is deciding whether to commit their
+              library at all. "You can leave" is the sentence that makes the
+              ask reasonable, so it belongs BEFORE the upgrade button, not
+              after it. */}
+          <p className={styles.muted} data-testid="export-reassurance">
+            Your notes are never locked in — export the whole Notebook to
+            markdown, with attachments, any time.
+          </p>
           <p className={styles.muted}>Note Connectors is a premium feature.</p>
           <button className="btn btn-primary" onClick={() => startCheckout?.()}>
             Upgrade to connect
@@ -182,6 +191,24 @@ export default function ConnectedAppsCard() {
           Connect a note app once — your whole library imports, then edits keep
           syncing into the Notebook in the background.
         </p>
+
+        {/* Spec §8.2, and its wording is deliberate: "say so on the connect
+            screen". Nobody moves a decade of writing into a product they
+            cannot leave, and the more valuable the library the more that
+            matters — so the export has to be stated BEFORE the ask, not
+            discovered afterwards. It is the cheapest trust this product will
+            ever buy, and it is only worth stating because it is true: the
+            archive is markdown plus attachments, and it re-imports here (a
+            round trip proven end-to-end in exportRoundtrip.test.js). Left as
+            a fact rather than a button on purpose — the export lives on the
+            Notebook tab, and reaching across surfaces to open it from
+            Settings would buy an extra click's convenience at the price of
+            coupling two screens together. */}
+        <p className={styles.muted} data-testid="export-reassurance">
+          Your notes are never locked in — export the whole Notebook to
+          markdown, with attachments, any time from the Notebook tab.
+        </p>
+
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
 
         {/* Final-review Item B: `enabled` (server's NOTE_SYNC_ENABLED gate)
