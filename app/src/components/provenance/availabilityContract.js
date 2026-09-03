@@ -38,6 +38,17 @@ const KIND_TO_AVAILABILITY = Object.freeze({
   rate_limited: PROVIDER_ERROR,
   transient: PROVIDER_ERROR,
   not_configured: PROVIDER_ERROR,
+  // "unknown" is `api/routers/provenance_quote.py::_error_shape`'s OWN
+  // documented fallback -- real, live-observed evidence (caught by
+  // inspecting the actual dev UI, not a unit test): an untyped exception
+  // (e.g. `_MassiveRestClient.__init__`'s bare RuntimeError when
+  // MASSIVE_API_KEY is unset, pre-existing code outside D1's own typed
+  // taxonomy -- see that class's own docstring) reaches the endpoint's
+  // generic `except Exception` branch and is reported as `kind: "unknown"`.
+  // This is exactly this module's own UNKNOWN state's definition ("absence
+  // of any real [typed] signal"), not a guessed default -- distinct from
+  // PROVIDER_ERROR, which means a recognized, typed provider failure.
+  unknown: UNKNOWN,
 })
 
 /**

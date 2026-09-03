@@ -17,6 +17,19 @@ function mockFetchOnce(json) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve(json) })
 }
 
+/** The page now fires TWO fetches on mount: the quote lookup and the
+ *  <Cited> bar example. Routes by URL substring so both tests families
+ *  stay independent of each other. */
+function mockFetchRouted({ quote, bar }) {
+  global.fetch = vi.fn((url) => {
+    if (url.includes('/api/provenance/bar')) {
+      if (bar === null) return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({ detail: 'no data' }) })
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(bar) })
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(quote) })
+  })
+}
+
 describe('the page fetches live D1 data through /api/provenance/quote and renders it', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -175,5 +188,24 @@ describe('accessibility of the page shell', () => {
     render(<ProvenanceDemo />)
     expect(screen.getByTestId('provenance-demo-session').textContent.length).toBeGreaterThan(0)
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+  })
+})
+
+describe('the <Cited> bar-citation example (narrow interim form, SPEC-S8 §4.5)', () => {
+  it('a real recorded bar renders through <Cited>, present state', async () => {
+    mockFetchRouted({
+      quote: { symbol: 'AAPL', vendors: {} },
+      bar: { ticker: 'AAPL', tf: 'D', bar_time: 1, source: 'massive', validated_at: 1, verified_at: null },
+    })
+    render(<ProvenanceDemo />)
+    await waitFor(() => expect(screen.getByTestId('cited-bar-example')).toBeTruthy())
+    expect(screen.getByTestId('cited-bar-example').querySelector('[data-testid="cited-present"]')).toBeTruthy()
+  })
+
+  it('a genuinely unrecorded bar (404) renders the honest "citation unavailable" state, never an error', async () => {
+    mockFetchRouted({ quote: { symbol: 'AAPL', vendors: {} }, bar: null })
+    render(<ProvenanceDemo />)
+    await waitFor(() => expect(screen.getByTestId('cited-bar-example')).toBeTruthy())
+    expect(screen.getByTestId('cited-bar-example').querySelector('[data-testid="cited-unavailable"]')).toBeTruthy()
   })
 })

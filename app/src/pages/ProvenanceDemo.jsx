@@ -21,6 +21,7 @@
 import { useEffect, useState } from 'react'
 import Provenance from '../components/provenance/Provenance'
 import FreshnessBadge from '../components/provenance/FreshnessBadge'
+import Cited from '../components/provenance/Cited'
 import { mapAvailability, AVAILABLE } from '../components/provenance/availabilityContract'
 import { formatPrice, epochSecondsToIso } from '../components/provenance/presentationFormat'
 import { sessionModel } from '../components/dashboard/sessionModel'
@@ -76,6 +77,37 @@ function VendorRow({ vendor, result }) {
         }}
       />
       <FreshnessBadge freshnessClass={result.freshness} asOf={asOfIso} />
+    </div>
+  )
+}
+
+/** Today's most recent daily-bar time, midnight UTC — the conventional key
+ *  for a daily bar's own `bar_time`. A best-effort illustrative lookup: if
+ *  nothing has been recorded for this exact bar yet, `<Cited>` renders its
+ *  own honest "citation unavailable" state (a real, valid outcome — see
+ *  Cited.jsx), not an error. */
+function todayDailyBarTime() {
+  const d = new Date()
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000)
+}
+
+function CitedBarExample({ symbol }) {
+  const [row, setRow] = useState(undefined) // undefined = loading, null = confirmed absent
+  useEffect(() => {
+    let cancelled = false
+    setRow(undefined)
+    const barTime = todayDailyBarTime()
+    jsonFetcher(`/api/provenance/bar?ticker=${encodeURIComponent(symbol)}&tf=D&bar_time=${barTime}`)
+      .then((data) => { if (!cancelled) setRow(data) })
+      .catch(() => { if (!cancelled) setRow(null) }) // 404 (genuinely absent) or network — both honest absence here
+    return () => { cancelled = true }
+  }, [symbol])
+
+  if (row === undefined) return <Provenance value={null} loading />
+  return (
+    <div className={styles.row} data-testid="cited-bar-example">
+      <span className={styles.vendor}>Daily bar</span>
+      <Cited row={row}><span>{symbol} · D</span></Cited>
     </div>
   )
 }
@@ -146,6 +178,14 @@ export default function ProvenanceDemo() {
           ))}
         </div>
       )}
+
+      <h2 className={styles.sectionHeading}>Citation detail (bars)</h2>
+      <p className={styles.intro}>
+        <code>&lt;Cited&gt;</code>&rsquo;s narrow interim form (SPEC-S8 §4.5), against
+        real <code>bar_provenance.py</code> data — click to see source and
+        reconciliation status one level deep.
+      </p>
+      <CitedBarExample symbol={symbol} />
     </main>
   )
 }

@@ -28,6 +28,13 @@ describe('typed D1 error kinds map to the correct, evidenced availability state'
   it('not_configured maps to PROVIDER_ERROR (a UCT-side setup gap, not a vendor data fact)', () => {
     expect(mapAvailability({ error: true, kind: 'not_configured' })).toBe(PROVIDER_ERROR)
   })
+
+  it('unknown (the backend\'s own fallback for an untyped exception) maps to UNKNOWN, not PROVIDER_ERROR, and never throws', () => {
+    // Caught by inspecting the real dev UI, not a unit test: a live
+    // MASSIVE_API_KEY-unset run reaches this exact kind through
+    // provenance_quote.py's generic `except Exception` branch.
+    expect(mapAvailability({ error: true, kind: 'unknown' })).toBe(UNKNOWN)
+  })
 })
 
 describe('degraded (cached-forbidden) results read the SAME as a fresh entitlement denial', () => {
