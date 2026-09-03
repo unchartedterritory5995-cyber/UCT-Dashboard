@@ -258,6 +258,38 @@ class TestFiscalJoin:
     }
 
     @pytest.fixture(autouse=True)
+    def _pinned_clock(self, monkeypatch):
+        """⚰️⚰️ THESE FIXTURES ARE FROZEN AND "TODAY" WAS NOT, SO THEY ROTTED.
+
+        `past_reports` filters `report_date < _dt.date.today()`, and the fixtures
+        above are live responses captured 2026-08-06. On 2026-09-03 NVDA's
+        2026-08-26 announcement stopped being in the future, so
+        `test_future_announcements_are_excluded` began asserting the opposite of
+        the truth — and because that row then entered the newest-4 window it
+        pushed 2025-11-19 out, taking the sibling quarter test down with it. Two
+        red tests, one cause, and neither about the join rule they protect.
+
+        ⭐ THE CLOCK IS PINNED TO THE CAPTURE DATE, not nudged forward. Moving the
+        fixture dates buys a few months and rots again; pinning makes the
+        future/past split a property of the DATA rather than of the day the suite
+        happens to run.
+        """
+        import datetime as _real
+
+        class _PinnedDate(_real.date):
+            @classmethod
+            def today(cls):
+                return _real.date(2026, 8, 6)
+
+        class _Shim:
+            date = _PinnedDate
+            datetime = _real.datetime
+            timezone = _real.timezone
+            timedelta = _real.timedelta
+
+        monkeypatch.setattr(ib, "_dt", _Shim)
+
+    @pytest.fixture(autouse=True)
     def _fallback_leg_only(self, monkeypatch):
         """Every test in this class is about the Finnhub FALLBACK, so make the
         FMP primary shrug DELIBERATELY. Left implicit, these tests pass only

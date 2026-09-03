@@ -523,7 +523,14 @@ def get_breadth_analogues(top_n: int = Query(default=5, ge=3, le=10),
 
 @router.get("/api/breadth-monitor/score-components/{date}")
 def get_breadth_score_components(date: str,
-                                 days: int = Query(default=90, ge=1, le=3650),
+                                 # ⚰️ 3650 -> 8000, FOLLOWING THE SIBLING. `days` selects a
+                                 # `get_history` cache entry and `/api/breadth-monitor` is what
+                                 # WARMS it, so the two must accept the same range or the sharing
+                                 # is accidental. `feat(breadth): infinitely-scrollable Monitor`
+                                 # widened the sibling to 8000 and left this one behind, which is
+                                 # exactly what `test_days_is_bounded_exactly_like_the_sibling_
+                                 # endpoint` exists to catch — and did.
+                                 days: int = Query(default=90, ge=1, le=8000),
                                  _user: dict = Depends(require_paid)):
     """Per-component attribution behind `breadth_score` for one session.
 
