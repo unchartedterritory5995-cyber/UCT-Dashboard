@@ -201,7 +201,88 @@ CREATE TABLE IF NOT EXISTS ticker_marks (
     created_at  INTEGER NOT NULL,
     PRIMARY KEY (message_id, ticker)
 );
+
+-- ── The Floor redesign (forum v2) ───────────────────────────────────────────
+-- Additive overlay on threads/posts. A redesign POST = a threads row; a
+-- redesign COMMENT = a posts row. These tables add votes, free-form emoji
+-- reactions, bookmarks, an append-only event log (notifications + live
+-- activity), and non-image file attachments. Nothing here is destructive; the
+-- legacy 3-kind `reactions` table above is left untouched.
+CREATE TABLE IF NOT EXISTS floor_votes (
+    target_type TEXT NOT NULL,          -- 'thread' | 'post'
+    target_id   INTEGER NOT NULL,
+    user_id     TEXT NOT NULL,
+    dir         INTEGER NOT NULL,       -- +1 up / -1 down
+    created_at  INTEGER NOT NULL,
+    PRIMARY KEY (target_type, target_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_floor_votes_target
+    ON floor_votes(target_type, target_id);
+
+CREATE TABLE IF NOT EXISTS floor_reactions (
+    target_type TEXT NOT NULL,          -- 'thread' | 'post'
+    target_id   INTEGER NOT NULL,
+    user_id     TEXT NOT NULL,
+    emoji       TEXT NOT NULL,          -- free-form single emoji
+    created_at  INTEGER NOT NULL,
+    PRIMARY KEY (target_type, target_id, user_id, emoji)
+);
+CREATE INDEX IF NOT EXISTS idx_floor_reactions_target
+    ON floor_reactions(target_type, target_id);
+
+CREATE TABLE IF NOT EXISTS floor_bookmarks (
+    user_id    TEXT NOT NULL,
+    thread_id  INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, thread_id)
+);
+CREATE INDEX IF NOT EXISTS idx_floor_bookmarks_user
+    ON floor_bookmarks(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS floor_events (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id       TEXT,                -- who did it (NULL = system)
+    kind           TEXT NOT NULL,       -- comment|reply|reaction|vote|answer|mention
+    thread_id      INTEGER,
+    post_id        INTEGER,
+    emoji          TEXT,
+    target_user_id TEXT,                -- who is notified (NULL = activity-only)
+    seen           INTEGER NOT NULL DEFAULT 0,
+    created_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_floor_events_recent
+    ON floor_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_floor_events_notify
+    ON floor_events(target_user_id, seen, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS floor_attachments (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id  INTEGER,
+    post_id    INTEGER,
+    owner_id   TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    path       TEXT NOT NULL,
+    size       INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_floor_attachments_thread
+    ON floor_attachments(thread_id);
+CREATE INDEX IF NOT EXISTS idx_floor_attachments_post
+    ON floor_attachments(post_id);
 """
+
+# Additive column migrations for the forum-v2 redesign. Each is ALTER + swallow
+# the "duplicate column" error (repo idiom: modelbook_service._init_db,
+# journal_two/db.py::_PHASE_2_ALTERS). Nullable / DEFAULT so existing rows stay
+# valid.
+_FLOOR_ALTERS = (
+    "ALTER TABLE threads ADD COLUMN flair TEXT DEFAULT 'Discussion'",
+    "ALTER TABLE threads ADD COLUMN score INTEGER DEFAULT 0",
+    "ALTER TABLE threads ADD COLUMN answer_post_id INTEGER",
+    "ALTER TABLE threads ADD COLUMN chart_json TEXT",
+    "ALTER TABLE posts ADD COLUMN score INTEGER DEFAULT 0",
+    "ALTER TABLE posts ADD COLUMN chart_json TEXT",
+)
 
 
 def _db_path() -> str:
@@ -225,6 +306,12 @@ def _init_db() -> None:
     os.makedirs(os.path.dirname(os.path.abspath(_db_path())), exist_ok=True)
     with _WRITE_LOCK, closing(get_connection()) as conn:
         conn.executescript(_SCHEMA)
+        for stmt in _FLOOR_ALTERS:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError as e:
+                if "duplicate column" not in str(e).lower():
+                    raise
         conn.commit()
 
 
@@ -550,6 +637,405 @@ def has_ack(user_id):
     with closing(get_connection()) as conn:
         return conn.execute(
             "SELECT 1 FROM acks WHERE user_id=?", (user_id,)).fetchone() is not None
+
+
+# ── The Floor (forum v2) — feed, votes, emoji reactions, bookmarks, events ───
+# The redesign reuses threads/posts additively: a redesign POST = a threads row
+# in the FLOOR_SPACE; a redesign COMMENT = a posts row (deep nesting allowed).
+# All writes stay under _WRITE_LOCK; chart_json is stored as a JSON string.
+
+FLOOR_SPACE = "floor"
+FLOOR_FLAIRS = ("Question", "Discussion", "Trade Idea", "Lesson", "Deep Dive")
+
+
+def _dump_chart(chart_json):
+    if chart_json in (None, ""):
+        return None
+    if isinstance(chart_json, str):
+        return chart_json
+    return json.dumps(chart_json)
+
+
+def _load_chart(val):
+    if not val:
+        return None
+    try:
+        return json.loads(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def create_floor_thread(author_id, title, body="", flair="Discussion",
+                        ticker_tags=None, chart_json=None):
+    if flair not in FLOOR_FLAIRS:
+        flair = "Discussion"
+    now = _now()
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        cur = conn.execute(
+            """INSERT INTO threads (space, author_id, title, body, ticker_tags,
+                                    pinned, created_at, last_activity_at,
+                                    flair, score, chart_json)
+               VALUES (?,?,?,?,?,0,?,?,?,0,?)""",
+            (FLOOR_SPACE, author_id, title, body, json.dumps(ticker_tags or []),
+             now, now, flair, _dump_chart(chart_json)))
+        conn.commit()
+        return cur.lastrowid
+
+
+def create_floor_post(thread_id, author_id, body, parent_post_id=None,
+                      chart_json=None):
+    """Comment on a floor thread. Deep nesting allowed: a parent may point at any
+    non-deleted post in the same thread (the legacy one-level cap is lifted)."""
+    now = _now()
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        t = conn.execute(
+            "SELECT locked FROM threads WHERE id=? AND deleted=0", (thread_id,)).fetchone()
+        if not t:
+            raise ValueError("no-thread")
+        if t["locked"]:
+            raise ValueError("locked")
+        if parent_post_id is not None:
+            parent = conn.execute(
+                "SELECT thread_id, deleted FROM posts WHERE id=?",
+                (parent_post_id,)).fetchone()
+            if not parent or parent["deleted"] or parent["thread_id"] != thread_id:
+                raise ValueError("bad-parent")
+        cur = conn.execute(
+            """INSERT INTO posts (thread_id, author_id, parent_post_id, body,
+                                  created_at, score, chart_json)
+               VALUES (?,?,?,?,?,0,?)""",
+            (thread_id, author_id, parent_post_id, body, now, _dump_chart(chart_json)))
+        conn.execute("UPDATE threads SET last_activity_at=? WHERE id=?", (now, thread_id))
+        conn.commit()
+        return cur.lastrowid
+
+
+def toggle_vote(target_type, target_id, user_id, direction):
+    """Up(+1)/down(-1) with toggle-off; denormalizes score onto the target row."""
+    if target_type not in ("thread", "post") or direction not in (1, -1):
+        raise ValueError("bad-vote")
+    table = "threads" if target_type == "thread" else "posts"
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        existing = conn.execute(
+            "SELECT dir FROM floor_votes WHERE target_type=? AND target_id=? AND user_id=?",
+            (target_type, target_id, user_id)).fetchone()
+        if existing is None:
+            conn.execute(
+                """INSERT INTO floor_votes (target_type, target_id, user_id, dir, created_at)
+                   VALUES (?,?,?,?,?)""",
+                (target_type, target_id, user_id, direction, _now()))
+            my = direction
+        elif existing["dir"] == direction:
+            conn.execute(
+                "DELETE FROM floor_votes WHERE target_type=? AND target_id=? AND user_id=?",
+                (target_type, target_id, user_id))
+            my = 0
+        else:
+            conn.execute(
+                """UPDATE floor_votes SET dir=?, created_at=?
+                    WHERE target_type=? AND target_id=? AND user_id=?""",
+                (direction, _now(), target_type, target_id, user_id))
+            my = direction
+        score = conn.execute(
+            "SELECT COALESCE(SUM(dir), 0) FROM floor_votes WHERE target_type=? AND target_id=?",
+            (target_type, target_id)).fetchone()[0]
+        conn.execute(f"UPDATE {table} SET score=? WHERE id=?", (score, target_id))
+        if target_type == "post":
+            conn.execute(
+                """UPDATE threads SET last_activity_at=?
+                    WHERE id=(SELECT thread_id FROM posts WHERE id=?)""",
+                (_now(), target_id))
+        conn.commit()
+    return {"score": score, "my_vote": my}
+
+
+def toggle_emoji_reaction(target_type, target_id, user_id, emoji):
+    if target_type not in ("thread", "post"):
+        raise ValueError("bad-target")
+    emoji = (emoji or "").strip()[:16]
+    if not emoji:
+        raise ValueError("bad-emoji")
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        existing = conn.execute(
+            """SELECT 1 FROM floor_reactions
+                WHERE target_type=? AND target_id=? AND user_id=? AND emoji=?""",
+            (target_type, target_id, user_id, emoji)).fetchone()
+        if existing:
+            conn.execute(
+                """DELETE FROM floor_reactions
+                    WHERE target_type=? AND target_id=? AND user_id=? AND emoji=?""",
+                (target_type, target_id, user_id, emoji))
+            on = False
+        else:
+            conn.execute(
+                """INSERT INTO floor_reactions (target_type, target_id, user_id, emoji, created_at)
+                   VALUES (?,?,?,?,?)""",
+                (target_type, target_id, user_id, emoji, _now()))
+            on = True
+        conn.commit()
+    return on
+
+
+def toggle_bookmark(user_id, thread_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM floor_bookmarks WHERE user_id=? AND thread_id=?",
+            (user_id, thread_id)).fetchone()
+        if existing:
+            conn.execute(
+                "DELETE FROM floor_bookmarks WHERE user_id=? AND thread_id=?",
+                (user_id, thread_id))
+            on = False
+        else:
+            conn.execute(
+                "INSERT INTO floor_bookmarks (user_id, thread_id, created_at) VALUES (?,?,?)",
+                (user_id, thread_id, _now()))
+            on = True
+        conn.commit()
+    return on
+
+
+def list_bookmark_ids(user_id):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            "SELECT thread_id FROM floor_bookmarks WHERE user_id=? ORDER BY created_at DESC",
+            (user_id,)).fetchall()
+    return [r["thread_id"] for r in rows]
+
+
+def set_answer(thread_id, post_id):
+    """Mark (or clear) a thread's accepted answer. Passing the current answer's
+    id toggles it off. Also flips threads.answered."""
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        t = conn.execute(
+            "SELECT answer_post_id FROM threads WHERE id=? AND deleted=0",
+            (thread_id,)).fetchone()
+        if not t:
+            raise ValueError("no-thread")
+        if post_id is not None:
+            if t["answer_post_id"] == post_id:
+                post_id = None
+            else:
+                ok = conn.execute(
+                    "SELECT 1 FROM posts WHERE id=? AND thread_id=? AND deleted=0",
+                    (post_id, thread_id)).fetchone()
+                if not ok:
+                    raise ValueError("bad-post")
+        conn.execute("UPDATE threads SET answer_post_id=?, answered=? WHERE id=?",
+                     (post_id, 1 if post_id else 0, thread_id))
+        conn.commit()
+    return post_id
+
+
+def add_event(kind, actor_id=None, thread_id=None, post_id=None, emoji=None,
+              target_user_id=None):
+    """Append to the floor_events log — serves BOTH global Live Activity (all
+    rows) and per-user Notifications (rows with target_user_id). Never notifies
+    the actor about their own action."""
+    if target_user_id is not None and target_user_id == actor_id:
+        target_user_id = None
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        cur = conn.execute(
+            """INSERT INTO floor_events
+                 (actor_id, kind, thread_id, post_id, emoji, target_user_id, seen, created_at)
+               VALUES (?,?,?,?,?,?,0,?)""",
+            (actor_id, kind, thread_id, post_id, emoji, target_user_id, _now()))
+        conn.commit()
+        return cur.lastrowid
+
+
+def list_activity(limit=40):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT e.*, t.title AS thread_title
+                 FROM floor_events e
+                 LEFT JOIN threads t ON t.id = e.thread_id
+                ORDER BY e.created_at DESC LIMIT ?""", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_notifications(user_id, limit=50):
+    with closing(get_connection()) as conn:
+        rows = conn.execute(
+            """SELECT e.*, t.title AS thread_title
+                 FROM floor_events e
+                 LEFT JOIN threads t ON t.id = e.thread_id
+                WHERE e.target_user_id = ?
+                ORDER BY e.created_at DESC LIMIT ?""", (user_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def unread_notifications(user_id):
+    with closing(get_connection()) as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM floor_events WHERE target_user_id=? AND seen=0",
+            (user_id,)).fetchone()[0]
+
+
+def mark_notifications_seen(user_id):
+    with _WRITE_LOCK, closing(get_connection()) as conn:
+        conn.execute(
+            "UPDATE floor_events SET seen=1 WHERE target_user_id=? AND seen=0", (user_id,))
+        conn.commit()
+
+
+# ---- feed / thread assembly -------------------------------------------------
+
+def _emoji_summary(conn, target_type, ids, viewer_id):
+    """{target_id: [{emoji, count, reacted}]} for a set of targets."""
+    if not ids:
+        return {}
+    q = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""SELECT target_id, emoji, COUNT(*) AS n,
+                   SUM(CASE WHEN user_id=? THEN 1 ELSE 0 END) AS mine
+              FROM floor_reactions
+             WHERE target_type=? AND target_id IN ({q})
+             GROUP BY target_id, emoji
+             ORDER BY n DESC""",
+        [viewer_id or "", target_type, *ids]).fetchall()
+    out = {}
+    for r in rows:
+        out.setdefault(r["target_id"], []).append(
+            {"emoji": r["emoji"], "count": r["n"], "reacted": bool(r["mine"])})
+    return out
+
+
+def _votes_for(conn, target_type, ids, viewer_id):
+    if not ids or not viewer_id:
+        return {}
+    q = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""SELECT target_id, dir FROM floor_votes
+             WHERE target_type=? AND user_id=? AND target_id IN ({q})""",
+        [target_type, viewer_id, *ids]).fetchall()
+    return {r["target_id"]: r["dir"] for r in rows}
+
+
+def _floor_thread_dict(row):
+    d = dict(row)
+    d["ticker_tags"] = json.loads(d.get("ticker_tags") or "[]")
+    d["chart_json"] = _load_chart(d.get("chart_json"))
+    return d
+
+
+def _hot_score(d):
+    age_h = max(1.0, (_now() - d["created_at"]) / 3600.0)
+    return (d.get("score", 0) + d.get("reply_count", 0) * 2 + 1) / (age_h ** 0.6)
+
+
+_FEED_SORTS = {
+    "hot": _hot_score,
+    "new": lambda d: d["created_at"],
+    "top": lambda d: d.get("score", 0),
+    "active": lambda d: d["last_activity_at"],
+}
+
+
+def list_feed(flair=None, sort="hot", viewer_id=None, filter="all",
+              limit=100, offset=0):
+    with closing(get_connection()) as conn:
+        where = "t.space=? AND t.deleted=0"
+        params = [FLOOR_SPACE]
+        if flair in FLOOR_FLAIRS:
+            where += " AND t.flair=?"; params.append(flair)
+        if filter == "myposts" and viewer_id:
+            where += " AND t.author_id=?"; params.append(viewer_id)
+        elif filter == "bookmarks" and viewer_id:
+            where += (" AND EXISTS (SELECT 1 FROM floor_bookmarks b"
+                      " WHERE b.thread_id=t.id AND b.user_id=?)")
+            params.append(viewer_id)
+        rows = conn.execute(
+            f"""SELECT t.*,
+                       (SELECT COUNT(*) FROM posts p
+                         WHERE p.thread_id=t.id AND p.deleted=0) AS reply_count
+                  FROM threads t
+                 WHERE {where}""", params).fetchall()
+        ids = [r["id"] for r in rows]
+        reacts = _emoji_summary(conn, "thread", ids, viewer_id)
+        votes = _votes_for(conn, "thread", ids, viewer_id)
+        bmarks = set()
+        if viewer_id and ids:
+            q = ",".join("?" * len(ids))
+            bmarks = {r["thread_id"] for r in conn.execute(
+                f"SELECT thread_id FROM floor_bookmarks WHERE user_id=? AND thread_id IN ({q})",
+                [viewer_id, *ids]).fetchall()}
+    out = []
+    for r in rows:
+        d = _floor_thread_dict(r)
+        d["reply_count"] = r["reply_count"]
+        d["reactions"] = reacts.get(r["id"], [])
+        d["my_vote"] = votes.get(r["id"], 0)
+        d["bookmarked"] = r["id"] in bmarks
+        out.append(d)
+    key = _FEED_SORTS.get(sort, _hot_score)
+    # id is the tiebreak so same-second rows still order newest-first deterministically.
+    out.sort(key=lambda d: (d.get("pinned", 0), key(d), d["id"]), reverse=True)
+    return out[offset:offset + limit]
+
+
+def get_floor_thread(thread_id, viewer_id=None):
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT * FROM threads WHERE id=? AND space=? AND deleted=0",
+            (thread_id, FLOOR_SPACE)).fetchone()
+        if not row:
+            return None
+        posts = conn.execute(
+            "SELECT * FROM posts WHERE thread_id=? ORDER BY created_at, id",
+            (thread_id,)).fetchall()
+        post_ids = [p["id"] for p in posts]
+        p_reacts = _emoji_summary(conn, "post", post_ids, viewer_id)
+        p_votes = _votes_for(conn, "post", post_ids, viewer_id)
+        t_reacts = _emoji_summary(conn, "thread", [thread_id], viewer_id)
+        t_votes = _votes_for(conn, "thread", [thread_id], viewer_id)
+        bookmarked = False
+        if viewer_id:
+            bookmarked = conn.execute(
+                "SELECT 1 FROM floor_bookmarks WHERE user_id=? AND thread_id=?",
+                (viewer_id, thread_id)).fetchone() is not None
+    d = _floor_thread_dict(row)
+    d["reply_count"] = sum(1 for p in posts if not p["deleted"])
+    d["reactions"] = t_reacts.get(thread_id, [])
+    d["my_vote"] = t_votes.get(thread_id, 0)
+    d["bookmarked"] = bookmarked
+    out_posts = []
+    for p in posts:
+        pd = dict(p)
+        pd["chart_json"] = _load_chart(pd.get("chart_json"))
+        if pd["deleted"]:
+            pd["body"] = ""
+            pd["chart_json"] = None
+        pd["reactions"] = p_reacts.get(p["id"], [])
+        pd["my_vote"] = p_votes.get(p["id"], 0)
+        out_posts.append(pd)
+    d["posts"] = out_posts
+    return d
+
+
+def _normalize_words(text):
+    out = []
+    for ch in (text or "").lower():
+        out.append(ch if ch.isalnum() else " ")
+    return "".join(out).split()
+
+
+def search_floor(query, viewer_id=None, limit=100):
+    """Word-based, punctuation-normalized search over floor threads (title + body):
+    'gap up' matches 'gap-up'. Every query token must appear in the haystack."""
+    tokens = _normalize_words(query)
+    if not tokens:
+        return []
+    items = list_feed(sort="new", viewer_id=viewer_id, limit=5000)
+    matched = []
+    for d in items:
+        hay = set(_normalize_words(d.get("title", "") + " " + (d.get("body", "") or "")))
+        hay |= {t.lower() for t in d.get("ticker_tags", [])}
+        if all(any(tok in w or w == tok for w in hay) for tok in tokens):
+            matched.append(d)
+        if len(matched) >= limit:
+            break
+    return matched
 
 
 # ── Live chat: messages, reactions, mentions, read-state, reports ────────────

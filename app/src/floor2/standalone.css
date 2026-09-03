@@ -1,0 +1,43 @@
+/* STANDALONE prototype only (floor2.html). Supplies the app's design tokens
+   (values mirrored from app/src/styles/tokens.css — Graphite dark) scoped to
+   `.floorx.standalone`, since this page doesn't load the real tokens.css. The
+   embedded /community page does NOT import this — it inherits the live app theme. */
+html, body, #floor2-root { height: 100%; }
+body { margin: 0; background: #101012; font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+.floorx.standalone {
+  --bg: #101012;
+  --bg-surface: #17181b;
+  --bg-elevated: #1d1f23;
+  --bg-hover: #24262b;
+  --border: #2a2c31;
+  --border-accent: #383b41;
+  --header-line: rgba(255, 255, 255, 0.11);
+  --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+
+  --text: #f0efea;
+  --text-muted: #cfcac0;
+  --text-bright: #f8f7f3;
+  --text-heading: #ffffff;
+
+  --ut-gold: #dcbb5e;
+  --ut-gold-bright: #e9cd77;
+  --ut-gold-dim: #dcbb5e15;
+  --ut-gold-glow: #dcbb5e35;
+  --ut-cream: #d4c9a8;
+  --accent: var(--ut-gold);
+
+  --gain: #2faf68;  --gain-bg: #2faf6815;  --gain-border: #2faf6835;
+  --loss: #df4646;  --loss-bg: #df464615;  --loss-border: #df464635;
+  --info: #5ea8f7;  --info-bg: #5ea8f712;  --info-border: #5ea8f730;
+
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px; --radius-2xl: 16px; --radius-pill: 999px;
+  --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: var(--font-sans);
+
+  min-height: 100%;
+  background: var(--bg);
+}

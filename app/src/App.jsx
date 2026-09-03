@@ -107,7 +107,9 @@ const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/Insights
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
 const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/CommunitySurface'))
 const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
-const Community = lazy(() => import('./pages/community/CommunityPage'))
+// LOCAL REDESIGN PROTOTYPE — /community points at the new Floor design.
+// To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
+const Community = lazy(() => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
