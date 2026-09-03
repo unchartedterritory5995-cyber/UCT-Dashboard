@@ -30,6 +30,60 @@ describe('rewriteBody', () => {
     expect(out.content[0].content[0].marks ?? []).toHaveLength(0)
     expect(out.content[0].content[0].text).toBe('ghost')
   })
+
+  // ⛔⛔ 2026-09-02 adversarial audit: every test above walks a 1-3 node
+  // toy tree. `rewriteBody` deep-walks tables/lists/nested blocks on a REAL
+  // note, and nothing here ever exercised that at the scale/shape a real
+  // conversion produces -- a long meeting-log body (nested bulletList/
+  // listItem + taskList/taskItem, hundreds of items each) with a batch of
+  // inline images scattered through it, roughly half resolvable and half
+  // not (interleaved, so an off-by-one in the walk shows up as a wrong
+  // NAME, not just a wrong count).
+  it('correctly rewrites/drops refs across a realistically large, deeply-nested tree (hundreds of bullets/checkboxes + many inline images)', () => {
+    const N = 500
+    const bulletItems = Array.from({ length: N }, (_, i) => ({
+      type: 'listItem',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: `Discussed item ${i} with the team` }] }],
+    }))
+    const taskItems = Array.from({ length: N }, (_, i) => ({
+      type: 'taskItem',
+      attrs: { checked: i % 2 === 0 },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: `Follow up on action item ${i}` }] }],
+    }))
+    const N_IMAGES = 40
+    const imageNodes = Array.from({ length: N_IMAGES }, (_, i) => img(`import-ref://shot-${i}.png`))
+    const mediaUrls = {}
+    for (let i = 0; i < N_IMAGES; i += 2) {
+      mediaUrls[`shot-${i}.png`] = `/api/j2/notes/attachments/u/n/inline/shot-${i}.png`
+    }
+
+    const body = doc([
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Daily Notes' }] },
+      { type: 'bulletList', content: bulletItems },
+      { type: 'taskList', content: taskItems },
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Screenshots' }] },
+      ...imageNodes,
+    ])
+
+    const { body: out, droppedMedia } = rewriteBody(body, { mediaUrls, idByKey: {} })
+
+    // the whole bullet/checkbox log survives the walk, in order, untouched
+    expect(out.content[1].content).toHaveLength(N)
+    expect(out.content[1].content[N - 1].content[0].content[0].text).toBe(`Discussed item ${N - 1} with the team`)
+    expect(out.content[2].content).toHaveLength(N)
+    expect(out.content[2].content[7].attrs.checked).toBe(taskItems[7].attrs.checked)
+
+    // exactly the resolvable images were rewritten to their real URL, the
+    // rest dropped -- checked by NAME (order-sensitive), not just a count,
+    // so a walk that resolves the wrong half still fails this.
+    const survivingImages = out.content.slice(4)
+    expect(survivingImages.every((n) => n.type === 'image')).toBe(true)
+    expect(survivingImages).toHaveLength(N_IMAGES / 2)
+    expect(survivingImages.map((n) => n.attrs.src)).toEqual(
+      Array.from({ length: N_IMAGES / 2 }, (_, k) => `/api/j2/notes/attachments/u/n/inline/shot-${k * 2}.png`))
+    expect(droppedMedia).toEqual(
+      Array.from({ length: N_IMAGES / 2 }, (_, k) => `shot-${k * 2 + 1}.png`))
+  })
 })
 
 describe('runImport', () => {

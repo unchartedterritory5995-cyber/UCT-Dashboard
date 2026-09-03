@@ -1,4 +1,5 @@
 """Migration v2 (folder tree + import provenance) + tree CRUD + import upsert."""
+import json
 import sqlite3
 import pytest
 
@@ -365,6 +366,129 @@ def test_import_confirm_reimporting_a_previously_failed_note_recovers_it(conn):
     assert r2["failed"] == []
     note = notes_svc.get_note("u1", r2["created"][0]["id"], conn=conn)
     assert note["title"] == "Fixed"
+
+
+# ── 2026-09-02 adversarial audit: note SIZE, not count, is what breaks this
+# feature, and "not-a-doc" above is a MALFORMED-shape failure, not a
+# SIZE-triggered one -- it never actually exercises `_validate_body_json`'s
+# byte-cap branch. These fixtures build the two REAL shapes the audit calls
+# out as what actually breaks a migrating member (a long meeting/daily-notes
+# log of bullets+checkboxes, and a note carrying many inline images) sized
+# to specific, MEASURED byte counts (not a round number, not uniform filler
+# that would convert/compress for free) -- one just under the storage cap,
+# one just over it, both realistic shapes a real adapter conversion produces.
+
+def _meeting_log_doc(n_bullets: int, n_checks: int) -> dict:
+    """A long meeting/daily-notes log: a heading, then hundreds-to-thousands
+    of bullet items and checkbox task items -- the shape a markdown adapter
+    actually emits for a real trading-journal daily file, not a single giant
+    text blob (which would misrepresent what actually blows up the JSON
+    body: node/attrs overhead per item, not raw character count)."""
+    return {
+        "type": "doc",
+        "content": [
+            {"type": "heading", "attrs": {"level": 2},
+             "content": [{"type": "text", "text": "Daily Notes"}]},
+            {"type": "bulletList", "content": [
+                {"type": "listItem", "content": [
+                    {"type": "paragraph", "content": [
+                        {"type": "text", "text": f"Discussed item {i} with the team about the trade plan"}]}]}
+                for i in range(n_bullets)]},
+            {"type": "taskList", "content": [
+                {"type": "taskItem", "attrs": {"checked": i % 2 == 0}, "content": [
+                    {"type": "paragraph", "content": [
+                        {"type": "text", "text": f"Follow up on action item {i} before next session"}]}]}
+                for i in range(n_checks)]},
+        ],
+    }
+
+
+def _many_inline_images_doc(n: int) -> dict:
+    """A note carrying many inline images (chart screenshots pasted into a
+    review note) -- structurally different overhead from the bullet/
+    checkbox shape above (attrs-heavy leaf nodes vs. many small text runs),
+    exercising the SAME size cap through a different real note shape."""
+    content = [{"type": "heading", "attrs": {"level": 2},
+                "content": [{"type": "text", "text": "Screenshots"}]}]
+    for i in range(n):
+        content.append({"type": "paragraph",
+                         "content": [{"type": "text", "text": f"Chart snapshot {i}:"}]})
+        content.append({"type": "image", "attrs": {
+            "src": f"/api/j2/notes/attachments/u1/n1/inline/chart-{i:05d}.png",
+            "alt": f"chart {i}"}})
+    return {"type": "doc", "content": content}
+
+
+def test_import_confirm_commits_a_realistic_near_boundary_meeting_log_among_many_siblings(conn):
+    """The POSITIVE case nothing measured before: a genuinely large, real-
+    shaped note (measured 948,453 bytes of TipTap JSON -- just under
+    `notes.MAX_BODY_JSON_BYTES`) must actually commit, not merely fail
+    gracefully. Every prior test in this suite (and the audit's own
+    findings) only ever exercised the FAILURE side of the size cap; a
+    regression that made the boundary too tight (or broke storage of a
+    genuinely large-but-valid body) would pass every one of them."""
+    big = _meeting_log_doc(2850, 2850)
+    big_bytes = len(json.dumps(big).encode("utf-8"))
+    assert 900_000 < big_bytes < notes_svc.MAX_BODY_JSON_BYTES
+
+    notes = [_mk_import_note(f"x:small-{i}") for i in range(3)]
+    notes.insert(1, {"importKey": "x:big", "title": "Daily Log", "bodyJson": big,
+                      "tags": [], "folderPath": []})
+    payload = {"source": "file", "destFolderId": None, "notes": notes}
+    r = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert r["failed"] == []
+    assert {n["importKey"] for n in r["created"]} == {
+        "x:small-0", "x:small-1", "x:small-2", "x:big"}
+    stored = notes_svc.get_note(
+        "u1", next(n["id"] for n in r["created"] if n["importKey"] == "x:big"), conn=conn)
+    assert len(stored["bodyJson"]["content"][1]["content"]) == 2850  # the full body landed, not truncated
+
+
+def test_import_confirm_isolates_a_realistically_oversized_meeting_log_without_losing_siblings(conn):
+    """The audit's own diagnosis: the earlier isolation test
+    (`test_import_confirm_isolates_one_bad_note_and_commits_its_healthy_
+    siblings`) uses a MALFORMED body ("not-a-doc"), which trips
+    `_validate_body_json`'s JSON-parse branch, never its byte-cap branch --
+    a genuine size trip was never exercised. This is a real, structurally
+    valid daily-notes log (measured 1,015,153 bytes -- just over the cap),
+    sandwiched between healthy siblings on BOTH sides so isolation is
+    proven regardless of the bad note's position in the batch."""
+    huge = _meeting_log_doc(3050, 3050)
+    huge_bytes = len(json.dumps(huge).encode("utf-8"))
+    assert huge_bytes > notes_svc.MAX_BODY_JSON_BYTES
+
+    payload = {"source": "file", "destFolderId": None, "notes": [
+        _mk_import_note("x:before-1"),
+        _mk_import_note("x:before-2"),
+        {"importKey": "x:huge-log", "title": "Huge Daily Log", "bodyJson": huge,
+         "tags": [], "folderPath": []},
+        _mk_import_note("x:after-1"),
+        _mk_import_note("x:after-2"),
+    ]}
+    r = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert {n["importKey"] for n in r["created"]} == {
+        "x:before-1", "x:before-2", "x:after-1", "x:after-2"}
+    assert r["failed"] == [{"importKey": "x:huge-log", "error": "body_json too large (>1MB)"}]
+    assert notes_svc.import_check("u1", ["x:huge-log"], conn=conn)["existing"] == {}
+
+
+def test_import_confirm_isolates_an_oversized_many_inline_images_note(conn):
+    """A structurally different large-note shape (many inline images, not
+    text-heavy lists) -- proves the size cap and its per-note isolation
+    aren't coincidentally correct only for the bullet/checkbox family."""
+    huge = _many_inline_images_doc(5000)
+    huge_bytes = len(json.dumps(huge).encode("utf-8"))
+    assert huge_bytes > notes_svc.MAX_BODY_JSON_BYTES
+
+    payload = {"source": "file", "destFolderId": None, "notes": [
+        _mk_import_note("x:ok-1"),
+        {"importKey": "x:huge-images", "title": "Chart Review", "bodyJson": huge,
+         "tags": [], "folderPath": []},
+        _mk_import_note("x:ok-2"),
+    ]}
+    r = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert {n["importKey"] for n in r["created"]} == {"x:ok-1", "x:ok-2"}
+    assert r["failed"] == [{"importKey": "x:huge-images", "error": "body_json too large (>1MB)"}]
 
 
 # ── Non-image attachment upload ──────────────────────────────────────────────

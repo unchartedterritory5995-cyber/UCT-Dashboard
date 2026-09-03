@@ -13,6 +13,8 @@ token IS the credential under test.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from cryptography.fernet import Fernet
 from fastapi import FastAPI
@@ -772,6 +774,90 @@ async def test_one_oversized_note_no_longer_destroys_the_whole_batch_and_a_resyn
     assert second["created"] == 0 and second["updated"] == 0  # all 12 already stored -> skipped
     assert any("Notes/huge.md" in f or "could not be stored" in f for f in second["failures"])
     assert len(notes_svc.list_notes("user-a")) == 12  # unchanged -- nothing lost, nothing duplicated
+
+
+# ── the missing "live gate" case: a realistic large note that SUCCEEDS ──────
+#
+# Task 6's own live-gate report (`.superpowers/sdd/2026-09-02-obsidian-
+# ingest-server/task-6-report.md`) says in its own "Concerns" section that it
+# "does not attempt ... the 2MB ingest size cap" -- and it was never
+# committed (session scratchpad only, per this repo's live-gate convention).
+# `docs/feature_flags.json`'s NOTE_SYNC_OBSIDIAN_ENABLED entry names this
+# exact gap as arming condition (3): "a live gate has synced a note of
+# REALISTIC size ... nothing anywhere (unit, parity, or live gate) has ever
+# imported or synced a note larger than a few KB." Every test above this one
+# in the file either uses tiny fixtures or exercises the FAILURE side of the
+# size cap (an oversized note correctly isolated). None of them proves the
+# POSITIVE case through the real HTTP surface: mint/redeem/ingest/sync ALL
+# over actual routes (unlike every other test in this file, which calls
+# `sync_engine.sync_source` directly rather than the real
+# `POST /sources/{id}/sync` route) with a note sized like a real member's
+# long daily-notes/meeting-log file.
+
+def _meeting_log_markdown(n: int) -> str:
+    """Headings + bullets + checkboxes mixed -- a real Obsidian daily-notes/
+    meeting-log shape, not a single giant paragraph. Measured blowup for
+    this exact generator is ~3.55x (`convert.mddoc.md_to_tiptap`), squarely
+    inside the audit's measured 3.4-4.7x range for ordinary notes."""
+    lines = ["# Daily Notes"]
+    for i in range(n):
+        if i % 5 == 0:
+            lines.append(f"## Session {i // 5}")
+        if i % 3 == 0:
+            lines.append(f"- [{'x' if i % 2 else ' '}] Follow up on action item {i} before next session")
+        else:
+            lines.append(f"- Discussed item {i} with the team about the trade plan")
+    return "\n".join(lines)
+
+
+def test_a_realistically_large_note_syncs_end_to_end_through_the_real_http_sync_route(client):
+    """mint (direct, like every other test here -- `/connect` needs a login
+    session this file's `client` fixture doesn't set up) -> redeem (HTTP) ->
+    ingest (HTTP) -> sync via the REAL `POST /sources/{id}/sync` route (not
+    `sync_engine.sync_source` called directly). The note is 3,550 sections
+    of the shape above: measured 210,609 characters of markdown (just under
+    the derived `_MAX_BODY_MD_LEN` ingest boundary of 212,765) and 740,540
+    bytes of converted TipTap JSON (comfortably under the 1MB storage cap) --
+    a genuinely large, realistically-shaped note near the boundary, not an
+    arbitrary round number and not uniform filler."""
+    from api.services.journal_two import notes as notes_svc
+
+    code = obsidian_link.mint_connect_code("user-a")
+    redeem = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1", "label": "V"})
+    assert redeem.status_code == 200, redeem.text
+    token = redeem.json()["token"]
+    source_id = redeem.json()["source"]["id"]
+
+    body_md = _meeting_log_markdown(3550)
+    assert len(body_md) <= obsidian_staging._MAX_BODY_MD_LEN
+
+    ingest = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": [_note("Daily/2026-09-02.md", "hBig", body_md)],
+            "manifest": ["Daily/2026-09-02.md"],
+            "final": True,
+        },
+    )
+    assert ingest.status_code == 200, ingest.text
+    assert ingest.json()["written"] == 1
+    assert ingest.json()["tooLarge"] == []
+
+    _login_as(client, "user-a")
+    sync = client.post(f"/api/j2/notes/connectors/sources/{source_id}/sync", params={"full": True})
+    assert sync.status_code == 200, sync.text
+    body = sync.json()
+    assert body["created"] == 1
+    assert body["failures"] == []
+    assert body["status"] == "ok"
+
+    notes_now = notes_svc.list_notes("user-a")
+    assert len(notes_now) == 1
+    full_note = notes_svc.get_note("user-a", notes_now[0]["id"])
+    body_json_bytes = len(json.dumps(full_note["bodyJson"]).encode("utf-8"))
+    assert 100_000 < body_json_bytes < notes_svc.MAX_BODY_JSON_BYTES, (
+        "fixture is no longer genuinely large -- this rail would pass vacuously")
 
 
 # ── DELETE /{provider} (disconnect) revokes the device token ────────────────
