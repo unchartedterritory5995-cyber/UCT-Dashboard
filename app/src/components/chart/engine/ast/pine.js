@@ -1123,6 +1123,30 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`. `pine.derived.test.js`
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
+/**
+ * Built-ins this engine has RULED on BY NAME, so the refusal teaches instead of
+ * shrugging. Same arrangement as `_functions_excluded` one layer down: a name we
+ * have actually thought about gets the thinking, not the generic sentence.
+ *
+ * ⭐ EARNED BY MEASUREMENT. On a 48-script corpus written blind to this engine,
+ * `syminfo.mintick` was the single most common blocker — SEVEN scripts — and
+ * every one of its nine uses was the SAME idiom. A generic "the grammar does not
+ * hold this" told those authors nothing they could act on.
+ */
+const BUILTIN_RULED = Object.freeze({
+  'syminfo.mintick':
+    "It is the symbol's minimum price increment, which differs per symbol and is "
+    + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
+    + '`math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar '
+    + 'whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero '
+    + 'denominator is reported as NOT COMPUTABLE for that symbol rather than '
+    + 'quietly replaced, so write `(close - low) / (high - low)` and a halted, '
+    + 'zero-range bar is left unanswered instead of being scored as though it '
+    + 'closed on its low. ⚠️ That is a REAL difference, not a simplification: '
+    + 'Pine answers 0 on such a bar and this engine answers nothing, which is why '
+    + 'the edit is yours to make rather than one taken silently on your behalf.',
+})
+
 export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
   // here it fell into the generic arm and answered with the WHOLE declared
@@ -4107,6 +4131,14 @@ class Resolver {
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
+      // shrug — the same precedence `_functions_excluded` takes over the
+      // sixty-four-name dump one layer down.
+      if (own(BUILTIN_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
+          locate(node.tok))
+      }
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))

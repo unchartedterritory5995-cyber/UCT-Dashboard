@@ -117,3 +117,49 @@ misses      ${MISSES.map((r) => r.name).join(', ')}
     expect(PASSING.length).toBeGreaterThan(0)
   })
 })
+
+describe('⭐ the rulings this corpus earned', () => {
+  const S = (body) => `//@version=6
+indicator("s")
+plot(${body} ? 1 : 0)
+`
+  const refuse = (body) => {
+    const out = translatePine(S(body))
+    expect(out.ok, `${body} unexpectedly translated`).toBe(false)
+    return out.refusal
+  }
+
+  it('⛔⛔ the advice the refusal gives is VERIFIED, not asserted', () => {
+    // ⚰️ A REFUSAL THAT NAMES A REWRITE IS A CLAIM ABOUT A RUN. If the sentence
+    // tells a member to write `(close - low) / (high - low)` and that spelling
+    // refuses too, the refusal is worse than the generic one it replaced — it
+    // sends them somewhere and the door is shut there as well. So the advice is
+    // EXECUTED here rather than trusted.
+    const advised = '(close - low) / (high - low) > 0.7'
+    const out = translatePine(S(advised))
+    expect(out.ok, out.ok ? '' : `the advice does not translate: ${out.refusal.message}`)
+      .toBe(true)
+    // And the sentence really does name that spelling, so the two cannot drift.
+    const r = refuse('(close - low) / math.max(high - low, syminfo.mintick) > 0.7')
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).toContain('(close - low) / (high - low)')
+  })
+
+  it('⭐ it names the IDIOM, and is honest that the answers differ', () => {
+    const r = refuse('math.max(high - low, syminfo.mintick) > 1')
+    expect(r.message).toContain('math.max(high - low, syminfo.mintick)')
+    // ⛔ THE DIFFERENCE IS STATED, NOT GLOSSED. On a zero-range bar Pine answers
+    // 0 and this engine answers nothing; a refusal that offered the rewrite as a
+    // free simplification would be talking a member into a silent semantic change.
+    expect(r.message).toMatch(/NOT COMPUTABLE/)
+    expect(r.message).toMatch(/REAL difference/)
+  })
+
+  it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
+    // Without this, a change that appended the mintick paragraph to every
+    // built-in refusal would satisfy both cases above.
+    const r = refuse('barstate.islast')
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).not.toContain('minimum price increment')
+  })
+})
