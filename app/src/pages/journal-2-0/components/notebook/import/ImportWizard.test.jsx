@@ -953,6 +953,11 @@ describe('ImportWizard — post-migration enrichment offer (§8.1)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /add live charts/i }))
     await waitFor(() => expect(screen.getByText(/Added 1 live chart to 1 note\./i)).toBeInTheDocument())
+    // The undo holds pre-enrichment bodies in component state, so it dies with
+    // this window. A bare Undo button reads as durable; the member has to be
+    // told the window is closing or "reversible" is only half true.
+    expect(screen.getByTestId('enrich-undo-window')).toBeInTheDocument()
+    expect(screen.getByText(/until you close this window/i)).toBeInTheDocument()
 
     const embedCall = fetchMock.mock.calls.find((c) => /\/notes\/id-1\/embeds$/.test(String(c[0])))
     expect(embedCall).toBeTruthy()

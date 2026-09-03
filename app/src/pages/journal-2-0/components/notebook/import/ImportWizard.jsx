@@ -1195,10 +1195,24 @@ export default function ImportWizard({ open, onClose, onImported }) {
                       {enrichApply.failures.map((f) => f.name).join(', ')}.
                     </p>
                   )}
+                  {/* ⛔ The undo holds each note's exact pre-enrichment body in
+                      component state, so it dies when this window closes. A bare
+                      "Undo" button reads as durable and is therefore a small lie
+                      of exactly the kind this feature exists to avoid — the spec's
+                      rule is opt-in AND reversible, and a member who does not know
+                      the window is closing cannot exercise the second half. Saying
+                      so costs one sentence and turns a hidden limit into an
+                      informed choice. */}
                   {enrichApply.records.length > 0 && (
-                    <button type="button" className="btn btn-secondary" onClick={handleUndoEnrichment}>
-                      Undo
-                    </button>
+                    <>
+                      <p className={styles.crashDetail} data-testid="enrich-undo-window">
+                        You can undo this until you close this window — after that,
+                        you&rsquo;d remove the charts note by note.
+                      </p>
+                      <button type="button" className="btn btn-secondary" onClick={handleUndoEnrichment}>
+                        Undo
+                      </button>
+                    </>
                   )}
                 </div>
               )}
