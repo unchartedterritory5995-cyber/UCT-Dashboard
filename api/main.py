@@ -90,6 +90,8 @@ from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import provider_coverage as provider_coverage_router
+from api.routers import fmp_adapter_status as fmp_adapter_status_router
+from api.routers import massive_adapter_status as massive_adapter_status_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -7135,6 +7137,8 @@ app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(provider_coverage_router.router)  # /api/admin/provider-coverage — Task 22/23
+app.include_router(fmp_adapter_status_router.router)  # /api/admin/fmp-adapter-status — D1 §7.3
+app.include_router(massive_adapter_status_router.router)  # /api/admin/massive-adapter-status — D1 §7.3
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)

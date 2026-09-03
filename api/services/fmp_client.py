@@ -62,6 +62,12 @@ _bucket_tokens = _FMP_RATE_LIMIT_PER_MIN
 _bucket_updated = time.monotonic()
 _bucket_lock = threading.Lock()
 _bucket_denied_total = 0
+# Spec §18.2's evidence-ladder "OC" (observed-called) field: "derived from
+# whether budget()'s denied/served counters have moved off zero since
+# process start." Incremented once per actual network attempt (in
+# _get_raw, success or failure alike) — a token-shed doesn't count as
+# "called", it counts as denied.
+_served_total = 0
 
 _FORBIDDEN_TTL = 86_400  # 24h, Finnhub's proven precedent (spec §9.3/§5.2)
 
@@ -90,6 +96,7 @@ def budget() -> dict:
             "tokens_remaining": _bucket_tokens,
             "ceiling": _FMP_RATE_LIMIT_PER_MIN,
             "denied_total": _bucket_denied_total,
+            "served_total": _served_total,
         }
 
 
@@ -115,6 +122,10 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
 
     if not _take_token():
         raise _ERR.rate_limited(f"local FMP budget exhausted for {path}")
+
+    global _served_total
+    with _bucket_lock:
+        _served_total += 1
 
     call_params = dict(params)
     call_params["apikey"] = api_key

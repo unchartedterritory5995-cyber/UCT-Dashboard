@@ -85,6 +85,10 @@ _bucket_tokens = _MASSIVE_RATE_LIMIT_PER_MIN
 _bucket_updated = time.monotonic()
 _bucket_lock = threading.Lock()
 _bucket_denied_total = 0
+# Spec §18.2's evidence-ladder "OC" (observed-called) field: incremented
+# once per actual network attempt through _typed_get, success or failure
+# alike — a token-shed doesn't count as "called", it counts as denied.
+_served_total = 0
 
 _FORBIDDEN_TTL = 86_400  # 24h, same precedent as fmp_client.py / finnhub_client.py
 
@@ -115,6 +119,7 @@ def budget() -> dict:
             "tokens_remaining": _bucket_tokens,
             "ceiling": _MASSIVE_RATE_LIMIT_PER_MIN,
             "denied_total": _bucket_denied_total,
+            "served_total": _served_total,
         }
 
 
@@ -177,6 +182,10 @@ class _MassiveRestClient:
 
         if not _take_token():
             raise _ERR.rate_limited(f"local Massive budget exhausted for {path.split('?')[0]}")
+
+        global _served_total
+        with _bucket_lock:
+            _served_total += 1
 
         url = f"{_REST_BASE}{path}"
         try:

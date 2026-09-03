@@ -21,6 +21,7 @@ def _reset_state(monkeypatch):
     m._bucket_tokens = m._MASSIVE_RATE_LIMIT_PER_MIN
     m._bucket_updated = time.monotonic()
     m._bucket_denied_total = 0
+    m._served_total = 0
     # forbidden_key includes the per-symbol path (e.g.
     # "massive_forbidden_/v2/.../tickers/AAPL"), so a plain-cache singleton
     # would otherwise leak the 401 test's cached-forbidden state into every
@@ -287,8 +288,16 @@ def test_rate_limiter_sheds_calls_once_ceiling_exhausted(monkeypatch):
 
 def test_budget_reports_current_state():
     b = m.budget()
-    assert set(b.keys()) == {"tokens_remaining", "ceiling", "denied_total"}
+    assert set(b.keys()) == {"tokens_remaining", "ceiling", "denied_total", "served_total"}
     assert b["ceiling"] == m._MASSIVE_RATE_LIMIT_PER_MIN
+
+
+def test_budget_served_total_increments_on_a_real_network_attempt():
+    c = _client()
+    before = m.budget()["served_total"]
+    with patch.object(m._http, "get", return_value=_mock_response(200, {"status": "OK", "ticker": {}})):
+        c.get_quote("AAPL")
+    assert m.budget()["served_total"] == before + 1
 
 
 def test_no_two_vendor_errors_share_identity_with_fmp():

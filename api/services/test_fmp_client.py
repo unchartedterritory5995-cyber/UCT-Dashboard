@@ -19,6 +19,7 @@ def _reset_state(monkeypatch):
     fc._bucket_tokens = fc._FMP_RATE_LIMIT_PER_MIN
     fc._bucket_updated = time.monotonic()
     fc._bucket_denied_total = 0
+    fc._served_total = 0
     for path in ("/stable/quote", "/stable/key-metrics-ttm", "/stable/ratios-ttm",
                  "/stable/grades", "/stable/grades-consensus", "/stable/grades-historical",
                  "/stable/price-target-consensus", "/stable/price-target-summary",
@@ -203,8 +204,15 @@ def test_rate_limiter_ceiling_is_reconfigurable_with_no_code_change(monkeypatch)
 
 def test_budget_reports_current_state():
     b = fc.budget()
-    assert set(b.keys()) == {"tokens_remaining", "ceiling", "denied_total"}
+    assert set(b.keys()) == {"tokens_remaining", "ceiling", "denied_total", "served_total"}
     assert b["ceiling"] == fc._FMP_RATE_LIMIT_PER_MIN
+
+
+def test_budget_served_total_increments_on_a_real_network_attempt():
+    before = fc.budget()["served_total"]
+    with patch.object(fc._session, "get", return_value=_mock_response(200, [{"ok": True}])):
+        fc.get_quote("AAPL")
+    assert fc.budget()["served_total"] == before + 1
 
 
 def test_income_statement_period_param_only_added_for_quarter():
