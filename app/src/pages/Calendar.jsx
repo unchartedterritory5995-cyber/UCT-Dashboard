@@ -741,6 +741,8 @@ export default function Calendar() {
       onGotoWeek={gotoWeek}
       onDayTab={onDayTab}
       onSearchJump={onSearchJump}
+      earningsProvenance={data?.earnings_provenance}
+      econProvenance={data?.econ_provenance}
     />
   )
 

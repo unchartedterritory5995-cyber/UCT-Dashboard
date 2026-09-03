@@ -149,6 +149,28 @@ describe('shell structure', () => {
   })
 })
 
+describe('entity resolution (A5) — the canonical identity calendar rows now carry', () => {
+  it('shows the entity-unresolved note when the calendar event has not resolved', () => {
+    renderModal({ row: { ...row, entity: { status: 'not_found', entityId: null } } })
+    const note = screen.getByTestId('entity-unresolved-note')
+    expect(note.textContent).toMatch(/not yet linked to a canonical identity/i)
+    expect(note.textContent).toMatch(/not_found/)
+  })
+
+  it('shows no note once the event has resolved', () => {
+    renderModal({ row: { ...row, entity: { status: 'resolved', entityId: 'em_1' } } })
+    expect(screen.queryByTestId('entity-unresolved-note')).toBeNull()
+  })
+
+  it('shows no note when the row predates entity resolution (field absent)', () => {
+    // A cached/stale week payload from before this migration has no `entity`
+    // key at all — must degrade to "nothing shown", never a crash on
+    // `row.entity.status`.
+    renderModal({ row })
+    expect(screen.queryByTestId('entity-unresolved-note')).toBeNull()
+  })
+})
+
 // ── The AI section's WIRE ─────────────────────────────────────────────────────
 // `AskAiSection` is deliberately NOT mocked in this suite. Its own tests and
 // AiSearchWidget's own tests can both be green while the two are joined wrong —

@@ -49,7 +49,7 @@ def _stubbed(monkeypatch):
     """Every provider + decoration stubbed; only the cap/rebucket logic is live."""
     monkeypatch.setattr(cal, "_today_et", lambda: MIDWEEK)
     monkeypatch.setattr(cal, "_load_cap_universe", lambda: set())
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: [])
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: ([], None))
     monkeypatch.setattr(cal, "_curate_econ_events", lambda *a, **kw: None)
     monkeypatch.setattr(cal, "_attach_names", lambda days: None)
     monkeypatch.setattr(cal, "_attach_date_moves", lambda days: None)

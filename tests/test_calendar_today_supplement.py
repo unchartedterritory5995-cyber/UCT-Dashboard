@@ -80,7 +80,7 @@ def test_a_reporter_only_fmp_knows_is_added_to_todays_tbd_with_its_numbers():
     """SLAB, at its real 8/11 shape: reported, absent from EW, known to FMP."""
     days = _week_days(bmo=["SE"], amc=["CAH"])
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=[_fmp_row("SLAB")]) as fmp:
+         mock.patch.object(cal, "_fmp_range_week", return_value=([_fmp_row("SLAB")], None)) as fmp:
         added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     # ONE range call from today to the end of the shown week (was today-only).
@@ -98,7 +98,7 @@ def test_a_finnhub_reporter_lands_in_its_stated_session_bucket():
     fh = {"earningsCalendar": [_fh_row("BGS", "amc"), _fh_row("IHS", "bmo"),
                                _fh_row("SANA", "")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     assert m.call_args.args == (TODAY_S, FRI.isoformat())
@@ -119,7 +119,7 @@ def test_the_live_schedules_entries_are_never_touched_or_duplicated():
     fh = {"earningsCalendar": [_fh_row("NUE", "amc", eps_act=3.3, eps_est=9.9)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("NUE", eps_est=8.8)]):
+                           return_value=([_fmp_row("NUE", eps_est=8.8)], None)):
         added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     assert added == 0
@@ -135,7 +135,7 @@ def test_finnhub_wins_the_session_and_fmp_never_duplicates_its_add():
     days = _week_days()
     fh = {"earningsCalendar": [_fh_row("BGS", "amc")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=[_fmp_row("BGS")]):
+         mock.patch.object(cal, "_fmp_range_week", return_value=([_fmp_row("BGS")], None)):
         added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     assert added == 1
@@ -148,7 +148,7 @@ def test_the_same_universe_gate_as_every_other_week():
     fh = {"earningsCalendar": [_fh_row("BGS"), _fh_row("600641.SS")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("PNCINFRA.NS"), _fmp_row("SLAB")]):
+                           return_value=([_fmp_row("PNCINFRA.NS"), _fmp_row("SLAB")], None)):
         cal._supplement_live_days(days, TODAY_S, CAP)
 
     day = days[TODAY_S]
@@ -160,7 +160,7 @@ def test_a_double_provider_failure_leaves_today_exactly_as_it_was():
     """Never trade a working (if thin) day for an exception."""
     days = _week_days(bmo=["SE"])
     with mock.patch.object(cal, "_fh_get_month", side_effect=RuntimeError("429")), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         assert cal._supplement_live_days(days, TODAY_S, CAP) == 0
     assert [e["sym"] for e in days[TODAY_S]["bmo"]] == ["SE"]
 
@@ -177,7 +177,7 @@ def test_a_weekend_today_supplements_the_whole_upcoming_week():
     days = _week_days()
     fh = {"earningsCalendar": [dict(_fh_row("BGS"), date=THU.isoformat())]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         assert cal._supplement_live_days(days, "2026-08-08", CAP) == 1
     assert m.call_args.args == (MON.isoformat(), FRI.isoformat())
     assert [e["sym"] for e in days[THU.isoformat()]["bmo"]] == ["BGS"]
@@ -192,7 +192,7 @@ def test_today_is_bounded_by_the_past_session_cap_and_ew_names_are_never_cut():
     days = _week_days(bmo=["KEEPME"])
     fh = {"earningsCalendar": [_fh_row(f"S{i:04d}") for i in range(n)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         cal._supplement_live_days(days, TODAY_S, cap)
 
     bmo = days[TODAY_S]["bmo"]
@@ -223,7 +223,7 @@ def test_build_current_week_reaches_the_supplement_and_the_payload_carries_it(mo
     monkeypatch.setattr(cal, "_attach_names", lambda *a, **kw: None)
     monkeypatch.setattr(cal, "_attach_date_moves", lambda *a, **kw: None)
     monkeypatch.setattr(cal, "_fh_get_month", lambda *a, **kw: None)
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: [_fmp_row("SLAB")])
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: ([_fmp_row("SLAB")], None))
     cal.cache.invalidate("calendar_weekly")
 
     payload = cal._build_current_week()

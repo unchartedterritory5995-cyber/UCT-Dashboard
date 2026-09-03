@@ -1,7 +1,13 @@
 """IPO calendar service — Finnhub /calendar/ipo merged with FMP stable/ipos-calendar.
 
 Normalises rows into:
-  { sym, name, date, exchange, price_range, shares, value, status }
+  { sym, name, date, exchange, price_range, shares, value, status, entity }
+
+2026-09-03 A5 modernization: the FMP leg now routes through the typed D1
+adapter (`fmp_client.get_ipo_calendar`, was a raw call via
+`earnings_estimates._fmp_get`), and every merged row carries a canonical
+`entity` from Entity Master (`resolve_entity`) — never a raw ticker as the
+row's only identity.
 
 Data-dependability migration plan, Phase 2 Task 11. `/calendar/ipo` is NOT one
 of the permanently-forbidden Finnhub endpoints (unlike T1/T2/T6's targets) —
@@ -23,6 +29,7 @@ import logging
 
 from api.services.cache import cache
 from api.services.finnhub_client import fh_get
+from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
 
@@ -43,16 +50,24 @@ def _fh_ipo_get(from_date: str, to_date: str) -> list | None:
 
 
 def _fmp_ipo_get(from_date: str, to_date: str) -> list | None:
-    """Call FMP `stable/ipos-calendar` for the given range.
+    """Call FMP `stable/ipos-calendar` for the given range, via the typed D1
+    adapter (`fmp_client.get_ipo_calendar` — 2026-09-03 A5 modernization; was
+    a raw call via `earnings_estimates._fmp_get`).
 
     A different provider entirely — its own bounded timeout, never touches
-    Finnhub's token bucket/cooldown. Returns the raw row list, or None on
-    failure (missing key, network error, non-200 — `_fmp_get` already
-    swallows all of that and returns None).
+    Finnhub's token bucket/cooldown. Returns the raw row list, or None on any
+    failure (missing key, network error, non-200 — same "quiet no-op"
+    contract the raw call had).
     """
-    from api.services.earnings_estimates import _fmp_get
-    data = _fmp_get("/stable/ipos-calendar", {"from": from_date, "to": to_date}, timeout=8)
-    return data if isinstance(data, list) else None
+    from api.services import fmp_client
+    try:
+        result = fmp_client.get_ipo_calendar(from_date, to_date)
+    except Exception as exc:
+        _logger.debug("ipo_calendar: FMP typed fetch failed: %s", exc)
+        return None
+    if result.degraded is not None and not result.value:
+        return None
+    return result.value if isinstance(result.value, list) else None
 
 
 def _normalize_row(row: dict) -> dict:
@@ -227,6 +242,12 @@ def get_ipos(from_date: str, to_date: str) -> list[dict]:
     fmp_entries = _normalize_all(_fmp_ipo_get(from_date, to_date), _normalize_fmp_row)
 
     result = _merge_ipo_rows(fh_entries, fmp_entries)
+
+    for row in result:
+        sym = row.get("sym")
+        if sym:
+            entity, _effective_sym = resolve_entity(sym)
+            row["entity"] = entity
 
     cache.set(cache_key, result, ttl=_CACHE_TTL)
     return result

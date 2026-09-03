@@ -63,6 +63,15 @@ export function toModalRow(entry) {
     // upstream by `enrichReady`, and defaulting to "unresolved" would show
     // "unavailable" on every un-enriched row.
     history_unresolved: entry.history_unresolved ?? false,
+    // 2026-09-03 A5 modernization — canonical entity (S3), stamped on every
+    // calendar entry by `api/routers/calendar.py::_attach_entities`. Same
+    // ALLOW-LIST trap the comment above already documents: absent here, the
+    // modal's entity-unresolved note would silently never fire even though
+    // the backend genuinely returns the field (live-caught, 2026-09-03 A5
+    // validation — the embedded research panels stayed correct because they
+    // resolve independently server-side; only this shell-level projection
+    // dropped it).
+    entity: entry.entity ?? null,
   }
 }
 

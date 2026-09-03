@@ -17,7 +17,6 @@ an empty result.
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, time as _time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -150,31 +149,50 @@ def _clean(v) -> str | None:
     return str(v)
 
 
+def _fetch_econ_rows_typed(from_ds: str, to_ds: str) -> tuple[list | None, dict | None]:
+    """D1-typed transport shared by both functions below (2026-09-03 A5
+    modernization) — replaces the raw `requests.get` call each used to make
+    independently. Returns `(rows, meta)`: `rows` is the raw FMP row list (or
+    `None` on any failure — no key, network error, non-list body — exactly
+    the same "quiet no-op" contract the raw call had). `meta` is the D1
+    provenance/freshness envelope, shaped for the calendar page's honest
+    per-payload disclosure (`None` whenever `rows` is `None`, never
+    fabricated)."""
+    from api.services import fmp_client
+    try:
+        result = fmp_client.get_economic_calendar(from_ds, to_ds)
+    except fmp_client.FMPNotConfigured:
+        _logger.warning("[econ-fmp] FMP_API_KEY not set")
+        return None, None
+    except Exception as exc:                             # noqa: BLE001
+        _logger.warning("[econ-fmp] typed fetch failed: %s", exc)
+        return None, None
+    if result.degraded is not None and not result.value:
+        return None, None
+    rows = result.value if isinstance(result.value, list) else None
+    if rows is None:
+        return None, None
+    meta = {
+        "vendor": result.provenance.vendor,
+        "sourceActivity": result.provenance.source_activity,
+        "fetchedAt": result.provenance.fetched_at,
+        "sourceObservedAt": result.provenance.source_observed_at,
+        "tieBreak": result.provenance.tie_break,
+        "freshnessClass": result.freshness,
+        "licensingClass": result.licensing_class,
+        "degraded": result.degraded,
+    }
+    return rows, meta
+
+
 def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
     """{YYYY-MM-DD (ET): {econ: [...], fed: [...]}} — EVERY US econ event (all impacts,
     no curation), each carrying actual/estimate/prior + an impact tier
     ('low'|'medium'|'high'). Powers the Calendar WIDGET's star filter, which needs the
     low-impact events AND the actual prints (ForexFactory's JSON feed has neither).
     Returns {} on any failure."""
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        _logger.warning("[econ-fmp-full] FMP_API_KEY not set")
-        return {}
-    try:
-        import requests
-        r = requests.get(
-            "https://financialmodelingprep.com/stable/economic-calendar",
-            params={"from": from_ds, "to": to_ds, "apikey": key},
-            timeout=20,
-        )
-        if not r.ok:
-            _logger.warning("[econ-fmp-full] HTTP %d", r.status_code)
-            return {}
-        rows = r.json()
-        if not isinstance(rows, list):
-            return {}
-    except Exception as exc:                            # noqa: BLE001
-        _logger.warning("[econ-fmp-full] fetch failed: %s", exc)
+    rows, _meta = _fetch_econ_rows_typed(from_ds, to_ds)
+    if rows is None:
         return {}
     rows = with_symposium_keynote(rows)
     rows = with_curated_events(rows)
@@ -226,26 +244,27 @@ def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict
     in TIME order — so a busy day keeps NFP and drops the crude-oil inventory
     print, rather than keeping whichever happened to be released first.
     """
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        _logger.warning("[econ-fmp] FMP_API_KEY not set")
-        return {}
-    try:
-        import requests
-        r = requests.get(
-            "https://financialmodelingprep.com/stable/economic-calendar",
-            params={"from": from_ds, "to": to_ds, "apikey": key},
-            timeout=20,
-        )
-        if not r.ok:
-            _logger.warning("[econ-fmp] HTTP %d", r.status_code)
-            return {}
-        rows = r.json()
-        if not isinstance(rows, list):
-            return {}
-    except Exception as exc:                            # noqa: BLE001
-        _logger.warning("[econ-fmp] fetch failed: %s", exc)
-        return {}
+    return _fetch_us_econ_week_impl(from_ds, to_ds, limit_per_day)[0]
+
+
+def fetch_us_econ_week_with_meta(
+    from_ds: str, to_ds: str, limit_per_day: int = 8,
+) -> tuple[dict[str, list[dict]], dict | None]:
+    """Same result as `fetch_us_econ_week`, plus the FMP leg's D1 provenance/
+    freshness envelope — added for the calendar page's honest per-payload
+    disclosure (2026-09-03 A5 modernization). A second entry point rather
+    than a changed signature on `fetch_us_econ_week` itself, which
+    `calendar_week_poster.py`, `voice_tool_impls.py` and this module's own
+    tests already depend on returning a bare dict."""
+    return _fetch_us_econ_week_impl(from_ds, to_ds, limit_per_day)
+
+
+def _fetch_us_econ_week_impl(
+    from_ds: str, to_ds: str, limit_per_day: int,
+) -> tuple[dict[str, list[dict]], dict | None]:
+    rows, meta = _fetch_econ_rows_typed(from_ds, to_ds)
+    if rows is None:
+        return {}, None
     rows = with_symposium_keynote(rows)
     rows = with_curated_events(rows)
 
@@ -297,4 +316,4 @@ def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict
         keep = sorted(items, key=lambda t: (t[0], t[1]))[:max(1, limit_per_day)]
         # …then present chronologically, the way a calendar reads.
         result[ds] = [e for _, _, e in sorted(keep, key=lambda t: t[1])]
-    return result
+    return result, meta

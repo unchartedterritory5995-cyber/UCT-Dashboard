@@ -350,6 +350,27 @@ def get_earnings_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
                    not_found_if=_empty_list, freshness="end_of_day")
 
 
+def get_economic_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+    """Economic-calendar rows for a date range — added for the calendar
+    page's A5 modernization (2026-09-03). A market-wide range query, not a
+    per-symbol one, same shape as `get_earnings_calendar`. `econ_calendar_fmp.py`
+    owns the response-shaping (UTC->ET, impact curation) — this function only
+    replaces its raw `requests.get` transport."""
+    return _fetch("/stable/economic-calendar", {"from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_economic_calendar", data_class="economic",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=20)
+
+
+def get_ipo_calendar(from_date: str, to_date: str) -> _pe.ProviderResult:
+    """IPO-calendar rows for a date range — added for the calendar page's A5
+    modernization (2026-09-03). Mirrors `ipo_calendar.py`'s existing
+    `_fmp_ipo_get` request shape exactly; that module owns the merge with
+    Finnhub's richer per-row detail."""
+    return _fetch("/stable/ipos-calendar", {"from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_ipo_calendar", data_class="ipo",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=8)
+
+
 def get_insider_trading(ticker: str) -> _pe.ProviderResult:
     return _fetch("/stable/insider-trading/search", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_insider_trading", data_class="insider",

@@ -81,6 +81,13 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("fmp", "ownership"): LicensingClassEntry(
         "R", "Shares float / institutional ownership (13F) — no DDLA assumed, same A3 posture as this vendor's other data classes.", "A3",
     ),
+    ("fmp", "economic"): LicensingClassEntry(
+        "R", "Economic calendar releases — no DDLA assumed, same A3 posture as this vendor's other data classes.", "T-37",
+    ),
+    # No ("fmp", "ipo") row: the licensing register's IPO-calendar row (T-52)
+    # covers Finnhub's leg, not FMP's `stable/ipos-calendar` specifically — no
+    # research exists for that pair, so it is left unregistered and correctly
+    # falls through to `_DEFAULT` ("U" — not researched, never inferred).
 }
 
 _DEFAULT = LicensingClassEntry(
