@@ -587,11 +587,18 @@ NEVER_READ = {
 UNBLOCKER = re.compile(r"declare[ ]+`([A-Za-z_][A-Za-z0-9_]*)[(]([^`]*)[)]`")
 
 
-#: ⚠️ REACHABLE, AND NOT IN THIS TASK. Two moving averages this table does not
+#: ⚠️ REACHABLE, AND NOT IN THIS TASK. A moving average this table does not
 #: declare. Named so the remaining path to A5's number is a list rather than a gap.
+#:
+#: ✅ `HAVGC20 > C` CAME OFF THIS LIST — it TRANSLATES NOW. It read "Hull moving
+#: average — a new table entry, not an oscillator", and that entry has since
+#: landed (`hma`, declared once and reached through every door). The list said
+#: what it would take, the thing it named happened, and nothing here noticed:
+#: this file went RED with the formula in the "still refusing" expectation, which
+#: is the ratchet working — a script that STOPS refusing is exactly as much a
+#: change to A5's partition as one that starts.
 REACHABLE_ELSEWHERE = {
     "FAVGC20 > C": "front-weighted moving average — a new table entry, not an oscillator",
-    "HAVGC20 > C": "Hull moving average — a new table entry, not an oscillator",
 }
 
 
@@ -691,9 +698,19 @@ def test_A5_is_a_PARTITION_total_and_disjoint_and_the_ceiling_is_MEASURED():
     for src in ("AROONUP25 > 70", "AROONDOWN25 < 30", "BOP20 > 0"):
         assert src in reading, src
 
-    assert len(reading) == 63, len(reading)
+    # ⭐ 63 -> 64 (2026-09-02): `HAVGC20 > C` reads now. `REACHABLE_ELSEWHERE`
+    # said it needed "a new table entry, not an oscillator" and that entry landed
+    # (`hma`), so a formula crossed the partition. A SCRIPT THAT STOPS REFUSING
+    # MOVES THIS NUMBER EXACTLY AS MUCH AS ONE THAT STARTS, which is why this
+    # assertion is here and why it was red rather than quietly right.
+    assert len(reading) == 64, len(reading)
     # ⭐ THE CEILING, DERIVED: 71 minus the six that can never read.
     assert len(outcomes) - len(NEVER_READ) == 65
+    # ⭐⭐ AND THE GAP TO IT IS DERIVED TOO, so the three numbers above cannot
+    # drift apart the way the pair in `test_ast_interpret` did. What is left
+    # between what reads and what could is exactly `REACHABLE_ELSEWHERE` — name
+    # something there, or read it; there is no third place for it to sit.
+    assert len(reading) + len(REACHABLE_ELSEWHERE) == len(outcomes) - len(NEVER_READ)
 
 
 @pytest.mark.skipif(not ac.js_lane_available(), reason="no node")
