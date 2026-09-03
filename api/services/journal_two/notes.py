@@ -323,16 +323,40 @@ def _import_date(value, fallback):
         return fallback
 
 
+# Genuine resource bound on one import-check request — NOT a silent
+# data-hiding cap like the [:5000] slice this replaces (audit B1). That
+# slice truncated one note past the wave's own 5,000-note benchmark, and
+# the truncated tail came back "not existing" -> classified as a fresh
+# `create` -> a re-import of a >5,000-note library duplicated everything
+# past the cutoff instead of updating it, silently. SQLite's own variable
+# limit is handled below by chunking into groups of 500 regardless of the
+# total, so THIS cap exists only to bound one request's SQL round-trips
+# against a pathological payload (hundreds of thousands of keys). Set high
+# enough that a real personal library — the actual member this wave is
+# for — is always checked in full; a caller that somehow clears it is told
+# so honestly via `truncated`, rather than having its import silently
+# reclassify updates as duplicates.
+_IMPORT_CHECK_MAX_KEYS = 50_000
+
+
 def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection | None = None) -> dict:
     """Check which import keys already exist for the user.
 
-    Returns: {"existing": {key: {"id", "updatedAt", "importHash"}}}
+    Returns: {"existing": {key: {"id", "updatedAt", "importHash"}},
+              "checked": int, "total": int, "truncated": bool}
+    `truncated` is only ever True past `_IMPORT_CHECK_MAX_KEYS` keys in one
+    request — chunking below (SQLite's own variable-count limit) checks
+    every key up to that cap, never fewer.
     """
     owned = conn is None
     conn = conn or get_connection()
     try:
         existing = {}
-        keys = [k for k in (import_keys or []) if isinstance(k, str)][:5000]
+        keys = [k for k in (import_keys or []) if isinstance(k, str)]
+        total = len(keys)
+        truncated = total > _IMPORT_CHECK_MAX_KEYS
+        if truncated:
+            keys = keys[:_IMPORT_CHECK_MAX_KEYS]
         for i in range(0, len(keys), 500):  # SQLite variable limit safety
             chunk = keys[i:i + 500]
             q = ",".join("?" * len(chunk))
@@ -342,7 +366,7 @@ def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection 
                 existing[row["import_key"]] = {
                     "id": row["id"], "updatedAt": row["updated_at"],
                     "importHash": row["import_hash"]}
-        return {"existing": existing}
+        return {"existing": existing, "checked": len(keys), "total": total, "truncated": truncated}
     finally:
         if owned:
             conn.close()

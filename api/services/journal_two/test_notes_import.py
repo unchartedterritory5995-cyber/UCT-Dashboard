@@ -321,6 +321,27 @@ def test_import_check_reports_existing(conn):
     assert "x:1" in out["existing"] and "x:2" not in out["existing"]
 
 
+def test_import_check_does_not_silently_truncate_a_library_past_5000_keys(conn):
+    """audit B1: `import_check` used to slice `[:5000]` with no signal to the
+    caller. 5,000 is the wave's own benchmark size, so a note sitting one
+    past that boundary is exactly the case that matters — it must still be
+    reported as existing, and the response must never claim a truncation
+    that didn't happen when the whole request fit."""
+    # A real note sitting well past the old 5,000-key cutoff.
+    notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                     "notes": [_mk_import_note("x:5500")]}, conn=conn)
+    keys = [f"x:{i}" for i in range(6000)]  # includes "x:5500"
+    out = notes_svc.import_check("u1", keys, conn=conn)
+    assert "x:5500" in out["existing"], (
+        "a key past the old [:5000] cutoff was not checked at all — it would "
+        "come back classified as a new note (a create), duplicating an "
+        "existing one on re-import"
+    )
+    assert out.get("truncated") is not True
+    assert out["checked"] == 6000
+    assert out["total"] == 6000
+
+
 def test_import_confirm_isolates_one_bad_note_and_commits_its_healthy_siblings(conn):
     """⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (here, a
     malformed body) must not roll back the whole batch. This test used to

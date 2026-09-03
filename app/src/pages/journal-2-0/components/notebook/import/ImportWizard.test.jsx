@@ -93,6 +93,26 @@ describe('ImportWizard wire', () => {
     }))
   })
 
+  it('surfaces a warning when the server could not check every note for duplicates (audit B1)', async () => {
+    // `import_check` truncates past its own resource cap and now says so —
+    // the wizard must show this, not silently let the tail reclassify as
+    // "create" and duplicate an already-imported note.
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url.endsWith('/import/check')) return new Response(JSON.stringify({
+        existing: {}, checked: 5000, total: 6000, truncated: true,
+      }))
+      if (url.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:hello.md', id: 'n1' }], updated: [], skipped: [] }))
+      if (url.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
+    expect(screen.getByText(/5,000 of 6,000/)).toBeInTheDocument()
+  })
+
   it('drop -> preview shows counts -> confirm actually POSTs /import/confirm', async () => {
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
     const input = screen.getByTestId('import-file-input')

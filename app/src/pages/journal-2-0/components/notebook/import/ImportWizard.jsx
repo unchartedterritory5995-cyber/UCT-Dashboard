@@ -302,8 +302,16 @@ export default function ImportWizard({ open, onClose, onImported }) {
       // visible note, right before confirm (see handleConfirm), so a note
       // the member excludes on this screen never pays this cost at all.
       const { checkExisting } = await import('../../../lib/importer/commit')
-      const { existing } = await checkExisting(rawDocs)
+      const { existing, truncated, checked, total } = await checkExisting(rawDocs)
       if (cancelled()) return
+      // audit B1: the server tells us honestly when it could not check every
+      // note for a duplicate — surface that instead of letting the tail
+      // silently reclassify as "create" and duplicate an existing note.
+      const checkWarnings = truncated
+        ? [`Only the first ${checked.toLocaleString()} of ${total.toLocaleString()} notes could be ` +
+           'checked against your existing notebook — the rest will import as new notes even if ' +
+           'they already exist. Re-run the import afterward to catch any duplicates.']
+        : []
 
       const { htmlToNote } = await import('../../../lib/importer/convert')
       if (cancelled()) return
@@ -326,7 +334,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
       setDocs(rawDocs)
       setDocStatus(status)
-      setWarnings([...expandWarnings, ...parseWarnings])
+      setWarnings([...expandWarnings, ...parseWarnings, ...checkWarnings])
       setSourceLabel(adapter.label)
       setExcludedFolders(new Set())
       setExcludedNotes(new Set())
