@@ -1,0 +1,18 @@
+/* app/src/components/provenance/Provenance.module.css
+   S8 Step 1. Minimal styling for the degraded/present states only -- the
+   hover/click popover this component grows in Step 2 (once S10 exists,
+   SPEC-S8 §19) has no styling here yet on purpose. */
+
+.wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.value { color: inherit; }
+
+.unavailable {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}

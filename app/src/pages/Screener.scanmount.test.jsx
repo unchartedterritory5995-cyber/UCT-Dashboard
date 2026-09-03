@@ -586,13 +586,20 @@ describe('the controls that keep the rail honest', () => {
   it('the four counts are markup only CoverageLine writes', () => {
     // If any other module on the page emitted `coverage-line`, the headline
     // assertion could pass without `CoverageLine` ever being reached.
+    //
+    // ⚠️ S8 STEP 1 (2026-09-02): `CoverageLine`'s real implementation moved to
+    // `components/provenance/CoverageLine.jsx` (SPEC-S8 §4.1/§19); the file at
+    // its old path is now a re-export SHIM (`export { default } from
+    // '../provenance/CoverageLine'`) and writes no markup of its own, so it is
+    // correctly ABSENT from `owners` below — the shim is a door, not an owner.
     const owners = ['app/src/components/screener/CoverageLine.jsx',
+      'app/src/components/provenance/CoverageLine.jsx',
       'app/src/components/screener/ScanResults.jsx',
       'app/src/pages/screener/ScreensManager.jsx',
       'app/src/pages/Screener.jsx']
       .filter((rel) => read(rel).includes('data-testid="coverage-line"'))
     expect(owners, 'exactly one module may emit the coverage line')
-      .toEqual(['app/src/components/screener/CoverageLine.jsx'])
+      .toEqual(['app/src/components/provenance/CoverageLine.jsx'])
   })
 
   it('the panel offers only screens the scan route can be ASKED about', () => {
