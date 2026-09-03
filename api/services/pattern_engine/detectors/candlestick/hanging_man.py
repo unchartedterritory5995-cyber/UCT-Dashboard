@@ -373,9 +373,11 @@ def _build_detection(
         f"'Candlestick Charting Explained' frames the hanging man as one of the most "
         f"context-dependent reversal candles — same anatomy as the hammer, but the bearish "
         f"read only activates when the prior trend is unmistakably up and confirmation "
-        f"arrives the next bar. Tom Bulkowski's empirical research actually puts hanging-"
-        f"man reliability LOWER than commonly believed — around 59% in his sample — and "
-        f"emphasizes that the candle needs a confirming red close the following session "
+        f"arrives the next bar. Tom Bulkowski's empirical research found the hanging man "
+        f"acts as a BULLISH continuation - not the bearish reversal this pattern is named "
+        f"for - in roughly 59% of his sample, meaning the bearish-reversal read this "
+        f"detector flags is correct less than half the time on raw pattern geometry alone "
+        f"and emphasizes that the candle needs a confirming red close the following session "
         f"to convert from a passive warning into a tradeable short signal."
     )
 

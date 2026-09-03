@@ -2,9 +2,11 @@
 
 Run: python tests/fixtures/power_earnings_gap/_generate.py
 
-A Power Earnings Gap (PEG) is a single bar that gaps up >=4% on >=3x avg
-volume, then is followed by 3-10 bars of tight post-gap consolidation that
-HOLDS above the gap-up open (no fill).
+A Power Earnings Gap (PEG) is a single bar that gaps up >=8% (Phase 3A
+calibration fix, 2026-09-02 — was >=4%; see power_earnings_gap.py docstring)
+on >=3x avg volume, then is followed by 3-10 bars of tight post-gap
+consolidation that HOLDS above the gap-up open (no fill). A gap >100% is
+rejected as an unadjusted stock-split artifact, not a real earnings gap.
 
 Generator builds:
   prior_drift (gentle uptrend so context isn't Stage 4)
@@ -323,9 +325,13 @@ BAD_CONTEXT_DOWNTREND = {
 
 def main():
     # ===== 5 POSITIVE — must fire with min confidence =====
+    # Gap sizes bumped above the corrected 8% floor (Phase 3A, was 4%); each
+    # fixture keeps its distinct qualitative purpose at a distinct gap size:
+    # small_gap_strong_volume (8.5%, smallest qualifying) < clean_textbook /
+    # extended_post_gap (9%) < perfect_context (10%) < dramatic_gap (12%).
     _write("clean_textbook", "positive",
            _build_peg_bars(
-               gap_pct=0.06, gap_volume_ratio=4.0,
+               gap_pct=0.09, gap_volume_ratio=4.0,
                post_gap_bars=5, post_gap_tightness=0.30,
                seed=1),
            GOOD_CONTEXT,
@@ -343,7 +349,7 @@ def main():
 
     _write("small_gap_strong_volume", "positive",
            _build_peg_bars(
-               gap_pct=0.045, gap_volume_ratio=5.0,
+               gap_pct=0.085, gap_volume_ratio=5.0,
                post_gap_bars=6, post_gap_tightness=0.28,
                seed=3),
            GOOD_CONTEXT,
@@ -351,7 +357,7 @@ def main():
 
     _write("extended_post_gap", "positive",
            _build_peg_bars(
-               gap_pct=0.05, gap_volume_ratio=3.2,
+               gap_pct=0.09, gap_volume_ratio=3.2,
                post_gap_bars=9, post_gap_tightness=0.20,
                seed=4),
            GOOD_CONTEXT,
@@ -359,19 +365,44 @@ def main():
 
     _write("perfect_context", "positive",
            _build_peg_bars(
-               gap_pct=0.08, gap_volume_ratio=5.0,
+               gap_pct=0.10, gap_volume_ratio=5.0,
                post_gap_bars=5, post_gap_tightness=0.25,
                seed=5),
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 75.0, "max_confidence": 100.0})
 
-    # ===== 8 NEGATIVE — must NOT fire (or <50) =====
+    # ===== 10 NEGATIVE — must NOT fire (or <50) =====
     _write("no_gap", "negative",
            _build_peg_bars(
-               gap_pct=0.025,            # below 4% gate
+               gap_pct=0.025,            # below 8% gate
                gap_volume_ratio=5.0,
                post_gap_bars=5, post_gap_tightness=0.30,
                seed=10),
+           GOOD_CONTEXT,
+           {"fires": False})
+
+    _write("gap_below_corrected_floor", "negative",
+           _build_peg_bars(
+               gap_pct=0.07,             # would have fired under the old 4%
+                                         # floor; must NOT fire under the
+                                         # corrected 8% floor even with
+                                         # strong volume (volume cannot
+                                         # compensate for an inadequate gap)
+               gap_volume_ratio=6.0,
+               post_gap_bars=5, post_gap_tightness=0.25,
+               seed=22),
+           GOOD_CONTEXT,
+           {"fires": False})
+
+    _write("split_artifact_gap", "negative",
+           _build_peg_bars(
+               gap_pct=1.50,             # 150% "gap" — an unadjusted
+                                         # reverse-split artifact, not a
+                                         # real earnings gap; rejected by
+                                         # the _MAX_GAP_PCT ceiling
+               gap_volume_ratio=5.0,
+               post_gap_bars=5, post_gap_tightness=0.30,
+               seed=23),
            GOOD_CONTEXT,
            {"fires": False})
 
@@ -429,7 +460,7 @@ def main():
     # ===== 2 EDGE — boundary of validity =====
     _write("boundary_gap_pct", "edge",
            _build_peg_bars(
-               gap_pct=0.0405,            # just over the 4.0% floor
+               gap_pct=0.0805,            # just over the corrected 8.0% floor
                gap_volume_ratio=4.0,
                post_gap_bars=5, post_gap_tightness=0.30,
                seed=20),
@@ -438,14 +469,16 @@ def main():
 
     _write("boundary_volume", "edge",
            _build_peg_bars(
-               gap_pct=0.06,
+               gap_pct=0.09,              # comfortably above the corrected
+                                          # 8% floor so this fixture isolates
+                                          # the VOLUME boundary, not the gap one
                gap_volume_ratio=3.05,     # just over the 3.0x floor
                post_gap_bars=5, post_gap_tightness=0.30,
                seed=21),
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 90.0})
 
-    print("\nDone - 15 fixtures written.")
+    print("\nDone - 17 fixtures written.")
 
 
 if __name__ == "__main__":

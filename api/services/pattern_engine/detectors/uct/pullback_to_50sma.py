@@ -130,7 +130,13 @@ def detect_pullback_to_50sma(bars: List[Bar], context: dict) -> List[Detection]:
     # The pullback should be on quieter-than-average volume
     if test_vol_ratio > 1.3:
         return []
-    # The reclaim should show expansion (>=1.0x — O'Neil wants explicit institutional return)
+    # The reclaim should show at least roughly average volume returning (>=0.9x
+    # the 20-bar average) — not the dramatic expansion an unverified "O'Neil
+    # institutional return" framing previously implied. Phase 2B checked
+    # Minervini's primary text directly for a specific reclaim-volume figure
+    # (the "1.4x" comparison Phase 1 had cited) and found no supporting quote,
+    # so this gate documents the threshold the code actually enforces instead
+    # of restating an unverified number.
     if reclaim_vol_ratio < 0.9:
         return []
 

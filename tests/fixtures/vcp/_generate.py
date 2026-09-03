@@ -214,6 +214,46 @@ def _build_one_contraction_bars(seed=1):
     )
 
 
+def _build_below_trend_template_bars(seed=30):
+    """Phase 3A regression fixture: a genuine VCP contraction sequence (real
+    >=20% local prior advance, 3 tightening contractions, declining volume --
+    reuses the exact 'clean_3_contractions' recipe) sitting on top of a long
+    prior downtrend (170 bars, 150 -> ~27) that drags the 150-day and 200-day
+    SMA well above the current price, with the 150-day SMA BELOW the 200-day
+    SMA (an inverted long-term structure -- the real-world KBR case this
+    fixture models). Total length >=200 bars so the Trend Template
+    precondition can actually be evaluated (not fail-open).
+
+    Before the Phase 3A fix, this fires purely on local geometry despite the
+    hostile long-term MA structure. After the fix: 0 detections.
+    """
+    rng = random.Random(seed)
+    bars = []
+    t = 1700000000
+    DT = 86400
+    price = 150.0
+    for _ in range(170):
+        price *= 0.99
+        bars.append(_make_bar(t, price, 1000, rng, noise=0.30))
+        t += DT
+
+    vcp_tail = _build_vcp_bars(
+        base_price=price,
+        prior_advance_bars=40,
+        prior_advance_pct=0.40,
+        contractions=[(0.25, 8), (0.12, 6), (0.06, 5)],
+        volume_ratios=[0.9, 0.55, 0.25],
+        seed=seed + 1,
+    )
+    combined = bars + vcp_tail
+    # Re-timestamp the combined series sequentially (each half generated its
+    # own timestamps independently starting at the same epoch).
+    t0 = 1700000000
+    for i, b in enumerate(combined):
+        b["t"] = t0 + i * DT
+    return combined
+
+
 def _build_choppy_no_pattern_bars(seed=1):
     """Random chop with no consistent contractions or trend."""
     rng = random.Random(seed)
@@ -379,6 +419,11 @@ def main():
            GOOD_CONTEXT,
            {"fires": False})
 
+    _write("below_trend_template", "negative",
+           _build_below_trend_template_bars(seed=30),
+           GOOD_CONTEXT,
+           {"fires": False})
+
     # ===== 2 EDGE — boundary of validity =====
     _write("boundary_2_contractions", "edge",
            _build_vcp_bars(
@@ -396,7 +441,7 @@ def main():
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 90.0})
 
-    print("\nDone - 15 fixtures written.")
+    print("\nDone - 16 fixtures written.")
 
 
 if __name__ == "__main__":
