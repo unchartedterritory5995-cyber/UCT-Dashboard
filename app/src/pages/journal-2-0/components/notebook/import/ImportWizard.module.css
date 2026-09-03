@@ -339,11 +339,72 @@
 }
 .failures ul { margin: 6px 0 0; padding-left: 18px; }
 
+/* ── arrival screen: per-folder breakdown (spec §9) ── */
+.folderBreakdown {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Wide content scrolls inside its own container rather than the page —
+   a long folder name (or a member on a narrow phone) must never force the
+   whole Sheet to scroll sideways. */
+.folderTableWrap { overflow-x: auto; }
+.folderTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: var(--text-bright, #e0dac8);
+}
+.folderTable th, .folderTable td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border, #2e3127);
+  white-space: nowrap;
+}
+.folderTable th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted, #8c8674);
+}
+.folderTable td:first-child { white-space: normal; word-break: break-word; }
+
+/* ── post-migration enrichment offer (spec §8.1) ── */
+.enrichCard {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface, #1a1c17);
+}
+.enrichHeadline {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-heading, #f0ead8);
+}
+
 @media (max-width: 640px) {
   .dropButtons { flex-direction: column; width: 100%; }
   .dropButtons .secondaryBtn { width: 100%; justify-content: center; }
   .previewActions { flex-direction: column-reverse; align-items: stretch; }
   .summaryStats { flex-direction: column; gap: 6px; }
+  .enrichCard .previewActions { width: 100%; }
+}
+
+/* This product's touch tier is <=1024px, NOT <=640px. */
+@media (max-width: 1024px) {
+  .enrichCard button { min-height: 44px; }
 }
 
 /* This product's touch tier is <=1024px, NOT <=640px — a floor restored only

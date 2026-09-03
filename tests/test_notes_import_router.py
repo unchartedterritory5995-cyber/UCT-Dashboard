@@ -121,3 +121,88 @@ async def test_import_confirm_rejects_invalid_bodyJson():
     assert r.status_code == 400
     # The error message may be "body_json must be valid JSON" or similar
     assert "body" in r.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_enrichment_scan_finds_a_ticker_mention_in_an_imported_note():
+    """POST /notes/enrichment/scan — the Part 2 discovery step: after an
+    import, the wizard hands the freshly-created note ids to this endpoint
+    and gets back which of THEM mention a ticker."""
+    confirm = notes_svc.import_confirm("enrich_user_1", {
+        "source": "test",
+        "destFolderId": None,
+        "notes": [{
+            "importKey": "enrich:1",
+            "title": "Trade idea",
+            "bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "Watching $NVDA into earnings."}]}
+            ]},
+            "tags": [],
+            "folderPath": [],
+        }, {
+            "importKey": "enrich:2",
+            "title": "Grocery list",
+            "bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "eggs, milk, bread"}]}
+            ]},
+            "tags": [],
+            "folderPath": [],
+        }]
+    })
+    note_ids = [c["id"] for c in confirm["created"]]
+
+    app.dependency_overrides[get_current_user] = lambda: {"id": "enrich_user_1"}
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.post("/api/j2/notes/enrichment/scan", json={"noteIds": note_ids})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["scanned"] == 2
+    assert len(data["candidates"]) == 1
+    assert data["candidates"][0]["tickers"] == ["NVDA"]
+
+
+@pytest.mark.asyncio
+async def test_enrichment_scan_rejects_non_list_noteIds():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "enrich_user_2"}
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.post("/api/j2/notes/enrichment/scan", json={"noteIds": "not-a-list"})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert r.status_code == 400
+    assert "noteIds must be a list" in r.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_enrichment_scan_never_sees_another_users_notes():
+    confirm = notes_svc.import_confirm("enrich_owner", {
+        "source": "test",
+        "destFolderId": None,
+        "notes": [{
+            "importKey": "enrich_owned:1",
+            "title": "Private",
+            "bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "Bought $TSLA today."}]}
+            ]},
+            "tags": [],
+            "folderPath": [],
+        }]
+    })
+    note_ids = [c["id"] for c in confirm["created"]]
+
+    app.dependency_overrides[get_current_user] = lambda: {"id": "enrich_intruder"}
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.post("/api/j2/notes/enrichment/scan", json={"noteIds": note_ids})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["scanned"] == 0
+    assert data["candidates"] == []

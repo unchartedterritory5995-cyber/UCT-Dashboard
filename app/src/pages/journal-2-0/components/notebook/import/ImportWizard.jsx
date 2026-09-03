@@ -207,6 +207,15 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const [progress, setProgress] = useState(null)
   const [summaryResult, setSummaryResult] = useState(null)
 
+  // ── post-migration enrichment (spec §8.1) ────────────────────────────────
+  // `enrichScan`: null (not yet run) | {status: 'scanning'|'ready'|'none', candidates, scanned}
+  // `enrichApply`: null | {status: 'applying'|'done'|'undoing'|'undone', done, total, records, failures}
+  // `records` holds {noteId, ticker, bodyAfter} — `bodyAfter` is exactly what
+  // `addChartEmbed` returned, which is what `revertChartEmbed` needs to undo
+  // ONLY that one append (see lib/importer/enrichment.js).
+  const [enrichScan, setEnrichScan] = useState(null)
+  const [enrichApply, setEnrichApply] = useState(null)
+
   const fileInputRef = useRef(null)
   const dirInputRef = useRef(null)
   const notesListRef = useRef(null)
@@ -237,6 +246,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setDestChoice('__new__')
     setProgress(null)
     setSummaryResult(null)
+    setEnrichScan(null)
+    setEnrichApply(null)
   }, [])
 
   // Fresh state every time the wizard is reopened.
@@ -427,6 +438,36 @@ export default function ImportWizard({ open, onClose, onImported }) {
     for (const d of visibleDocs) if (d.folderPath?.length) set.add(d.folderPath.join('/'))
     return set.size
   }, [visibleDocs])
+
+  // Notes the member excluded on the preview screen (a folder unchecked, or
+  // a note unchecked individually) — a deliberate choice, not something that
+  // went wrong. Named on the arrival screen anyway (spec §9: "is it *all*
+  // here?") so the counts on that screen always reconcile against `docs`.
+  const excludedCount = docs.length - visibleDocs.length
+
+  // The arrival screen's per-folder breakdown (spec §9: "counts by
+  // notebook/folder"). DERIVED, at render time, from the same two values the
+  // rest of the summary reads — `visibleDocs` (what was actually submitted)
+  // crossed with `summaryResult.outcomes` (what the server actually did with
+  // each one) — never restated from the preview's pre-import `docStatus`
+  // guess, which can disagree with reality (a 'create' can still fail).
+  // `arrived + unchanged + attention` always sums to the folder's row count;
+  // a note with no server-reported outcome yet (summaryResult is null,
+  // mid-run) simply isn't counted anywhere until it resolves.
+  const folderBreakdown = useMemo(() => {
+    if (!summaryResult) return []
+    const map = new Map()
+    for (const d of visibleDocs) {
+      const label = d.folderPath?.length ? d.folderPath.join(' / ') : 'Unfiled'
+      if (!map.has(label)) map.set(label, { label, arrived: 0, unchanged: 0, attention: 0 })
+      const bucket = map.get(label)
+      const outcome = summaryResult.outcomes?.[d.importKey]
+      if (outcome === 'created' || outcome === 'updated') bucket.arrived += 1
+      else if (outcome === 'skipped') bucket.unchanged += 1
+      else if (outcome === 'failed' || outcome === 'batch_failed') bucket.attention += 1
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
+  }, [visibleDocs, summaryResult])
 
   const rootFolders = useMemo(() => folders.filter((f) => !f.parentId), [folders])
 
@@ -643,6 +684,89 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setStep('error')
     }
   }, [resolveDestFolderId, sourceLabel, visibleDocs, onImported])
+
+  // ── post-migration enrichment (spec §8.1) ────────────────────────────────
+  // Fires once per completed import, automatically — it is a READ-ONLY scan
+  // (no note is touched), so there is nothing to opt into yet at this point.
+  // The opt-in gate is `handleApplyEnrichment` below, which is the one thing
+  // that actually writes anything.
+  useEffect(() => {
+    if (step !== 'summary' || !summaryResult || enrichScan !== null) return
+    const ids = summaryResult.importedNoteIds || []
+    if (ids.length === 0) {
+      setEnrichScan({ status: 'none', candidates: [], scanned: 0 })
+      return
+    }
+    const gen = generationRef.current
+    setEnrichScan({ status: 'scanning', candidates: [], scanned: 0 })
+    ;(async () => {
+      try {
+        const { scanForTickers } = await import('../../../lib/importer/enrichment')
+        const result = await scanForTickers(ids)
+        if (generationRef.current !== gen) return
+        setEnrichScan({ status: result.candidates.length > 0 ? 'ready' : 'none', ...result })
+      } catch {
+        // Best-effort: a failed scan just means no offer this time — it is
+        // never worth blocking or re-litigating the arrival screen over.
+        if (generationRef.current !== gen) return
+        setEnrichScan({ status: 'none', candidates: [], scanned: 0 })
+      }
+    })()
+  }, [step, summaryResult, enrichScan])
+
+  const handleDismissEnrichment = useCallback(() => {
+    setEnrichScan((prev) => (prev ? { ...prev, status: 'dismissed' } : prev))
+  }, [])
+
+  // Opt-in, one click, per-(note,ticker) — a note mentioning two tickers
+  // gets two charts. Every success is recorded with the doc `addChartEmbed`
+  // returned (`bodyAfter`), which is exactly what `handleUndoEnrichment`
+  // needs to reverse ONLY that append (see lib/importer/enrichment.js).
+  const handleApplyEnrichment = useCallback(async () => {
+    if (!enrichScan || enrichScan.status !== 'ready' || enrichScan.candidates.length === 0) return
+    const gen = generationRef.current
+    const jobs = []
+    for (const c of enrichScan.candidates) {
+      for (const ticker of c.tickers) jobs.push({ noteId: c.id, title: c.title, ticker })
+    }
+    setEnrichApply({ status: 'applying', done: 0, total: jobs.length, records: [], failures: [] })
+    const { addChartEmbed } = await import('../../../lib/importer/enrichment')
+    const records = []
+    const failures = []
+    for (const job of jobs) {
+      try {
+        const bodyAfter = await addChartEmbed(job.noteId, job.ticker)
+        records.push({ noteId: job.noteId, ticker: job.ticker, bodyAfter })
+      } catch (err) {
+        failures.push({ name: `${job.title} (${job.ticker})`, reason: err?.message || String(err) })
+      }
+      if (generationRef.current !== gen) return
+      setEnrichApply({ status: 'applying', done: records.length + failures.length, total: jobs.length,
+        records: [...records], failures: [...failures] })
+    }
+    if (generationRef.current !== gen) return
+    setEnrichApply({ status: 'done', done: jobs.length, total: jobs.length, records, failures })
+  }, [enrichScan])
+
+  // A real undo: PUTs every touched note back to its exact pre-enrichment
+  // body (see lib/importer/enrichment.js::revertChartEmbed), not a client-
+  // side hide. Available as long as this screen is open.
+  const handleUndoEnrichment = useCallback(async () => {
+    if (!enrichApply || enrichApply.records.length === 0) return
+    const gen = generationRef.current
+    setEnrichApply((prev) => ({ ...prev, status: 'undoing' }))
+    const { revertChartEmbed } = await import('../../../lib/importer/enrichment')
+    const undoFailures = []
+    for (const rec of enrichApply.records) {
+      try {
+        await revertChartEmbed(rec.noteId, rec.bodyAfter)
+      } catch (err) {
+        undoFailures.push({ name: rec.ticker, reason: err?.message || String(err) })
+      }
+    }
+    if (generationRef.current !== gen) return
+    setEnrichApply((prev) => ({ ...prev, status: 'undone', undoFailures }))
+  }, [enrichApply])
 
   const importTotal = previewCounts.create + previewCounts.update
 
@@ -940,25 +1064,156 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 <li>Updated: {summaryResult.updated}</li>
                 <li>Unchanged: {summaryResult.skipped}</li>
               </ul>
-              {summaryResult.failedBatches?.length > 0 && (
+              {/* The arrival screen (spec §9): what came across, by folder —
+                  derived straight from `summaryResult.outcomes`, never the
+                  preview's pre-import guess. */}
+              {folderBreakdown.length > 0 && (
+                <div className={styles.folderBreakdown}>
+                  <div className={styles.fieldLabel}>By folder</div>
+                  <div className={styles.folderTableWrap}>
+                    <table className={styles.folderTable}>
+                      <thead>
+                        <tr>
+                          <th>Folder</th>
+                          <th>Arrived</th>
+                          <th>Unchanged</th>
+                          <th>Needs attention</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {folderBreakdown.map((row) => (
+                          <tr key={row.label}>
+                            <td>{row.label}</td>
+                            <td>{row.arrived}</td>
+                            <td>{row.unchanged}</td>
+                            <td>{row.attention > 0 ? row.attention : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {excludedCount > 0 && (
+                <p className={styles.summaryLine}>
+                  {pluralize(excludedCount, 'note')} left out of this import — you unchecked{' '}
+                  {excludedCount === 1 ? 'it' : 'them'} on the previous screen.
+                </p>
+              )}
+
+              {(summaryResult.failedBatches?.length > 0 || summaryResult.failures?.length > 0) && (
                 <div className={styles.failures}>
-                  {summaryResult.failedBatches.map((b, i) => (
-                    <p key={i} className={styles.crashDetail}>
+                  <p className={styles.fieldLabel}>
+                    <UIcon name="warning" size={13} gold={false} /> Needs attention
+                  </p>
+                  {summaryResult.failedBatches?.length > 0 && summaryResult.failedBatches.map((b, i) => (
+                    <p key={`batch-${i}`} className={styles.crashDetail}>
                       {b.message} ({b.reason})
                     </p>
                   ))}
+                  {summaryResult.failures?.length > 0 && (
+                    <>
+                      <p>Some notes couldn't be fully imported:</p>
+                      <ul>
+                        {summaryResult.failures.map((f, i) => (
+                          <li key={i}>{f.name} — {f.reason}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  <p className={styles.crashDetail}>
+                    Nothing here is lost — running this import again retries only these notes;
+                    everything already imported is safe and won't be duplicated.
+                    {summaryResult.attentionKeys?.length > 0 &&
+                      ' Some of the notes above already made it into your notebook — only a file or ' +
+                      'link inside them needs another look.'}
+                  </p>
                 </div>
               )}
-              {summaryResult.failures?.length > 0 && (
-                <div className={styles.failures}>
-                  <p>Some notes couldn't be fully imported:</p>
-                  <ul>
-                    {summaryResult.failures.map((f, i) => (
-                      <li key={i}>{f.name} — {f.reason}</li>
+
+              {/* Honest failure reporting (spec §9): the adapters' own
+                  ignored-file + duplicate-check-truncation warnings, carried
+                  forward from the preview step so they are still visible
+                  once the import has actually finished — not just fleeting
+                  on a screen the member has already clicked past. */}
+              {warnings.length > 0 && (
+                <div className={styles.warningsWrap}>
+                  <div className={styles.fieldLabel}>
+                    <UIcon name="warning" size={13} gold={false} /> Not included in this import
+                  </div>
+                  <ul className={styles.warningsList}>
+                    {warnings.map((w, i) => (
+                      <li key={i}>{w}</li>
                     ))}
                   </ul>
                 </div>
               )}
+
+              {/* Post-migration enrichment (spec §8.1) — opt-in, reversible. */}
+              {enrichScan?.status === 'scanning' && (
+                <p className={styles.summaryLine}>Checking your notes for tickers…</p>
+              )}
+              {enrichScan?.status === 'ready' && !enrichApply && (
+                <div className={styles.enrichCard}>
+                  <UIcon name="chart" size={18} gold={false} />
+                  <p className={styles.enrichHeadline}>
+                    We found {enrichScan.candidates.length} note
+                    {enrichScan.candidates.length === 1 ? '' : 's'} mentioning tickers. Want the
+                    live chart on them?
+                  </p>
+                  <p className={styles.crashDetail}>
+                    This adds a live chart inside each note — nothing else changes, and you can
+                    undo it right here.
+                  </p>
+                  <div className={styles.previewActions}>
+                    <button type="button" className="btn btn-secondary" onClick={handleDismissEnrichment}>
+                      Not now
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={handleApplyEnrichment}>
+                      <UIcon name="chart" size={16} gold={false} />
+                      Add live charts
+                    </button>
+                  </div>
+                </div>
+              )}
+              {enrichApply?.status === 'applying' && (
+                <p className={styles.summaryLine}>
+                  Adding charts — {enrichApply.done}/{enrichApply.total}…
+                </p>
+              )}
+              {enrichApply?.status === 'done' && (
+                <div className={styles.enrichCard}>
+                  <p className={styles.enrichHeadline}>
+                    Added {enrichApply.records.length} live chart{enrichApply.records.length === 1 ? '' : 's'}{' '}
+                    to {new Set(enrichApply.records.map((r) => r.noteId)).size} note
+                    {new Set(enrichApply.records.map((r) => r.noteId)).size === 1 ? '' : 's'}.
+                  </p>
+                  {enrichApply.failures.length > 0 && (
+                    <p className={styles.crashDetail}>
+                      Couldn't add a chart for {enrichApply.failures.length}:{' '}
+                      {enrichApply.failures.map((f) => f.name).join(', ')}.
+                    </p>
+                  )}
+                  {enrichApply.records.length > 0 && (
+                    <button type="button" className="btn btn-secondary" onClick={handleUndoEnrichment}>
+                      Undo
+                    </button>
+                  )}
+                </div>
+              )}
+              {enrichApply?.status === 'undoing' && (
+                <p className={styles.summaryLine}>Undoing…</p>
+              )}
+              {enrichApply?.status === 'undone' && (
+                <p className={styles.summaryLine}>
+                  Undone — no charts were added.
+                  {enrichApply.undoFailures?.length > 0 &&
+                    ` (${enrichApply.undoFailures.length} couldn't be undone automatically — ` +
+                    'remove them from the note directly.)'}
+                </p>
+              )}
+
               <button type="button" className="btn btn-primary" onClick={onClose}>
                 Done
               </button>

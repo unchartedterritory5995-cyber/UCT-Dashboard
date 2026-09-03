@@ -467,3 +467,89 @@ describe('runImport', () => {
     expect(capturedFile.type).toBe('application/pdf')
   })
 })
+
+// ---------------------------------------------------------------------------
+// `outcomes` / `importedNoteIds` / `attentionKeys` — the arrival screen (§9)
+// and the enrichment offer (§8.1) both read these DERIVED fields instead of
+// re-deriving their own view of what happened. These tests exist to prove
+// each field actually tracks what the server said, not the preview's guess.
+// ---------------------------------------------------------------------------
+describe('runImport — outcomes/importedNoteIds/attentionKeys (arrival + enrichment)', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  it('outcomes records created/updated/skipped/failed per importKey, and importedNoteIds holds only the written ones', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'a', id: 'n-a' }],
+          updated: [{ importKey: 'b', id: 'n-b' }],
+          skipped: [{ importKey: 'c', id: 'n-c' }],
+          failed: [{ importKey: 'd', error: 'too big' }],
+        }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [
+        { importKey: 'a', title: 'A', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] },
+        { importKey: 'b', title: 'B', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] },
+        { importKey: 'c', title: 'C', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] },
+        { importKey: 'd', title: 'D', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] },
+      ],
+      onProgress: () => {},
+    })
+    expect(summary.outcomes).toEqual({ a: 'created', b: 'updated', c: 'skipped', d: 'failed' })
+    expect(summary.importedNoteIds.sort()).toEqual(['n-a', 'n-b'])
+  })
+
+  it('a whole-batch HTTP failure marks every note in that batch batch_failed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 500 })))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'x', title: 'X', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] }],
+      onProgress: () => {},
+    })
+    expect(summary.outcomes).toEqual({ x: 'batch_failed' })
+    expect(summary.importedNoteIds).toEqual([])
+  })
+
+  it('a note whose final PUT 500s is created/updated AND flagged for attention — it is in the notebook, just not fully clean', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (String(url).endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'a', id: 'n-a' }], updated: [], skipped: [] }))
+      }
+      if (opts?.method === 'PUT') return new Response('boom', { status: 500 })
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'a', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([img('import-ref://a.png')]),
+               media: [{ ref: 'a.png', kind: 'image', name: 'a.png',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'a.png' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(summary.outcomes.a).toBe('created')
+    expect(summary.importedNoteIds).toEqual(['n-a'])
+    expect(summary.attentionKeys).toEqual(['a'])
+  })
+
+  it('a clean note with no media/links is created and never appears in attentionKeys', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'a', id: 'n-a' }], updated: [], skipped: [] }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    const summary = await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'a', title: 'A', tags: [], folderPath: [], bodyJson: doc([]), media: [], links: [] }],
+      onProgress: () => {},
+    })
+    expect(summary.attentionKeys).toEqual([])
+  })
+})

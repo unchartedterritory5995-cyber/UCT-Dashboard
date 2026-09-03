@@ -247,7 +247,24 @@ async function uploadMediaItem(noteId, item) {
  * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>}>}
  */
 export async function runImport({ source, destFolderId, docs, onProgress }) {
-  const summary = { created: 0, updated: 0, skipped: 0, failures: [], failedBatches: [] }
+  // `outcomes` and `importedNoteIds` are DERIVED alongside the counts above,
+  // never a second pass over the same responses — the arrival screen (Wave
+  // 5, §9) reads `outcomes` to build its per-folder breakdown, and the
+  // enrichment offer (§8.1) reads `importedNoteIds` to know which notes are
+  // eligible for a ticker scan. Both are additive fields; no existing
+  // consumer of `created`/`updated`/`skipped`/`failures`/`failedBatches` is
+  // touched.
+  const summary = {
+    created: 0, updated: 0, skipped: 0, failures: [], failedBatches: [],
+    outcomes: {}, importedNoteIds: [],
+    // importKeys of a note that WAS created/updated but whose media/link
+    // finalization phase (below) hit a snag — distinct from `failures`
+    // (which also carries whole-note write failures): this note IS in the
+    // notebook, just not fully clean yet. The arrival screen's "needs
+    // attention" section reads this to separate "not imported at all" from
+    // "imported, but check it."
+    attentionKeys: [],
+  }
   const byImportKey = new Map(docs.map((d) => [d.importKey, d]))
   const idByKey = {}
   // importKeys of notes actually written this run (created or updated) — the
@@ -309,6 +326,7 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
           "remaining batches — this batch's notes were not imported. Running the import again " +
           'will retry them; already-imported notes are safe and will not be duplicated.',
       })
+      for (const d of batch) summary.outcomes[d.importKey] = 'batch_failed'
       confirmDone += batch.length
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
       continue
@@ -321,6 +339,8 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
       idByKey[item.importKey] = item.id
       toCommit.push(item.importKey)
       summary.created += 1
+      summary.outcomes[item.importKey] = 'created'
+      summary.importedNoteIds.push(item.id)
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
@@ -328,12 +348,15 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
       idByKey[item.importKey] = item.id
       toCommit.push(item.importKey)
       summary.updated += 1
+      summary.outcomes[item.importKey] = 'updated'
+      summary.importedNoteIds.push(item.id)
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
     for (const item of body.skipped || []) {
       idByKey[item.importKey] = item.id
       summary.skipped += 1
+      summary.outcomes[item.importKey] = 'skipped'
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
@@ -348,6 +371,7 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
         name: doc?.title || item.importKey,
         reason: item.error || 'could not be stored',
       })
+      summary.outcomes[item.importKey] = 'failed'
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
@@ -364,14 +388,17 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
 
     if (sourceDoc && noteId && (hasMedia || hasLinks)) {
       const mediaUrls = {}
+      let uploadFailed = false
       for (const item of sourceDoc.media || []) {
         try {
           mediaUrls[item.ref] = await uploadMediaItem(noteId, item)
         } catch (err) {
           summary.failures.push({ name: item.name || item.ref, reason: err?.message || String(err) })
+          uploadFailed = true
         }
       }
       const { body: rewritten, droppedMedia } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
+      if (uploadFailed || droppedMedia.length > 0) summary.attentionKeys.push(importKey)
       // The confirm step already counted this note as created/updated — that
       // outcome stands regardless of what happens here. A failure below is
       // reported via `failures` (the note's persisted body may still carry
@@ -397,12 +424,14 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
             name: sourceDoc.title || importKey,
             reason: `saving final content failed (HTTP ${putRes.status})`,
           })
+          if (!summary.attentionKeys.includes(importKey)) summary.attentionKeys.push(importKey)
         }
       } catch (err) {
         summary.failures.push({
           name: sourceDoc.title || importKey,
           reason: `saving final content failed (${err?.message || String(err)})`,
         })
+        if (!summary.attentionKeys.includes(importKey)) summary.attentionKeys.push(importKey)
       }
     }
 
