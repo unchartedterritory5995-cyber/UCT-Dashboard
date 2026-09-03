@@ -2304,8 +2304,10 @@ const locate = (tok) => (tok
 //   boundary the comparison already collapses. Every value the cap destroys is a
 //   value the comparison answers identically.
 //
-//   `ta.obv` is cumulative from the first bar, and `closedTable.json`'s ruling
-//   refuses its LEVEL because the seed "is a fact about where the fetch started".
+//   `ta.obv` accumulates without a bound, and `closedTable.json` already OWNS
+//   the reason its LEVEL is refused — read the ruling there rather than a second
+//   copy of it here (`test_ast_bounded_state` fails on a paraphrase, and it is
+//   right to: two agreeing copies read as corroboration).
 //   That same ruling then blesses precisely this rewrite: "the LEVEL is refused,
 //   its CHANGE across a declared window is not, because the arbitrary seed
 //   CANCELS in a difference". `obv > obv[k]` IS that difference.
