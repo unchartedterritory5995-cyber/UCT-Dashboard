@@ -2322,6 +2322,106 @@
    }
   },
   {
+   "id": "33-obv-rising",
+   "source": "obvN(1) > 0 ? 1 : 0",
+   "ast": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "call",
+        "name": "obvN",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "34-bars-since-signal",
+   "source": "barssince(crossOver(close, sma(close, 50)), 5) < 5 ? 1 : 0",
+   "ast": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "<",
+      "args": [
+       {
+        "type": "call",
+        "name": "barssince",
+        "args": [
+         {
+          "type": "call",
+          "name": "crossOver",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 5
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 5
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
+  },
+  {
    "id": "35-log-return-20d",
    "source": "ln(close / close[20]) > 0.1 ? 1 : 0",
    "ast": {

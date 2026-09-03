@@ -1219,13 +1219,23 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // it. The text never said that; it named the unblocker in its last sentence.
   // An actionable refusal is only worth what it costs to RE-READ, and the cost
   // of not re-reading one is that it looks like a wall.
+  // ⚠️ THIS SENTENCE IS REACHED ONLY WHERE THE REWRITE DID NOT APPLY. A
+  // one-argument `ta.barssince` compared against a whole number is rewritten to
+  // the bounded form by `contextBoundedPlan` and never arrives here, so the text
+  // below must describe the case that is genuinely refused — a bare count, or
+  // one compared against something that is not a literal — rather than claiming
+  // the whole spelling is refused. Say what is true HERE, and name the door out.
   barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
     + 'This table declares `barssince(condition, n)`, and it is NOT the same '
     + 'function: ours saturates at a declared window and answers `n` for "not '
     + 'true within the last n bars", while Pine\'s counts back as far as the '
     + 'condition requires. Translating the one-argument form onto it would '
-    + 'silently cap the count — a different number wearing the same name. '
-    + 'Write `barssince(condition, n)` with the window you actually mean.',
+    + 'silently cap the count — a different number wearing the same name — '
+    + 'unless something bounds it. Comparing it with a whole number DOES: '
+    + '`ta.barssince(cond) < 5` is read as `barssince(cond, 5) < 5`, which is '
+    + 'exact, because every count the window caps is a count that comparison '
+    + 'already answers the same way. Here nothing bounds it, so write '
+    + '`barssince(condition, n)` with the window you actually mean.',
 })
 
 /** Pine keywords that begin a construct with no single-expression form. */
@@ -2279,6 +2289,120 @@ class Cursor {
 const locate = (tok) => (tok
   ? { line: tok.line, column: tok.column, index: tok.index, token: String(tok.raw ?? tok.value) }
   : null)
+
+// ─── ⭐⭐ A CONTEXT CAN BOUND WHAT A FUNCTION CANNOT ──────────────────────────
+//
+// Two of this engine's refusals are correct about a FUNCTION and too wide about
+// an EXPRESSION, and both refusals say so themselves if you read them closely.
+//
+//   `ta.barssince(c)` is unbounded, and `PINE_INEXPRESSIBLE.barssince` refuses it
+//   because mapping it onto our bounded `barssince(condition, n)` "would silently
+//   cap the count — a different number wearing the same name". True of the call
+//   ALONE. Inside a comparison against a literal it is not: our bounded form
+//   saturates AT the window and answers `n` for "not true within the last n
+//   bars", so choosing the window from the comparison makes the cap the exact
+//   boundary the comparison already collapses. Every value the cap destroys is a
+//   value the comparison answers identically.
+//
+//   `ta.obv` is cumulative from the first bar, and `closedTable.json`'s ruling
+//   refuses its LEVEL because the seed "is a fact about where the fetch started".
+//   That same ruling then blesses precisely this rewrite: "the LEVEL is refused,
+//   its CHANGE across a declared window is not, because the arbitrary seed
+//   CANCELS in a difference". `obv > obv[k]` IS that difference.
+//
+// ⛔ THESE ARE IDENTITIES, NOT APPROXIMATIONS, and that is the whole licence for
+// doing this at all. Each is exact for every input, which is why the window is
+// derived from the comparison rather than defaulted to a house number — a
+// DEFAULT window would be the silent cap the ruling rightly refuses.
+//
+//   barssince(c) <  K   ==  barssince(c, K)   <  K      (K bars: offsets 0..K-1)
+//   barssince(c) >= K   ==  barssince(c, K)   >= K      (the sentinel IS >= K)
+//   barssince(c) <= K   ==  barssince(c, K+1) <= K
+//   barssince(c) >  K   ==  barssince(c, K+1) >  K
+//   obv > obv[k]        ==  obvN(k) > 0                 (seed cancels)
+//   obv - obv[k]        ==  obvN(k)
+//
+// ⛔ AND THE UNBOUNDED NAMES STAY REFUSED EVERYWHERE ELSE. `ta.obv > 0` still
+// gets the table's ruling and `ta.barssince(c)` bare still gets its own, because
+// nothing bounds them there. This widens no vocabulary: it recognises the two
+// shapes in which the unbounded part provably cannot be observed.
+
+/** A non-negative integer literal's value, or null. */
+function litInt(node) {
+  if (!node || node.type !== 'number') return null
+  const v = Number(node.value)
+  return Number.isInteger(v) && v >= 0 ? v : null
+}
+
+/** True when `node` names Pine's cumulative OBV with no `[…]` applied. */
+function isBareObv(node) {
+  if (!node) return false
+  const named = node.type === 'name' ? node.name
+    : (node.type === 'call' && (!node.args || node.args.length === 0)) ? node.name
+      : null
+  return named === 'ta.obv' || named === 'obv'
+}
+
+/** The CONDITION inside a one-argument `barssince(...)`, in either spelling.
+ *
+ *  ⛔ AN ARGUMENT IS `{name, value, tok}`, NOT THE EXPRESSION ITSELF — the
+ *  parser wraps every argument so a named one (`length = 20`) can be positioned
+ *  later. Handing the wrapper to `resolve` walks into the default arm and refuses
+ *  the whole statement with no line number, which is exactly what it did.
+ *
+ *  ⚠️ POSITIONAL ONLY. A named argument would still be sound to rewrite, but it
+ *  reaches the ordinary path and its existing refusal rather than a second
+ *  spelling of this rule. */
+function oneArgBarssince(node) {
+  if (!node || node.type !== 'call' || !Array.isArray(node.args) || node.args.length !== 1) return null
+  if (node.name !== 'ta.barssince' && node.name !== 'barssince') return null
+  const arg = node.args[0]
+  if (!arg || arg.name) return null
+  return arg.value || null
+}
+
+const FLIP = Object.freeze({ '<': '>', '>': '<', '<=': '>=', '>=': '<=' })
+
+/**
+ * Does this comparison bound an unbounded call? Returns a PLAN — the operator,
+ * the operand still to resolve, and the window — or null when nothing matches.
+ *
+ * ⛔ IT BUILDS NO NODES, and that is the point. An earlier draft rewrote the
+ * PINE AST and handed the rewritten call a synthetic token; a call's name is read
+ * off its token at the parse site, positions stopped lining up with the source,
+ * and the whole statement fell out of the parse with a refusal that carried no
+ * line number at all. The caller emits ENGINE-GRAMMAR nodes (`cOp`/`cCall`/`cNum`)
+ * instead, which have no tokens and no source positions to get wrong.
+ */
+function contextBoundedPlan(node) {
+  if (!node || node.type !== 'binary') return null
+  let { op, left, right } = node
+
+  // ⭐ NORMALISE THE SIDES FIRST. Members write `5 > ta.barssince(x)` as readily
+  // as `ta.barssince(x) < 5`, and a rewrite that only saw one order would be a
+  // coin-flip on whether a script translated.
+  if (own(FLIP, op) && litInt(left) !== null && oneArgBarssince(right)) {
+    [op, left, right] = [FLIP[op], right, left]
+  }
+
+  const cond = oneArgBarssince(left)
+  const k = litInt(right)
+  if (cond && k !== null && own(FLIP, op)) {
+    // `< K` and `>= K` split at K, so K bars of window put the sentinel exactly
+    // on the boundary; `<= K` and `> K` split at K+1 and need one bar more.
+    const window = (op === '<' || op === '>=') ? k : k + 1
+    if (window >= 1) return { kind: 'barssince', op, cond, window, k }
+  }
+
+  // `obv <cmp> obv[k]` and `obv - obv[k]`.
+  if ((own(FLIP, op) || op === '-') && isBareObv(left)
+      && right && right.type === 'offset' && isBareObv(right.arg)) {
+    const lag = Number(right.n)
+    if (Number.isInteger(lag) && lag >= 1) return { kind: 'obv', op, lag }
+  }
+
+  return null
+}
 
 function parseExpression(cur, minBp = 0) {
   let left = parseUnary(cur)
@@ -3524,6 +3648,27 @@ class Resolver {
         return cOp(node.op === 'not' ? '!' : 'u-', [inner])
       }
       case 'binary': {
+        // ⭐⭐ A COMPARISON CAN BOUND WHAT ITS OPERAND CANNOT — and like the
+        // string fold below, it is asked BEFORE either operand is resolved,
+        // because resolving `ta.obv` or a one-argument `ta.barssince` IS the
+        // refusal this is deciding not to need. See `contextBoundedPlan` for why
+        // each rewrite is an identity rather than a convenience.
+        const bounded = contextBoundedPlan(node)
+        if (bounded) {
+          const boundedOp = PINE_OP_TO_TABLE[bounded.op]
+          if (boundedOp && own(this.table.operators, boundedOp)) {
+            if (bounded.kind === 'barssince') {
+              return cOp(boundedOp, [
+                cCall('barssince', [this.resolve(bounded.cond), cNum(bounded.window)]),
+                cNum(bounded.k),
+              ])
+            }
+            const change = cCall('obvN', [cNum(bounded.lag)])
+            // ⛔ THE DIFFERENCE IS THE VALUE, so `-` returns it directly rather
+            // than comparing it to anything.
+            return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
+          }
+        }
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.
