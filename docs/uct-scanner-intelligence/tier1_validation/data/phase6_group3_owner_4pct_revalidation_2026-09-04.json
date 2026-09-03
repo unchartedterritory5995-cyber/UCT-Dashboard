@@ -1,0 +1,80 @@
+{
+  "scanned_symbols": 3693,
+  "universe_size": 3742,
+  "threshold": "4pct (owner decision 2026-09-04, was 8pct)",
+  "total_firings": 7,
+  "firing_rate_pct": 0.1895,
+  "previously_in_8pct_set": [
+    "ALVO",
+    "AMLX",
+    "AMWD",
+    "ARGX",
+    "ASST",
+    "BMNR",
+    "BRBS",
+    "CRSP",
+    "EDIT",
+    "EL",
+    "ENGN",
+    "EZPW",
+    "FDMT",
+    "FUTU",
+    "GIW",
+    "NDSN",
+    "NGNE",
+    "NVAX",
+    "RXRX",
+    "SANA",
+    "SBC",
+    "SBET",
+    "SDHI",
+    "UEC",
+    "WPM",
+    "YB"
+  ],
+  "rows": [
+    {
+      "sym": "AMLX",
+      "confidence": 83.52,
+      "gap_pct": 39.57,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "ARGX",
+      "confidence": 75.72,
+      "gap_pct": 8.93,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "BRBS",
+      "confidence": 82.32,
+      "gap_pct": 4.34,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "EDIT",
+      "confidence": 74.65,
+      "gap_pct": 4.51,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "NVAX",
+      "confidence": 84.33,
+      "gap_pct": 6.31,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "RXRX",
+      "confidence": 69.79,
+      "gap_pct": 5.99,
+      "was_in_8pct_prereg_set": true
+    },
+    {
+      "sym": "WPM",
+      "confidence": 78.28,
+      "gap_pct": 5.18,
+      "was_in_8pct_prereg_set": true
+    }
+  ],
+  "new_unexpected_firings": []
+}

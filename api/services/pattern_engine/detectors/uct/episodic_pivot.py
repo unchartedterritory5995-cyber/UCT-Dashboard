@@ -11,6 +11,10 @@ stock's narrative has changed.
 Geometric definition:
   - Pre-base: 15-60 bar sideways consolidation, depth <=25%
   - EP bar (within last 5 bars):
+      * opens with a gap of >=4% above the prior bar's close (Phase 6
+        Group 3, 2026-09-03 — the pattern's own namesake requires a gap;
+        floor moved 8%->4% by owner decision 2026-09-04; see
+        _MIN_GAP_PCT's docstring for sourcing)
       * range >= 2x avg 20-bar range
       * volume >= 2x avg 20-bar volume
       * close in top 30% of bar's range (close_strength > 0.70)
@@ -48,6 +52,31 @@ _MIN_VOLUME_RATIO = 2.0        # EP volume >= 2x 20-bar avg volume
 _MIN_CLOSE_STRENGTH = 0.70     # close in top 30% of bar's range
 _MAX_EP_AGE = 5                # EP bar must be in most recent 5 bars
 _CONFIDENCE_FLOOR = 50.0
+
+#: Phase 6 Group 3 (2026-09-03): the pattern's own namesake requires a GAP.
+#: `ep_open` was extracted but never used for anything -- a geometrically
+#: valid detection could be (and, measured against the live universe on
+#: 2026-09-03, overwhelmingly WAS: 23 of 26 currently-firing cases had
+#: gap_pct < 8%, several near zero or negative) a same-day range-expansion
+#: breakout with zero opening gap, which is a different pattern than either
+#: cited source describes. Kullamägi's own EP requires 10%+.
+#:
+#: Owner decision (2026-09-04): floor moved from 8% to 4%. Bonde has
+#: published TWO numbers for his own EP scan -- 8% in his 2010 Stockbee
+#: post ("What are Episodic Pivots and how to find them") and 4% in his
+#: own later 2014 process-flow post (`c/c1 > 1.04`) -- same author, same
+#: named setup, revised over time, not two coexisting tiers. Implementing
+#: his superseded 2010 number over his own later update needed a
+#: justification that was never found, so this now uses his more recent
+#: figure. Decided via a blinded owner-adjudication review of 5 real live
+#: cases that sat in the 4-8% band (BRBS 4.3%, EDIT 4.5%, WPM 5.2%,
+#: RXRX 6.0%, NVAX 6.3% -- see docs/uct-scanner-intelligence/
+#: decision-log.md and tier1_validation/data/
+#: phase6_group3_owner_4pct_revalidation_2026-09-04.json for the full
+#: evidence trail, including the superseded 8% interpretation and why it
+#: was not chosen). The $5+ point OR-branch remains unimplemented, same as
+#: power_earnings_gap.py's identical calibration note explains.
+_MIN_GAP_PCT = 0.04
 
 
 def detect_episodic_pivot(bars: List[Bar], context: dict) -> List[Detection]:
@@ -115,6 +144,19 @@ def _try_extract(bars: List[Bar], ep_idx: int) -> Optional[dict]:
 
     ep_range = ep_high - ep_low
     if ep_range <= 0:
+        return None
+
+    # Gap check (Phase 6 Group 3): the EP bar must actually GAP open above
+    # the prior bar's close -- without this, a same-day range-expansion
+    # breakout with zero opening gap passes as an "Episodic Pivot", which
+    # is a different pattern than either cited source describes.
+    if ep_idx < 1:
+        return None
+    prior_close = bars[ep_idx - 1]["c"]
+    if prior_close <= 0:
+        return None
+    gap_pct = (ep_open - prior_close) / prior_close
+    if gap_pct < _MIN_GAP_PCT:
         return None
 
     # Close strength: where in the bar's range did close land?
@@ -189,6 +231,8 @@ def _try_extract(bars: List[Bar], ep_idx: int) -> Optional[dict]:
         "ep_open": ep_open,
         "ep_volume": ep_volume,
         "ep_range": ep_range,
+        "prior_close": prior_close,
+        "gap_pct": gap_pct,
         "range_ratio": range_ratio,
         "volume_ratio": volume_ratio,
         "close_strength": close_strength,
@@ -391,6 +435,9 @@ def _build_detection(bars, c, confidence, context,
     ep_high = c["ep_high"]
     ep_low = c["ep_low"]
     ep_close = c["ep_close"]
+    ep_open = c["ep_open"]
+    prior_close = c["prior_close"]
+    gap_pct = c["gap_pct"]
     base_high = c["base_high"]
     base_low = c["base_low"]
     base_depth_pct = c["base_depth_pct"]
@@ -436,11 +483,13 @@ def _build_detection(bars, c, confidence, context,
 
     sym_token = "the stock"
 
+    gap_pct_pct = gap_pct * 100.0
+
     headline = (
-        f"Episodic Pivot - {range_ratio:.1f}x range expansion on "
-        f"{volume_ratio:.1f}x volume, closed in top {(1.0 - close_strength) * 100:.0f}% "
-        f"of range. Pivot ${ep_high:.2f}, target ${target_primary:.2f}, "
-        f"R:R {rr:.1f}."
+        f"Episodic Pivot - {gap_pct_pct:.1f}% gap on {range_ratio:.1f}x range "
+        f"expansion and {volume_ratio:.1f}x volume, closed in top "
+        f"{(1.0 - close_strength) * 100:.0f}% of range. Pivot ${ep_high:.2f}, "
+        f"target ${target_primary:.2f}, R:R {rr:.1f}."
     )
 
     what_it_is = (
@@ -451,11 +500,16 @@ def _build_detection(bars, c, confidence, context,
         f"{base_depth_pct_pct:.1f}% depth - where supply and demand were in "
         f"equilibrium and price oscillated between ${base_low:.2f} and "
         f"${base_high:.2f} - a SINGLE bar appeared that violently broke that "
-        f"equilibrium. The signature is unmistakable: range expansion of "
+        f"equilibrium. That bar OPENED with a {gap_pct_pct:.1f}% gap above the "
+        f"prior close of ${prior_close:.2f} to ${ep_open:.2f} - the gap itself, "
+        f"not merely a same-day range expansion, is what makes this an "
+        f"Episodic Pivot rather than an ordinary breakout; both Bonde and "
+        f"Kullamägi's published versions of this setup require a genuine "
+        f"opening gap. The signature is unmistakable: range expansion of "
         f"{range_ratio:.1f}x the 20-bar average, volume of {volume_ratio:.1f}x "
         f"the 20-bar average, and a close at ${ep_close:.2f} in the top "
         f"{(1.0 - close_strength) * 100:.0f}% of the bar's range - decisively "
-        f"above the entire base. That three-fer (range + volume + close "
+        f"above the entire base. That four-fer (gap + range + volume + close "
         f"strength) is the textbook EP signature, and Bonde teaches that this "
         f"is the day institutional buyers stop accumulating quietly and "
         f"aggressively acquire shares. The {base_bars}-bar base preceding the "
@@ -556,6 +610,9 @@ def _build_detection(bars, c, confidence, context,
                 "ep_high": round(ep_high, 2),
                 "ep_low": round(ep_low, 2),
                 "ep_close": round(ep_close, 2),
+                "ep_open": round(ep_open, 2),
+                "prior_close": round(prior_close, 2),
+                "gap_pct": round(gap_pct * 100.0, 2),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
                 **structure_extras(c),
             },
