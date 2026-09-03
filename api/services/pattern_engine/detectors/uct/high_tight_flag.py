@@ -208,6 +208,15 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
         if b["l"] == flag_low:
             flag_low_idx = pole_top_idx + 1 + i
             break
+    # Find absolute bar index of the flag high, for geometry anchors — this
+    # was missing entirely (Phase 6 Group 4), which is why the flag_high
+    # anchor fell back to stamping the last bar's timestamp instead of the
+    # bar where the flag high actually occurred.
+    flag_high_idx = pole_top_idx + 1
+    for i, b in enumerate(flag_bars):
+        if b["h"] == flag_high:
+            flag_high_idx = pole_top_idx + 1 + i
+            break
     retrace = (pole_top["price"] - flag_low) / pole_height
     # HTF flags are SHALLOW — no minimum retrace gate beyond zero
     if retrace < 0.0 or retrace > _MAX_FLAG_RETRACE:
@@ -232,6 +241,7 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
         "flag_low": flag_low,
         "flag_low_idx": flag_low_idx,
         "flag_high": flag_high,
+        "flag_high_idx": flag_high_idx,
         "flag_range": flag_range,
         "retrace_pct": retrace,
         "flag_bars": flag_bars,
@@ -484,12 +494,19 @@ def _build_detection(bars, c, confidence, context,
     flag_vol_ratio = _flag_volume_ratio(bars, c)
     flag_vol_pct = flag_vol_ratio * 100.0
 
-    # Geometry anchors: pole_base, pole_top, flag_low, flag_high
+    # Geometry anchors: pole_base, pole_top, flag_low, flag_high — each
+    # stamped with the bar where that extreme actually occurred (Phase 6
+    # Group 4 fix: flag_low/flag_high were both previously stamped with
+    # last_bar["t"], collapsing the lower trendline into a degenerate
+    # vertical segment at the chart's right edge instead of a line spanning
+    # the flag's real low-to-high structure).
+    flag_low_bar = bars[c["flag_low_idx"]]
+    flag_high_bar = bars[c["flag_high_idx"]]
     anchors = [
         {"t": int(pole_base_bar["t"]), "price": float(c["pole_base_price"])},
         {"t": int(pole_top_bar["t"]), "price": float(pole_top_price)},
-        {"t": int(last_bar["t"]), "price": float(flag_low)},
-        {"t": int(last_bar["t"]), "price": float(flag_high)},
+        {"t": int(flag_low_bar["t"]), "price": float(flag_low)},
+        {"t": int(flag_high_bar["t"]), "price": float(flag_high)},
     ]
 
     now = int(time.time())
@@ -497,7 +514,8 @@ def _build_detection(bars, c, confidence, context,
     pivot_ts = [
         int(pole_base_bar["t"]),
         int(pole_top_bar["t"]),
-        int(last_bar["t"]),
+        int(flag_low_bar["t"]),
+        int(flag_high_bar["t"]),
     ]
 
     # ---- Narrative composition — RICH, paragraph-length, real values woven in ----
