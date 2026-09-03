@@ -608,9 +608,11 @@
       "note": ""
     },
     "SCREEN_BACKTEST_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-30",
-      "note": "No rationale on record. Off by default and set on no service, so it is currently indistinguishable from forgotten. Decide: arm, or mark dark with the reason."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Armed 2026-09-02 on web. Decided rather than left pending: the surface was complete and its safety property was verified against real data before the flip, not assumed. Measured read-only over C:/data/bars.db: 30 symbols x 2024-01-01..2026-06-30 returned a closed coverage receipt (18750 bars in window, 18750 answered, 0 not computable) and reported NO EDGE for close > sma(close,50) - 53.7% strategy against a 53.9% baseline - which is the behaviour of a backtester that is not flattering itself. The lookahead refusal fires by name on every screen reading a scalar we hold no history of (rs_rank, market_cap, pe_ttm), including a bar formula ANDed with one. Bounded and gated: require_paid, INLINE_MAX_SYMBOLS=50 above which it queues off the request thread, and a 1.2M-cell ceiling. The auth rail (tests/test_screener_auth_surface.py) SKIPS while the flag is off, so it was run with the flag on before arming: 213 backtest tests pass in both states, 0 skipped when on. Rollback is this variable alone."
     },
     "SNAPSHOT_DELTA_ENABLED": {
       "status": "armed",

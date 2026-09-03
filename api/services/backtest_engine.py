@@ -3,7 +3,42 @@ Backtest simulator: consumes OHLCV bars + strategy signals, walks position
 lifecycle bar-by-bar, returns equity curve, completed trades, final equity.
 
 Pure function — no side effects, no logging, no external imports.
+
+⛔⛔ THIS ENGINE IS LONG-ONLY, AND `side` WAS A DECORATIVE CONSTANT.
+
+Every signal carried a `side`, every position and every trade record stored it
+(below), and the P&L arithmetic never read it — `gross_pnl` is
+`(exit - entry) * shares` and the mark-to-market is `(close - entry) * shares`,
+both unconditionally long. A short would therefore have reported INVERTED P&L:
+a short that made money would show as a loss, and an equity curve that fell
+would rise.
+
+⭐ It was harmless only by accident of the producer. `strategy_templates._signal`
+hardcodes `"side": "long"` and that module's docstring says "All strategies are
+long-only", so no caller has ever handed this engine anything else. That is the
+whole safety argument, and it is one edit away from being false — a fifth
+template emitting a short would have silently produced a backwards backtest,
+with no exception, no log line and a plausible-looking equity curve.
+
+⛔ SO THE FIELD IS NOW GUARDED RATHER THAN WIRED. Wiring a sign into the
+arithmetic would ship short support nothing asks for and nothing exercises —
+`lesson_an_unused_parameter_may_be_older_than_its_consumers`, where wiring one
+long-dormant argument shipped a chord because the consumers all assumed the old
+meaning. Short P&L is also not the sign flip it looks like: proceeds credit cash
+at entry, `shares = pos_size / price` is not a margin model, and `cost_basis`
+stops being what the position cost. Implementing that here, unreached and
+unexercised, is how a surface gets built, tested, green and wrong.
+
+The engine instead REFUSES a side it cannot compute. The guard is at the entry
+boundary — the one place a side enters the simulation — so `_close_position`
+reads a value that has already been checked.
 """
+
+#: The sides the arithmetic below actually implements. ONE AUTHORITY: the guard
+#: and this module's contract read the same tuple, so adding short support means
+#: changing the arithmetic and this constant together, and a rail notices if only
+#: one of them moves.
+SUPPORTED_SIDES = ("long",)
 
 
 def simulate(
@@ -52,13 +87,26 @@ def simulate(
         for s in sig_by_t.get(t, []):
             if s["kind"] == "entry":
                 if position is None:
+                    side = s.get("side", "long")
+                    if side not in SUPPORTED_SIDES:
+                        # ⛔ REFUSE, NEVER COERCE. Treating this as long is what
+                        # the engine did before, and it produced a backwards
+                        # equity curve that looked entirely plausible.
+                        raise ValueError(
+                            f"backtest_engine is long-only and cannot price a "
+                            f"{side!r} position (entry signal at t={t}). The P&L "
+                            f"arithmetic is unconditionally long, so simulating "
+                            f"this would report inverted profit and loss. Add the "
+                            f"side to SUPPORTED_SIDES only together with the "
+                            f"arithmetic that prices it."
+                        )
                     pos_size = equity * position_pct / 100.0
                     shares = pos_size / s["price"]
                     position = {
                         "entry_t": t,
                         "entry_price": float(s["price"]),
                         "shares": shares,
-                        "side": s.get("side", "long"),
+                        "side": side,
                         "reason_entry": s.get("reason", ""),
                     }
                 # else: position already open — silently ignore
@@ -81,6 +129,8 @@ def simulate(
         if position is None:
             mtm_equity = equity
         else:
+            # LONG-ONLY (see module docstring). `side` is not consulted here;
+            # the entry guard is what keeps that from being a wrong number.
             open_pnl = (close - position["entry_price"]) * position["shares"]
             mtm_equity = equity + open_pnl
 
@@ -122,6 +172,8 @@ def _close_position(
     entry_price = position["entry_price"]
     shares = position["shares"]
 
+    # LONG-ONLY (see module docstring). `side` is stored on the record below but
+    # takes no part in this line; the entry guard is what keeps that honest.
     gross_pnl = (exit_price - entry_price) * shares
     fees = (entry_price + exit_price) * shares * (fees_bps / 10000.0)
     net_pnl = gross_pnl - fees
