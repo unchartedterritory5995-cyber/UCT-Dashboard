@@ -28,6 +28,25 @@ MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
 MAX_FOLDER_DEPTH = 6
 
+# ⛔⛔ session-audit.md A1 (2026-09-02): the Obsidian ingest boundary
+# (`note_connectors/obsidian_staging.py::_MAX_BODY_MD_LEN`) used to be its
+# OWN independent number (1.5MB), in a file that never referenced this one
+# -- so a note could clear the ingest door and then ALWAYS fail this
+# storage door, because markdown->TipTap JSON is not 1:1. Measured blowup
+# for real note shapes (bullet logs 3.45x, checkbox task lists 4.08x, short
+# headed sections 4.65x) tops out at ~4.7x -- so a plain trading-journal
+# note of ~210-280KB of markdown was already 5-7x under the OLD ingest cap
+# and guaranteed to die at THIS one. `MAX_BODY_MD_CHARS_ESTIMATE` derives
+# the honest markdown-side ceiling FROM this byte ceiling and that measured
+# worst case, so the two doors can never again disagree about "how big may
+# a note be" -- obsidian_staging.py imports this constant rather than
+# hardcoding a second number. This is an ESTIMATE, not a guarantee (the
+# 4.7x figure is the worst of three measured shapes, not a proven maximum),
+# which is exactly why storage-side per-note isolation in `import_confirm`
+# below is kept as the backstop rather than relying on this estimate alone.
+_MD_TO_JSON_WORST_CASE_BLOWUP = 4.7
+MAX_BODY_MD_CHARS_ESTIMATE = int(MAX_BODY_JSON_BYTES / _MD_TO_JSON_WORST_CASE_BLOWUP)
+
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
     read_candidates_with_roots as _read_candidates_with_roots,
@@ -339,7 +358,21 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                    createdAt?, updatedAt?, folderPath: [str, ...]}]
     }
 
-    Returns: {"created": [...], "updated": [...], "skipped": [...]}
+    Returns: {"created": [...], "updated": [...], "skipped": [...], "failed": [...]}
+
+    ⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (oversized
+    body, malformed shape) is isolated to a per-note SAVEPOINT and reported
+    in `failed` — it must never roll back its healthy siblings' writes in
+    the same batch. Before this fix, ANY note raising here (most commonly
+    `_validate_body_json`'s >1MB check, given the Obsidian ingest door used
+    to accept markdown up to 5-7x that after conversion) caused a bare
+    `conn.rollback(); raise`, discarding the WHOLE batch — measured against
+    the real engine: a 200-note batch with one 1.2MB note landed as
+    "notes in the member's notebook: 0 of 200", `status: ok`. This mirrors
+    the export's own `EXPORT_ISSUES.txt` idiom (per-item try/except, name
+    the failure, keep going) and the connectors engine's per-ref failure
+    reporting (`fetch failed for {ref!r}: ...`) — the SAME convention,
+    applied at the one call site that was still all-or-nothing.
     """
     if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
         raise NoteValidationError("invalid import payload")
@@ -369,60 +402,91 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
         # folder instead of failing the batch.
         dest_depth = _folder_depth(conn, user_id, dest) if dest else 0
         max_path_depth = max(0, MAX_FOLDER_DEPTH - dest_depth)
-        created, updated, skipped = [], [], []
+        created, updated, skipped, failed = [], [], [], []
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
         for n in notes:
-            key = n.get("importKey")
-            if not key or not isinstance(key, str):
-                raise NoteValidationError("importKey required on every note")
-            body_json = _validate_body_json(n.get("bodyJson"))
-            body_plain = extract_plain_text(body_json)
-            first_image = _extract_first_image(body_json)
-            title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
-            tags = _validate_tags(n.get("tags"))
-            ticker = _validate_ticker(n.get("ticker"))
-            h = _import_payload_hash(n)
-            path = tuple((n.get("folderPath") or [])[:max_path_depth])
-            if path not in path_cache:
-                path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
-                                    if path else (dest or None))
-            folder_id = path_cache[path] or None
-            row = conn.execute(
-                "SELECT id, import_hash FROM j2_notes WHERE user_id = ? AND import_key = ?",
-                (user_id, key)).fetchone()
-            item = {"importKey": key, "id": row["id"] if row else None}
-            if row and row["import_hash"] == h:
-                skipped.append(item); continue
-            created_at = _import_date(n.get("createdAt"), now)
-            updated_at = _import_date(n.get("updatedAt"), now)
-            if row:
-                conn.execute(
-                    "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
-                    "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
-                    "imported_at=?, updated_at=? "
-                    "WHERE id=? AND user_id=?",
-                    (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
-                     first_image, folder_id, ticker, json.dumps(tags), h, now, updated_at,
-                     row["id"], user_id))
-                _sync_note_embeds(conn, user_id, row["id"], body_json)
-                updated.append(item)
-            else:
-                new_id = uuid.uuid4().hex
-                conn.execute(
-                    "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
-                    "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
-                    "imported_at, created_at, updated_at) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (new_id, user_id, folder_id, title, n.get("subtitle") or None,
-                     json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
-                     source, key, h, now, created_at, updated_at))
-                _sync_note_embeds(conn, user_id, new_id, body_json)
-                item["id"] = new_id
-                created.append(item)
+            raw_key = n.get("importKey")
+            key = raw_key if isinstance(raw_key, str) and raw_key else None
+            try:
+                if key is None:
+                    raise NoteValidationError("importKey required on every note")
+                body_json = _validate_body_json(n.get("bodyJson"))
+                body_plain = extract_plain_text(body_json)
+                first_image = _extract_first_image(body_json)
+                title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
+                tags = _validate_tags(n.get("tags"))
+                ticker = _validate_ticker(n.get("ticker"))
+                h = _import_payload_hash(n)
+                # Folder resolution is shared across notes (path_cache) and
+                # deliberately sits OUTSIDE the per-note SAVEPOINT below: a
+                # folder a healthy note needs must survive even when a LATER
+                # note sharing that same path fails and rolls itself back.
+                path = tuple((n.get("folderPath") or [])[:max_path_depth])
+                if path not in path_cache:
+                    path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
+                                        if path else (dest or None))
+                folder_id = path_cache[path] or None
+                row = conn.execute(
+                    "SELECT id, import_hash FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                    (user_id, key)).fetchone()
+                item = {"importKey": key, "id": row["id"] if row else None}
+                if row and row["import_hash"] == h:
+                    skipped.append(item)
+                    continue
+                created_at = _import_date(n.get("createdAt"), now)
+                updated_at = _import_date(n.get("updatedAt"), now)
+
+                # This note's write is isolated in its own SAVEPOINT: a note
+                # that cannot be stored must not discard any sibling note
+                # already written earlier in this same batch, and must not
+                # leave a half-applied row + embeds sidecar behind for
+                # ITSELF. `RELEASE` folds the savepoint into the still-open
+                # outer transaction (nothing is durable until the final
+                # `conn.commit()` below); `ROLLBACK TO` undoes only what
+                # this note wrote.
+                conn.execute("SAVEPOINT j2_import_note")
+                try:
+                    if row:
+                        conn.execute(
+                            "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
+                            "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
+                            "imported_at=?, updated_at=? "
+                            "WHERE id=? AND user_id=?",
+                            (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
+                             first_image, folder_id, ticker, json.dumps(tags), h, now, updated_at,
+                             row["id"], user_id))
+                        _sync_note_embeds(conn, user_id, row["id"], body_json)
+                        conn.execute("RELEASE j2_import_note")
+                        updated.append(item)
+                    else:
+                        new_id = uuid.uuid4().hex
+                        conn.execute(
+                            "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
+                            "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
+                            "imported_at, created_at, updated_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (new_id, user_id, folder_id, title, n.get("subtitle") or None,
+                             json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
+                             source, key, h, now, created_at, updated_at))
+                        _sync_note_embeds(conn, user_id, new_id, body_json)
+                        conn.execute("RELEASE j2_import_note")
+                        item["id"] = new_id
+                        created.append(item)
+                except Exception:
+                    conn.execute("ROLLBACK TO j2_import_note")
+                    conn.execute("RELEASE j2_import_note")
+                    raise
+            except Exception as e:  # noqa: BLE001 -- deliberately broad, see the
+                # docstring above: a bad body/tags/ticker/importKey shape
+                # (NoteValidationError, the common case) and a bare DB-level
+                # error are isolated the same way, so neither can abort a
+                # note already committed-pending earlier in this batch.
+                failed.append({"importKey": key, "error": str(e)})
+                continue
         conn.commit()
-        return {"created": created, "updated": updated, "skipped": skipped}
+        return {"created": created, "updated": updated, "skipped": skipped, "failed": failed}
     except Exception:
         conn.rollback()
         raise
@@ -683,16 +747,33 @@ def tag_counts(
     Scoped exactly like every other read here — `user_id` only, so a
     member never sees another member's tags. `json_each` over the JSON
     `tags` column is the same SQLite JSON1 idiom `filters.py` already uses
-    for the (unrelated) mistake/emotion tag facets."""
+    for the (unrelated) mistake/emotion tag facets.
+
+    ⛔ Second-C5 (B3): this used to `GROUP BY je.value` — case-SENSITIVE —
+    while the `tag=` filter (`_notes_filter_sql` above) matches via
+    `lower(tags) LIKE`, i.e. case-INSENSITIVE. 'Earnings'/'earnings'/
+    'EARNINGS' rendered as three chips of count 1, each opening a list of
+    all three: two authorities over one value, the exact shape this repo
+    keeps getting bitten by. The filter's case-insensitivity is the
+    member-facing intent (a member who typed 'Trading' and 'trading' means
+    one tag), so THIS query is the one that must fold to match it — never
+    the reverse (that would need every stored tag re-cased, and would not
+    fix a future note written with a fresh casing anyway). `LOWER(je.value)`
+    is the ONE grouping key, mirroring `_validate_tags`'s own per-note
+    dedup key (`t2.lower()`, above) and the filter's `tag.lower()` — three
+    call sites, one normalization rule. `MAX(je.value)` picks a single
+    display casing per group; which variant wins is not load-bearing
+    (matching is case-insensitive everywhere a tag is used), only that
+    there is exactly one row per case-insensitive tag."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         rows = conn.execute(
-            "SELECT je.value AS tag, COUNT(*) AS c"
+            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS tag_key, COUNT(*) AS c"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
             " WHERE j2_notes.user_id = ?"
-            " GROUP BY je.value"
-            " ORDER BY c DESC, je.value ASC",
+            " GROUP BY LOWER(je.value)"
+            " ORDER BY c DESC, tag_key ASC",
             (user_id,),
         ).fetchall()
         return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]

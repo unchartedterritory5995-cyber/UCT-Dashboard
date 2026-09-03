@@ -88,6 +88,13 @@
       ],
       "note": ""
     },
+    "BARS_PROXY_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF, in its author's own words: the commit that added it (b82b6ac58) says it \"ships FULLY DARK: with BARS_ORIGIN_URL unset and BARS_PROXY_ENABLED unset it serves locally exactly as before\". Like the BARS_HISTORY_* pair above it is HALF A SWITCH -- api/routers/bars.py forwards only when BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT, and the proxy needs BARS_ORIGIN_URL besides, so arming this alone changes nothing and arming it without the origin URL is the failure mode to watch for. It is a CANARY gate, meant to be ramped 0->5->25->100 via BARS_PROXY_PCT with rollback by env var and no code deploy; any error falls back to local serve. Arm it as the Path B Phase 2 cutover, by ramp, not by flipping it to 100. ⚠️ Declared by a passer-by, not its author: the flag arrived in the 2026-09-02 Path B bars-serving-tier work (merge 64bb2e2c3) and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make; tools/flag_ledger_audit.py settles `where` against Railway."
+    },
     "BARS_UNIVERSE_CRAWLER_ENABLED": {
       "status": "armed",
       "where": [
@@ -131,11 +138,11 @@
       "note": ""
     },
     "BUZZ_DIGEST_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "web"
       ],
-      "note": "DELIBERATELY OFF -- ships disarmed by design, not oversight. `api/services/discord_buzz_digest.py`'s own module docstring says why: \"posting into a 750-member room is the owner's call, not a default.\" The scheduler job (`_buzz_digest` in api/main.py, mon-fri 16:10 ET) always registers -- it calls `run_digest()`, which checks this flag itself and returns `{posted: False, reason: 'disarmed'}` when unset, same shape as the awareness-engine gate. `tests/test_buzz_digest.py::test_digest_is_disarmed_by_default` pins the unset-env default to False; that test is the feature. Arm it once the owner decides the room is ready for an unattended daily post."
+      "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
     },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
@@ -534,6 +541,13 @@
       ],
       "note": ""
     },
+    "NOTE_SYNC_OBSIDIAN_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF -- AND THE OLD ARMING CONDITION IS VOID. registry.py's obsidian entry (connect_kind='device') stays unconfigured until this is armed. The previous note said 'arm after Wave 3b Task 6 (the mock-plugin live-gate lifecycle test) passes'. That test now passes, so a reader following the old note would arm this and ship a silent data-loss defect to members. It does not gate what matters. The 2026-09-02 adversarial audit (.superpowers/audit/session-audit.md, finding 1) proved end-to-end that ONE ordinary note over the limit makes import_confirm roll back the WHOLE batch: 13 notes staged, 0 landed in the member's notebook, status 'ok', cursor advanced anyway, and the plugin's re-push is a no-op -- so the notes are gone permanently. This is not a security bug, so the Wave 3b security review's gate does not cover it. ARM ONLY WHEN ALL THREE HOLD, each verified against a run and not against a passing suite: (1) per-note failure isolation has landed -- a batch containing one unstorable note stores its siblings and reports the failure per note; (2) a real, published Obsidian plugin exists for members to install (the connect modal already instructs them to use one that does not); (3) a live gate has synced a note of REALISTIC size, which is a PAIR of runs and not one: a note at the TOP of the storable range (~210KB of markdown, just under the derived ceiling) that LANDS, and a note ABOVE the ceiling that is isolated without taking its batch with it. WARNING, this condition originally read '250KB+ of markdown' -- an acceptance number typed before the ceiling was derived, and 250KB is ABOVE that ceiling, so nothing could ever have satisfied it as written: an oversized note is refused BY DESIGN, which is the fix working rather than the gate passing. The measured md->TipTap blowup is 3.4-4.7x, up to ~9x for a many-short-headings shape, so the ceiling is ~212,765 chars = MAX_BODY_JSON_BYTES / 4.7. Nothing anywhere -- unit, parity, or live gate -- had ever imported or synced a note larger than a few KB before 2026-09-02. Note size is the one property that breaks this feature, and it is the one property nothing measures. UPDATE 2026-09-02 (size-rails closeout): (1) landed same day (commit da289747d, per-note SAVEPOINT isolation in import_confirm + engine.py cursor fix) and is covered by realistic-size (not just malformed-body) isolation tests in test_notes_import.py. (3) is now landed too, as a COMMITTED pytest rail (not a scratchpad script like Task 6's) -- test_obsidian_ingest.py::test_a_realistically_large_note_syncs_end_to_end_through_the_real_http_sync_route drives mint/redeem/ingest/sync entirely over the real HTTP routes with a 210,609-char realistic daily-notes/meeting-log body (740,540 bytes converted) that actually lands. (2) is the ONLY remaining blocker -- do not arm until a real published plugin exists."
+    },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [
@@ -693,6 +707,14 @@
         "(set on no service)"
       ],
       "note": "DELIBERATELY OFF, awaiting a NAMED prerequisite -- which is what makes this dark rather than pending. `api/services/history_prewarm.py`'s own module docstring states it: \"gated by HISTORY_PREWARM_ENABLED (default OFF -- activate once Cloudflare Tiered Cache + Cache Reserve are on)\". ARM IT ONLY AFTER CONFIRMING BOTH ARE ENABLED IN CLOUDFLARE. The sweep walks the whole symbol universe through the public domain to stock the edge; with Cache Reserve OFF that traffic reaches the ORIGIN instead of being absorbed, which is a universe-wide load against the single web pod rather than the cache-filling pass it is meant to be. It runs on the WORKER, off the user request path, and is gentle and sequential so an overlapping pass cannot load the pod -- but that bounds the rate, not the destination. ⚠️ Classified by a passer-by, not its author: the flag arrived in the 'instant-charts Phase 5' commit and tripped test_every_off_by_default_gate_is_declared. Cloudflare's dashboard state is not visible from the repo or from Railway, so the prerequisite could not be checked here -- which is precisely why the answer is 'off with a reason' and not 'on'."
+    },
+    "BARS_API_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-02",
+      "where": [
+        "(unverified -- run tools/flag_ledger_audit.py against Railway)"
+      ],
+      "note": "⚠️ STATUS IS PENDING, NOT ARMED, and the distinction is the point: this file's own rule is that `armed` means SET ON AT LEAST ONE RAILWAY SERVICE, and nothing in this repo can see Railway. A concurrent session recorded it pending on 2026-09-02 for exactly that reason and was right to; this entry keeps that judgment and only corrects the claim that came with it (\"no rationale on record\" -- there is one, below). Settle it with tools/flag_ledger_audit.py. A SERVICE SELECTOR, not a feature gate -- same family as WORKER_ENABLED and FLOW_WORKER_ENABLED, and read in the same place: railway.json's startCommand dispatcher (`if [ \"${BARS_API_ENABLED:-0}\" = \"1\" ]; then exec python -m api.bars_api_main`). It selects the dedicated bars-SERVING tier, whose whole purpose is that app/partner deploys can never restart chart serving. It is therefore DELIBERATELY unset on web/worker -- unset is the correct value there, and arming it on web would turn the web pod into the bars tier and take the app down. Marked armed because the tier has demonstrably RUN: api/bars_api_main.py records two boot traps it survived on a real pod (init_db-before-pull, and a lifespan-thread extract that starved /api/health into a Railway restart loop) -- findings you cannot make without deploying it. ⚠️ Declared by a passer-by, not its author: the flag arrived undeclared in the 2026-09-02 Path B bars-serving-tier work and tripped test_every_off_by_default_gate_is_declared. What it DOES is read off railway.json and api/bars_api_main.py; whether it is SET is not something this branch can know."
     },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "dark",

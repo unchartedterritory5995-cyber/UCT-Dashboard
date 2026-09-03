@@ -6,6 +6,7 @@ import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import ImportWizard from '../components/notebook/import/ImportWizard'
+import ExportDialog from '../components/notebook/export/ExportDialog'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -43,6 +44,7 @@ export default function NotebookTab() {
   const { symbol: focusSymbol } = useAppFocus()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns
   // its own useJ2NoteFolders() SWR hook — an import can create new folders
   // and there's no other handle on that hook's mutate() from up here.
@@ -367,6 +369,15 @@ export default function NotebookTab() {
             </button>
             <button
               type="button"
+              className={styles.exportBtn}
+              onClick={() => setExportOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <UIcon name="download" size={16} gold={false} />
+              Export
+            </button>
+            <button
+              type="button"
               className={styles.templatesBtn}
               onClick={() => setPickerOpen(true)}
               disabled={creating}
@@ -401,6 +412,11 @@ export default function NotebookTab() {
           open={importOpen}
           onClose={() => setImportOpen(false)}
           onImported={handleImported}
+        />
+
+        <ExportDialog
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
         />
 
         {error && (

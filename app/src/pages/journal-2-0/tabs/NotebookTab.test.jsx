@@ -184,6 +184,26 @@ describe('NotebookTab — import', () => {
   })
 })
 
+describe('NotebookTab — export', () => {
+  // ExportDialog is deliberately left UNMOCKED here (unlike ImportWizard
+  // above) — every existing ExportDialog test renders it directly with
+  // `open` already true, which proves the dialog itself works but proves
+  // NOTHING about whether a member can ever reach it. This is the "built,
+  // tested, green, and wired to nothing" defect one level up in its own
+  // rail: delete the toolbar button and every ExportDialog test still
+  // passes. Driving the real component through the real toolbar button is
+  // what makes removing the door go red.
+  it('the toolbar Export button opens the real export dialog', () => {
+    renderTab()
+    expect(screen.queryByText('Export your notebook')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(screen.getByText('Export your notebook')).toBeInTheDocument()
+    // The dialog's own primary action is present too — proof this is the
+    // real ExportDialog mounted and rendering its idle step, not a stub.
+    expect(screen.getByRole('button', { name: /Download/ })).toBeInTheDocument()
+  })
+})
+
 describe('NotebookTab — pagination (Task 11: the browse path must survive a migrated library)', () => {
   // The sidebar's OWN unfiltered `sort: 'title'` fetch shares this same
   // mocked hook — route it to an empty, harmless response so these

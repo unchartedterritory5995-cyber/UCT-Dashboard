@@ -5,8 +5,10 @@ vi.mock('../utils/prefetchBars', () => ({
   warmMemFromIDB: vi.fn(),
   prefetchBarsToIDB: vi.fn(),
 }))
+vi.mock('./livePriceStore', () => ({ registerTickers: vi.fn(() => vi.fn()) }))
 
 import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { registerTickers } from './livePriceStore'
 import { useNeighborWarm } from './useNeighborWarm'
 
 const LIST = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -15,6 +17,14 @@ describe('useNeighborWarm', () => {
   beforeEach(() => {
     warmMemFromIDB.mockClear()
     prefetchBarsToIDB.mockClear()
+    registerTickers.mockClear()
+  })
+
+  it('pre-registers the WHOLE list\'s live prices (once, for the developing bar)', () => {
+    renderHook(() => useNeighborWarm(LIST, 'D', 'D', { radius: 2 }))
+    // keyed on the list, not the selection → the entire list (bounded), not just ±radius
+    expect(registerTickers).toHaveBeenCalledTimes(1)
+    expect([...registerTickers.mock.calls[0][0]].sort()).toEqual([...LIST].sort())
   })
 
   it('warms the ±radius neighbors (wrap-aware, self excluded) into sync-mem AND IDB', () => {

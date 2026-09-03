@@ -45,14 +45,15 @@ import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } 
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
+import ObsidianConnectModal from './ObsidianConnectModal'
 import SourceRow from './SourceRow'
 import styles from './ConnectedAppsCard.module.css'
 
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, enabled, isLoading, refresh, connectToken, startOAuth, syncSource, updateSource,
-    disconnect, listFolders, addSource,
+    providers, enabled, isLoading, refresh, connectToken, startOAuth, mintConnectCode, syncSource,
+    updateSource, disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
@@ -60,6 +61,10 @@ export default function ConnectedAppsCard() {
   const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [actionError, setActionError] = useState(null)
+  // Which device-kind provider (obsidian) currently has its connect-code
+  // modal open — null when closed. Mirrors `tokenModalProvider`'s shape,
+  // kept separate because the two modals show entirely different UI.
+  const [deviceModalProvider, setDeviceModalProvider] = useState(null)
   // Which FOLDER_PICKER_PROVIDERS key currently has its picker sheet open —
   // null when closed. A single shared `DropboxFolderPicker` instance is
   // parameterized by this (see the render below) rather than one boolean +
@@ -106,8 +111,8 @@ export default function ConnectedAppsCard() {
       <TileCard icon="link" title="Connected Apps">
         <div className={styles.section}>
           <p className={styles.lead}>
-            Connect Roam, Craft, Notion, Dropbox, OneNote, or OneDrive and your
-            notes sync into the Notebook automatically — no export, no drag-and-drop.
+            Connect Roam, Craft, Notion, Dropbox, OneNote, OneDrive, or Obsidian
+            and your notes sync into the Notebook automatically — no export, no drag-and-drop.
           </p>
           <p className={styles.muted}>Note Connectors is a premium feature.</p>
           <button className="btn btn-primary" onClick={() => startCheckout?.()}>
@@ -133,6 +138,8 @@ export default function ConnectedAppsCard() {
       // (disabled until checked), never on this first click.
       setConsentProvider(p.key)
       setConsentChecked(false)
+    } else if (p.tokenKind === 'device') {
+      setDeviceModalProvider(p.key)
     } else {
       setTokenModalProvider(p.key)
     }
@@ -280,6 +287,13 @@ export default function ConnectedAppsCard() {
         connectToken={connectToken}
         onClose={() => setTokenModalProvider(null)}
         onConnected={refresh}
+      />
+
+      <ObsidianConnectModal
+        open={!!deviceModalProvider}
+        providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
+        mintConnectCode={mintConnectCode}
+        onClose={() => setDeviceModalProvider(null)}
       />
 
       <DropboxFolderPicker

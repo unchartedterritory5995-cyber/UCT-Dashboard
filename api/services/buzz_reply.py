@@ -20,14 +20,28 @@ def build_board_text(now: int, window: str = "open") -> str:
     if not rows:
         return f"No mentions counted yet for **{label}**. {buzz_boards.coverage(now)}."
 
-    # ⛔ The LOUDEST row, not the FIRST one. The board ranks by distinct
-    # PEOPLE, so rows[0] is not the mentions maximum -- reading it as one makes
-    # every louder row draw a bar longer than BAR_W and the block runs ragged
-    # past the column. Seen live on 2026-09-02: SNDK led on people with 25
-    # mentions while MU had 37, so MU drew 27 blocks in an 18-wide column.
-    # ⚠️ Same defect the RENDERED board had; it was fixed there and not here,
-    # which is the whole point of lesson_rail_the_mirror_not_just_the_lane --
-    # two surfaces drawing one quantity need the fix in BOTH lanes.
+    # ⛔ Scaled to the RANKED quantity -- mentions (owner ruling 2026-09-02).
+    # The bar must never come from a different number than the sort, or a row
+    # draws a longer bar than the row above it and the board reads as a
+    # sorting bug. The RENDERED board obeys the same rule; these two lanes draw
+    # one quantity and must not drift (lesson_rail_the_mirror_not_just_the_lane
+    # -- that defect was fixed in the image and not here, and shipped ragged
+    # text for a day).
+    #
+    # ⛔ max(), not rows[0]. Mentions-descending makes rows[0] the maximum
+    # TODAY, but reading the first row as the maximum is an assumption about
+    # the ORDER, and this quantity has already changed once. Under the earlier
+    # people-led ranking rows[0] was NOT the mentions maximum, every louder row
+    # drew more than BAR_W blocks, and the block ran ragged past the column
+    # (2026-09-02: SNDK led on people with 25 mentions while MU had 37 -- MU
+    # drew 27 blocks in an 18-wide column). max() stays correct whatever the
+    # ranking does next; the same argument is written out in BuzzRender.jsx.
+    #
+    # ⚰️ The comment here used to OPEN with "the board ranks by distinct
+    # PEOPLE, so rows[0] is not the mentions maximum". That premise died the
+    # same day the ranking became mentions-led, and it is the more dangerous
+    # half of a stale comment: it does not merely misinform, it argues FOR a
+    # simplification to rows[0] once a reader notices the premise is false.
     top = max(r["mentions"] for r in rows)
     lines = [f"**Most talked about — {label}**", "```"]
     for r in rows:

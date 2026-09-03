@@ -488,7 +488,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStale, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4738,9 +4738,24 @@ export default function StockChart({
   // is an ISO 'YYYY-MM-DD' string; reject it if it's older than the most recent
   // ET session that should be present. Weekend/pre-open aware (a rare holiday
   // only costs a brief spinner, never stale data).
+  // Uses the PAINT gate (open-anchored during RTH), NOT isDailyTailStale
+  // (close-anchored): /api/bars now server-includes today's developing daily bar,
+  // so a cache whose tail is only the last CLOSED session (yesterday) is stale mid-
+  // session — painting it provisionally frames yesterday, then the today-inclusive
+  // network response adds a bar and re-anchors (the "current candle loads one bar
+  // right then pops left" shift). Marking it stale skips the provisional so the
+  // network's today-inclusive set paints directly, framed correctly. See
+  // marketSession.isDailyTailStaleForPaint.
+  // Two reasons an IDB daily tail is not safe to instant-paint: (1) it's missing a
+  // session (isDailyTailStaleForPaint — the yesterday-during-RTH shift), or (2) it's
+  // a TODAY tail whose cached CLOSE is provisional now that the session has closed
+  // (isDailyTodayCloseProvisionalForPaint — the "loads a mid-session price then snaps
+  // to the real close" after-hours flicker). Either way, defer to the network's
+  // sealed set so the first frame is correct.
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && isDailyTailStale(idbSinceRef.current)
+    && (isDailyTailStaleForPaint(idbSinceRef.current)
+        || isDailyTodayCloseProvisionalForPaint(idbSinceRef.current))
   // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
   // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
   // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
@@ -4759,11 +4774,11 @@ export default function StockChart({
       if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
       return false
     })()
-  const _memTailStaleDaily = (arr) => (
-    resolvedTf === 'D'
-    && Array.isArray(arr) && arr.length
-    && isDailyTailStale(arr[arr.length - 1]?.t)
-  )
+  const _memTailStaleDaily = (arr) => {
+    if (resolvedTf !== 'D' || !Array.isArray(arr) || !arr.length) return false
+    const _t = arr[arr.length - 1]?.t
+    return isDailyTailStaleForPaint(_t) || isDailyTodayCloseProvisionalForPaint(_t)
+  }
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
@@ -10128,6 +10143,9 @@ export default function StockChart({
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
+            // Today's developing daily bar is now part of the served history
+            // (server-include, api/routers/bars.py), so filteredBars already ends at the
+            // current session and the plain length frames it correctly.
             const { from: _from, to: _to } = computeDefaultLogicalRange(
               filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
             )
@@ -10209,6 +10227,10 @@ export default function StockChart({
         const _pt = pendingTfReframeRef.current
         let from, to
         if (_pt.width > 0) {
+          // Pin the loaded last bar at the anchor — so the current candle lands at the
+          // SAME position the outgoing view had. Today's developing daily bar is now
+          // included in the served history (server-include, api/routers/bars.py), so the
+          // loaded last bar IS today and no slot reservation is needed.
           const lastIdx = filteredBars.length - 1
           to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - _pt.width

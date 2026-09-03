@@ -1,6 +1,14 @@
 # Activating `/buzz` — the ticker-mention board
 
-**The code is deployed and completely inert.** Five gates hold it, and you open
+> ✅ **ALL FIVE GATES ARE OPEN. This ran on 2026-09-02 and the feature is LIVE**
+> — seven boards posted into `#main-chat` that session (10:00 · 10:30 · 11:30 ·
+> 12:30 · 14:00 · 16:15 · 17:30 ET), 7/7. Keep reading as the **rebuild and
+> rollback** procedure, not as a to-do list: every step still describes how to
+> re-open a gate you closed, and every check still tells you whether it worked.
+> Rollback of the posting alone is `BUZZ_DIGEST_ENABLED=0` + redeploy; the
+> poller and `/buzz` keep working, so counting never stops.
+
+**The code ships deployed and completely inert.** Five gates hold it, and you open
 them one at a time. Every step has a check that proves it worked *before* the
 next step depends on it — if a check fails, stop there; the later steps will
 succeed while doing nothing, which is the failure mode this order exists to
@@ -296,6 +304,22 @@ Each slot dedups independently: a quiet 10:00 never consumes 10:30, and a
 misfire a few minutes late still counts as its own slot rather than posting
 twice next to the real one.
 
+**A slot the scheduler never fired at all is caught up.** The jobs live in an
+in-memory store, so a pod that restarts across 16:15 does not *miss* that fire —
+it never creates it, and `misfire_grace_time` is blind to a job that was never
+scheduled. `discord_buzz_digest.catch_up()` rides the 60-second poller and posts
+an outstanding slot up to **20 minutes** late.
+
+> ⛔ 20 minutes is an **honesty limit, not a retry budget**. The board is
+> captioned "since the open" and stamped with its own coverage time, so a
+> modestly late post is still a true board; an hour-late one is a different
+> board wearing an old slot's label.
+
+Past that window the slot is written off — recorded in `BUZZ_STATE_PATH` under
+`missed`, warned about once, and raised as a **critical** `chart_health_alert`,
+which is the only severity that pages `DISCORD_WEBHOOK_URL`. **A checkpoint the
+room never got should reach you in Discord, not in a log nobody tails.**
+
 Rollback is the env var, not a deploy: set `BUZZ_DIGEST_ENABLED=0` and redeploy.
 
 ---
@@ -308,8 +332,14 @@ Rollback is the env var, not a deploy: set `BUZZ_DIGEST_ENABLED=0` and redeploy.
 | Logs say `DISCORD_BOT_TOKEN is not set` | Step 0. The poller is configured but has no credentials. |
 | Counts stopped advancing | `BUZZ_CHANNELS` still set? A `railway variables --set` without a redeploy reverts behaviour to the old value. |
 | Image missing, text fine | Working as designed — the renderer was busy or down. The board never apologises, it just drops the picture. |
-| A word is being counted as a ticker | The collision list is derived from a corpus, not hand-typed. Re-derive it against `#main-chat` with `tools/buzz_derive_collisions.py` once there is real history — that is the right instrument, not a hand edit. |
+| A word is being counted as a ticker | The collision list is derived from a corpus, not hand-typed. Re-derive it against `#main-chat` with `tools/buzz_derive_collisions.py` — that is the right instrument, not a hand edit. |
+| A ticker people clearly said is NOT counted | `python tools/buzz_audit_extraction.py` — it names the suppressed uppercase tokens, the cashtags that produced nothing, and the aliases that never fired, with the gate that stopped each. ⛔ Use this rather than diffing the store against the extractor: both sides run the SAME extractor, so that comparison can only prove ingest fidelity, never extraction quality. **Recall beats precision here** (owner, 2026-09-02): a false mention is cheap, a missed one is the product failing. |
 | Heat column always empty | Fewer than 5 covered sessions, or nothing is genuinely 1.5× its norm. |
+| A member says `/buzz` "only shows it to me" | Working as designed since 2026-09-02 — the on-demand reply is **ephemeral** so one member cannot put a second board in front of the room. The seven scheduled posts are public and unaffected. |
+| A member gets "Slow down: up to 12 boards per minute" | The per-member render budget, **shared with `/chart`** (`DISCORD_CHART_USER_RATE`, default `12/60`). Raise it there if 12/min is too tight; it bounds a member pinning a render slot in a loop, not normal reading. |
+| A checkpoint never showed up | Expected: you get a **critical Discord alert** naming the slot. Check `BUZZ_STATE_PATH` (`/data/buzz_state.json`) — `posted` lists the slots that went out, `missed` the ones written off. A slot in NEITHER list at a time it should have fired means the poller itself is not running (see "Counts stopped advancing"). |
+| Board renders but looks squashed / the wrong width | The probe should have discarded it: `BuzzRender.jsx` publishes `window.__buzzBoardW` and `buzz_image.PROBE_JS` throws away a PNG whose measured box disagrees. If a wrong-width board still shipped, the export container lost its inline geometry — geometry must NOT live in the CSS module, which hashes bare `#id` selectors. |
+| Board looks cut off at the bottom | Logs carry `board PNG is WxH -- at or past the ... viewport`. Raise `BOARD_H` in `buzz_image.py` (2400 today; the board reached 1412 on day one against a 1400 viewport). |
 
 ## Knobs, if you ever need them
 

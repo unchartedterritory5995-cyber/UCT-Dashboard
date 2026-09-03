@@ -137,4 +137,43 @@ describe('ConnectTilesCompact', () => {
       expect(JSON.parse(call[1].body)).toEqual({ consent: true })
     })
   })
+
+  const OBSIDIAN_CONFIGURED_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      onenote: { configured: false, connected: false, sources: [] },
+      onedrive: { configured: false, connected: false, sources: [] },
+      obsidian: { configured: true, connected: false, connectKind: 'device', sources: [] },
+    },
+  }
+
+  // ⛔ Same shape as the other providers' click-driven tests above: reaches
+  // the mint endpoint ONLY through the tile's own click + the modal's own
+  // "Generate code" button, never by rendering ObsidianConnectModal
+  // directly — deleting either door fails this test.
+  it('a not-yet-connected obsidian tile reads "Connect Obsidian" and mints a code via its device modal (never the token/oauth flow)', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: OBSIDIAN_CONFIGURED_STATUS }],
+      ['/api/j2/notes/connectors/obsidian/connect', { body: { connectCode: 'ABCDE-12345', expiresInSeconds: 900 } }],
+    ])
+    render(<ConnectTilesCompact />)
+    const tile = await screen.findByTestId('connect-tile-obsidian')
+    expect(tile).toHaveTextContent('Connect Obsidian')
+    expect(tile).toHaveAttribute('data-needs-folder', 'false')
+    fireEvent.click(tile)
+
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.click(within(dialog).getByRole('button', { name: /generate code/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/obsidian/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
+    })
+    expect(await screen.findByTestId('obsidian-connect-code')).toHaveTextContent('ABCDE-12345')
+  })
 })

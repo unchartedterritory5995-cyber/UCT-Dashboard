@@ -1,0 +1,5 @@
+{
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": ["a.md", "Setups/VCP.md", "Target Note.md", "files/chart.png"]
+}

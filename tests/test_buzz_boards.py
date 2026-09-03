@@ -28,7 +28,16 @@ def _put(store, ts, ticker, author, mid):
     store.record_mentions([(str(mid), CH, author, ticker, ts, "exact")])
 
 
-def test_top_board_ranks_by_people_not_raw_mentions(mods):
+def test_top_board_ranks_by_mentions_with_people_as_the_tiebreak(mods):
+    """⚠️ RULING REVERSED 2026-09-02: "Id like mentions to be the lead vs people
+    honestly." This asserted the opposite -- that 8 people beat one member
+    posting 30 times -- which was the original brief's spam-resistance
+    argument, and it is worth keeping in view rather than deleting: a single
+    loud member CAN now top the board on volume alone. That is the owner's
+    call, made with the trade stated.
+
+    Distinct people did not disappear; it moved to the TIEBREAK, which is what
+    the second half of this test now pins."""
     store, boards = mods
     now = _at(1, 15)
     for i in range(30):                        # one loud member, 30 messages
@@ -36,10 +45,24 @@ def test_top_board_ranks_by_people_not_raw_mentions(mods):
     for i, who in enumerate("abcdefgh"):       # eight members, one each
         _put(store, _at(1, 10), "REAL", who, 2000 + i)
     board = boards.top_board("open", now, limit=2)
-    assert board[0]["ticker"] == "REAL", "8 people must outrank 1 person x30"
-    assert board[0]["people"] == 8
-    assert board[1]["ticker"] == "LOUD"
-    assert board[1]["mentions"] == 30
+    assert board[0]["ticker"] == "LOUD", "30 mentions now leads"
+    assert board[0]["mentions"] == 30
+    assert board[1]["ticker"] == "REAL"
+    assert board[1]["people"] == 8
+
+
+def test_people_break_a_mentions_tie(mods):
+    """The spam-resistant half of the old ruling, kept where it still applies.
+    Equal volume, so the name more of the room is talking about wins."""
+    store, boards = mods
+    now = _at(1, 15)
+    for i in range(6):                         # 6 mentions, ONE member
+        _put(store, _at(1, 10), "SOLO", "one", 3000 + i)
+    for i, who in enumerate("abcdef"):         # 6 mentions, SIX members
+        _put(store, _at(1, 10), "BROAD", who, 4000 + i)
+    board = boards.top_board("open", now, limit=2)
+    assert [r["ticker"] for r in board] == ["BROAD", "SOLO"]
+    assert board[0]["mentions"] == board[1]["mentions"] == 6
 
 
 def test_top_board_carries_a_sparkline(mods):

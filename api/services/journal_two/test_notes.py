@@ -281,6 +281,41 @@ def test_tag_counts_ignores_untagged_notes_and_handles_an_empty_library(conn):
     assert svc.tag_counts("u1", conn=conn) == []
 
 
+def test_tag_counts_merges_case_variants_of_the_same_tag(conn):
+    """B3: `tag_counts` grouped by `json_each.value` case-SENSITIVELY while
+    the `tag=` filter (`_notes_filter_sql`, `lower(tags) LIKE`) matches
+    case-INSENSITIVELY — three notes tagged 'Earnings'/'earnings'/'EARNINGS'
+    used to yield three chips of count 1 each, each opening a list of all
+    three. A member who typed 'Trading' and 'trading' means one tag; the
+    case-insensitive filter is the member-facing intent, so the count must
+    merge on the same key the filter already matches on."""
+    svc.create_note("u1", {"title": "A", "tags": ["Earnings"]}, conn=conn)
+    svc.create_note("u1", {"title": "B", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u1", {"title": "C", "tags": ["EARNINGS"]}, conn=conn)
+    rows = svc.tag_counts("u1", conn=conn)
+    assert len(rows) == 1
+    assert rows[0]["count"] == 3
+
+
+def test_tag_counts_agrees_with_the_list_filter_it_labels(conn):
+    """The count on a tag chip must equal the length of the list clicking it
+    opens — for every casing variant a note's tag happens to carry. Two
+    authorities over one value (a count query and a filter query) must never
+    be free to disagree; this is the agreement rail `test_backlinks_and_the_
+    list_filter_agree` already keeps for the symbol-backlinks sidecar."""
+    svc.create_note("u1", {"title": "A", "tags": ["Earnings"]}, conn=conn)
+    svc.create_note("u1", {"title": "B", "tags": ["earnings"]}, conn=conn)
+    svc.create_note("u1", {"title": "C", "tags": ["EARNINGS"]}, conn=conn)
+    svc.create_note("u1", {"title": "D", "tags": ["macro"]}, conn=conn)
+    rows = svc.tag_counts("u1", conn=conn)
+    for row in rows:
+        filtered = svc.list_notes("u1", tag=row["tag"], conn=conn)
+        assert len(filtered) == row["count"], (
+            f"chip for {row['tag']!r} shows {row['count']} but its own "
+            f"filter opens {len(filtered)}"
+        )
+
+
 def test_backlinks_answer_which_entries_reference_a_ticker(conn):
     """The sidecar has been written since v1 and read by exactly one consumer.
     This is the read that lets the rest of the app see the journal."""

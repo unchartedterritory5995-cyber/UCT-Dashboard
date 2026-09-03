@@ -883,7 +883,7 @@ async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved
     provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
 
     bad = _rn("p2", "Batch Two Note", updated_at="2026-08-01T00:00:01+00:00")
-    bad.doc = {"type": "not-a-doc"}  # malformed -> import_confirm raises NoteValidationError
+    bad.doc = {"type": "not-a-doc"}  # malformed -> import_confirm isolates it into `failed`
 
     provider.notes_by_id = {"p1": good, "p2": bad}
 
@@ -892,7 +892,10 @@ async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved
     assert result["status"] == "ok"  # a bad batch degrades gracefully, doesn't abort the sync
     assert result["created"] == 1  # only batch 1's note
     assert result["mediaUploaded"] == 1  # batch 1 was fully resolved, not just confirmed
-    assert any("batch" in f.lower() for f in result["failures"])
+    # session-audit.md A1/A2: `import_confirm` now isolates the one bad note
+    # into its own `failed` entry instead of raising for the whole (size-1)
+    # batch, so the message names the NOTE, not the batch.
+    assert any("could not be stored" in f.lower() for f in result["failures"])
 
     notes = notes_svc.list_notes("u1")
     assert len(notes) == 1
@@ -1821,3 +1824,72 @@ async def test_contended_sync_from_two_different_event_loops_never_raises_runtim
     statuses = {results["first"]["status"], results["second"]["status"]}
     assert statuses <= {"ok", "busy"}
     assert "ok" in statuses  # at least one call actually completed the sync
+
+
+# ── The persisted outcome must agree with the computed one ───────────────────
+# A1's fix made `sync_source` return status="warning" when a pass fetched refs
+# but stored NONE of them. But `record_sync_result(ok=True)` fired BEFORE that
+# was computed, so `last_sync_status` was written "ok" with a NULL error --
+# and that row is what the connectors UI reads. Two authorities over one
+# value: the returned dict said warning, the stored row said ok.
+#
+# `SourceRow.jsx` has ALWAYS had the door for this (an amber dot on
+# `lastSyncStatus === 'warning'`, line 20, and `lastSyncError` rendered at
+# line 95) -- the branch was simply unreachable, because nothing anywhere ever
+# wrote "warning" to that column. Built, green, and unreachable.
+
+
+async def test_a_pass_that_stores_nothing_persists_warning_and_why(source, provider):
+    """The stored row, not just the returned dict — it is what the member sees."""
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Trading Notes"),
+        "p2": _rn("p2", "Setup Library", updated_at="2026-08-02T00:00:00+00:00"),
+    }
+    # Every fetch fails -> refs were seen, no note was stored: the audit's
+    # "13 staged, 0 landed" shape, reduced to its essentials.
+    provider.raise_on_fetch_for = {"p1", "p2"}
+    provider.raise_on_fetch_many_for = {"p1", "p2"}
+
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "warning", "precondition: the pass stored nothing"
+    assert result["created"] == 0 and result["updated"] == 0
+
+    row = engine.connections.get_source_by_id(source["id"])
+    assert row["lastSyncStatus"] == "warning", (
+        "the stored outcome disagrees with the computed one: sync_source "
+        "returned 'warning' but the source row the connectors card reads was "
+        f"written {row['lastSyncStatus']!r}. SourceRow's amber-dot branch "
+        "cannot fire, so the member is told this sync was fine"
+    )
+    assert row["lastSyncError"], (
+        "nothing was persisted about WHY the pass stored nothing -- "
+        "SourceRow renders lastSyncError, and a warning with no reason "
+        "gives the member an amber dot and no way to act on it"
+    )
+
+
+async def test_a_healthy_pass_still_records_ok_and_clears_a_stale_error(source, provider):
+    """The control: the warning path must not leak into the ordinary one, and
+    a recovered sync must not keep showing the previous failure's reason."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Trading Notes")}
+    provider.raise_on_fetch_for = {"p1"}
+    provider.raise_on_fetch_many_for = {"p1"}
+    await engine.sync_source(source["id"], full=True)
+    assert engine.connections.get_source_by_id(source["id"])["lastSyncError"]
+
+    provider.raise_on_fetch_for = set()
+    provider.raise_on_fetch_many_for = set()
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert result["status"] == "ok"
+    row = engine.connections.get_source_by_id(source["id"])
+    assert row["lastSyncStatus"] == "ok"
+    assert not row["lastSyncError"], (
+        "a healthy sync left the previous failure's reason on the row -- the "
+        "member keeps reading a stale error for a source that is now fine"
+    )

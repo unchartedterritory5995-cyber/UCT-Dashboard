@@ -8,6 +8,8 @@ import random
 
 import pytest
 
+from tests.discord_harness import UT_GUILD, _app_client, _keypair, _post, _sign
+
 from api.services import discord_chart_house as house_mod
 
 
@@ -153,14 +155,8 @@ def test_tf_label_covers_every_window_key():
 
 # ── Task 2: interaction plumbing ──────────────────────────────────────────────
 
-def _keypair():
-    from nacl.signing import SigningKey
-    sk = SigningKey.generate()
-    return sk, sk.verify_key.encode().hex()
 
 
-def _sign(sk, ts: str, body: bytes) -> str:
-    return sk.sign(ts.encode() + body).signature.hex()
 
 
 def test_verify_signature_good_bad_and_garbage_never_raise():
@@ -178,7 +174,6 @@ def test_verify_signature_good_bad_and_garbage_never_raise():
     assert verify_signature(pk, "", "", body) is False
 
 
-UT_GUILD = "882293203485720596"  # Uncharted Territory, one of the two allowed servers
 
 
 def _interaction(ticker=None, tf=None, name="chart", itype=2):
@@ -345,22 +340,8 @@ def test_run_chart_job_never_raises_even_if_edit_fn_raises():
 
 # ── Task 3: endpoint ──────────────────────────────────────────────────────────
 
-def _app_client():
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from api.routers import discord_interactions as rt
-    app = FastAPI()
-    app.include_router(rt.router)
-    return TestClient(app), rt
 
 
-def _post(client, sk, payload: dict, *, ts="1700000000", sign=True, bad_sig=False):
-    body = json.dumps(payload).encode()
-    headers = {"content-type": "application/json"}
-    if sign:
-        headers["X-Signature-Ed25519"] = ("00" * 64) if bad_sig else _sign(sk, ts, body)
-        headers["X-Signature-Timestamp"] = ts
-    return client.post("/api/discord/interactions", content=body, headers=headers)
 
 
 def test_endpoint_dark_without_public_key(monkeypatch):

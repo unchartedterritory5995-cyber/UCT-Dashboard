@@ -22,6 +22,7 @@ import asyncio
 import base64
 import hashlib
 import hmac as _hmac
+import json
 import logging
 import os
 import secrets
@@ -30,20 +31,23 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from api.middleware.auth_middleware import (
     PAID_PLANS,
     get_current_user,
     get_current_user_optional,
+    meets_plan_gate,
     require_plan,
 )
-from api.services import crypto_box
+from api.services import auth_service, crypto_box
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
-from api.services.journal_two.note_connectors import connections, engine, errors, oauth, registry
+from api.services.journal_two.note_connectors import (
+    connections, engine, errors, obsidian_link, obsidian_staging, oauth, registry,
+)
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
 
 log = logging.getLogger("note_connectors.router")
@@ -144,7 +148,21 @@ def _verify_state(state: str, *, provider: str) -> str:
     nothing about which check failed. Raises `errors.NoteConnNotConfigured`
     (mapped to 503 by the caller) when no signing secret is configured at
     all — a distinct, server-side-only signal, never confused with a
-    client-supplied bad state."""
+    client-supplied bad state.
+
+    ⛔ That "on ANY failure" claim was FALSE until the `compare_digest` call
+    below was fixed to compare BYTES: `state` arrives as a raw URL query
+    value on the Notion/Dropbox/MS Graph OAuth callback, and a malformed one
+    can decode (base64 + `.decode("utf-8")`) into a `sig` half containing a
+    non-ASCII character. `hmac.compare_digest` on two `str` raises
+    `TypeError` (not a clean False) the instant either side is non-ASCII --
+    that reached this exact comparison uncaught and turned a bad state into
+    a 500 on this shared callback path (measured, not assumed -- see
+    `tests/test_note_sync_router.py`'s non-ASCII-state test). Encoding both
+    sides to bytes right before `compare_digest` makes that same input
+    compare false like any other bad signature -- same pre-existing shape,
+    same fix, as `obsidian_link.py`'s `_verify_connect_code` /
+    `authenticate_device`."""
     bad = HTTPException(status_code=400, detail="invalid or expired state")
     try:
         raw = base64.urlsafe_b64decode(state.encode("utf-8")).decode("utf-8")
@@ -155,7 +173,10 @@ def _verify_state(state: str, *, provider: str) -> str:
         raise bad
     payload = f"{user_id}:{state_provider}:{ts_str}:{nonce}"
     expected = _hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()  # NoteConnNotConfigured propagates
-    if not _hmac.compare_digest(expected, sig):
+    # BYTES, not str: `sig` was decoded from an attacker-controlled base64
+    # blob via .decode("utf-8"), so it can legally contain non-ASCII
+    # characters -- see the docstring above.
+    if not _hmac.compare_digest(expected.encode("utf-8"), sig.encode("utf-8")):
         raise bad
     try:
         ts = int(ts_str)
@@ -183,6 +204,11 @@ def _raise_for_provider_error(e: Exception) -> None:
         raise HTTPException(status_code=400, detail=str(e))
     if isinstance(e, errors.NoteConnTransient):
         raise HTTPException(status_code=503, detail=str(e))
+    if isinstance(e, errors.NoteConnValidationError):
+        # I3/I4/I7 (2026-09-02 review) -- a boundary-rejected payload
+        # (padded/empty manifest, an over-cap batch) is a client error, not
+        # a provider/config/rate/transient one.
+        raise HTTPException(status_code=400, detail=str(e))
     raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -372,6 +398,26 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
     return {"connected": True, "accountLabel": info.label, "source": source}
 
 
+def _mint_device_connect_code(provider: str, user_id: str) -> dict[str, Any]:
+    """`connect_kind == "device"` (Obsidian, Task 5 of the 2026-09-02 plan)
+    — neither a synchronous credential POST (`"token"`) nor a redirect
+    (`"oauth"`). The member mints a short-lived, single-use code HERE and
+    pastes it into the locally-installed plugin, which exchanges it for a
+    device token on ITS OWN call into `obsidian_link.redeem_connect_code`
+    — entirely outside this router's `/connect`+`/callback` pair (see that
+    module's own docstring). Mirrors `_start_oauth`'s `entry.configured()`
+    gate: an unconfigured provider refuses with the same 503 shape rather
+    than minting a code nothing can ever redeem against."""
+    entry = registry.get_entry(provider)
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    try:
+        code = obsidian_link.mint_connect_code(user_id)
+    except errors.NoteConnNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return {"connectCode": code, "expiresInSeconds": obsidian_link._CONNECT_CODE_TTL_SECONDS}
+
+
 def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
@@ -403,6 +449,8 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
     entry = registry.get_entry(provider)
     if entry.connect_kind == "oauth":
         return _start_oauth(provider, user["id"])
+    if entry.connect_kind == "device":
+        return _mint_device_connect_code(provider, user["id"])
     return await _connect_token_provider(provider, body, user["id"])
 
 
@@ -721,11 +769,31 @@ async def _best_effort_revoke_dropbox(user_id: str) -> None:
 async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Purges the connector's token + every source/log/remote-index row for
     this provider — NEVER touches `j2_notes`/`j2_note_folders` (spares
-    already-synced notes; `connections.delete_connector`'s own contract)."""
+    already-synced notes; `connections.delete_connector`'s own contract).
+
+    ⛔ Obsidian also revokes every `j2_obsidian_devices` row for this user
+    (2026-09-02 gap fix). The ingest endpoint (`_authenticate_obsidian_
+    device` below) authenticates a push purely off that table, via
+    `obsidian_link.authenticate_device` — INDEPENDENTLY of the
+    `j2_note_connectors` row this function otherwise purges alone. Without
+    this, disconnecting Obsidian here left every already-issued device
+    token still valid: a member who disconnects Obsidian in the UI,
+    believing they cut the plugin off, still had a plugin able to push
+    notes into staging (reproduced before this fix landed — see
+    `test_obsidian_ingest.py`'s disconnect-revokes-the-device-token tests).
+    Mirrors Dropbox's best-effort-revoke-before-purge shape immediately
+    below, generalized to whichever provider owns an out-of-band credential
+    store of its own (Dropbox: a third-party OAuth grant; Obsidian: a
+    locally-issued device token) — NOT best-effort, though: a failed revoke
+    here must fail the whole disconnect rather than silently claim success
+    while a device is still live (see `obsidian_link.revoke_devices`'s own
+    docstring)."""
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
     if provider == "dropbox":
         await _best_effort_revoke_dropbox(user["id"])
+    if provider == "obsidian":
+        obsidian_link.revoke_devices(user["id"])
     ok = connections.delete_connector(user["id"], provider)
     if not ok:
         raise HTTPException(status_code=404, detail=f"{provider} is not connected")
@@ -750,3 +818,333 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
+
+
+# ── POST /obsidian/redeem (device connect-code exchange, Task 5b) ───────────
+#
+# The other half of the "device" `connect_kind` flow `_mint_device_connect_
+# code` above started: the member copied a connect code off the dashboard
+# (behind a real session + the paid gate, at MINT time); the Obsidian plugin
+# POSTs it here to trade it for a long-lived device token. Called by the
+# PLUGIN, not a browser -- same reasoning as `/obsidian/ingest` below, this
+# endpoint takes NO `Depends(get_current_user)` / session dependency at all.
+# Until this existed, a minted code had nothing to redeem against and
+# minting never created a `j2_note_sources` row, so nothing ever drove
+# `engine.sync_source` for Obsidian -- this closes both gaps in one endpoint.
+
+class ObsidianRedeemBody(BaseModel):
+    """Wire shape the (out-of-repo) Obsidian plugin POSTs to trade a connect
+    code for a device token. No `consent` field here: consent was already
+    given at MINT time (`ConnectBody.consent`, enforced in `connect()`
+    before `_mint_device_connect_code` ever runs, behind the session + paid
+    gate) -- redeeming is the plugin completing a flow the member already
+    consented to at the browser, not a second consent surface with nobody
+    at a browser to click it."""
+    code: str
+    vaultId: str
+    label: str | None = None
+
+
+@router.post("/obsidian/redeem")
+def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
+    """Exchanges a connect code for a device token + creates (or reuses) the
+    `j2_note_sources` row that makes the sync engine pull this vault.
+
+    ⛔ No session cookie: the Obsidian plugin runs outside any browser, so
+    gating this like every other `/connect` call would make the flow
+    unreachable by construction. The connect code itself -- HMAC-signed,
+    embeds the minting user_id, single-use, 15-minute TTL, verified INSIDE
+    `redeem_connect_code` before this handler does anything else
+    (`obsidian_link.py`'s own module docstring) -- IS the credential, the
+    same shape `/obsidian/ingest` below already relies on for its own
+    device-token auth, one step earlier in the chain.
+
+    What stops an attacker from grinding codes (the task brief's own
+    question): this is not a short guessable PIN. A code is
+    base64(user_id:ts:nonce:sig) where `sig` is a FULL 256-bit HMAC-SHA256
+    digest over the rest, keyed by `PUSH_SECRET`/`VOICE_ACTION_SECRET`.
+    Forging a valid one without that secret is a 2^256 search, not a
+    rate-limitable few-thousand-guess space, so this is deliberately
+    resistant-by-entropy rather than `@limiter.limit`-decorated like
+    `auth.py`'s login/signup: this module carries `from __future__ import
+    annotations`, and slowapi's `functools.wraps`-based decorator resolves a
+    wrapped endpoint's string annotations against ITS OWN module globals
+    (`slowapi.extension`, where `ObsidianRedeemBody` does not exist), not
+    `note_sync`'s -- confirmed by reproduction: decorating this endpoint
+    made FastAPI stop recognizing `body` as a JSON payload at all and treat
+    it as a required, always-missing QUERY parameter, 422 on every call.
+    Rather than strip the future-annotations import repo-wide (out of this
+    task's scope, and every other endpoint here already depends on it) or
+    invent a bespoke, POST-body-agnostic per-IP counter no other connector
+    endpoint has, the fix is that a rate limiter is redundant here: the
+    15-minute TTL plus the single-use nonce
+    (`obsidian_link._used_connect_code_nonces`) already close the replay
+    window even if one code ever leaked, and entropy alone already makes
+    brute-forcing a valid signature computationally infeasible regardless of
+    how many requests per minute are allowed.
+
+    Never logs `raw_token` -- it is returned in the response body exactly
+    once and nowhere else (mirrors `redeem_connect_code`'s own docstring:
+    "the ONLY point the plaintext secret exists outside this call's stack
+    frame").
+
+    Idempotent per (user_id, vault_id): `connections.create_source` already
+    returns the existing row on a second redemption for the same vault
+    (Task 11's own idiom, reused verbatim here) -- a plugin reinstall or a
+    stale second `redeem` call never creates a duplicate `j2_note_sources`
+    row, exactly like `redeem_connect_code` itself rotates rather than
+    duplicates the device row.
+    """
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        # Mirrors `_mint_device_connect_code`'s own gate -- stops a
+        # redemption in flight just as surely as it stops a new mint.
+        # ⛔ This comment used to go further and call the flag "the rollback
+        # lever" outright -- FALSE until 2026-09-02 (I2): a device that had
+        # ALREADY redeemed kept pushing to `/obsidian/ingest` with the flag
+        # off, because that endpoint had no `configured()` check of its own.
+        # Mint and redeem alone never made this a kill switch; `obsidian_
+        # ingest` (below) now checks independently, and NEITHER endpoint's
+        # comment should restate the other's guarantee as fact without
+        # actually checking it -- exactly how this one went unverified.
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    vault_id = (body.vaultId or "").strip()
+    if not body.code or not vault_id:
+        raise HTTPException(status_code=400, detail="code and vaultId are required")
+
+    try:
+        device_id, raw_token = obsidian_link.redeem_connect_code(body.code, vault_id, body.label)
+    except errors.NoteConnError as e:
+        _raise_for_provider_error(e)
+
+    device = obsidian_link.get_device(device_id)
+    if device is None:
+        # Defensive only -- redeem_connect_code just wrote/rotated this
+        # exact row with this exact device_id; a None here would mean the
+        # write inside that call itself failed, which would already have
+        # raised rather than returning.
+        raise HTTPException(status_code=503, detail="Obsidian device could not be verified after redemption")
+    _require_paid_device_user(device["user_id"])  # same re-check /obsidian/ingest performs on every push
+
+    # ⛔ The `j2_note_sources` row alone is NOT enough to make
+    # `engine.sync_source` actually run: `_do_sync` calls
+    # `_resolve_credentials(user_id, "obsidian")` unconditionally and RAISES
+    # `NoteConnNotConfigured` (aborting the sync before `list_changed` is
+    # ever called) the moment that returns `None` -- and it returns `None`
+    # whenever no `j2_note_connectors` row exists for (user_id, provider),
+    # regardless of whether a source does. Every other provider's connect
+    # path (`_connect_token_provider` above) writes BOTH rows for exactly
+    # this reason; Obsidian has no real credential to store (push
+    # transport -- `ObsidianProvider` never reads `credentials` at all, see
+    # its own module docstring), so this upserts an empty placeholder blob
+    # purely to satisfy that unconditional resolution step. Reusing
+    # `_upsert_connector_or_503` (not a bare `connections.upsert_connector`
+    # call) keeps the SAME 503-not-a-traceback behavior every other
+    # provider gets if `NOTE_ENCRYPTION_KEY` is missing -- already a
+    # prerequisite here regardless, since `redeem_connect_code` itself just
+    # encrypted the device secret with the same key.
+    _upsert_connector_or_503(device["user_id"], "obsidian", {}, account_label=device["label"])
+
+    display_label = device["label"] or f"Vault ({vault_id})"
+    dest_folder_id = _default_dest_folder_id(device["user_id"], f"{entry.label} — {display_label}")
+    source = connections.create_source(
+        device["user_id"], "obsidian", vault_id,
+        display_name=device["label"], dest_folder_id=dest_folder_id,
+    )
+    return {"deviceId": device_id, "token": raw_token, "vaultId": vault_id, "source": source}
+
+
+# ── POST /obsidian/ingest (Obsidian plugin push transport, Task 3) ───────────
+#
+# Obsidian is local-first — the plugin PUSHES; the sync engine only PULLS from
+# providers (spec §7.2). This endpoint writes ONLY to the staging tables
+# (`obsidian_staging.ingest_batch`) — ⛔ NEVER to `j2_notes`. Writing notes
+# directly here would duplicate the conflict ratchet, delete detection, media
+# phase and import-hash logic that `note_connectors/engine.py` already owns,
+# and the copies would drift ("four readers of one envelope, three of them
+# wrong" — this repo has paid for that shape once). Task 4's provider reads
+# staging and satisfies the ordinary `NoteProvider` contract instead, so the
+# engine's convert -> upsert -> conflict -> media path is inherited unchanged.
+
+_MAX_OBSIDIAN_INGEST_BYTES = 2_000_000  # ~2MB per push. Declared Content-Length
+# is checked BEFORE the body is read (mirrors community.py's image-upload
+# guard, "reject oversize up front ... so we never buffer a huge body") as a
+# fast, cheap short-circuit for an HONEST client. It is NOT the real bound —
+# see `_read_bounded_body` below (I7, 2026-09-02 review) for the actual
+# enforcement, which holds even when Content-Length is absent, zero, or lies.
+
+
+async def _read_bounded_body(request: Request, limit: int) -> bytes:
+    """⛔⛔ I7 (2026-09-02 review): "the 2MB guard is bypassable via chunked/
+    absent Content-Length before `await request.body()`". That was literally
+    true — `await request.body()` reads the ENTIRE ASGI body stream into
+    memory REGARDLESS of size before any length check ever runs; the
+    post-read `len(raw) > limit` check this function replaces only fired
+    AFTER the attacker's full claimed body was already buffered. A request
+    with no (or a lying) Content-Length sailed past the declared-header
+    check above and got fully read into memory before being rejected —
+    exactly the resource-exhaustion blast radius the review named: a
+    single-replica pod whose volume is shared by 20+ SQLite databases.
+
+    This reads the body incrementally off `request.stream()` instead,
+    aborting the INSTANT the running total exceeds `limit` — at most one
+    extra chunk beyond `limit` is ever held (an ASGI receive() event is
+    typically tens of KB), never an attacker-controlled amount, regardless
+    of what Content-Length claims or omits."""
+    total = 0
+    chunks: list[bytes] = []
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(status_code=400, detail="batch too large")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+class ObsidianNoteItem(BaseModel):
+    vault_path: str
+    content_hash: str
+    body_md: str
+    updated_at: str
+
+
+# The ingest batch's top-level notes-array key -- PINNED. This name is a wire
+# contract with the out-of-repo Obsidian plugin (Wave 3b): nothing upstream
+# of this router enforces that the plugin actually names its field this way.
+# `ObsidianIngestBody.notes` is declared REQUIRED (no `= []` default) so a
+# batch that sends the notes array under a different or misspelled key
+# fails LOUDLY here -- a 400 naming exactly which field pydantic couldn't
+# find -- instead of pydantic silently filling in an empty list and the
+# endpoint returning a 200 with `written: 0` that reads as a successful,
+# merely-empty push. `manifest`/`final` stay genuinely optional (the router
+# docstring below already marks them `manifest?`/`final?`); only the notes
+# key is load-bearing enough to pin this way.
+OBSIDIAN_INGEST_NOTES_FIELD = "notes"
+
+
+class ObsidianIngestBody(BaseModel):
+    """Wire shape the (out-of-repo, Wave 3b) Obsidian plugin pushes.
+    `consent` mirrors `ConnectBody.consent` above — the SAME gate, not a
+    second scheme (task brief: "paid-gated and consent-gated like the other
+    connector endpoints"). Deliberately carries NO `user_id`/`vault_id`
+    field: those two values come EXCLUSIVELY from the authenticated device
+    (`_authenticate_obsidian_device`) — a same-named field in the body is
+    silently ignored by pydantic, never read, so a forged one cannot steer
+    a write to a different tenant. Unrecognized EXTRA fields (e.g. a
+    same-named-but-irrelevant `user_id`) are likewise silently ignored --
+    deliberately: only `OBSIDIAN_INGEST_NOTES_FIELD` itself is pinned, see
+    above."""
+    consent: bool = False
+    notes: list[ObsidianNoteItem]
+    manifest: list[str] | None = None
+    final: bool = False
+
+
+def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
+    """Device-token auth (Task 2's `obsidian_link.authenticate_device`) — the
+    same `Authorization: Bearer <token>` idiom every other bearer-token
+    endpoint in this codebase uses (`push.py`, `desk_zoom_webhook.py`).
+    Raises 401 for a missing/malformed header or any token
+    `authenticate_device` doesn't recognize.
+
+    ⛔ That "never raises for a bad/garbage token" claim about
+    `authenticate_device` was FALSE until obsidian_link.py's
+    `compare_digest` calls were fixed to compare BYTES: headers are
+    latin-1 decoded, so a raw byte >= 0x80 in the token's secret half
+    reached `hmac.compare_digest` as a non-ASCII `str` and raised
+    `TypeError` -- a 500 on this exact auth path, not the clean 401 above
+    (measured, not assumed). Restated here as its own claim, not a
+    cross-reference, is how it went unverified for two files at once;
+    read `authenticate_device`'s own docstring for the mechanism, not this
+    comment."""
+    auth = request.headers.get("authorization") or ""
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    raw_token = auth[len("Bearer "):].strip()
+    device = obsidian_link.authenticate_device(raw_token)
+    if device is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return device
+
+
+def _require_paid_device_user(user_id: str) -> None:
+    """Calls the SAME predicate — `auth_middleware.meets_plan_gate` — that
+    `_paid`/`require_plan(list(PAID_PLANS))` enforces on every other
+    connector endpoint (admin, OR a PAID_PLANS plan, OR 'comped', OR an
+    active trial). Not a `Depends` because `require_plan`'s dependency chain
+    resolves the caller from the SESSION COOKIE (`get_current_user_with_
+    plan`), and a device push carries no session to read one from — but the
+    entitlement RULE itself is not reimplemented here, only the plumbing
+    that gets a user dict without a cookie. One predicate, two ways of
+    reaching it, so the cookie path and the device path can never drift.
+    The identity itself still comes from ONLY the already-authenticated
+    device — this never reads a user id out of the request."""
+    user = auth_service.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=403, detail="Upgrade required")
+    user = dict(user)
+    user["plan"] = auth_service.get_user_plan(user_id)
+    if meets_plan_gate(user, list(PAID_PLANS)):
+        return
+    raise HTTPException(status_code=403, detail="Upgrade required")
+
+
+@router.post("/obsidian/ingest")
+async def obsidian_ingest(request: Request) -> dict[str, Any]:
+    """Batch push from the Obsidian plugin. Body: `{consent, notes:
+    [{vault_path, content_hash, body_md, updated_at}], manifest?, final?}`.
+    `manifest` — the vault's COMPLETE path list — is only applied to
+    `j2_obsidian_manifest` when `final` is true (see
+    `obsidian_staging.ingest_batch`'s docstring for why a partial push must
+    never touch it).
+
+    ⛔⛔ I2 (2026-09-02 review): checks `registry.get_entry("obsidian").
+    configured()` FIRST, before even authenticating the device token --
+    this was previously missing, so `NOTE_SYNC_OBSIDIAN_ENABLED=0` stopped
+    NEW mints/redemptions (`_mint_device_connect_code`/`obsidian_redeem`
+    both gate on it) but did nothing to an ALREADY-connected device, which
+    kept pushing indefinitely. That gap made the flag a partial rollback at
+    best, not the kill switch its own name promises -- see the corrected
+    comment on `obsidian_redeem`'s identical check for the false claim this
+    replaces."""
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    device = _authenticate_obsidian_device(request)
+    _require_paid_device_user(device["user_id"])
+
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except (TypeError, ValueError):
+        declared = 0
+    if declared > _MAX_OBSIDIAN_INGEST_BYTES:
+        raise HTTPException(status_code=400, detail="batch too large")
+    raw = await _read_bounded_body(request, _MAX_OBSIDIAN_INGEST_BYTES)
+
+    try:
+        payload = json.loads(raw or b"{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    try:
+        body = ObsidianIngestBody(**payload)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not body.consent:
+        raise HTTPException(status_code=400, detail="Consent is required to sync from Obsidian.")
+
+    try:
+        return obsidian_staging.ingest_batch(
+            user_id=device["user_id"],
+            vault_id=device["vault_id"],
+            notes=[n.model_dump() for n in body.notes],
+            manifest=body.manifest,
+            final=body.final,
+        )
+    except errors.NoteConnError as e:
+        # I3/I4/I7 (2026-09-02 review): `ingest_batch` now raises
+        # `NoteConnValidationError` for a padded/empty manifest or an
+        # over-cap batch — mapped to a clean 400, never a 500.
+        _raise_for_provider_error(e)

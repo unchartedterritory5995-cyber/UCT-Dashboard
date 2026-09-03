@@ -1,0 +1,21 @@
+{
+  "id": "01-wikilink-basename",
+  "input_markdown": "# Wikilink Basename\n\nSee [[Target Note]] for the full setup writeup.\n",
+  "self_path": "Notes/wikilink-basename.md",
+  "server": {
+    "images": [],
+    "links": [
+      {
+        "target": "Notes/Target Note.md",
+        "text": "Target Note"
+      }
+    ],
+    "task_checked": [],
+    "text": "Wikilink Basename See  Target Note  for the full setup writeup."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "Notes/wikilink-basename.md",
+    "Notes/Target Note.md"
+  ]
+}

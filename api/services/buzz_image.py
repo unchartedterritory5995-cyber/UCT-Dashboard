@@ -27,8 +27,8 @@ log = logging.getLogger(__name__)
 # These are the renderer's VIEWPORT, not the board. The board is a fixed
 # 1000px element (BuzzRender.jsx's EXPORT_STYLE) and the renderer screenshots
 # `#buzz-export`'s own box, so the viewport only has to be comfortably wider
-# than the board and tall enough not to matter -- a day with more tickers
-# simply produces a taller PNG.
+# than the board. (It also said "and tall enough not to matter"; see the
+# measured note on BOARD_H below -- that half was an assumption, not a fact.)
 # ⛔ Do NOT read 1400 as the board's width. It said "1400 wide because the
 # board carries EVERY ticker: a ranked column plus the themed tail in three
 # sub-columns" -- there are no three sub-columns (the tail is one wrapping
@@ -36,7 +36,24 @@ log = logging.getLogger(__name__)
 # `width: 1000px`, the board really did stretch to fill this number. That is
 # fixed; this comment is what stops the next reader from re-deriving the
 # layout from the viewport.
-BOARD_W, BOARD_H, SCALE = 1400, 1400, 2
+#
+# ⚠️ BOARD_H WAS 1400 AND THAT CLAIM WAS NEVER MEASURED. The comment above
+# said "tall enough not to matter -- a day with more tickers simply produces a
+# taller PNG", which is a claim about what chart-renderer does with an element
+# TALLER than the viewport it was handed, and chart-renderer is another
+# service. Measured 2026-09-02: the board grew 1031 -> 1150 -> 1187 -> 1268 ->
+# 1303 px across the day's checkpoints and stood at 1412 px by 3:42pm -- past
+# 1400, on the first day the feature ran. Whether that would have shipped a
+# clipped board or a whole one, nobody knows, which is the problem.
+#
+# 2400 is not a measurement, it is headroom: ~70% over the tallest board yet
+# seen, on a surface whose height is set by how many DISTINCT tickers the room
+# named (the tail is one wrapping row of chips, and the owner asked for every
+# 1-3 mention name to stay on it). A taller viewport cannot change the layout
+# -- the board declares a fixed 1000px width and the stylesheet uses no vh /
+# vmin / vmax units -- so this is free insurance, not a tuning knob.
+# `_warn_if_capped` below turns the remaining doubt into an OBSERVATION.
+BOARD_W, BOARD_H, SCALE = 1400, 2400, 2
 RENDER_TIMEOUT_S = 45.0
 
 # ── The valve. Every /chart render passes through discord_interactions'
@@ -139,6 +156,45 @@ def image_enabled() -> bool:
     return bool(os.environ.get("CHART_RENDERER_URL", "").strip())
 
 
+def png_size(png: bytes) -> tuple[int, int] | None:
+    """(width, height) in device pixels from a PNG's IHDR, or None.
+
+    The IHDR chunk is fixed-position: an 8-byte signature, a 4-byte length, the
+    type "IHDR", then width and height as big-endian uint32. No decoder needed
+    and nothing to install.
+
+    Matched on the signature's ASCII run (bytes 1..4 == "PNG") rather than its
+    0x89 lead byte: the caller has already checked the full signature, and
+    writing that escape here keeps arriving as a literal 0x89 character
+    (lesson_a_heredoc_turns_backslash_b_into_a_backspace)."""
+    if len(png) < 24 or png[1:4] != b"PNG" or png[12:16] != b"IHDR":
+        return None
+    return (int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big"))
+
+
+def _warn_if_capped(png: bytes) -> None:
+    """Say so, loudly, if the shot came back exactly viewport-tall.
+
+    ⛔ THIS IS AN OBSERVATION, NOT A GUARD. Whether chart-renderer captures an
+    element taller than its viewport, or crops it, is a property of ANOTHER
+    service; asserting either way here would just be the old comment's mistake
+    with more words. So this measures the artifact that came back and records
+    the one shape that is diagnostic -- a height landing exactly on
+    BOARD_H * SCALE, which a freely-grown board has no reason to do.
+
+    It never discards. A cropped board is still most of a board, and a member
+    losing their image over a heuristic about a sibling service is a worse
+    outcome than a slightly short one. The log line is what turns "we think it
+    is fine" into something a person can grep for.
+    """
+    size = png_size(png)
+    if size and size[1] >= BOARD_H * SCALE:
+        log.warning("[buzz] board PNG is %dx%d -- at or past the %dpx viewport "
+                    "(BOARD_H=%d x scale %d). If boards look cut off at the "
+                    "bottom, this is why; raise BOARD_H.",
+                    size[0], size[1], BOARD_H * SCALE, BOARD_H, SCALE)
+
+
 def _probe_rows(resp) -> int | None:
     """Rows the page says it drew, or None when the renderer did not say (an
     older renderer/bundle without X-Chart-Probe). Unknown falls through to
@@ -224,6 +280,7 @@ def _render_uncached(window: str = "open", *, client=None) -> bytes | None:
                 log.warning("[buzz] board rendered %dpx wide, not its declared width "
                             "-- discarding (export container lost its geometry)", -probe)
                 return None
+            _warn_if_capped(r.content)
             return r.content
         finally:
             if own:

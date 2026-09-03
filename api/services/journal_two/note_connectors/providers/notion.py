@@ -347,7 +347,12 @@ class NotionProvider(NoteProvider):
         start_cursor: str | None = None
         for _ in range(_MAX_SEARCH_PAGES):
             body: dict[str, Any] = {
-                "filter": {"property": "object", "value": "page"},
+                # Notion's search endpoint EXCLUDES trashed content by
+                # default -- current docs: "To list content in the trash,
+                # set filter.in_trash to true." Without this, every result
+                # page here is already trash-free and this sweep silently
+                # returns [] against a real workspace forever.
+                "filter": {"property": "object", "value": "page", "in_trash": True},
                 "page_size": 100,
             }
             if start_cursor:

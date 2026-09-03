@@ -50,7 +50,49 @@ describe('BuzzRender', () => {
     // halves are asserted so a regression that drops the header (leaving a
     // naked "14" nobody can read) still fails.
     expect(screen.getByText('14')).toBeInTheDocument()
-    expect(screen.getByText('PEOPLE')).toBeInTheDocument()
+    // 'PPL', not 'PEOPLE': the v8 two-column pass shortened every header to
+    // fit a ~46%-width column. The rail is that SOME header still names the
+    // figure -- a naked '14' is unreadable either way.
+    expect(screen.getByText('PPL')).toBeInTheDocument()
+  })
+
+  it('splits the head rows into two columns whose ranks read DOWN, not across', async () => {
+    // ⛔ THE COLUMNS ARE A HEIGHT FIX, AND THE RANKING MUST SURVIVE IT.
+    // Discord scales a PORTRAIT attachment by HEIGHT into a landscape box, so
+    // the 1338px board rendered ~262px wide and the bottom rows were
+    // unreadable -- the owner's actual complaint. Two columns halve the height
+    // at the same width. But a split that numbers ACROSS (01 02 / 03 04) makes
+    // the highest-mention ticker sit beside the second instead of above it,
+    // and the board stops reading as a ranking at all.
+    //
+    // Five rows on purpose: an ODD count is where a balanced split can put the
+    // extra row on the wrong side and silently renumber everything after it.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        window: 'open', label: 'since the open',
+        rows: [
+          { ticker: 'AAA', people: 9, mentions: 50, spark: [1], hot: null },
+          { ticker: 'BBB', people: 8, mentions: 40, spark: [1], hot: null },
+          { ticker: 'CCC', people: 7, mentions: 30, spark: [1], hot: null },
+          { ticker: 'DDD', people: 6, mentions: 20, spark: [1], hot: null },
+          { ticker: 'EEE', people: 5, mentions: 10, spark: [1], hot: null },
+        ],
+        coverage: 'counted through 3:58p', asOf: 1,
+      }),
+    })))
+    const { container } = render(<BuzzRender />)
+    await screen.findByText('EEE')
+    // Rank labels in DOM order must be 01..05 -- the left column's three rows
+    // first, then the right column's two. Reading across would give 01 04 02
+    // 05 03 here, so this ordering is what distinguishes the two designs.
+    const ranks = [...container.querySelectorAll('[data-buzz-row]')]
+      .map((el) => el.firstElementChild.textContent)
+    expect(ranks).toEqual(['01', '02', '03', '04', '05'])
+    // ...and the ticker beside each rank is the one the payload ranked there.
+    const syms = [...container.querySelectorAll('[data-buzz-row]')]
+      .map((el) => el.children[1].textContent)
+    expect(syms).toEqual(['AAA', 'BBB', 'CCC', 'DDD', 'EEE'])
   })
 
   it('shows the heat marker on a row the heat board flagged', async () => {
@@ -73,35 +115,42 @@ describe('BuzzRender', () => {
     expect(await screen.findByText(/messages with tickers/i)).toBeInTheDocument()
   })
 
-  it('scales the magnitude bar to the loudest row, not the first one', async () => {
-    // The board ranks by DISTINCT PEOPLE, so the top row is not necessarily
-    // the one with the most mentions — three people saying a name forty times
-    // outranks nobody. Reading rows[0].mentions as the maximum would render a
-    // bar WIDER THAN ITS TRACK on exactly the rows the board exists to
-    // surface. This payload puts the loudest row second on purpose.
+  it('never draws a bar that steps up below a higher-ranked row', async () => {
+    // ⛔ THE BOARD MUST NOT CONTRADICT ITS OWN ORDER. The bar has to draw the
+    // same quantity the rows are sorted by, whichever that is. It drew mentions
+    // against a people-sorted board and stepped UP three times in fourteen rows
+    // (DELL 8 people/18 mentions below COIN 9/9, nearly double the bar), which
+    // reads as a sorting bug. Both are MENTIONS now (owner ruling 2026-09-02),
+    // and this rail is what keeps them from drifting apart again.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
         window: 'open', label: 'since the open',
+        // Ordered as the API now returns it: mentions DESC, people as the
+        // tiebreak. The rail is that the BAR follows that order.
         rows: [
-          { ticker: 'AAAA', people: 14, mentions: 10, spark: [1], hot: null },
-          { ticker: 'BBBB', people: 5, mentions: 40, spark: [1], hot: null },
+          { ticker: 'LOUD', people: 4, mentions: 40, spark: [1], hot: null },
+          { ticker: 'BROAD', people: 9, mentions: 9, spark: [1], hot: null },
         ],
         coverage: 'counted through 3:58p', asOf: 1,
       }),
     })))
     const { container } = render(<BuzzRender />)
-    await screen.findByText('AAAA')
-    const bars = container.querySelectorAll('[data-buzz-bar]')
-    expect(bars).toHaveLength(2)
-    // Assert the RATIO and the unit separately: jsdom re-serializes CSS, so
-    // the "100.0%" the component writes reads back as "100%". Pinning the
-    // literal string would be a test of jsdom's serializer, not of the
-    // scaling. The unit check keeps a px regression from passing on the float.
-    expect(bars[0].style.width.endsWith('%')).toBe(true)
-    expect(parseFloat(bars[1].style.width)).toBe(100)
-    expect(parseFloat(bars[0].style.width)).toBe(25)
+    await screen.findByText('BROAD')
+    const widths = [...container.querySelectorAll('[data-buzz-bar]')]
+      .map((el) => parseFloat(el.style.width))
+    expect(widths).toHaveLength(2)
+    // The higher-ranked row must not have the shorter bar.
+    expect(widths[0]).toBeGreaterThan(widths[1])
+    expect(Math.max(...widths)).toBe(100)
   })
+
+  // ⚰️ "scales the magnitude bar to the loudest row" lived here until
+  // 2026-09-02. It asserted bars scale to max MENTIONS, which was right while
+  // bars drew mentions and is wrong now that they draw PEOPLE -- the quantity
+  // the board is ranked by. Its content is carried by the monotonicity rail
+  // above, which is strictly stronger: a bar scaled to the wrong quantity
+  // shows up as an ordering break. Removed rather than left contradicting it.
 
   // ── The export container's geometry. Both halves of one guard.
   //
@@ -150,6 +199,96 @@ describe('BuzzRender', () => {
     const box = container.querySelector('#buzz-export')
     expect(window.__buzzBoardW).toBe(1000)
     expect(box.style.width).toBe(`${window.__buzzBoardW}px`)
+  })
+
+  it('renders every once-named ticker as its own readable chip', async () => {
+    // ⛔ OWNER REQUIREMENT, 2026-09-02: "Cant see the bottom lesser important
+    // shaded ones that we want seen. Even the 1-3 mentions people want to
+    // see." They used to be one joined string at 10.5px / 36% opacity. A
+    // single text node is not a list you can read, so this asserts they are
+    // SEPARATE elements — the thing that makes them scannable.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        window: 'open', label: 'since the open',
+        rows: [{ ticker: 'NVDA', people: 3, mentions: 9, spark: [1], hot: null }],
+        tail: [{ ticker: 'AMD', mentions: 3 }],
+        singles: ['ANET', 'PANW', 'ZS'],
+        coverage: 'counted through 3:58p', asOf: 1,
+      }),
+    })))
+    render(<BuzzRender />)
+    for (const t of ['ANET', 'PANW', 'ZS']) {
+      const el = await screen.findByText(t)
+      expect(el).toBeInTheDocument()
+      // each is its own node, not a fragment of a comma-run
+      expect(el.textContent).toBe(t)
+    }
+  })
+
+
+  // ── The tail's two chip tiers must look the same.
+  //
+  // ⚰️ Rejected twice. The once-named names started as a 10.5px grey comma-run
+  // at 36% opacity; that became a chip "the same family as the 2+ names, just
+  // quieter" (12px, not bold, 72% opacity) and the owner STILL could not read
+  // them, then ruled: "make the bottom rows of stocks mentioned the same
+  // visual as the 2nd tier so it can be seen."
+  //
+  // The instinct to rank the tail down visually is good typographic manners
+  // and wrong here, which is exactly why it keeps coming back and why this is
+  // a rail rather than a comment. Read from the stylesheet, since jsdom
+  // computes no layout and cannot see any of it.
+
+  const cssText = () => readFileSync(resolve('src/pages/BuzzRender.module.css'), 'utf8')
+
+  /** Declarations of the LAST rule whose selector matches exactly. */
+  function ruleOf(css, selector) {
+    const body = css
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('}')
+      .filter((chunk) => chunk.split('{')[0].trim() === selector)
+      .pop()
+    if (body === undefined) throw new Error(`no rule for "${selector}"`)
+    return Object.fromEntries(
+      body.split('{')[1].split(';')
+        .map((d) => d.trim()).filter(Boolean)
+        .map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]),
+    )
+  }
+
+  it('draws a once-named ticker in the same chip as a 2+ mention one', () => {
+    const css = cssText()
+    const one = ruleOf(css, '.one')
+    const multi = ruleOf(css, '.m')
+    for (const prop of ['padding', 'border-radius', 'background', 'border']) {
+      expect(one[prop], `.one ${prop} must match .m`).toBe(multi[prop])
+    }
+  })
+
+  it('sets a once-named ticker in the same type as a 2+ mention one', () => {
+    const css = cssText()
+    const one = ruleOf(css, '.one')
+    const label = ruleOf(css, '.m b')
+    for (const prop of ['font-size', 'font-weight', 'letter-spacing', 'color', 'font-family']) {
+      expect(one[prop], `.one ${prop} must match .m b`).toBe(label[prop])
+    }
+  })
+
+  it('never dims the once-named chips with an opacity of their own', () => {
+    // The specific mechanism both rejected versions used. A size or weight gap
+    // is caught above; this catches the one that leaves the metrics identical.
+    expect(ruleOf(cssText(), '.one').opacity).toBeUndefined()
+  })
+
+  it('the parity probe can tell two rules apart', () => {
+    // NON-VACUITY. `ruleOf` returning {} for everything would make all three
+    // tests above pass by comparing nothing to nothing.
+    const css = cssText()
+    expect(Object.keys(ruleOf(css, '.one')).length).toBeGreaterThan(4)
+    expect(ruleOf(css, '.m b')['font-weight']).toBe('700')
+    // Two rules that genuinely differ still read as different.
+    expect(ruleOf(css, '.m i').color).not.toBe(ruleOf(css, '.m b').color)
   })
 
   it('does not claim ready before data arrives', () => {

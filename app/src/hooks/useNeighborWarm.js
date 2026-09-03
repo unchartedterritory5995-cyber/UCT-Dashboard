@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { registerTickers } from './livePriceStore'
 
 // ── Shared "instant scan" neighbor-warm ──────────────────────────────────────
 // The ONE step that makes arrow/click scanning through ANY ticker list paint the
@@ -30,11 +31,12 @@ import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
 // _idbSeen skips make an already-warm neighbor a no-op), so a churny reference
 // only costs a few Map lookups, never a duplicate fetch.
 export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } = {}) {
-  useEffect(() => {
-    if (!selectedSym || !orderedSymbols || orderedSymbols.length < 2) return
+  // The ±radius wrap-aware neighbors of the current selection, in list order.
+  const neighbors = useMemo(() => {
+    if (!selectedSym || !orderedSymbols || orderedSymbols.length < 2) return []
     const flat = orderedSymbols
     const idx = flat.indexOf(selectedSym)
-    if (idx < 0) return
+    if (idx < 0) return []
     const len = flat.length
     const around = new Set()
     for (let d = 1; d <= radius; d++) {
@@ -42,10 +44,35 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
       around.add(flat[(idx - d + len) % len])
     }
     around.delete(selectedSym)
-    const neighbors = [...around].filter(Boolean)
+    return [...around].filter(Boolean)
+  }, [orderedSymbols, selectedSym, radius])
+  const neighborsKey = neighbors.join(',')
+
+  // Warm the neighbors' BARS into sync-mem + IDB → same-frame HISTORY paint.
+  useEffect(() => {
     if (!neighbors.length) return
     const onTf = tf || 'D'
     warmMemFromIDB(neighbors, [onTf])                      // durable → sync mem (no network)
     prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
-  }, [orderedSymbols, selectedSym, tf, radius])
+  }, [neighborsKey, tf])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-poll the WHOLE list's LIVE PRICE (incl. day_open) into livePriceStore, keyed
+  // on the list itself (NOT the moving selection) so it registers ONCE when the list
+  // opens and stays put while you scroll — no per-keypress churn, no debounce needed.
+  // Why the whole list, not the ±radius window: a fast scan outran the moving window
+  // and reached a chart before its price arrived, so today's bar planted async and
+  // briefly shifted (HASI). With every list member's day_open already in the store,
+  // the developing "today" bar paints on the FIRST frame at the real-time price for
+  // ANY chart you land on — no shift, no snap — regardless of scan speed. Bounded to
+  // 120 (the rows a scan realistically reaches); registerTickers refcount-dedups and
+  // the cleanup unregisters, so the poll set stays bounded with no leak.
+  const listKey = useMemo(
+    () => (orderedSymbols || []).slice(0, 120).filter(Boolean).join(','),
+    [orderedSymbols],
+  )
+  useEffect(() => {
+    const top = listKey ? listKey.split(',') : []
+    if (!top.length) return undefined
+    return registerTickers(top)
+  }, [listKey])
 }

@@ -122,17 +122,140 @@ def already_posted(key: str) -> bool:
     return key in posted_keys()
 
 
-def mark_posted(key: str) -> None:
-    """Record one slot as posted. `key` is "YYYY-MM-DD HH:MM"."""
-    keys = posted_keys()
-    keys.add(key)
+def missed_keys() -> set[str]:
+    """Slots this process gave up on. Written so a skipped checkpoint leaves a
+    trace -- see catch_up()."""
+    return set(_read_state().get("missed") or [])
+
+
+def _write_state(**updates) -> None:
+    """Merge into the state file. ⛔ MERGE, never replace: this used to write
+    `{"posted": [...]}` wholesale, so the day a second key was added the first
+    write of the day would silently delete it
+    (lesson_a_projection_drops_what_it_does_not_name). Both sets are pruned
+    here, in one place, so no caller can forget."""
+    state = _read_state()
+    state.update(updates)
     cutoff = (dt.date.today() - dt.timedelta(days=_KEEP_DAYS)).isoformat()
-    keys = {k for k in keys if k[:10] >= cutoff}
+    for k in ("posted", "missed"):
+        if k in state:
+            state[k] = sorted({v for v in state[k] if str(v)[:10] >= cutoff})
     p = _state_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"posted": sorted(keys)}), encoding="utf-8")
+    tmp.write_text(json.dumps(state), encoding="utf-8")
     os.replace(tmp, p)          # never truncate the real file before the write can fail
+
+
+def mark_posted(key: str) -> None:
+    """Record one slot as posted. `key` is "YYYY-MM-DD HH:MM"."""
+    _write_state(posted=sorted(posted_keys() | {key}))
+
+
+def mark_missed(key: str) -> None:
+    """Record one slot as given up on, so the warning fires once and the state
+    file shows which checkpoints the room never got."""
+    _write_state(missed=sorted(missed_keys() | {key}))
+
+
+# ── Catch-up. The cron job is the ONLY thing that fires a checkpoint, and
+# APScheduler here uses an in-memory job store: a pod that restarts across
+# 16:15 does not "miss" that fire, it never schedules it, so misfire_grace_time
+# cannot help and the slot is dropped in total silence. This pod redeploys
+# several times a day and there are seven slots, so that is not a rare corner.
+#
+# ⛔ Silence is the actual defect. "No 16:15 board" and "not 16:15 yet" look
+# identical from the outside, which is the same trap that let a truncated
+# backfill read as a finished one on this branch.
+#
+# 20 minutes is the honesty limit, not a retry budget. The board is captioned
+# "since the open" and carries its own "counted through H:MMp" line, so a
+# modestly late post is still a true board; an hour-late one would be a
+# different board wearing an old slot's label. Past the window the slot is
+# recorded as MISSED and warned about ONCE -- a skipped checkpoint should cost
+# a log line, never a lie.
+_CATCHUP_GRACE_MIN = 20
+
+
+def _alert_missed(label: str, late: int) -> None:
+    """Tell a HUMAN a checkpoint was dropped.
+
+    ⛔ A log line is not a notification. Railway's log stream on this pod is
+    flooded by yfinance and theme chatter, nobody tails it, and it is batched on
+    ingest -- so the warning above closes the "it vanished silently" hole in the
+    CODE while leaving it wide open in PRACTICE. That is the same mistake one
+    level up: I would have shipped a miss-detector nobody ever reads.
+
+    `severity="critical"` is not drama, it is the ONLY severity
+    chart_health_alerts pages Discord on; anything less lands in an in-memory
+    deque that dies with the pod. The key carries the slot so two missed
+    checkpoints are two pages rather than one swallowed by the 30-minute
+    per-key cooldown.
+
+    Never raises: this runs inside the 60s poll, and an alerting failure must
+    not cost the room its INGEST.
+    """
+    try:
+        from api.services import chart_health_alerts
+        chart_health_alerts.emit(
+            f"buzz_slot_missed:{label}", "critical",
+            f"Buzz board for the {label} ET checkpoint was never posted "
+            f"({late}m late, past the {_CATCHUP_GRACE_MIN}m catch-up window). "
+            f"The room is missing that slot today.",
+            {"slot": label, "minutes_late": late},
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] could not raise a missed-slot alert for %s: %s", label, e)
+
+
+def due_unposted_slots(now_dt: dt.datetime) -> list[tuple[str, int]]:
+    """(slot label, minutes late) for today's slots that have already passed
+    and carry no posted record. Oldest first.
+
+    Weekends are empty by construction: the scheduler is mon-fri, so a Saturday
+    catch-up would post a board no cron would ever have produced."""
+    if now_dt.weekday() > 4:
+        return []
+    day = now_dt.date().isoformat()
+    mins = now_dt.hour * 60 + now_dt.minute
+    done = posted_keys() | missed_keys()
+    out = []
+    for h, m in digest_times():
+        late = mins - (h * 60 + m)
+        if late <= 0:
+            continue
+        if f"{day} {slot_label(h, m)}" in done:
+            continue
+        out.append((slot_label(h, m), late))
+    return out
+
+
+def catch_up(*, now: int | None = None, **kw) -> dict:
+    """Post one checkpoint the scheduler never fired, or record why not.
+
+    Safe to call every minute: `_RUN_LOCK` makes a race with the cron job a
+    no-op for whichever arrives second, and the persisted per-slot record makes
+    a double-post impossible even across processes.
+    """
+    import time
+    now = now or int(time.time())
+    if not digest_enabled():
+        return {"posted": False, "reason": "disarmed"}
+    now_dt = dt.datetime.fromtimestamp(now, _ET)
+    due = due_unposted_slots(now_dt)
+    if not due:
+        return {"posted": False, "reason": "nothing due"}
+    day = now_dt.date().isoformat()
+    for label, late in due:                       # oldest first
+        if late <= _CATCHUP_GRACE_MIN:
+            log.warning("[buzz] %s never fired (%dm ago) -- catching it up now", label, late)
+            return run_digest(now=now, slot=label, **kw)
+        mark_missed(f"{day} {label}")
+        log.warning("[buzz] MISSED the %s board -- %dm late, past the %dm catch-up "
+                    "window, so it will not be posted. The room got six of seven "
+                    "checkpoints today, not seven.", label, late, _CATCHUP_GRACE_MIN)
+        _alert_missed(label, late)
+    return {"posted": False, "reason": "all due slots are past the catch-up window"}
 
 
 def _post_as_bot(channel_id: str, content: str, png: bytes | None) -> bool:

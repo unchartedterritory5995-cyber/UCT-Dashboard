@@ -455,7 +455,7 @@ def list_all_sources(conn: sqlite3.Connection | None = None) -> list[dict[str, A
 
 def record_sync_result(
     user_id: str, source_id: str, *, ok: bool, error: str | None = None,
-    conn: sqlite3.Connection | None = None,
+    status: str | None = None, conn: sqlite3.Connection | None = None,
 ) -> bool:
     """Fix-round (msgraph wave, Important #4): a SUCCESSFUL sync also clears
     a prior 'broken' status back to 'active' — shared by every provider
@@ -477,7 +477,24 @@ def record_sync_result(
     source today). A genuinely FAILING sync (`ok=False`) never touches
     `status` at all here — marking 'broken' stays engine.py's own, separate
     `set_source_status` call on an auth error; this function only ever
-    WIDENS what counts as recovered, never weakens what counts as broken."""
+    WIDENS what counts as recovered, never weakens what counts as broken.
+
+    ⛔⛔ session-audit.md A1 follow-up — `status` and `ok` are SEPARATE
+    questions, and collapsing them is what hid a lost sync. `ok` answers
+    "did this pass run without raising", which is what drives the
+    'broken' -> 'active' recovery above. `status` is what the member is
+    SHOWN (`SourceRow.jsx` dots an amber warning on
+    `lastSyncStatus === 'warning'`). A pass that authenticated, fetched, and
+    then stored NOTHING is `ok=True` (auth works, so recover the source) but
+    `status='warning'` (the member must not be told it was fine). Before
+    this, `last_sync_status` could only ever be written "ok" or "error", so
+    SourceRow's warning branch was unreachable: built, green, and dead.
+
+    `error` is now persisted whatever the status, rather than only on a
+    failure -- a warning with no reason gives the member an amber dot and
+    nothing to act on. It still CLEARS on a healthy pass, because a
+    successful sync passes `error=None` and this writes exactly what it is
+    given; a stale reason left on a recovered source is its own lie."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -489,7 +506,7 @@ def record_sync_result(
              WHERE id = ? AND user_id = ?
             """,
             (
-                _now_iso(), "ok" if ok else "error", None if ok else error,
+                _now_iso(), status or ("ok" if ok else "error"), error,
                 1 if ok else 0,
                 source_id, user_id,
             ),

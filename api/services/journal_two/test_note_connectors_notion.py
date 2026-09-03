@@ -915,7 +915,15 @@ async def test_list_deleted_returns_only_in_trash_pages():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path != "/v1/search":
             return httpx.Response(404)
-        return httpx.Response(200, json={"results": results, "has_more": False, "next_cursor": None})
+        body = json.loads(request.content or b"{}")
+        wants_trash = bool(body.get("filter", {}).get("in_trash"))
+        # Real Notion search EXCLUDES trashed pages unless the request sets
+        # filter.in_trash -- branch on the actual request body (not a fixed
+        # fixture) so this mock can distinguish "the filter was sent" from
+        # "it wasn't," which is exactly what a fixture ignoring the request
+        # body cannot do.
+        served = results if wants_trash else [r for r in results if not r["in_trash"]]
+        return httpx.Response(200, json={"results": served, "has_more": False, "next_cursor": None})
 
     provider = _make_provider(handler)
 

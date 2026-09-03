@@ -298,6 +298,63 @@ def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
     return out
 
 
+_COVERAGE_CACHE = {"ts": 0.0, "data": None}
+
+
+def coverage_stats(sample: list[str] | None = None, universe: list[str] | None = None,
+                   *, fresh_within_days: int = 5, n: int = 400) -> dict:
+    """Universe-WARMTH snapshot — the ground-truth measure of "how much of the
+    universe is instant on first view". SAMPLE-BASED and FAST by design: a
+    COUNT(DISTINCT ticker) walks 100M+ rows on the multi-GB db (>55s, RAM-heavy),
+    so instead we probe a random N of each passed list via the PK-indexed
+    get_last_ts (~1ms each) and report the % with a RECENT daily bar. `sample` =
+    the liquid set (cap_universe); `universe` = the full long-tail set — the
+    long-tail % is the real "are obscure movers warm" number. Cached 5min. READ-ONLY."""
+    import time as _t
+    now = _t.time()
+    cached = _COVERAGE_CACHE["data"]
+    if cached and now - _COVERAGE_CACHE["ts"] < 300:
+        return cached
+    from datetime import datetime, timedelta
+    import random
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+    out = {"path": _DB_PATH, "at": int(now)}
+
+    def _probe(syms, label):
+        try:
+            pool = list({s for s in syms if s})
+            if not pool:
+                return
+            picked = random.sample(pool, min(n, len(pool)))
+            t0 = _t.time()
+            have = fresh = 0
+            for s in picked:
+                lt = get_last_ts(s, "D")
+                if lt:
+                    have += 1
+                    if int(lt) >= cutoff:
+                        fresh += 1
+            k = len(picked)
+            out[f"{label}_n"] = k
+            out[f"{label}_have_pct"] = round(100.0 * have / k, 1) if k else 0.0
+            out[f"{label}_fresh_pct"] = round(100.0 * fresh / k, 1) if k else 0.0  # % WARM
+            out[f"{label}_ms"] = round((_t.time() - t0) * 1000)
+        except Exception as e:  # noqa: BLE001
+            out[f"{label}_error"] = str(e)
+
+    if sample:
+        _probe(sample, "cap")
+    if universe:
+        _probe(universe, "univ")
+        # extrapolate an approximate warm-ticker count for the whole universe
+        fp = out.get("univ_fresh_pct")
+        if fp is not None:
+            out["univ_size"] = len({s for s in universe if s})
+            out["est_warm_tickers"] = int(round(out["univ_size"] * fp / 100.0))
+    _COVERAGE_CACHE.update(ts=now, data=out)
+    return out
+
+
 def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     """Delete rows by (ticker, tf). Either may be None to wildcard.
     Returns rows deleted."""

@@ -618,3 +618,190 @@ def test_default_export_without_resolver_is_unaffected(attach_root):
     existed -- callers outside build_export_zip see no behavior change."""
     md = tiptap_to_markdown(_doc(_image_node("/api/j2/notes/attachments/u1/n1/inline/x.png")))
     assert md == "![](/api/j2/notes/attachments/u1/n1/inline/x.png)"
+
+
+# ── Fix round 2 (review): hero-image resolver crash + unescaped YAML ────────
+
+
+def test_unreadable_hero_image_does_not_abort_the_archive(attach_root, monkeypatch):
+    """The hero-image resolver call used to sit OUTSIDE the per-note
+    try/except that shields the body walk (`notes_export.py:128`'s
+    `is_file()` was outside its `except (OSError, ValueError)`; `:201`'s
+    `writestr()` was outside its `except OSError`). One EACCES on a hero
+    image used to 500 the ENTIRE archive -- the exact failure shape already
+    fixed for the body path. Simulates a permission error on the resolved
+    hero path (real-world: an EACCES mount) via `Path.is_file`, and asserts
+    the archive still comes back with every note intact and the failure
+    recorded in EXPORT_ISSUES.txt, never a raise."""
+    _plant(attach_root, "u1", "n1", "hero", "hero.jpg")
+
+    import pathlib
+    real_is_file = pathlib.Path.is_file
+
+    def flaky_is_file(self, *a, **k):
+        if self.name == "hero.jpg":
+            raise OSError(13, "Permission denied")
+        return real_is_file(self, *a, **k)
+
+    monkeypatch.setattr(pathlib.Path, "is_file", flaky_is_file)
+
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(
+        c, "n1", "u1", "Cup and handle", _doc(_para("body text survives")),
+        hero_image_url="/api/j2/notes/attachments/u1/n1/hero/hero.jpg",
+    )
+    _insert_note(c, "n2", "u1", "Second note", _doc(_para("also survives")))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    assert "Cup and handle.md" in names
+    assert "Second note.md" in names
+
+    body1 = zf.read("Cup and handle.md").decode("utf-8")
+    assert "body text survives" in body1  # body untouched by the hero failure
+    # Hero fell back to the original (now-broken-once-they-leave) URL rather
+    # than blanking or crashing.
+    assert "hero_image:" in body1
+
+    body2 = zf.read("Second note.md").decode("utf-8")
+    assert "also survives" in body2  # the OTHER note is completely unaffected
+
+    assert "EXPORT_ISSUES.txt" in names
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "hero.jpg" in issues
+
+
+def test_attachment_write_failure_is_recorded_not_fatal(attach_root, monkeypatch):
+    """The second understated defect at the same line-pair: `writestr()`
+    inside the attachment resolver's write path used to sit outside its own
+    `except OSError`. A write failure for one attachment (disk error, a torn
+    handle) must be skipped and reported, exactly like a read failure
+    already is -- never abort the archive."""
+    _plant(attach_root, "u1", "n1", "inline", "abc.png")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(
+        _para("text survives"),
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/abc.png")))
+    c.commit()
+
+    real_writestr = zipfile.ZipFile.writestr
+
+    def flaky_writestr(self, zinfo_or_arcname, data, *a, **k):
+        name = zinfo_or_arcname if isinstance(zinfo_or_arcname, str) else zinfo_or_arcname.filename
+        if name.startswith("attachments/"):
+            raise OSError(28, "No space left on device")
+        return real_writestr(self, zinfo_or_arcname, data, *a, **k)
+
+    monkeypatch.setattr(zipfile.ZipFile, "writestr", flaky_writestr)
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    assert "Cup and handle.md" in names
+    assert not any(n.startswith("attachments/") for n in names)
+    body = zf.read("Cup and handle.md").decode("utf-8")
+    assert "text survives" in body
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "abc.png" in issues
+
+
+def _decode_yaml_double_quoted(raw):
+    """A minimal, dependency-free decoder for exactly the YAML scalar styles
+    `_yaml_scalar` can emit (bare plain scalar, or a double-quoted scalar
+    with backslash escapes) -- proving the front matter this export writes
+    round-trips through genuine YAML double-quoted-scalar semantics, without
+    pulling in a YAML library this repo does not otherwise depend on."""
+    if raw.startswith('"') and raw.endswith('"') and len(raw) >= 2:
+        inner = raw[1:-1]
+        out = []
+        i = 0
+        while i < len(inner):
+            ch = inner[i]
+            if ch == "\\" and i + 1 < len(inner):
+                nxt = inner[i + 1]
+                out.append({"n": "\n", "r": "\r", "t": "\t",
+                            '"': '"', "\\": "\\"}.get(nxt, nxt))
+                i += 2
+            else:
+                out.append(ch)
+                i += 1
+        return "".join(out)
+    return raw
+
+
+def test_title_with_colon_quote_and_newline_round_trips_through_yaml():
+    """An ordinary title -- 'Setup: "NVDA" reclaim' is not an edge case --
+    used to be interpolated bare into the front matter (`f"title: {title}"`),
+    which is not valid YAML the moment it contains a colon, a quote, or a
+    literal newline. That breaks the round trip back through the importer,
+    which is the export's whole stated reason to exist. Decodes the emitted
+    `title:` value with a minimal from-scratch YAML double-quoted-scalar
+    decoder (see `_decode_yaml_double_quoted`) AND, when PyYAML happens to be
+    importable, cross-checks with a real YAML parser for extra rigor."""
+    tricky_title = 'Setup: "NVDA" reclaim\nsecond line'
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+        ("n1", "u1", tricky_title,
+         '{"type":"doc","content":[{"type":"paragraph","content":'
+         '[{"type":"text","text":"body"}]}]}',
+         "body", "[]", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    md_files = [n for n in zf.namelist() if n.endswith(".md")]
+    assert len(md_files) == 1  # _safe_name sanitizes the FILENAME separately
+    text = zf.read(md_files[0]).decode("utf-8")
+
+    lines = text.split("\n")
+    assert lines[0] == "---"
+    close_idx = lines[1:].index("---") + 1
+    front_lines = lines[1:close_idx]
+    # The whole title -- colon, quote, embedded newline and all -- must
+    # render as ONE front-matter line, never split the block across lines.
+    title_lines = [l for l in front_lines if l.startswith("title: ")]
+    assert len(title_lines) == 1
+    raw_value = title_lines[0][len("title: "):]
+
+    assert _decode_yaml_double_quoted(raw_value) == tricky_title
+
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+    if yaml is not None:
+        parsed = yaml.safe_load("\n".join(front_lines))
+        assert parsed["title"] == tricky_title
+
+
+def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
+    """The escaping fix must not start quoting every title -- only the ones
+    that actually need it, so the huge existing corpus of plain titles keeps
+    rendering byte-identically."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Cup and handle breakout",
+         '{"type":"doc","content":[]}', "", "[]",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read(
+        "Cup and handle breakout.md").decode("utf-8")
+    assert "title: Cup and handle breakout" in body
+    assert '"' not in body.split("---")[1]  # front matter block, unquoted

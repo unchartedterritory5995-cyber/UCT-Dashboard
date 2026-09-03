@@ -10,7 +10,11 @@ usable right now" — consumed by:
   - `api/routers/note_sync.py` — `GET /status`'s configured/connected
     matrix, and the connect/OAuth-start endpoints (decide whether a
     provider needs a pasted token, `connect_kind == "token"` — Roam/Craft —
-    or an OAuth redirect, `connect_kind == "oauth"` — Notion/Dropbox).
+    an OAuth redirect, `connect_kind == "oauth"` — Notion/Dropbox — or a
+    connect code minted here and redeemed by a separately-installed local
+    plugin, `connect_kind == "device"` — Obsidian; see `ProviderEntry
+    .connect_kind`'s own comment below for why this is a THIRD value, not a
+    mislabelled "token").
 
 Import-inert (Global Constraint): importing this module with ZERO env vars
 set never raises and never constructs a provider instance or an httpx
@@ -25,6 +29,7 @@ Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §7, §8.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -40,6 +45,22 @@ class ProviderEntry:
     #   validates it synchronously and stores it.
     # "oauth": `POST /{provider}/connect` mints a signed state and returns a
     #   redirect URL; `GET /{provider}/callback` completes the exchange.
+    # "device": neither of the above — a locally-installed plugin
+    #   (Obsidian) cannot run a browser OAuth redirect at all, and there is
+    #   no credential for the member to paste (the plugin's push transport
+    #   authenticates with a device token it hasn't been issued yet).
+    #   `POST /{provider}/connect` mints a short-lived, single-use CONNECT
+    #   CODE and returns it directly (no redirect, no synchronous credential
+    #   validation, no source auto-created here); the member pastes that
+    #   code into the plugin, which exchanges it for a long-lived device
+    #   token via `obsidian_link.redeem_connect_code` — entirely outside
+    #   this router's `/connect` + `/callback` pair. Calling this "token"
+    #   would be dishonest (nothing is pasted INTO this UI) and calling it
+    #   "oauth" would be worse (there is no redirect, no third-party
+    #   authorization screen, no callback exchange) — see
+    #   `obsidian_link.py`'s own module docstring for why this shape is the
+    #   shortest honest substitute for a browser-based flow Obsidian cannot
+    #   host.
     connect_kind: str
     configured: Callable[[], bool]
     # (source_row_or_None) -> a fresh NoteProvider instance.
@@ -124,6 +145,58 @@ def _build_onedrive(source: dict[str, Any] | None) -> Any:
     return OneDriveProvider(folder_path=folder_path)
 
 
+def _obsidian_configured() -> bool:
+    """Obsidian's per-provider gate (Global Constraint, plan §"Everything
+    stays behind `NOTE_SYNC_ENABLED` plus a per-provider gate, like every
+    other connector"). Unlike Notion/Dropbox/msgraph, there is no
+    third-party app registration to check env vars for — Obsidian talks to
+    no external API at all (push transport, spec §7.2). The two real
+    prerequisites:
+
+      1. `NOTE_SYNC_OBSIDIAN_ENABLED=1` — a DELIBERATE rollout flag,
+         registered `dark` in docs/feature_flags.json (the plugin itself is
+         a separate, not-yet-published repo — Wave 3b — and Task 6's
+         mock-plugin live-gate lifecycle test has not run yet). Without
+         this a fresh deploy would immediately advertise a "Connect" button
+         for a door nothing outside this repo can walk through yet.
+      2. `crypto_box.NoteBox.is_configured()` — a genuine capability check,
+         the same shape `_notion_configured`/`_dropbox_configured` use for
+         their own OAuth env vars: without `NOTE_ENCRYPTION_KEY`,
+         `obsidian_link.redeem_connect_code` cannot encrypt a device token
+         at all (it calls `crypto_box.NoteBox.encrypt` directly), so
+         advertising the tile as available would dead-end a member who
+         actually tries to connect rather than failing before they start.
+
+    Both are read live (no caching) so a Railway var flip takes effect on
+    the next request, matching every other `_*_configured` function here."""
+    if os.environ.get("NOTE_SYNC_OBSIDIAN_ENABLED") != "1":
+        return False
+    from api.services import crypto_box
+    return crypto_box.NoteBox.is_configured()
+
+
+def _build_obsidian(source: dict[str, Any] | None) -> Any:
+    """Threads BOTH `source["userId"]` and `source["remoteId"]` through to
+    the provider's constructor kwargs (`user_id=`/`vault_id=`) — every other
+    provider here threads at most `source["remoteId"]` (Dropbox/OneDrive's
+    folder path), because every other provider resolves its own tenant
+    scope from the DECRYPTED CREDENTIALS the engine hands it. Obsidian has
+    no credentials to resolve a user from at all (push transport, nothing to
+    decrypt) — `providers/obsidian.py`'s own docstring is explicit that
+    binding `(user_id, vault_id)` at CONSTRUCTION, never from `credentials`,
+    is what keeps its per-tenant reads structural rather than a bolted-on
+    filter. `source["userId"]` is always present on a real `j2_note_sources`
+    row (`connections._row_to_source` sets it unconditionally); a caller
+    building with no source at all (this registry's own `configured()`
+    probe, existing registry tests) gets `user_id=None, vault_id=None`,
+    which simply matches no staging/manifest rows — never a crash, the same
+    "no source -> harmless default" contract every other provider here
+    already has for its own source-derived kwarg."""
+    from .providers.obsidian import ObsidianProvider
+    source = source or {}
+    return ObsidianProvider(user_id=source.get("userId"), vault_id=source.get("remoteId"))
+
+
 _REGISTRY: dict[str, ProviderEntry] = {
     "roam": ProviderEntry("roam", "Roam Research", "token", _always_configured, _build_roam),
     "craft": ProviderEntry("craft", "Craft", "token", _always_configured, _build_craft),
@@ -131,6 +204,7 @@ _REGISTRY: dict[str, ProviderEntry] = {
     "dropbox": ProviderEntry("dropbox", "Dropbox", "oauth", _dropbox_configured, _build_dropbox),
     "onenote": ProviderEntry("onenote", "OneNote", "oauth", _onenote_configured, _build_onenote),
     "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
+    "obsidian": ProviderEntry("obsidian", "Obsidian", "device", _obsidian_configured, _build_obsidian),
 }
 
 
@@ -165,9 +239,10 @@ def configured(provider: str) -> bool:
 def build_provider(provider: str, source: dict[str, Any] | None = None) -> Any:
     """Constructs a FRESH provider instance for `provider`, threading
     `source` (the full `j2_note_sources` row, when the caller has one) to
-    whichever provider needs source-level info (today: only Dropbox's
-    folder path). Raises `NoteConnNotConfigured` for an unknown provider
-    name — mirrors the OLD `_default_provider_factory`'s contract exactly,
-    so callers (engine.py) see no behavior change for a bad name."""
+    whichever provider needs source-level info — each `_build_*` function
+    above documents its own use of it (or lack of one); read those rather
+    than a count here. Raises `NoteConnNotConfigured` for an unknown
+    provider name — mirrors the OLD `_default_provider_factory`'s contract
+    exactly, so callers (engine.py) see no behavior change for a bad name."""
     entry = get_entry(provider)
     return entry.build(source)

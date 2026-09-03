@@ -32,11 +32,12 @@ import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } 
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
+import ObsidianConnectModal from './ObsidianConnectModal'
 import styles from './ConnectTilesCompact.module.css'
 
 export default function ConnectTilesCompact() {
   const {
-    providers, isLoading, connectToken, startOAuth, refresh, listFolders, addSource,
+    providers, isLoading, connectToken, startOAuth, mintConnectCode, refresh, listFolders, addSource,
   } = useNoteConnectors()
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
   const [consentProvider, setConsentProvider] = useState(null)
@@ -46,6 +47,10 @@ export default function ConnectTilesCompact() {
   // Which FOLDER_PICKER_PROVIDERS key currently has its picker sheet open —
   // null when closed (mirrors ConnectedAppsCard's identical state shape).
   const [folderPickerProvider, setFolderPickerProvider] = useState(null)
+  // Which device-kind provider (obsidian) currently has its connect-code
+  // modal open — null when closed (mirrors ConnectedAppsCard's identical
+  // state shape).
+  const [deviceModalProvider, setDeviceModalProvider] = useState(null)
 
   if (isLoading) return null
 
@@ -60,6 +65,8 @@ export default function ConnectTilesCompact() {
     if (p.tokenKind === 'oauth') {
       setConsentProvider(p.key)
       setConsentChecked(false)
+    } else if (p.tokenKind === 'device') {
+      setDeviceModalProvider(p.key)
     } else {
       setTokenModalProvider(p.key)
     }
@@ -137,6 +144,13 @@ export default function ConnectTilesCompact() {
         connectToken={connectToken}
         onClose={() => setTokenModalProvider(null)}
         onConnected={refresh}
+      />
+
+      <ObsidianConnectModal
+        open={!!deviceModalProvider}
+        providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
+        mintConnectCode={mintConnectCode}
+        onClose={() => setDeviceModalProvider(null)}
       />
 
       <DropboxFolderPicker

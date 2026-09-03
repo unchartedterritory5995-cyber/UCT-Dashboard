@@ -219,17 +219,29 @@ async function uploadMediaItem(noteId, item) {
 
 /**
  * Runs the full commit: confirm (batched) -> per-note media upload -> body
- * rewrite -> PUT. Atomicity is per confirm batch: a batch that fails to
- * confirm stops the run, but every note from an earlier, successfully
- * confirmed batch is kept and still gets its media/link phase. Re-running the
- * same export resumes safely — `import/confirm`'s fingerprint match makes an
- * already-committed note a no-op `skipped` entry.
+ * rewrite -> PUT.
+ *
+ * ⛔⛔ session-audit.md A2: a batch that fails at the HTTP level (network
+ * drop, a 5xx after retries, a malformed overall payload) no longer stops
+ * the whole run — every OTHER batch still confirms. Before this fix, one
+ * failed batch `break`'d the loop, so notes past it (index-ordered — batch
+ * 2's failure permanently blocked every batch after it, forever, on every
+ * re-run) never even got a confirm attempt. The server side of this same
+ * fix (`notes_svc.import_confirm`'s per-note isolation) means a single bad
+ * NOTE inside an otherwise-healthy batch no longer fails that batch's HTTP
+ * call at all — it comes back as a normal 200 with that one note named in
+ * `body.failed`, handled below alongside `created`/`updated`/`skipped`. A
+ * `failedBatches` entry is now reserved for a genuine whole-batch failure.
+ * Re-running the same export resumes safely either way —
+ * `import/confirm`'s fingerprint match makes an already-committed note a
+ * no-op `skipped` entry, and a batch that never got a confirm attempt (or a
+ * note reported in `failed`) is retried fresh, not skipped as already-seen.
  *
  * @param {{source: string, destFolderId: string|null, docs: object[], onProgress?: (p: {phase: string, done: number, total: number}) => void}} args
- * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatch: {index: number, notes: number, reason: string, message: string}|null}>}
+ * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatches: Array<{index: number, notes: number, reason: string, message: string}>}>}
  */
 export async function runImport({ source, destFolderId, docs, onProgress }) {
-  const summary = { created: 0, updated: 0, skipped: 0, failures: [], failedBatch: null }
+  const summary = { created: 0, updated: 0, skipped: 0, failures: [], failedBatches: [] }
   const byImportKey = new Map(docs.map((d) => [d.importKey, d]))
   const idByKey = {}
   // importKeys of notes actually written this run (created or updated) — the
@@ -275,14 +287,21 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
         }
         reason = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`
       }
-      summary.failedBatch = {
+      // A whole-batch HTTP failure no longer stops the run (A2) — every
+      // OTHER batch still gets its own confirm attempt. `confirmDone`
+      // still climbs by this batch's size so the progress bar keeps
+      // moving instead of stalling on the failed batch.
+      summary.failedBatches.push({
         index: batchIndex,
         notes: batch.length,
         reason,
-        message: `Batch ${batchIndex + 1} failed (${reason}). Already-imported notes are safe; ` +
-          're-dropping the same export resumes where it stopped.',
-      }
-      break
+        message: `Batch ${batchIndex + 1} failed (${reason}). The import continued with the ` +
+          "remaining batches — this batch's notes were not imported. Running the import again " +
+          'will retry them; already-imported notes are safe and will not be duplicated.',
+      })
+      confirmDone += batch.length
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
+      continue
     }
 
     const body = await res.json()
@@ -305,6 +324,20 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
     for (const item of body.skipped || []) {
       idByKey[item.importKey] = item.id
       summary.skipped += 1
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
+    }
+    // A2/session-audit.md A1: a note the server could not store (oversized
+    // body, most commonly) is isolated per-note by `import_confirm` rather
+    // than failing this whole batch — named here exactly like a media/PUT
+    // failure below, never silently dropped and never counted as
+    // created/updated/skipped.
+    for (const item of body.failed || []) {
+      const doc = byImportKey.get(item.importKey)
+      summary.failures.push({
+        name: doc?.title || item.importKey,
+        reason: item.error || 'could not be stored',
+      })
       confirmDone += 1
       onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }

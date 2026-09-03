@@ -97,11 +97,19 @@ def _free_user(client):
 
 # ── GET /status ────────────────────────────────────────────────────────────
 
-def test_status_open_to_logged_in_and_lists_all_six_providers(client):
+def test_status_open_to_logged_in_and_lists_all_seven_providers(client):
     r = client.get("/api/j2/notes/connectors/status")
     assert r.status_code == 200
     body = r.json()
-    assert set(body["providers"].keys()) == {"roam", "craft", "notion", "dropbox", "onenote", "onedrive"}
+    assert set(body["providers"].keys()) == {
+        "roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian",
+    }
+    # Obsidian's connect_kind is neither "token" nor "oauth" (registry.py's
+    # own contract, extended honestly for the 2026-09-02 plan's push-transport
+    # connect-code flow) -- and it is dark by default (NOTE_SYNC_OBSIDIAN_ENABLED
+    # unset in this fixture's env), so it never claims to be usable yet.
+    assert body["providers"]["obsidian"]["connectKind"] == "device"
+    assert body["providers"]["obsidian"]["configured"] is False
     assert body["providers"]["roam"]["configured"] is True   # token providers always available
     assert body["providers"]["notion"]["configured"] is False  # no env creds in this fixture
     assert body["providers"]["roam"]["connected"] is False
@@ -306,6 +314,71 @@ def test_connect_roam_returns_503_not_a_raw_traceback_when_encryption_key_unset(
     assert "Traceback" not in body["detail"]
     # The connector must never have been partially persisted.
     assert client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["connected"] is False
+
+
+# ── POST /{provider}/connect — device providers (obsidian, Task 5) ──────────
+# Neither token-paste nor OAuth-redirect: minting a connect code needs no
+# provider stub at all (unlike roam/craft above) -- `obsidian_link.
+# mint_connect_code` is pure local HMAC signing, no outbound call, no
+# `registry.build_provider` in the request path.
+
+def test_connect_obsidian_not_configured_returns_503_by_default(client):
+    """`NOTE_SYNC_OBSIDIAN_ENABLED` is unset in this fixture (deliberately
+    dark, docs/feature_flags.json) -- consent alone must not mint a code for
+    a door nothing outside this repo can walk through yet."""
+    r = client.post("/api/j2/notes/connectors/obsidian/connect", json={"consent": True})
+    assert r.status_code == 503
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]["configured"] is False
+
+
+def test_connect_obsidian_requires_consent(client, monkeypatch):
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    r = client.post("/api/j2/notes/connectors/obsidian/connect", json={})
+    assert r.status_code == 400
+
+
+def test_connect_obsidian_mints_a_connect_code_for_the_calling_user(client, monkeypatch):
+    from api.services.journal_two.note_connectors import obsidian_link
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+
+    r = client.post("/api/j2/notes/connectors/obsidian/connect", json={"consent": True})
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["connectCode"], str) and body["connectCode"]
+    assert body["expiresInSeconds"] == obsidian_link._CONNECT_CODE_TTL_SECONDS
+
+    # The code is real and scoped to the authenticated caller (u1, per this
+    # file's `client` fixture) -- redeeming it (as the plugin eventually
+    # would) must attach to THAT user, never a different or blank one.
+    device_id, raw_token = obsidian_link.redeem_connect_code(
+        body["connectCode"], vault_id="vault-abc", label="Test Vault")
+    device = obsidian_link.authenticate_device(raw_token)
+    assert device is not None
+    assert device["user_id"] == "u1"
+    assert device["vault_id"] == "vault-abc"
+
+    # Minting a connect code is NOT connecting -- it creates no
+    # `j2_note_connectors`/`j2_note_sources` row, so the status tile must
+    # stay in its unconnected state (mirrors the OAuth `_start_oauth` path,
+    # which likewise only returns a redirect URL and connects nothing yet).
+    st = client.get("/api/j2/notes/connectors/status").json()["providers"]["obsidian"]
+    assert st["connected"] is False
+    assert st["sources"] == []
+
+
+def test_connect_obsidian_paid_gate_blocks_free_user(client, monkeypatch):
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    _free_user(client)
+    r = client.post("/api/j2/notes/connectors/obsidian/connect", json={"consent": True})
+    assert r.status_code == 403
+
+
+def test_connect_obsidian_unknown_provider_still_404s_first(client, monkeypatch):
+    """Sanity: the unknown-provider 404 (checked before `entry.connect_kind`
+    is ever read) still wins over any device-specific behavior."""
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
+    r = client.post("/api/j2/notes/connectors/not-a-real-provider/connect", json={"consent": True})
+    assert r.status_code == 404
 
 
 # ── POST /{provider}/connect — OAuth providers (notion/dropbox) ─────────────
@@ -537,6 +610,33 @@ def test_callback_tampered_state_400(client, monkeypatch):
     r = client.get("/api/j2/notes/connectors/notion/callback",
                     params={"code": "authcode", "state": tampered}, follow_redirects=False)
     assert r.status_code == 400
+
+
+def test_callback_non_ascii_state_signature_fails_cleanly_not_a_500(client, monkeypatch):
+    """`_verify_state`'s `compare_digest` call had the identical str-vs-str
+    shape as `obsidian_link.py`'s connect-code/device-token checks (fixed the
+    same day, same file family) -- `state` arrives as a raw URL query value
+    on this shared Notion/Dropbox/MS Graph OAuth callback, and a malformed
+    one can decode (base64 + `.decode("utf-8")`) into a `sig` half
+    containing a non-ASCII character. Before the byte-safety fix,
+    `hmac.compare_digest` on two `str` raised `TypeError` (not a clean
+    False) the instant either side was non-ASCII -- an uncaught 500, not the
+    clean 400 every other malformed state gets. Must fail against
+    unfixed code (a `str`-vs-`str` compare_digest call)."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import base64
+    import time as _time
+    ts = str(int(_time.time()))
+    nonce = "non-ascii-sig-test-nonce"
+    payload = f"u1:notion:{ts}:{nonce}"
+    # Never a valid hex digest either way -- the point is that a non-ASCII
+    # `sig` must compare false like any other bad signature, not crash.
+    bad_sig = "é" * 64
+    state = base64.urlsafe_b64encode(f"{payload}:{bad_sig}".encode("utf-8")).decode("utf-8")
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 400, r.text
 
 
 def test_callback_expired_state_400(client, monkeypatch):

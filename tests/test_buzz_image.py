@@ -205,3 +205,67 @@ def test_the_probe_asks_the_page_for_the_width_rather_than_restating_it():
     # An older cached bundle that does not publish the value must fall through
     # to the plain row count, never to a rejection.
     assert "if (!want) return rows;" in buzz_image.PROBE_JS
+
+
+# ── The viewport arm. The board's HEIGHT is set by how many distinct tickers
+# the room named, and it grew 1031 -> 1412px across 2026-09-02's checkpoints
+# while `BOARD_H` (the viewport handed to chart-renderer) was 1400. The module
+# comment asserted that did not matter -- "a day with more tickers simply
+# produces a taller PNG" -- which is a claim about ANOTHER service's behaviour
+# with an element taller than its viewport, and it was never measured.
+#
+# The answer is not to assert the claim harder here. It is to give the viewport
+# real headroom and to OBSERVE the one shape that would betray a crop.
+
+def _png(w, h):
+    """A minimal PNG header. Only the IHDR fields are read."""
+    sig = bytes((137, 80, 78, 71, 13, 10, 26, 10))
+    return (sig + (13).to_bytes(4, "big") + b"IHDR"
+            + w.to_bytes(4, "big") + h.to_bytes(4, "big") + b"rest-of-the-file")
+
+
+def test_png_size_reads_the_dimensions_out_of_the_header():
+    assert buzz_image.png_size(_png(2000, 1974)) == (2000, 1974)
+
+
+def test_png_size_says_nothing_rather_than_guessing_on_junk():
+    """It must never fabricate a size -- the caller logs on what it returns."""
+    assert buzz_image.png_size(b"") is None
+    assert buzz_image.png_size(b"not a png at all, really") is None
+    # Right signature, wrong chunk: still not something we can read.
+    assert buzz_image.png_size(_png(10, 10).replace(b"IHDR", b"IDAT", 1)) is None
+
+
+def test_a_viewport_tall_png_is_reported_but_never_discarded(caplog):
+    """⛔ OBSERVATION, NOT A GUARD. A board whose PNG comes back exactly
+    viewport-tall is the fingerprint of a crop -- a freely-grown board has no
+    reason to land on that number. But whether the renderer crops is a property
+    of a sibling service, so this logs and SHIPS: a slightly short board beats
+    a member getting no board over a heuristic about someone else's code."""
+    import logging
+    tall = _png(buzz_image.BOARD_W * buzz_image.SCALE, buzz_image.BOARD_H * buzz_image.SCALE)
+    c = _CountingClient(response=_FakeResponse(content=tall, rows=14))
+    with caplog.at_level(logging.WARNING):
+        got = buzz_image.render_board_png("open", client=c)
+    assert got == tall, "a suspicious height must not cost the member the image"
+    assert str(buzz_image.BOARD_H * buzz_image.SCALE) in caplog.text
+
+
+def test_a_normally_sized_board_logs_nothing(caplog):
+    """CONTROL. Without it, warning on EVERY render would also pass the test
+    above -- and a warning that always fires is one nobody reads."""
+    import logging
+    ok = _png(2000, 1974)          # the real 2026-09-02 board, two columns
+    c = _CountingClient(response=_FakeResponse(content=ok, rows=14))
+    with caplog.at_level(logging.WARNING):
+        assert buzz_image.render_board_png("open", client=c) == ok
+    assert "viewport" not in caplog.text
+
+
+def test_the_viewport_clears_the_tallest_board_actually_observed():
+    """1412px was measured on the feature's FIRST day, with the head rows in
+    one column. Two columns took that to 987, but the tail still grows with the
+    room's vocabulary and the owner asked for every 1-3 mention name to stay on
+    it. The viewport must not sit near a number the board has already reached."""
+    TALLEST_SEEN_CSS_PX = 1412
+    assert buzz_image.BOARD_H >= TALLEST_SEEN_CSS_PX * 1.5

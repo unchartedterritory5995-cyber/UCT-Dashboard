@@ -800,6 +800,19 @@ def _buzz_poll() -> None:
                          ch, out["fetched"], out["rows"])
     except Exception as e:  # noqa: BLE001 - never take the scheduler down
         log.warning("[buzz] poll error: %s", e)
+    # ⛔ The digest's catch-up rides the poll rather than getting its own job.
+    # The cron jobs live in an IN-MEMORY store, so a pod that restarts across a
+    # checkpoint never schedules that fire at all -- misfire_grace_time cannot
+    # see a job that was never created, and the slot vanishes silently. This
+    # ticker already runs every 60s; asking it "is a checkpoint overdue?" costs
+    # a dict lookup and closes the hole for restarts, scheduler death and
+    # misfires alike. It is separately try/except'd so a digest problem can
+    # never cost the room its INGEST.
+    try:
+        from api.services import discord_buzz_digest
+        discord_buzz_digest.catch_up()
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] digest catch-up error: %s", e)
 
 
 def _buzz_digest(slot: str | None = None) -> None:
@@ -6717,6 +6730,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
+        or path == "/api/j2/notes/export"        # already-DEFLATE zip, streamed
         or path.startswith("/assets/")
         or path.startswith("/fonts/")   # .woff2 is already compressed
     )

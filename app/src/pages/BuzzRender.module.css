@@ -124,7 +124,7 @@
   filter: drop-shadow(0 0 1.6px rgba(201, 168, 76, .32));
 }
 
-.body { padding: 26px 34px 26px; position: relative; z-index: 1; }
+.body { padding: 20px 34px 20px; position: relative; z-index: 1; }
 .rose {
   position: absolute;
   left: 50%;
@@ -157,7 +157,7 @@
 .stats {
   display: flex;
   align-items: flex-end;
-  padding-bottom: 20px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--buzz-rule);
 }
 .stat {
@@ -184,13 +184,37 @@
 
 /* 1. the header row — names every column exactly once. One grid definition
    is shared by the header and the rows so they can never drift apart. */
+/* ⛔ TWO COLUMNS, AND THE REASON IS DISCORD, NOT TASTE.
+ * The board is an ATTACHMENT, and a client that fits an image into a
+ * landscape box scales a PORTRAIT image by HEIGHT -- so a tall board loses
+ * most of its scale and leaves the width unused. Measured: at 1000x1338 a
+ * 550x350 box renders it 262px wide, putting ticker type at 4.1px and the
+ * tail at 3.1px -- below legibility no matter how bright it is. That is the
+ * likeliest cause of "cant see the bottom ones"; opacity was a symptom.
+ *
+ * ⛔ SHORTEN, DO NOT WIDEN. Reducing height at constant width DOMINATES: it
+ * improves the fit-by-height case and changes nothing in the fit-by-width
+ * case. Widening would help the first and HURT the second, so it is not a
+ * safe bet while the client's behaviour is unknown.
+ *
+ * The head rows were 697px of 1377 -- half the board -- at 50px each, while
+ * the bar had 541px of width it did not need. Two columns spend that width
+ * instead of that height: same 14 names, 1338px -> 812px, ticker 4.1 -> 6.7px
+ * in the box case, width case untouched.
+ */
+.cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }
 .grid {
   display: grid;
-  grid-template-columns: 24px 76px 62px 1fr 70px 152px 76px;
+  /* ⛔ 78px on TICKER is MEASURED, not eyeballed. The column is FIXED and an
+   * overflowing text node is not clipped -- it draws straight over the
+   * mentions figure beside it. Widest real 5-char name (GOOGL) renders 63.4px
+   * at the 16.5px face; 74px left 10px of margin, 78px leaves 15 and covers a
+   * 6-char cashtag. The 4px comes out of the bar's 1fr, which has slack. */
+  grid-template-columns: 22px 78px 46px 1fr 44px 62px;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
 }
-.hrow { padding: 15px 0 9px; border-bottom: 1px solid #ffffff0d; }
+.hrow { padding: 12px 0 7px; border-bottom: 1px solid #ffffff0d; }
 .hrow span {
   font-size: 8px;
   letter-spacing: 1.35px;
@@ -200,7 +224,7 @@
 }
 .hRk, .hN, .hPpl, .hHeat { text-align: right; }
 
-.r { padding: 11px 0; border-bottom: 1px solid #ffffff08; }
+.r { padding: 7px 0; border-bottom: 1px solid #ffffff08; }
 /* 3. rank numerals, zero-padded so 01..08 hold one column width. */
 .rk {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
@@ -215,7 +239,7 @@
 .r.lead .rk { color: var(--buzz-gold); opacity: .75; }
 .sym {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 15.5px;
+  font-size: 16.5px;
   color: var(--buzz-cream);
   font-weight: 700;
   letter-spacing: .4px;
@@ -263,16 +287,6 @@
   font-weight: 600;
 }
 
-.sp { display: flex; align-items: flex-end; gap: 1.5px; height: 22px; }
-.sp .s {
-  flex: 1;
-  min-width: 0;
-  background: var(--buzz-muted);
-  opacity: .26;
-  border-radius: 1px 1px 0 0;
-}
-.sp .s.hot { background: var(--buzz-green); opacity: .5; }
-
 .hcell { text-align: right; }
 /* The heat multiple was bare green text among five other numeric columns.
    As a pill it is the one thing on the row that is not a column of figures,
@@ -293,14 +307,14 @@
 
 /* the tail RECEDES — chips read as chips, singles as a footnote */
 .lbl {
-  margin-top: 26px;
+  margin-top: 20px;
   display: flex;
   align-items: center;
   gap: 9px;
   font-size: 9px;
   letter-spacing: 1.9px;
   color: var(--buzz-muted);
-  opacity: .5;
+  opacity: .55;
   font-weight: 700;
 }
 .lbl::before {
@@ -315,14 +329,14 @@
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, .028);
-  border: 1px solid rgba(255, 255, 255, .05);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .07);
 }
 .m b {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--buzz-cream);
   font-weight: 700;
   letter-spacing: .3px;
@@ -330,21 +344,38 @@
 .m i {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
   font-style: normal;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--buzz-gold);
-  opacity: .72;
+  opacity: .85;
   font-variant-numeric: tabular-nums;
 }
-.once {
-  margin-top: 11px;
-  padding-left: 13px;
-  border-left: 1px solid rgba(201, 168, 76, .2);
+/* ⛔ THE ONCE-NAMED CHIPS ARE THE SAME CHIP AS THE 2+ NAMES. Not a quieter
+ * cousin -- the same padding, radius, background, border, size, weight and
+ * ink. Owner ruling 2026-09-02: "make the bottom rows of stocks mentioned the
+ * same visual as the 2nd tier so it can be seen."
+ *
+ * ⚰️ This has now been de-emphasised twice and rejected twice. First they were
+ * a 10.5px grey comma-run at 36% opacity; that was replaced with a chip "the
+ * same family as the 2+ names, just quieter" -- 12px, not bold, 72% opacity --
+ * and the owner could still not read them. The instinct to rank the tail DOWN
+ * visually keeps re-appearing because it is good typographic manners, and it
+ * keeps being wrong here: a name mentioned once is the whole reason this
+ * section exists. Do not restore a size, weight or opacity gap.
+ *
+ * The one thing NOT copied from `.m` is the trailing count, because on this
+ * section it is "1" on every single chip -- the header already says NAMED
+ * ONCE. It buys no information and costs a row of board height. */
+.singles { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+.one {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
-  font-size: 10.5px;
-  line-height: 1.95;
-  color: var(--buzz-muted);
-  opacity: .36;
-  letter-spacing: .25px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  color: var(--buzz-cream);
+  padding: 5px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .07);
 }
 
 /* footer bar — 20px, same as the chart export */

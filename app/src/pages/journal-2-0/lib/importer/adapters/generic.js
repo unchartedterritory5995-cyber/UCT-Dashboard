@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
+import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 
 // ---------------------------------------------------------------------------
 // mdToHtml — exported for reuse by the Obsidian/Notion adapters (Tasks 10/11).
@@ -103,9 +104,30 @@ async function makeFileDoc(vfile, byPath, warnings) {
   const dir = dirOf(vfile.path)
   let html
   let extraMedia = []
+  // Only markdown carries YAML front matter (Jekyll/Hugo/Obsidian/Bear/our
+  // own export all use the same `--- ... ---`-at-byte-0 convention) — .txt,
+  // .html and .docx have no such notion, so they keep fields/tags/heroRef at
+  // their empty defaults below and fall back to lastModified-only dates.
+  let fmFields = {}
+  let fmTags = []
+  let fmDates
 
   if (ext === 'md') {
-    html = mdToHtml(await readText(vfile))
+    const { fields, tags, body } = extractFrontmatter(await readText(vfile))
+    fmFields = fields
+    fmTags = tags
+    fmDates = frontmatterDates(fields, vfile.lastModified)
+    html = mdToHtml(body)
+    if (fields.hero_image) {
+      // The hero/cover image named in front matter is real content a member
+      // authored (our own export writes it precisely so a round trip does
+      // not orphan it) — surface it as an actual leading image in the body
+      // rather than silently dropping it. Prepending it here means it rides
+      // the exact same resolveRelativeMedia pass as every other image below
+      // (relative-path resolution, import-ref rewriting, dedup against an
+      // identical inline reference) instead of a second, divergent code path.
+      html = `<p><img src="${escapeAttr(fields.hero_image)}"></p>\n${html}`
+    }
   } else if (ext === 'txt') {
     html = txtToHtml(await readText(vfile))
   } else if (ext === 'html') {
@@ -121,17 +143,22 @@ async function makeFileDoc(vfile, byPath, warnings) {
 
   const resolved = resolveRelativeMedia(html, dir, byPath)
   const media = dedupeMedia([...extraMedia, ...resolved.media])
-  const title = extractH1Title(resolved.html) || filenameSansExt(vfile.path)
+  // Front matter's own `title:` is the author's explicit, authoritative
+  // title (the convention every static-site generator honors) — it wins
+  // over an inferred <h1> or the bare filename.
+  const title = fmFields.title || extractH1Title(resolved.html) || filenameSansExt(vfile.path)
 
   return {
     importKey: `file:${vfile.path}`,
     title,
     html: resolved.html,
-    tags: [],
+    tags: fmTags,
+    subtitle: fmFields.subtitle,
+    ticker: fmFields.ticker,
     folderPath: dir ? dir.split('/') : [],
     media,
     links: [],
-    ...datesFromLastModified(vfile.lastModified),
+    ...(fmDates || datesFromLastModified(vfile.lastModified)),
   }
 }
 
@@ -242,6 +269,10 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;')
+}
+
 // ---------------------------------------------------------------------------
 // relative <img>/<a> reference resolution -> import-ref:// media placeholders
 // ---------------------------------------------------------------------------
@@ -254,7 +285,7 @@ function escapeHtml(s) {
  * since DOMParser populates `.body` whether given a full document or a
  * fragment.
  */
-function resolveRelativeMedia(html, dir, byPath) {
+export function resolveRelativeMedia(html, dir, byPath) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const media = []
 
@@ -320,7 +351,7 @@ function resolvePath(dir, rel) {
   return stack.join('/')
 }
 
-function dedupeMedia(list) {
+export function dedupeMedia(list) {
   const seen = new Set()
   const out = []
   for (const m of list) {

@@ -155,6 +155,44 @@ class _MassiveRestClient:
             "ext_session": ext_session,
         }
 
+    def get_todays_daily_ohlcv(self, ticker: str) -> dict | None:
+        """Today's DEVELOPING regular-session daily bar as raw {o,h,l,c,v}, or
+        None until the session has actually opened.
+
+        Reads the provider's `day` object off the single-ticker snapshot — the
+        SAME object get_single_ticker_snapshot already parses, so o/h/l/v cost
+        nothing extra. Returns None when `day.o <= 0` (pre-market before the
+        first regular print, or a weekend/holiday when the provider zeroes the
+        day aggregate) so a caller never plants a bogus zero bar. Returns None
+        on any error."""
+        url = (
+            f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+            f"/{to_polygon_symbol(ticker)}?apiKey={self._api_key}"
+        )
+        try:
+            data = self._get(url)
+        except Exception:
+            return None
+        if data.get("status") not in ("OK", "DELAYED"):
+            return None
+        t = data.get("ticker", {})
+        if not t:
+            return None
+        day = t.get("day", {}) or {}
+        try:
+            o = float(day.get("o") or 0.0)
+            h = float(day.get("h") or 0.0)
+            l = float(day.get("l") or 0.0)
+            c = float(day.get("c") or 0.0)
+            v = int(float(day.get("v") or 0) or 0)
+        except (TypeError, ValueError):
+            return None
+        # The regular session hasn't opened yet (pre-market / weekend / holiday)
+        # → there is no developing daily bar to report.
+        if o <= 0.0 or h <= 0.0 or l <= 0.0 or c <= 0.0:
+            return None
+        return {"o": o, "h": h, "l": l, "c": c, "v": v}
+
 
     # Massive's snapshot endpoint (like Polygon's) caps a `tickers=` batch — a
     # multi-thousand-ticker URL (Theme Tracker sends ~2,050 holdings across all
@@ -668,6 +706,42 @@ def _detect_session() -> str:
     if hour_min >= 1600:
         return "post_market"
     return "regular"
+
+
+# Per-ticker TTL for the developing daily bar. /api/bars is hit per-ticker by
+# scans/warms/typed switches; without a short memo a theme-tracker sweep would
+# fire one Massive single-ticker snapshot PER request. 8s keeps the developing
+# bar fresh (the client's live writers own sub-second movement) while collapsing
+# a burst against one symbol into a single provider call.
+_TODAY_DAILY_BAR_TTL = 8.0
+
+
+def todays_daily_bar(ticker: str) -> dict | None:
+    """Today's developing daily bar as a chart-ready dict
+    ``{"t": "YYYY-MM-DD", "o", "h", "l", "c", "v"}`` (t = today's ET date), or
+    None when the regular session hasn't opened / on any error.
+
+    Per-ticker TTL-cached (~8s). A negative result is cached as ``{}`` so a
+    pre-market / weekend miss doesn't re-hit Massive on every request either.
+    """
+    tk = ticker.upper()
+    ck = f"today_daily_bar_{tk}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit or None
+    try:
+        raw = _get_client().get_todays_daily_ohlcv(tk)
+    except Exception:
+        raw = None
+    if not raw:
+        cache.set(ck, {}, ttl=_TODAY_DAILY_BAR_TTL)
+        return None
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+    bar = {"t": today, **raw}
+    cache.set(ck, bar, ttl=_TODAY_DAILY_BAR_TTL)
+    return bar
 
 
 def _ext_price_for(session: str, last_trade: dict, minute: dict, day: dict):
