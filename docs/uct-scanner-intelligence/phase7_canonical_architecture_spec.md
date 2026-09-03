@@ -54,22 +54,37 @@ Confirmed, not aspirational — the live system already gets most of these right
 
 ```python
 class Eligibility(TypedDict, total=False):
-    scanner_eligible: bool
+    eligible: bool
+    evaluated_at: int                     # unix sec this verdict was computed — eligibility is a
+                                           # point-in-time evaluation, NOT a timeless stored fact;
+                                           # a consumer must treat a stale evaluated_at as unknown, not true
+    eligibility_scope: Literal["system_default"]   # this is the detector/scanner DEFAULT eligibility;
+                                           # a member's own filters are a separate, later layer — never
+                                           # conflated with this field
+    eligibility_version: str              # bumped when the eligibility RULE changes, independent of
+                                           # detector_version (Section 30) — lets a consumer ask "was this
+                                           # evaluated under the rule I think it was"
     eligibility_reasons: list[str]        # e.g. ["within active window", "not already-broken"]
     freshness_bars: int | None            # bars since the structurally-defining event, if this family has one
     freshness_window_bars: int | None     # this family's OWN ceiling, if any — surfaced as DATA so a
                                            # mismatch (e.g. engine VCP=15 vs base_catalog VCP=60) is visible,
-                                           # not silently divergent across two files
+                                           # not silently normalized away by the schema
     active_window_secs: int               # the shared engine-level constant actually applied
 
 class EventProvenance(TypedDict, total=False):
+    event_id: str | None                  # stable provider reference where one exists (e.g. an earnings
+                                           # calendar row id) — a plain source STRING is not enough to answer
+                                           # "which actual earnings event caused this detector to fire"
     event_type: str                       # "earnings" | ... (family-defined)
     event_timestamp: int | None
+    ingested_at: int | None               # when the event data was actually fetched/observed, distinct
+                                           # from the event's own timestamp
     days_from_event: int | None
     verification_status: Literal["verified", "contradicted", "unavailable"]
     source: str | None
 
-class Criterion(TypedDict):               # = base_catalog.py's existing Criterion, promoted verbatim
+class Criterion(TypedDict):               # = base_catalog.py's existing Criterion, promoted verbatim.
+                                           # Answers "is this THRESHOLD sourced?" — a citation record.
     condition: str
     value: object
     quote: str | None
@@ -79,13 +94,32 @@ class Criterion(TypedDict):               # = base_catalog.py's existing Criteri
     origin: Literal["source", "uct"]
     missing_kind: Literal["source_silent", "not_computable", "our_scope"] | None
 
+class GateEvaluation(TypedDict, total=False):
+    # ChatGPT relay review (2026-09-03): distinct from Criterion above, which is a citation about a
+    # THRESHOLD's own provenance. This is an EVALUATION TRACE — did THIS candidate clear THIS gate, and
+    # by how much — the concept the 7 rules-engine detectors actually need (their own bare `if not X:
+    # continue` gates today, zero trace kept). The two compose: a GateEvaluation MAY cite a Criterion for
+    # its threshold's provenance (criterion_ref), but does not require one.
+    criterion_id: str
+    criterion_name: str
+    observed_value: object
+    expected_value: object | None
+    operator: str | None                  # e.g. ">=", "<", "within_pct"
+    unit: str | None
+    role: Literal["identity", "quality", "lifecycle", "eligibility", "context"]
+    required: bool
+    result: Literal["pass", "fail", "weak", "missing"]
+    criterion_ref: NotRequired[str]        # optional link to a base_catalog Criterion.source_id, if one exists
+    definition_version: str | None
+
 # Detection gains:
     eligibility: NotRequired[Eligibility]
     event: NotRequired[EventProvenance]
-    criteria: NotRequired[list[Criterion]]
+    criteria: NotRequired[list[Criterion]]        # threshold provenance, reused from base_catalog where it exists
+    gate_trace: NotRequired[list[GateEvaluation]]  # per-candidate evaluation trace, new to the rules engine
 ```
 
-No family is required to populate any of the three. A single-candle geometric family with no event concept (bull_flag) simply omits `event`. A family with no historical criteria trace (all 7 today) omits `criteria` until a future phase wires it. This is the "required-for-all vs. optional-by-family" split Section 17 asks for, applied concretely.
+No family is required to populate any of these. A single-candle geometric family with no event concept (bull_flag) simply omits `event`. A family with no historical criteria trace (all 7 today) omits `criteria`/`gate_trace` until a future phase wires it. This is the "required-for-all vs. optional-by-family" split Section 17 asks for, applied concretely.
 
 ---
 
@@ -111,13 +145,15 @@ Already correct and consistent across all 7 families — no change needed. `id` 
 
 ## 7. Scanner Eligibility Model
 
-`scanner_eligible` (Section 4) is the single boolean a scanner should read; `eligibility_reasons` explains it in the same evaluated/answered/dropped/not-computable spirit as this codebase's own `CoverageLine` idiom (screener) — a reason string per contributing gate, not a bare yes/no. Composition, per family, from what's real today:
+`Eligibility.eligible` (Section 4) is the single boolean a scanner should read; `eligibility_reasons` explains it in the same evaluated/answered/dropped/not-computable spirit as this codebase's own `CoverageLine` idiom (screener) — a reason string per contributing gate, not a bare yes/no. Composition, per family, from what's real today:
 - the shared 7-day `ACTIVE_WINDOW_SECS` (always)
 - the family's own age gate if one exists (`freshness_bars <= freshness_window_bars`, families 2-3 in the Section 6 list)
 - `status NOT IN (completed, failed, expired)` (already enforced server-side in `GET /{sym}`)
 - `confidence >= min_conf` (already enforced server-side, default 50.0)
 
-A historically-valid, structurally-real detection can be `scanner_eligible=false` purely on freshness — this is precisely the RXRX/NVAX distinction from Phase 6, now a queryable field instead of something you discover by re-deriving it from `detected_at`.
+A historically-valid, structurally-real detection can be `eligible=false` purely on freshness — this is precisely the RXRX/NVAX distinction from Phase 6, now a queryable field instead of something you discover by re-deriving it from `detected_at`.
+
+**Amendment (ChatGPT relay review, 2026-09-03):** `eligible` must never be read as a timeless stored fact — it is a point-in-time evaluation. `Eligibility.evaluated_at` makes staleness checkable (a setup eligible at 10:00 AM can be stale by the next read without the underlying detection changing), and `eligibility_scope="system_default"` makes explicit that this is the detector/scanner's own default eligibility, not any individual member's personalized filter decision — those compose on top of this field, never inside it. `pattern_join.py`'s duplicated 7-day literal (Section 6) should be replaced by reading this field directly at Stage C of the migration (Section 33), not before — an earlier swap risks masking the exact kind of silent-divergence class this phase's VCP-60-vs-15 finding surfaced. The VCP ceiling mismatch itself should stay visible as a real semantic/configuration discrepancy (`freshness_window_bars` reports each engine's own number honestly) rather than being silently normalized to one value by the schema.
 
 ---
 
@@ -128,6 +164,8 @@ A historically-valid, structurally-real detection can be `scanner_eligible=false
 **Do not mandate it for the 7 rules-engine detectors.** Their own authors explicitly, repeatedly (3 of 7 files' own header comments: high_tight_flag, flat_base, vcp) scoped criteria/provenance OUT of this engine on purpose, assigning it to base_catalog.py's parallel "Structure" engine instead — a 2026-08-31-ruled, measured (13% symbol-overlap) decision that the two engines answer different questions (presence-with-provenance vs. where-to-enter) and should keep disagreeing. Respecting this is a Phase-7 decision, not an oversight to correct.
 
 **Where `criteria: list[Criterion]` becomes worth wiring (Phase 8, not now):** families where "why did this fire" is the live support question and no sourced-Structure sibling already answers it — gap/event (EP, PEG) and MA-pullback are the strongest candidates, since neither has a base_catalog analog today.
+
+**Amendment (ChatGPT relay review, 2026-09-03):** promoting `Criterion` verbatim conflates two different questions. `Criterion` (base_catalog's shape) answers *"is this threshold sourced?"* — a citation record about where a number came from. What the rules-engine detectors actually need to become explainable is a different thing: *"did this specific candidate clear this specific gate, and by how much?"* — an evaluation trace, not a citation. Section 4 now defines both: `Criterion` stays exactly base_catalog's shape (reused where a family's threshold genuinely has a sourced citation), and a new, additive `GateEvaluation` (observed/expected/operator/role/result, optionally `criterion_ref`-linked to a `Criterion`) is the vocabulary a rules-engine detector would populate for its own `if not X: continue` gates (Section 32 item 1's adapter tests should cover both shapes). This still does not force base_catalog and the rules-engine detectors into one engine — `GateEvaluation` is evaluation-trace vocabulary shared by both, not a merge of their semantics.
 
 ---
 
@@ -146,11 +184,15 @@ The existing 6-shape vocabulary (`trendline_pair`, `neckline`, `cup_curve`, `rec
 
 **Recommendation (contract-only, no shape renderer rewritten in this phase):** add an optional parallel array `anchor_roles: NotRequired[list[str]]` (same length as `anchors`) to `Geometry`, so a renderer can special-case by role instead of shape-string + hardcoded index math, without breaking the 5 families whose anchor cardinality already matches their shape's implicit contract. VCP's zigzag and flat_base's 4th anchor become `anchor_roles=["contraction_low","contraction_low",...,"pivot"]` / `["prior_advance_origin","box_top_left","box_top_right","box_bottom_right"]` respectively — additive, zero migration, and the exact mechanism Section 19/20 ask for (semantic role over hardcoded per-shape assumptions).
 
+**Amendment (ChatGPT relay review, 2026-09-03):** a parallel `anchor_roles` array is a real synchronization invariant (length must always match `anchors`) and, on its own, doesn't tell a renderer *what kind of thing* it's looking at before it even reads individual anchors — VCP's zigzag and bull_flag's plain 2-line channel are both nominally `trendline_pair` today, and a renderer needing to know "is this a fixed boundary pair or a variable-length contraction sequence" shouldn't have to infer it from `len(anchors)`. Add one more field to `Geometry`: `semantic_subtype: NotRequired[str]` (e.g. `"flag_boundaries"` vs. `"contraction_sequence"` vs. `"base_box"`) — the shape stays one of the existing 6 primitives (no renderer file needs a new shape branch), but the subtype disambiguates intent explicitly instead of leaving it to point-count inference. Section 32 item 2's geometry-integrity test should additionally assert `anchor_roles` length matches `anchors` length wherever `anchor_roles` is populated, and that every `(pattern_id, shape, semantic_subtype)` triple has a stable, documented anchor contract.
+
 ---
 
 ## 11. Event Provenance Model
 
 Defined in Section 4 (`EventProvenance`). Today: real in exactly one field, one family (PEG's `days_to_earnings`/`earnings_linkage_verified`, Phase 6 Group 3). Its own gap/event sibling (episodic_pivot) has zero equivalent despite prose citations. **This is the strongest concrete argument for promoting it to a typed, optional section** — it already proved out in production as a narrative-truthfulness fix; formalizing it costs nothing (still optional-by-family) and would have made the PEG/EP asymmetry visible by inspection instead of requiring a fresh code read.
+
+**Amendment (ChatGPT relay review, 2026-09-03):** a descriptive-only `EventProvenance` (type/timestamp/verification/source string) isn't enough to answer "which actual earnings event caused this detector to call this an earnings pattern" during a future debugging session. Section 4 now includes `event_id` (a stable provider reference where one exists — e.g. an earnings-calendar row id, not just a source label) and `ingested_at` (when the event data was actually fetched, distinct from the event's own timestamp) — both optional, so a family with no addressable event record can still omit them.
 
 ---
 
@@ -166,6 +208,8 @@ Defined in Section 4 (`EventProvenance`). Today: real in exactly one field, one 
 | `historical_score` | **Hardcoded `50.0` in all 7 families, 0 exceptions**, despite `pattern_stats` already being populated by a real, running `recompute_stats()` job. |
 
 `historical_score` is the single cleanest, most bounded wiring gap this entire recon surfaced — a real per-`(pattern_id, tf, regime_bucket)` lookup already exists in `pattern_stats`; no detector reads it. Flagged here as the top Phase-8 candidate (Section 34), not touched in this phase.
+
+**Amendment (ChatGPT relay review, 2026-09-03):** a bare hardcoded `50.0` risks being misread as real evidence — a user or downstream consumer has no way to distinguish "the engine measured historical performance and it's neutral" from "the engine hasn't measured this yet." The canonical `historical_score`/`HistoricalOutcome` interface (Section 14) must carry an explicit availability state alongside the number: `Literal["unavailable", "insufficient_sample", "accumulating", "available"]`. Only `"available"` licenses a consumer to treat the score as real signal; the other three states are all, today, what every one of the 7 families' `50.0` actually means. This is a contract addition, not a wiring change — Section 25/34's "do not implement scoring in Phase 7" instruction is unaffected.
 
 ---
 
@@ -380,10 +424,17 @@ None of these are authorized by Phase 7. Listed as a sequencing aid for whenever
 
 ## 37. Owner Decisions Required
 
-1. **Fix the dead pattern-overlay toggle** (`ChartToolbar.jsx`'s `{false && ...}`) — trivial one-line change, but it is a production UI behavior change (a currently-invisible-to-everyone feature becomes visible to whoever has it toggled on in their persisted settings, plus a new toolbar button), so it needs explicit authorization rather than being bundled into an architecture phase. *Recommendation: yes, ship it — the feature has been fully built and dark for no evident reason; alternatives are "leave a shipped feature permanently invisible" or "delete the feature," both worse.*
-2. **`GET /{sym}}`'s `confirmed_only` default** — currently defaults to the pattern_vision system, not the rules-engine `Detection[]` this whole spec concerns. *Recommendation: flip the default to `false` (rules-engine), since that's what the one real caller already explicitly requests — but confirm no other undiscovered caller relies on the current default first (out of this phase's read scope).*
-3. **Rules-engine feedback routing** — three real feedback surfaces write to pattern_vision instead of the rules-engine `pattern_feedback` table their own code comments claim. *Two paths: (a) redirect them to the rules-engine route, restoring the apparently-intended design; (b) declare pattern_vision the actual intended destination and fix the stale comments instead. This is a product decision (which feedback corpus should end-user thumbs feed?), not a code fix Phase 7 can make unilaterally.*
-4. **How far to take Section 34's work-package list** — this spec deliberately does not sequence Phase 8 itself; the user should pick which packages (if any) get authorized first once ready.
+*Each item below reflects both this phase's own read and the independent ChatGPT relay review (2026-09-03, full exchange in the repo commit history and this session) — where they differ, both views are given rather than silently picking one.*
+
+1. **Fix the dead pattern-overlay toggle** (`ChartToolbar.jsx`'s `{false && ...}`) — trivial one-line change, but it is a production UI behavior change (a currently-invisible-to-everyone feature becomes visible to whoever has it toggled on in their persisted settings, plus a new toolbar button), so it needs explicit authorization rather than being bundled into an architecture phase.
+   - *This phase's original view: ship it now — the feature has been fully built and dark for no evident reason; the alternatives ("leave a shipped feature permanently invisible" or "delete the feature") are both worse.*
+   - *ChatGPT's caution: do not enable it before the geometry-contract amendments above land — today's rendering is genuinely correct but visually incomplete (positional anchors only, `geometry.extras` unread, PEG's anchor-timestamp quirk from Section 24 would be visible immediately), and flipping the toggle now risks the incomplete rendering reading as authoritative. Recommended sequencing: canonical types/adapters → shadow population → geometry-contract tests → PatternOverlay semantic adaptation → feature-flagged internal exposure → public toggle.*
+   - *Both are reasonable; this is a genuine product-timing call for the user, not something this spec resolves unilaterally.*
+2. **`GET /{sym}}`'s `confirmed_only` default** — currently defaults to the pattern_vision system, not the rules-engine `Detection[]` this whole spec concerns. Both this phase and the relay review agree: log it as a real P1 API-contract issue, but do not couple fixing it to the first Phase-8 work package — the one known caller already overrides it, so nothing is broken today, only surprising to a future undiscovered caller.
+3. **Rules-engine feedback routing** — three real feedback surfaces write to pattern_vision instead of the rules-engine `pattern_feedback` table their own code comments claim.
+   - *This phase's original framing: pick one of two systems as the intended destination.*
+   - *ChatGPT's refinement, which this spec adopts: don't assume a redirect is even correct — the two engines may legitimately warrant separate feedback corpora, the same way they warrant separate provenance vocabularies (Section 8). What's actually missing is a canonical feedback envelope (detection/result id, engine/system tag, detector version, the feedback itself, source surface) that makes routing a deliberate, visible choice instead of an accidental one. Not a Phase-8 blocker either way.*
+4. **How far to take Section 34's work-package list** — this spec deliberately does not sequence Phase 8 itself; the user should pick which packages (if any) get authorized first once ready. The relay review's own suggested 7-package breakdown (canonical types → shadow adapters for 4 representative families → scanner contract → chart semantic adapter → feature-flagged exposure → narrative facts → full 7-family rollout) is a reasonable starting point if the user wants one, not a commitment made by this phase.
 
 ---
 
@@ -391,4 +442,6 @@ None of these are authorized by Phase 7. Listed as a sequencing aid for whenever
 
 **ARCHITECTURE COMPLETE — READY FOR SCANNER/CHART VISUAL EXPLAINABILITY BUILD**
 
-The canonical model does not need building — it exists, is live, and is sound at its core (Section 2's governing principles are already true in code). What Phase 7 adds is three small, additive, low-risk sections (`eligibility`, `event`, `criteria`) plus one additive geometry field (`anchor_roles`), all zero-migration given the existing JSON-blob storage, all optional-by-family, none requiring a rewrite of any of the 7 audited detectors. The three owner decisions in Section 37 are small and independent of the architecture — none blocks it.
+The canonical model does not need building — it exists, is live, and is sound at its core (Section 2's governing principles are already true in code). What Phase 7 adds is a small, additive, low-risk set of sections (`eligibility`, `event`, `criteria`, `gate_trace`) plus two additive geometry fields (`anchor_roles`, `semantic_subtype`), all zero-migration given the existing JSON-blob storage, all optional-by-family, none requiring a rewrite of any of the 7 audited detectors. The owner decisions in Section 37 are small and independent of the architecture — none blocks it.
+
+**Independent review, Claude ↔ ChatGPT relay, 2026-09-03:** ChatGPT's own verdict was *"ARCHITECTURE COMPLETE WITH REQUIRED SPEC AMENDMENTS — READY FOR CONTROLLED SCANNER/CHART VISUAL EXPLAINABILITY IMPLEMENTATION AFTER THOSE DOCUMENT-LEVEL AMENDMENTS"* — explicitly: *"I do not see a missing fundamental model that warrants reopening architectural discovery."* Five amendments were proposed (Criterion vs. GateEvaluation distinction; eligibility time/scope semantics; geometry semantic_subtype + validation; explicit historical-availability state; stable event identity) — all five are incorporated into Sections 4/7/8/10/11/12 above, closing the review loop within this same document rather than requiring a second architecture pass. No genuine new owner decision was raised by the review; the three items in Section 37 stand as the only open decisions, none blocking.
