@@ -1,0 +1,2872 @@
+[
+  {
+    "case_id": "case_0000",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0000.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 158.0,
+      "pct_of_52w_high": 87.4,
+      "pct_above_52w_low": 43.1,
+      "sma10": 153.52,
+      "sma20": 154.67,
+      "sma50": 154.99,
+      "sma150": 157.76,
+      "sma200": 154.58,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 582995.0,
+      "vol_50d_avg": 422886.0,
+      "vol_20_vs_50_ratio": 1.379,
+      "adr_pct_21d": 4.54,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0001",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0001.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 13.77,
+      "pct_of_52w_high": 80.3,
+      "pct_above_52w_low": 70.8,
+      "sma10": 13.0,
+      "sma20": 12.6,
+      "sma50": 12.38,
+      "sma150": 13.06,
+      "sma200": 12.56,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 40225.0,
+      "vol_50d_avg": 118434.0,
+      "vol_20_vs_50_ratio": 0.34,
+      "adr_pct_21d": 4.92,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0002",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0002.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 40.7,
+      "pct_of_52w_high": 96.7,
+      "pct_above_52w_low": 85.3,
+      "sma10": 38.99,
+      "sma20": 38.12,
+      "sma50": 36.46,
+      "sma150": 31.67,
+      "sma200": 30.12,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 7902680.0,
+      "vol_50d_avg": 8645874.0,
+      "vol_20_vs_50_ratio": 0.914,
+      "adr_pct_21d": 2.62,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0003",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0003.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 33.74,
+      "pct_of_52w_high": 91.0,
+      "pct_above_52w_low": 50.7,
+      "sma10": 34.08,
+      "sma20": 33.42,
+      "sma50": 33.71,
+      "sma150": 31.61,
+      "sma200": 31.6,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 199850.0,
+      "vol_50d_avg": 174770.0,
+      "vol_20_vs_50_ratio": 1.144,
+      "adr_pct_21d": 3.47,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0004",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0004.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 32.44,
+      "pct_of_52w_high": 92.3,
+      "pct_above_52w_low": 50.3,
+      "sma10": 33.48,
+      "sma20": 33.29,
+      "sma50": 32.87,
+      "sma150": 30.5,
+      "sma200": 28.89,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1653530.0,
+      "vol_50d_avg": 1594674.0,
+      "vol_20_vs_50_ratio": 1.037,
+      "adr_pct_21d": 1.96,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0005",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0005.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 13.29,
+      "pct_of_52w_high": 85.6,
+      "pct_above_52w_low": 32.0,
+      "sma10": 13.07,
+      "sma20": 12.9,
+      "sma50": 12.62,
+      "sma150": 13.03,
+      "sma200": 12.8,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 680193.0,
+      "vol_50d_avg": 1153559.0,
+      "vol_20_vs_50_ratio": 0.59,
+      "adr_pct_21d": 2.91,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0006",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0006.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 38.95,
+      "pct_of_52w_high": 88.4,
+      "pct_above_52w_low": 30.1,
+      "sma10": 39.11,
+      "sma20": 39.89,
+      "sma50": 38.69,
+      "sma150": 37.76,
+      "sma200": 37.06,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 975361.0,
+      "vol_50d_avg": 898698.0,
+      "vol_20_vs_50_ratio": 1.085,
+      "adr_pct_21d": 2.9,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0007",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0007.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260820,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 94.11,
+      "pct_of_52w_high": 84.2,
+      "pct_above_52w_low": 56.7,
+      "sma10": 100.96,
+      "sma20": 103.24,
+      "sma50": 101.3,
+      "sma150": 91.57,
+      "sma200": 87.29,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 939765.0,
+      "vol_50d_avg": 1031888.0,
+      "vol_20_vs_50_ratio": 0.911,
+      "adr_pct_21d": 3.43,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0008",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0008.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.84,
+      "pct_of_52w_high": 85.8,
+      "pct_above_52w_low": 170.5,
+      "sma10": 2.9,
+      "sma20": 2.88,
+      "sma50": 2.67,
+      "sma150": 2.18,
+      "sma200": 2.16,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 2770565.0,
+      "vol_50d_avg": 2656180.0,
+      "vol_20_vs_50_ratio": 1.043,
+      "adr_pct_21d": 5.43,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0009",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0009.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260902,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 1160.08,
+      "pct_of_52w_high": 89.7,
+      "pct_above_52w_low": 62.9,
+      "sma10": 1199.73,
+      "sma20": 1206.03,
+      "sma50": 1190.22,
+      "sma150": 1064.5,
+      "sma200": 1062.02,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 2578730.0,
+      "vol_50d_avg": 2777716.0,
+      "vol_20_vs_50_ratio": 0.928,
+      "adr_pct_21d": 3.11,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0010",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0010.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 59.61,
+      "pct_of_52w_high": 95.5,
+      "pct_above_52w_low": 39.4,
+      "sma10": 60.67,
+      "sma20": 60.63,
+      "sma50": 58.22,
+      "sma150": 54.04,
+      "sma200": 52.37,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 117785.0,
+      "vol_50d_avg": 137782.0,
+      "vol_20_vs_50_ratio": 0.855,
+      "adr_pct_21d": 2.45,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0011",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0011.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 69.86,
+      "pct_of_52w_high": 92.7,
+      "pct_above_52w_low": 45.7,
+      "sma10": 72.65,
+      "sma20": 72.52,
+      "sma50": 71.08,
+      "sma150": 65.37,
+      "sma200": 63.09,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 3252291.0,
+      "vol_50d_avg": 4306398.0,
+      "vol_20_vs_50_ratio": 0.755,
+      "adr_pct_21d": 2.06,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0012",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0012.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 17.96,
+      "pct_of_52w_high": 88.8,
+      "pct_above_52w_low": 159.2,
+      "sma10": 18.23,
+      "sma20": 18.29,
+      "sma50": 17.74,
+      "sma150": 14.28,
+      "sma200": 13.73,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1554142.0,
+      "vol_50d_avg": 2375201.0,
+      "vol_20_vs_50_ratio": 0.654,
+      "adr_pct_21d": 4.47,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0013",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0013.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260902,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 26.82,
+      "pct_of_52w_high": 98.8,
+      "pct_above_52w_low": 122.0,
+      "sma10": 26.17,
+      "sma20": 25.59,
+      "sma50": 24.28,
+      "sma150": 20.2,
+      "sma200": 18.57,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 3667196.0,
+      "vol_50d_avg": 3291838.0,
+      "vol_20_vs_50_ratio": 1.114,
+      "adr_pct_21d": 4.93,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0014",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0014.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 94.78,
+      "pct_of_52w_high": 97.2,
+      "pct_above_52w_low": 70.7,
+      "sma10": 95.05,
+      "sma20": 94.22,
+      "sma50": 91.36,
+      "sma150": 79.37,
+      "sma200": 77.59,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 13432815.0,
+      "vol_50d_avg": 15211892.0,
+      "vol_20_vs_50_ratio": 0.883,
+      "adr_pct_21d": 1.88,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0015",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0015.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 23.41,
+      "pct_of_52w_high": 87.5,
+      "pct_above_52w_low": 74.8,
+      "sma10": 23.11,
+      "sma20": 23.0,
+      "sma50": 22.77,
+      "sma150": 22.28,
+      "sma200": 20.87,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1149385.0,
+      "vol_50d_avg": 1111726.0,
+      "vol_20_vs_50_ratio": 1.034,
+      "adr_pct_21d": 4.63,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0016",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0016.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 17.08,
+      "pct_of_52w_high": 88.0,
+      "pct_above_52w_low": 43.2,
+      "sma10": 16.84,
+      "sma20": 16.52,
+      "sma50": 16.24,
+      "sma150": 16.22,
+      "sma200": 16.0,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 354430.0,
+      "vol_50d_avg": 393216.0,
+      "vol_20_vs_50_ratio": 0.901,
+      "adr_pct_21d": 3.38,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0017",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0017.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 1017.97,
+      "pct_of_52w_high": 89.8,
+      "pct_above_52w_low": 63.2,
+      "sma10": 1031.09,
+      "sma20": 1035.39,
+      "sma50": 1052.37,
+      "sma150": 910.85,
+      "sma200": 875.79,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 3779990.0,
+      "vol_50d_avg": 3186452.0,
+      "vol_20_vs_50_ratio": 1.186,
+      "adr_pct_21d": 3.37,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0018",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0018.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 201.51,
+      "pct_of_52w_high": 96.7,
+      "pct_above_52w_low": 95.3,
+      "sma10": 193.42,
+      "sma20": 195.44,
+      "sma50": 182.66,
+      "sma150": 157.17,
+      "sma200": 150.77,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1374605.0,
+      "vol_50d_avg": 1354200.0,
+      "vol_20_vs_50_ratio": 1.015,
+      "adr_pct_21d": 3.47,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0019",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0019.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 38.76,
+      "pct_of_52w_high": 89.8,
+      "pct_above_52w_low": 80.3,
+      "sma10": 39.42,
+      "sma20": 38.64,
+      "sma50": 39.04,
+      "sma150": 38.33,
+      "sma200": 36.95,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1070840.0,
+      "vol_50d_avg": 1067772.0,
+      "vol_20_vs_50_ratio": 1.003,
+      "adr_pct_21d": 3.51,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0020",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0020.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 7.27,
+      "pct_of_52w_high": 82.8,
+      "pct_above_52w_low": 208.1,
+      "sma10": 7.42,
+      "sma20": 7.42,
+      "sma50": 6.95,
+      "sma150": 6.14,
+      "sma200": 5.49,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1943980.0,
+      "vol_50d_avg": 1820040.0,
+      "vol_20_vs_50_ratio": 1.068,
+      "adr_pct_21d": 5.56,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0021",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0021.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 41.58,
+      "pct_of_52w_high": 92.7,
+      "pct_above_52w_low": 168.6,
+      "sma10": 40.57,
+      "sma20": 39.82,
+      "sma50": 39.09,
+      "sma150": 32.26,
+      "sma200": 29.77,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1852335.0,
+      "vol_50d_avg": 1763910.0,
+      "vol_20_vs_50_ratio": 1.05,
+      "adr_pct_21d": 4.53,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0022",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0022.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 71.55,
+      "pct_of_52w_high": 95.3,
+      "pct_above_52w_low": 24.6,
+      "sma10": 72.47,
+      "sma20": 73.04,
+      "sma50": 70.89,
+      "sma150": 66.56,
+      "sma200": 65.94,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 120959.0,
+      "vol_50d_avg": 162226.0,
+      "vol_20_vs_50_ratio": 0.746,
+      "adr_pct_21d": 2.08,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0023",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0023.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260902,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 187.94,
+      "pct_of_52w_high": 90.5,
+      "pct_above_52w_low": 32.2,
+      "sma10": 190.2,
+      "sma20": 188.92,
+      "sma50": 187.44,
+      "sma150": 178.73,
+      "sma200": 173.91,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 4410160.0,
+      "vol_50d_avg": 4882060.0,
+      "vol_20_vs_50_ratio": 0.903,
+      "adr_pct_21d": 2.11,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0024",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0024.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 260,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 18.19,
+      "pct_of_52w_high": 93.4,
+      "pct_above_52w_low": 59.1,
+      "sma10": 17.94,
+      "sma20": 17.62,
+      "sma50": 17.6,
+      "sma150": 17.13,
+      "sma200": 16.33,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 236185.0,
+      "vol_50d_avg": 382578.0,
+      "vol_20_vs_50_ratio": 0.617,
+      "adr_pct_21d": 3.23,
+      "n_bars_shown": 260
+    }
+  },
+  {
+    "case_id": "case_0025",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0025.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 34.08,
+      "pct_of_52w_high": 94.1,
+      "pct_above_52w_low": 49.3,
+      "sma10": 34.68,
+      "sma20": 34.88,
+      "sma50": 33.96,
+      "sma150": 31.76,
+      "sma200": 31.42,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 153435.0,
+      "vol_50d_avg": 159988.0,
+      "vol_20_vs_50_ratio": 0.959,
+      "adr_pct_21d": 2.93,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0026",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0026.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260902,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 245.49,
+      "pct_of_52w_high": 95.0,
+      "pct_above_52w_low": 68.3,
+      "sma10": 235.61,
+      "sma20": 235.9,
+      "sma50": 233.55,
+      "sma150": 218.33,
+      "sma200": 215.19,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1765435.0,
+      "vol_50d_avg": 2058278.0,
+      "vol_20_vs_50_ratio": 0.858,
+      "adr_pct_21d": 2.55,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0027",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0027.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 39.55,
+      "pct_of_52w_high": 86.9,
+      "pct_above_52w_low": 57.0,
+      "sma10": 37.91,
+      "sma20": 37.59,
+      "sma50": 39.36,
+      "sma150": 35.99,
+      "sma200": 34.67,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 6410.0,
+      "vol_50d_avg": 7900.0,
+      "vol_20_vs_50_ratio": 0.811,
+      "adr_pct_21d": 3.42,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0028",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0028.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 210.85,
+      "pct_of_52w_high": 88.8,
+      "pct_above_52w_low": 107.1,
+      "sma10": 209.94,
+      "sma20": 212.78,
+      "sma50": 213.63,
+      "sma150": 182.34,
+      "sma200": 164.6,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 643427.0,
+      "vol_50d_avg": 597567.0,
+      "vol_20_vs_50_ratio": 1.077,
+      "adr_pct_21d": 3.58,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0029",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0029.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 22.57,
+      "pct_of_52w_high": 96.4,
+      "pct_above_52w_low": 25.7,
+      "sma10": 22.86,
+      "sma20": 22.8,
+      "sma50": 22.41,
+      "sma150": 20.81,
+      "sma200": 20.44,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1214008.0,
+      "vol_50d_avg": 1569593.0,
+      "vol_20_vs_50_ratio": 0.773,
+      "adr_pct_21d": 1.63,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0030",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0030.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 120.27,
+      "pct_of_52w_high": 97.8,
+      "pct_above_52w_low": 188.3,
+      "sma10": 118.0,
+      "sma20": 116.15,
+      "sma50": 110.55,
+      "sma150": 102.4,
+      "sma200": 94.49,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 2743685.0,
+      "vol_50d_avg": 2270460.0,
+      "vol_20_vs_50_ratio": 1.208,
+      "adr_pct_21d": 4.41,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0031",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0031.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 58.84,
+      "pct_of_52w_high": 99.1,
+      "pct_above_52w_low": 96.1,
+      "sma10": 56.98,
+      "sma20": 55.66,
+      "sma50": 51.14,
+      "sma150": 45.42,
+      "sma200": 43.76,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 10810.0,
+      "vol_50d_avg": 10112.0,
+      "vol_20_vs_50_ratio": 1.069,
+      "adr_pct_21d": 3.87,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0032",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0032.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 55.09,
+      "pct_of_52w_high": 92.3,
+      "pct_above_52w_low": 88.9,
+      "sma10": 52.99,
+      "sma20": 51.59,
+      "sma50": 50.73,
+      "sma150": 47.52,
+      "sma200": 43.76,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 903485.0,
+      "vol_50d_avg": 760060.0,
+      "vol_20_vs_50_ratio": 1.189,
+      "adr_pct_21d": 3.76,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0033",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0033.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 41.03,
+      "pct_of_52w_high": 82.7,
+      "pct_above_52w_low": 26.7,
+      "sma10": 43.96,
+      "sma20": 43.52,
+      "sma50": 43.92,
+      "sma150": 41.09,
+      "sma200": 41.72,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 3137255.0,
+      "vol_50d_avg": 2729594.0,
+      "vol_20_vs_50_ratio": 1.149,
+      "adr_pct_21d": 3.42,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0034",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0034.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 14.9,
+      "pct_of_52w_high": 85.3,
+      "pct_above_52w_low": 40.7,
+      "sma10": 15.14,
+      "sma20": 14.74,
+      "sma50": 14.23,
+      "sma150": 13.68,
+      "sma200": 13.53,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 569618.0,
+      "vol_50d_avg": 546526.0,
+      "vol_20_vs_50_ratio": 1.042,
+      "adr_pct_21d": 3.6,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0035",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0035.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 27.46,
+      "pct_of_52w_high": 67.9,
+      "pct_above_52w_low": 85.5,
+      "sma10": 26.39,
+      "sma20": 25.93,
+      "sma50": 26.17,
+      "sma150": 25.72,
+      "sma200": 27.12,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 561405.0,
+      "vol_50d_avg": 783870.0,
+      "vol_20_vs_50_ratio": 0.716,
+      "adr_pct_21d": 4.6,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0036",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0036.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 103.64,
+      "pct_of_52w_high": 90.5,
+      "pct_above_52w_low": 41.0,
+      "sma10": 102.62,
+      "sma20": 103.16,
+      "sma50": 103.56,
+      "sma150": 100.65,
+      "sma200": 101.35,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 719185.0,
+      "vol_50d_avg": 814424.0,
+      "vol_20_vs_50_ratio": 0.883,
+      "adr_pct_21d": 2.12,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0037",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0037.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 29.56,
+      "pct_of_52w_high": 70.6,
+      "pct_above_52w_low": 18.5,
+      "sma10": 30.21,
+      "sma20": 29.58,
+      "sma50": 30.55,
+      "sma150": 31.33,
+      "sma200": 32.59,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 5618665.0,
+      "vol_50d_avg": 5261784.0,
+      "vol_20_vs_50_ratio": 1.068,
+      "adr_pct_21d": 3.27,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0038",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0038.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 95.13,
+      "pct_of_52w_high": 82.9,
+      "pct_above_52w_low": 38.3,
+      "sma10": 94.24,
+      "sma20": 88.41,
+      "sma50": 85.43,
+      "sma150": 90.23,
+      "sma200": 89.09,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 593558.0,
+      "vol_50d_avg": 616065.0,
+      "vol_20_vs_50_ratio": 0.963,
+      "adr_pct_21d": 3.72,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0039",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0039.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260710,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 59.25,
+      "pct_of_52w_high": 82.4,
+      "pct_above_52w_low": 29.4,
+      "sma10": 59.87,
+      "sma20": 58.91,
+      "sma50": 56.37,
+      "sma150": 59.17,
+      "sma200": 58.85,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 1170341.0,
+      "vol_50d_avg": 1157164.0,
+      "vol_20_vs_50_ratio": 1.011,
+      "adr_pct_21d": 2.74,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0040",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0040.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 1948.01,
+      "pct_of_52w_high": 93.8,
+      "pct_above_52w_low": 30.4,
+      "sma10": 1963.22,
+      "sma20": 1946.73,
+      "sma50": 1975.88,
+      "sma150": 1903.9,
+      "sma200": 1861.96,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 41180.0,
+      "vol_50d_avg": 44078.0,
+      "vol_20_vs_50_ratio": 0.934,
+      "adr_pct_21d": 1.52,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0041",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0041.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 67.94,
+      "pct_of_52w_high": 88.1,
+      "pct_above_52w_low": 76.7,
+      "sma10": 64.78,
+      "sma20": 65.64,
+      "sma50": 68.14,
+      "sma150": 55.78,
+      "sma200": 52.57,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 199225.0,
+      "vol_50d_avg": 188352.0,
+      "vol_20_vs_50_ratio": 1.058,
+      "adr_pct_21d": 2.52,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0042",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0042.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 47.14,
+      "pct_of_52w_high": 73.5,
+      "pct_above_52w_low": 12.8,
+      "sma10": 49.36,
+      "sma20": 50.05,
+      "sma50": 51.51,
+      "sma150": 54.95,
+      "sma200": 55.48,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 4382250.0,
+      "vol_50d_avg": 3004824.0,
+      "vol_20_vs_50_ratio": 1.458,
+      "adr_pct_21d": 3.78,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0043",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0043.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 20.64,
+      "pct_of_52w_high": 88.2,
+      "pct_above_52w_low": 65.1,
+      "sma10": 20.16,
+      "sma20": 19.79,
+      "sma50": 19.86,
+      "sma150": 18.43,
+      "sma200": 17.5,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 156960.0,
+      "vol_50d_avg": 155744.0,
+      "vol_20_vs_50_ratio": 1.008,
+      "adr_pct_21d": 3.57,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0044",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0044.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 163.02,
+      "pct_of_52w_high": 89.1,
+      "pct_above_52w_low": 45.3,
+      "sma10": 168.35,
+      "sma20": 165.14,
+      "sma50": 157.06,
+      "sma150": 147.44,
+      "sma200": 145.45,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 164512.0,
+      "vol_50d_avg": 163313.0,
+      "vol_20_vs_50_ratio": 1.007,
+      "adr_pct_21d": 3.89,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0045",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0045.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 57.38,
+      "pct_of_52w_high": 90.4,
+      "pct_above_52w_low": 30.5,
+      "sma10": 57.34,
+      "sma20": 57.59,
+      "sma50": 58.55,
+      "sma150": 58.22,
+      "sma200": 57.76,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 6640200.0,
+      "vol_50d_avg": 7559254.0,
+      "vol_20_vs_50_ratio": 0.878,
+      "adr_pct_21d": 1.96,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0046",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0046.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 16.61,
+      "pct_of_52w_high": 64.1,
+      "pct_above_52w_low": 17.7,
+      "sma10": 16.96,
+      "sma20": 16.77,
+      "sma50": 16.21,
+      "sma150": 18.29,
+      "sma200": 18.28,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 1249089.0,
+      "vol_50d_avg": 1271448.0,
+      "vol_20_vs_50_ratio": 0.982,
+      "adr_pct_21d": 5.86,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0047",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0047.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 216.47,
+      "pct_of_52w_high": 98.1,
+      "pct_above_52w_low": 157.1,
+      "sma10": 205.94,
+      "sma20": 202.48,
+      "sma50": 197.64,
+      "sma150": 186.03,
+      "sma200": 172.76,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 942025.0,
+      "vol_50d_avg": 986836.0,
+      "vol_20_vs_50_ratio": 0.955,
+      "adr_pct_21d": 4.75,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0048",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0048.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 13.98,
+      "pct_of_52w_high": 58.7,
+      "pct_above_52w_low": 24.8,
+      "sma10": 13.3,
+      "sma20": 13.26,
+      "sma50": 14.71,
+      "sma150": 16.47,
+      "sma200": 16.36,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 9168605.0,
+      "vol_50d_avg": 8507398.0,
+      "vol_20_vs_50_ratio": 1.078,
+      "adr_pct_21d": 6.0,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0049",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0049.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 52.38,
+      "pct_of_52w_high": 85.8,
+      "pct_above_52w_low": 66.5,
+      "sma10": 51.84,
+      "sma20": 51.7,
+      "sma50": 54.11,
+      "sma150": 53.02,
+      "sma200": 51.39,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 6600035.0,
+      "vol_50d_avg": 8406792.0,
+      "vol_20_vs_50_ratio": 0.785,
+      "adr_pct_21d": 2.51,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0050",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0050.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260710,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 138.69,
+      "pct_of_52w_high": 97.7,
+      "pct_above_52w_low": 42.4,
+      "sma10": 138.95,
+      "sma20": 136.31,
+      "sma50": 132.53,
+      "sma150": 129.24,
+      "sma200": 124.26,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 280180.0,
+      "vol_50d_avg": 268280.0,
+      "vol_20_vs_50_ratio": 1.044,
+      "adr_pct_21d": 2.07,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0051",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0051.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.49,
+      "pct_of_52w_high": 91.2,
+      "pct_above_52w_low": 57.6,
+      "sma10": 2.48,
+      "sma20": 2.47,
+      "sma50": 2.42,
+      "sma150": 2.17,
+      "sma200": 2.23,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 201705.0,
+      "vol_50d_avg": 217320.0,
+      "vol_20_vs_50_ratio": 0.928,
+      "adr_pct_21d": 4.11,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0052",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0052.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260710,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 91.49,
+      "pct_of_52w_high": 73.8,
+      "pct_above_52w_low": 15.1,
+      "sma10": 93.62,
+      "sma20": 92.04,
+      "sma50": 92.22,
+      "sma150": 97.68,
+      "sma200": 99.0,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 965912.0,
+      "vol_50d_avg": 958911.0,
+      "vol_20_vs_50_ratio": 1.007,
+      "adr_pct_21d": 2.52,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0053",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0053.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 46.63,
+      "pct_of_52w_high": 73.6,
+      "pct_above_52w_low": 30.0,
+      "sma10": 46.22,
+      "sma20": 47.79,
+      "sma50": 47.23,
+      "sma150": 48.32,
+      "sma200": 49.11,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 50005.0,
+      "vol_50d_avg": 44088.0,
+      "vol_20_vs_50_ratio": 1.134,
+      "adr_pct_21d": 4.71,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0054",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0054.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 16.32,
+      "pct_of_52w_high": 88.7,
+      "pct_above_52w_low": 73.1,
+      "sma10": 16.2,
+      "sma20": 16.82,
+      "sma50": 16.6,
+      "sma150": 15.4,
+      "sma200": 14.42,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 10598996.0,
+      "vol_50d_avg": 10160560.0,
+      "vol_20_vs_50_ratio": 1.043,
+      "adr_pct_21d": 2.75,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0055",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0055.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 19.03,
+      "pct_of_52w_high": 73.9,
+      "pct_above_52w_low": 67.2,
+      "sma10": 19.49,
+      "sma20": 20.34,
+      "sma50": 21.82,
+      "sma150": 19.51,
+      "sma200": 18.57,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 525310.0,
+      "vol_50d_avg": 372852.0,
+      "vol_20_vs_50_ratio": 1.409,
+      "adr_pct_21d": 6.05,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0056",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0056.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 67.46,
+      "pct_of_52w_high": 95.3,
+      "pct_above_52w_low": 89.4,
+      "sma10": 59.53,
+      "sma20": 58.28,
+      "sma50": 58.6,
+      "sma150": 59.76,
+      "sma200": 59.1,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 603775.0,
+      "vol_50d_avg": 561472.0,
+      "vol_20_vs_50_ratio": 1.075,
+      "adr_pct_21d": 3.76,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0057",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0057.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 49.25,
+      "pct_of_52w_high": 73.8,
+      "pct_above_52w_low": 104.9,
+      "sma10": 48.73,
+      "sma20": 48.22,
+      "sma50": 49.36,
+      "sma150": 51.86,
+      "sma200": 49.49,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 5783675.0,
+      "vol_50d_avg": 4768076.0,
+      "vol_20_vs_50_ratio": 1.213,
+      "adr_pct_21d": 4.82,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0058",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0058.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 23.0,
+      "pct_of_52w_high": 84.2,
+      "pct_above_52w_low": 67.9,
+      "sma10": 22.06,
+      "sma20": 22.47,
+      "sma50": 21.06,
+      "sma150": 19.77,
+      "sma200": 20.27,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 578320.0,
+      "vol_50d_avg": 401224.0,
+      "vol_20_vs_50_ratio": 1.441,
+      "adr_pct_21d": 9.91,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0059",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0059.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 30.82,
+      "pct_of_52w_high": 39.8,
+      "pct_above_52w_low": 3.5,
+      "sma10": 31.61,
+      "sma20": 33.2,
+      "sma50": 38.38,
+      "sma150": 41.72,
+      "sma200": 44.9,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 503153.0,
+      "vol_50d_avg": 363947.0,
+      "vol_20_vs_50_ratio": 1.382,
+      "adr_pct_21d": 4.64,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0060",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0060.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 36.29,
+      "pct_of_52w_high": 84.2,
+      "pct_above_52w_low": 43.7,
+      "sma10": 36.88,
+      "sma20": 36.43,
+      "sma50": 33.7,
+      "sma150": 34.37,
+      "sma200": 34.39,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 440990.0,
+      "vol_50d_avg": 520826.0,
+      "vol_20_vs_50_ratio": 0.847,
+      "adr_pct_21d": 3.1,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0061",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0061.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 4.39,
+      "pct_of_52w_high": 48.1,
+      "pct_above_52w_low": 1.9,
+      "sma10": 5.5,
+      "sma20": 5.69,
+      "sma50": 5.8,
+      "sma150": 6.52,
+      "sma200": 7.0,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 5496410.0,
+      "vol_50d_avg": 3413114.0,
+      "vol_20_vs_50_ratio": 1.61,
+      "adr_pct_21d": 2.02,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0062",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0062.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260701,
+      "eval_label": "current",
+      "n_bars_available": 285,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 11.78,
+      "pct_of_52w_high": 83.8,
+      "pct_above_52w_low": 14.1,
+      "sma10": 11.9,
+      "sma20": 12.41,
+      "sma50": 11.98,
+      "sma150": 11.48,
+      "sma200": 11.42,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 744250.0,
+      "vol_50d_avg": 710230.0,
+      "vol_20_vs_50_ratio": 1.048,
+      "adr_pct_21d": 6.12,
+      "n_bars_shown": 285
+    }
+  },
+  {
+    "case_id": "case_0063",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0063.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 30.05,
+      "pct_of_52w_high": 78.4,
+      "pct_above_52w_low": 1395.0,
+      "sma10": 30.41,
+      "sma20": 27.76,
+      "sma50": 26.3,
+      "sma150": 15.36,
+      "sma200": 12.35,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 387680.0,
+      "vol_50d_avg": 182456.0,
+      "vol_20_vs_50_ratio": 2.125,
+      "adr_pct_21d": 10.72,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0064",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0064.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.32,
+      "pct_of_52w_high": 75.3,
+      "pct_above_52w_low": 274.2,
+      "sma10": 2.67,
+      "sma20": 2.39,
+      "sma50": 2.16,
+      "sma150": 1.51,
+      "sma200": 1.32,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 223810.0,
+      "vol_50d_avg": 211340.0,
+      "vol_20_vs_50_ratio": 1.059,
+      "adr_pct_21d": 9.97,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0065",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0065.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 7.11,
+      "pct_of_52w_high": 22.1,
+      "pct_above_52w_low": 39.1,
+      "sma10": 6.54,
+      "sma20": 6.34,
+      "sma50": 7.71,
+      "sma150": 9.91,
+      "sma200": 9.82,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 6518974.0,
+      "vol_50d_avg": 5776823.0,
+      "vol_20_vs_50_ratio": 1.128,
+      "adr_pct_21d": 8.08,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0066",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0066.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 33.78,
+      "pct_of_52w_high": 51.7,
+      "pct_above_52w_low": 145.9,
+      "sma10": 30.19,
+      "sma20": 29.86,
+      "sma50": 32.03,
+      "sma150": 26.38,
+      "sma200": 28.89,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 14536456.0,
+      "vol_50d_avg": 15690756.0,
+      "vol_20_vs_50_ratio": 0.926,
+      "adr_pct_21d": 8.3,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0067",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0067.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260610,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 17.11,
+      "pct_of_52w_high": 94.2,
+      "pct_above_52w_low": 103.7,
+      "sma10": 11.8,
+      "sma20": 11.05,
+      "sma50": 11.89,
+      "sma150": 11.12,
+      "sma200": 10.95,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 10809.0,
+      "vol_50d_avg": 13154.0,
+      "vol_20_vs_50_ratio": 0.822,
+      "adr_pct_21d": 16.56,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0068",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0068.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260618,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 11.22,
+      "pct_of_52w_high": 32.6,
+      "pct_above_52w_low": 6.7,
+      "sma10": 11.15,
+      "sma20": 16.78,
+      "sma50": 23.76,
+      "sma150": 24.07,
+      "sma200": 22.82,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 1299100.0,
+      "vol_50d_avg": 772186.0,
+      "vol_20_vs_50_ratio": 1.682,
+      "adr_pct_21d": 9.29,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0069",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0069.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 12.26,
+      "pct_of_52w_high": 82.3,
+      "pct_above_52w_low": 63.9,
+      "sma10": 12.14,
+      "sma20": 12.04,
+      "sma50": 12.08,
+      "sma150": 10.95,
+      "sma200": 11.1,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 221010.0,
+      "vol_50d_avg": 160824.0,
+      "vol_20_vs_50_ratio": 1.374,
+      "adr_pct_21d": 3.64,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0070",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0070.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260902,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 8.14,
+      "pct_of_52w_high": 89.2,
+      "pct_above_52w_low": 111.4,
+      "sma10": 8.09,
+      "sma20": 7.86,
+      "sma50": 7.38,
+      "sma150": 6.7,
+      "sma200": 6.28,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 449240.0,
+      "vol_50d_avg": 482312.0,
+      "vol_20_vs_50_ratio": 0.931,
+      "adr_pct_21d": 6.16,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0071",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0071.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 10.58,
+      "pct_of_52w_high": 75.0,
+      "pct_above_52w_low": 27.6,
+      "sma10": 10.54,
+      "sma20": 10.45,
+      "sma50": 10.7,
+      "sma150": 10.53,
+      "sma200": 10.89,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 173255.0,
+      "vol_50d_avg": 288216.0,
+      "vol_20_vs_50_ratio": 0.601,
+      "adr_pct_21d": 2.31,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0072",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0072.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 13.02,
+      "pct_of_52w_high": 97.2,
+      "pct_above_52w_low": 25.6,
+      "sma10": 13.04,
+      "sma20": 13.03,
+      "sma50": 12.83,
+      "sma150": 12.31,
+      "sma200": 12.45,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 50565.0,
+      "vol_50d_avg": 48844.0,
+      "vol_20_vs_50_ratio": 1.035,
+      "adr_pct_21d": 0.71,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0073",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0073.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 29.57,
+      "pct_of_52w_high": 96.7,
+      "pct_above_52w_low": 45.9,
+      "sma10": 29.67,
+      "sma20": 28.96,
+      "sma50": 27.36,
+      "sma150": 26.78,
+      "sma200": 26.35,
+      "ma_order_ascending": false,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 84625.0,
+      "vol_50d_avg": 88984.0,
+      "vol_20_vs_50_ratio": 0.951,
+      "adr_pct_21d": 1.36,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0074",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0074.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 1.23,
+      "pct_of_52w_high": 70.3,
+      "pct_above_52w_low": 89.2,
+      "sma10": 1.18,
+      "sma20": 1.15,
+      "sma50": 1.11,
+      "sma150": 1.03,
+      "sma200": 1.05,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 216125.0,
+      "vol_50d_avg": 422000.0,
+      "vol_20_vs_50_ratio": 0.512,
+      "adr_pct_21d": 6.03,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0075",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0075.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 50.97,
+      "pct_of_52w_high": 92.9,
+      "pct_above_52w_low": 21.2,
+      "sma10": 50.48,
+      "sma20": 50.41,
+      "sma50": 50.86,
+      "sma150": 51.52,
+      "sma200": 50.84,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 1510950.0,
+      "vol_50d_avg": 1312636.0,
+      "vol_20_vs_50_ratio": 1.151,
+      "adr_pct_21d": 1.48,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0076",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0076.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260821,
+      "eval_label": "current",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 5.97,
+      "pct_of_52w_high": 56.2,
+      "pct_above_52w_low": 9.9,
+      "sma10": 6.02,
+      "sma20": 6.52,
+      "sma50": 6.61,
+      "sma150": 7.13,
+      "sma200": 7.48,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 8913733.0,
+      "vol_50d_avg": 10320851.0,
+      "vol_20_vs_50_ratio": 0.864,
+      "adr_pct_21d": 4.33,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0077",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0077.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 9.15,
+      "pct_of_52w_high": 78.2,
+      "pct_above_52w_low": 28.8,
+      "sma10": 9.32,
+      "sma20": 9.43,
+      "sma50": 9.31,
+      "sma150": 9.32,
+      "sma200": 9.48,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 1125790.0,
+      "vol_50d_avg": 1261746.0,
+      "vol_20_vs_50_ratio": 0.892,
+      "adr_pct_21d": 4.29,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0078",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0078.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 114.22,
+      "pct_of_52w_high": 53.4,
+      "pct_above_52w_low": 292.6,
+      "sma10": 121.67,
+      "sma20": 119.21,
+      "sma50": 133.19,
+      "sma150": 141.01,
+      "sma200": 126.09,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 7496340.0,
+      "vol_50d_avg": 6272330.0,
+      "vol_20_vs_50_ratio": 1.195,
+      "adr_pct_21d": 8.34,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0079",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0079.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 30.94,
+      "pct_of_52w_high": 64.8,
+      "pct_above_52w_low": 43.7,
+      "sma10": 31.1,
+      "sma20": 30.75,
+      "sma50": 30.36,
+      "sma150": 30.16,
+      "sma200": 32.73,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 5058325.0,
+      "vol_50d_avg": 5839386.0,
+      "vol_20_vs_50_ratio": 0.866,
+      "adr_pct_21d": 3.29,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0080",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0080.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20250902,
+      "eval_label": "t_minus_12mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 12.1,
+      "pct_of_52w_high": 82.7,
+      "pct_above_52w_low": 54.7,
+      "sma10": 12.26,
+      "sma20": 12.24,
+      "sma50": 11.83,
+      "sma150": 10.44,
+      "sma200": 11.0,
+      "ma_order_ascending": false,
+      "trend_template_150_200": false,
+      "vol_20d_avg": 1208960.0,
+      "vol_50d_avg": 1135342.0,
+      "vol_20_vs_50_ratio": 1.065,
+      "adr_pct_21d": 2.51,
+      "n_bars_shown": 400
+    }
+  },
+  {
+    "case_id": "case_0081",
+    "rubric_version": "v2",
+    "chart_file": "charts/case_0081.png",
+    "provenance": {
+      "symbol_shown": false,
+      "timeframe": "D",
+      "evaluation_as_of": 20260302,
+      "eval_label": "t_minus_6mo",
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 170,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md Bars Correctness Layer)",
+      "detector_versions": {
+        "system_a": "pattern_engine/detectors/uct/vcp.py (Phase 3A trend-template gate, 2026-09-02)",
+        "system_d": "screener/base_catalog.py::vcp_state (fresh origin/master read, Phase 3B)"
+      }
+    },
+    "neutral_context": {
+      "last_close": 18.73,
+      "pct_of_52w_high": 99.7,
+      "pct_above_52w_low": 138.3,
+      "sma10": 17.6,
+      "sma20": 16.93,
+      "sma50": 14.97,
+      "sma150": 14.22,
+      "sma200": 13.65,
+      "ma_order_ascending": true,
+      "trend_template_150_200": true,
+      "vol_20d_avg": 298815.0,
+      "vol_50d_avg": 357622.0,
+      "vol_20_vs_50_ratio": 0.836,
+      "adr_pct_21d": 2.46,
+      "n_bars_shown": 400
+    }
+  }
+]
