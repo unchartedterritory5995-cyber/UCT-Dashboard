@@ -15,11 +15,13 @@
 //   collapses. Every count the cap destroys is one the comparison answered the
 //   same way.
 //
-//   `ta.obv` is cumulative from the first bar. `closedTable.json`'s ruling
-//   refuses its LEVEL — the seed "is a fact about where the fetch started" — and
-//   then blesses this rewrite in its own words: "the LEVEL is refused, its CHANGE
-//   across a declared window is not, because the arbitrary seed CANCELS in a
-//   difference".
+//   `ta.obv` accumulates without a bound, and `closedTable.json` owns the reason
+//   its LEVEL is refused. That same ruling then blesses this rewrite in its own
+//   words: "the LEVEL is refused, its CHANGE across a declared window is not,
+//   because the arbitrary seed CANCELS in a difference".
+//   ⛔ THE REASON IS NOT PARAPHRASED HERE ON PURPOSE. `test_ast_bounded_state`
+//   sweeps the repo for a second copy of it and fails, because two agreeing
+//   copies read as corroboration and the stale one never gets corrected.
 //
 // ⛔⛔ THE LICENCE IS THAT THESE ARE IDENTITIES, so this file MEASURES them
 // against a reference computed here rather than asserting the rewrite looks
