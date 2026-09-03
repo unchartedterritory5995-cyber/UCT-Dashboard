@@ -31,12 +31,12 @@
      workspace, plus a 1px inner right-edge highlight so the panel edge is crisp
      against the dimmed page (the "slick" touch). */
   box-shadow: 6px 0 30px rgba(0, 0, 0, 0.40), inset -1px 0 0 rgba(255, 255, 255, 0.05);
-  /* Enter-delay so the expand only fires on a DELIBERATE, sustained hover — not on
-     a transient layout flick (a scrollbar toggling, a re-render reflow) that briefly
-     slides the nav under a stationary cursor. Without it, a sub-frame spurious hover
-     played the full 0.2s expand+collapse = the "menu shakes by itself" bug. Collapse
-     stays instant: the base .nav rule (delay 0) applies on hover-out. */
-  transition-delay: 0.12s;
+  /* Expand INSTANTLY on hover (no enter-delay). The old 0.12s delay guarded against
+     the "menu shakes by itself" bug — a transient layout flick (scrollbar toggle,
+     re-render reflow) sliding the IN-FLOW rail under a stationary cursor. The rail
+     is now position:fixed (out of flow), so layout flicks can't move it and the
+     spurious-hover risk is gone — the expand can start the instant the cursor
+     touches the 60px column. */
 }
 .brand {
   display: flex;
@@ -80,7 +80,6 @@
   max-width: 150px;
   margin-left: 11px;
   opacity: 1;
-  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
 }
 .brandNameTop {
   font-family: var(--font-display, var(--font-sans));
@@ -242,7 +241,6 @@
 }
 .nav:hover .accountText {
   opacity: 1;
-  transition-delay: 0.12s;
 }
 .accountName {
   font-size: 13px;
@@ -276,7 +274,6 @@
 }
 .nav:hover .label {
   opacity: 1;
-  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
 }
 
 /* ─── Tablet: lock to icon-only, no hover expand ─────────────────────────────── */

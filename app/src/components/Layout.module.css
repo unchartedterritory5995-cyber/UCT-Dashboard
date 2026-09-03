@@ -33,7 +33,6 @@
 @media (min-width: 1025px) {
   .shell:has(nav[data-testid="nav-sidebar"]:hover) .navScrim {
     opacity: 1;
-    transition-delay: 0.12s;
   }
 }
 .main {
