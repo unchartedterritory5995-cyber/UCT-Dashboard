@@ -7,6 +7,7 @@ function verb(e) {
     case 'reply': return 'replied in'
     case 'answer': return <span style={{ color: 'var(--gain)' }}>answered</span>
     case 'mention': return 'mentioned you in'
+    case 'post': return 'posted'
     default: return 'in'
   }
 }

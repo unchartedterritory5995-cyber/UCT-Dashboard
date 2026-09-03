@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export const REACTION_PALETTE = ['🔥', '🚀', '💯', '🧠', '👀', '🙌', '😂', '💎', '🫡', '🤯']
 
 export function timeAgo(epoch) {
@@ -43,20 +45,36 @@ function shade(hex, pct) {
 }
 
 // Avatar/Author take the API author object (`info` = {name, is_mentor}) plus the
-// opaque author id (drives the stable color).
+// opaque author id (drives the stable color). Shows the user's uploaded avatar
+// when one exists (/api/auth/avatar/{id} serves a 1x1 transparent pixel when
+// missing — detected via naturalWidth>2, same trick as CompanyLogo/FloorAvatar),
+// otherwise the colored initial monogram.
 export function Avatar({ id, info, size = 26 }) {
+  const [hasImage, setHasImage] = useState(false)
   const name = info?.name || 'member'
   const mentor = !!info?.is_mentor
   const color = colorFor(id || name)
   const style = {
-    width: size, height: size, fontSize: size * 0.4,
-    background: mentor
+    width: size, height: size, fontSize: size * 0.4, position: 'relative',
+    background: hasImage ? 'transparent' : (mentor
       ? 'linear-gradient(145deg, #3a3110, #241d07)'
-      : `linear-gradient(145deg, ${color}, ${shade(color, -22)})`,
+      : `linear-gradient(145deg, ${color}, ${shade(color, -22)})`),
     color: mentor ? '#ddc06a' : '#0d0f14',
-    border: mentor ? '1px solid rgba(201,168,76,.5)' : 'none',
+    border: mentor && !hasImage ? '1px solid rgba(201,168,76,.5)' : 'none',
+    overflow: 'hidden',
   }
-  return <span className="avatar" style={style} title={name}>{initialsFor(name)}</span>
+  return (
+    <span className="avatar" style={style} title={name}>
+      {!hasImage && initialsFor(name)}
+      {id && (
+        <img src={`/api/auth/avatar/${id}`} alt="" width={size} height={size} loading="lazy"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', display: hasImage ? 'block' : 'none' }}
+          onLoad={(e) => { if (e.target.naturalWidth > 2) setHasImage(true) }}
+          onError={() => setHasImage(false)} />
+      )}
+    </span>
+  )
 }
 
 export function Author({ info }) {

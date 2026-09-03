@@ -187,9 +187,10 @@ export default function Floor2({ embedded = false }) {
         tickers: payload.tickers, chart: payload.chart,
       })
       setComposerOpen(false); setCategory('all'); setSort('new'); setQuery(''); setView('feed')
-      feedHook.mutate()
+      feedHook.mutate(); actHook.mutate(); railQuestions.mutate()
     } catch (e) { alert(e.message || 'Failed to post') }
-  }, [feedHook])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedHook, actHook, railQuestions])
 
   const activePost = threadHook.post
 

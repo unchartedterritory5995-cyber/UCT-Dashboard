@@ -623,6 +623,7 @@ def floor_create_thread(body: FloorThreadIn, user: dict = Depends(require_commun
         user["id"], title, body=_validate_body(body.body), flair=body.flair,
         ticker_tags=[t.upper()[:8] for t in (body.ticker_tags or [])][:10],
         chart_json=_clean_chart(body.chart))
+    store.add_event("post", actor_id=user["id"], thread_id=tid)  # global activity
     _broadcast_board(store.FLOOR_SPACE, "floor_thread_created", tid)
     return {"id": tid}
 
