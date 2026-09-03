@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
+import CommandPalette from './CommandPalette'
 import FeedbackWidget from './FeedbackWidget'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
@@ -102,6 +103,7 @@ export default function Layout({ children }) {
           <FeedbackWidget />
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
+          <CommandPalette />
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>
