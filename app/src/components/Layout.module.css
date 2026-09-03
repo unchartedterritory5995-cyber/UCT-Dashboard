@@ -4,6 +4,38 @@
   height: 100dvh;  /* iOS Safari dynamic viewport */
   overflow: hidden;
 }
+
+/* Desktop: reserve a permanent 60px gutter for the collapsed nav rail, which is
+   now position:fixed (out of flow) so its hover-expand OVERLAYS the workspace
+   instead of pushing it. .main (flex:1) fills the rest and never reflows on hover.
+   Scoped >1024px: at <=1024px the nav is display:none and the shell is column. */
+@media (min-width: 1025px) {
+  .shell {
+    padding-left: 60px;
+  }
+}
+
+/* Backdrop dim behind the expanded nav. Full-viewport, non-interactive, sits
+   BELOW the nav (z-index 100) but above page content, and fades in only while the
+   sidebar is hovered-open — so the overlay reads as a drawer over a dimmed page
+   rather than a panel clipping the title. `:has()` keys it off the real hover
+   state (no JS); the 0.12s delay matches the rail's expand enter-delay so the dim
+   and the slide start together and a transient brush-past doesn't flash it. */
+.navScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.34);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+@media (min-width: 1025px) {
+  .shell:has(nav[data-testid="nav-sidebar"]:hover) .navScrim {
+    opacity: 1;
+    transition-delay: 0.12s;
+  }
+}
 .main {
   flex: 1;
   min-width: 0;

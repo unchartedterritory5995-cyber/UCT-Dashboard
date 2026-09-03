@@ -45,7 +45,7 @@ test('navigableTargets() is exactly one `to` per group, plus the home/wire split
   // routes[0] of every group, plus routes[1] of home (the free-tier Wire
   // tab) — five targets total for four groups.
   expect(navigableTargets().sort()).toEqual(
-    ['/breadth', '/charts', '/dashboard', '/journal', '/morning-wire'].sort(),
+    ['/calendar', '/dashboard', '/journal', '/model-book', '/morning-wire'].sort(),
   )
 })
 
