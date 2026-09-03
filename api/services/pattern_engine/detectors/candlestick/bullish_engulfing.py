@@ -2,9 +2,14 @@
 
 The Bullish Engulfing is one of the most powerful two-bar reversal patterns in
 the Japanese-candlestick lexicon. Described by Steve Nison in 'Japanese
-Candlestick Charting Techniques' (1991), rooted in Munehisa Homma's 18th-century
-Sakata trading rules, and reinforced by Robert Edwards & John Magee in 'Technical
-Analysis of Stock Trends' (1948), the pattern captures the cleanest possible
+Candlestick Charting Techniques' (1991) -- popularly traced to Munehisa Homma's
+18th-century Sakata trading rules, though this repo's own research corpus does
+not independently verify that lineage (docs/superpowers/research/candles/**
+carries no Homma/Sakata citation for this pattern). Edwards & Magee's 1948
+'Technical Analysis of Stock Trends' is NOT a source for this pattern -- their
+book predates Western exposure to Japanese candlestick methods by decades and
+appears only in this repo's classical chart-pattern corpus, never the
+candlestick one. The pattern captures the cleanest possible
 reversal of session control across two consecutive bars: bar N-1 extends a
 prevailing downtrend with a red body, and bar N opens at or below that close
 and closes at or above the prior bar's open - completely engulfing the prior
@@ -443,9 +448,13 @@ def _build_detection(
     what_it_is = (
         f"The Bullish Engulfing is one of the most powerful two-bar reversal patterns in the "
         f"Japanese-candlestick lexicon. Codified by Steve Nison in 'Japanese Candlestick "
-        f"Charting Techniques' (1991), rooted in Munehisa Homma's 18th-century Sakata rice "
-        f"trading rules, and independently validated by Robert Edwards & John Magee in "
-        f"'Technical Analysis of Stock Trends' (1948), this pattern captures the cleanest "
+        f"Charting Techniques' (1991) -- popularly traced to Munehisa Homma's 18th-century "
+        f"Sakata rice trading rules, though this repo's own research corpus does not "
+        f"independently verify that lineage, so it is recorded as attribution rather than a "
+        f"sourced fact. Edwards & Magee's 'Technical Analysis of Stock Trends' (1948) is NOT a "
+        f"source for this pattern -- their book predates Western exposure to Japanese "
+        f"candlestick methods and appears only in this repo's classical chart-pattern corpus, "
+        f"never the candlestick one. This pattern captures the cleanest "
         f"possible reversal of session control across two consecutive bars. Anatomically, "
         f"bar N-1 was a red candle - open ${c['prev_open']:.2f}, close ${c['prev_close']:.2f}, "
         f"body of {prev_body_pct_disp}% of its range - that extended the prevailing downtrend "
@@ -459,14 +468,12 @@ def _build_detection(
         f"{'a textbook institutional-buying fingerprint' if c['curr_dcr'] >= 0.70 else 'a moderate close that warrants confirmation'}. "
         f"Volume on bar N was {vol_ratio_disp} the prior bar - "
         f"{'strong reversal volume that corroborates the body geometry' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}. "
-        f"Greg Morris's 'Candlestick Charting Explained' frames the bullish engulfing as one "
-        f"of the highest-edge two-bar reversals when accompanied by volume expansion, and "
         f"Tom Bulkowski's Encyclopedia of Chart Patterns puts the bullish engulfing's reversal "
         f"rate at 63% (rank 84th of 103 candlestick patterns in his performance ranking) when "
-        f"the volume signature is right. Peter Brandt teaches the engulfing "
-        f"as a discretionary trade trigger with explicit rules: it must appear in a clearly "
-        f"defined downtrend, the second bar must engulf the entire body of the first, and "
-        f"the next-bar confirmation must hold above the engulfing bar's midpoint."
+        f"the volume signature is right. A disciplined discretionary read of this setup wants "
+        f"the same three things this detector gates on: a clearly identifiable prior decline "
+        f"into the engulfed bar, a full-body engulfment (not a partial overlap), and follow-"
+        f"through that holds above the engulfing bar's midpoint on the next bar."
     )
 
     why_it_matters = (

@@ -461,16 +461,13 @@ def _build_detection(bars, c, confidence, context,
         f"aggressively acquire shares. The {base_bars}-bar base preceding the "
         f"EP was the slow accumulation phase; the EP bar is when that "
         f"accumulation becomes urgent, public, and unmistakable on the tape. "
-        f"Kristjan Kullamägi has refined Bonde's original EP read for the "
-        f"modern momentum tape with explicit criteria: an ATR-relative thrust "
-        f"bar (the EP bar's range expressed in multiples of the trailing ATR) "
-        f"plus a clean 3-5 week base immediately preceding the print — his "
-        f"playbook entry triggers on the high of the EP day with stop under "
-        f"the EP-day low. Lance Breitstein's intraday opening-drive EP read "
-        f"applies the same framework to the 9:30 AM bar — the first 30-minute "
-        f"opening drive that breaks a prior multi-week base on volume — and "
-        f"Burnt Toast's small-cap variant focuses on the EP as a catalyst-"
-        f"driven character-change signal in lower-float names."
+        f"Kristjan Kullamägi trades his own version of this setup: a gap of "
+        f"10%+ on volume heavy enough to trade the stock's average daily "
+        f"volume within the first 15-20 minutes, out of a base that has gone "
+        f"sideways for 3-6 months or more without a prior big move into the "
+        f"gap. His entry is the high of the first 1-, 5-, or 60-minute "
+        f"candle, with the stop at the lows of the day and a trail on the "
+        f"10- or 20-day moving average once price clears the initial stop."
     )
 
     why_it_matters = (
@@ -486,11 +483,6 @@ def _build_detection(bars, c, confidence, context,
         f"bar's range - not in the middle, not faded back into the body - "
         f"confirms that buyers were in control through the entire session, "
         f"not just on a morning spike that got sold. {regime_sentence}. "
-        f"Bonde's published track record on EPs against liquid stocks shows "
-        f"the pattern has a 70%+ continuation rate when bought near the close "
-        f"of the EP bar or on a tight 1-2 day pullback that holds the EP "
-        f"bar's mid-range, with average follow-through measured in weeks, "
-        f"not days. "
         f"{structure_narrative_sentence(c)}"
     ).strip()
 
@@ -533,10 +525,9 @@ def _build_detection(bars, c, confidence, context,
         f"means your stop is naturally further than on tighter setups, and "
         f"sizing for a 1% account risk implies roughly "
         f"{(1.0 / (stop_distance_pct / 100)):.0f}% of equity per trade. "
-        f"Discipline is what makes EP trading profitable: the pattern wins "
-        f"70%+ of the time, but the losing 30% must be cut immediately at "
-        f"${stop:.2f} - never widen the stop, never average down, never "
-        f"argue with a filled EP bar."
+        f"Discipline is what makes EP trading profitable: losing trades must "
+        f"be cut immediately at ${stop:.2f} - never widen the stop, never "
+        f"average down, never argue with a filled EP bar."
     )
 
     return {

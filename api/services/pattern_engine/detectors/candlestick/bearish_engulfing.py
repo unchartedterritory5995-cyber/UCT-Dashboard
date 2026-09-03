@@ -3,9 +3,13 @@
 The Bearish Engulfing is the bearish-reversal mirror of the Bullish Engulfing
 and one of the most powerful two-bar topping patterns in the Japanese-candlestick
 lexicon. Described by Steve Nison in 'Japanese Candlestick Charting Techniques'
-(1991), rooted in Munehisa Homma's 18th-century Sakata trading rules, and
-reinforced by Robert Edwards & John Magee in 'Technical Analysis of Stock Trends'
-(1948), the pattern captures the cleanest possible reversal of session control
+(1991) -- popularly traced to Munehisa Homma's 18th-century Sakata trading
+rules, though this repo's own research corpus does not independently verify
+that lineage. Edwards & Magee's 1948 'Technical Analysis of Stock Trends' is
+NOT a source for this pattern -- their book predates Western exposure to
+Japanese candlestick methods and appears only in this repo's classical
+chart-pattern corpus, never the candlestick one. The pattern captures the
+cleanest possible reversal of session control
 from buyer to seller across two consecutive bars: bar N-1 extends the prevailing
 uptrend with a green body, and bar N opens at or above that close and closes at
 or below the prior bar's open - completely engulfing the prior body to the
@@ -436,10 +440,14 @@ def _build_detection(
     what_it_is = (
         f"The Bearish Engulfing is the bearish mirror of the Bullish Engulfing and one of "
         f"the most powerful two-bar topping patterns in the Japanese-candlestick lexicon. "
-        f"Codified by Steve Nison in 'Japanese Candlestick Charting Techniques' (1991), "
-        f"rooted in Munehisa Homma's 18th-century Sakata rice trading rules, and validated "
-        f"by Robert Edwards & John Magee in 'Technical Analysis of Stock Trends' (1948), "
-        f"this pattern captures the cleanest possible reversal of session control across "
+        f"Codified by Steve Nison in 'Japanese Candlestick Charting Techniques' (1991) -- "
+        f"popularly traced to Munehisa Homma's 18th-century Sakata rice trading rules, "
+        f"though this repo's own research corpus does not independently verify that "
+        f"lineage. Edwards & Magee's 1948 'Technical Analysis of Stock Trends' is NOT a "
+        f"source for this pattern -- their book predates Western exposure to Japanese "
+        f"candlestick methods and appears only in this repo's classical chart-pattern "
+        f"corpus, never the candlestick one. This pattern captures the cleanest possible "
+        f"reversal of session control across "
         f"two consecutive bars. Anatomically, bar N-1 was a green candle - open "
         f"${c['prev_open']:.2f}, close ${c['prev_close']:.2f}, body of {prev_body_pct_disp}% "
         f"of its range - that extended the prevailing uptrend into a new high. Bar N then "
@@ -453,15 +461,13 @@ def _build_detection(
         f"{'a textbook institutional-distribution fingerprint where sellers held into the bell' if c['curr_dcr'] <= 0.30 else 'a moderate close that warrants confirmation'}. "
         f"Volume on bar N was {vol_ratio_disp} the prior bar - "
         f"{'strong reversal volume that corroborates the body geometry as professional distribution' if vol_ratio >= 1.5 else 'modest volume that softens the conviction of the print'}. "
-        f"Greg Morris's 'Candlestick Charting Explained' frames the bearish engulfing as one "
-        f"of the cleanest two-bar topping signals when accompanied by volume expansion, and "
         f"Tom Bulkowski's Encyclopedia of Chart Patterns puts the bearish engulfing's reversal "
         f"rate at 79% (rank 91st of 103) - meaningfully stronger than the bullish engulfing's "
         f"63%, not a mirror image of it - when the second bar's body fully overwhelms the "
         f"prior session on expanding volume. "
-        f"Peter Brandt teaches the bearish engulfing as a discretionary short trigger with "
-        f"explicit rules: clearly defined prior uptrend, full body engulfment, and next-bar "
-        f"confirmation below the engulfing bar's midpoint."
+        f"A disciplined discretionary read of this setup wants the same three things this "
+        f"detector gates on: a clearly identifiable prior advance into the engulfed bar, a "
+        f"full-body engulfment, and next-bar confirmation below the engulfing bar's midpoint."
     )
 
     why_it_matters = (
@@ -518,8 +524,9 @@ def _build_detection(
     )
 
     failure_signal = (
-        f"Bearish engulfing patterns fail roughly 40% of the time when traded alone without "
-        f"confirmation - the failure rate is what separates retail-tier 'I saw an engulfing!' "
+        f"Bearish engulfing patterns fail roughly 21% of the time when traded alone without "
+        f"confirmation (Bulkowski's 79% reversal rate implies ~21% do not reverse) - the "
+        f"failure rate is what separates retail-tier 'I saw an engulfing!' "
         f"shorts from professional execution. The pattern is invalidated if the next bar "
         f"closes back above bar N's high at ${c['curr_high']:.2f} (stop set at ${stop:.2f}, "
         f"1.5% above the pattern high) - that signals the distribution was a one-day "

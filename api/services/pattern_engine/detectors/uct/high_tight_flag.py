@@ -535,15 +535,14 @@ def _build_detection(bars, c, confidence, context,
         f"Historically, when HTF triggers cleanly on a volume surge, the next "
         f"8-12 weeks frequently produce 100%+ extensions, making this the "
         f"highest reward-to-risk continuation setup that exists on the chart. "
-        f"Mark Ritchie II — the post-IPO HTF specialist — has documented that "
-        f"HTFs forming in stocks within roughly 6 months of their IPO date "
-        f"carry the highest follow-through rates of any HTF subgroup, with his "
-        f"empirical work showing ~80%+ continuation when float, fundamental "
-        f"catalyst, and structural tightness all align. Kristjan Kullamägi "
-        f"treats the HTF after a 90%+ pole as his single highest-conviction "
-        f"'monster move' indicator — when this pattern fires in a liquid "
-        f"leader with a fresh catalyst, his playbook calls for maximum "
-        f"position size and a multi-week hold rather than a quick swing."
+        f"This matches the momentum-breakout structure Kristjan Kullamägi "
+        f"describes on his own site: a leader up 30-100%+ in the prior 1-3 "
+        f"months, consolidating 2 weeks to 2 months while riding a rising "
+        f"10- and 20-day average, that then expands out of the range on "
+        f"volume. He sizes setups like this 5-25% of account (most around "
+        f"10-15%), scaled by the stock's liquidity and his conviction, with "
+        f"risk capped near 0.25-1% of account and a stop no wider than the "
+        f"stock's own ADR."
     )
 
     why_it_matters = (
