@@ -30,15 +30,41 @@
 //
 // Neither says "not yet". Both say what the thing IS.
 //
-// ⚠️ AND THE PRODUCT ALREADY ANSWERS THE QUESTION BEHIND THE WORD. A member who
-// asks for a strategy usually wants to know whether their screen WORKS — which is
-// the evidence surface, the hit rate against its base rate, the lift ledger's
-// gates. That is a different row on the scorecard and it is measured.
+// ⚰️ THIS PARAGRAPH SHIPPED WITH TWO FALSE SENTENCES IN IT, and they are corrected
+// here rather than quietly deleted, because both were the comfortable kind: a
+// ruling reads better with a consolation beside it, and I wrote the consolation
+// without checking it.
+//
+//   ⛔ "That is a different row on the scorecard and it is measured." — THERE IS
+//      NO SUCH ROW. The scorecard prints nine: authoring, charting, scanning,
+//      screener author., alerting, sharing, verifiability, strategies, import
+//      fidelity. None of them is evidence.
+//   ⛔ "the hit rate against its base rate" — THAT PAIRING IS THE ONE THE CODE
+//      REFUSES TO MAKE. `definition_record.HIT_RATE_MEANS` says it in as many
+//      words: "an occurrence rate, not a win rate: the forward record stores
+//      whether the screen fired, never what happened next, so there is no return
+//      here and no baseline to put beside it". The case below pins that sentence,
+//      so this file cannot re-invent the pairing.
+//
+// ⭐ WHAT IS ACTUALLY TRUE is narrower and still worth saying: a per-horizon
+// backtest surface DOES exist — `api/services/screener/backtest.py` and
+// `EvidenceTab.jsx`, each horizon carrying a structurally mandatory baseline —
+// and it is dark. `api/main.py` mounts it only under `SCREEN_BACKTEST_ENABLED`,
+// which is set on no service, so every member sees "Backtested evidence is not
+// switched on for this site yet." Whether to arm it is an owner's decision, not
+// a build.
+//
+// ⚠️ AND THE SCOPE OF THIS ROW IS THE SCREEN DOOR. A single-symbol position
+// simulator ships (`api/services/backtest_engine.py`); what is ruled out is
+// asking 3,742 symbols a question that has no per-symbol answer today.
 
 import { describe, it, expect } from 'vitest'
 
 import { translatePine, REFUSALS as PINE_REFUSALS } from './pine.js'
 import { translateThinkScript, REFUSALS as TS_REFUSALS } from './thinkscript.js'
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { parseFormula } from './parse.js'
 
 const STRATEGY_PINE = `//@version=6
@@ -95,6 +121,26 @@ plot(inPos > 0 ? 1 : 0)
     expect(formula).toContain('accum')
     // and it is a real column the engine will draw
     expect(parseFormula(formula).ok).toBe(true)
+  })
+
+  it('⛔⛔ the consolation this file offers is one the code actually makes', () => {
+    // ⚰️ THE SENTENCE THIS REPLACES CLAIMED "the hit rate against its base rate",
+    // which is precisely the pairing `definition_record` was written to prevent.
+    // Pinning its wording here means a future edit cannot re-introduce the claim
+    // without this going red — a ruling is allowed a consolation only if the
+    // consolation is true.
+    // ⛔ READ FROM THE PYTHON SOURCE, NOT FROM A COPY. Two JS test files keep
+    // their own fixture copies of this string; asserting against one of those
+    // would pin a duplicate and let the real sentence move underneath it.
+    const src = fs.readFileSync(path.resolve(process.cwd(),
+      '../api/routers/definition_record.py'), 'utf8')
+    // ⚠️ THE SENTENCE IS SPLIT ACROSS CONCATENATED PYTHON LITERALS, so the
+    // adjacent quote pairs are joined before matching — otherwise this asserts
+    // against `an " "occurrence` and fails for a reason that is about formatting
+    // rather than about the claim.
+    const flat = src.replace(/"\s*"/g, '').replace(/\s+/g, ' ')
+    expect(flat).toContain('an occurrence rate, not a win rate')
+    expect(flat).toContain('no baseline to put beside it')
   })
 
   it('⛔ what a screen answers and what a strategy answers are different shapes', () => {
