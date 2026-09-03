@@ -21,6 +21,17 @@ a new dollar-based alternate condition (out of scope for a narrow calibration
 fix). This is stricter than Bonde's EP rule for high-priced names that would
 clear "5+ points" below 8% — a known, accepted limitation, not an oversight.
 
+Earnings linkage (Phase 6 Group 3, 2026-09-03): despite the name, this
+detector could never actually verify a gap was earnings-driven — it is a
+pure price/gap/volume/hold heuristic. `context.get('days_to_earnings')` is
+now real when a caller supplies it (see context.py) and this detector's
+narrative honestly states whether the linkage is verified, contradicted, or
+unavailable for each candidate (`_earnings_linkage_phrase`) rather than
+implying verification that never happened. The production universe scan
+does not yet supply this hint (see context.py's docstring for why), so in
+production today every PEG narrative currently reads as unverified — this
+is the honest state, not a regression.
+
 Geometric definition:
   - Detection window: last 30 bars (PEG must be recent)
   - Gap bar identification: the bar with the largest gap_pct in the last 30
@@ -417,6 +428,43 @@ def _rs_trend_phrase(context: dict) -> str:
     return "neutral"
 
 
+def _earnings_linkage_phrase(context: dict) -> str:
+    """Phase 6 Group 3 (2026-09-03): honestly state whether the earnings
+    linkage this detector's own name claims has actually been verified.
+
+    `context.get('days_to_earnings')` is real when a caller supplies it
+    (build_context's days_to_earnings_hint) and honestly `None` otherwise
+    — see context.py's module docstring for why this detector cannot look
+    it up itself. This detector was previously a pure price/volume/hold
+    heuristic that could not distinguish an earnings gap from any other
+    gap despite its name; this function makes that distinction explicit
+    rather than silently implying verification that never happened.
+    """
+    days = context.get("days_to_earnings")
+    if days is None:
+        return (
+            "No earnings-date data was available for this evaluation, so the "
+            "'earnings' half of this pattern's name is UNVERIFIED for this "
+            "candidate — treat it as a price/volume/hold gap-continuation "
+            "setup until a reported earnings date near the gap confirms the "
+            "catalyst."
+        )
+    if -5 <= days <= 1:
+        return (
+            f"An earnings report {abs(days)} day"
+            f"{'s' if abs(days) != 1 else ''} "
+            f"{'before' if days > 0 else 'ago from' if days < 0 else 'on'} "
+            f"this gap is on record, which is what actually earns this "
+            f"pattern its name rather than a generic gap-and-hold."
+        )
+    return (
+        f"The nearest earnings report on record is {abs(days)} days "
+        f"{'away' if days > 0 else 'in the past'} — too far from this gap to "
+        f"be its cause, so this specific gap does NOT verify as "
+        f"earnings-driven even though earnings-date data exists for the name."
+    )
+
+
 def _regime_context_sentence(context: dict, c: dict) -> str:
     """One-sentence regime/context connector for the narrative."""
     regime = context.get("regime", "current")
@@ -514,7 +562,7 @@ def _build_detection(bars, c, confidence, context,
         f"daily range, well inside the gap bar's {gap_range_pct:.2f}% range - that "
         f"contraction is the supply-absorbed tell: buyers who chased the gap have not "
         f"been shaken out, and sellers testing the gap have not been able to push price "
-        f"back into the prior range."
+        f"back into the prior range. {_earnings_linkage_phrase(context)}"
     )
 
     why_it_matters = (
@@ -601,6 +649,11 @@ def _build_detection(bars, c, confidence, context,
                 "post_gap_high": round(post_gap_high, 2),
                 "post_gap_low": round(post_gap_low, 2),
                 "gap_range_pct": round(gap_range_pct, 2),
+                "days_to_earnings": context.get("days_to_earnings"),
+                "earnings_linkage_verified": (
+                    context.get("days_to_earnings") is not None
+                    and -5 <= context.get("days_to_earnings") <= 1
+                ),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
                 **structure_extras(c),
             },
