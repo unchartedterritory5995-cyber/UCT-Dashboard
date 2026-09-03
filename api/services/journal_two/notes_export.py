@@ -841,9 +841,11 @@ _EXPORT_STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MiB read chunks
 # is single-replica (see CLAUDE.md "Performance & Scale" -- the whole
 # architecture assumes one uvicorn process), so there is no second worker for
 # a second copy of this state to disagree with. If this pod is ever
-# multi-instanced, this (like `_connect_code_epoch` and the other
-# single-process guards catalogued elsewhere in this codebase) would need a
-# durable, shared store instead.
+# multi-instanced, this (like obsidian_link.py's `_used_connect_code_nonces`
+# and the other single-process guards catalogued elsewhere in this codebase)
+# would need a durable, shared store instead. (⛔ `_connect_code_epoch` was
+# this exact example until 2026-09-02's audit finding 4 -- it is now
+# persisted, so it is no longer one of these; do not cite it here again.)
 _DEFAULT_EXPORT_LEASE_TTL_SECONDS = 30 * 60  # 30 minutes
 
 

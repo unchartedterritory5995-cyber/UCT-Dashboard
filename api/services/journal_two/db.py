@@ -625,6 +625,21 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     PRIMARY KEY (user_id, vault_id, vault_path)
 );
 
+-- 2026-09-02 adversarial audit, "single-process assumptions" #1:
+-- obsidian_link.py's connect-code epoch (closes I6 -- a pre-disconnect
+-- code redeeming into a full reconnection) used to live in a bare
+-- process-local dict. A restart (this repo redeploys constantly) reset
+-- every user's epoch back to 0, silently reopening I6 for the remainder
+-- of any outstanding code's 15-minute TTL, and a second worker would
+-- disagree with the first about whose epoch is current. One row per user
+-- who has ever disconnected Obsidian; a missing row means epoch 0 (never
+-- disconnected), read live on every mint/verify -- see obsidian_link.py's
+-- `_current_epoch` / `invalidate_outstanding_codes`.
+CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
+    user_id TEXT PRIMARY KEY,
+    epoch   INTEGER NOT NULL DEFAULT 0
+);
+
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
 -- One row per widgetEmbed node in a note's body_json, kept in sync on every
 -- note write by notes._sync_note_embeds (create/update/import/delete). This is
