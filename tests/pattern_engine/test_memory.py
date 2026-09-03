@@ -472,3 +472,158 @@ def test_detected_at_index_exists():
     finally:
         conn.close()
     assert "idx_pd_detected" in names
+
+
+# ---------------------------------------------------------------------------
+# Phase 3B: historical-score data-foundation prerequisite correction
+# (2026-09-03). Prior production behavior: track_outcomes() was called with a
+# hardcoded lookback_hours=72 (api/main.py's scheduled job) and
+# PRUNE_RETENTION_DAYS defaulted to 10 — together this meant a detection
+# whose pattern took longer than 3 days to resolve (nearly all
+# classical/structure/uct-family patterns; candlesticks were mostly fine) was
+# NEVER re-evaluated by track_outcomes() past 72h, then silently deleted by
+# prune_old() at day 10 with pattern_outcomes never populated. Confirmed
+# against real production data (`C:\data\patterns.db`, a local read-only
+# mirror): candlestick-family resolution 21-77%, classical/structure/uct-
+# family 0.0-0.5% (vcp itself: 515 detections, 0 resolved).
+# ---------------------------------------------------------------------------
+
+
+def test_old_72h_lookback_would_abandon_a_slow_resolving_detection():
+    """Reproduction of the PRIOR production defect: a detection detected 4
+    days ago (older than the old hardcoded 72h window, younger than the new
+    90-day default) with forward bars that WOULD resolve it (target hit) is
+    invisible to track_outcomes() at the old lookback_hours=72 — it falls
+    outside the `WHERE detected_at >= cutoff` clause entirely, so it is never
+    even considered, regardless of what the forward bars show."""
+    init_db()
+    now = int(time.time())
+    four_days_ago = now - 4 * 86400  # > 72h, < new 90-day default
+    d = _detection(
+        id="old-defect-repro", sym="OLDDEF_TEST",
+        start_t=1700000000, end_t=1700100000,
+        detected_at=four_days_ago, last_seen_at=four_days_ago,
+    )
+    d["levels"] = {**d["levels"], "entry": 100.0, "stop": 95.0, "target_primary": 110.0}
+    memory.store_detection(d)
+
+    from api.services import bars_sqlite
+    with unittest.mock.patch.object(bars_sqlite, "get_bars_since") as mock_bars:
+        mock_bars.return_value = [
+            (1700110000, 100, 105, 99, 103, 1000),
+            (1700120000, 103, 112, 102, 111, 1500),  # would hit target if ever checked
+        ]
+        memory.track_outcomes(lookback_hours=72)
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM pattern_outcomes WHERE detection_id = ?",
+            ("old-defect-repro",),
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is None, "old 72h lookback should not have resolved a 4-day-old detection"
+
+
+def test_corrected_default_lookback_resolves_the_same_detection():
+    """The SAME shape of detection as the reproduction above, resolved with
+    the corrected default (no explicit lookback_hours — uses
+    memory.TRACK_OUTCOMES_LOOKBACK_HOURS, 90 days) DOES get picked up and
+    resolved. This is the fix, proven the same way the defect was proven."""
+    init_db()
+    now = int(time.time())
+    four_days_ago = now - 4 * 86400
+    d = _detection(
+        id="old-defect-fixed", sym="FIXDEF_TEST",
+        start_t=1700000000, end_t=1700100000,
+        detected_at=four_days_ago, last_seen_at=four_days_ago,
+    )
+    d["levels"] = {**d["levels"], "entry": 100.0, "stop": 95.0, "target_primary": 110.0}
+    memory.store_detection(d)
+
+    from api.services import bars_sqlite
+    with unittest.mock.patch.object(bars_sqlite, "get_bars_since") as mock_bars:
+        mock_bars.return_value = [
+            (1700110000, 100, 105, 99, 103, 1000),
+            (1700120000, 103, 112, 102, 111, 1500),
+        ]
+        n = memory.track_outcomes()  # corrected default, no explicit override
+
+    assert n >= 1
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM pattern_outcomes WHERE detection_id = ?",
+            ("old-defect-fixed",),
+        ).fetchone()
+        assert row is not None
+        assert row["target_hit"] == 1
+    finally:
+        conn.close()
+
+
+def test_track_outcomes_lookback_default_is_90_days():
+    """Pin the corrected default value itself, not just its effect."""
+    assert memory.TRACK_OUTCOMES_LOOKBACK_HOURS == 90 * 24
+
+
+def test_prune_retention_default_is_120_days():
+    """Pin the corrected default value itself, not just its effect."""
+    assert memory.PRUNE_RETENTION_DAYS == 120
+
+
+def test_prune_retention_exceeds_track_outcomes_lookback_with_margin():
+    """The retention window must outlive the lookback window, or prune_old()
+    can delete a detection before track_outcomes() ever gets a chance to
+    re-check it — exactly the defect this phase fixes. Assert a real margin,
+    not just 'greater than', so recompute_stats() has time to aggregate a
+    freshly-resolved row before it's pruned."""
+    lookback_days = memory.TRACK_OUTCOMES_LOOKBACK_HOURS / 24
+    assert memory.PRUNE_RETENTION_DAYS > lookback_days
+    assert memory.PRUNE_RETENTION_DAYS - lookback_days >= 14
+
+
+def test_prune_old_still_survives_past_the_old_10_day_window():
+    """A detection 15 days old — past the OLD 10-day retention, well inside
+    the NEW 120-day one — must survive prune_old(). Proves the window
+    actually widened, not merely that the test follows whatever the constant
+    currently says."""
+    init_db()
+    now = int(time.time())
+    fifteen_days_ago = now - 15 * 86400
+    memory.store_detection(_detection(
+        id="det-widened-retention", sym="WIDEN",
+        start_t=5, end_t=6,
+        detected_at=fifteen_days_ago, last_seen_at=fifteen_days_ago,
+    ))
+    memory.prune_old()
+    assert memory.get_detection_by_id("det-widened-retention") is not None, (
+        "a 15-day-old row must survive under the corrected 120-day retention "
+        "(it would have been deleted under the old 10-day retention)"
+    )
+
+
+def test_track_outcomes_lookback_env_override(monkeypatch):
+    """PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS is honored on (re)import —
+    the reversible-extension knob B2 calls for."""
+    import importlib
+    monkeypatch.setenv("PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS", "48")
+    try:
+        importlib.reload(memory)
+        assert memory.TRACK_OUTCOMES_LOOKBACK_HOURS == 48
+    finally:
+        monkeypatch.delenv("PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS", raising=False)
+        importlib.reload(memory)  # restore the real default for later tests
+
+
+def test_prune_retention_env_override(monkeypatch):
+    """PATTERN_PRUNE_RETENTION_DAYS is honored on (re)import."""
+    import importlib
+    monkeypatch.setenv("PATTERN_PRUNE_RETENTION_DAYS", "5")
+    try:
+        importlib.reload(memory)
+        assert memory.PRUNE_RETENTION_DAYS == 5
+    finally:
+        monkeypatch.delenv("PATTERN_PRUNE_RETENTION_DAYS", raising=False)
+        importlib.reload(memory)
