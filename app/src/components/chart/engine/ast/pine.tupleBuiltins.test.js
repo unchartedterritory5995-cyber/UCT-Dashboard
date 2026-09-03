@@ -128,7 +128,11 @@ plot(close > ${use} ? 1 : 0)
 
   const CAUSES = [
     ['unknown name', '[st, d] = ta.supertrend(3, 10)', 'st'],
-    ['no tuple form', '[mk, uk, lk] = ta.kc(close, 20, 2)', 'uk'],
+    // ✅ THIS ROW WAS `ta.kc` UNTIL IT GAINED A TUPLE FORM. Keltner is now
+    // taken apart (see `pine.blindCorpus.test.js`), so it stopped being an
+    // example of this cause — which is the ratchet working: a name that
+    // starts translating has to leave the list of names that do not.
+    ['no tuple form', '[p, r1, s1] = ta.pivot_point_levels("Traditional", true)', 'p'],
     ['wrong part count', '[a, b] = ta.bb(close, 20, 2)', 'a'],
     ['named arguments', '[m, u, l] = ta.bb(series = close, length = 20, mult = 2)', 'u'],
     ['not a call at all', '[a, b] = close', 'a'],

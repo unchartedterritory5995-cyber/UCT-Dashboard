@@ -63,7 +63,7 @@ const PASSING = RESULTS.filter((r) => r.ok).map((r) => r.name)
 const MISSES = RESULTS.filter((r) => !r.ok)
 
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 17
+const FLOOR = 18
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
@@ -115,5 +115,97 @@ misses      ${MISSES.map((r) => r.name).join(', ')}
     expect(!!treeYieldsBool(parseFormula(row.formula).ast)).toBe(false)
     // …and it really does pass the ones it counts.
     expect(PASSING.length).toBeGreaterThan(0)
+  })
+})
+
+describe('⭐ the rulings this corpus earned', () => {
+  const S = (body) => `//@version=6
+indicator("s")
+plot(${body} ? 1 : 0)
+`
+  const refuse = (body) => {
+    const out = translatePine(S(body))
+    expect(out.ok, `${body} unexpectedly translated`).toBe(false)
+    return out.refusal
+  }
+
+  it('⛔⛔ the advice the refusal gives is VERIFIED, not asserted', () => {
+    // ⚰️ A REFUSAL THAT NAMES A REWRITE IS A CLAIM ABOUT A RUN. If the sentence
+    // tells a member to write `(close - low) / (high - low)` and that spelling
+    // refuses too, the refusal is worse than the generic one it replaced — it
+    // sends them somewhere and the door is shut there as well. So the advice is
+    // EXECUTED here rather than trusted.
+    const advised = '(close - low) / (high - low) > 0.7'
+    const out = translatePine(S(advised))
+    expect(out.ok, out.ok ? '' : `the advice does not translate: ${out.refusal.message}`)
+      .toBe(true)
+    // And the sentence really does name that spelling, so the two cannot drift.
+    const r = refuse('(close - low) / math.max(high - low, syminfo.mintick) > 0.7')
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).toContain('(close - low) / (high - low)')
+  })
+
+  it('⭐ it names the IDIOM, and is honest that the answers differ', () => {
+    const r = refuse('math.max(high - low, syminfo.mintick) > 1')
+    expect(r.message).toContain('math.max(high - low, syminfo.mintick)')
+    // ⛔ THE DIFFERENCE IS STATED, NOT GLOSSED. On a zero-range bar Pine answers
+    // 0 and this engine answers nothing; a refusal that offered the rewrite as a
+    // free simplification would be talking a member into a silent semantic change.
+    expect(r.message).toMatch(/NOT COMPUTABLE/)
+    expect(r.message).toMatch(/REAL difference/)
+  })
+
+  it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
+    // Without this, a change that appended the mintick paragraph to every
+    // built-in refusal would satisfy both cases above.
+    const r = refuse('barstate.islast')
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).not.toContain('minimum price increment')
+  })
+})
+
+describe('⭐⭐ ta.kc — and the smoother is the whole point', () => {
+  const kc = (body) => {
+    const out = translatePine(`//@version=6\nindicator("s")\n${body}\n`)
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    return out.outputs[out.selected].formula
+  }
+  const UP = '[m, u, l] = ta.kc(close, 20, 2.0)\nplot(close > u ? 1 : 0)'
+
+  it('⛔⛔ the range is smoothed with ema, NOT atr', () => {
+    // ⚰️ THE LOOK-ALIKE THIS ENTRY EXISTS TO AVOID. Almost every third-party
+    // Keltner — and TradingView's own CHART indicator of the same name — smooths
+    // true range with ATR/RMA (Wilder alpha 1/L). `ta.kc` uses ema, alpha
+    // 2/(L+1). At length 20 that is 0.0952 against 0.05: roughly twice the
+    // responsiveness, wrong on every mature bar, and silent.
+    const f = kc(UP)
+    expect(f).toContain('ema(')
+    expect(f, 'the band is smoothed with atr — that is a different indicator')
+      .not.toContain('atr(')
+  })
+
+  it('⭐ every leg is the vendor formula, and MIDDLE comes first', () => {
+    const TR = 'max(high - low, max(abs(high - close[1]), abs(low - close[1])))'
+    expect(kc('[m, u, l] = ta.kc(close, 20, 2.0)\nplot(close > m ? 1 : 0)'))
+      .toBe('close > ema(close, 20) ? 1 : 0')
+    expect(kc(UP)).toBe(`close > ema(close, 20) + 2 * ema(${TR}, 20) ? 1 : 0`)
+    expect(kc('[m, u, l] = ta.kc(close, 20, 2.0)\nplot(close < l ? 1 : 0)'))
+      .toBe(`close < ema(close, 20) - 2 * ema(${TR}, 20) ? 1 : 0`)
+  })
+
+  it('⭐ useTrueRange=false swaps true range for the bar span', () => {
+    expect(kc('[m, u, l] = ta.kc(close, 20, 2.0, false)\nplot(close > u ? 1 : 0)'))
+      .toBe('close > ema(close, 20) + 2 * ema(high - low, 20) ? 1 : 0')
+    // …and `true` is the same as omitting it, which is Pine's own default.
+    expect(kc('[m, u, l] = ta.kc(close, 20, 2.0, true)\nplot(close > u ? 1 : 0)'))
+      .toBe(kc(UP))
+  })
+
+  it('⛔ a NON-LITERAL useTrueRange is refused, not guessed', () => {
+    // The flag decides WHICH range is built, so it has to be readable at
+    // translate time. Anything else falls through to the ordinary refusal
+    // rather than being assumed true.
+    const out = translatePine('//@version=6\nindicator(\"s\")\nf = close > open\n[m, u, l] = ta.kc(close, 20, 2.0, f)\nplot(close > u ? 1 : 0)\n')
+    expect(out.ok).toBe(false)
   })
 })
