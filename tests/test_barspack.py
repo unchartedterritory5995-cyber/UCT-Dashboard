@@ -290,3 +290,74 @@ def test_build_suppresses_meta_warm(monkeypatch):
     assert seen["suppressed"] is True
     # and the flag is reset afterwards (context cleanly exited)
     assert san._suppress_warm.get() is False
+
+
+# ── Universe snapshot stabilizer (widened active-universe pack, 2026-09-03) ──────
+# The pack universe grew from the static ~3.7k cap list to the LIVE ~13k active
+# stock+ETF reference feed. The seed = md5(included tickers), and the delta path
+# can only UPDATE tickers (never ADD), so any ticker-set change forces every browser
+# to re-download the whole pack. These pin that the live feed is snapshotted so the
+# seed stays stable between weekly refreshes (and degrades safely when the feed is
+# down). See barspack._universe.
+import os
+import time as _time
+
+
+def _fake_syms(n, prefix):
+    return [f"{prefix}{i}" for i in range(n)]
+
+
+def test_universe_persists_snapshot_from_reference_feed(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(barspack, "_reference_universe_syms", lambda: set(_fake_syms(2000, "REF")))
+    uni = barspack._universe()
+    assert "REF0" in uni and "REF1999" in uni
+    assert os.path.exists(barspack._universe_snapshot_path())  # persisted for reuse
+
+
+def test_universe_reuses_fresh_snapshot_without_hitting_feed(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    with open(barspack._universe_snapshot_path(), "w") as f:
+        json.dump(_fake_syms(2000, "SNAP"), f)
+    calls = {"n": 0}
+
+    def _boom():
+        calls["n"] += 1
+        return set(_fake_syms(2000, "LIVE"))
+
+    monkeypatch.setattr(barspack, "_reference_universe_syms", _boom)
+    uni = barspack._universe()
+    assert calls["n"] == 0                       # fresh snapshot → feed never called
+    assert "SNAP0" in uni and "LIVE0" not in uni
+
+
+def test_universe_refreshes_when_snapshot_is_stale(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    p = barspack._universe_snapshot_path()
+    with open(p, "w") as f:
+        json.dump(_fake_syms(2000, "OLD"), f)
+    old = _time.time() - (barspack._UNIVERSE_SNAPSHOT_TTL_DAYS + 1) * 86400
+    os.utime(p, (old, old))
+    monkeypatch.setattr(barspack, "_reference_universe_syms", lambda: set(_fake_syms(2000, "NEW")))
+    uni = barspack._universe()
+    assert "NEW0" in uni and "OLD0" not in uni   # stale → refreshed from feed
+
+
+def test_universe_prefers_stale_snapshot_over_floor_when_feed_down(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    p = barspack._universe_snapshot_path()
+    with open(p, "w") as f:
+        json.dump(_fake_syms(2000, "GOOD"), f)
+    old = _time.time() - (barspack._UNIVERSE_SNAPSHOT_TTL_DAYS + 1) * 86400
+    os.utime(p, (old, old))
+    monkeypatch.setattr(barspack, "_reference_universe_syms", lambda: set())  # feed down
+    uni = barspack._universe()
+    assert "GOOD0" in uni                         # stale snapshot beats floor-only
+    assert "GOOD0" in json.load(open(p))          # + not overwritten (empty ref → no save)
+
+
+def test_universe_falls_back_to_floor_when_no_snapshot_and_feed_down(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))  # empty dir → no snapshot
+    monkeypatch.setattr(barspack, "_reference_universe_syms", lambda: set())
+    uni = barspack._universe()
+    assert len(uni) >= barspack.MIN_TICKERS       # cap∪themes floor still ships
