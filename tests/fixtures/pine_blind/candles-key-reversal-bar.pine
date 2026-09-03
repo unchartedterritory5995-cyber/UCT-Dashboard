@@ -1,0 +1,15 @@
+//@version=6
+indicator("Key Reversal Bar")
+
+len     = input.int(20, "New-low lookback")
+minCR   = input.float(0.70, "Min closing range")
+rangeX  = input.float(1.5, "True range vs ATR")
+
+madeNewLow  = low < ta.lowest(low, len)[1]
+outside     = high > high[1] and low < low[1]
+closedAbove = close > high[1]
+closeRange  = (close - low) / math.max(high - low, syminfo.mintick)
+wideRange   = ta.tr > ta.atr(20) * rangeX
+volSurge    = volume > ta.highest(volume, 10)[1]
+
+plot(madeNewLow and outside and closedAbove and closeRange >= minCR and wideRange and volSurge ? 1 : 0)

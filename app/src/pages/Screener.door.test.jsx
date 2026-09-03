@@ -288,6 +288,58 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     expect(writes()).toHaveLength(0)
   }, 30000)
 
+  it('⭐⭐ Evidence is reachable FROM THE PAGE, and it asks the server for the study', async () => {
+    // ⚰️ THE HOP NOTHING COVERED. `BuilderSheet.evidence.test.jsx` and
+    // `ScanResults.evidence.test.jsx` both render their door DIRECTLY
+    // (`<BuilderSheet …/>`, `<ScanResults definition={…}/>`), so each proves its
+    // own door renders the tab and neither proves a MEMBER can get there. A cut
+    // one level up — the sheet no longer opened by the page, or the edit-mode
+    // gating that reveals the affordance changing — leaves Evidence unreachable
+    // to everyone with both of those files green. This case starts at
+    // `/screener` and clicks, which is the same reason
+    // `Screener.scanmount.test.jsx` exists for `CoverageLine`.
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await openMenu(user)
+    await user.click(await screen.findByRole('button', { name: `Edit ${SCREEN_NAME}` }))
+    await screen.findByRole('dialog', {}, { timeout: 8000 })
+
+    // ⛔ THE TAB IS ONLY THERE IN EDIT MODE, which is why this case rides the
+    // edit door rather than the New-scan one — the builder hides Evidence for a
+    // definition that has no id to ask about.
+    await user.click(await screen.findByRole('tab', { name: /evidence/i }, { timeout: 8000 }))
+
+    const tab = await screen.findByTestId('evidence-tab', {}, { timeout: 8000 })
+    expect(tab).toBeInTheDocument()
+    // The tab is looking at THIS row's definition, not some default.
+    expect(tab.getAttribute('data-definition')).toBe(DEF_HASH)
+
+    // ⭐⭐ AND THE REQUEST LEFT THE PAGE. Rendering the tab is not the claim —
+    // a mounted component that asks nothing is the "built, tested, green and
+    // connected to nothing" shape. `H.requests` is the harness's own record of
+    // the wire.
+    //
+    // ⛔ THE PATH IS SPELLED OUT HERE ON PURPOSE, NOT IMPORTED. Every existing
+    // frontend assertion about this address builds its expectation from
+    // `BACKTEST_ENDPOINT` and stubs fetch on the same constant, so both sides
+    // move together and a typo fails nothing (measured). This literal is an
+    // INDEPENDENT witness; `tests/test_evidence_endpoint_is_served.py` is the
+    // other, and it joins the same string to a route the app actually serves.
+    await waitFor(() => {
+      // ⚰️ `startsWith` WAS WRONG HERE AND MUTATION TESTING CAUGHT IT:
+      // '/api/screener/backtestt'.startsWith('/api/screener/backtest') is TRUE,
+      // so a typo in the endpoint sailed straight through the very assertion
+      // written to be an independent witness of it. The path is compared WHOLE,
+      // with only the query string taken off.
+      const asked = H.requests.filter(
+        (r) => r.method === 'POST' && r.url.split('?')[0] === '/api/screener/backtest')
+      expect(asked, 'the Evidence tab never asked the server for a study')
+        .not.toHaveLength(0)
+      // It replays a SAVED definition by id — the id of the row that was opened.
+      expect(asked[0].body).toMatchObject({ def_id: DEF_ID })
+    }, { timeout: 8000 })
+  }, 30000)
+
   // ─── ⭐ THE SEED, MEASURED WHERE NO EFFECT CAN REPAIR IT ──────────────────
   //
   // ⛔ THE EDIT DOOR IS DECIDED TWICE, AND ONLY ONE OF THE TWO IS EASY TO SEE.

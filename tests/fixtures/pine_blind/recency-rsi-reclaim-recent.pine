@@ -1,0 +1,12 @@
+//@version=6
+indicator("RSI Reclaim Recent")
+len = input.int(14, "RSI length")
+recent = input.int(5, "Max bars since reclaim")
+r = ta.rsi(close, len)
+reclaim = ta.crossover(r, 30)
+barsSince = ta.barssince(reclaim)
+fresh = not na(barsSince) and barsSince <= recent
+ma50 = ta.sma(close, 50)
+trendOk = close > ma50 and ta.rising(ma50, 3)
+stillFirm = r > 30 and r < 60
+plot(fresh and trendOk and stillFirm ? 1 : 0)

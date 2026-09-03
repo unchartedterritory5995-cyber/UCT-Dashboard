@@ -106,6 +106,57 @@ describe('the rewrite fires, and produces the bounded form exactly', () => {
   })
 })
 
+describe('⭐⭐ the same identity, reached through a BINDING', () => {
+  // ⚰️ THE SHAPE PEOPLE ACTUALLY WRITE. Measured on a corpus authored blind to
+  // this engine: every `ta.barssince` script named the count on one line and
+  // compared it on another, and the window was an `input`, not a literal —
+  //     within = input.int(3, "Max bars since cross")
+  //     age    = ta.barssince(cross)
+  //     ... age <= within
+  // The first version of the rewrite required the call and the number to sit in
+  // ONE expression, so it saw none of them and the blind score did not move.
+  const script = (body) => translatePine(`//@version=6\nindicator("s")\n${body}\n`)
+
+  it('⭐ a bound count compared against a literal', () => {
+    const out = script('age = ta.barssince(close > open)\nplot(age <= 5 ? 1 : 0)')
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    // ⛔ THE SAME FORMULA THE DIRECT SPELLING PRODUCES — not merely "it worked".
+    // Two ways of writing one screen must reach one tree, or they are two
+    // definitions with two hashes and two cache entries.
+    expect(out.outputs[out.selected].formula)
+      .toBe(translate('ta.barssince(close > open) <= 5').formula)
+  })
+
+  it('⭐⭐ …and against an INPUT, folded to its default', () => {
+    const out = script('within = input.int(3, \'Max bars\')\nage = ta.barssince(close > open)\nplot(age <= within ? 1 : 0)')
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    expect(out.outputs[out.selected].formula)
+      .toBe(translate('ta.barssince(close > open) <= 3').formula)
+  })
+
+  it('⭐ the condition is resolved in the BINDING’s own scope', () => {
+    // ⛔ WHY THE WHOLE REWRITE RUNS INSIDE `throughBinding`. The condition here
+    // is written in terms of `gc`, a name that exists only where `age` was bound.
+    // Asking for the node and resolving it at the comparison would translate the
+    // right shape against the wrong scope.
+    const out = script('gc = ta.crossover(close, ta.sma(close, 50))\nage = ta.barssince(gc)\nplot(age < 10 ? 1 : 0)')
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    expect(out.outputs[out.selected].formula)
+      .toBe('barssince(crossOver(close, sma(close, 50)), 10) < 10 ? 1 : 0')
+  })
+
+  it('⛔ a bound count used as a VALUE is still refused', () => {
+    // ⚠️ THE HONEST LIMIT, AND IT IS WHY THE BLIND CORPUS DID NOT MOVE. Those
+    // scripts also ask `not na(age)` — the raw count as a value, not as one side
+    // of a bounding comparison. The saturating form cannot answer that: its
+    // sentinel means "not within n bars" and its NaN means "not enough bars read
+    // yet", which are different facts from Pine's `na`. Refusing is correct.
+    const out = script('age = ta.barssince(close > open)\nplot(age > close ? 1 : 0)')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:function')
+  })
+})
+
 describe('⛔ the unbounded names are still refused where nothing bounds them', () => {
   it('the OBV LEVEL is refused, and it gets the table ruling', () => {
     const r = translate('ta.obv > 0')

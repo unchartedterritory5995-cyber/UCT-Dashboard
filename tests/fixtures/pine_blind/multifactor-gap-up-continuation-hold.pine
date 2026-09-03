@@ -1,0 +1,17 @@
+//@version=6
+indicator("Gap Continuation Hold")
+
+gapPct = (open - close[1]) / close[1] * 100
+
+k = ta.stoch(close, high, low, 14)
+d = ta.sma(k, 3)
+
+rvol = volume / ta.sma(volume, 20)
+[st, dir] = ta.supertrend(3.0, 10)
+
+holdsGap     = close > high[1] and low > close[1]
+notExhausted = (close - ta.ema(close, 20)) / ta.atr(14) < 4
+stackedUp    = ta.ema(close, 10) > ta.ema(close, 20) and ta.ema(close, 20) > ta.ema(close, 50)
+trendOk      = dir < 0 and close > st
+
+plot(gapPct > 2 and gapPct < 12 and holdsGap and rvol > 2 and d > 50 and trendOk and notExhausted and stackedUp ? 1 : 0)

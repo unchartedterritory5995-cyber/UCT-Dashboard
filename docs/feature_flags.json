@@ -453,8 +453,11 @@
       "note": ""
     },
     "INDICATOR_VISION_ENABLED": {
-      "status": "dark",
-      "note": "Off 2026-09-02, consistent with every other LLM feature in this repo shipping dark. The shape is deliberate and should not be fixed: the router mounts UNCONDITIONALLY and the handler asks the flag at call time, so the route answers a real, readable refusal instead of a 405 on a path that exists in the source. Arming spends a vision-model call per uploaded image, priced through cost_guard."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Armed 2026-09-02 on web: screenshot -> candidate formulas, the third import door beside pasted Pine/thinkScript/PCF. It was the most visible incomplete edge in the product - the builder offers a Screenshot tab unconditionally, so while this was off EVERY member who clicked it got a refusal. (A GRACEFUL one: it points at the Import and Formula tabs, which reach the same engine. An earlier version told a paying member to ask an admin to set this variable, which is why the sentence now lives with the other refusals.) BOUNDED ON BOTH AXES, verified in code rather than taken from the docstring: require_paid gates it (402), INDICATOR_VISION_MAX_PER_HOUR caps one member at 10 screenshots an hour (429), the flag is checked BEFORE the limiter charges so a member cannot spend their allowance discovering the feature is off, the upload is read one byte past MAX_IMAGE_BYTES and refused, and the route STORES NOTHING - a candidate is a suggestion until the member saves it through the ordinary definition door. WORTH KNOWING: spend is ledgered through catalyst cost_guard, the SAME daily USD budget the catalyst engine draws on. A heavy screenshot day therefore eats into catalyst synthesis, and the cap fails safe by disabling synthesis rather than overspending. If that coupling ever bites, the fix is a separate ledger for this door, not a wider cap. Rollback is this variable."
     },
     "INTRADAYPACK_ENABLED": {
       "status": "armed",

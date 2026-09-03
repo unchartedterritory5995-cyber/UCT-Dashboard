@@ -1,0 +1,18 @@
+//@version=6
+indicator("RSI Pullback Buy")
+
+rsiLen   = input.int(14, "RSI length")
+rsiLevel = input.int(30, "Oversold level")
+trendLen = input.int(200, "Trend MA length")
+
+r       = ta.rsi(close, rsiLen)
+trendMa = ta.sma(close, trendLen)
+
+uptrend          = close > trendMa and trendMa > trendMa[20]
+recentlyOversold = ta.lowest(r, 3) < rsiLevel
+turningUp        = r > r[1] and r[1] <= r[2]
+liquid           = ta.sma(volume, 20) > 300000
+notFreefall      = close > ta.lowest(low, 10)
+
+screen = uptrend and recentlyOversold and turningUp and liquid and notFreefall
+plot(screen ? 1 : 0)

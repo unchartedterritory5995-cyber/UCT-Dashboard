@@ -1,0 +1,24 @@
+//@version=6
+indicator("Capitulation Volume Reversal")
+
+volLen    = input.int(50, "Volume baseline")
+surgeMult = input.float(3.0, "Surge multiple")
+
+avgVol = ta.sma(volume, volLen)
+surge  = volume > avgVol * surgeMult and volume >= ta.highest(volume, 60)
+
+rng      = math.max(high - low, syminfo.mintick)
+tail     = (math.min(open, close) - low) / rng
+closePos = (close - low) / rng
+
+[bbBasis, bbUpper, bbLower] = ta.bb(close, 20, 2.0)
+washed  = low < bbLower or low <= ta.lowest(low[1], 20)
+
+rsi14     = ta.rsi(close, 14)
+downLeg   = close < ta.sma(close, 20) and close < close[10]
+wideRange = rng > ta.atr(14) * 1.5
+liquid    = ta.sma(close * volume, 20) > 5000000 and close > 2
+
+screen = surge and tail > 0.5 and closePos > 0.5 and washed and rsi14 < 32 and downLeg and wideRange and liquid
+
+plot(screen ? 1 : 0)

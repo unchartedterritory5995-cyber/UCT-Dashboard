@@ -1,0 +1,12 @@
+//@version=6
+indicator("Breakout Hold Since Trigger")
+breakLen = input.int(50, "Breakout lookback")
+maxAge = input.int(10, "Max bars since breakout")
+trigger = ta.crossover(close, ta.highest(high, breakLen)[1])
+age = ta.barssince(trigger)
+trigPrice = ta.valuewhen(trigger, close, 0)
+trigVol = ta.valuewhen(trigger, volume, 0)
+heldLow = ta.lowest(close, math.max(age, 1))
+held = not na(age) and age >= 1 and age <= maxAge and heldLow > trigPrice * 0.97
+volConfirm = trigVol > ta.sma(volume, 50)
+plot(held and close > ta.ema(close, 21) and volConfirm ? 1 : 0)

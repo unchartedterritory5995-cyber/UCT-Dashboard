@@ -1,0 +1,22 @@
+//@version=6
+indicator("Down Streak Exhaustion")
+
+minDown  = input.int(4, "Min consecutive down closes")
+lookback = input.int(10, "Max streak lookback")
+
+downCount = 0
+for i = 0 to lookback - 1
+    if close[i] < close[i + 1]
+        downCount := downCount + 1
+    else
+        break
+
+streak  = downCount >= minDown
+rsi2    = ta.rsi(close, 2)
+drop    = (close - close[minDown]) / close[minDown] * 100
+inTrend = close > ta.sma(close, 200)
+nearLow = close <= ta.lowest(close, 20) * 1.02
+notGap  = math.abs(open - close[1]) / close[1] < 0.07
+
+screen = streak and rsi2 < 10 and drop < -3 and inTrend and nearLow and notGap
+plot(screen ? 1 : 0)

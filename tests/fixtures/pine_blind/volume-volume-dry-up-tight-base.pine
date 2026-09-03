@@ -1,0 +1,28 @@
+//@version=6
+indicator("Volume Dry-Up")
+
+volLen   = input.int(50, "Volume baseline")
+dryMult  = input.float(0.6, "Dry-up multiple")
+tightLen = input.int(5, "Tightness lookback")
+
+avgVol   = ta.sma(volume, volLen)
+dry      = volume < avgVol * dryMult
+quietest = volume <= ta.lowest(volume, 10)
+
+rangePct = (ta.highest(high, tightLen) - ta.lowest(low, tightLen)) / close * 100
+tight    = rangePct < 6.0
+
+ema21    = ta.ema(close, 21)
+sma50    = ta.sma(close, 50)
+uptrend  = close > ema21 and ema21 > sma50
+nearHigh = close >= ta.highest(high, 60) * 0.90
+
+// at least one heavy demand bar somewhere in the base
+priorDemand = ta.highest(volume / math.max(avgVol, 1), 20) > 2.0
+
+atrPct = ta.atr(14) / close * 100
+calm   = atrPct < ta.sma(atrPct, 50)
+
+screen = dry and quietest and tight and uptrend and nearHigh and priorDemand and calm
+
+plot(screen ? 1 : 0)

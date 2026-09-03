@@ -1,0 +1,18 @@
+//@version=6
+indicator("Exhaustion Fade Short")
+
+rsi14 = ta.rsi(close, 14)
+rsi2  = ta.rsi(close, 2)
+
+[kcMid, kcUp, kcLow] = ta.kc(close, 20, 2.0, true)
+
+extension = (close - ta.ema(close, 20)) / ta.atr(14)
+
+overbought   = rsi14 > 70 and rsi2 > 95
+extended     = close > kcUp or extension > 3
+climaxRun    = ta.roc(close, 10) > 15
+reversalBar  = high > high[1] and close < close[1] and close < (high + low) / 2
+distribution = volume > ta.sma(volume, 20) * 1.3
+obvWeak      = ta.obv < ta.sma(ta.obv, 10)
+
+plot(overbought and extended and climaxRun and reversalBar and (distribution or obvWeak) ? 1 : 0)

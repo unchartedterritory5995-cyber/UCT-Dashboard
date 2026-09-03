@@ -1,0 +1,17 @@
+//@version=6
+indicator("Doji At Extension")
+
+maxBodyPct = input.float(10.0, "Max body % of range")
+extLen     = input.int(10, "Extension lookback")
+stretchAtr = input.float(2.0, "ATR stretch from EMA")
+
+rng   = high - low
+body  = math.abs(close - open)
+isDoji = rng > 0 and body <= rng * maxBodyPct / 100
+
+wideEnough = rng > ta.sma(high - low, 20)
+extended   = close >= ta.highest(close, extLen) or close <= ta.lowest(close, extLen)
+stretched  = math.abs(close - ta.ema(close, 21)) > ta.atr(14) * stretchAtr
+directional = ta.rising(close, 3) or ta.falling(close, 3)
+
+plot(isDoji and wideEnough and extended and stretched and directional ? 1 : 0)

@@ -1,0 +1,21 @@
+//@version=6
+indicator("Z-Score Washout")
+
+len   = input.int(20, "Basis length")
+zTrig = input.float(-2.0, "Z-score trigger")
+
+basis = ta.sma(close, len)
+sd    = ta.stdev(close, len)
+z     = (close - basis) / sd
+
+wr   = ta.wpr(14)
+cci  = ta.cci(close, 20)
+mfi  = ta.mfi(hlc3, 14)
+rank = ta.percentrank(close, 100)
+
+wRsi = request.security(syminfo.tickerid, "W", ta.rsi(close, 14), lookahead = barmerge.lookahead_off)
+
+regimeOk = ta.sma(close, 50) > ta.sma(close, 200)
+
+screen = z < zTrig and wr < -85 and cci < -150 and mfi < 25 and rank < 15 and wRsi > 40 and regimeOk
+plot(screen ? 1 : 0)

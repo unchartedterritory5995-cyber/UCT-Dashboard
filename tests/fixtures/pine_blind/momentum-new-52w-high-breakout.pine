@@ -1,0 +1,15 @@
+//@version=6
+indicator("52W High Breakout")
+
+lookback = input.int(252, "Lookback Bars")
+volMult  = input.float(1.5, "Volume Multiple")
+
+priorHigh = ta.highest(high, lookback)[1]
+volAvg    = ta.sma(volume, 50)
+smaTrend  = ta.sma(close, 50)
+
+breakout = ta.crossover(close, priorHigh)
+thrust   = volume > volAvg * volMult and close > open
+inTrend  = close > smaTrend and smaTrend > smaTrend[10]
+
+plot(breakout and thrust and inTrend ? 1 : 0)

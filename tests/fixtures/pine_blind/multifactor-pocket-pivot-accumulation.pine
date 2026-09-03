@@ -1,0 +1,18 @@
+//@version=6
+indicator("Pocket Pivot Base")
+
+[diPlus, diMinus, adxVal] = ta.dmi(14, 14)
+
+ma50   = ta.sma(close, 50)
+ma50Up = ma50 > ma50[10]
+
+downVol      = close < close[1] ? volume : 0
+maxDownVol10 = ta.highest(downVol, 10)
+pocketPivot  = close > close[1] and volume > maxDownVol10 and volume > ta.sma(volume, 50)
+
+closeLoc    = (close - low) / math.max(high - low, syminfo.mintick)
+contraction = ta.atr(10) / ta.atr(50) < 0.95
+nearHigh    = close > ta.highest(high, 60) * 0.9
+vwmaSupport = close > ta.vwma(close, 20)
+
+plot(close > ma50 and ma50Up and pocketPivot and closeLoc > 0.6 and adxVal > 18 and diPlus > diMinus and vwmaSupport and (contraction or nearHigh) ? 1 : 0)

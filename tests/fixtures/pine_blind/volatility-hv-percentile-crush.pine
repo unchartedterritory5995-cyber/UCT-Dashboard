@@ -1,0 +1,24 @@
+//@version=6
+indicator("HV Percentile Crush")
+
+hvLen   = input.int(20,  "HV length")
+fastLen = input.int(10,  "Fast HV length")
+rankLen = input.int(252, "Percentile lookback")
+
+ret    = math.log(close / close[1])
+hv     = ta.stdev(ret, hvLen)   * math.sqrt(252) * 100
+hvFast = ta.stdev(ret, fastLen) * math.sqrt(252) * 100
+
+hvRank  = ta.percentrank(hv, rankLen)
+crush   = hvFast / hv < 0.75
+hvFloor = hv <= ta.lowest(hv, 100) * 1.10
+
+sma50   = ta.sma(close, 50)
+sma200  = ta.sma(close, 200)
+trendUp = sma50 > sma200 and close > sma50
+
+liquid = ta.sma(volume, 50) > 300000 and close > 5
+
+screen = hvRank < 15 and crush and hvFloor and trendUp and liquid
+
+plot(screen ? 1 : 0)

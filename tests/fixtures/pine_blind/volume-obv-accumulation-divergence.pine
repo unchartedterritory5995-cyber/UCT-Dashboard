@@ -1,0 +1,21 @@
+//@version=6
+indicator("OBV Accumulation")
+
+obvLen = input.int(20, "OBV regression length")
+sigLen = input.int(30, "OBV signal length")
+
+obvLine  = ta.obv
+obvSig   = ta.ema(obvLine, sigLen)
+obvSlope = ta.linreg(obvLine, obvLen, 0) - ta.linreg(obvLine, obvLen, 1)
+
+obvNewHigh = obvLine >= ta.highest(obvLine, 50)
+priceLags  = close < ta.highest(high, 50) * 0.97
+pvtRising  = ta.pvt > ta.pvt[10]
+
+rsi14   = ta.rsi(close, 14)
+trendOk = close > ta.sma(close, 50) and ta.sma(close, 50) > ta.sma(close, 150)
+liquid  = ta.sma(volume, 20) > 300000 and close > 3
+
+screen = obvNewHigh and priceLags and obvLine > obvSig and obvSlope > 0 and pvtRising and rsi14 > 45 and rsi14 < 72 and trendOk and liquid
+
+plot(screen ? 1 : 0)

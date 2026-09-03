@@ -1,0 +1,27 @@
+//@version=6
+indicator("Money Flow Accumulation")
+
+dvLen   = input.int(20, "Dollar volume length")
+minDV   = input.float(20000000, "Min avg dollar volume")
+maxDist = input.int(3, "Max distribution days")
+
+avgVol    = ta.sma(volume, 50)
+dollarVol = ta.sma(close * volume, dvLen)
+
+cmf21 = ta.cmf(21)
+mfi14 = ta.mfi(hlc3, 14)
+
+adLine  = ta.accdist
+adTrend = adLine > ta.ema(adLine, 20) and ta.ema(adLine, 20) > ta.ema(adLine, 20)[5]
+
+// distribution days: down close on above-average volume over the last five weeks
+int distDays = 0
+for i = 0 to 24
+    if close[i] < close[i + 1] * 0.998 and volume[i] > avgVol[i]
+        distDays := distDays + 1
+
+upVolShare = math.sum(close > close[1] ? volume : 0, 25) / math.max(math.sum(volume, 25), 1)
+
+screen = dollarVol > minDV and cmf21 > 0.10 and mfi14 > 50 and mfi14 < 80 and adTrend and distDays <= maxDist and upVolShare > 0.55 and close > ta.sma(close, 50)
+
+plot(screen ? 1 : 0)
