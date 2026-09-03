@@ -305,6 +305,31 @@ def main():
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 75.0, "max_confidence": 100.0})
 
+    # Owner decision (2026-09-04): the gap-identity floor moved from 8%
+    # (Bonde 2010) to 4% (Bonde 2014, his own later revision) after a
+    # blinded owner-adjudication review of 5 real live cases (BRBS 4.3%,
+    # EDIT 4.5%, WPM 5.2%, RXRX 6.0%, NVAX 6.3%). This fixture pins a
+    # synthetic case in that exact 4-8% band -- it must now SURVIVE, where
+    # it was correctly refused under the old 8% floor.
+    _write("boundary_band_5pct_gap", "positive",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=3.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.05, seed=45),
+           GOOD_CONTEXT,
+           {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0})
+
+    # The same band's FLOOR must still hold: a gap just under 4% is still
+    # not a real gap event under either published Bonde number and must
+    # stay refused.
+    _write("below_4pct_gap_still_refused", "negative",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=12.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.03, seed=46),
+           GOOD_CONTEXT,
+           {"fires": False})
+
     # ===== 9 NEGATIVE — must NOT fire (or <50) =====
     _write("no_base", "negative",
            _build_random_walk_bars(n_bars=80, seed=10),

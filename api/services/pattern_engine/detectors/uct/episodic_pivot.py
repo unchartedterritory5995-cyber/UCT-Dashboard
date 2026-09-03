@@ -11,9 +11,10 @@ stock's narrative has changed.
 Geometric definition:
   - Pre-base: 15-60 bar sideways consolidation, depth <=25%
   - EP bar (within last 5 bars):
-      * opens with a gap of >=8% above the prior bar's close (Phase 6
+      * opens with a gap of >=4% above the prior bar's close (Phase 6
         Group 3, 2026-09-03 — the pattern's own namesake requires a gap;
-        see _MIN_GAP_PCT's docstring for sourcing)
+        floor moved 8%->4% by owner decision 2026-09-04; see
+        _MIN_GAP_PCT's docstring for sourcing)
       * range >= 2x avg 20-bar range
       * volume >= 2x avg 20-bar volume
       * close in top 30% of bar's range (close_strength > 0.70)
@@ -58,13 +59,24 @@ _CONFIDENCE_FLOOR = 50.0
 #: 2026-09-03, overwhelmingly WAS: 23 of 26 currently-firing cases had
 #: gap_pct < 8%, several near zero or negative) a same-day range-expansion
 #: breakout with zero opening gap, which is a different pattern than either
-#: cited source describes. Sourced to Bonde's own 2010 Stockbee post ("What
-#: are Episodic Pivots and how to find them"), whose Telechart scan reads
-#: as an 8%+ move (OR a $5+ point move, not implemented here — see
-#: power_earnings_gap.py's identical calibration note for why). Kullamägi's
-#: own EP requires 10%+, so 8% is the more permissive of the two sourced
-#: numbers, not the stricter one.
-_MIN_GAP_PCT = 0.08
+#: cited source describes. Kullamägi's own EP requires 10%+.
+#:
+#: Owner decision (2026-09-04): floor moved from 8% to 4%. Bonde has
+#: published TWO numbers for his own EP scan -- 8% in his 2010 Stockbee
+#: post ("What are Episodic Pivots and how to find them") and 4% in his
+#: own later 2014 process-flow post (`c/c1 > 1.04`) -- same author, same
+#: named setup, revised over time, not two coexisting tiers. Implementing
+#: his superseded 2010 number over his own later update needed a
+#: justification that was never found, so this now uses his more recent
+#: figure. Decided via a blinded owner-adjudication review of 5 real live
+#: cases that sat in the 4-8% band (BRBS 4.3%, EDIT 4.5%, WPM 5.2%,
+#: RXRX 6.0%, NVAX 6.3% -- see docs/uct-scanner-intelligence/
+#: decision-log.md and tier1_validation/data/
+#: phase6_group3_owner_4pct_revalidation_2026-09-04.json for the full
+#: evidence trail, including the superseded 8% interpretation and why it
+#: was not chosen). The $5+ point OR-branch remains unimplemented, same as
+#: power_earnings_gap.py's identical calibration note explains.
+_MIN_GAP_PCT = 0.04
 
 
 def detect_episodic_pivot(bars: List[Bar], context: dict) -> List[Detection]:
