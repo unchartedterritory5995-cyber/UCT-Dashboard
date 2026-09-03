@@ -109,6 +109,77 @@ gate is a pure pass/fail precondition with no effect on scoring math.
 locally-valid VCP contraction sequence) — fires at 85.18 with the gate
 bypassed, 0 detections with the fix active. 19/19 VCP fixture tests pass.
 
+## Phase 3C — System-D VCP Trend Template Correction
+
+**Date:** 2026-09-03. **Merged:** `f38363d53` (base_catalog.py) →
+`bc8c891a6`. Evidence: `docs/uct-scanner-intelligence/vcp_gold_standard/data/
+{phase3c_predicted_flips,phase3c_revalidation}.json`.
+
+⚠️ Note: this program's Phase 3B (VCP 82-case gold-standard study, Lane A;
+historical-score data-prerequisite fix, Lane B) is ALSO absent from this log
+and is not backfilled here — that is a separate, pre-existing gap, out of
+scope for this narrow correction (its evidence lives in
+`docs/uct-scanner-intelligence/vcp_gold_standard/data/{case_answer_key,
+adjudication,metrics}.json`, committed at `96ff06df4`/`69c9e7fff`).
+
+**Defect:** `vcp_state` in `base_catalog.py` (System D) had the identical gap
+System A's Phase-3A fix addressed — no check on price's position relative to
+its own 150/200-day SMA, only a point-to-point prior-advance check that a
+sharp rally inside an overall downtrend could still satisfy. Confirmed via
+the frozen 82-case gold-standard set: 11 of System D's 14 reviewer-confirmed
+unique false positives (78.6%) had `trend_template_150_200=False` in the
+blinded evidence; its 2 true positives both already had it `True`.
+
+**Fix:** `_passes_vcp_trend_template_precondition` — the identical two-of-
+eight Minervini conditions as System A's Phase-3A fix (price above both
+150-/200-day SMA, 150 above 200), fails open under 200 bars, sourced to the
+same `_MINERVINI` Criterion id already used by VCP's other 15 criteria (2 new
+Criterion entries added, verbatim `[TTLAC]` quotes).
+
+**11 pre-registered cases (frozen before implementation), real production
+data:** EXEL, CGON, DTM, BBWI, BAM, WMB, PWP, OSCR, EQT, BNTX, KARO — all
+predicted to flip fired→refused. **Actual: 11/11 flipped exactly as
+predicted.** 3 watchlist cases (ADEA, OMF, FTDR — `trend_template=True`, not
+explained by this fix) and 2 true positives (BOKF, VTRS) predicted NOT to
+move — **0/5 moved.**
+
+**Full 82-case metrics (n=48 scored, 34 borderline excluded):**
+
+| | Before | After |
+|---|---|---|
+| Precision | 11.1% | 28.6% |
+| Recall | 25.0% | 25.0% (unchanged) |
+| F1 | 0.154 | 0.267 |
+| FP | 16 | 5 |
+
+Zero new false negatives on any reviewer-consensus-positive case. 2
+additional D-only fires removed on cases with no reviewer consensus (EVC,
+LINC — `agreement_level` BORDERLINE-majority/unresolved), never scored as
+true positives either side.
+
+**Second proposed fix status:** unchanged, INSUFFICIENT EVIDENCE/WATCHLIST —
+no new evidence surfaced this phase.
+
+**System A:** zero diff — confirmed frozen throughout.
+
+**Regression:** 2451 passed / 1 pre-existing unrelated failure (verified via
+git-stash before/after to predate Phase 3C, a Phase-3A-vs-cross-engine-
+measurement staleness, unrelated) / 2 skipped (environment) / 13 errors
+(Node.js not on PATH, environment, unrelated) across the 126-file
+base_catalog/bases-dependent suite.
+
+**Phase 3D (2026-09-03, same day):** refreshed the stale cross-engine
+agreement measurement (`tools/two_engine_agreement.py`, prior run
+2026-09-01) against both engines' post-fix state. VCP row: `engine_only`
+144→89 (System A, Phase 3A), `base_only` 23→21 (System D, this phase),
+kappa 0.003→0.025 (still near-independent). Canonical-direction decision
+**closed**: semantic split (System D = screener WHETHER surface, System A =
+Compass WHERE-to-enter surface) reaffirmed, not reopened — evidence:
+`docs/uct-scanner-intelligence/vcp_gold_standard/data/
+phase3d_two_engine_agreement_2026-09-03.{json,txt}` (uncommitted to master;
+committed on branch `phase3d-vcp-canonical-decision` @ `751c1cdd6`, not yet
+merged).
+
 ### Algorithm versioning
 No formal per-detector version field exists in this repo — the only
 existing convention is informal "Phase N" references in comments/commit
