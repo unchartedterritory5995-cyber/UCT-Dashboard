@@ -197,8 +197,21 @@ def _empty_container(v: Any) -> bool:
 # One function per endpoint the six originally-scoped call sites use,
 # named after what it returns — not after the URL path.
 
-def get_quote(ticker: str) -> _pe.ProviderResult:
-    return _fetch("/stable/quote", {"symbol": ticker.upper()},
+def _fmp_index_symbol(ticker: str) -> str:
+    """FMP's own index-quote convention is a caret prefix (`^SPX`, `^GSPC`,
+    `^DJI`, `^IXIC`, `^VIX`) — live-verified during the D1 completion pass
+    (2026-09-02) against all five. Applied ONLY when the caller identifies
+    the entity as an index (`entity_type="index"`); canonical identity
+    (Entity Master) never carries vendor syntax — this stays entirely
+    inside the adapter boundary, per the D1 authorization's explicit
+    instruction. A no-op for an already-prefixed symbol."""
+    t = ticker.upper().strip()
+    return t if t.startswith("^") else f"^{t}"
+
+
+def get_quote(ticker: str, *, entity_type: Optional[str] = None) -> _pe.ProviderResult:
+    sym = _fmp_index_symbol(ticker) if entity_type == "index" else ticker.upper()
+    return _fetch("/stable/quote", {"symbol": sym},
                    source_activity="fmp_client.get_quote", data_class="fundamentals",
                    not_found_if=_empty_list, freshness="delayed_15")
 

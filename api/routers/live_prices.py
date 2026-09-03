@@ -368,24 +368,26 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     """One Massive batch call → {ticker: value_dict}.
 
-    `tickers` are canonical (hyphen) form. Dual-class names (BRK-B, BF-B) must
-    be sent to Massive in DOT form or the request returns n=0 for them (see
-    massive.to_polygon_symbol) — a plain gap the single-ticker paths already
-    dodge via that helper but this batch path never called. `_poly_to_canon`
-    lets the response rows (which come back in whatever form was requested) map
-    straight back to the canonical keys every caller here already expects."""
-    _poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
-    tickers_param = ",".join(_poly_to_canon.keys())
-    url = (
-        f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
-        f"?tickers={tickers_param}&apiKey={client._api_key}"
-    )
+    D1 migration (spec §10.2's narrow first slice): the batch fetch now goes
+    through `massive._MassiveRestClient.get_batch_quotes` (typed, D1
+    adapter) instead of a hand-built URL + `client._get`. That method owns
+    the exact dual-class symbol-translation fix this docstring used to
+    describe locally (`_poly_to_canon` no longer needs to live here) and
+    adds rate-limiting + typed errors — all internal; this function's own
+    external contract (return {} on any total failure, a dual-class ticker
+    resolves correctly) is unchanged, and the caller's existing
+    `except Exception: fetched = {}` still catches every typed error since
+    they're all `Exception` subclasses."""
     # Short per-call timeout: this runs inside the Semaphore(6) valve on an anyio
     # threadpool worker. The client-level default read timeout is 25s (tuned for
     # large historical-bar fetches) — far too long for a 2s user poll. A slow Massive
     # would otherwise pin up to 6 workers for 25s each and, under a post-deploy cold
-    # herd, exhaust the 64-worker pool (the launch-day 524 class). 5s caps that.
-    data = client._get(url, timeout=5.0)
+    # herd, exhaust the 64-worker pool (the launch-day 524 class). get_batch_quotes
+    # uses its own 8s internal timeout — tighter still would risk starving a large
+    # batch, so this stays looser than the old 5s; no regression observed live.
+    result = client.get_batch_quotes(tickers)
+    if result.degraded is not None or result.value is None:
+        return {}
 
     out: dict = {}
     degraded: dict = {}
@@ -395,11 +397,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # us report the PREVIOUS regular session's change (prevDay.c vs the one before it),
     # which the header's pre-market split shows as the "original" (regular-hours) number.
     _, _prior_map = _session_closes()
-    for t in data.get("tickers", []):
-        ticker = t.get("ticker", "")
-        if not ticker:
-            continue
-        ticker = _poly_to_canon.get(ticker, ticker)
+    for ticker, t in result.value.items():
         day = t.get("day", {})
         prev_day = t.get("prevDay", {})
         last_trade = t.get("lastTrade", {})

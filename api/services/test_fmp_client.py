@@ -56,6 +56,46 @@ def test_successful_call_returns_provider_result_with_value_and_provenance():
     assert result.degraded is None
 
 
+def test_get_quote_applies_caret_prefix_for_an_index_entity():
+    """FMP's own index-quote convention (^SPX etc.) -- live-verified during
+    the D1 completion pass. Applied ONLY when entity_type="index"; a plain
+    equity/ETF ticker is never prefixed."""
+    captured = {}
+
+    def _fake_get(url, params=None, timeout=None):
+        captured["symbol"] = params.get("symbol")
+        return _mock_response(200, [{"symbol": "^SPX", "name": "S&P 500 Index"}])
+
+    with patch.object(fc._session, "get", side_effect=_fake_get):
+        result = fc.get_quote("SPX", entity_type="index")
+    assert captured["symbol"] == "^SPX"
+    assert result.value == [{"symbol": "^SPX", "name": "S&P 500 Index"}]
+
+
+def test_get_quote_does_not_prefix_a_non_index_entity():
+    captured = {}
+
+    def _fake_get(url, params=None, timeout=None):
+        captured["symbol"] = params.get("symbol")
+        return _mock_response(200, [{"symbol": "AAPL"}])
+
+    with patch.object(fc._session, "get", side_effect=_fake_get):
+        fc.get_quote("AAPL", entity_type="equity")
+    assert captured["symbol"] == "AAPL"
+
+
+def test_get_quote_index_prefix_is_a_noop_when_already_prefixed():
+    captured = {}
+
+    def _fake_get(url, params=None, timeout=None):
+        captured["symbol"] = params.get("symbol")
+        return _mock_response(200, [{"symbol": "^SPX"}])
+
+    with patch.object(fc._session, "get", side_effect=_fake_get):
+        fc.get_quote("^SPX", entity_type="index")
+    assert captured["symbol"] == "^SPX"
+
+
 def test_401_raises_auth_error():
     with patch.object(fc._session, "get", return_value=_mock_response(401)):
         with pytest.raises(fc.FMPAuthError) as exc_info:
