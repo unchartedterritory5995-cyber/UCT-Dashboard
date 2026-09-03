@@ -16,6 +16,16 @@
 //    verifiability. … A percentage cannot be argued with; it just sits there
 //    sounding like physics."
 //
+// ⚠️ ONE ITEM OF THAT LIST HAS SINCE BEEN RULED OUT rather than reached, and the
+// quotation is left standing because it is what was written. `strategies` is not
+// a dimension this product owns and fell short on — it is a different QUESTION.
+// A screen asks one yes/no of every symbol as of today; a strategy asks for a
+// trade list and an equity curve for ONE symbol across time. Both doors say so in
+// their own words ("a strategy places orders to be backtested, and a screen
+// filters symbols"), and `strategiesAreRuled.test.js` holds the row to those
+// sentences — including a case proving the EASY argument for the ruling is false,
+// since a long/flat position flag folds into `accum` today.
+//
 // ⭐ SO THIS PRINTS ALL OF THEM, and marks which one is capped. A scorecard that
 // measures only the capped dimension makes a product look stuck when five of its
 // six dimensions are finished.
@@ -110,6 +120,7 @@ const RAILS = Object.freeze({
   charting: 'tests/test_ast_conformance.py',
   authoring: 'app/src/components/chart/builder/pineBoxOfferedColumns.test.jsx',
   screener: 'app/src/components/chart/engine/ast/pine.screenerCorpus.test.js',
+  strategies: 'app/src/components/chart/engine/ast/strategiesAreRuled.test.js',
   verifiability: 'app/src/components/chart/engine/ast/doorScorecard.test.js',
 })
 
@@ -131,7 +142,7 @@ screener author. ${scr.translate}/${scr.total} scripts a member would WRITE to s
 alerting         a saved formula is an alert target     ${RAILS.alerting.split('/').pop()}
 sharing          mint → publish → browse → install      ${RAILS.sharing.split('/').pop()}
 verifiability    4-outcome receipt · read-back · roster ${RAILS.verifiability.split('/').pop()}
-strategies       NOT BUILT (Segment A)                  —
+strategies       RULED OUT — a strategy is not a screen     ${RAILS.strategies.split('/').pop()}
 ──────────────────────────────────────────────────────────────────────────────
 import fidelity  ${imp.translate}/${imp.total} on paste · ${imp.accepted}/${imp.total} after accepting the door's own offers
                  ⚠️ COMMUNITY CHART INDICATORS — a REGRESSION NET, not a target. Most of
