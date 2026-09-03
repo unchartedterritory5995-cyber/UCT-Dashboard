@@ -1,0 +1,21 @@
+//@version=6
+indicator("Stretched Below EMA")
+
+emaLen  = input.int(21, "EMA length")
+atrLen  = input.int(14, "ATR length")
+stretch = input.float(2.0, "Min ATRs below EMA")
+minPct  = input.float(4.0, "Min percent below EMA")
+
+e   = ta.ema(close, emaLen)
+a   = ta.atr(atrLen)
+
+distAtr  = (e - close) / a
+pctBelow = (e - close) / e * 100
+
+longTermUp = close > ta.sma(close, 200)
+dollarVol  = ta.sma(volume, 50) * close
+liquid     = dollarVol > 20000000
+settling   = close >= close[1] or close > (high + low) / 2
+
+screen = distAtr >= stretch and pctBelow >= minPct and longTermUp and liquid and settling
+plot(screen ? 1 : 0)

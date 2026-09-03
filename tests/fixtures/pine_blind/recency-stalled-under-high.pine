@@ -1,0 +1,12 @@
+//@version=6
+indicator("Stalled Under High")
+look = input.int(100, "High lookback")
+minStall = input.int(20, "Min bars since high")
+nearPct = input.int(10, "Max pct off high")
+hi = ta.highest(high, look)
+barsSinceHigh = -ta.highestbars(high, look)
+stalled = barsSinceHigh >= minStall
+nearHigh = close >= hi * (1 - nearPct / 100.0)
+above200 = close > ta.sma(close, 200)
+tight = ta.atr(14) / close < 0.05
+plot(stalled and nearHigh and above200 and tight ? 1 : 0)

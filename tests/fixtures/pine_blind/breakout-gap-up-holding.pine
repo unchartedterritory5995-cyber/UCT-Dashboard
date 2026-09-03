@@ -1,0 +1,19 @@
+//@version=6
+indicator("Gap Up Holding")
+
+minGap  = input.float(3.0, "Min gap %")
+volMult = input.float(2.0, "Volume multiple")
+minDollarVol = input.int(5000000, "Min dollar volume")
+
+gapPct    = (open - close[1]) / close[1] * 100
+priorHigh = ta.highest(high, 20)[1]
+barRange  = math.max(high - low, syminfo.mintick)
+
+heldGap     = low > close[1]
+strongClose = close > open and (close - low) / barRange > 0.6
+volPop      = volume > ta.sma(volume, 50) * volMult
+aboveRange  = close > priorHigh
+liquid      = ta.sma(volume, 20) * close > minDollarVol
+trendOk     = close > ta.sma(close, 50)
+
+plot(gapPct > minGap and heldGap and strongClose and volPop and aboveRange and liquid and trendOk ? 1 : 0)

@@ -1,0 +1,17 @@
+//@version=6
+indicator("Bullish Engulfing Pullback")
+
+trendLen = input.int(50, "Trend MA length")
+volLen   = input.int(20, "Volume average length")
+bodyMult = input.float(1.25, "Engulfing body multiple")
+
+ma       = ta.sma(close, trendLen)
+prevBody = math.abs(close[1] - open[1])
+currBody = math.abs(close - open)
+
+engulf   = close > open and close[1] < open[1] and close >= open[1] and open <= close[1] and currBody > prevBody * bodyMult
+inTrend  = close > ma and ma > ma[5]
+pullback = ta.lowest(low, 3) == ta.lowest(low, 10)
+volPop   = volume > ta.sma(volume, volLen) * 1.5
+
+plot(engulf and inTrend and pullback and volPop ? 1 : 0)

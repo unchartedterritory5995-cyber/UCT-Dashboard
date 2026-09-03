@@ -1,0 +1,23 @@
+//@version=6
+indicator("Donchian Breakout Volume")
+
+lenBreak = input.int(55, "Breakout lookback")
+volLen   = input.int(50, "Volume average length")
+atrLen   = input.int(14, "ATR length")
+
+upperPrior = ta.highest(high, lenBreak)[1]
+lowerPrior = ta.lowest(low, lenBreak)[1]
+rangeWidth = upperPrior - lowerPrior
+
+avgVol = ta.sma(volume, volLen)
+atrVal = ta.atr(atrLen)
+sma50  = ta.sma(close, 50)
+sma200 = ta.sma(close, 200)
+
+breakOut    = ta.crossover(close, upperPrior)
+volSurge    = volume > avgVol * 1.5
+notExtended = close - upperPrior < atrVal * 1.5
+trendOk     = close > sma200 and sma50 > sma200
+baseNotWild = rangeWidth / upperPrior < 0.35
+
+plot(breakOut and volSurge and notExtended and trendOk and baseNotWild ? 1 : 0)

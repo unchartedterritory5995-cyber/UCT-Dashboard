@@ -1,0 +1,20 @@
+//@version=6
+indicator("Persistent Strong Closes")
+
+lookback = input.int(5, "Closing range window")
+minCR    = input.float(0.65, "Min closing range")
+maxWick  = input.float(0.25, "Max avg upper wick share")
+
+rng   = math.max(high - low, syminfo.mintick)
+cr    = (close - low) / rng
+uw    = (high - math.max(close, open)) / rng
+
+avgCR   = ta.sma(cr, lookback)
+avgWick = ta.sma(uw, lookback)
+strongDays = math.sum(cr > minCR ? 1 : 0, lookback)
+
+above50 = close > ta.ema(close, 50)
+tight   = ta.stdev(close, lookback) / ta.sma(close, lookback) < 0.03
+breakout = close > ta.highest(close, 20)[1]
+
+plot(avgCR >= minCR and avgWick <= maxWick and strongDays >= 4 and above50 and tight and breakout ? 1 : 0)

@@ -1,0 +1,17 @@
+//@version=6
+indicator("Momentum Acceleration")
+
+fastRocLen = input.int(21, "Fast ROC")
+slowRocLen = input.int(63, "Slow ROC")
+
+rocFast = ta.roc(close, fastRocLen)
+rocSlow = ta.roc(close, slowRocLen)
+
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+
+slopeNow  = ta.linreg(close, 40, 0) - ta.linreg(close, 40, 1)
+histBuild = histLine > 0 and histLine > histLine[1] and histLine[1] > histLine[2]
+speedUp   = rocSlow > 0 and rocFast > rocSlow and rocFast > rocFast[5]
+rsiVal    = ta.rsi(close, 14)
+
+plot(speedUp and histBuild and slopeNow > 0 and rsiVal > 55 and rsiVal < 82 ? 1 : 0)

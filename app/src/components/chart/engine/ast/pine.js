@@ -3556,6 +3556,81 @@ class Resolver {
     }
   }
 
+  /**
+   * `<bound one-arg barssince> <cmp> <whole number>` as the bounded call, or null.
+   *
+   * ⛔⛔ THE WHOLE THING IS BUILT INSIDE `throughBinding`, AND THAT IS NOT A
+   * STYLE CHOICE. A binding carries its own `env`, which `throughBinding` swaps
+   * in for the callback and restores after. The condition inside
+   * `ta.barssince(cross)` is written in THAT env — `cross` may be a name that
+   * means something else, or nothing, where the comparison sits. Asking for the
+   * node here and resolving it out there would translate the right shape against
+   * the wrong scope, which is the class of bug that produces a confident wrong
+   * column rather than a refusal.
+   *
+   * ⭐ THE IDENTITY IS UNCHANGED — see `contextBoundedPlan`. `< K` and `>= K`
+   * take K bars; `<= K` and `> K` take K+1. Only the distance between the call
+   * and its bound differs.
+   */
+  /**
+   * The whole number a node IS, folding inputs and bindings — or null.
+   *
+   * ⚰️ `litInt` ALONE WAS NOT ENOUGH, and the blind corpus is what said so.
+   * Every one of those authors wrote the window as a knob:
+   *     within = input.int(3, "Max bars since cross")
+   *     ... age <= within
+   * so the bound is an `input` behind a binding, not a numeric token. The door
+   * already folds inputs to their defaults everywhere else — a window arm
+   * "RESOLVES its argument and then requires a `num`" — and TradingView's own
+   * screener does the same. This is that rule, reused rather than restated.
+   *
+   * ⛔ IT SWALLOWS A REFUSAL ON PURPOSE. Asking "is this a constant?" must not
+   * raise for an operand that simply is not one; the caller then declines the
+   * rewrite and the ordinary path produces the real refusal, with the real caret.
+   */
+  constIntOf(node) {
+    if (!node) return null
+    const direct = litInt(node)
+    if (direct !== null) return direct
+    let folded = null
+    try { folded = this.resolve(node) } catch { return null }
+    if (!folded || folded.type !== 'num') return null
+    const v = Number(folded.value)
+    return Number.isInteger(v) && v >= 0 ? v : null
+  }
+
+  boundedBarssinceThroughBinding(node) {
+    let { op, left, right } = node
+    if (!own(FLIP, op)) return null
+    // Either order, exactly as the direct shape allows.
+    if (this.constIntOf(left) !== null) { [op, left, right] = [FLIP[op], right, left] }
+    const k = this.constIntOf(right)
+    if (k === null || !left) return null
+    // ⚰️ A BARE IDENTIFIER IS A `name` HERE, NOT A `bound`. The `bound` shape
+    // exists, but binding lookup happens INSIDE `resolve` (`this.env.get(name)`),
+    // so at the comparison the operand is still the name the member typed. The
+    // first version of this method tested for `bound` only and changed nothing at
+    // all — the blind corpus scored identically before and after, which is how it
+    // was caught.
+    const binding = left.type === 'bound' ? left.binding
+      : left.type === 'name' ? this.env.get(left.name)
+        : null
+    if (!binding) return null
+    const window = (op === '<' || op === '>=') ? k : k + 1
+    if (window < 1) return null
+    const tableOp = PINE_OP_TO_TABLE[op]
+    if (!tableOp || !own(this.table.operators, tableOp)) return null
+
+    return this.throughBinding(binding, (b) => {
+      const cond = oneArgBarssince(b.node)
+      if (!cond) return null
+      return cOp(tableOp, [
+        cCall('barssince', [this.resolve(cond), cNum(window)]),
+        cNum(k),
+      ])
+    })
+  }
+
   /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
    *  it rather than a translation of it — used by `stringValueOf`. Returns null
    *  wherever `resolveBinding` would refuse, because a question has no caret. */
@@ -3671,6 +3746,18 @@ class Resolver {
             return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
           }
         }
+        // ⭐⭐ …AND THROUGH A BINDING, WHICH IS HOW PEOPLE ACTUALLY WRITE IT.
+        // Measured on a corpus written blind to this engine: every one of the
+        // four `ta.barssince` scripts names the count first and compares it on a
+        // later line —
+        //     age = ta.barssince(cross)
+        //     ...
+        //     age <= 5
+        // — so the shape above, which needs the call and the literal in one
+        // expression, saw none of them. The identity is the SAME identity; only
+        // the distance between the two halves changed.
+        const viaBinding = this.boundedBarssinceThroughBinding(node)
+        if (viaBinding) return viaBinding
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.

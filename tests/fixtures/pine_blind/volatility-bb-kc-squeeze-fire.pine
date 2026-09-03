@@ -1,0 +1,25 @@
+//@version=6
+indicator("Squeeze Fire")
+
+bbLen  = input.int(20,    "BB length")
+bbMult = input.float(2.0, "BB mult")
+kcLen  = input.int(20,    "KC length")
+kcMult = input.float(1.5, "KC mult")
+
+[bbMid, bbUpper, bbLower] = ta.bb(close, bbLen, bbMult)
+[kcMid, kcUpper, kcLower] = ta.kc(close, kcLen, kcMult)
+
+squeezeOn  = bbLower > kcLower and bbUpper < kcUpper
+squeezeOff = not squeezeOn
+justFired  = squeezeOff and squeezeOn[1]
+sustained  = math.sum(squeezeOn ? 1 : 0, 10) >= 7
+
+avgHL = math.avg(ta.highest(high, kcLen), ta.lowest(low, kcLen))
+momo  = ta.linreg(close - math.avg(avgHL, ta.sma(close, kcLen)), kcLen, 0)
+
+longSide = momo > 0 and momo > momo[1] and close > bbMid
+regime   = close > ta.sma(close, 200)
+
+screen = justFired and sustained and longSide and regime
+
+plot(screen ? 1 : 0)

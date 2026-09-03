@@ -1,0 +1,25 @@
+//@version=6
+indicator("Tight Consolidation Range")
+
+baseLen  = input.int(20, "Base length")
+maxDepth = input.float(8.0, "Max base depth %")
+maxSd    = input.float(3.0, "Max close stdev %")
+
+hh = ta.highest(high, baseLen)
+ll = ta.lowest(low, baseLen)
+depthPct = (hh - ll) / hh * 100
+
+closeSd = ta.stdev(close, baseLen) / ta.sma(close, baseLen) * 100
+
+atrPct    = ta.atr(14) / close * 100
+atrPctOld = ta.atr(14)[baseLen] / close[baseLen] * 100
+contracting = atrPct < atrPctOld * 0.75
+
+volDryUp  = ta.sma(volume, 10) < ta.sma(volume, 50) * 0.85
+upperHalf = close > ll + (hh - ll) * 0.55
+
+wkClose = request.security(syminfo.tickerid, "W", close)
+wkEma30 = request.security(syminfo.tickerid, "W", ta.ema(close, 30))
+weeklyOk = wkClose > wkEma30
+
+plot(depthPct < maxDepth and closeSd < maxSd and contracting and volDryUp and upperHalf and weeklyOk ? 1 : 0)

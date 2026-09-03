@@ -1,0 +1,22 @@
+//@version=6
+indicator("52 Week High Proximity")
+
+lookback   = input.int(252, "52 week bars")
+maxOffHigh = input.float(5.0, "Max % off high")
+minOffLow  = input.float(30.0, "Min % above low")
+
+yrHigh = ta.highest(high, lookback)
+yrLow  = ta.lowest(low, lookback)
+offHighPct  = (yrHigh - close) / yrHigh * 100
+aboveLowPct = (close - yrLow) / yrLow * 100
+barsSinceHigh = -ta.highestbars(high, lookback)
+
+sma50  = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+stacked = close > sma50 and sma50 > sma150 and sma150 > sma200
+ma200Up = sma200 > sma200[22]
+mom6m   = close / close[126] - 1 > 0.15
+liquid  = ta.sma(volume, 50) * close > 10000000
+
+plot(offHighPct < maxOffHigh and aboveLowPct > minOffLow and barsSinceHigh <= 15 and stacked and ma200Up and mom6m and liquid ? 1 : 0)

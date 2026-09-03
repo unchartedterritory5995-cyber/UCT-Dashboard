@@ -1,0 +1,19 @@
+//@version=6
+indicator("MA Stack Alignment")
+
+fastLen = input.int(10, "Fast EMA")
+midLen  = input.int(20, "Mid EMA")
+slowLen = input.int(50, "Slow EMA")
+baseLen = input.int(200, "Base SMA")
+
+emaFast = ta.ema(close, fastLen)
+emaMid  = ta.ema(close, midLen)
+emaSlow = ta.ema(close, slowLen)
+smaBase = ta.sma(close, baseLen)
+
+stacked    = emaFast > emaMid and emaMid > emaSlow and emaSlow > smaBase
+baseRising = smaBase > smaBase[20]
+holding    = close > emaMid
+extension  = (close - emaMid) / ta.atr(14)
+
+plot(stacked and baseRising and holding and extension < 4 ? 1 : 0)
