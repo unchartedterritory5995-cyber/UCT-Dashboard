@@ -570,7 +570,25 @@ class ObsidianProvider(NoteProvider):
         `seen_ids`), and `_touch_remote_index`'s use of this value is pure
         bookkeeping metadata, never merged into an actually-imported note's
         own `updated_at` (that only ever comes from `fetch()`/`fetch_many()`
-        for rows `list_changed` actually returned)."""
+        for rows `list_changed` actually returned).
+
+        ⛔⛔ THE CONTRACT THIS PLACES ON THE PLUGIN, stated here because the
+        plugin lives in another repo and nothing can enforce it across that
+        boundary. Because absence from the manifest IS the delete signal, a
+        client must manifest every path that still EXISTS in the vault —
+        including paths it deliberately did not push in this session.
+        The case that matters: a note that synced fine once and has since
+        grown past the size ceiling. Its `j2_obsidian_staging` row still
+        holds the last good content, and the member's note in the Notebook
+        is fine — merely stale. If the plugin dropped that path from the
+        manifest the moment it started failing, delete detection would tag
+        that healthy note `source-deleted` after two passes, and the member
+        would watch a note vanish because their FILE GOT BIGGER. Keep it
+        manifested; a real deletion still registers, because a deleted file
+        stops being enumerated at all.
+        Restated: the manifest answers "what exists in the vault", NOT "what
+        I successfully pushed". Those two sets differ exactly when something
+        is failing — which is precisely when getting it wrong hurts most."""
         conn = get_connection()
         try:
             rows = conn.execute(
