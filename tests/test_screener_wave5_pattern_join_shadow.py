@@ -122,3 +122,99 @@ def test_shadow_absent_when_no_detection_exists_for_the_symbol(monkeypatch, tmp_
     _fresh(monkeypatch, tmp_path)
     from api.services.screener import pattern_join as pj
     assert pj.read_pattern_fields_canonical_shadow(["ZZZZ"]) == {}
+
+
+# ─── Phase 8 Package 8F — compare_pattern_shadow (bounded, log-only) ──────
+
+def test_compare_reports_eligibility_unpopulated_not_a_mismatch_for_an_unadapted_row(
+    monkeypatch, tmp_path,
+):
+    """The scan's OWN today-real behavior — a stored, never-adapted row —
+    must land in the informational `eligibility_unpopulated` bucket, never
+    in any mismatch category."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(id="d1", sym="AAPL"))  # NOT adapted
+
+    result = pj.compare_pattern_shadow(["AAPL"])
+    assert result["compared"] == 1
+    assert result["eligibility_unpopulated"] == 1
+    assert result["parity_clean"] == 0  # excluded from parity_clean, not a mismatch either
+    for cat in pj._MISMATCH_CATEGORIES:
+        assert result[cat] == 0
+
+
+def test_compare_reports_parity_clean_for_an_adapted_row_with_agreeing_direction(
+    monkeypatch, tmp_path,
+):
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.pattern_engine.canonical_adapter import adapt_high_tight_flag
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(adapt_high_tight_flag(_detection(id="d1", sym="AAPL")))
+
+    result = pj.compare_pattern_shadow(["AAPL"])
+    assert result["compared"] == 1
+    assert result["eligibility_unpopulated"] == 0
+    assert result["parity_clean"] == 1
+    assert result["direction_mismatch"] == 0
+
+
+def test_compare_never_raises_when_the_shadow_read_itself_fails(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    from api.services.screener import pattern_join as pj
+
+    def _boom(targets):
+        raise RuntimeError("simulated shadow-read failure")
+
+    monkeypatch.setattr(pj, "read_pattern_fields_canonical_shadow", _boom)
+    result = pj.compare_pattern_shadow(["AAPL"], legacy_map={"AAPL": {}})
+    assert result["compared"] == 0
+    assert result["comparison_error"] == 1
+
+
+def test_compare_accepts_a_precomputed_legacy_map_without_requerying(monkeypatch, tmp_path):
+    """snapshot_builder.py already computed `pattern_map` — the comparison
+    must reuse it, never run a second identical query."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.pattern_engine.canonical_adapter import adapt_high_tight_flag
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(adapt_high_tight_flag(_detection(id="d1", sym="AAPL")))
+
+    calls = []
+    real_read = pj.read_pattern_fields
+
+    def _tracked(*a, **k):
+        calls.append(1)
+        return real_read(*a, **k)
+
+    monkeypatch.setattr(pj, "read_pattern_fields", _tracked)
+    precomputed = pj.read_pattern_fields(["AAPL"])
+    calls.clear()
+
+    pj.compare_pattern_shadow(["AAPL"], legacy_map=precomputed)
+    assert calls == []  # no second call
+
+
+def test_compare_output_is_bounded_never_an_unbounded_dump(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    # Force a direction_mismatch on many tickers by hand-crafting a legacy
+    # map that disagrees with a real, unadapted canonical read.
+    for i in range(60):
+        sym = f"SYM{i}"
+        memory.store_detection(_detection(id=f"d{i}", sym=sym, direction="bullish"))
+    fake_legacy = {
+        f"SYM{i}": {"pattern_engine_dir": -1}  # disagrees with the real "bullish" row
+        for i in range(60)
+    }
+    result = pj.compare_pattern_shadow([f"SYM{i}" for i in range(60)], legacy_map=fake_legacy)
+    assert result["direction_mismatch"] == 60
+    assert len(result["direction_mismatch_sample"]) == pj._SHADOW_LOG_CAP

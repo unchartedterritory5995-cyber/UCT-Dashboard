@@ -264,6 +264,55 @@ def build_scanner_summary(detection: Detection) -> ScannerSummary:
     return out
 
 
+def reconstruct_persisted_evidence(pattern_id: str, geometry_extras: dict) -> dict:
+    """Phase 8 Package 8F (ChatGPT relay review, 2026-09-04): reconstructs
+    the Phase-8 `event`/`gate_trace` sections from fields the DETECTOR
+    ITSELF already writes into `geometry.extras` -- real for every
+    persisted `power_earnings_gap` row ever written, adapted or not
+    (Package 8C's own finding: these are detector-level fields, not
+    adapter-added ones, so this reconstruction needs no new schema column
+    and no new detector logic). This is the SAME reconstruction
+    `pattern_join.read_pattern_fields_canonical_shadow` first established
+    for `event` alone (Package 8C); this generalizes it to also cover
+    `gate_trace` via this module's own `_peg_gate_trace`, and gives both
+    readers ONE shared implementation instead of two that could drift.
+
+    Returns `{}` for any family with no such reconstruction (HTF's own
+    adapter never manufactures `gate_trace`/`event` -- see this module's
+    docstring) or when a required extras key is genuinely absent (e.g. a
+    row written before some field existed).
+    """
+    if pattern_id != _peg._PATTERN_ID:
+        return {}
+
+    out: dict = {}
+    days = geometry_extras.get("days_to_earnings")
+    verified = geometry_extras.get("earnings_linkage_verified")
+    if days is not None or "earnings_linkage_verified" in geometry_extras:
+        out["event"] = {
+            "event_id": None,
+            "event_type": "earnings",
+            "event_timestamp": None,
+            "ingested_at": None,
+            "days_from_event": days,
+            "verification_status": (
+                "unavailable" if days is None
+                else "verified" if verified
+                else "contradicted"
+            ),
+            "source": "context.days_to_earnings_hint",
+        }
+
+    required_keys = (
+        "gap_pct", "gap_volume_ratio", "post_gap_bars", "gap_open",
+        "post_gap_low", "post_gap_range_pct", "gap_range_pct",
+    )
+    if all(k in geometry_extras for k in required_keys):
+        out["gate_trace"] = _peg_gate_trace(geometry_extras)
+
+    return out
+
+
 def _peg_gate_trace(extras: dict) -> list[GateEvaluation]:
     gap_pct = extras["gap_pct"] / 100.0  # extras stores this *100 for narrative display
     volume_ratio = extras["gap_volume_ratio"]

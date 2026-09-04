@@ -176,6 +176,20 @@ def test_current_stage_status_fact_matches_detection_status(name, detection):
 
 
 @pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_market_context_never_says_moving_average_twice(name, detection):
+    """Regression (found against real market-shaped data, Package 8F, not
+    the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
+    phrase ending in "moving-average" ("fully stacked-bullish
+    moving-average"); the explanation template used to append its own
+    literal " moving-average alignment" after it, producing "...
+    moving-average moving-average alignment" for every real HTF detection.
+    PEG's phrase omits the word, so this bug was invisible on PEG alone."""
+    facts = _sections(build_explanation(detection))["current_stage"]
+    context_fact = next(f for f in facts if f["fact_id"] == "market_context")
+    assert "moving-average moving-average" not in context_fact["label"]
+
+
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")

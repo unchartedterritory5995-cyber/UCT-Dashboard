@@ -1049,6 +1049,21 @@ def _run_build_locked(max_tickers=None) -> dict:
     # tolerates a bare-positional call) to match the real call shape exactly.
     pattern_map = _read_market_source(
         "pattern_join", pattern_join.read_pattern_fields, targets, sources)
+    # Phase 8 Package 8F: OFF by default, independent of the write-side
+    # PATTERN_CANONICAL_ADAPT_ENABLED flag (ChatGPT relay review,
+    # 2026-09-04 — "do not make snapshot_builder.py unconditionally switch
+    # to the canonical reader; legacy remains served while canonical is
+    # computed/logged beside it"). `pattern_map` above is completely
+    # unaffected by this block — it is built, used, and served exactly as
+    # before this package. This is a LOG-ONLY shadow observation, never a
+    # scanner-authority switch; no such switch exists anywhere in this
+    # package's diff (see canonical_adapter.py's own module docstring).
+    if os.environ.get("PATTERN_CANONICAL_SHADOW_LOG_ENABLED") == "1":
+        try:
+            shadow_result = pattern_join.compare_pattern_shadow(targets, legacy_map=pattern_map)
+            log.info("[pattern-shadow] %s", shadow_result)
+        except Exception as shadow_err:
+            log.warning("[pattern-shadow] comparison failed: %s", shadow_err)
     prev_closes = _read_prev_closes()
     dp_map = _read_market_source(
         "darkpool_agg",
