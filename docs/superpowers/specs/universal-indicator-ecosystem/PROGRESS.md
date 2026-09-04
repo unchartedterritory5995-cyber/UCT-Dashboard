@@ -22,14 +22,14 @@ owner confirms otherwise — read freely, do not write there.
 
 | # | Item | Status |
 |---|---|---|
-| 1 | What the 7/31 architecture actually intended | Read in full (`00-MASTER-PROMPT.md` is not a copy of it — the doc itself lives at `docs/superpowers/specs/2026-07-31-indicator-platform-design.md`). Summarized in DEC-001/DEC-002. |
-| 2 | What portions were actually implemented | In progress — Indicator Platform Program Archaeologist dispatched (see below). |
-| 3 | What portions shipped (vs. implemented-but-not-shipped) | In progress — same agent. Confirmed so far: Phase A signature indicators are on `origin/master`, i.e. shipped. |
-| 4 | What has evolved beyond the original specification | Confirmed example: `confluence.py`, `registry_defs.py` in `api/services/signature/` are not in the Phase A plan text. Full accounting in progress. |
-| 5 | What is currently in flight | Partial — worktree timestamps show `indicator-endzone` active as of this morning; `phase-b1-foundations`, `phase-b2-engine` worktrees exist but flight status unconfirmed. In progress. |
-| 6 | Whether current product behavior matches that architecture | Not started — needs browser-verified behavior, not just code presence. |
-| 7 | Which decisions remain appropriate under the expanded objective | Not started — depends on 1–6. |
-| 8 | Which decisions may deserve reconsideration on genuinely new evidence | Not started — depends on 1–6; route through DEC-001's conflict policy, not a unilateral call. |
+| 1 | What the 7/31 architecture actually intended | **Done.** Read in full; summarized in DEC-001/DEC-002/`CURRENT_ARCHITECTURE.md`. Correction: the doc's own roadmap only covers Phases A–D faithfully; Phase E has a separate 8/8 addendum spec. |
+| 2 | What portions were actually implemented | **Done for Phases A–E** — see `CURRENT_ARCHITECTURE.md`'s phase table. Engine/binding layer (B), alerts (C), builder+AI door (D), and screener mechanism (E) are all real, tested code, not just plans. |
+| 3 | What portions shipped (vs. implemented-but-not-shipped) | **Done.** All of A–E are on `origin/master`. The one real "implemented but not shipped/wired" item: `confluence.py`'s `dpc-v1` prototype (RISK-002). Phase E's commercial tiering mechanism is shipped; the toolkits themselves are not (1 ungated toolkit exists) — explicitly open per the code's own docstring, not hidden. |
+| 4 | What has evolved beyond the original specification | **Done.** `confluence.py`, `registry_defs.py` (beyond Phase A plan); Phase E's real shipped scope (beyond the stale doc); the independent "Confluence Radar" feature (RISK-001) that the design doc doesn't know exists. |
+| 5 | What is currently in flight | **Done, with one open item.** All 7 investigated worktrees (`phase-b1-foundations`, `phase-b2-engine`, `indicator-endzone`, `candle-library`, `screener-deep-work`, `patterns-retire`, `live-scan-retire`) show **zero commits unique to the branch** — every one is fully merged into `origin/master`, confirmed via `git rev-list --left-right --count`. `feat/indicator-endzone` specifically: merged, master 4 commits ahead. Open item: whether a session is *currently* active in that worktree right now (RISK-006) — filesystem timestamp only, not conclusively resolved. |
+| 6 | Whether current product behavior matches that architecture | **Partially done — code/test-level only, explicitly not browser-verified.** Strong wiring evidence (routes registered, real frontend consumers found, 222 backend tests + a 144-AST conformance check all pass live). No agent has browser access; this is the single largest remaining gap (RISK-010) and the top second-wave candidate. |
+| 7 | Which decisions remain appropriate under the expanded objective | Not started as a formal pass — but no wave-one finding contradicts DEC-001/DEC-002; if anything, the shipped architecture *exceeds* what the master prompt was hypothesizing as open research (§12, §14). |
+| 8 | Which decisions may deserve reconsideration on genuinely new evidence | Two real candidates surfaced, both routed to the decision queue rather than resolved unilaterally: the Confluence naming collision (RISK-001) and the `confluence.py` wire-or-retire question (RISK-002). Neither is urgent; neither touches DEC-001/DEC-002 directly. |
 
 ## Dispatched this session (2026-09-04)
 
@@ -47,11 +47,14 @@ owner confirms otherwise — read freely, do not write there.
     commit). This is a direct, expected consequence of DEC-001 — confirming "already satisfied" is as
     valid a Phase Zero outcome as finding a gap, and the archaeology agents below should check these
     specifically rather than treating them as open.
-- **Agent — Indicator Platform Program Archaeologist.** Scope: origin/master + the Indicator-Platform-
-  adjacent worktrees under `C:\Users\Patrick\uct-worktrees\` (`phase-a-signature`, `phase-b1-foundations`,
-  `phase-b2-engine`, `indicator-endzone`, `candle-library`, `screener-deep-work`, `patterns-retire`,
-  `live-scan-retire`). Answers establishment items 2–6 above. Read-only. Status: dispatched, awaiting
-  result.
+- **Agent — Indicator Platform Program Archaeologist. DONE.** Exceptional report — see
+  `CURRENT_ARCHITECTURE.md` and `RISK_REGISTER.md` for the full synthesis. Headlines: the engine is real
+  and is the **unconditional active renderer** on every chart (not a shadow path); all 7 investigated
+  worktrees are fully merged (zero unique commits each); Phase E (screener/toolkits mechanism) has also
+  shipped, beyond what the 7/31 doc's own roadmap table (stale past Phase D) describes; found a real
+  naming collision between two unrelated "Confluence" features (RISK-001); independently re-derived the
+  same 144-AST conformance number the Pine/thinkScript agent found (cross-validation). Explicitly could
+  not verify live product/production behavior — no browser or Railway access from that agent.
 - **Agent — Pine/thinkScript Translation Layer Archaeologist. DONE.** Major findings:
   - **Q1 (authoring-surface risk) resolved, high confidence: no conflict with DEC-002.** The translation
     layer is structurally an import door only — raw Pine/thinkScript/PCF source is transient (parsed
@@ -100,16 +103,32 @@ owner confirms otherwise — read freely, do not write there.
     `indicator-endzone`, `phase-b1-foundations`, or `phase-b2-engine` worktrees contain divergent,
     uncommitted changes to this same translation layer — this agent's read was restricted to origin/master.
 
-## Not yet started (second wave candidates)
+## Not yet started (second-wave candidates — wave one is now complete)
 
-- Custom Screens / Screener current implementation state (have the 2026-06-19 Full-Market-Screener
-  design doc + memory notes on `feat/screener-deep-work`; need fresh verification against origin/master
-  and the `screener-deep-work` / `full-market-screener` worktrees/branches).
-- Data provider / market-data contract audit (master-prompt §25).
-- Existing test-suite credibility assessment (addendum §14).
-- Telemetry/observability current-state audit (master-prompt §27, §37).
-- Competitive research (master-prompt §64–65) — low urgency per master prompt's own phase ordering.
-- Validation Coverage Map skeleton (addendum §3) — blocked on establishment items 2–6 landing first.
+Ranked by what wave one actually surfaced, not by the master prompt's default ordering:
+
+1. **Browser/E2E verification of the actual `BuilderSheet` flow** (RISK-010) — the single largest gap.
+   Every finding so far is code/test-level. Paste a real Pine script through the real UI, watch it compile,
+   preview, save, reload, appear in the screener. This is what addendum §4/§5 call the first Core Golden
+   Journey, and nothing has touched it yet.
+2. **Custom Screens / Screener current implementation state** — have the 2026-06-19 Full-Market-Screener
+   design doc + memory notes on `feat/screener-deep-work`; need the same fresh-evidence treatment wave one
+   gave the translation layer. Also the moment to finally settle what "Custom Screens" means in this repo's
+   own vocabulary (the master prompt uses that term; the repo's visible terminology so far is "Scanner
+   Hub" / "Custom Scan" tab / "Saved Screens" — need to confirm these are the same thing before building a
+   capability matrix around the wrong name).
+3. **RISK-003 production verification** — is the 8/31 scan-hits staleness issue actually resolved live,
+   not just in the diff.
+4. Data provider / market-data contract audit (master-prompt §25) — gates the later intraday/Run-Now
+   question (MP-020).
+5. Existing test-suite credibility assessment (addendum §14) — now has real material to work with (the
+   two red findings from wave one, plus whatever else surfaces).
+6. Telemetry/observability current-state audit (master-prompt §27, §37) — unknown whether this repo's
+   evident love of self-documenting test files extends to production telemetry.
+7. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
+   ordering; holding.
+8. Validation Coverage Map (addendum §3) — now unblocked for the translation-layer rows; still needs items
+   1–2 above before it can be filled in for screener/scanner rows.
 
 ## Artifacts in this folder so far
 
@@ -117,6 +136,9 @@ owner confirms otherwise — read freely, do not write there.
 - `DECISIONS.md` — DEC-001 (program scope), DEC-002 (no standalone scripting language, preserved).
 - `PROGRESS.md` — this file.
 - `REQUIREMENTS_LEDGER.md` (120 rows), `CONSTRAINT_LEDGER.md` (19 entries) — done.
+- `BENCHMARK_REPRODUCTION.md` — live-measured numbers, done.
+- `CURRENT_ARCHITECTURE.md` — wave-one synthesis, done (translation-layer corner only — see its own scope note).
+- `RISK_REGISTER.md` — 10 real risks from wave one, done.
 
 ## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 
@@ -130,15 +152,10 @@ red check: `ast_conformance.py --coverage` shows one manifest scalar (`base_rela
 fixture coverage. Both red findings are real, narrow, already self-tracked by the repo — not fabricated,
 not hidden.
 
-## Next steps
+## Wave one: complete
 
-1. Reconcile all findings so far (both archaeology agents + this reproduction) into `CURRENT_ARCHITECTURE.md`
-   once the still-running program-status agent lands.
-2. Decide second-wave dispatches based on what's actually found (don't pre-commit further agents before
-   seeing wave-one evidence, per master-prompt §61 "determine optimal parallelization after initial
-   orientation"). Candidates raised by this reproduction specifically: (a) investigate the blind-corpus
-   assisted-edit gap as a real, scoped bug rather than leaving it as a red test someone else trips over;
-   (b) determine whether TC2000/PCF has (or needs) a blind corpus equivalent to Pine's before trusting its
-   57/57 as broadly representative.
-3. Commit this folder's contents once reviewed — 5 commits landed so far this session (kickoff docs,
-   ledgers, Pine/thinkScript reconciliation, this update, benchmark reproduction).
+All three dispatched workstreams (ledger construction, Pine/thinkScript archaeology, Indicator Platform
+program archaeology) plus the direct benchmark reproduction have landed and been reconciled into
+`CURRENT_ARCHITECTURE.md` and `RISK_REGISTER.md`. See "Not yet started (second-wave candidates)" above
+for what's next — ranked by what wave one actually surfaced, per master-prompt §61's "determine optimal
+parallelization after initial orientation."
