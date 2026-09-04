@@ -30,7 +30,13 @@ import styles from './ConnectedAppsCard.module.css'
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
-  if (source.warmingUntil || source.lastSyncStatus === 'warning') return 'amber'
+  // ⛔ `lastSyncError` on its own has to move the dot. The engine records a
+  // PARTIAL failure as status "ok" plus per-note error text — by design, since
+  // the batch really did commit what it could. But that left a source that
+  // failed to store some of the member's notes showing a GREEN dot with the
+  // reason hidden in text below it, which is the green-dot-over-a-failure
+  // shape this surface keeps producing.
+  if (source.warmingUntil || source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
   if (source.lastSyncAt) return 'green'
   return 'amber'
 }
@@ -47,6 +53,24 @@ function freshnessLabel(source) {
     return source.lastSyncAt
       ? `finished with problems ${timeAgo(source.lastSyncAt)}`
       : 'finished with problems'
+  }
+  // ⛔ The same argument as the warning branch, for the state that had no
+  // branch at all. A source can be `lastSyncStatus === 'error'` WITHOUT being
+  // `broken` — every transient/rate-limited/unhandled total failure lands
+  // there — and it fell through to "synced 5 minutes ago" while
+  // `freshnessTone` above dotted it RED. The label and the dot contradicted
+  // each other, and the label is the half a member reads.
+  if (source.lastSyncStatus === 'error') {
+    return source.lastSyncAt
+      ? `sync failed ${timeAgo(source.lastSyncAt)}`
+      : 'sync failed'
+  }
+  // A partial failure keeps status "ok" but carries per-note error text; say
+  // so rather than reporting a clean "synced" over notes that did not land.
+  if (source.lastSyncError) {
+    return source.lastSyncAt
+      ? `synced with problems ${timeAgo(source.lastSyncAt)}`
+      : 'synced with problems'
   }
   if (source.lastSyncAt) return `synced ${timeAgo(source.lastSyncAt)}`
   return 'not synced yet'
