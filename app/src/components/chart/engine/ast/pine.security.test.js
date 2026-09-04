@@ -195,17 +195,61 @@ describe('request.security → tf', () => {
     expect(ast).toEqual({ type: 'series', name: 'close' })
   })
 
-  it('⛔ a symbol on ANOTHER VENUE still refuses — this engine reads US equities', () => {
+  it('⛔ a symbol on ANOTHER MARKET still refuses — this engine reads US equities', () => {
     // Community script 04 asks for `BINANCE:BTCEUR`. ⚠️ AND THE REASON IS NOT
-    // SNOBBERY: `sentence.js::renderSym` will only SAY a plain ticker, so
-    // accepting this would build a tree whose read-back refuses — a definition a
-    // member could save and never see explained. Refusing at the door they typed
-    // at is the honest answer.
-    for (const ticker of ['BINANCE:BTCEUR', 'NASDAQ:AAPL', 'TOOLONGTICKER']) {
+    // SNOBBERY: we hold no such series, so translating it builds a column that is
+    // NOT COMPUTABLE on every row — which reads to a member as a quiet market
+    // rather than as an answer we cannot give. `LSE:VOD` is the sharper case: a
+    // REAL instrument that is NOT the `VOD` this store would fetch, so dropping
+    // the venue there is the look-alike this table refuses everywhere else.
+    for (const ticker of ['BINANCE:BTCEUR', 'LSE:VOD', 'TOOLONGTICKER']) {
       const out = translatePine(src(`plot(request.security('${ticker}', 'W', close))`))
       expect(out.refusal, ticker).toBeTruthy()
       expect(out.refusal.guard, ticker).toBe('pine:request')
     }
+  })
+
+  it('⭐ …but a US EQUITY VENUE resolves, because it names a series this store holds', () => {
+    // ⚰️ THIS LINE USED TO ASSERT THAT `NASDAQ:AAPL` REFUSED, and the reason
+    // recorded beside it was that `sentence.js::renderSym` will only SAY a plain
+    // ticker, so accepting one would build a tree whose read-back refuses. That
+    // reason is real and is NOT what changed: the venue is STRIPPED, so the node
+    // built is `sym('AAPL', …)` — a plain ticker, which reads back. The guard was
+    // testing the adjacent thing (does the string contain a colon) rather than the
+    // invariant it was written for (can the tree be explained).
+    const ast = treeOf(translatePine(src("plot(request.security('NASDAQ:AAPL', 'W', close))")))
+    expect(ast).toEqual({
+      type: 'sym',
+      value: 'AAPL',
+      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+    })
+  })
+
+  it('⛔⛔ THE TWO SPELLINGS OF A VENUE AGREE — one script cannot mean two things', () => {
+    // ⚰️ THEY DID NOT, AND ONLY ONE SIDE WAS RAILED. `request.security('BINANCE:BTCEUR', …)`
+    // refused (the rail above), while `ticker.new('BINANCE', 'BTCEUR', session.regular)`
+    // translated to `sym('BTCEUR', …)` and had done all along — `tickerCallArg`
+    // read argument ONE and never looked at the venue. A euro crypto pair became a
+    // lookup against our US equity store, silently, in the spelling nobody checked.
+    //
+    // ⛔ SO THE ASSERTION IS AGREEMENT, NOT MEMBERSHIP. `US_EQUITY_VENUES` is a
+    // list and will be wrong the day a venue is added; what must never drift is
+    // that both ways of writing one request get the same answer.
+    for (const [venue, ticker] of [['BINANCE', 'BTCEUR'], ['LSE', 'VOD'], ['NASDAQ', 'AAPL'], ['AMEX', 'SPY']]) {
+      const asString = translatePine(src(`plot(request.security('${venue}:${ticker}', 'W', close))`))
+      const asCall = translatePine(src(
+        `plot(request.security(ticker.new('${venue}', '${ticker}', session.regular), 'W', close))`))
+      expect(asCall.ok, `${venue}:${ticker} — the two spellings disagree`).toBe(asString.ok)
+      if (asString.ok) {
+        expect(treeOf(asCall)).toEqual(treeOf(asString))
+      } else {
+        expect(asCall.refusal.guard).toBe(asString.refusal.guard)
+      }
+    }
+    // ⛔ NON-VACUITY: the loop above must contain BOTH answers, or it would pass
+    // for an engine that refused every venue or served every venue.
+    expect(translatePine(src("plot(request.security('NASDAQ:AAPL', 'W', close))")).ok).toBe(true)
+    expect(translatePine(src("plot(request.security('BINANCE:BTCEUR', 'W', close))")).ok).toBe(false)
   })
 
   it('⛔ a timeframe this engine cannot RESAMPLE refuses at the door the member typed at', () => {

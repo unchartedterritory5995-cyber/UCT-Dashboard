@@ -90,7 +90,7 @@ const ACCEPTED = FILES.filter((f) => {
 
 /** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
  *  once the member takes the engine's OWN offer, in a click rather than a retype. */
-const ACCEPT_FLOOR = 27
+const ACCEPT_FLOOR = 28
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -129,6 +129,11 @@ const SERVED_CONTROLS = Object.freeze({
   'ta.dev': 'plot(ta.dev(close, 20) > 1 ? 1 : 0)',
 })
 
+/** ⭐ 2026-09-04 — 20 → 21 / 27 → 28: A VENUE-QUALIFIED TICKER.
+ *  `"AMEX:SPY"` is the spelling `ticker.new('AMEX', 'SPY')` already took; the
+ *  string form refused it only because a colon fails `TICKER_SHAPE`. Fixing that
+ *  also CLOSED a hole in the other spelling, which had been dropping non-US
+ *  venues silently. See `pine.security.test.js`. */
 /** ⭐ 2026-09-04 — 19 → 20 / 26 → 27: OBV AGAINST ITS OWN AVERAGE
  *  (`pine.obvAverage.test.js`). `obv - sma(obv, n)` is a finite sum of `obvN`
  *  differences, so the fetch-dependent baseline cancels. The LEVEL is still
@@ -140,7 +145,7 @@ const SERVED_CONTROLS = Object.freeze({
  *  exam's guard histogram entirely. It widened no vocabulary — a genuine running
  *  total still refuses, and that control is the first test in the new file. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 20
+const FLOOR = 21
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
@@ -199,8 +204,15 @@ describe('the exam this project did not write', () => {
     const stillBlocked = {}
     for (const r of MISSES) {
       if (ACCEPTED.includes(`${r.name}.pine`)) continue
-      for (const n of new Set(r.source.match(BLOCKED) || [])) {
-        (stillBlocked[n] || (stillBlocked[n] = [])).push(r.name)
+      // ⚰️ READ OFF THE REFUSAL, NOT OFF THE SOURCE. This scanned the script text
+      // for roster names, which counts a name the script MENTIONS rather than one
+      // that stops it. Measured 2026-09-04: that reported `request.security`
+      // gating FOUR scripts while the engine served every shape they used — three
+      // of the four were stopped by `ta.rising`, `ta.bbw` and `ta.cci`, and the
+      // fourth by an exchange prefix. A histogram whose whole job is to direct
+      // work sent it at a name that blocked nothing.
+      for (const n of UNSERVED) {
+        if (r.message.includes(n)) (stillBlocked[n] || (stillBlocked[n] = [])).push(r.name)
       }
     }
     const ranked = Object.entries(stillBlocked)

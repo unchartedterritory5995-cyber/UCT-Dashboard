@@ -2500,6 +2500,62 @@ function smaOfBareObv(node) {
   return len.value || null
 }
 
+/** ⭐⭐ THE VENUES WHOSE `EXCHANGE:TICKER` NAMES THE INSTRUMENT THIS STORE HOLDS.
+ *
+ *  ⛔⛔ THIS EXISTS BECAUSE ONE SENTENCE HAD TWO SPELLINGS AND THEY ANSWERED
+ *  DIFFERENTLY. `request.security('BINANCE:BTCEUR', …)` refused — there is a rail
+ *  for it — while `request.security(ticker.new('BINANCE', 'BTCEUR',
+ *  session.regular), …)` translated to `sym('BTCEUR', …)` and had done all along,
+ *  because `tickerCallArg` read argument ONE and never looked at the venue. A euro
+ *  crypto pair became a lookup against our US equity store, silently, in the
+ *  spelling nobody had railed. Measured, not supposed.
+ *
+ *  ⭐ SO THE POLICY IS STATED ONCE AND BOTH SPELLINGS ASK IT. The criterion is not
+ *  taste: it is whether the ticker after the venue names the SAME instrument our
+ *  bars store holds. `NASDAQ:AAPL` does. `BINANCE:BTCEUR` does not — we have no
+ *  such series, and translating it builds a column that is NOT COMPUTABLE on every
+ *  row, which reads to a member as a quiet market rather than as an answer we
+ *  cannot give. `LSE:VOD` is the sharpest case: it is a REAL instrument that is
+ *  NOT the `VOD` this store would fetch, so dropping the venue there is the
+ *  look-alike this table refuses everywhere else.
+ *
+ *  ⚠️ WHY A ROSTER AND NOT A RULE. There is no derivable property of the string
+ *  that says "US equity venue"; it is a fact about listings. So it is a list, and
+ *  like every list in this repo it is wrong the day a venue is added — the rail
+ *  beside it checks the SHAPE of the answer (allowlisted resolves, non-allowlisted
+ *  refuses, both spellings agree), never the membership, so adding a venue is a
+ *  one-line change that nothing else has to follow.
+ */
+const US_EQUITY_VENUES = Object.freeze(new Set([
+  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
+]))
+
+/** `"AMEX:SPY"` → `'SPY'`; a bare `"SPY"` → `'SPY'`; a venue we do not serve →
+ *  null, which the callers turn into the ordinary `pine:request` refusal.
+ *
+ *  ⛔ A SINGLE COLON AND PLAUSIBLE HALVES, NEVER A BLIND SPLIT. `CME_MINI:ES1!`
+ *  keeps its `!` and fails `TICKER_SHAPE` at the caller, which is the right answer:
+ *  a continuous futures contract is not a ticker this store holds.
+ */
+const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
+
+function tickerWithoutVenue(raw) {
+  const found = VENUE_QUALIFIED.exec(raw)
+  if (!found) return raw
+  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+}
+
+/** The same question asked of `ticker.new`'s SEPARATE exchange argument.
+ *
+ *  ⭐ ONLY A STRING LITERAL IS JUDGED. A computed prefix (`syminfo.prefix`) is not
+ *  a venue this translator can read, and refusing it here would refuse the shape
+ *  that means "this chart's own exchange" — which is the commonest use of the call.
+ */
+function venueArgIsServable(node) {
+  if (!node || node.type !== 'string') return true
+  return US_EQUITY_VENUES.has(String(node.value).trim().toUpperCase())
+}
+
 /** The CONDITION inside a one-argument `barssince(...)`, in either spelling.
  *
  *  ⛔ AN ARGUMENT IS `{name, value, tok}`, NOT THE EXPRESSION ITSELF — the
@@ -5175,6 +5231,18 @@ class Resolver {
       const spelled = a.value && a.value.type === 'name' ? a.value.name : null
       if (spelled !== 'session.regular') return null
     }
+    // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
+    // ZERO was never read, so `ticker.new('BINANCE', 'BTCEUR', session.regular)`
+    // resolved to `sym('BTCEUR', …)` — a lookup against a US equity store for a
+    // series it does not hold — while the string spelling of the same request
+    // refused. `US_EQUITY_VENUES` is asked by both so one script cannot mean two
+    // things depending on how it was typed.
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      const isPrefix = a.name === 'prefix' || (!a.name && i === 0)
+      if (isPrefix && !venueArgIsServable(a.value)) return null
+    }
     for (let i = 0; i < args.length; i += 1) {
       const a = args[i]
       if (!a) continue
@@ -5241,9 +5309,15 @@ class Resolver {
     const tick = this.tickerCallArg(node)
     if (tick) return this.otherSymbolNameOf(tick, depth + 1)
     if (node.type === 'string') {
-      const ticker = String(node.value).trim().toUpperCase()
+      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+      // one string — see `tickerWithoutVenue` for why the venue is dropped and what
+      // that costs.
+      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+      // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
+      // disagree about one script.
+      const ticker = tickerWithoutVenue(String(node.value).trim().toUpperCase())
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
-      return TICKER_SHAPE.test(ticker) ? ticker : null
+      return ticker !== null && TICKER_SHAPE.test(ticker) ? ticker : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
