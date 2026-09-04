@@ -103,32 +103,58 @@ owner confirms otherwise — read freely, do not write there.
     `indicator-endzone`, `phase-b1-foundations`, or `phase-b2-engine` worktrees contain divergent,
     uncommitted changes to this same translation layer — this agent's read was restricted to origin/master.
 
-## Not yet started (second-wave candidates — wave one is now complete)
+## Wave two #1: DONE — Core Golden Journey #1 (Pine RSI import → chart → save → reload → screener)
 
-Ranked by what wave one actually surfaced, not by the master prompt's default ordering:
+Full write-up: `CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md`. Ran in a properly data-isolated local
+environment (verified 48 shared-data env vars redirected to a sandbox, `AUTH_DB_PATH` included, before
+touching anything). Headlines:
+- **Real semantic translation confirmed correct**: a 97-line Pine RSI script with a helper function and a
+  19-branch source selector correctly reduced to canonical `rsi(close, 14)`, with a live execution-
+  requirement contract shown to the user (3 nodes, 14-bar lookback, non-repainting) — not aspirational,
+  actually working.
+- **Chart delivery, save, and reload all confirmed working** for this fixture, including a clean reload
+  with live-recomputed values (55.34 → 55.39), proving real computation, not a cached render.
+- **The numeric-vs-boolean screener gate is correct and has real institutional memory behind it** — found
+  a documented historical incident (a numeric formula once got permanently stuck reading "first sweep
+  tonight" due to a weak client-side check; fixed by moving the check server-side). Reproduced the *fixed*
+  behavior cleanly today for both a numeric artifact (correctly refused) and a boolean one (correctly
+  accepted).
+- **Screener execution itself is architecturally nightly-only, enforced by a dedicated test that forbids
+  any router from importing the sweep** — correctly classified ENVIRONMENT-BLOCKED, not attempted to be
+  forced, respecting the deliberate guardrail (master-prompt §10).
+- **Negative-path test passed**: an unsupported property access was correctly refused with a specific
+  message; Save was confirmed to be a no-op on the invalid formula.
+- **One real (minor) defect found**: double-clicking Save duplicates a chart instance (RISK-012, S3, not
+  fixed — logged for later per the "no broad fixes in Phase Zero" instruction).
+- **One real fidelity gap found**: the source script's adjustable inputs don't carry over as adjustable
+  UCT inputs, only their defaults do (RISK-013).
+- `VALIDATION_COVERAGE_MAP.md` created — first real, evidence-cited version, not a stub.
 
-1. **Browser/E2E verification of the actual `BuilderSheet` flow** (RISK-010) — the single largest gap.
-   Every finding so far is code/test-level. Paste a real Pine script through the real UI, watch it compile,
-   preview, save, reload, appear in the screener. This is what addendum §4/§5 call the first Core Golden
-   Journey, and nothing has touched it yet.
-2. **Custom Screens / Screener current implementation state** — have the 2026-06-19 Full-Market-Screener
+## Not yet started (second-wave candidates, remaining)
+
+Ranked by what's actually been surfaced so far:
+
+1. **Custom Screens / Screener current implementation state** — have the 2026-06-19 Full-Market-Screener
    design doc + memory notes on `feat/screener-deep-work`; need the same fresh-evidence treatment wave one
    gave the translation layer. Also the moment to finally settle what "Custom Screens" means in this repo's
    own vocabulary (the master prompt uses that term; the repo's visible terminology so far is "Scanner
    Hub" / "Custom Scan" tab / "Saved Screens" — need to confirm these are the same thing before building a
    capability matrix around the wrong name).
-3. **RISK-003 production verification** — is the 8/31 scan-hits staleness issue actually resolved live,
+2. **RISK-003 production verification** — is the 8/31 scan-hits staleness issue actually resolved live,
    not just in the diff.
+3. **RISK-012 fix** (double-save duplicate) and **RISK-013 investigation** (input fidelity) — small,
+   well-scoped candidates for a future build phase, not Phase Zero.
 4. Data provider / market-data contract audit (master-prompt §25) — gates the later intraday/Run-Now
    question (MP-020).
 5. Existing test-suite credibility assessment (addendum §14) — now has real material to work with (the
-   two red findings from wave one, plus whatever else surfaces).
+   red findings from wave one and wave two #1, plus whatever else surfaces).
 6. Telemetry/observability current-state audit (master-prompt §27, §37) — unknown whether this repo's
    evident love of self-documenting test files extends to production telemetry.
 7. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
    ordering; holding.
-8. Validation Coverage Map (addendum §3) — now unblocked for the translation-layer rows; still needs items
-   1–2 above before it can be filled in for screener/scanner rows.
+8. More Core Golden Journeys (addendum §4) — thinkScript, TC2000/PCF, plain-language, screenshot doors;
+   editing a saved artifact; more negative-path cases; an actual observed nightly-sweep execution.
+   `VALIDATION_COVERAGE_MAP.md` now exists and shows exactly which rows these would fill in.
 
 ## Artifacts in this folder so far
 
@@ -138,7 +164,9 @@ Ranked by what wave one actually surfaced, not by the master prompt's default or
 - `REQUIREMENTS_LEDGER.md` (120 rows), `CONSTRAINT_LEDGER.md` (19 entries) — done.
 - `BENCHMARK_REPRODUCTION.md` — live-measured numbers, done.
 - `CURRENT_ARCHITECTURE.md` — wave-one synthesis, done (translation-layer corner only — see its own scope note).
-- `RISK_REGISTER.md` — 10 real risks from wave one, done.
+- `RISK_REGISTER.md` — 14 real risks logged (10 from wave one, 4 from Core Golden Journey #1).
+- `CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md` — first real browser-verified E2E pass, done.
+- `VALIDATION_COVERAGE_MAP.md` — first real, evidence-cited version, done (translation-layer corner only).
 
 ## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 
