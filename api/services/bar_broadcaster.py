@@ -30,12 +30,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time as _time
 from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, aggregate, bucket_start
 from api.services import trade_conditions
+
+# ── A-close guard (intraday integrity Phase 2, dark, env-gated) ──────────────
+# The per-second "A" aggregate nudges ONLY the developing close, but that close is
+# UNFILTERED — Massive computes it over ALL prints of the second (odd-lot / out-of-
+# sequence ghosts included) and an A event carries no condition codes, so unlike the
+# T path (trade_conditions.classify) it cannot be filtered. A ghost last-of-second
+# print momentarily moves the candle's close to a price that never really traded,
+# healed on the next AM reset / eligible T tick ("close ticks wrong, then self-
+# corrects"). When a real, SIP-eligible T trade set the close within A_CLOSE_GUARD_MS,
+# that FILTERED close is authoritative — don't let the unfiltered A override it. During
+# a fast move (earnings) real trades are constant so the close stays T-driven and clean;
+# on a thin ticker with no recent real trade the A close still serves as the fallback
+# (unchanged behavior). Dark by default; kill-switch stays the env var.
+A_CLOSE_GUARD_ENABLED = os.environ.get("BARS_A_CLOSE_GUARD_ENABLED", "0") == "1"
+A_CLOSE_GUARD_MS = int(os.environ.get("BARS_A_CLOSE_GUARD_MS", "2000"))
 
 _logger = logging.getLogger(__name__)
 
@@ -81,6 +97,9 @@ class BarBroadcaster:
         # always updated regardless of throttle — only SSE emission is gated.
         self._last_emit_ms: dict[tuple[str, str], int] = {}
         self._emit_throttle_ms: int = 100  # 10 Hz max per (sym, tf)
+        # Phase 2 A-close guard: monotonic-ms of the last SIP-eligible T trade that set
+        # the close, per (sym, tf). The A-close-nudge yields to a recent real close.
+        self._last_real_close_ms: dict[tuple[str, str], int] = {}
 
     # ── Subscription management (called from SSE endpoint coroutines) ──
 
@@ -121,6 +140,7 @@ class BarBroadcaster:
                 for tf_to_clear in ("1",) + ROLLUP_TFS:
                     self._partials.pop((sym, tf_to_clear), None)
                     self._am_partials.pop((sym, tf_to_clear), None)
+                    self._last_real_close_ms.pop((sym, tf_to_clear), None)
                 self._day_volume.pop(sym, None)
             try:
                 self._on_last_unsubscribe(sym)
@@ -172,6 +192,7 @@ class BarBroadcaster:
                     for tf_to_clear in ("1",) + ROLLUP_TFS:
                         self._partials.pop((sym, tf_to_clear), None)
                         self._am_partials.pop((sym, tf_to_clear), None)
+                        self._last_real_close_ms.pop((sym, tf_to_clear), None)
                     self._day_volume.pop(sym, None)
             if not still:
                 try:
@@ -279,6 +300,11 @@ class BarBroadcaster:
                             "v": prev["v"] + trade_s,
                         }
                     self._partials[key] = next_partial
+                    if last_ok and A_CLOSE_GUARD_ENABLED:
+                        # A SIP-eligible trade set the close → mark it so the unfiltered
+                        # A-close-nudge yields to it for A_CLOSE_GUARD_MS. Gated → zero
+                        # overhead when the guard is off.
+                        self._last_real_close_ms[key] = int(_time.monotonic() * 1000)
                     emit_bar = dict(next_partial)
                 self._emit(sym, tf, emit_bar, throttle=True)
             return
@@ -353,6 +379,14 @@ class BarBroadcaster:
                     # o/h/l) — let the T path or the AM baseline seed it.
                     if prev is None or prev["t"] != new_start:
                         continue
+                    # Phase 2 A-close guard (dark): the A close is UNFILTERED. If a real
+                    # SIP-eligible T trade set the close within A_CLOSE_GUARD_MS, that
+                    # filtered close wins — skip this unfiltered override (no emit; the T
+                    # path already broadcast the real close). Off by default → no-op.
+                    if A_CLOSE_GUARD_ENABLED:
+                        _last = self._last_real_close_ms.get(key, 0)
+                        if _last and (int(_time.monotonic() * 1000) - _last) < A_CLOSE_GUARD_MS:
+                            continue
                     next_partial = {**prev, "c": bar["c"]}
                 self._partials[key] = next_partial
                 emit_bar = dict(next_partial)
