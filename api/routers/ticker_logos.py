@@ -15,7 +15,23 @@ from api.services import ticker_logos as tl
 from api.services import ticker_logos_prewarm as pw
 
 router = APIRouter()
-_HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
+
+# A real cached logo is content-addressed and never changes → immutable + 7 days.
+# This is what a Cloudflare cache rule on `/api/ticker-logo/*` edge-caches: served
+# once per PoP instead of a per-browser origin round-trip (the DYNAMIC-cache-status
+# origin hit that made a watchlist's worth of logos pop in over 1-2s). The `?v=`
+# asset-version + `?name=`/`?alt=` hints stay in the cache key (distinct variants =
+# distinct keys), so they cache correctly too.
+_HIT_HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
+
+# A cold miss returns a transparent 1x1 pixel while the real logo resolves in the
+# background. This MUST NOT be shared-cached: if Cloudflare pinned the pixel at the
+# edge, every OTHER viewer would get a blank for that ticker until the (short) TTL
+# expired, even after the logo resolved. `no-store` keeps it origin-only + tells the
+# browser to re-request next render, so the real logo is picked up as soon as it's
+# warm (the client's own retry loop also re-hits with `?_r=`). The frontend detects
+# the pixel via naturalWidth<=2 and shows a monogram, so this is never a broken image.
+_MISS_HEADERS = {"Cache-Control": "no-store"}
 
 
 @router.get("/api/ticker-logo/{sym}")
@@ -25,11 +41,10 @@ def ticker_logo(sym: str, name: str = None, alt: str = None):
     under their bare symbol — passed by the Model Book for foreign stocks."""
     path = tl.get_logo_path(sym)
     if path:
-        return FileResponse(path, media_type="image/png", headers=_HEADERS)
+        return FileResponse(path, media_type="image/png", headers=_HIT_HEADERS)
     tl.schedule_resolve(sym, name=name, alt=alt)
-    # Short cache (60s) so a just-warmed logo is picked up on the next render/visit.
     return Response(content=tl.TRANSPARENT_PNG, media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=60"})
+                    headers=_MISS_HEADERS)
 
 
 @router.post("/api/logos/prewarm")

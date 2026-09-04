@@ -944,14 +944,18 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
 // localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
 // cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-// ⛔ TEMPORARILY DISABLED (2026-09-02): the split-fetch fetches + caches deep sealed
-// history correctly (IDB confirmed back to a ticker's IPO), but the RENDER selector
-// (`bars = ... _idbFresh && idbBars.length > data.bars.length ? idbBars : data.bars`)
-// draws only the ~600-bar first-paint tail — the deep merged idbBars is loaded but never
-// rendered, so every daily chart appeared to "stop at ~2024". Reverting to the pre-8/31
-// path (deep history via /api/bars) restores full history for everyone. Re-enable to a
-// canary % ONLY after the split-fetch render/merge path is fixed + verified end-to-end.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
+// RE-ENABLED to a 25% canary (2026-09-03) after the render bug was fixed + verified.
+// The render bug (disabled 2026-09-02): with split on, /api/bars is capped to the ~600-bar
+// tail and deep history lives only in idbBars, which the selector gated behind `_idbFresh`
+// — false every weekday after 16:00 ET (idbStaleDaily) — so the deep merged series was
+// discarded and daily charts "stopped at ~2024". FIXED by `_splitDeepUsable` (render the
+// deep idbBars under split-fetch, bypassing only the STALENESS gates the fresh tail heals,
+// keeping the correctness gates). VERIFIED end-to-end on prod (localStorage opt-in): AMT
+// renders to its 1999 IPO, deep history served from the Cloudflare edge in ~2ms, no errors.
+// Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
+// stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
+// window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
 
 function _barsHistoryBucket() {
   try {
@@ -979,6 +983,37 @@ export function setBarsHistorySplitEnabled(on) {
   } catch { /* ignore */ }
 }
 if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+
+// ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
+// The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
+// (`_histFire` needs fetchDepth > FIRST_PAINT_BARS). So a cold browser's first-ever view of a
+// ticker paints only the ~600-bar tail until it's scrolled back. This gate fires the edge
+// fetch ON first paint too — full history from the 2ms Cloudflare edge, no pan required — for
+// a standalone backgroundWarm D/W/M chart whose IDB isn't already deep (a warm-deep browser
+// renders full history via _splitDeepUsable already, so it's skipped: no redundant fetch).
+// Separate per-browser canary from the split rollout so it ramps + reverts independently.
+// Ship DARK at 0; owner opt-in `window.__uctBarsHistoryFP(true)`; ramp = raise the constant.
+// Ramped 0 → 100 on 2026-09-03 after the owner verified on prod (opted-in): cold tickers
+// XXII/KORU paint full history "literally instant to the eye," fast scroll-through skips the
+// deep fetch (dwell), and the cold-tail hang no longer blanks the chart. Instant revert = set
+// this to 0 + redeploy, or per-browser window.__uctBarsHistoryFP(false).
+export const BARS_HISTORY_FIRST_PAINT_PCT = 100
+export function _firstPaintEdgeEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistoryFP.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    return _barsHistoryBucket() < BARS_HISTORY_FIRST_PAINT_PCT   // reuses the split gate's stable bucket
+  } catch { return false }
+}
+export function setFirstPaintEdgeEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsHistoryFP.enabled', '1')
+    else localStorage.removeItem('uct.barsHistoryFP.enabled')
+    window.dispatchEvent(new Event('uct-barshistory-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdgeEnabled
 
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
@@ -4577,6 +4612,12 @@ export default function StockChart({
   const originSawFetchRef = useRef(false)   // saw the deep fetch actually start (isValidating→true)
   const originBaseLenRef = useRef(0)        // filteredBars length at click — detects the deeper history landing
   const [originLoading, setOriginLoading] = useState(false)  // "Loading chart history…" until the true first bar lands
+  // Fix 2 dwell: gate the FIRST-PAINT edge deep fetch on the sym/tf being stable ~150ms, so a
+  // fast scroll-through (theme tracker) doesn't fire a heavy 12.5k-bar deep fetch for tickers
+  // never landed on. Reset synchronously on sym/tf change (below), re-armed by a timer effect;
+  // only gates _histFirstPaint (the pan path is untouched). The /api/bars tail still paints
+  // instantly; the deep fills ~150ms after the chart settles.
+  const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
   const _overlayActive = !!(
@@ -4587,6 +4628,7 @@ export default function StockChart({
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
     pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
     originSawFetchRef.current = false
     if (originLoading) setOriginLoading(false)
@@ -4643,6 +4685,14 @@ export default function StockChart({
   // merge effect so within any single commit this sync runs first.
   const idbBarsRef = useRef(null)
   useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
+  // Fix 2 dwell timer: arm the first-paint edge deep fetch ~150ms after the sym/tf settles, so a
+  // fast scroll-through never fires it. Early-returns when Fix 2 is off → no state churn, dark-safe.
+  useEffect(() => {
+    if (!sym || !resolvedTf) return undefined
+    if (!_firstPaintEdgeEnabled()) return undefined
+    const _t = setTimeout(() => _setFpDwellReady(true), 150)
+    return () => clearTimeout(_t)
+  }, [sym, resolvedTf])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -4829,24 +4879,45 @@ export default function StockChart({
     && !_hasOverride && !replayCutoff && !_pinnedFull
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
   const _primaryBars = _splitOn ? Math.min(barCount, FIRST_PAINT_BARS) : barCount
-  // Deep sealed history from the edge — only once the user has panned PAST the first-paint
-  // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
-  // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
+  // Fix 2 (first-paint edge, gated dark): fire the edge deep-history fetch on FIRST PAINT for a
+  // standalone backgroundWarm D/W/M chart whose IDB is NOT already deep — a cold browser's
+  // first-ever view then shows full sealed history from the 2ms edge, no pan required. A
+  // warm-deep browser renders full history via _splitDeepUsable (Fix 1) with no edge fetch, so
+  // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
+  // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
+  const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
+  const _fpEdge = _firstPaintEdgeEnabled()
+  const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
+  // Deep sealed history from the edge — after the user pans PAST the first-paint tail
+  // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-    && fetchDepth > FIRST_PAINT_BARS
+    && (fetchDepth > FIRST_PAINT_BARS || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
   // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
   // makes it immutable + self-refreshing. Falls back to no `d` (short cache) if we can't yet
   // read a sealed bar — still correct, just not immutable for that one request.
   let _histSealedDate = ''
-  if (_histFire && Array.isArray(idbBars) && idbBars.length) {
+  if (_histFire) {
     const _cut = _etPeriodStartISO(resolvedTf)
-    if (_cut) {
+    if (_cut && Array.isArray(idbBars) && idbBars.length) {
       for (let i = idbBars.length - 1; i >= 0; i--) {
         const _t = idbBars[i]?.t
         if (typeof _t === 'string' && _t.length === 10 && _t < _cut) { _histSealedDate = _t; break }
       }
+    }
+    // Fix 2 cold fallback: a cold browser has no idbBars to derive the sealed date from. `d` is a
+    // cache KEY only (the server always returns its current sealed set regardless), so a miss just
+    // short-caches the same correct data. For DAILY, the barspack build session (localStorage
+    // 'barspack.version', ISO "YYYY-MM-DD") equals the server's last_sealed on any day after the
+    // pack built → the cold first paint STILL hits the globally pre-warmed immutable edge object.
+    // W/M dating differs from a daily session, so leave d empty there (short cache) rather than
+    // pass a guaranteed mismatch. Gated by _histFirstPaint → inert at PCT=0.
+    if (!_histSealedDate && _histFirstPaint && resolvedTf === 'D' && _cut) {
+      try {
+        const _pv = localStorage.getItem('barspack.version')
+        if (typeof _pv === 'string' && _pv.length === 10 && _pv < _cut) _histSealedDate = _pv
+      } catch { /* ignore */ }
     }
   }
   const histUrl = _histFire
@@ -5013,14 +5084,29 @@ export default function StockChart({
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
     if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
-    if (!cur?.length) return                                       // wait for the tail to establish the series
+    // Fix 2 cold-tail paint: when the /api/bars tail is slow or HUNG (a cold-server long-tail
+    // ticker — XXII/KORU-class microcaps + thin ETFs can stall the tail 20s+), the deep SEALED
+    // history from the edge has already arrived but the chart stayed BLANK because the render +
+    // merge both waited for the tail. Seed idbBars straight from the sealed history so the chart
+    // paints its full past (through the last sealed day) instantly; the [data] effect above then
+    // heals the recent tail + today's live bar when /api/bars finally lands (deeperInIdb keeps the
+    // deep, wins the overlap). idbBars is in the deps, so once the tail establishes idbBars this
+    // re-runs and mergeDelta reconciles. Only reachable via the Fix 2 first-paint histData (gated),
+    // so inert at PCT=0.
+    if (!cur?.length) {
+      idbBarsRef.current = histData.bars
+      setIdbBars(histData.bars)
+      idbPut(sym, resolvedTf, histData.bars)
+      memPut(sym, resolvedTf, histData.bars)
+      return
+    }
     const merged = mergeDelta(histData.bars, cur)
-    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
+    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
     idbBarsRef.current = merged
     setIdbBars(merged)
     idbPut(sym, resolvedTf, merged)
     memPut(sym, resolvedTf, merged)
-  }, [histData])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
@@ -5122,6 +5208,19 @@ export default function StockChart({
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
+  // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
+  // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
+  // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
+  // today-dated tail as "provisional" every weekday after 16:00 ET — would discard that
+  // deep history and truncate the chart to the ~600-bar tail (the exact reason split-fetch
+  // was disabled 2026-09-02: "stops at 2024"). Those gates guard against painting a STALE
+  // cache, but here the fresh data.bars tail heals idbBars on the overlap (server wins),
+  // so staleness is moot. Keep only the CORRECTNESS gates — the ready key, basis match,
+  // and last-bar sanity — because a wrong-basis or corrupt deep history CANNOT be healed
+  // by merging just the recent tail. Split-gated, so split OFF = identical to before.
+  const _splitDeepUsable = _splitOn && idbBars?.length > 0
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !_idbDailyLastInsane && !_idbBasisMismatch
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -5172,8 +5271,11 @@ export default function StockChart({
             // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
-            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
-            : (_idbFresh
+            ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            : ((_idbFresh || (_splitDeepUsable && _fpEdge))
+                // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
+                // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
+                // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
                 ? idbBars
                 : (_netMatches
                     ? data.bars

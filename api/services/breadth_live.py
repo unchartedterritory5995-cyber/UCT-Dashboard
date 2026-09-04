@@ -71,8 +71,10 @@ STORAGE
 
 from __future__ import annotations
 
+import json
 import math
 import os
+import pickle
 import threading
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -1065,6 +1067,96 @@ def _apply_dividend_basis(tickers: list[str], dates: list[int],
         return closes
 
 
+# ── Restart survival: persist the prior-close levels + anchor to disk ───────────
+# The reference levels and the anchor's prior-close breadth are BOTH functions of
+# the last completed session, so they are constant for the whole trading day. A
+# mid-session restart leaves the web bars.db cold — a fresh build then covers a
+# sliver of the universe (e.g. 18 of ~2,600) and the live row goes `degraded`, dead
+# until the 4:15 collector. Persisting a GOOD build to the /data volume (which
+# survives a restart) and reloading it on a cold rebuild lets breadth recover in
+# seconds from that snapshot + live prices, instead of waiting hours for the full
+# universe bars to re-warm. Fail-soft everywhere: any error falls back to the
+# normal (pre-existing) behaviour, so this can only help.
+_LEVELS_PERSIST = os.environ.get("BREADTH_LEVELS_PERSIST", "1") != "0"
+_LEVELS_MIN_COVERAGE = int(os.environ.get("BREADTH_LEVELS_MIN_COVERAGE", "500"))
+
+
+def _snapshot_path(name: str) -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), name)
+
+
+def _levels_coverage(levels: Optional[dict]) -> int:
+    """How many names have a valid 200-SMA — the universe the build actually
+    priced. ~2,600 on a warm build; a sliver on a cold post-restart one."""
+    try:
+        ok = (levels or {}).get("sma_ok", {}).get(200)
+        return int(ok.sum()) if ok is not None else 0
+    except Exception:
+        return 0
+
+
+def _persist_levels(levels: dict) -> None:
+    if not _LEVELS_PERSIST or _levels_coverage(levels) < _LEVELS_MIN_COVERAGE:
+        return
+    try:
+        path = _snapshot_path("breadth_live_levels.pkl")
+        tmp = f"{path}.tmp"
+        with open(tmp, "wb") as f:
+            pickle.dump({"as_of_ts": levels.get("as_of_ts"), "levels": levels},
+                        f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, path)
+    except Exception as e:
+        print(f"[breadth-live] persist levels failed (non-fatal): {e}")
+
+
+def _load_persisted_levels(as_of_ts: int) -> Optional[dict]:
+    """A previously-persisted GOOD levels snapshot for THIS session, or None."""
+    if not _LEVELS_PERSIST:
+        return None
+    try:
+        path = _snapshot_path("breadth_live_levels.pkl")
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            blob = pickle.load(f)
+        if blob.get("as_of_ts") != as_of_ts:   # snapshot is for a different day
+            return None
+        return blob.get("levels")
+    except Exception as e:
+        print(f"[breadth-live] load levels failed (non-fatal): {e}")
+        return None
+
+
+def _persist_anchor(as_of_ts: int, live_prev: dict) -> None:
+    if not _LEVELS_PERSIST or (live_prev.get("universe_count") or 0) < _ANCHOR_MIN_CACHE_UNIVERSE:
+        return
+    try:
+        path = _snapshot_path("breadth_live_anchor.json")
+        tmp = f"{path}.tmp"
+        with open(tmp, "w") as f:
+            json.dump({"as_of_ts": as_of_ts, "live_prev": live_prev}, f)
+        os.replace(tmp, path)
+    except Exception as e:
+        print(f"[breadth-live] persist anchor failed (non-fatal): {e}")
+
+
+def _load_persisted_anchor(as_of_ts: int) -> Optional[dict]:
+    if not _LEVELS_PERSIST:
+        return None
+    try:
+        path = _snapshot_path("breadth_live_anchor.json")
+        if not os.path.exists(path):
+            return None
+        with open(path) as f:
+            blob = json.load(f)
+        if blob.get("as_of_ts") != as_of_ts:
+            return None
+        return blob.get("live_prev")
+    except Exception as e:
+        print(f"[breadth-live] load anchor failed (non-fatal): {e}")
+        return None
+
+
 def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Optional[dict]:
     """Levels as of the last completed session, cached until a new one lands."""
     conn = _bars_conn()
@@ -1097,12 +1189,30 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         dates = _session_dates(conn, as_of_ts, start)
         if len(dates) < 221:
             return None
+
+        # Snapshot-FIRST restart survival: a GOOD levels snapshot for THIS session
+        # is the same prior-close moving averages (constant all day), so load it and
+        # SKIP the heavy 2,600-ticker frame build. After a restart the bars are cold
+        # and that build is both slow AND a sliver; skipping it is what makes recovery
+        # fast (seconds, from snapshot + live prices) instead of a pile-up of slow
+        # cold builds — which is the 524 storm this whole failure produced.
+        disk = _load_persisted_levels(as_of_ts)
+        if disk is not None and _levels_coverage(disk) >= _LEVELS_MIN_COVERAGE:
+            with _levels_lock:
+                _levels_cache["key"] = key
+                _levels_cache["levels"] = disk
+            return disk
+
         closes, volumes = _load_frame(conn, tickers, dates)
         closes = _apply_dividend_basis(tickers, dates, closes, measured_ts)
         levels = build_levels(tickers, closes, volumes, as_of_ts)
         levels["universe_date"] = uni_date
         levels["index"] = build_index_levels(_load_index_series(conn, as_of_ts, start))
         del closes, volumes
+
+        # Persist a GOOD build (coverage >= floor) for the next restart to load; a
+        # cold sliver build writes nothing (never overwrites a good snapshot).
+        _persist_levels(levels)
 
         with _levels_lock:
             _levels_cache["key"] = key
@@ -1179,16 +1289,20 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
                 live_prev = _anchor_cache["value"] if (
                     not force and _anchor_cache.get("key") == key) else None
             if live_prev is None:
-                live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
-                if live_prev is None:
-                    return None
-                # Only cache a PLAUSIBLE build. Right after a restart the web
-                # bars.db can be mid-warm, so `_metrics_at_close` prices a sliver
-                # of the universe (e.g. 25 of ~2,600). Caching that pins a ~0.01
-                # coverage → degraded for the rest of the session (live_prev is
-                # keyed on (as_of_ts, tickers), which don't change intraday). Below
-                # the floor, return the basis for this call but DON'T cache — the
-                # next call rebuilds once the bars finish warming, self-healing.
+                # Snapshot-FIRST: a GOOD anchor persisted earlier this session is the
+                # SAME prior-close breadth (constant all day), so load it and SKIP the
+                # expensive re-pricing. After a restart the bars are cold and that
+                # build is both slow (2,600 tickers) and a sliver — skipping it is what
+                # makes recovery fast instead of a pile-up of slow builds (mirror of
+                # reference_levels). Only when there's no usable snapshot do we build,
+                # and persist a good one for the next restart.
+                live_prev = _load_persisted_anchor(as_of_ts)
+                if live_prev is None or (live_prev.get("universe_count") or 0) < _ANCHOR_MIN_CACHE_UNIVERSE:
+                    live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                    if live_prev is None:
+                        return None
+                    if (live_prev.get("universe_count") or 0) >= _ANCHOR_MIN_CACHE_UNIVERSE:
+                        _persist_anchor(as_of_ts, live_prev)
                 if (live_prev.get("universe_count") or 0) >= _ANCHOR_MIN_CACHE_UNIVERSE:
                     with _anchor_lock:
                         _anchor_cache["key"] = key

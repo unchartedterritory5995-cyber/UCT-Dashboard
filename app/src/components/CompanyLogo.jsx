@@ -4,12 +4,14 @@ import styles from './CompanyLogo.module.css'
 import brandMarkAsset from './intro/assets/compass-mark.png'
 
 const LOGO_ASSET_VERSION = 2   // bump to force browsers past the 7-day immutable cache (e.g. after a resolution upgrade)
-// Retry backoff (ms). Fast first (a cold logo resolves server-side in ~1-2s), then
+// Retry backoff (ms). Fast first (a CDN-fast logo.dev resolve often lands <1s), then
 // LONGER so a transient miss is ridden out: a post-deploy /api blip, backend
 // cold-start, or a page-load burst of many logos in flight. The monogram shows the
 // whole time (never an empty/broken box), so these retries are invisible and the
 // real logo upgrades IN PLACE the moment it resolves — even right after a deploy.
-const RETRY_BACKOFF = [900, 1800, 3200, 6000, 10000, 16000, 24000]   // ~62s total
+// Cold symbols are the rare tail now that the boot prewarmer warms the full universe,
+// so the first retry is quick (500ms) to swap a freshly-resolved logo in fast.
+const RETRY_BACKOFF = [500, 1500, 3200, 6000, 10000, 16000, 24000]   // ~61s total
 
 // Deterministic pleasant background from the symbol (stable across renders).
 function bgFor(sym) {
@@ -18,7 +20,12 @@ function bgFor(sym) {
   return `hsl(${h} 32% 26%)`
 }
 
-export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null, brandMark = false }) {
+// `loading` defaults to 'eager' so an on-screen logo (a watchlist / theme / calendar
+// that renders the instant it opens) fetches immediately instead of the browser
+// DEFERRING it — native lazy-loading was the 1-2s "pop-in" on visible logos. A
+// genuinely long, mostly-off-screen virtualized list can pass loading="lazy" to keep
+// the below-the-fold defer. Logos are tiny + edge-cached, so eager is cheap.
+export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null, brandMark = false, loading = 'eager' }) {
   const s = (sym || '').toUpperCase()
   const [retry, setRetry] = useState(0)
   const [loaded, setLoaded] = useState(false)   // a REAL logo (naturalWidth > 2) has loaded
@@ -48,7 +55,7 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
         {/* scale(1.35) fills the circle: the compass PNG carries transparent margin, so
             even at padding 0 it renders small — the transform enlarges the visible mark. */}
         <img className={styles.imgFill} style={{ opacity: 1, objectFit: 'contain', transform: 'scale(1.35)' }}
-             src={brandMarkAsset} alt="UCT" loading="lazy" />
+             src={brandMarkAsset} alt="UCT" loading={loading} decoding="async" />
       </span>
     )
   }
@@ -88,7 +95,7 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
       </span>
       {s && (
         <img className={styles.imgFill} style={{ opacity: loaded ? 1 : 0 }} src={src}
-             alt={`${s} logo`} loading="lazy" onError={handleError} onLoad={handleLoad} />
+             alt={`${s} logo`} loading={loading} decoding="async" onError={handleError} onLoad={handleLoad} />
       )}
     </span>
   )
