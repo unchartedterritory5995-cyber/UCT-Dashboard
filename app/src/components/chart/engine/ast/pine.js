@@ -110,7 +110,7 @@ import { memberNumber } from './memberValue.js'
  *  the exact token, because "somewhere in your script" is not a refusal a member
  *  can act on. */
 export class PineRefusal extends Error {
-  constructor(guard, message, at, suggest) {
+  constructor(guard, message, at, suggest, span) {
     super(message)
     this.name = 'PineRefusal'
     this.guard = guard
@@ -120,6 +120,8 @@ export class PineRefusal extends Error {
     // shipped. It rides the refusal because the refusal is the only thing the
     // member sees.
     this.suggest = suggest || null
+    /** `[start, end)` source offsets a `suggest` replaces, or null. */
+    this.span = span || null
   }
 }
 
@@ -2381,6 +2383,41 @@ class Cursor {
   }
 }
 
+/** `[from, to)` source offsets covering a parsed node, or null.
+ *
+ *  ⛔ A SPAN IS A CLAIM ABOUT THE MEMBER'S SOURCE. A call reaches its closing
+ *  paren through `endTok`; anything else covers exactly the characters of its own
+ *  token. When neither is knowable this answers null rather than guessing, because
+ *  an offer with a wrong span edits the wrong part of somebody's script. */
+function spanOfNode(node) {
+  if (!node || typeof node !== 'object') return null
+  // A call knows both ends outright.
+  if (node.tok && node.endTok
+      && typeof node.tok.index === 'number' && typeof node.endTok.index === 'number') {
+    return [node.tok.index, node.endTok.index + 1]
+  }
+  // ⛔ EVERYTHING ELSE IS THE UNION OF ITS PARTS. A binary node's own `tok` is
+  // the OPERATOR, so `high - low` would otherwise report the span of `-` and an
+  // offer built on it would replace one character in the middle of the member's
+  // expression. Taking min/max over the children is what makes the span cover
+  // what a reader would call "that subexpression".
+  let lo = Infinity
+  let hi = -Infinity
+  const own = node.tok
+  if (own && typeof own.index === 'number') {
+    lo = Math.min(lo, own.index)
+    hi = Math.max(hi, own.index + String(own.raw ?? own.value ?? '').length)
+  }
+  const visit = (child) => {
+    if (!child || typeof child !== 'object' || !child.type) return
+    const s = spanOfNode(child)
+    if (s) { lo = Math.min(lo, s[0]); hi = Math.max(hi, s[1]) }
+  }
+  visit(node.left); visit(node.right); visit(node.arg)
+  for (const a of (node.args || [])) visit(a && a.value ? a.value : a)
+  return lo !== Infinity && lo < hi ? [lo, hi] : null
+}
+
 const locate = (tok) => (tok
   ? { line: tok.line, column: tok.column, index: tok.index, token: String(tok.raw ?? tok.value) }
   : null)
@@ -2680,7 +2717,15 @@ function parsePrimary(cur) {
     if (isPunct(cur.peek(), '(')) {
       cur.next()
       const args = parseArguments(cur)
-      return { type: 'call', name: tok.value, args, tok }
+      // ⭐⭐ THE CLOSING PAREN, REMEMBERED. `refusalValue` used to ship
+      // `span: null` with a note saying exactly this: "thinkScript's reader
+      // stamps it because its call nodes remember their closing paren; Pine's do
+      // not, so this door can offer the TEXT of a completion but not the PLACE
+      // to put it, and the member retypes it. Giving Pine's call nodes an
+      // `endTok` is the whole of what would change this." This is that.
+      // `parseArguments` consumes through the `)`, so the last token it ate IS
+      // the closing paren — the same way `thinkscript.js::parseCall` gets it.
+      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -3241,6 +3286,10 @@ const MAX_CALL_DEPTH = 24
 class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
+    /** The member's own script, when the caller passed it — an offer quotes
+     *  their text back rather than re-printing a tree, so what lands in the box
+     *  is what they wrote. */
+    this.source = typeof opts.source === 'string' ? opts.source : null
     this.table = table
     this.types = types || new Map()
     this.index = functionIndex(table)
@@ -4300,7 +4349,46 @@ class Resolver {
       || (defined.kind === 'opaque' && defined.isFunction))
   }
 
+  /**
+   * `math.max(<expr>, syminfo.mintick)` — a refusal that can be TAKEN, not retyped.
+   *
+   * ⭐ EARNED BY MEASUREMENT: on a corpus written blind to this engine,
+   * `syminfo.mintick` was the most common blocker, and every one of its nine uses
+   * was this one idiom — a guard against dividing by a zero-range bar. This
+   * engine does not need the guard, because a zero denominator is reported as NOT
+   * COMPUTABLE rather than quietly replaced.
+   *
+   * ⛔ IT IS AN OFFER, NOT A REWRITE, AND THAT IS THE POINT. The two answers
+   * genuinely differ on a zero-range bar — Pine says 0, this engine says nothing —
+   * so the member CONSENTS by taking it. Doing it silently would be the
+   * look-alike this door refuses everywhere else.
+   *
+   * ⚠️ THE REPLACEMENT IS PARENTHESISED. Splicing a bare `high - low` into
+   * `(close - low) / math.max(high - low, syminfo.mintick)` would reassociate the
+   * division and answer a different number — a fix that silently breaks the
+   * expression it repairs.
+   */
+  mintickGuardOffer(node) {
+    if (node.name !== 'math.max' && node.name !== 'max') return null
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const isMintick = (n) => n && n.type === 'name' && n.name === 'syminfo.mintick'
+    const keep = isMintick(args[0].value) ? args[1].value
+      : isMintick(args[1].value) ? args[0].value : null
+    if (!keep) return null
+    const callSpan = spanOfNode(node)
+    const keepSpan = spanOfNode(keep)
+    if (!callSpan || !keepSpan || !this.source) return null
+    const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
+    if (!text) return null
+    return new PineRefusal('pine:builtin',
+      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_RULED['syminfo.mintick']}`,
+      locate(node.tok), `(${text})`, callSpan)
+  }
+
   resolveCall(node) {
+    const offer = this.mintickGuardOffer(node)
+    if (offer) throw offer
     const name = node.name
     const dot = name.indexOf('.')
     const ns = dot > 0 ? name.slice(0, dot) : null
@@ -7091,7 +7179,7 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned })
+      { finalBindings, finalLocals, mutated: reassigned, source })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -7490,7 +7578,7 @@ function verifyRoundTrip(formula, ast) {
 // refusal values
 // --------------------------------------------------------------------------- //
 
-function refusalValue(guard, message, at, suggest) {
+function refusalValue(guard, message, at, suggest, span) {
   return {
     guard,
     message,
@@ -7509,26 +7597,27 @@ function refusalValue(guard, message, at, suggest) {
     // Pine is fully documented — it is that this door had nothing to offer YET.
     suggest: suggest || null,
     /** ⭐ THE CHARACTERS A SUGGESTION WOULD REPLACE, `[from, to)` in the member's
-     *  own source — the key carried here for the same reason `suggest` is, and
-     *  with the same honesty about the value: this door does not name one YET.
+     *  own source. With both this and `suggest`, an offer is a CLICK rather than
+     *  a retype: `src.slice(0, span[0]) + suggest + src.slice(span[1])`.
      *
-     *  ⛔ THAT IS A MISSING CAPABILITY, NOT A PROPERTY OF PINE. thinkScript's
-     *  reader stamps it because its call nodes remember their closing paren
-     *  (`parseCall`); Pine's do not, so this door can offer the text of a
-     *  completion but not the place to put it, and the member retypes it. Giving
-     *  Pine's call nodes an `endTok` is the whole of what would change this.
+     *  ✅ THIS FIELD WAS HARD-NULL AND SAID WHY: "thinkScript's reader stamps it
+     *  because its call nodes remember their closing paren; Pine's do not, so
+     *  this door can offer the text of a completion but not the place to put it
+     *  — giving Pine's call nodes an `endTok` is the whole of what would change
+     *  this." That is done; Pine call nodes carry `endTok` and `spanOfNode`
+     *  turns a node into offsets.
      *
-     *  ⚠️ AND THE KEY IS HERE ANYWAY, because `a key present in one door and
-     *  absent in another is the divergence that contract exists to prevent` —
-     *  the sentence directly above, which this field is now the second instance
-     *  of rather than the first exception to. */
-    span: null,
+     *  ⚠️ STILL NULL WHEREVER A REFUSAL HAS NO NODE TO POINT AT. A span is a
+     *  claim about the member's source, so it is set only where the exact
+     *  characters to replace are known; an offer with a wrong span would edit
+     *  the wrong part of their script, which is worse than making them retype. */
+    span: span || null,
   }
 }
 
 function fromError(err) {
   if (err instanceof PineRefusal) {
-    return refusalValue(err.guard, err.message, err.at, err.suggest)
+    return refusalValue(err.guard, err.message, err.at, err.suggest, err.span)
   }
   return refusalValue('pine:statement',
     `${REFUSALS['pine:statement']} (${err && err.message ? err.message : err})`, null)
