@@ -1134,6 +1134,15 @@ const BUILTIN_CALL_TREE = Object.freeze({
  * hold this" told those authors nothing they could act on.
  */
 const BUILTIN_RULED = Object.freeze({
+  'request.security':
+    "It reads another SYMBOL or another TIMEFRAME, and this engine evaluates one "
+    + 'symbol on one timeframe. That is not a gap in the grammar — the values it '
+    + 'asks for are not a function of the series being screened, so no expression '
+    + 'over these bars can produce them. ⭐ WHAT DOES REACH A HIGHER TIMEFRAME is '
+    + 'the `tf` node: a screen may read a resampled daily or weekly value of THIS '
+    + 'symbol. What has no spelling here is another ticker — a comparison against '
+    + 'SPY, a sector proxy, or a relative-strength line — because that needs a '
+    + 'second feed rather than a wider vocabulary.',
   'syminfo.mintick':
     "It is the symbol's minimum price increment, which differs per symbol and is "
     + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
@@ -1188,7 +1197,14 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'The two line up positionally and answer different numbers, so mapping them would '
     + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
     + 'with the number of BARS you want searched — and note that an occurrence older '
-    + 'than the most recent one has no spelling here at all.',
+    + 'than the most recent one has no spelling here at all. '
+    + '⭐ THE VENDOR SAYS IT IN ITS OWN WORDS, which turns this ruling from ours '
+    + "into the field's: TradingView documents the third argument as the "
+    + 'occurrence of the condition — 0 is the most recent occurrence, 1 is the '
+    + 'second most recent and so forth. Its own example plots '
+    + '`ta.valuewhen(ta.cross(slow, fast), close, 1)` under a comment reading '
+    + '"value of close on the SECOND most recent cross". Ours would read that 1 '
+    + 'as a one-bar window.',
   // ⚰️⚰️ THIS SAID "this engine's ONLY accumulator re-seeds a fixed number of
   // bars back" AND THAT STOPPED BEING TRUE. `cumFrom(source, anchor, window)` is
   // declared in the manifest, implemented in BOTH lanes, carries eight
