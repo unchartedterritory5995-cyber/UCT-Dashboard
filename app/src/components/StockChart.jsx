@@ -1045,6 +1045,36 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
+// On a switch to an intraday name last viewed earlier this session, the stale cache's LAST
+// bar is a FROZEN PARTIAL developing bar from that prior view (understated OHLC/volume at an
+// OLD bucket). Rendered as the rightmost candle it IS the "wrong / one-candle-behind candle
+// that fixes itself." When on, drop that single stale partial from the last-resort provisional
+// paint → the first paint is correct SEALED history (never a misleading last candle); the
+// forced full refetch (already firing because the tail is stale) supplies the correct current
+// tail. No spinner regression, live price keeps ticking. Ship DARK at 0; owner opt-in
+// window.__uctIntradayFirstPaint(true); ramp = the constant. Instant revert = 0 / opt-out.
+export const INTRADAY_FIRST_PAINT_PCT = 0
+export function _correctFirstPaintEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayFirstPaint.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradayFirstPaint.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradayFirstPaint.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_FIRST_PAINT_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayFirstPaint = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradayFirstPaint.enabled', '1')
+      else localStorage.removeItem('uct.intradayFirstPaint.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
 // sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
@@ -5259,8 +5289,14 @@ export default function StockChart({
   // net/mem/agg bars always win above it) AND we FREEZE the live-bar writers while
   // this layer is the one on screen (provisionalStaleRef below), so no phantom
   // developing candle can grow on the stale tail before authoritative bars swap in.
-  const _idbProvisional = (idbStaleIntraday && idbBars?.length
+  const _idbProvisionalRaw = (idbStaleIntraday && idbBars?.length
     && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
+  // Part 2 (gated): drop the single frozen-partial developing tail so the provisional first
+  // paint is never a misleading candle — the forced full refetch fills the correct current tail.
+  // Keep >1 bar (never blank the chart); inert at PCT=0.
+  const _idbProvisional = (_idbProvisionalRaw && _idbProvisionalRaw.length > 1 && _correctFirstPaintEnabled())
+    ? _idbProvisionalRaw.slice(0, -1)
+    : _idbProvisionalRaw
   // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
