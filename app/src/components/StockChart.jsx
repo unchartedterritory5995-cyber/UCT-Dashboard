@@ -10639,7 +10639,17 @@ export default function StockChart({
         // Holding the guard until the aggregate resolves keeps the RTH bars exactly
         // put; the preview candle just appears in the right pad.
         const _sessionSettled = !sessionCandleActive || sessionExtReady
-        if (filteredBars.length === oldBarCount && _sessionSettled) pendingTfReframeRef.current = null
+        // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
+        // renders the stale provisional (ends at the last SEALED period); the developing bar appends
+        // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
+        // is where shiftVisibleRangeOnNewBar + the non-reserved pinned-right net slide the frame one
+        // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
+        // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
+        // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
+        // (userViewMovedRef) still ends the hold so a deliberate scroll is never fought, and off-gate
+        // the reserve is 0 so the release timing is byte-identical to before.
+        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0 && !userViewMovedRef.current
+        if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
         // Width-proportional floor (was a flat -1): LWC-side drift during a
