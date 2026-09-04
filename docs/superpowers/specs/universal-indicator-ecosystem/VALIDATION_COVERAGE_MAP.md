@@ -34,7 +34,7 @@ that hasn't happened.
 | Negative path: unresolved/unknown name (TC2000/PCF) | **4 — End-to-End** | Journey #3: fabricated `FibExtension(...)` correctly refused, exact character position named, Save no-op |
 | Negative paths, broadly (addendum's ~20 named cases) | 0 — Exists (4 of ~20 exercised) | The four cases above; the rest are UNVERIFIED, not assumed similar |
 | Alert creation (`Indicator Alerts` dialog) | 0 — Exists (unverified) | Seen by accident during navigation, never exercised |
-| Plain-language (AI concierge) door | 1 — Unit | `definition_concierge.py` pipeline confirmed in code by the Pine/thinkScript archaeologist; no browser journey |
+| Plain-language (AI concierge) door | 1 — Unit, plus one live negative data point | `CORE_GOLDEN_JOURNEY_04_PLAIN_LANGUAGE.md`: live model round-trip is ENVIRONMENT-BLOCKED (no `ANTHROPIC_API_KEY` in the isolated sandbox); found and confirmed a real, environment-independent bug on the way (RISK-016, bars-cap 400); "interpretation visible"/"compilation is final authority" answered at the code level only (`sentence_for`'s determinism, `/propose` stores nothing) — not live-confirmed |
 | Screenshot (vision) door | 0 — Exists (unverified) | `ImageBox.jsx` confirmed to exist in code; nothing else |
 | Cross-browser | 0 — Exists (unverified) | Chromium only |
 | Mobile/responsive | 0 — Exists (unverified) | Not attempted |
