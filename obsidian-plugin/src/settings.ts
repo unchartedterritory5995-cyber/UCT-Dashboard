@@ -87,10 +87,10 @@ export class UctNotebookSyncSettingTab extends PluginSettingTab {
 			});
 		}
 		if (data.lastSyncError) {
-			const p = containerEl.createEl('p', {
+			containerEl.createEl('p', {
 				text: `Last sync error: ${data.lastSyncError}`,
+				cls: 'uct-notebook-sync-error',
 			});
-			p.style.color = 'var(--text-error)';
 		}
 	}
 

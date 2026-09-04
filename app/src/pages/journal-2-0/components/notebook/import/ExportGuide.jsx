@@ -8,6 +8,25 @@
 // named in .superpowers/sdd/2026-09-02-transfer-gap/task-1-report.md, since a
 // vendor UI can move and this file won't notice.
 //
+// ⛔⛔ The "one-time import, not an ongoing connection" line on Evernote is a
+// DECISION, re-verified 2026-09-04 against Evernote's live developer docs
+// (not inherited from an earlier session's "reopened" conclusion): the
+// hosted MCP server + OAuth Dynamic Client Registration are real and do
+// remove the old manual app-approval queue, but as of that date
+// dev.evernote.com/mcp/faq still reads "It's in beta while we refine it,"
+// is restricted to paid Personal/Business/Teams plans ("Free (Basic)
+// accounts aren't included"), publishes no parameter-level docs for
+// enumerating/cursoring a full note library, and independent reviews
+// (usecarly.com, 2026-07-11) describe it as working only "inside a
+// conversation you start," with "no background syncing... or automatic
+// listing of all notes." None of that resolves the live-probe gate
+// `docs/superpowers/specs/2026-09-01-notebook-migration-program-design.md`
+// §6.1 already required before building a connector — it still needs a
+// real Evernote account this product does not have. See
+// `docs/superpowers/phase-reports/2026-09-04-evernote-decision-and-plugin-readiness.md`
+// for the full evidence trail. Do not silently upgrade this copy to imply a
+// sync connector exists until that probe actually runs and passes.
+//
 // Format picks were made by reading the adapters this feeds
 // (`lib/importer/adapters/{notion,evernote,obsidian}.js`), not guessed:
 //  - Notion: recommend "Markdown & CSV" over "HTML". Both are parsed, but the
@@ -60,7 +79,7 @@ const PLATFORMS = [
     ],
     format: 'Choose ENEX (.enex) — the only format we read, and it\'s Evernote\'s own native one, so nothing is lost.',
     watch:
-      "Evernote exports one notebook at a time, so several notebooks means several .enex files — that's fine, drop them all in together and we treat it as one import. Exporting only works from the desktop app, not the web version.",
+      "Evernote exports one notebook at a time, so several notebooks means several .enex files — that's fine, drop them all in together and we treat it as one import. Exporting only works from the desktop app, not the web version. And this is a one-time import, not an ongoing connection: Evernote has no \"keep syncing automatically\" option here (unlike Notion or Obsidian above) because its platform doesn't yet offer a reliable way to do that — when you add or change notes in Evernote later, just export and drop the file in again.",
   },
 ]
 
