@@ -5185,10 +5185,21 @@ export default function StockChart({
     const ORDER = ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
+    // Rapid-switch flood fix (Phase 3', gated): each switch speculatively warms ALL other TFs
+    // (~8 /api/bars each, many 17-25s COLD for non-pack intraday), and the in-flight fetch was
+    // NOT aborted on switch — the `cancelled` flag only stops the NEXT iteration. So fast scanning
+    // left a pile of 17-25s zombie fetches clogging the ~6 connection slots, queuing the VISIBLE
+    // chart's own fetch behind them (the rapid-switch lag, measured live: 37 fetches / 9 in-flight
+    // from 5 switches). (1) Abort in-flight prefetches on switch → free the slots immediately.
+    // (2) A longer dwell → a fast scan fires ZERO speculative prefetches (only the visible fetch);
+    // settling on a ticker warms the rest.
+    const _smooth = _intradaySmoothSwitchEnabled()
+    const _ac = (_smooth && typeof AbortController !== 'undefined') ? new AbortController() : null
 
     async function runSequential() {
-      // 600ms initial delay so the primary chart's fetch goes out alone first.
-      await new Promise(r => setTimeout(r, 600))
+      // Dwell so the primary chart's fetch goes out alone first; longer under smooth-switch so a
+      // fast scan-through never starts the speculative all-TF chain (cancelled + aborted first).
+      await new Promise(r => setTimeout(r, _smooth ? 1600 : 600))
       if (cancelled) return  // user may have switched tickers during the sleep
       for (const tf of tfs) {
         if (cancelled) return
@@ -5222,7 +5233,7 @@ export default function StockChart({
           // serves — the server checks the cache first); switching to a TF for real is
           // a non-warm fetch that always serves.
           const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
-          const r = await fetch(url)
+          const r = await fetch(url, _ac ? { signal: _ac.signal } : undefined)
           if (cancelled || !r.ok) continue
           const d = await r.json()
           if (cancelled || !d.bars?.length) continue
@@ -5236,7 +5247,7 @@ export default function StockChart({
     }
     runSequential()
 
-    return () => { cancelled = true }
+    return () => { cancelled = true; if (_ac) { try { _ac.abort() } catch { /* ignore */ } } }
   }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
