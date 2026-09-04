@@ -90,15 +90,20 @@ const ACCEPTED = FILES.filter((f) => {
 
 /** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
  *  once the member takes the engine's OWN offer, in a click rather than a retype. */
-const ACCEPT_FLOOR = 26
+const ACCEPT_FLOOR = 27
 
+/** ⭐ 2026-09-04 — 19 → 20 / 26 → 27: OBV AGAINST ITS OWN AVERAGE
+ *  (`pine.obvAverage.test.js`). `obv - sma(obv, n)` is a finite sum of `obvN`
+ *  differences, so the fetch-dependent baseline cancels. The LEVEL is still
+ *  refused and `_functions_excluded.obv` still says so — what became sayable is
+ *  the COMPARISON, exactly as `obv > obv[k]` already was. */
 /** ⭐ 2026-09-04 — 18 → 19 / 25 → 26: the RUN-LENGTH COUNTER identity
  *  (`pine.runLength.test.js`). `var n = 0` + `n := cond ? n + 1 : 0` compared
  *  against a whole number is decided by that many bars, so `pine:state` left this
  *  exam's guard histogram entirely. It widened no vocabulary — a genuine running
  *  total still refuses, and that control is the first test in the new file. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 19
+const FLOOR = 20
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {

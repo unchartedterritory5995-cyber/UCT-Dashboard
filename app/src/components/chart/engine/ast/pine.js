@@ -2477,6 +2477,29 @@ function isBareObv(node) {
   return named === 'ta.obv' || named === 'obv'
 }
 
+/** `ta.sma(ta.obv, n)` — an average of OBV over its OWN window. Returns the
+ *  length NODE (unresolved, because a member writes it as an input as often as a
+ *  literal), or null.
+ *
+ *  ⛔ `ta.ema` IS DELIBERATELY NOT ACCEPTED HERE and the difference is not
+ *  stylistic. `sma` is a FINITE average, so `obv - sma(obv, n)` telescopes into
+ *  n-1 differences and the unknown baseline cancels exactly. An exponential
+ *  average weights every bar back to the first one, so the same subtraction
+ *  leaves an infinite tail — there is no finite tree for it, and truncating one
+ *  would answer a confident wrong number rather than refuse.
+ */
+function smaOfBareObv(node) {
+  if (!node || node.type !== 'call') return null
+  if (node.name !== 'ta.sma' && node.name !== 'sma') return null
+  if (!Array.isArray(node.args) || node.args.length !== 2) return null
+  const [src, len] = node.args
+  // ⚠️ POSITIONAL ONLY — a named argument reaches the ordinary path and its
+  // existing refusal, rather than a second spelling of this rule.
+  if (!src || src.name || !len || len.name) return null
+  if (!isBareObv(src.value)) return null
+  return len.value || null
+}
+
 /** The CONDITION inside a one-argument `barssince(...)`, in either spelling.
  *
  *  ⛔ AN ARGUMENT IS `{name, value, tok}`, NOT THE EXPRESSION ITSELF — the
@@ -2618,6 +2641,12 @@ function signedNum(node) {
  *  that deep is a running total in everything but name. Real scripts ask for
  *  three, five, ten. */
 export const PINE_RUN_LENGTH_MAX = 60
+
+/** ⛔ THE SAME COST IN THE SAME COIN: `obv` against its own n-bar average
+ *  expands to n-1 `obvN` calls. A member asking for a two-hundred-bar average of
+ *  OBV is asking for two hundred subtrees in one column, and past this the rule
+ *  declines and the standing `obv` ruling is what they read. */
+export const PINE_OBV_WINDOW_MAX = 100
 
 function parseExpression(cur, minBp = 0) {
   let left = parseUnary(cur)
@@ -3869,6 +3898,57 @@ class Resolver {
    * the right shape against the wrong env, which yields a confident wrong column
    * instead of a refusal.
    */
+  /**
+   * `obv <cmp> sma(obv, n)` as a bounded tree, or null.
+   *
+   * ⭐⭐ THE BASELINE CANCELS, WHICH IS WHY THIS IS AN IDENTITY AND NOT A
+   * CONVENIENCE. `ta.obv` is cumulative from the first bar with no absolute seed,
+   * so this engine cannot say what it IS — that is `_functions_excluded.obv`, and
+   * it stands. But it can say how much OBV has CHANGED over k bars, which is
+   * `obvN(k)`, and an average of OBV over its own window is made only of such
+   * changes:
+   *
+   *     obv - sma(obv, n) = (1/n) · Σ(i=0..n-1) (obv - obv[i])
+   *                       = (1/n) · Σ(i=1..n-1) obvN(i)
+   *
+   * The i=0 term is zero, and every surviving term is a DIFFERENCE, so whatever
+   * the unknown baseline is it appears on both sides and disappears. n > 0, so
+   * multiplying through by n cannot flip the comparison and the tree is simply
+   *
+   *     Σ(i=1..n-1) obvN(i)   <cmp>   0
+   *
+   * ⛔ VERIFIED AGAINST AN ARBITRARY BASELINE rather than argued: the rails run
+   * the comparison over synthetic OBV series seeded at 0, at a million and at a
+   * negative number, and require the same answer on every bar of all three.
+   *
+   * ⚠️ n = 1 IS DECLINED. `sma(obv, 1)` is `obv`, so the comparison is a constant
+   * — there is no conjunction to build and nothing worth answering.
+   */
+  boundedObvAgainstOwnAverage(node) {
+    let { op, left, right } = node
+    if (!own(FLIP, op)) return null
+    if (!isBareObv(left)) {
+      // ⭐ EITHER ORDER: `sma(obv, 10) > obv` is the same screen written the
+      // other way round.
+      if (!isBareObv(right)) return null
+      const swap = left; left = right; right = swap
+      op = FLIP[op]
+    }
+    const lenNode = smaOfBareObv(right)
+    if (!lenNode) return null
+    const n = this.constIntOf(lenNode)
+    if (n === null || n < 2 || n > PINE_OBV_WINDOW_MAX) return null
+    const tableOp = PINE_OP_TO_TABLE[op]
+    if (!tableOp || !own(this.table.operators, tableOp)) return null
+    if (!own(this.table.functions, 'obvN')) return null
+    let sum = null
+    for (let i = 1; i < n; i++) {
+      const term = cCall('obvN', [cNum(i)])
+      sum = sum === null ? term : cOp('+', [sum, term])
+    }
+    return cOp(tableOp, [sum, cNum(0)])
+  }
+
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
   stateBindingOf(node) {
     if (!node || node.type !== 'name') return null
@@ -4085,6 +4165,12 @@ class Resolver {
         // the state this engine cannot hold is state the comparison never reads.
         const viaRun = this.boundedRunLengthThroughBinding(node)
         if (viaRun) return viaRun
+        // ⭐⭐ …AND OBV AGAINST ITS OWN AVERAGE IS BOUNDED FOR THE SAME REASON
+        // `obv > obv[k]` is: the comparison is made of DIFFERENCES, so the
+        // baseline this engine cannot know cancels. See
+        // `boundedObvAgainstOwnAverage`.
+        const viaObvAvg = this.boundedObvAgainstOwnAverage(node)
+        if (viaObvAvg) return viaObvAvg
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.
