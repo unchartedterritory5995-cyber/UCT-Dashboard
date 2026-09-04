@@ -165,6 +165,33 @@ function _etDateOfUnix(unixSec) {
  * >1-bucket contiguity guard + provisionalStaleRef): "fresh for prior sessions" only
  * authorizes PAINTING the tail + filling today, never fusing a live tick onto it.
  */
+// ── Intraday integrity Phase 1 — session-completeness gate (dark canary) ──────
+// The completeness check below (a tail on the last-closed-session date must REACH
+// that session's close, not just carry its date) rides this gate so it can be
+// verified on prod then ramped, exactly like the daily edge fixes. At PCT=0 with no
+// opt-in, isIntradayTailStale is byte-identical to before. Owner opt-in for testing:
+// window.__uctIntradayComplete(true). Instant revert: set PCT to 0 / opt-out.
+export const INTRADAY_COMPLETENESS_PCT = 0
+export function _intradayCompletenessOn() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayComplete.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    let b = localStorage.getItem('uct.intradayComplete.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradayComplete.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_COMPLETENESS_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayComplete = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradayComplete.enabled', '1')
+      else localStorage.removeItem('uct.intradayComplete.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
 export function isIntradayTailStale(lastTUnixSec, tf) {
   if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return true
   const tailDate = _etDateOfUnix(lastTUnixSec)
@@ -174,5 +201,21 @@ export function isIntradayTailStale(lastTUnixSec, tf) {
     const tfSec = Math.max(60, (Number(tf) || 5) * 60)
     return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180)
   }
-  return false                                       // tail == last closed session → fresh
+  // tailDate == expected → a CLOSED session BY DEFINITION (expected is the last closed
+  // session). The date-only check treated ANY tail on that date as fresh — so a cache
+  // written mid-session (e.g. a 13:30 bar, then the market closed) read as fresh and the
+  // client only ever since-polled it, never backfilling 13:30→close: the "missing the last
+  // hours of the day on first open after close" bug. A truly-fresh tail must REACH the
+  // session close. Last RTH bucket START by tf: 5m→15:55, 15m→15:45, 30m→15:30, 60m→15:00
+  // (all = 16:00 − one bar) → "reached close" == tailMin >= 960 − tf-minutes. An earlier tail
+  // is an incomplete session → stale → forces a FULL no-since refetch that REPLACES the
+  // truncated series (a since= delta cannot reliably backfill it). Post-market / RTH-complete
+  // tails (tailMin ≥ last RTH bucket) stay fresh; the since-poll appends any newer post bars.
+  if (_intradayCompletenessOn()) {
+    const tfMin = Math.max(1, Number(tf) || 5)
+    const tailD = new Date(new Date(lastTUnixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
+    if (tailMin < 960 - tfMin) return true           // incomplete closed session → refetch
+  }
+  return false                                       // tail == last closed session, complete → fresh
 }

@@ -1015,6 +1015,66 @@ export function setFirstPaintEdgeEnabled(on) {
 }
 if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdgeEnabled
 
+// ── Intraday smooth-switch (Phase 3', dark canary) ──────────────────────────
+// Daily switches are smooth (one deep first paint, one anchor). Intraday switches jank
+// because the dwell-warm auto-grows the rendered series 600 → 20-32k bars ~900ms after
+// every switch, forcing a SECOND repaint + re-anchor (the view nudge + crosshair skitter,
+// while you're just scanning recent price). When on, intraday does NOT auto-deep-bump on a
+// switch — it stays a single stable 600-bar paint; deep history still loads on PAN (the
+// pan-backfill), where a re-anchor is natural and expected. Daily is untouched (its dwell is
+// already a no-op — _deepFirstPaint loaded full up front). Ship DARK at 0; owner opt-in
+// window.__uctIntradaySmooth(true); ramp = the constant. Instant revert = 0 / opt-out.
+export const INTRADAY_SMOOTH_SWITCH_PCT = 0
+export function _intradaySmoothSwitchEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradaySmooth.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradaySmooth.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradaySmooth.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_SMOOTH_SWITCH_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradaySmooth = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradaySmooth.enabled', '1')
+      else localStorage.removeItem('uct.intradaySmooth.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
+// On a switch to an intraday name last viewed earlier this session, the stale cache's LAST
+// bar is a FROZEN PARTIAL developing bar from that prior view (understated OHLC/volume at an
+// OLD bucket). Rendered as the rightmost candle it IS the "wrong / one-candle-behind candle
+// that fixes itself." When on, drop that single stale partial from the last-resort provisional
+// paint → the first paint is correct SEALED history (never a misleading last candle); the
+// forced full refetch (already firing because the tail is stale) supplies the correct current
+// tail. No spinner regression, live price keeps ticking. Ship DARK at 0; owner opt-in
+// window.__uctIntradayFirstPaint(true); ramp = the constant. Instant revert = 0 / opt-out.
+export const INTRADAY_FIRST_PAINT_PCT = 0
+export function _correctFirstPaintEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayFirstPaint.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradayFirstPaint.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradayFirstPaint.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_FIRST_PAINT_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayFirstPaint = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradayFirstPaint.enabled', '1')
+      else localStorage.removeItem('uct.intradayFirstPaint.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
 // sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
@@ -5229,8 +5289,14 @@ export default function StockChart({
   // net/mem/agg bars always win above it) AND we FREEZE the live-bar writers while
   // this layer is the one on screen (provisionalStaleRef below), so no phantom
   // developing candle can grow on the stale tail before authoritative bars swap in.
-  const _idbProvisional = (idbStaleIntraday && idbBars?.length
+  const _idbProvisionalRaw = (idbStaleIntraday && idbBars?.length
     && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
+  // Part 2 (gated): drop the single frozen-partial developing tail so the provisional first
+  // paint is never a misleading candle — the forced full refetch fills the correct current tail.
+  // Keep >1 bar (never blank the chart); inert at PCT=0.
+  const _idbProvisional = (_idbProvisionalRaw && _idbProvisionalRaw.length > 1 && _correctFirstPaintEnabled())
+    ? _idbProvisionalRaw.slice(0, -1)
+    : _idbProvisionalRaw
   // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
@@ -13540,9 +13606,14 @@ export default function StockChart({
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
+    // Phase 3' intraday smooth-switch (gated): don't auto-deep-bump an intraday chart on a
+    // switch — that 600→20-32k grow is the second repaint/re-anchor that janks scanning (view
+    // nudge + crosshair skitter). Deep history still loads on PAN (the pan-backfill above),
+    // where a re-anchor is natural. D/W/M keep the dwell (a no-op for daily anyway). Inert at PCT=0.
+    if (isIntraday && _intradaySmoothSwitchEnabled()) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
