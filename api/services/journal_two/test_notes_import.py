@@ -594,3 +594,139 @@ def test_save_note_attachment_stores_and_caps(conn, tmp_path, monkeypatch):
     with pytest.raises(notes_svc.NoteValidationError):
         asyncio.run(notes_svc.save_note_attachment("u1", note["id"],
                     _FakeUpload(b"x" * (notes_svc._MAX_FILE_BYTES + 1))))
+
+
+# ── 2026-09-04 adversarial gate: the COUNT regime, proven END-TO-END ────────
+#
+# The existing 5,000-key regression test (above) only proves `import_check`'s
+# key-membership lookup doesn't truncate. It never actually CREATES more than
+# 5,000 notes and never re-imports them — so it says nothing about whether
+# `import_confirm`'s upsert-by-fingerprint logic (a completely different code
+# path, keyed on `import_key`, not on request size) still resolves correctly
+# once a real library has grown past that boundary. This test builds a real
+# 5,300-note library through the exact multi-batch shape the frontend uses
+# (chunked confirm calls, same as `commit.js`'s CONFIRM_BATCH_SIZE loop),
+# re-imports the WHOLE thing with two notes edited (one just past the old
+# 5,000 cutoff, one at the very end), and proves nothing on either side of
+# that boundary duplicates.
+_SCALE_N = 5300
+_SCALE_BATCH = 500
+
+
+def _scale_notes(mutate_indices=frozenset()):
+    out = []
+    for i in range(_SCALE_N):
+        text = f"EDITED content for note {i}" if i in mutate_indices else f"content for note {i}"
+        out.append({
+            "importKey": f"lib:{i}", "title": f"Note {i}",
+            "bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": text}]}]},
+            "tags": [], "folderPath": ["Imported"],
+            "createdAt": "2024-01-01T00:00:00Z", "updatedAt": "2024-01-01T00:00:00Z",
+        })
+    return out
+
+
+def test_import_confirm_at_scale_past_5000_notes_reimport_updates_not_duplicates(conn):
+    first_pass = _scale_notes()
+    ids_by_key = {}
+    for i in range(0, _SCALE_N, _SCALE_BATCH):
+        chunk = first_pass[i:i + _SCALE_BATCH]
+        r = notes_svc.import_confirm(
+            "u1", {"source": "file", "destFolderId": None, "notes": chunk}, conn=conn)
+        assert r["failed"] == [], r["failed"]
+        assert len(r["created"]) == len(chunk)
+        for item in r["created"]:
+            ids_by_key[item["importKey"]] = item["id"]
+
+    total = conn.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id='u1'").fetchone()[0]
+    assert total == _SCALE_N
+
+    # import_check across every key in the library, spanning the old 5,000
+    # cutoff, must report every one existing -- never truncated.
+    all_keys = [f"lib:{i}" for i in range(_SCALE_N)]
+    check = notes_svc.import_check("u1", all_keys, conn=conn)
+    assert check["truncated"] is not True
+    assert check["checked"] == _SCALE_N
+    assert len(check["existing"]) == _SCALE_N
+    assert "lib:5299" in check["existing"], (
+        "a key past the old [:5000] cutoff was not reported as existing at "
+        "import_check time"
+    )
+    assert check["existing"]["lib:5299"]["id"] == ids_by_key["lib:5299"]
+
+    # Re-import the SAME library, unmodified except two edits: one just past
+    # the old 5,000 cutoff (5001) and one at the very tail (5299).
+    mutate = {5001, 5299}
+    second_pass = _scale_notes(mutate)
+    for i in range(0, _SCALE_N, _SCALE_BATCH):
+        chunk = second_pass[i:i + _SCALE_BATCH]
+        chunk_keys = {n["importKey"] for n in chunk}
+        r = notes_svc.import_confirm(
+            "u1", {"source": "file", "destFolderId": None, "notes": chunk}, conn=conn)
+        assert r["failed"] == [], r["failed"]
+        created_keys = {n["importKey"] for n in r["created"]}
+        updated_keys = {n["importKey"] for n in r["updated"]}
+        skipped_keys = {n["importKey"] for n in r["skipped"]}
+        assert created_keys == set(), (
+            f"re-import DUPLICATED instead of updating: {created_keys} came "
+            "back as brand-new creates for import keys that already existed"
+        )
+        expected_updated = {f"lib:{i}" for i in mutate} & chunk_keys
+        assert updated_keys == expected_updated
+        assert skipped_keys == chunk_keys - expected_updated
+
+    # The two edited notes were genuinely UPDATED in place (same id, new
+    # body) -- not deleted and recreated under a fresh id.
+    note_5001 = notes_svc.get_note("u1", ids_by_key["lib:5001"], conn=conn)
+    assert "EDITED" in note_5001["bodyJson"]["content"][0]["content"][0]["text"]
+    note_5299 = notes_svc.get_note("u1", ids_by_key["lib:5299"], conn=conn)
+    assert "EDITED" in note_5299["bodyJson"]["content"][0]["content"][0]["text"]
+
+    total_after = conn.execute("SELECT COUNT(*) FROM j2_notes WHERE user_id='u1'").fetchone()[0]
+    assert total_after == _SCALE_N, (
+        f"expected {_SCALE_N} notes after re-import, found {total_after} -- "
+        "the re-import duplicated rows instead of updating/skipping them"
+    )
+
+
+# ── Pathological titles ─────────────────────────────────────────────────────
+# Real exports produce titles with colons/slashes (legal in an H1-extracted
+# title even though neither can appear in a filesystem PATH SEGMENT), full
+# unicode, and titles far longer than any UI affordance. None of these are
+# ever used as a path component (import_key is derived from the source
+# FILE PATH, never from title) -- the only real risk is truncation/mangling,
+# plus a malformed (non-string) title must isolate like any other bad note.
+
+def test_import_confirm_handles_pathological_titles_without_corrupting_siblings(conn):
+    long_title = "A" * 500
+    unicode_title = '复盘: 2024/03 交易日志 — "盘整" review 📈🚀'
+    payload = {"source": "file", "destFolderId": None, "notes": [
+        {"importKey": "x:colon", "title": "AAPL: the thesis",
+         "bodyJson": {"type": "doc", "content": []}, "tags": [], "folderPath": []},
+        {"importKey": "x:slash", "title": "Q1/Q2 comparison",
+         "bodyJson": {"type": "doc", "content": []}, "tags": [], "folderPath": []},
+        {"importKey": "x:unicode", "title": unicode_title,
+         "bodyJson": {"type": "doc", "content": []}, "tags": [], "folderPath": []},
+        {"importKey": "x:long", "title": long_title,
+         "bodyJson": {"type": "doc", "content": []}, "tags": [], "folderPath": []},
+        # malformed: a non-string title. Truthy, so it clears the `or
+        # "Untitled"` guard, then `.strip()` raises on an int -- must be
+        # isolated via `failed`, not crash the whole batch.
+        {"importKey": "x:bad-title", "title": 12345,
+         "bodyJson": {"type": "doc", "content": []}, "tags": [], "folderPath": []},
+    ]}
+    r = notes_svc.import_confirm("u1", payload, conn=conn)
+    created = {n["importKey"]: n["id"] for n in r["created"]}
+    assert {"x:colon", "x:slash", "x:unicode", "x:long"} <= created.keys(), (
+        f"a healthy pathological-title note failed to import: {r['failed']}"
+    )
+    assert notes_svc.get_note("u1", created["x:colon"], conn=conn)["title"] == "AAPL: the thesis"
+    assert notes_svc.get_note("u1", created["x:slash"], conn=conn)["title"] == "Q1/Q2 comparison"
+    assert notes_svc.get_note("u1", created["x:unicode"], conn=conn)["title"] == unicode_title
+    stored_long = notes_svc.get_note("u1", created["x:long"], conn=conn)["title"]
+    assert len(stored_long) == notes_svc.MAX_TITLE_CHARS
+    assert stored_long == long_title[:notes_svc.MAX_TITLE_CHARS]
+    # The malformed title is isolated -- named by importKey, not silently
+    # dropped and not aborting its healthy siblings above.
+    assert any(f["importKey"] == "x:bad-title" for f in r["failed"]), r["failed"]
