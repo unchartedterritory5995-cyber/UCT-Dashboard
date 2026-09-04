@@ -6,6 +6,23 @@ not mean it gets fixed in Phase Zero; per the Phase Zero authorization, only sma
 independently-testable, non-disruptive fixes are in scope now. Everything else is logged for the phased
 build plan or the owner decision queue.
 
+## General principle: Stale Documentation (recorded once, not fixed here)
+
+Distinct from any single stale-doc instance below (RISK-007, RISK-015): this program has now observed the
+same pattern **three separate times** across this one investigation — the 7/31 Indicator Platform design
+doc (roadmap table never updated past Phase D, despite Phase E having shipped under a separate spec),
+`CLAUDE.md` itself (the repo's primary onboarding doc, naming a file deleted three weeks earlier), and this
+program's own prior condensed notes about the `PUT /{def_id}` edit route (found, on direct re-read, to be
+stale relative to a docstring-documented recent fix — see `SCREENER_PRESERVATION_BASELINE.md`). **The
+general lesson**: design docs and even compressed research notes go stale within weeks in an actively-
+developed codebase, and a reader (human or agent) trusting one without cross-checking current code will be
+materially wrong some real fraction of the time. This is not itself a fix-now item — Phase Zero's authorized
+scope is discovery, not documentation hygiene — but it is worth recording as a standing principle for this
+program and any future one like it: **prefer current code and live-run evidence over any design doc's prose
+claims, always cross-check a doc's load-bearing specifics before relying on them, and consider recommending
+generated (not hand-maintained) documentation for anything that needs to stay current** — a recommendation
+for a later phase, not an instruction to rewrite every stale doc in this one.
+
 | ID | Risk | Likelihood | Severity | Detection | Mitigation | Owner |
 |---|---|---|---|---|---|---|
 | RISK-001 | Two unrelated features both named "Confluence" (`api/services/signature/confluence.py`'s unwired `dpc-v1` prototype vs. the shipped `Confluence.jsx`/`confluence_screen.py` screener board). A future agent or engineer could edit the wrong one, or assume they're related when they share no code. | Medium (this session already nearly conflated them) | S3 — degraded/confusing, not currently broken | Code review / grep for "confluence" turns up both immediately once looked for | Rename one (`dpc-v1`'s file/module is the newer, unwired, lower-stakes one) or add explicit cross-referencing docstrings on both | Owner decision — touches shipped code, not resolved in Phase Zero |

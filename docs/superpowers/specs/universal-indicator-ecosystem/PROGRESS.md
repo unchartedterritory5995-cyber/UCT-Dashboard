@@ -150,26 +150,53 @@ Full findings folded into `CURRENT_ARCHITECTURE.md`'s new "Screener / Scanner sy
 - 101/101 targeted tests passed live; all three investigated worktrees/branches confirmed fully merged.
 - `VALIDATION_COVERAGE_MAP.md` extended with 4 new rows for the screener system.
 
-## Not yet started (second-wave candidates, remaining)
+## Wave three: DONE — P1-P6 (all five Golden Journeys, Tracks B/C/D/E)
 
-Ranked by what's actually been surfaced so far:
+All six of the user's numbered priorities from the most recent Phase Zero instruction have now landed:
 
-1. **RISK-015 fix** (CLAUDE.md staleness) — small, mechanical, candidate for a quick doc-hygiene pass.
-2. **RISK-003 production verification** — is the 8/31 scan-hits staleness issue actually resolved live,
-   not just in the diff.
-3. **RISK-012 fix** (double-save duplicate) and **RISK-013 investigation** (input fidelity) — small,
-   well-scoped candidates for a future build phase, not Phase Zero.
-4. Data provider / market-data contract audit (master-prompt §25) — gates the later intraday/Run-Now
-   question (MP-020).
-5. Existing test-suite credibility assessment (addendum §14) — now has real material to work with (the
-   red findings from wave one and wave two #1, plus whatever else surfaces).
-6. Telemetry/observability current-state audit (master-prompt §27, §37) — unknown whether this repo's
-   evident love of self-documenting test files extends to production telemetry.
-7. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
+- **P1 — Core Golden Journeys #2-#5, all done**, joining CGJ#1: `CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md`,
+  `_03_TC2000_PCF_IMPORT.md`, `_04_PLAIN_LANGUAGE.md`, `_05_SCREENSHOT_VISION.md`. Headlines: the numeric-
+  vs-boolean screener gate confirmed door-agnostic across three source languages; a genuinely useful
+  divergence found and explained (TC2000/PCF's AND-of-comparisons artifact correctly accepted as a screen
+  without needing its own optional threshold helper); two real bugs found (RISK-016, shared by both AI
+  doors) and honestly distinguished from one clean, well-designed environment block (screenshot door's
+  `INDICATOR_VISION_ENABLED` flag-off, refused in-words through the documented contract) — collapsing both
+  into "AI doors blocked" would have lost that distinction.
+- **P2 — Screener preservation baseline, done**: `SCREENER_PRESERVATION_BASELINE.md`. Terminology
+  confirmed final; two real, previously-uncaught defects found (RISK-024 unwired `scan_store.prune()`,
+  RISK-025 dangling scan-definition references in alert subscriptions); one earlier internal claim about
+  the edit route corrected after direct re-verification rather than carried forward.
+- **P3 — RISK-003 production verification, done** (prior to this wave) — classified PRODUCTION-UNVERIFIED
+  with full Railway-check evidence and a precise statement of what further evidence would resolve it.
+- **P4 — Data/timeframe/execution audit, done**: `DATA_EXECUTION_FINDINGS.md`. Three "live" scanning-
+  adjacent systems disambiguated; the nightly-only boundary broken into 6 policy-vs-limitation buckets;
+  RISK-017 (on-demand door has no code-level intraday-tf refusal) found.
+- **P5/P6 — Test credibility + telemetry audit, done**: `TEST_CREDIBILITY_FINDINGS.md`,
+  `TELEMETRY_OBSERVABILITY_FINDINGS.md`. Lead finding: dual-kernel/golden-fixture agreement is self-
+  consistency, not vendor parity (RISK-018) — and this exact failure mode has already shipped to
+  production twice on the screener side, independently (RISK-019 `rsi14`/Cutler-under-Wilder, RISK-020
+  doji/zero-range-bar). Pattern-engine narrative fabrication found in 8 detectors, fixed the day before this
+  audit, ~90+ detectors not yet swept the same way (RISK-021). Telemetry as the master prompt defines it
+  does not exist on the interactive path (RISK-023), but two already-live storage precedents make closing
+  that gap cheaper than it looks.
+- **General finding recorded**: the "design docs go stale within weeks" pattern, now observed a third and
+  fourth time (7/31 doc, `CLAUDE.md`, and this program's own compressed notes about the edit route) —
+  logged as a standing principle in `RISK_REGISTER.md`, not a fix-now item.
+
+`RISK_REGISTER.md` now carries 25 entries total. `VALIDATION_COVERAGE_MAP.md` updated throughout with only
+earned levels — see that file for the current per-subsystem picture.
+
+## Not yet started
+
+1. **The full 21-section ChatGPT Review Packet** — both explicit gates (remaining Golden Journeys, data/
+   execution audit) are now satisfied; this is the next and final item for this wave.
+2. Everything logged in `RISK_REGISTER.md` as "not fixed in Phase Zero" remains exactly that — 25 entries,
+   none actioned beyond what the Phase Zero authorization allows (small, obviously-low-risk, independently-
+   testable, non-disruptive fixes only, and none of the entries above qualified).
+3. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
    ordering; holding.
-8. More Core Golden Journeys (addendum §4) — thinkScript, TC2000/PCF, plain-language, screenshot doors;
-   editing a saved artifact; more negative-path cases; an actual observed nightly-sweep execution.
-   `VALIDATION_COVERAGE_MAP.md` now exists and shows exactly which rows these would fill in.
+4. RISK-018's populate-the-vendor-observations recommendation — the single highest-leverage open item this
+   program has found, per `TEST_CREDIBILITY_FINDINGS.md` — is a build-phase candidate, not attempted here.
 
 ## Artifacts in this folder so far
 
@@ -179,9 +206,11 @@ Ranked by what's actually been surfaced so far:
 - `REQUIREMENTS_LEDGER.md` (120 rows), `CONSTRAINT_LEDGER.md` (19 entries) — done.
 - `BENCHMARK_REPRODUCTION.md` — live-measured numbers, done.
 - `CURRENT_ARCHITECTURE.md` — wave-one synthesis, done (translation-layer corner only — see its own scope note).
-- `RISK_REGISTER.md` — 14 real risks logged (10 from wave one, 4 from Core Golden Journey #1).
-- `CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md` — first real browser-verified E2E pass, done.
-- `VALIDATION_COVERAGE_MAP.md` — first real, evidence-cited version, done (translation-layer corner only).
+- `RISK_REGISTER.md` — 25 real risks logged, plus one standing general principle (stale documentation).
+- `CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md` through `_05_SCREENSHOT_VISION.md` — all five Golden Journeys, done.
+- `VALIDATION_COVERAGE_MAP.md` — evidence-cited, updated through all five journeys and both audit tracks.
+- `SCREENER_PRESERVATION_BASELINE.md`, `DATA_EXECUTION_FINDINGS.md`, `TEST_CREDIBILITY_FINDINGS.md`,
+  `TELEMETRY_OBSERVABILITY_FINDINGS.md` — the four Track B/C/E synthesis documents, done.
 
 ## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 
