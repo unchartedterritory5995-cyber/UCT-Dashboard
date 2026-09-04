@@ -1,12 +1,24 @@
 # Current Architecture — Indicator/Screener/Translation Layer
 
-Synthesis of three wave-one findings (2026-09-04): the Pine/thinkScript Translation Layer
-Archaeologist, the Indicator Platform Program Archaeologist, and this program's own live
-`BENCHMARK_REPRODUCTION.md`. Satisfies master-prompt §89.C. **Scope note:** this covers the
-compiler/engine/translation corner of the ecosystem in depth. It does NOT yet cover: data-provider
-architecture, job orchestration, observability/telemetry, security threat-modeling, the frontend
-design system broadly, or the Custom-Screens/Full-Market-Screener line of work (6/19 design doc,
-`feat/screener-deep-work`) — those are second-wave items, see `PROGRESS.md`.
+Synthesis of wave-one findings, Core Golden Journey #1, and wave-two #2 (all 2026-09-04): the
+Pine/thinkScript Translation Layer Archaeologist, the Indicator Platform Program Archaeologist, this
+program's own live `BENCHMARK_REPRODUCTION.md`, a real browser E2E pass
+(`CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md`), and the Screener/"Custom Screens" Archaeologist. Satisfies
+master-prompt §89.C. **Scope note:** covers the compiler/engine/translation layer AND the screener/scanner
+system in depth. Still does NOT cover: data-provider architecture, job orchestration,
+observability/telemetry, security threat-modeling, or the frontend design system broadly — those remain
+later-wave items, see `PROGRESS.md`.
+
+**A pattern worth naming explicitly, now confirmed a third time:** this codebase's design docs go stale
+within weeks of being approved, reliably. The 7/31 Indicator Platform doc went stale at Phase D (real work
+continued to Phase E under a separate 8/8 doc). The 2026-06-19 Full-Market-Screener doc went stale the
+same way (superseded by an 8/21 "screener-deep-work" doc and an 8/30 base-structure-library doc). And now
+**`CLAUDE.md` itself — the file every session, including this one, reads first — was found to carry a
+stale, twice-superseded claim** (see "Screener/Scanner system" below). None of these are isolated
+incidents; they're the same failure shape recurring across every substantial epic examined so far. The
+operating conclusion for the rest of this program: **treat every doc, including this repo's own onboarding
+file, as a lead to verify against current code and tests — never as authoritative on its own** — which is
+CL-008 applied reflexively one level further than originally scoped.
 
 **Correction to the baseline:** DEC-001 named the 7/31 design doc as (part of) the program baseline.
 Archaeology found that document's own roadmap table was meticulously maintained through Phase D
@@ -98,17 +110,74 @@ the "translation ≠ delivery" failure mode (master-prompt §36).
 2. **`confluence.py`'s `dpc-v1` remains built, tested, gated, and unreachable by any user.** Its own
    docstring reportedly sketches a scan-shaped follow-up. Whether to finish wiring it or formally retire
    it is a real product decision — logged in `RISK_REGISTER.md`, not decided here.
+3. **`CLAUDE.md` itself carries a stale, twice-superseded claim.** It states `app/src/components/screener/
+   SavedScreensPanel.jsx` wires the AST-scan system's results into the Scanner UI. That file was deleted
+   2026-08-22 (screener wave 4) and replaced by `ScreensManager.jsx`/`scanSession.js`/`ScanResults.jsx`.
+   CLAUDE.md's own surrounding prose was originally *correcting* an even older false claim ("E-4 has not
+   wired a surface to these results") — the code has since been fixed correctly a second time, and
+   CLAUDE.md never caught up. Logged as RISK-015: not fixed here (small, mechanical, but touches the
+   repo's primary onboarding doc — flagged for the owner/doc-hygiene pass).
+
+## Screener / Scanner system (added by wave-two #2 archaeology)
+
+**"Custom Screens" is not this repo's term for anything** — it appears only in the master prompt and this
+program's own derivative docs. The repo's real, evidenced vocabulary is layered and historically distinct:
+"Scanner Hub" (the original `/screener` page name) → "Custom Scan" (one now-retired tab inside it,
+confirmed absorbed per the 6/19 doc) → "Saved Screens" (the DB-table-level concept) → today, simply
+**"Screens"** (the `ScreensManager.jsx` dropdown) inside a page whose own `<h1>` still reads "Screener."
+Use "Screener"/"Scanner"/"Screens" in any future capability matrix, never "Custom Screens" verbatim.
+
+**Today's shape is more unified than either the 6/19 design or an 8/21 intermediate doc described** — the
+system count here has genuinely changed twice as the codebase evolved, not just been described
+inconsistently:
+- One page, one shell (`ScannerShell.jsx`), replacing the old three-tab Scanner Hub. Per `Screener.jsx`'s
+  own header: *"THIS PAGE IS THE SCANNER NOW... Candidate Board... and Live Scan retired 2026-08-29."*
+  (Matches memory's `project_live_scan_retirement`/`project_patterns_page_retirement` — independently
+  confirmed against current code, not just recalled.) The underlying 7 AM scanner feed (`candidates.json`)
+  is untouched — only its dedicated `/screener` tab was removed; it still feeds Morning Wire and other
+  consumers.
+- **Two backend evaluation mechanisms, deliberately joined, not merely coexisting side by side:** the
+  Finviz-style nightly-snapshot query (`/data/screener.db`, built 3:00 AM ET daily, `SCREENER_SNAPSHOT_
+  ENABLED` on by default) and the AST-definition nightly-scan sweep (the one this program's own Core
+  Golden Journey exercised) are joined into one filter category (`my_scans`) by an explicit, recorded
+  owner decision ("unify formula scans into the Scanner, join-only this round" — 8/21 doc, overturning an
+  earlier "keep them separate" call on freshness-disclosure grounds). A dedicated, passing test
+  (`test_never_swept_hash_is_INERT_and_disclosed_not_a_silent_universe`) enforces the same "Honest-None"
+  behavior this program's own Core Golden Journey observed live in the browser ("first sweep tonight," not
+  a silent zero) — independent confirmation, from two different angles, of the same correct behavior.
+- **Three separate, real, tiered pattern/structure systems**, not aliases of each other: the original
+  `pattern_engine` (85 detectors, feeds charts + Compass + the Patterns filter), an old 6-detector cheap
+  heuristic (confirmed **deleted** from current code), and the new Base & Structure Library
+  (`base_catalog.py`, 5,598 lines; `lift_ledger.py`, a statistics-gated "publish lift, never a raw hit
+  rate" evidence layer with a phase-randomized null test) — matching memory's own prior finding that this
+  library's own gates killed rows that "beat baseline and lost money." The "Structure library" button seen
+  live during Core Golden Journey #1 is this system's reference dialog.
+- The 6/19 design shipped, then was substantially extended by two later docs (8/21 "screener-deep-work,"
+  8/30 base-structure-library) — the same stale-doc pattern called out above. 101/101 targeted tests
+  (`test_screener_wave4_query.py`, `test_screener_filters.py`, `test_base_count.py`,
+  `test_base_catalog.py`) passed live when re-run for this program.
+- All three investigated worktrees/branches (`screener-deep-work`, `feat/pattern-library-expansion`,
+  `feat/full-market-screener`) confirmed **fully merged, zero unique commits** — the same clean pattern
+  every branch investigated by this program has shown so far.
 
 ## What's still unknown
 
-- **No browser/production verification of any of this has happened.** Every finding above is from code,
-  tests, and commit history — real, but per addendum §5 ("test the real frontend, not only the backend")
-  this is not equivalent to verified end-to-end product behavior. This is the single largest gap in the
-  current picture and the natural next-wave priority.
+- **Browser/production verification is now partial, not absent.** Core Golden Journey #1 walked one Pine
+  fixture end-to-end live (paste → translate → chart → save → reload → screener reach). Everything else —
+  thinkScript, TC2000, plain-language, screenshot doors; the screener/scanner system's actual filter
+  results with a populated snapshot; base-structure library rendering — remains code/test-level evidence
+  only. See `VALIDATION_COVERAGE_MAP.md` for the precise, row-by-row state.
 - Whether production has actually recovered from a dated 2026-08-31 code comment describing `scan_hits`
   staleness (newest session stuck on Friday when read Monday) — the scheduler misfire-handling gap looks
-  fixed at the code level (`coalesce=True, misfire_grace_time=3600`), but this hasn't been confirmed live.
+  fixed at the code level (`coalesce=True, misfire_grace_time=3600`), but this hasn't been confirmed live
+  (RISK-003, still open).
 - Whether TC2000/PCF's 57/57 corpus pass rate is representative — unknown if a blind/adversarial PCF
   corpus exists the way Pine has one deliberately built to resist gaming.
 - Whether a session is currently active in the `indicator-endzone` worktree (touched 2026-09-04 08:17,
   hours before this Phase Zero session) — its tree reads clean now, which is reassuring but not proof.
+- Actual nightly-sweep execution and real scan-result correctness (addendum §11/§12) — confirmed
+  architecturally sound (enforced by a test forbidding request-path execution) but never observed
+  completing by this program.
+- A minor label discrepancy between what Core Golden Journey #1 saw live ("Ownership & Short," "Candles")
+  and what current filter-category code names ("Ownership & Insiders," "single_candle"/"multi_candle") —
+  not reconciled; worth a two-minute check before quoting exact UI text elsewhere.

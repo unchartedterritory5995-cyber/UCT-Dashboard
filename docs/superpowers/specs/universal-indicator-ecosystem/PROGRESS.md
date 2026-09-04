@@ -130,16 +130,31 @@ touching anything). Headlines:
   UCT inputs, only their defaults do (RISK-013).
 - `VALIDATION_COVERAGE_MAP.md` created — first real, evidence-cited version, not a stub.
 
+## Wave two #2: DONE — Screener/"Custom Screens" archaeology
+
+Full findings folded into `CURRENT_ARCHITECTURE.md`'s new "Screener / Scanner system" section. Headlines:
+- **"Custom Screens" definitively resolved: not this repo's term for anything** — it appears only in the
+  master prompt and this program's own docs. Real vocabulary: Scanner Hub → Custom Scan (retired) → Saved
+  Screens → today's "Screens" dropdown inside the "Screener" page. Future capability-matrix work should
+  use the repo's own terms.
+- **Found a third instance of the "design doc goes stale within weeks" pattern — this time in `CLAUDE.md`
+  itself.** It names a file (`SavedScreensPanel.jsx`) that was deleted 2026-08-22 and replaced, while
+  originally correcting an even older false claim about the same wiring. Logged as RISK-015. This
+  materially updates how much trust to extend to CLAUDE.md going forward — treat it as a lead like any
+  other doc, not as ground truth, even though it's the repo's own onboarding file.
+- The Finviz-snapshot screener and the AST-scan system are **deliberately joined** (an explicit, recorded
+  owner decision), not accidentally coexisting — with a tested "Honest-None" disclosure guarantee that
+  independently corroborates what Core Golden Journey #1 observed live in the browser.
+- Three separate real pattern/structure systems identified and distinguished (`pattern_engine`, a deleted
+  old heuristic, the new Base & Structure Library) — matches and extends prior memory on the latter.
+- 101/101 targeted tests passed live; all three investigated worktrees/branches confirmed fully merged.
+- `VALIDATION_COVERAGE_MAP.md` extended with 4 new rows for the screener system.
+
 ## Not yet started (second-wave candidates, remaining)
 
 Ranked by what's actually been surfaced so far:
 
-1. **Custom Screens / Screener current implementation state** — have the 2026-06-19 Full-Market-Screener
-   design doc + memory notes on `feat/screener-deep-work`; need the same fresh-evidence treatment wave one
-   gave the translation layer. Also the moment to finally settle what "Custom Screens" means in this repo's
-   own vocabulary (the master prompt uses that term; the repo's visible terminology so far is "Scanner
-   Hub" / "Custom Scan" tab / "Saved Screens" — need to confirm these are the same thing before building a
-   capability matrix around the wrong name).
+1. **RISK-015 fix** (CLAUDE.md staleness) — small, mechanical, candidate for a quick doc-hygiene pass.
 2. **RISK-003 production verification** — is the 8/31 scan-hits staleness issue actually resolved live,
    not just in the diff.
 3. **RISK-012 fix** (double-save duplicate) and **RISK-013 investigation** (input fidelity) — small,

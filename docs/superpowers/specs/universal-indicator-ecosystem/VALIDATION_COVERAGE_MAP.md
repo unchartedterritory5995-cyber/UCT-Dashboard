@@ -34,6 +34,10 @@ that hasn't happened.
 | Cross-browser | 0 — Exists (unverified) | Chromium only |
 | Mobile/responsive | 0 — Exists (unverified) | Not attempted |
 | Production/staging behavior | 0 — Exists (unverified) | Everything above is local + sandboxed; nothing checked against Railway |
+| Screener/Scanner: nightly-snapshot query engine | 1 — Unit | `test_screener_wave4_query.py`, `test_screener_filters.py`: 101/101 passed live (wave-two #2 archaeology) |
+| Screener/Scanner: AST-scan ↔ Finviz-snapshot join, "Honest-None" disclosure | **2 — Integration** | Same test run: `test_never_swept_hash_is_INERT_and_disclosed_not_a_silent_universe` and `test_empty_or_malformed_value_REFUSES_never_the_silent_noop` passed; independently corroborated by Journey #1's live "first sweep tonight" observation (two different evidence angles agreeing) |
+| Base & Structure Library (`base_catalog.py`/`lift_ledger.py`) | 1 — Unit | `test_base_count.py`, `test_base_catalog.py` passed live; no browser rendering of the "Structure library" dialog attempted |
+| Screener/Scanner: actual filter results in a real browser | 0 — Exists (unverified) | Journey #1 only observed the empty-sandbox state ("0 matches," "nothing in tonight's snapshot") — never a populated result set |
 
 ## What this map is not
 
