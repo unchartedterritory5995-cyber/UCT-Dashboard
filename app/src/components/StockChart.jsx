@@ -338,7 +338,7 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
 // the right-click "Reset view" so all three land on the exact same window.
-function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null } = {}) {
+function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null, rightReserve = 0 } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
   // wants a wider window than the interactive default); dailyDefaultBars stays
   // Daily-only so the Charts workspace is untouched.
@@ -351,9 +351,15 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   // candle width with blank space to their left, instead of being STRETCHED to
   // fill the whole pane. Identical to before for normal tickers (barsLen >
   // visibleBars). LWC renders logical indices < 0 as leading whitespace.
-  const from = barsLen - visibleBars - leftBarPad
-  const hist = (barsLen - 1) - from
-  const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : barsLen + rightPadBars
+  // rightReserve (load-anchor fix): frame as if the developing bar were ALREADY the newest, so a
+  // cold first paint whose data still ends at the last sealed period doesn't slide when the
+  // developing bar lands a commit later (the "today's candle opens on tomorrow, then snaps back"
+  // shift). effLen carries the reserve; when the real bar arrives (barsLen +reserve, reserve→0)
+  // effLen is unchanged → the frame is invariant. 0 (off-gate / already-current) → byte-identical.
+  const effLen = barsLen + (rightReserve > 0 ? rightReserve : 0)
+  const from = effLen - visibleBars - leftBarPad
+  const hist = (effLen - 1) - from
+  const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : effLen + rightPadBars
   return { from, to }
 }
 
@@ -1081,6 +1087,75 @@ if (typeof window !== 'undefined') {
       else localStorage.removeItem('uct.intradayDeepBackfill.enabled')
     } catch { /* ignore */ }
   }
+}
+
+// ── Intraday load-anchor: kill the "current candle loads one bar right, then snaps left" ─────
+// On an intraday load the instant (provisional/cache/pack) paint ends a bucket or two BEHIND the
+// fresh /api/bars fetch. When the newer buckets land, filteredBars grows at the RIGHT and the
+// newest-at-LAST_CANDLE_POS re-anchor slides the whole frame left one bar (~0.5-1s after paint).
+// After-hours there's no developing bucket to add, so it's quiet — exactly the reported pattern.
+// The daily analog was fixed server-side (api/routers/bars.py appends today's developing daily
+// bar); intraday's developing bucket lands via a later commit, so we fix it on the client: RESERVE
+// the missing newest buckets' slots up front (anchor as if the developing bucket is already the
+// newest), so the frame is INVARIANT as the bars fill in. `_intradayLoadReserve` = the count of
+// tf-buckets between the loaded last bar and NOW, alignment-agnostic (floor((now-lastT)/tfSec)),
+// bounded (a very stale cache / overnight gap must not over-reserve). Dark: 0 off-gate/opt-out →
+// every anchor expression is byte-identical. Ramp = the constant; window.__uctIntradayLoadAnchor.
+export const INTRADAY_LOAD_ANCHOR_PCT = 0
+export function _intradayLoadAnchorEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayLoadAnchor.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradayLoadAnchor.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradayLoadAnchor.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_LOAD_ANCHOR_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayLoadAnchor = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradayLoadAnchor.enabled', '1')
+      else localStorage.removeItem('uct.intradayLoadAnchor.enabled')
+    } catch { /* ignore */ }
+  }
+}
+// Slots to reserve to the right so a settling load doesn't shift when the current developing
+// bar/bucket lands in a later commit. 0 unless the gate is on. Covers ALL timeframes:
+//   • intraday (unix `t`): the count of whole tf-intervals the last loaded bucket is behind NOW,
+//     capped at INTRADAY_RESERVE_MAX (a deeply-stale/overnight last bar can't open a big gap).
+//   • daily/weekly/monthly (ISO-date `t`): ONE slot when the last loaded bar is still a SEALED
+//     prior period (its date < the ET sealed-period cutoff). The daily deep-history tail
+//     (bars-history) transiently ends at the last SEALED day before the primary /api/bars tail's
+//     server-included TODAY bar merges in; that late +1 re-pins the newest and slides the frame
+//     ("today's candle lands on tomorrow, then snaps back"). Reserving today's slot up front keeps
+//     the frame invariant. When the developing bar IS present, the last date is NOT < the cutoff
+//     → reserve 0 → self-cancels, so the anchor is byte-identical once settled.
+export const INTRADAY_RESERVE_MAX = 3
+export function _intradayLoadReserve(bars, tf) {
+  if (!_intradayLoadAnchorEnabled()) return 0
+  if (!Array.isArray(bars) || bars.length === 0) return 0
+  const lt = bars[bars.length - 1] && bars[bars.length - 1].t
+  if (tf === '1' || tf === '5' || tf === '15' || tf === '30' || tf === '60') {
+    if (typeof lt !== 'number') return 0
+    const tfSec = (Number(tf) || 5) * 60
+    const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
+    return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
+  }
+  if (tf === 'D' || tf === 'W' || tf === 'M') {
+    if (typeof lt !== 'string' || lt.length < 10) return 0
+    // Only reserve when a developing-period bar is actually expected — i.e. today (ET) is a
+    // weekday. On weekends there's no session pending, so no late bar will land; reserving
+    // would just open a phantom right gap that never fills. (Weekday holidays — rare — still
+    // reserve, a harmless ≤1-bar gap in the future pad.)
+    let dow = 6
+    try { dow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay() } catch { return 0 }
+    if (dow === 0 || dow === 6) return 0
+    const ps = _etPeriodStartISO(tf)
+    return (ps && lt < ps) ? 1 : 0
+  }
+  return 0
 }
 
 // ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
@@ -10357,12 +10432,14 @@ export default function StockChart({
           if (to < (newBarCount - 1) - 0.5) {
             const _def = computeDefaultLogicalRange(
               newBarCount, resolvedTf,
-              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
             )
             from = _def.from; to = _def.to
           }
         } else if (keepPresentOnSymbolChange) {
-          to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
+          // Reserve the developing intraday bucket's slot so the frame doesn't shift when the
+          // fresh fetch's newer buckets land (see _intradayLoadReserve). 0 off-gate / on daily.
+          to = (newBarCount - 1 + _intradayLoadReserve(filteredBars, resolvedTf)) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
@@ -10443,7 +10520,7 @@ export default function StockChart({
             if (_to < (filteredBars.length - 1) - 0.5) {
               const _def = computeDefaultLogicalRange(
                 filteredBars.length, resolvedTf,
-                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
               )
               _from = _def.from; _to = _def.to
             }
@@ -10451,11 +10528,13 @@ export default function StockChart({
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
-            // Today's developing daily bar is now part of the served history
-            // (server-include, api/routers/bars.py), so filteredBars already ends at the
-            // current session and the plain length frames it correctly.
+            // ⚠️ THE COLD-FIRST-PAINT ANCHOR. The served TAIL includes today, but a COLD
+            // first paint renders the STALE IDB/pack provisional first — which ends at the last
+            // SEALED period (yesterday) — so `filteredBars.length` frames yesterday-at-0.95, and
+            // when today's bar lands a commit later the frame slides ("today's candle opens on
+            // tomorrow, then snaps back"). rightReserve pins today's slot up front so it doesn't.
             const { from: _from, to: _to } = computeDefaultLogicalRange(
-              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
             )
             chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
           }
@@ -10540,11 +10619,14 @@ export default function StockChart({
           // included in the served history (server-include, api/routers/bars.py), so the
           // loaded last bar IS today and no slot reservation is needed.
           const lastIdx = filteredBars.length - 1
-          to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
+          // Reserve the developing intraday bucket's slot: the settling re-assert runs on EVERY
+          // phased commit (cache → fetch → backfill); reserving keeps `to` invariant as the newer
+          // buckets land instead of re-pinning the grown newest and sliding left. 0 off-gate/daily.
+          to = (lastIdx + _intradayLoadReserve(filteredBars, resolvedTf)) + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - _pt.width
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
