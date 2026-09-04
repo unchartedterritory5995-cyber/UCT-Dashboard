@@ -131,15 +131,47 @@ def compute_default_eligibility(
     }
 
 
+# Phase 8 Package 8D. `high_tight_flag._build_detection` (verified by direct
+# read, not recon) emits exactly 4 anchors in this order — pole_base,
+# pole_top, flag_low, flag_high — a REAL pole segment (anchors[0]->[1]) and a
+# real flag-range diagonal (anchors[2]->[3]), not a placeholder. The Phase-7
+# spec's "the pole is never anchored" finding was about a DIFFERENT family
+# (bull_flag) — re-verified here rather than assumed, since this labeling
+# would be silently wrong if it weren't true for HTF specifically.
+_HTF_ANCHOR_ROLES = ["pole_base", "pole_top", "flag_low", "flag_high"]
+_HTF_SEMANTIC_SUBTYPE = "pole_and_flag"
+
+# power_earnings_gap._build_detection emits 5 anchors: prior_close, gap_open,
+# gap_close, post_gap_high, post_gap_low (verified by direct read). gap_open
+# and gap_close share the same bar timestamp -- together they ARE the gap
+# candle's open/close, which is what CandleMark's new candle-emphasis outline
+# (Package 8D) keys off.
+_PEG_ANCHOR_ROLES = ["prior_close", "gap_open", "gap_close", "post_gap_high", "post_gap_low"]
+_PEG_SEMANTIC_SUBTYPE = "gap_event"
+
+
+def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
+    """Returns a NEW geometry dict (never mutates detection["geometry"] in
+    place -- that dict is shared by reference after `dict(detection)`'s
+    shallow copy, so an in-place write here would silently violate the
+    adapter's own non-mutation guarantee, Package 8B's own tested contract)."""
+    geometry = dict(detection["geometry"])
+    if len(roles) == len(geometry.get("anchors", [])):
+        geometry["anchor_roles"] = roles
+        geometry["semantic_subtype"] = subtype
+    return geometry
+
+
 def adapt_high_tight_flag(detection: Detection, *, now: Optional[int] = None) -> Detection:
-    """High Tight Flag: eligibility only. `event`/`criteria`/`gate_trace` are
-    deliberately absent — this family has no event concept, and its own file
-    (see the STOP comment at the top of high_tight_flag.py) explicitly names
-    `base_catalog.py` as the criteria/provenance-carrying engine for this
-    pattern name, not itself.
+    """High Tight Flag: eligibility + (Package 8D) semantic geometry labels.
+    `event`/`criteria`/`gate_trace` are deliberately absent — this family has
+    no event concept, and its own file (see the STOP comment at the top of
+    high_tight_flag.py) explicitly names `base_catalog.py` as the criteria/
+    provenance-carrying engine for this pattern name, not itself.
     """
     out: Detection = dict(detection)  # type: ignore[assignment]
     out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(detection, _HTF_ANCHOR_ROLES, _HTF_SEMANTIC_SUBTYPE)
     return out
 
 
@@ -153,6 +185,7 @@ def adapt_power_earnings_gap(detection: Detection, *, now: Optional[int] = None)
     """
     out: Detection = dict(detection)  # type: ignore[assignment]
     out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(detection, _PEG_ANCHOR_ROLES, _PEG_SEMANTIC_SUBTYPE)
 
     extras = detection["geometry"]["extras"]
     days = extras.get("days_to_earnings")

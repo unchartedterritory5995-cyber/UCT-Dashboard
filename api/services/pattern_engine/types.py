@@ -68,6 +68,21 @@ class Geometry(TypedDict):
     ]
     anchors: list[Anchor]
     extras: dict   # pattern-specific extras (height_pct, depth_pct, etc.)
+    # Phase 8 Package 8D: optional, additive semantic labels for `anchors` —
+    # the Phase-7 spec's own finding was that every renderer today addresses
+    # anchors POSITIONALLY (anchors[0], anchors[1]...), which is exactly what
+    # made VCP's variable-length zigzag and flat_base's 4th "prior advance
+    # origin" anchor ambiguous under the same `shape` string as families
+    # whose anchor count/meaning is fixed. `anchor_roles` (same length as
+    # `anchors` when present) and `semantic_subtype` (a family-specific label
+    # disambiguating intent beyond the 6 shape primitives, e.g.
+    # "pole_and_flag" vs. "gap_event" — both still render as `trendline_pair`/
+    # `candle_mark`) let a renderer opt into role-aware behavior without
+    # breaking positional access for every family that hasn't been updated
+    # yet — omission is the correct, honest state for any family this hasn't
+    # been wired to, never a broken/incomplete-looking object.
+    anchor_roles: NotRequired[list[str]]
+    semantic_subtype: NotRequired[str]
 
 
 class Levels(TypedDict):

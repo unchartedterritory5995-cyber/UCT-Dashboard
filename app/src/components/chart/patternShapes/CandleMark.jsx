@@ -12,12 +12,21 @@
 // For multi-anchor candlestick patterns (engulfing, harami, star: 2-3 anchors), the LAST anchor
 // is the trigger candle — that's where the badge goes. We still optionally render small markers
 // at the earlier anchors so reviewers can see the full setup geometry.
+//
+// Package 8D: when `geometry.semantic_subtype === "gap_event"` (currently
+// only power_earnings_gap) AND anchor_roles name a "gap_open"/"gap_close"
+// pair, ALSO draw a CandleEmphasis white outline around that real gap
+// candle — additive, on top of the existing badge/dots, which are
+// UNCHANGED. Every family without this semantic_subtype renders exactly as
+// before (this is the "optional-by-family, absence is not brokenness"
+// principle applied to rendering, not just data).
 import {
   getColor,
   getOpacity,
   getGlowFilter,
   formatLabel,
 } from './style'
+import CandleEmphasis from './CandleEmphasis'
 
 const PATTERN_LETTERS = {
   doji: 'D',
@@ -53,7 +62,7 @@ function badgeLetter(detection) {
   return '•'
 }
 
-export default function CandleMark({ detection, tToX, priceToY, onClick }) {
+export default function CandleMark({ detection, tToX, priceToY, barHalfWidthPx, onClick }) {
   const anchors = detection?.geometry?.anchors || []
   if (!anchors.length) return null
 
@@ -61,6 +70,31 @@ export default function CandleMark({ detection, tToX, priceToY, onClick }) {
   const opacity = getOpacity(detection)
   const glow = getGlowFilter(detection)
   const direction = detection?.direction
+
+  // Package 8D: the gap-candle emphasis outline, computed from the SAME
+  // anchors/roles as everything else here — never independently rediscovered.
+  const roles = detection?.geometry?.anchor_roles
+  let gapCandleEmphasis = null
+  if (detection?.geometry?.semantic_subtype === 'gap_event' && Array.isArray(roles)) {
+    const openIdx = roles.indexOf('gap_open')
+    const closeIdx = roles.indexOf('gap_close')
+    if (openIdx !== -1 && closeIdx !== -1 && anchors[openIdx] && anchors[closeIdx]) {
+      const xCenter = tToX(anchors[openIdx].t)
+      const yOpen = priceToY(anchors[openIdx].price)
+      const yClose = priceToY(anchors[closeIdx].price)
+      if (xCenter != null && yOpen != null && yClose != null) {
+        gapCandleEmphasis = (
+          <CandleEmphasis
+            xCenter={xCenter}
+            yOpen={yOpen}
+            yClose={yClose}
+            halfWidthPx={barHalfWidthPx}
+            opacity={opacity}
+          />
+        )
+      }
+    }
+  }
 
   // swing_pivots: render a small dot at every anchor — multi-pivot marker mode.
   if (detection?.pattern_id === 'swing_pivots') {
@@ -103,6 +137,8 @@ export default function CandleMark({ detection, tToX, priceToY, onClick }) {
       onClick={() => onClick?.(detection)}
       style={{ cursor: 'pointer', pointerEvents: 'auto' }}
     >
+      {/* Package 8D: white outline on the real gap candle, when applicable — see above. */}
+      {gapCandleEmphasis}
       {/* Small dots at any non-trigger anchors so reviewers see the setup shape (engulfing, star, etc.) */}
       {anchors.slice(0, -1).map((a, i) => {
         const x = tToX(a.t)
