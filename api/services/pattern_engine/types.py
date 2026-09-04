@@ -277,6 +277,66 @@ class ScannerSummary(TypedDict, total=False):
     warnings: list[str]
 
 
+class ExplanationFact(TypedDict, total=False):
+    """Phase 8 Package 8E: one sentence of structured, evidence-traceable
+    explanation. Built by `explanation_builder.py` by READING an already-
+    canonical (adapted) Detection's existing fields — never by recomputing
+    detector logic or inventing a value the Detection doesn't carry.
+
+    `claim_type` records what kind of claim `label` is making, per this
+    package's own authorization:
+      - "direct":   read straight off a Detection field with no interpretation
+                    (e.g. geometry.extras.pole_pct).
+      - "derived":  computed deterministically FROM canonical facts already on
+                    the Detection (e.g. re-running the SAME context-scoring
+                    helper the detector itself used, on the Detection's own
+                    stored `context`) — never a new measurement, always a
+                    re-derivation of something the detector already decided.
+      - "qualified": a claim that is real but incomplete/conditional and says
+                    so explicitly (e.g. "no family-specific freshness signal
+                    exists" or "this is a neutral prior, not measured
+                    performance").
+
+    `supporting_evidence` is a field-path string INTO the Detection this fact
+    was built from (e.g. "geometry.extras.pole_pct", "gate_trace[0]",
+    "eligibility.eligibility_reasons") — never a description, an id a reader
+    can go look up.
+    """
+    fact_id: str
+    category: Literal[
+        "identity", "context_strength", "context_weakness",
+        "lifecycle", "eligibility", "event", "quality", "warning",
+    ]
+    claim_type: Literal["direct", "derived", "qualified"]
+    label: str
+    supporting_evidence: str
+    polarity: Literal["supports", "weakens", "neutral", "warning"]
+    priority: int
+
+
+class ExplanationSection(TypedDict):
+    section: Literal[
+        "why_it_matched", "strengths", "weaknesses",
+        "current_stage", "scanner_eligibility", "event", "warnings",
+    ]
+    facts: list[ExplanationFact]
+
+
+class Explanation(TypedDict):
+    """Phase 8 Package 8E: the structured explanation for one Detection.
+    Sections are omitted entirely (never emitted empty) when a family has no
+    facts for them — same "honest absence, not a broken-looking object"
+    convention as `Eligibility`/`EventProvenance` (types.py Phase 7/8 notes
+    above). Built by `explanation_builder.build_explanation`; NOT persisted
+    (same "shadow mode only" status as every other Phase 8 canonical section
+    ahead of its own explicitly-authorized persistence stage).
+    """
+    detection_id: str
+    pattern_id: str
+    generator_version: str
+    sections: list[ExplanationSection]
+
+
 class Detection(TypedDict):
     id: str
     sym: str
