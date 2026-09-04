@@ -3697,6 +3697,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
+    # so the FIRST view of any watchlist / theme / calendar serves real logos from
+    # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
+    # (the 1-2s logo pop-in). Idempotent across reboots (skips already-cached), 30s
+    # stagger + a bounded CDN pool inside start_async so it never fights the other
+    # boot warms. Without this, only symbols someone has already viewed (or a manual
+    # POST /api/logos/prewarm) are ever warmed — the daily miss-retry only re-attempts
+    # tickers that already FAILED, and the hires pass only re-caches existing .png.
+    # Disable via TICKER_LOGOS_PREWARM_DISABLED=1.
+    try:
+        from api.services.ticker_logos_prewarm import start_async as _logos_start
+        _logos_start()
+        print("[startup] ticker-logos prewarm scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
+
     # Rich ticker SEARCH index (symbol + name + type + exchange from Massive's
     # reference feed) — powers the /charts Symbol Search modal's name matching
     # (e.g. "AAPL" → AAPU/AAPD). Loads a disk snapshot instantly, rebuilds daily.
