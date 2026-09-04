@@ -418,3 +418,103 @@ def read_pattern_fields(targets, failures=None) -> dict:
                 row["pattern_expectancy_r"] = exp
         out[tu] = row
     return out
+
+
+def read_pattern_fields_canonical_shadow(targets) -> dict:
+    """Phase 8, Package 8C — SHADOW-ONLY. Proves the canonical scanner
+    contract (types.py's ScannerSummary, canonical_adapter.build_scanner_
+    summary) against the SAME real query shape and the SAME real
+    pattern_detections table `read_pattern_fields` above reads — without
+    touching that function or anything it feeds (snapshot_builder.py,
+    screener_rows, the live nightly cron, or any member-facing output).
+
+    NOT called by snapshot_builder.py or any scheduled job. Its only caller
+    is the Package-8C shadow-parity test, which compares this function's
+    output against read_pattern_fields()'s real output for the same
+    targets to prove the canonical read adds evidence without changing
+    detector-level facts (identity, direction, best-detection selection).
+
+    Additive over read_pattern_fields's own SELECT: eligibility_json (the
+    one new column this package added), plus geometry_json/quality_json/
+    narrative_json/status — all FOUR of the latter already existed as
+    columns before this package; read_pattern_fields simply never SELECTed
+    them (Phase-7 spec's persistence addendum). No schema change was needed
+    for those four.
+    """
+    from api.services.pattern_engine import pattern_db
+    from api.services.pattern_engine.canonical_adapter import build_scanner_summary
+
+    cutoff = int(time.time()) - _WINDOW_SECS
+    placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
+    cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
+    sql = f"""
+        SELECT sym, pattern_id, direction, confidence, levels_json, detected_at,
+               status, geometry_json, quality_json, narrative_json, eligibility_json
+        FROM pattern_detections
+        WHERE tf = 'D'
+          AND status IN ({placeholders})
+          AND detected_at >= ?
+          AND (category IS NULL OR category NOT IN ({cat_ph}))
+    """
+    with contextlib.closing(pattern_db.get_connection()) as conn:
+        rows = conn.execute(
+            sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES)).fetchall()
+
+    by_ticker: dict = {}
+    for r in rows:
+        by_ticker.setdefault(r["sym"], []).append(r)
+
+    out: dict = {}
+    for t in targets:
+        tu = str(t).upper()
+        dets = by_ticker.get(tu)
+        if not dets:
+            continue
+        # Same "best" rule as read_pattern_fields: highest confidence among
+        # rows with both entry AND stop; tie -> newest detected_at.
+        best_row, best_levels = None, None
+        for d in dets:
+            levels = _levels(d["levels_json"])
+            if levels.get("entry") is None or levels.get("stop") is None:
+                continue
+            if best_row is None or (d["confidence"], d["detected_at"]) > (
+                best_row["confidence"], best_row["detected_at"]
+            ):
+                best_row, best_levels = d, levels
+        if best_row is None:
+            continue
+
+        reconstructed = {
+            "pattern_id": best_row["pattern_id"],
+            "pattern_name": best_row["pattern_id"].replace("_", " ").title(),
+            "direction": best_row["direction"],
+            "status": best_row["status"],
+            "confidence": best_row["confidence"],
+            "geometry": json.loads(best_row["geometry_json"]),
+            "quality_components": json.loads(best_row["quality_json"]),
+            "narrative": json.loads(best_row["narrative_json"]),
+        }
+        eligibility_json = best_row["eligibility_json"]
+        if eligibility_json is not None:
+            reconstructed["eligibility"] = json.loads(eligibility_json)
+        # Transitional storage mapping, not native canonical persistence
+        # (ChatGPT relay review, 2026-09-04): PEG's event data has no column
+        # of its own -- it is reconstructed from the pre-existing
+        # geometry_json.extras fields the same way canonical_adapter.
+        # adapt_power_earnings_gap does in memory. The canonical model is
+        # cleaner than this legacy physical layout; this mapping exists only
+        # to prove the shadow contract against real persisted rows.
+        extras = reconstructed["geometry"].get("extras", {})
+        days = extras.get("days_to_earnings")
+        if days is not None or "earnings_linkage_verified" in extras:
+            verified = extras.get("earnings_linkage_verified")
+            status_ = (
+                "unavailable" if days is None
+                else "verified" if verified
+                else "contradicted"
+            )
+            reconstructed["event"] = {"event_type": "earnings", "verification_status": status_,
+                                       "days_from_event": days}
+
+        out[tu] = build_scanner_summary(reconstructed)
+    return out
