@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import styles from './CompanyLogo.module.css'
 import brandMarkAsset from './intro/assets/compass-mark.png'
 
-const LOGO_ASSET_VERSION = 2   // bump to force browsers past the 7-day immutable cache (e.g. after a resolution upgrade)
+export const LOGO_ASSET_VERSION = 2   // bump to force browsers past the ~1yr immutable cache (e.g. after a resolution upgrade). Exported so prefetchLogos builds the SAME url — one authority for the version.
 // Retry backoff (ms). Fast first (a CDN-fast logo.dev resolve often lands <1s), then
 // LONGER so a transient miss is ridden out: a post-deploy /api blip, backend
 // cold-start, or a page-load burst of many logos in flight. The monogram shows the

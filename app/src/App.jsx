@@ -18,6 +18,7 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
+import LogoPrewarm from './components/LogoPrewarm'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
@@ -299,6 +300,10 @@ export default function App() {
         <Suspense fallback={null}>
           <GlobalAddPositionProvider />
         </Suspense>
+        {/* Warm the browser logo cache for the user's flagged + watchlist symbols
+            at app load, so opening a list paints real logos with no monogram flash.
+            Null render; no-op when logged out. */}
+        <LogoPrewarm />
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
         <RouteErrorBoundary>
