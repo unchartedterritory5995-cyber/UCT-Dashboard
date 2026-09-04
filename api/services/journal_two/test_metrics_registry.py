@@ -325,6 +325,19 @@ def test_dividends_empty_book_is_honest_zero():
 
 # ── safe functions + per-period cards/KPIs (2026-08-22) ─────────────────────
 
+def _recent_day() -> str:
+    """A trading day guaranteed to sit INSIDE a 30d window, whenever the suite
+    runs. The two period tests below used to hardcode `2026-08-04`; that is
+    the shape of assertion that passes on the day it is written and turns red
+    later with no code change — it did, exactly 31 days on. Derived from the
+    SAME clock `_period_spec` uses (`datetime.now(_ET).date()`) so the fixture
+    and the window under test can never drift apart."""
+    from datetime import datetime, timedelta
+    from api.services.journal_two.metrics_registry import _ET
+    return (datetime.now(_ET).date() - timedelta(days=3)).isoformat()
+
+
+
 def test_kpi_safe_functions():
     v = {"net_pnl": -250.0, "avg_win": 200.0, "avg_loss": 100.0}
     assert eval_kpi_expr("abs(net_pnl)", v)["value"] == 250.0
@@ -339,7 +352,7 @@ def test_kpi_safe_functions():
 def test_per_card_period_overrides_scope():
     conn = _conn()
     _trade(conn, "old", day="2020-01-06", pnl=1000, result="Win")
-    _trade(conn, "new", day="2026-08-04", pnl=100, result="Win")
+    _trade(conn, "new", day=_recent_day(), pnl=100, result="Win")
     out = _out(conn, ["consistency", "consistency@30d"])
     assert out["metrics"]["consistency"]["tradingDays"] == 2       # whole book
     recent = out["metrics"]["consistency@30d"]
@@ -350,7 +363,7 @@ def test_per_card_period_overrides_scope():
 def test_per_kpi_period_and_unknown_period():
     conn = _conn()
     _trade(conn, "old", day="2020-01-06", pnl=1000, result="Win")
-    _trade(conn, "new", day="2026-08-04", pnl=100, result="Win")
+    _trade(conn, "new", day=_recent_day(), pnl=100, result="Win")
     out = _out(conn, [], kpis=[("all_pnl", "net_pnl"),
                                ("recent_pnl@30d", "net_pnl"),
                                ("bad@2weeks", "net_pnl")])

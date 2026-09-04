@@ -283,7 +283,7 @@ def _sync_enabled() -> bool:
 
 _ZERO_COUNTS = {
     "notesCreated": 0, "notesUpdated": 0, "notesSkipped": 0,
-    "mediaUploaded": 0, "conflicts": 0,
+    "mediaUploaded": 0, "conflicts": 0, "sourceDeleted": 0,
 }
 
 
@@ -304,7 +304,7 @@ def _latest_sync_counts(user_id: str, source_ids: list[str]) -> dict[str, dict[s
         rows = conn.execute(
             f"""
             SELECT source_id, notes_created, notes_updated, notes_skipped,
-                   media_uploaded, conflicts
+                   media_uploaded, conflicts, source_deleted
               FROM j2_note_sync_log
              WHERE user_id = ? AND source_id IN ({placeholders})
                AND id IN (
@@ -325,6 +325,7 @@ def _latest_sync_counts(user_id: str, source_ids: list[str]) -> dict[str, dict[s
             "notesSkipped": r["notes_skipped"] or 0,
             "mediaUploaded": r["media_uploaded"] or 0,
             "conflicts": r["conflicts"] or 0,
+            "sourceDeleted": r["source_deleted"] or 0,
         }
     return out
 

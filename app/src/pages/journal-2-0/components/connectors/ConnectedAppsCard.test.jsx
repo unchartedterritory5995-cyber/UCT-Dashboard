@@ -118,6 +118,33 @@ describe('ConnectedAppsCard — provider matrix', () => {
     expect(screen.getByText('Conflicts')).toBeInTheDocument()
   })
 
+  it('names the source-deleted tag when a sync severed notes', async () => {
+    // A severed note is NOT removed from the Notebook -- the engine appends
+    // `source-deleted` and keeps the body. A bare count would tell the member
+    // something vanished without saying where it went or that it survived, so
+    // the hint (not just the number) is the contract under test.
+    const withRemoved = JSON.parse(JSON.stringify(STATUS_MIXED))
+    withRemoved.providers.roam.sources[0].counts = {
+      notesCreated: 0, notesUpdated: 1, conflicts: 0, sourceDeleted: 3,
+    }
+    mockFetch([['/api/j2/notes/connectors/status', { body: withRemoved }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByText('Removed')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText(/source-deleted/)).toBeInTheDocument()
+    expect(screen.getByText(/Nothing was erased/i)).toBeInTheDocument()
+  })
+
+  it('shows no removal count or hint when nothing was severed', async () => {
+    // The other half of the rail: without this, a component that rendered the
+    // hint unconditionally would still pass the test above.
+    mockFetch([['/api/j2/notes/connectors/status', { body: STATUS_MIXED }]])
+    render(<ConnectedAppsCard />)
+    await screen.findByText('Conflicts')
+    expect(screen.queryByText('Removed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/source-deleted/)).not.toBeInTheDocument()
+  })
+
   it('Sync now fires POST /sources/{id}/sync', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: STATUS_MIXED }],

@@ -89,6 +89,7 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
   // (useNoteConnectors.js) guarantees it, so no `|| {}` fallback here.
   const counts = source.counts
   const conflicts = counts.conflicts || 0
+  const sourceDeleted = counts.sourceDeleted || 0
 
   const handleSync = async () => {
     if (syncing) return
@@ -137,6 +138,7 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
         <Stat label="Created" value={counts.notesCreated} />
         <Stat label="Updated" value={counts.notesUpdated} />
         {conflicts > 0 && <Stat label="Conflicts" value={conflicts} warn />}
+        {sourceDeleted > 0 && <Stat label="Removed" value={sourceDeleted} warn />}
       </div>
 
       {/* A count with no path to act on it is not reachable, just visible
@@ -150,6 +152,19 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
         <p className={styles.conflictHint}>
           Conflicting versions are tagged <code>sync-conflict</code> in your
           Notebook — open the Tags panel to review and keep the one you want.
+        </p>
+      )}
+
+      {/* Same reachability rule as the conflict hint above: a severed note is
+          NOT deleted from the Notebook — the engine only appends the
+          `source-deleted` tag and stops tracking it (engine.py's
+          `_tag_note_source_deleted`), keeping the body intact. Saying so
+          matters twice over: it tells the member their writing survived the
+          remote deletion, and it names the tag that finds it. */}
+      {sourceDeleted > 0 && (
+        <p className={styles.conflictHint}>
+          Removed in the source app — tagged <code>source-deleted</code> in your
+          Notebook. Nothing was erased: open the Tags panel to keep or delete them.
         </p>
       )}
 

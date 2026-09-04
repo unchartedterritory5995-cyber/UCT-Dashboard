@@ -32,7 +32,10 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
             id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
             syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
             lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
-            counts: { notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4, conflicts: 0 },
+            counts: {
+              notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4,
+              conflicts: 0, sourceDeleted: 6,
+            },
           }],
         },
       },
@@ -48,7 +51,10 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's1', provider: 'roam', displayName: 'My Graph', remoteId: 'my-graph',
         syncEnabled: true, status: 'active', lastSyncAt: '2026-08-01T00:00:00Z',
         lastSyncStatus: 'ok', lastSyncError: null, warmingUntil: null,
-        counts: { notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4, conflicts: 0 },
+        counts: {
+          notesCreated: 5, notesUpdated: 2, notesSkipped: 1, mediaUploaded: 4,
+          conflicts: 0, sourceDeleted: 6,
+        },
       }],
     })
   })
@@ -65,7 +71,10 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
             id: 's2', provider: 'craft', display_name: 'My Space', remote_id: 'link-1',
             sync_enabled: false, status: 'broken', last_sync_at: '2026-08-02T00:00:00Z',
             last_sync_status: 'error', last_sync_error: 'token expired', warming_until: null,
-            counts: { notes_created: 9, notes_updated: 0, notes_skipped: 2, media_uploaded: 1, conflicts: 4 },
+            counts: {
+              notes_created: 9, notes_updated: 0, notes_skipped: 2, media_uploaded: 1,
+              conflicts: 4, source_deleted: 7,
+            },
           }],
         },
       },
@@ -81,7 +90,10 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
         id: 's2', provider: 'craft', displayName: 'My Space', remoteId: 'link-1',
         syncEnabled: false, status: 'broken', lastSyncAt: '2026-08-02T00:00:00Z',
         lastSyncStatus: 'error', lastSyncError: 'token expired', warmingUntil: null,
-        counts: { notesCreated: 9, notesUpdated: 0, notesSkipped: 2, mediaUploaded: 1, conflicts: 4 },
+        counts: {
+          notesCreated: 9, notesUpdated: 0, notesSkipped: 2, mediaUploaded: 1,
+          conflicts: 4, sourceDeleted: 7,
+        },
       }],
     })
   })

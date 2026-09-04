@@ -540,6 +540,50 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
     assert notes_svc.get_note("u1", c_note_id) is not None
 
 
+async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, provider):
+    """The connectors card does NOT read a sync's return value -- it reads the
+    newest `j2_note_sync_log` row (`routers/note_sync.py::_latest_sync_counts`).
+    So a pass whose response says `sourceDeleted: 1` while the log row says 0
+    is invisible to the member, which is exactly how deletions used to land:
+    `_finish_log` wrote created/updated/skipped/media/conflicts and silently
+    dropped the sever count. Asserts the number reaches the row, not just the
+    response -- and that a pass which severs NOTHING writes 0, so the column
+    can never read as "stale last time something was deleted"."""
+    provider.refs = [
+        RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="b", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="c", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {"a": _rn("a", "A"), "b": _rn("b", "B"), "c": _rn("c", "C")}
+    await engine.sync_source(source["id"], full=True)
+
+    def _newest_log_source_deleted() -> int:
+        conn = auth_db.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT source_deleted FROM j2_note_sync_log "
+                "WHERE source_id = ? ORDER BY id DESC LIMIT 1",
+                (source["id"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        return row["source_deleted"] or 0
+
+    # A pass that severs nothing writes 0 -- not NULL, not the previous value.
+    assert _newest_log_source_deleted() == 0
+
+    provider.refs = provider.refs[:2]              # "c" goes missing
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 0                # first miss: no sever yet
+    assert _newest_log_source_deleted() == 0
+
+    r3 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r3["sourceDeleted"] == 1                # second miss: severed
+    # ⛔ THE POINT: the same 1 must be readable from the log row, because that
+    # row -- not r3 -- is what the member's connectors card renders.
+    assert _newest_log_source_deleted() == 1
+
+
 async def test_delete_detection_refuses_when_enumeration_returns_under_half(source, provider):
     provider.refs = [
         RemoteRef(remote_id=str(i), updated_at="2026-08-01T00:00:00+00:00") for i in range(4)

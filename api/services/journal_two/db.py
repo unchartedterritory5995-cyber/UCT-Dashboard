@@ -568,7 +568,8 @@ CREATE TABLE IF NOT EXISTS j2_note_sync_log (
     notes_updated   INTEGER,
     notes_skipped   INTEGER,
     media_uploaded  INTEGER,
-    conflicts       INTEGER
+    conflicts       INTEGER,
+    source_deleted  INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS j2_note_remote_index (
@@ -1255,6 +1256,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     for stmt in (
         "ALTER TABLE j2_note_remote_index ADD COLUMN miss_streak INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE j2_note_sync_log ADD COLUMN conflicts INTEGER",
+        # Deletion lifecycle: how many notes this pass SEVERED from
+        # their remote (tagged `source-deleted`). Without it the
+        # connectors card can render created/updated/conflicts but is
+        # structurally blind to deletions -- the one lifecycle outcome
+        # a member is most likely to want explained.
+        "ALTER TABLE j2_note_sync_log ADD COLUMN source_deleted INTEGER",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
     ):
@@ -1561,7 +1568,8 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             notes_updated   INTEGER,
             notes_skipped   INTEGER,
             media_uploaded  INTEGER,
-            conflicts       INTEGER
+            conflicts       INTEGER,
+            source_deleted  INTEGER
         )
     """,
     "j2_note_remote_index": """

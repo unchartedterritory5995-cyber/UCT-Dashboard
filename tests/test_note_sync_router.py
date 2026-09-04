@@ -184,7 +184,7 @@ def test_status_source_counts_default_to_zero_before_any_sync(client, monkeypatc
     assert src["id"] == source_id
     assert src["counts"] == {
         "notesCreated": 0, "notesUpdated": 0, "notesSkipped": 0,
-        "mediaUploaded": 0, "conflicts": 0,
+        "mediaUploaded": 0, "conflicts": 0, "sourceDeleted": 0,
     }
 
 
@@ -207,8 +207,9 @@ def test_status_source_counts_reflect_the_most_recent_sync_log_row(client, monke
         )
         conn.execute(
             "INSERT INTO j2_note_sync_log (source_id, user_id, started_at, finished_at, status, "
-            "notes_created, notes_updated, notes_skipped, media_uploaded, conflicts) "
-            "VALUES (?, 'u1', 't2', 't2', 'ok', 0, 5, 1, 2, 3)",
+            "notes_created, notes_updated, notes_skipped, media_uploaded, conflicts, "
+            "source_deleted) "
+            "VALUES (?, 'u1', 't2', 't2', 'ok', 0, 5, 1, 2, 3, 4)",
             (source_id,),
         )
         conn.commit()
@@ -219,7 +220,7 @@ def test_status_source_counts_reflect_the_most_recent_sync_log_row(client, monke
     counts = st["providers"]["roam"]["sources"][0]["counts"]
     assert counts == {
         "notesCreated": 0, "notesUpdated": 5, "notesSkipped": 1,
-        "mediaUploaded": 2, "conflicts": 3,
+        "mediaUploaded": 2, "conflicts": 3, "sourceDeleted": 4,
     }
 
 
