@@ -952,9 +952,10 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // deep idbBars under split-fetch, bypassing only the STALENESS gates the fresh tail heals,
 // keeping the correctness gates). VERIFIED end-to-end on prod (localStorage opt-in): AMT
 // renders to its 1999 IPO, deep history served from the Cloudflare edge in ~2ms, no errors.
-// Ramp: 25 → 100 once the canary holds. Instant revert: set this to 0 + redeploy, or
-// per-browser window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 25
+// Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
+// stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
+// window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
 
 function _barsHistoryBucket() {
   try {
