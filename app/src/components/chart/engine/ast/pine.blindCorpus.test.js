@@ -126,11 +126,28 @@ describe('the exam this project did not write', () => {
       const n = missingName(r.message)
       if (n) byName[n] = (byName[n] || 0) + 1
     }
+    // ⚰️ THE HISTOGRAM ABOVE COUNTS ONLY THE **FIRST** REFUSAL PER SCRIPT, and
+    // reading it as a roadmap OVERSTATES what any one fix buys. Measured: of the
+    // ten scripts whose first blocker is a vendor ambiguity, four ALSO need
+    // `request.security`, `ta.linreg` or `ta.kcw` — permanently. Settling all
+    // four ambiguous definitions therefore unlocks six scripts, not ten.
+    // ⭐ SO THE SECOND HISTOGRAM READS THE SOURCE, not the first stumble: every
+    // name a miss MENTIONS that this engine does not serve. It is the honest
+    // "what would it take", and it is derived so it cannot drift.
+    const BLOCKED = /\b(?:ta\.(?:rising|falling|bbw|percentrank|median|cmf|obv|supertrend|valuewhen|cci|linreg|kcw)|request\.security|syminfo\.mintick)\b/g
+    const needs = {}
+    for (const r of MISSES) {
+      for (const n of new Set(r.source.match(BLOCKED) || [])) {
+        needs[n] = (needs[n] || 0) + 1
+      }
+    }
+    const soleBlocker = MISSES.filter(
+      (r) => new Set(r.source.match(BLOCKED) || []).size <= 1).length
     console.log(`
 BLIND EXAM  ${PASSING.length}/${RESULTS.length} translate to a boolean screen   (authored corpus: 38/38)
 guards      ${JSON.stringify(byGuard)}
 names       ${JSON.stringify(byName)}
-after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nmisses      ${MISSES.map((r) => r.name).join(', ')}
+after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nneeds (all) ${JSON.stringify(needs)}\none blocker ${soleBlocker}/${MISSES.length} misses need exactly ONE unserved name\nmisses      ${MISSES.map((r) => r.name).join(', ')}
 `)
     expect(RESULTS.length).toBeGreaterThan(0)
   })
