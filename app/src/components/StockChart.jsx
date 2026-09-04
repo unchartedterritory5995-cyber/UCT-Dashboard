@@ -993,8 +993,11 @@ if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplit
 // renders full history via _splitDeepUsable already, so it's skipped: no redundant fetch).
 // Separate per-browser canary from the split rollout so it ramps + reverts independently.
 // Ship DARK at 0; owner opt-in `window.__uctBarsHistoryFP(true)`; ramp = raise the constant.
-// At PCT=0 with no opt-in, _firstPaintEdgeEnabled() is false everywhere → byte-identical.
-export const BARS_HISTORY_FIRST_PAINT_PCT = 0
+// Ramped 0 → 100 on 2026-09-03 after the owner verified on prod (opted-in): cold tickers
+// XXII/KORU paint full history "literally instant to the eye," fast scroll-through skips the
+// deep fetch (dwell), and the cold-tail hang no longer blanks the chart. Instant revert = set
+// this to 0 + redeploy, or per-browser window.__uctBarsHistoryFP(false).
+export const BARS_HISTORY_FIRST_PAINT_PCT = 100
 export function _firstPaintEdgeEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistoryFP.enabled') : null
