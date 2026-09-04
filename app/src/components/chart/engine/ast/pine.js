@@ -2556,6 +2556,42 @@ function venueArgIsServable(node) {
   return US_EQUITY_VENUES.has(String(node.value).trim().toUpperCase())
 }
 
+/** The NAME inside `not na(<name>)`, or null. */
+function naGuardedName(node) {
+  if (!node || node.type !== 'unary' || node.op !== 'not') return null
+  const call = node.arg
+  if (!call || call.type !== 'call' || call.name !== 'na') return null
+  const args = call.args || []
+  if (args.length !== 1 || !args[0] || args[0].name) return null
+  const inner = args[0].value
+  return inner && inner.type === 'name' ? inner.name : null
+}
+
+/** Is `name` compared against something as a CONJUNCT of this expression?
+ *
+ *  ⛔⛔ THROUGH `and` ONLY, AND THAT RESTRICTION IS THE WHOLE PROOF. Under a
+ *  disjunction the guard is NOT redundant: in `not na(x) and (x <= 3 or close >
+ *  open)` an `x` that is `na` makes the left arm falsy but the right arm can still
+ *  be true, so dropping the guard would turn a false into a true. Walking only
+ *  through `and` is what keeps "the comparison is falsy whenever x is na" a
+ *  statement about the WHOLE expression.
+ */
+function comparesNameAsConjunct(node, name) {
+  if (!node) return false
+  if (node.type !== 'binary') return false
+  if (node.op === 'and') {
+    return comparesNameAsConjunct(node.left, name)
+      || comparesNameAsConjunct(node.right, name)
+  }
+  // ⚠️ THE FOUR INEQUALITIES ONLY. `==` and `!=` against `na` are also falsy in
+  // Pine, so they would be sound too — they are left out because nothing in any
+  // corpus writes them and an unexercised branch of a soundness argument is a
+  // liability, not a feature.
+  if (!own(FLIP, node.op)) return false
+  const isName = (n) => !!n && n.type === 'name' && n.name === name
+  return isName(node.left) || isName(node.right)
+}
+
 /** The CONDITION inside a one-argument `barssince(...)`, in either spelling.
  *
  *  ⛔ AN ARGUMENT IS `{name, value, tok}`, NOT THE EXPRESSION ITSELF — the
@@ -4005,6 +4041,59 @@ class Resolver {
     return cOp(tableOp, [sum, cNum(0)])
   }
 
+  /**
+   * `not na(X) and (X <cmp> K)` → the conjunction WITHOUT the guard, or null.
+   *
+   * ⭐⭐ THE GUARD IS REDUNDANT IN PINE, AND THAT IS AN IDENTITY RATHER THAN A
+   * SIMPLIFICATION. A comparison against `na` yields `na`, and `na` is falsy, so
+   * `X <= K` is ALREADY false whenever `X` is `na` — which is exactly what
+   * `not na(X)` was there to enforce. Both spellings answer false on the same
+   * bars, so dropping it changes no column.
+   *
+   * ⚰️ AND IT IS WHY FOUR SCRIPTS REFUSED. `ta.barssince(c)` bare is unbounded and
+   * refuses; `ta.barssince(c) <= K` is bounded and translates
+   * (`boundedBarssinceThroughBinding`). Every careful author writes the FIRST form
+   * beside the second —
+   *     age = ta.barssince(cross)
+   *     fresh = not na(age) and age <= within
+   * — so the `na(age)` reached `resolve` on its own, hit the unbounded refusal, and
+   * took the whole script down over a term that could not change the answer. The
+   * defensive spelling was strictly worse than the careless one.
+   *
+   * ⚠️ WHAT THIS DOES NOT CHANGE: this engine answers NOT COMPUTABLE where Pine
+   * answers false for a condition that never occurred in the window. That
+   * divergence belongs to the bounded `barssince` rewrite and is documented there;
+   * dropping a term that was false on exactly those bars neither creates it nor
+   * widens it.
+   */
+  naGuardDroppedFrom(node) {
+    if (node.op !== 'and') return null
+    const left = naGuardedName(node.left)
+    const name = left !== null ? left : naGuardedName(node.right)
+    if (name === null) return null
+    const other = left !== null ? node.right : node.left
+    if (!comparesNameAsConjunct(other, name)) return null
+    // ⛔⛔ ONLY WHEN THE GUARD IS WHAT STOPS THE SCRIPT, AND THE CORPUS IS WHY.
+    // The identity holds in PINE — a comparison against `na` is falsy either way —
+    // but it is NOT an identity in this engine: `!na(x) && x > k` answers a hard
+    // FALSE on a bar where `x` is blank, while `x > k` alone answers NOT
+    // COMPUTABLE. Those are different facts to a member ("it did not match" versus
+    // "we could not tell"), and `CoverageLine` exists to keep them apart.
+    //
+    // ⚰️ MEASURED: dropping it unconditionally rewrote `20-smc-toolkit-udt`, a
+    // script that already translated, turning explicit zeroes before the first
+    // pivot into blanks. So the trade is only taken where the alternative is NO
+    // COLUMN AT ALL — blanks on a few warm-up bars beat a refusal, and nothing
+    // that works today is touched.
+    let guardResolves = false
+    try {
+      this.resolve(left !== null ? node.left : node.right)
+      guardResolves = true
+    } catch { guardResolves = false }
+    if (guardResolves) return null
+    return this.resolve(other)
+  }
+
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
   stateBindingOf(node) {
     if (!node || node.type !== 'name') return null
@@ -4227,6 +4316,12 @@ class Resolver {
         // `boundedObvAgainstOwnAverage`.
         const viaObvAvg = this.boundedObvAgainstOwnAverage(node)
         if (viaObvAvg) return viaObvAvg
+        // ⭐⭐ …AND A REDUNDANT `na` GUARD IS DROPPED BEFORE IT CAN REFUSE. Asked
+        // here, with the others, because resolving `na(age)` IS the unbounded
+        // `ta.barssince` refusal this is deciding not to need. See
+        // `naGuardDroppedFrom` for why the term cannot change the answer.
+        const viaNaGuard = this.naGuardDroppedFrom(node)
+        if (viaNaGuard) return viaNaGuard
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.
