@@ -3902,11 +3902,11 @@ class Resolver {
    * `obv <cmp> sma(obv, n)` as a bounded tree, or null.
    *
    * ⭐⭐ THE BASELINE CANCELS, WHICH IS WHY THIS IS AN IDENTITY AND NOT A
-   * CONVENIENCE. `ta.obv` is cumulative from the first bar with no absolute seed,
-   * so this engine cannot say what it IS — that is `_functions_excluded.obv`, and
-   * it stands. But it can say how much OBV has CHANGED over k bars, which is
-   * `obvN(k)`, and an average of OBV over its own window is made only of such
-   * changes:
+   * CONVENIENCE. `ta.obv` is cumulative from the first bar and `obvN` is its only
+   * bounded form — the LEVEL has no absolute seed, so this engine cannot say what
+   * it IS. That is `_functions_excluded.obv`, and it stands. What it CAN say is
+   * how much OBV has CHANGED over k bars, which is `obvN(k)`, and an average of
+   * OBV over its own window is made only of such changes:
    *
    *     obv - sma(obv, n) = (1/n) · Σ(i=0..n-1) (obv - obv[i])
    *                       = (1/n) · Σ(i=1..n-1) obvN(i)

@@ -2,10 +2,10 @@
 //
 // ─── ⭐⭐ THE BASELINE CANCELS, SO OBV-AGAINST-ITS-OWN-AVERAGE IS SAYABLE ─────
 //
-// `_functions_excluded.obv` stands: OBV is cumulative from the first bar with no
-// absolute seed, so this engine cannot say what OBV IS. It can say how much OBV
-// has CHANGED over k bars — that is `obvN(k)` — and an average of OBV over its
-// own window is made of nothing else:
+// `_functions_excluded.obv` stands: OBV is cumulative from the first bar and `obvN`
+// is its only bounded form. The LEVEL has no absolute seed, so this engine cannot
+// say what OBV IS — it can say how much OBV has CHANGED over k bars, which is
+// `obvN(k)`, and an average of OBV over its own window is made of nothing else:
 //
 //     obv - sma(obv, n) = (1/n) · Σ(i=0..n-1) (obv - obv[i])
 //                       = (1/n) · Σ(i=1..n-1) obvN(i)
