@@ -137,10 +137,68 @@ _init_lock = threading.Lock()
 _initialized_paths: set[str] = set()
 
 
+class PatternDbSharedRootGuard(RuntimeError):
+    """Raised when an unconfigured caller is about to resolve patterns.db
+    onto this box's real, shared C:\\data directory instead of a safe
+    per-worktree/per-session location.
+
+    Package 8G-0 (2026-09): a standalone Python check run outside pytest
+    briefly wrote synthetic HTF/PEG rows into the real, shared
+    C:\\data\\patterns.db before being caught and cleaned up -- exactly the
+    class of accident this guard exists to make loud instead of silent.
+    """
+
+
+def _would_hit_shared_root() -> bool:
+    """True only when ALL of: no explicit override was given, we're on this
+    box's own platform (Windows -- Railway's production runtime is always
+    Linux, so this check is structurally inert there regardless of env
+    state), and `auth_db`'s OWN existing local-dev fallback (see
+    auth_db.py's own `if not os.path.exists(...)` guard) did NOT trigger --
+    meaning `/data` genuinely exists here and every default resolution
+    lands on the real, shared directory rather than a safe repo-local one.
+
+    Pytest is unaffected: the repo-root conftest.py always pins
+    AUTH_DB_PATH to an isolated temp path at collection time, so
+    `auth_db._DB_PATH` never equals the raw unconfigured default under a
+    test run, and this function returns False before ever reaching that
+    comparison whenever a caller (test or otherwise) sets PATTERN_DB_PATH
+    or AUTH_DB_PATH itself.
+
+    Deliberately narrow, by design: this does not try to distinguish "the
+    real app booted locally" from "an ad-hoc script" (no cheap, reliable
+    signal for that was found) -- a local dev-server boot on this box with
+    no override also asks for the explicit PATTERN_DB_ALLOW_SHARED_ROOT=1
+    opt-in. That is accepted friction, not a gap: it costs one env var for
+    a legitimate local run and closes the actual incident class (a bare
+    script silently touching real, shared, cross-session data).
+    """
+    if os.name != "nt":
+        return False
+    if os.environ.get("PATTERN_DB_PATH") or os.environ.get("AUTH_DB_PATH"):
+        return False
+    if os.environ.get("PATTERN_DB_ALLOW_SHARED_ROOT") == "1":
+        return False
+    from api.services import auth_db
+    # The exact literal auth_db.py's own default uses -- see its module
+    # docstring/`_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")`.
+    raw_default = os.path.abspath("/data/auth.db")
+    return os.path.abspath(auth_db._DB_PATH) == raw_default
+
+
 def _db_path() -> str:
     override = os.environ.get("PATTERN_DB_PATH")
     if override:
         return override
+    if _would_hit_shared_root():
+        raise PatternDbSharedRootGuard(
+            "patterns.db would resolve onto this box's real, shared "
+            "C:\\data directory with no explicit override in effect. "
+            "Set PATTERN_DB_PATH to an isolated file for an ad-hoc "
+            "script or a standalone validation run, or set "
+            "PATTERN_DB_ALLOW_SHARED_ROOT=1 if you deliberately intend "
+            "to use the real, shared store."
+        )
     from api.services import auth_db
     return os.path.join(os.path.dirname(os.path.abspath(auth_db._DB_PATH)), "patterns.db")
 
