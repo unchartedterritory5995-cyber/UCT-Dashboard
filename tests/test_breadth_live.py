@@ -760,6 +760,39 @@ def test_reference_levels_recovers_from_snapshot_when_universe_is_empty(tmp_path
     assert out.get("marker") == "SNAP", "recovered from the snapshot before universe()"
 
 
+def test_reference_levels_recovers_when_bars_db_is_empty(tmp_path, monkeypatch):
+    """The REAL day-4 (2026-09-04) failure, proven on the pod: right after a restart
+    bars.db has ZERO SPY daily rows for a minute-plus while it re-ingests, so
+    `last_completed_session` returns None and `reference_levels` bailed at the top
+    guard — BEFORE the snapshot-load block it needs an as_of to reach. The snapshot
+    stamps its own session, so an empty bars.db must recover through it, not 503."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    # Empty bars.db → no last completed session at all.
+    monkeypatch.setattr(bl, "last_completed_session", lambda conn=None: None)
+    bl._levels_cache.clear()
+
+    good = {"as_of_ts": 20260903, "universe_date": "2026-09-03",
+            "tickers": [f"T{i}" for i in range(2000)],
+            "sma_ok": {200: np.ones(2000, bool)}, "marker": "SNAP"}
+    bl._persist_levels(good)
+
+    # universe() would also fail on a cold pod, but we must never even reach it.
+    monkeypatch.setattr(bl, "universe", lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("universe() must not be called on the empty-bars.db recovery path")))
+    out = bl.reference_levels()
+    assert out is not None, "must not 503 when bars.db is empty but a good snapshot exists"
+    assert out.get("marker") == "SNAP"
+    assert bl._persisted_levels_as_of() == 20260903
+
+    # With NO snapshot on disk, an empty bars.db genuinely has nothing to serve → None.
+    import os as _os
+    _os.remove(bl._snapshot_path("breadth_live_levels.pkl"))
+    bl._levels_cache.clear()
+    assert bl.reference_levels() is None
+
+
 def test_anchor_snapshot_recovers_coverage_across_a_cold_build(tmp_path, monkeypatch):
     """A warm anchor build is persisted; when the bars go cold (a restart) the fresh
     build is a sliver, but the persisted snapshot restores full coverage — so the

@@ -1127,6 +1127,32 @@ def _load_persisted_levels(as_of_ts: int) -> Optional[dict]:
         return None
 
 
+def _persisted_levels_as_of() -> Optional[int]:
+    """The `as_of_ts` stamped on the on-disk levels snapshot, or None.
+
+    🔴 The load-bearing recovery for the "breadth gone until 4:30" outage. Right
+    after a restart the daily bars.db is empty for a minute-plus while it re-ingests
+    the pack, so `last_completed_session()` returns None and `reference_levels`
+    would 503 the whole live path — with a perfectly good snapshot sitting on disk
+    it never reaches. This lets it recover the session identity from that snapshot
+    (which stamped its own as_of when a warm build wrote it) so the snapshot-load
+    path can serve the live row through the cold window.
+    """
+    if not _LEVELS_PERSIST:
+        return None
+    try:
+        path = _snapshot_path("breadth_live_levels.pkl")
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            blob = pickle.load(f)
+        v = blob.get("as_of_ts")
+        return int(v) if v else None
+    except Exception as e:
+        print(f"[breadth-live] read snapshot as_of failed (non-fatal): {e}")
+        return None
+
+
 def _persist_anchor(as_of_ts: int, live_prev: dict) -> None:
     if not _LEVELS_PERSIST or (live_prev.get("universe_count") or 0) < _ANCHOR_MIN_CACHE_UNIVERSE:
         return
@@ -1162,6 +1188,13 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
     conn = _bars_conn()
     if as_of_ts is None:
         as_of_ts = last_completed_session(conn)
+    # A cold/empty bars.db right after a restart (daily bars re-ingest for a
+    # minute-plus) can't answer last_completed_session — but the persisted levels
+    # snapshot knows its own session. Recover it so the snapshot-load block below
+    # can serve the live row instead of 503ing. THIS is the daily "breadth gone
+    # until 4:30" failure: the guard used to bail here, before the snapshot it needs.
+    if not as_of_ts and not force:
+        as_of_ts = _persisted_levels_as_of()
     if not as_of_ts:
         return None
     # The measured session, not the frame's end (see the key below).
