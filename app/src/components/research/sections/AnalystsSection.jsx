@@ -6,10 +6,17 @@
 //
 // Layout borrows from the chart pop-up's own "The Street" tab (owner ask,
 // 2026-08-28): the UCT composite rating has no equivalent there, so it stays
-// full-width and first; Estimates and Ownership then sit in two
+// full-width and first; Estimates/Ownership then sit in two
 // independently-scrollable columns, the way TheStreetPanel.jsx lays out
 // Analyst + Ownership, instead of one long stack.
+//
+// 2026-09-03 dedicated Analyst Ratings slice: AnalystRatingsTab (consensus,
+// price target, recent actions -- content narrowed OUT of EstimatesTab) joins
+// the Estimates column as a second card rather than becoming a third grid
+// column, so the existing 2-column .grid needs no CSS change and nothing
+// orphans on a narrow viewport. See .stack in AnalystsSection.module.css.
 import EstimatesTab from '../../../pages/research/tabs/EstimatesTab'
+import AnalystRatingsTab from '../../../pages/research/tabs/AnalystRatingsTab'
 import RatingsTab from '../../../pages/research/tabs/RatingsTab'
 import OwnershipTab from '../../../pages/research/tabs/OwnershipTab'
 import useRatings from '../../../pages/research/hooks/useRatings'
@@ -31,7 +38,10 @@ export default function AnalystsSection({ sym }) {
       <SectionLead testId="street-lead">{streetLead(sym, ratings)}</SectionLead>
       <RatingsTab sym={sym} />
       <div className={styles.grid}>
-        <EstimatesTab sym={sym} />
+        <div className={styles.stack}>
+          <EstimatesTab sym={sym} />
+          <AnalystRatingsTab sym={sym} />
+        </div>
         <OwnershipTab sym={sym} />
       </div>
     </div>

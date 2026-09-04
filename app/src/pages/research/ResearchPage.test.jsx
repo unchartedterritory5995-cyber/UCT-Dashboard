@@ -27,6 +27,19 @@ vi.mock('./hooks/useOwnership', () => ({
 vi.mock('../../hooks/useFilings', () => ({
   default: () => ({ data: { filings: [] }, isLoading: false }),
 }))
+// 2026-09-03 dedicated Analyst Ratings slice: the new tab needs its own data
+// hook resolved (not perpetually loading) so ?section=analyst-ratings has
+// positive content to assert against, mirroring Ownership/Filings above.
+vi.mock('./hooks/useAnalystRatings', () => ({
+  default: () => ({
+    data: {
+      sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_1' },
+      consensus: { label: 'Buy', total: 10, strongBuy: 2, buy: 6, hold: 2, sell: 0, strongSell: 0 },
+      price_target: null, recent_actions: { items: [], _meta: null },
+    },
+    isLoading: false,
+  }),
+}))
 
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
@@ -81,5 +94,21 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=filings' })
     expect(screen.getByText('SEC filings (EDGAR)')).toBeInTheDocument()
+  })
+
+  it('honours ?section=analyst-ratings — lands on the new Analyst Ratings tab', () => {
+    // 2026-09-03 dedicated Analyst Ratings slice: a new tab, not a rename of
+    // Estimates or Ratings (UCT Composite) -- assert its own content.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=analyst-ratings' })
+    expect(screen.getByText('Analyst consensus')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Analyst Ratings" tab button distinct from "Ratings" (UCT Composite)', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Analyst Ratings' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ratings' })).toBeInTheDocument()
   })
 })

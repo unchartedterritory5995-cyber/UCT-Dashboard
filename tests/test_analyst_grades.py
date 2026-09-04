@@ -71,14 +71,17 @@ def test_full_payload_composes(monkeypatch):
     })
     res = ag.get_analyst_grades("aapl")
     assert res["symbol"] == "AAPL"
+    assert res["entity"] is not None   # S3 -- resolved (or an honest not_found), never absent
     assert res["consensus"]["total"] == 1 + 69 + 34 + 7 + 0
     assert res["consensus"]["label"] == "Buy"
     assert res["price_target"]["consensus"] == 327
     assert res["price_target"]["last_month"]["avg"] == 337.5
     # newest-first, capped; downgrade preserved with grade transition
-    assert res["recent_actions"][1] == {
+    assert res["recent_actions"]["items"][1] == {
         "date": "2026-06-22", "company": "KGI Securities",
         "action": "downgrade", "from_grade": "Outperform", "to_grade": "Hold"}
+    # the list leg now carries its own S8 envelope too (2026-09-03)
+    assert res["recent_actions"]["_meta"]["vendor"] == "fmp"
     assert res["trend"][0]["hold"] == 15
 
 
@@ -92,7 +95,7 @@ def test_partial_sources_null_only_their_slice(monkeypatch):
     assert res is not None
     assert res["consensus"]["label"] == "Strong Buy"
     assert res["price_target"] is None
-    assert res["recent_actions"] == []
+    assert res["recent_actions"] == {"items": [], "_meta": None}
     assert res["trend"] == []
 
 
@@ -164,8 +167,10 @@ def test_consensus_and_price_target_carry_d1_provenance_meta(monkeypatch):
     assert pt_meta["sourceActivity"] == "fmp_client.get_price_target_consensus"
     assert pt_meta["freshnessClass"] == "end_of_day"
 
-    # recent_actions/trend still use the untouched _fmp_row/_fmp_rows path.
-    assert res["recent_actions"] == []
+    # trend still uses the untouched _fmp_rows path (no S8 envelope);
+    # recent_actions has its own list-shaped envelope now (2026-09-03), but
+    # every leg here was mocked to return [] so it carries no meta either.
+    assert res["recent_actions"] == {"items": [], "_meta": None}
     assert res["trend"] == []
 
 
@@ -233,11 +238,14 @@ def test_the_four_legs_run_CONCURRENTLY_not_one_after_another(monkeypatch):
     monkeypatch.setattr(ag, "cache", _FakeCache())
     monkeypatch.setattr(ag, "_consensus", _leg({"label": "Buy"}))
     monkeypatch.setattr(ag, "_price_target", _leg({"median": 100.0}))
-    monkeypatch.setattr(ag, "_recent_actions", _leg([{"firm": "X"}]))
+    # _recent_actions' real contract is {"items": [...], "_meta": ...} as of
+    # 2026-09-03 -- match it, so this mock can't silently drift from the
+    # shape get_analyst_grades()'s `actions.get("items")` check actually reads.
+    monkeypatch.setattr(ag, "_recent_actions", _leg({"items": [{"firm": "X"}], "_meta": None}))
     monkeypatch.setattr(ag, "_trend", _leg([{"month": "2026-08"}]))
 
     out = ag.get_analyst_grades("DIS")
 
     assert out is not None
     assert out["consensus"] == {"label": "Buy"}
-    assert out["recent_actions"] == [{"firm": "X"}]
+    assert out["recent_actions"] == {"items": [{"firm": "X"}], "_meta": None}

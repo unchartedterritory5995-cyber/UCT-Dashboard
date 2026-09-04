@@ -50,7 +50,13 @@ def _legs(monkeypatch, *, consensus=None, target=None, actions=None, trend=None,
         return fn
     monkeypatch.setattr(ag, "_consensus", mk("consensus", consensus))
     monkeypatch.setattr(ag, "_price_target", mk("target", target))
-    monkeypatch.setattr(ag, "_recent_actions", mk("actions", actions or []))
+    # _recent_actions' real contract is {"items": [...], "_meta": ...} as of
+    # 2026-09-03 -- a bare list here crashes get_analyst_grades()'s
+    # `actions.get("items")` check the moment consensus/price_target are
+    # both falsy (exactly the "genuine no coverage" case this file exists
+    # to pin), so the mock must match the real shape.
+    monkeypatch.setattr(ag, "_recent_actions",
+                        mk("actions", {"items": actions or [], "_meta": None}))
     monkeypatch.setattr(ag, "_trend", mk("trend", trend or []))
 
 

@@ -15,6 +15,17 @@
   align-items: start;
 }
 
+/* Estimates + Analyst Ratings share one grid column (2026-09-03 Analyst
+   Ratings slice) so the 2-column .grid above stays untouched -- adding a
+   third direct grid child would auto-fit a 3rd column on wide viewports and
+   orphan a lone card on narrow ones. Ownership keeps the other column. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
 /* Recent rating changes: tight, borderless, one line per change. */
 .streetSection [data-rc-list] { gap: 0; }
 .streetSection [data-rc-row] {

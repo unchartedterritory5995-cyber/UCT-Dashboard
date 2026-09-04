@@ -7,6 +7,7 @@ import useRatings from './hooks/useRatings'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
+import AnalystRatingsTab from './tabs/AnalystRatingsTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
@@ -21,13 +22,24 @@ import styles from './ResearchPage.module.css'
 // out of this pass's scope), give it its own tab rather than reviving this
 // label — do not read "Events" back into Filings just because the old label
 // implied it once.
-const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings']
+//
+// 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
+// split): "Analyst Ratings" is a NEW tab, not a rename. It owns third-party
+// analyst consensus/price-targets/recent actions -- content that used to be
+// enriched into Estimates (now narrowed to EPS/revenue forecasts only) and
+// that was ALSO independently rendered on a different surface entirely
+// (AnalystPanel.jsx, via TickerPopup/Charts widgets — a live, paid-gated,
+// legacy path deliberately left untouched, retirement deferred). Do not
+// confuse this with the "Ratings" tab, which stays the UCT Composite Rating
+// — a separate, 100% locally-derived product concept.
+const TABS = ['Overview', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
   overview: 'Overview', financials: 'Financials', estimates: 'Estimates',
+  'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
   filings: 'Filings',
 }
@@ -70,6 +82,7 @@ export default function ResearchPage() {
       {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
+      {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}
       {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}

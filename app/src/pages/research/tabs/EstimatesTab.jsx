@@ -1,50 +1,14 @@
 import useEstimates from '../hooks/useEstimates'
 import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
-import Provenance from '../../../components/provenance/Provenance'
-import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
-import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
-import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
-import { computeSessionStale } from '../../../components/provenance/sessionStale'
-import { sessionModel } from '../../../components/dashboard/sessionModel'
-import useMarketOpen from '../../../hooks/useMarketOpen'
 import styles from '../ResearchPage.module.css'
 
-/** S8/S11 vertical slice (owner authorization, 2026-09-03): the Analyst
- *  consensus and Price target cards' data already flows through D1
- *  (`fmp_client.get_grades_consensus`/`get_price_target_consensus`, via
- *  `analyst_grades.py`) -- this composes the trust strip D1's own
- *  provenance/freshness envelope now carries (`_meta` from the backend)
- *  onto those two cards specifically, not the whole tab: the yfinance-
- *  sourced forward/revisions/rating-changes sections below have no D1
- *  envelope to show and are left exactly as they render today. */
-function TrustStrip({ meta, sessionContext }) {
-  if (!meta) return null
-  const availability = mapAvailability({ value: true, degraded: meta.degraded })
-  const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
-  const sessionStale = computeSessionStale(asOfIso)
-  return (
-    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-      <Provenance
-        value="FMP"
-        availability={availability}
-        provenance={availability === AVAILABLE ? {
-          sourceActivity: meta.sourceActivity,
-          timestamp: asOfIso,
-          tieBreak: meta.tieBreak,
-        } : null}
-      />
-      {availability === AVAILABLE && (
-        <FreshnessBadge
-          freshnessClass={meta.freshnessClass}
-          asOf={asOfIso}
-          sessionState={sessionContext}
-          sessionStale={sessionStale}
-        />
-      )}
-    </div>
-  )
-}
-
+// 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
+// split): this tab is narrowed to its honest scope -- EPS/revenue forward
+// estimates and revisions, both from yfinance. Analyst consensus, price
+// targets, and recent rating-change actions (previously enriched here from
+// FMP, via analyst_grades.py, overriding yfinance's own thinner feed) now
+// live in their own dedicated home: AnalystRatingsTab.jsx. Do not re-add
+// analyst-grade content here.
 function fmtBig(v) {
   if (v == null) return '—'
   const a = Math.abs(v)
@@ -55,28 +19,6 @@ function fmtBig(v) {
 }
 function fmtEps(v) { return v == null ? '—' : v.toFixed(2) }
 function fmtPct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
-function fmtUsd(v) { return v == null ? '—' : `$${v.toFixed(0)}` }
-
-// Sell-side consensus buckets, strong-buy → strong-sell.
-const SEG = [
-  { key: 'strongBuy', label: 'Strong Buy', color: 'var(--ut-green-bright)' },
-  { key: 'buy', label: 'Buy', color: 'var(--ut-green)' },
-  { key: 'hold', label: 'Hold', color: 'var(--text-muted)' },
-  { key: 'sell', label: 'Sell', color: 'var(--ut-red)' },
-  { key: 'strongSell', label: 'Strong Sell', color: 'var(--ut-red-bright)' },
-]
-function consensusClass(label) {
-  const l = (label || '').toLowerCase()
-  if (/buy|outperform|overweight/.test(l)) return styles.up
-  if (/sell|underperform|underweight/.test(l)) return styles.down
-  return ''
-}
-function ptRecency(pt) {
-  for (const w of [['Last month', pt.last_month], ['Last quarter', pt.last_quarter], ['Last year', pt.last_year]]) {
-    if (w[1] && w[1].count > 0 && w[1].avg != null) return { label: w[0], avg: w[1].avg, count: w[1].count }
-  }
-  return null
-}
 
 function trendDir(cur, ago) {
   if (cur == null || ago == null) return ''
@@ -84,16 +26,9 @@ function trendDir(cur, ago) {
   if (cur < ago) return styles.down
   return ''
 }
-function actionClass(a) {
-  if (!a) return ''
-  if (/up|init|overweight|buy|outperform|positive/.test(a)) return styles.up
-  if (/down|underweight|sell|underperform|negative/.test(a)) return styles.down
-  return ''
-}
 
 export default function EstimatesTab({ sym }) {
   const { data, isLoading } = useEstimates(sym)
-  const session = useMarketOpen()
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading estimates…</div></div></div>
@@ -102,12 +37,7 @@ export default function EstimatesTab({ sym }) {
   const e = data || {}
   const fwd = e.forward || []
   const rev = e.revisions || []
-  const rc = e.rating_changes || []
-  const con = e.consensus || null
-  const pt = e.price_target || null
-  const ptr = pt ? ptRecency(pt) : null
-  const empty = !fwd.length && !rev.length && !rc.length && !con && !pt
-  const sessionContext = sessionModel(session)
+  const empty = !fwd.length && !rev.length
 
   return (
     <div className={styles.finWrap}>
@@ -115,54 +45,6 @@ export default function EstimatesTab({ sym }) {
         <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
           Symbol not yet linked to a canonical identity ({e.entity.status}).
         </div>
-      )}
-
-      {con && (
-        <section className={styles.card}>
-          <div className={styles.ct}>Analyst consensus</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <span className={consensusClass(con.label)} style={{ fontSize: 18, fontWeight: 700 }}>{con.label || '—'}</span>
-            <span className={styles.muted}>{con.total} analysts</span>
-          </div>
-          <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', margin: '10px 0' }}>
-            {SEG.map(s => {
-              const v = con[s.key] || 0
-              const w = con.total ? (v / con.total) * 100 : 0
-              return w > 0 ? <div key={s.key} title={`${s.label}: ${v}`} style={{ width: `${w}%`, background: s.color }} /> : null
-            })}
-          </div>
-          <div>
-            {SEG.map(s => (
-              <span key={s.key} className={styles.muted} style={{ marginRight: 16 }}>
-                <b style={{ color: s.color }}>{con[s.key] || 0}</b> {s.label}
-              </span>
-            ))}
-          </div>
-          <TrustStrip meta={con._meta} sessionContext={sessionContext} />
-        </section>
-      )}
-
-      {pt && (
-        <section className={styles.card}>
-          <div className={styles.ct}>Price target</div>
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <div>
-              <div className={styles.muted}>Consensus</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtUsd(pt.consensus ?? pt.median)}</div>
-            </div>
-            <div>
-              <div className={styles.muted}>Range</div>
-              <div>{fmtUsd(pt.low)} – {fmtUsd(pt.high)}</div>
-            </div>
-            {ptr && (
-              <div>
-                <div className={styles.muted}>{ptr.label} avg</div>
-                <div>{fmtUsd(ptr.avg)} <span className={styles.muted}>({ptr.count})</span></div>
-              </div>
-            )}
-          </div>
-          <TrustStrip meta={pt._meta} sessionContext={sessionContext} />
-        </section>
       )}
 
       {!!fwd.length && (
@@ -256,24 +138,6 @@ export default function EstimatesTab({ sym }) {
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
-      )}
-
-      {!!rc.length && (
-        <section className={styles.card}>
-          <div className={styles.ct}>Recent rating changes</div>
-          <div className={styles.rclist} data-rc-list>
-            {rc.map((r, i) => (
-              <div key={`${r.date}-${i}`} className={styles.rcrow} data-rc-row>
-                <span className={styles.rcdate}>{r.date}</span>
-                <span className={styles.rcfirm}>{r.firm}</span>
-                <span className={styles.rcgrade}>
-                  {r.from_grade ? `${r.from_grade} → ` : ''}<b>{r.to_grade || '—'}</b>
-                </span>
-                <span className={actionClass(r.action)}>{r.action || ''}</span>
-              </div>
-            ))}
           </div>
         </section>
       )}

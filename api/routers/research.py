@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Depends
 from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
+from api.services.research.analyst_ratings import get_analyst_ratings
 from api.services.research.ownership import get_ownership
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
@@ -172,7 +173,17 @@ def research_estimates(sym: str):
         return get_estimates(sym)
     except Exception as exc:
         _logger.warning("research estimates failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "forward": [], "revisions": [], "rating_changes": []}
+        return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+
+
+@router.get("/api/research/analyst-ratings/{sym}")
+def research_analyst_ratings(sym: str):
+    try:
+        return get_analyst_ratings(sym)
+    except Exception as exc:
+        _logger.warning("research analyst ratings failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "consensus": None,
+                "price_target": None, "recent_actions": {"items": [], "_meta": None}}
 
 
 @router.get("/api/research/ownership/{sym}")

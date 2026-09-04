@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
+// 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
+// split): EstimatesTab is narrowed to forward estimates + revisions only.
+// Consensus / price-target / recent-rating-change coverage moved to
+// AnalystRatingsTab.test.jsx -- this file no longer references those fields.
+
 const data = {
   sym: 'AAPL',
   forward: [
@@ -9,9 +14,6 @@ const data = {
   revisions: [
     { period: 'Current Qtr', current: 2.10, ago30: 2.05, ago90: 1.95, up30: 5, down30: 1 },
   ],
-  rating_changes: [
-    { date: '2026-05-01', firm: 'Goldman Sachs', from_grade: 'Neutral', to_grade: 'Buy', action: 'up' },
-  ],
 }
 
 vi.mock('../hooks/useEstimates', () => ({ default: () => ({ data, isLoading: false }) }))
@@ -19,63 +21,29 @@ vi.mock('../hooks/useEstimates', () => ({ default: () => ({ data, isLoading: fal
 import EstimatesTab from './EstimatesTab'
 
 describe('EstimatesTab', () => {
-  it('renders forward estimates, revisions, and rating changes', () => {
+  it('renders forward estimates and revisions', () => {
     render(<EstimatesTab sym="AAPL" />)
     expect(screen.getByText('Forward estimates (analyst consensus)')).toBeInTheDocument()
     expect(screen.getByText('+15.0%')).toBeInTheDocument()      // eps growth
     expect(screen.getByText('$95.00B')).toBeInTheDocument()     // revenue avg
-    expect(screen.getByText('Goldman Sachs')).toBeInTheDocument()
-    expect(screen.getByText('Buy')).toBeInTheDocument()         // to_grade
+    expect(screen.getByText('EPS estimate revisions')).toBeInTheDocument()
+  })
+
+  it('does not render any analyst-consensus / price-target / rating-change content', () => {
+    render(<EstimatesTab sym="AAPL" />)
+    expect(screen.queryByText('Analyst consensus')).not.toBeInTheDocument()
+    expect(screen.queryByText('Price target')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recent rating changes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recent analyst actions')).not.toBeInTheDocument()
   })
 })
 
-describe('EstimatesTab -- S8/S11 vertical slice (owner authorization, 2026-09-03)', () => {
-  it('composes Provenance + FreshnessBadge on the consensus and price-target cards from D1 meta', async () => {
-    vi.resetModules()
-    vi.doMock('../hooks/useEstimates', () => ({
-      default: () => ({
-        data: {
-          sym: 'AAPL',
-          entity: { status: 'resolved', entityId: 'e_aapl' },
-          forward: [], revisions: [], rating_changes: [],
-          consensus: {
-            strongBuy: 1, buy: 69, hold: 34, sell: 7, strongSell: 0, total: 111, label: 'Buy',
-            _meta: {
-              vendor: 'fmp', sourceActivity: 'fmp_client.get_grades_consensus',
-              sourceObservedAt: 1735689600, tieBreak: null, freshnessClass: 'end_of_day',
-              licensingClass: 'R', degraded: null,
-            },
-          },
-          price_target: {
-            high: 400, low: 253, median: 325, consensus: 327,
-            last_month: { count: 4, avg: 337.5 }, last_quarter: { count: 14, avg: 326.86 }, last_year: { count: 60, avg: 299.43 },
-            _meta: {
-              vendor: 'fmp', sourceActivity: 'fmp_client.get_price_target_consensus',
-              sourceObservedAt: 1735689600, tieBreak: null, freshnessClass: 'end_of_day',
-              licensingClass: 'R', degraded: null,
-            },
-          },
-        },
-        isLoading: false,
-      }),
-    }))
-    const { default: FreshEstimatesTab } = await import('./EstimatesTab')
-    render(<FreshEstimatesTab sym="AAPL" />)
-
-    const toggles = screen.getAllByTestId('provenance-detail-toggle')
-    expect(toggles).toHaveLength(2)   // one per card
-    expect(screen.getAllByText('FMP')).toHaveLength(2)
-    expect(screen.queryByTestId('entity-unresolved-note')).not.toBeInTheDocument()
-  })
-
+describe('EstimatesTab -- entity + empty state', () => {
   it('renders an honest note when the symbol has not resolved to a canonical entity', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useEstimates', () => ({
       default: () => ({
-        data: {
-          sym: 'ZZZ', entity: { status: 'not_found', entityId: null },
-          forward: [], revisions: [], rating_changes: [], consensus: null, price_target: null,
-        },
+        data: { sym: 'ZZZ', entity: { status: 'not_found', entityId: null }, forward: [], revisions: [] },
         isLoading: false,
       }),
     }))
@@ -84,28 +52,16 @@ describe('EstimatesTab -- S8/S11 vertical slice (owner authorization, 2026-09-03
     expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
   })
 
-  it('a degraded-but-usable consensus reads as entitlement-denied, not a silent normal render', async () => {
+  it('shows the empty-state note when forward and revisions are both empty', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useEstimates', () => ({
       default: () => ({
-        data: {
-          sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_aapl' },
-          forward: [], revisions: [], rating_changes: [],
-          consensus: {
-            strongBuy: 1, buy: 2, hold: 0, sell: 0, strongSell: 0, total: 3, label: 'Buy',
-            _meta: { vendor: 'fmp', sourceActivity: 'fmp_client.get_grades_consensus', sourceObservedAt: null, tieBreak: null, freshnessClass: 'stale', licensingClass: 'R', degraded: 'cached_forbidden' },
-          },
-          price_target: null,
-        },
+        data: { sym: 'ZZZ', entity: { status: 'resolved', entityId: 'e_1' }, forward: [], revisions: [] },
         isLoading: false,
       }),
     }))
     const { default: FreshEstimatesTab } = await import('./EstimatesTab')
-    render(<FreshEstimatesTab sym="AAPL" />)
-    const unavailable = screen.getByTestId('provenance-unavailable')
-    expect(unavailable).toHaveAttribute('data-availability', 'entitlement_denied')
-    // the headline card content still renders -- degraded is a trust fact,
-    // not a reason to hide the analyst-count/label the backend DID return
-    expect(screen.getByText('3 analysts')).toBeInTheDocument()
+    render(<FreshEstimatesTab sym="ZZZ" />)
+    expect(screen.getByText('Estimate data is unavailable for this ticker.')).toBeInTheDocument()
   })
 })
