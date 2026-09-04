@@ -1024,7 +1024,11 @@ if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdge
 // pan-backfill), where a re-anchor is natural and expected. Daily is untouched (its dwell is
 // already a no-op — _deepFirstPaint loaded full up front). Ship DARK at 0; owner opt-in
 // window.__uctIntradaySmooth(true); ramp = the constant. Instant revert = 0 / opt-out.
-export const INTRADAY_SMOOTH_SWITCH_PCT = 0
+// RAMPED 100 (2026-09-04): verified live on prod (cold ALAB 5m — first fetch bars=600 shallow,
+// deep bars=3000 fired ~1.9s after paint off the critical path, poll reverted to a since= delta).
+// This carries Part 1 (no auto-fullTarget-bump on switch) + the flood-abort + deep-backfill; the
+// old "history only loads on pan" tradeoff is retired by deep-backfill. Instant revert: set to 0.
+export const INTRADAY_SMOOTH_SWITCH_PCT = 100
 // Default intraday history depth under smooth-switch: open showing WEEKS of history in ONE stable
 // paint (5m≈7-8wk, 1m≈1.5wk, 60m≈2yr), not the ~600-bar/3.5-day window that looked empty and not
 // the janky 20-32k deep-bump re-anchor. Deeper history still loads on pan (the pan-backfill). Rides
