@@ -310,6 +310,36 @@ def get_price_target_summary(ticker: str) -> _pe.ProviderResult:
                    not_found_if=_empty_container, freshness="end_of_day")
 
 
+# 2026-09-04 (News/Intelligence Slice 1, A8, owner-authorized narrow slice):
+# the two typed methods behind the canonical News composer
+# (`api/services/research/news.py`). Previously called as raw, unrated,
+# un-rate-limited requests via `earnings_estimates._fmp_get` from
+# `api/routers/research.py`'s legacy `/api/research/news/{sym}` route (left
+# untouched -- see that module's own docstring) -- these are net-new D1
+# construction, unlike every other typed method this file already had before
+# its own composer slice. `limit` is left optional/unbounded here exactly like
+# every other typed list endpoint above; the composer is the one that clamps
+# it, not the adapter.
+def get_news_stock(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+    """Wire coverage naming this ticker (`/stable/news/stock`)."""
+    params = {"symbols": ticker.upper()}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/news/stock", params,
+                   source_activity="fmp_client.get_news_stock", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+
+
+def get_news_press_releases(ticker: str, *, limit: Optional[int] = None) -> _pe.ProviderResult:
+    """The company's own announcements (`/stable/news/press-releases`)."""
+    params = {"symbols": ticker.upper()}
+    if limit is not None:
+        params["limit"] = limit
+    return _fetch("/stable/news/press-releases", params,
+                   source_activity="fmp_client.get_news_press_releases", data_class="news",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=12)
+
+
 def get_earnings(ticker: str, *, limit: int = 20) -> _pe.ProviderResult:
     return _fetch("/stable/earnings", {"symbol": ticker.upper(), "limit": limit},
                    source_activity="fmp_client.get_earnings", data_class="earnings",

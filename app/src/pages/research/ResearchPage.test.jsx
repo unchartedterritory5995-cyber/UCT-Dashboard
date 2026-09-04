@@ -40,6 +40,14 @@ vi.mock('./hooks/useAnalystRatings', () => ({
     isLoading: false,
   }),
 }))
+// A8 News/Intelligence Slice 1 (2026-09-04): same idiom -- the new tab's
+// own hook resolved so ?section=news has positive content to assert.
+vi.mock('./hooks/useCompanyNews', () => ({
+  default: () => ({
+    data: { sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_1' }, items: [], _meta: null },
+    isLoading: false,
+  }),
+}))
 
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
@@ -110,5 +118,20 @@ describe('ResearchPage', () => {
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'Analyst Ratings' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ratings' })).toBeInTheDocument()
+  })
+
+  it('honours ?section=news — lands on the new News tab', () => {
+    // A8 Slice 1 (2026-09-04): a new, security-scoped tab, distinct from the
+    // calendar modal's own News tab (untouched compatibility bridge).
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=news' })
+    expect(screen.getByText('No recent news for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "News" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
   })
 })

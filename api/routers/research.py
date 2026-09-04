@@ -12,6 +12,7 @@ from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
 from api.services.research.analyst_ratings import get_analyst_ratings
+from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
@@ -96,6 +97,22 @@ def research_news(sym: str, limit: int = 20):
     except Exception as exc:
         _logger.warning("research news failed for %s: %s", sym, exc)
         return {"sym": sym, "items": []}
+
+
+@router.get("/api/research/company-news/{sym}")
+def research_company_news(sym: str):
+    """The canonical, S3/D1/S8-wired News tab on /research/:sym (A8 Slice 1,
+    2026-09-04, owner-authorized narrow slice). Deliberately a NEW route,
+    not a rewrite of `/api/research/news/{sym}` above -- that route stays
+    byte-for-byte untouched as a COMPATIBILITY BRIDGE for the calendar
+    modal's NewsSection.jsx, per the readiness review's explicit "do not
+    touch a working legacy consumer" instruction.
+    """
+    try:
+        return get_company_news(sym)
+    except Exception as exc:
+        _logger.warning("research company-news failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
 
 
 @router.get("/api/research/quote/{sym}")
