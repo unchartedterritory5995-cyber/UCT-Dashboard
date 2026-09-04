@@ -338,7 +338,7 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
 // the right-click "Reset view" so all three land on the exact same window.
-function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null } = {}) {
+function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null, rightReserve = 0 } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
   // wants a wider window than the interactive default); dailyDefaultBars stays
   // Daily-only so the Charts workspace is untouched.
@@ -351,9 +351,15 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   // candle width with blank space to their left, instead of being STRETCHED to
   // fill the whole pane. Identical to before for normal tickers (barsLen >
   // visibleBars). LWC renders logical indices < 0 as leading whitespace.
-  const from = barsLen - visibleBars - leftBarPad
-  const hist = (barsLen - 1) - from
-  const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : barsLen + rightPadBars
+  // rightReserve (load-anchor fix): frame as if the developing bar were ALREADY the newest, so a
+  // cold first paint whose data still ends at the last sealed period doesn't slide when the
+  // developing bar lands a commit later (the "today's candle opens on tomorrow, then snaps back"
+  // shift). effLen carries the reserve; when the real bar arrives (barsLen +reserve, reserve→0)
+  // effLen is unchanged → the frame is invariant. 0 (off-gate / already-current) → byte-identical.
+  const effLen = barsLen + (rightReserve > 0 ? rightReserve : 0)
+  const from = effLen - visibleBars - leftBarPad
+  const hist = (effLen - 1) - from
+  const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : effLen + rightPadBars
   return { from, to }
 }
 
@@ -10426,7 +10432,7 @@ export default function StockChart({
           if (to < (newBarCount - 1) - 0.5) {
             const _def = computeDefaultLogicalRange(
               newBarCount, resolvedTf,
-              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
             )
             from = _def.from; to = _def.to
           }
@@ -10514,7 +10520,7 @@ export default function StockChart({
             if (_to < (filteredBars.length - 1) - 0.5) {
               const _def = computeDefaultLogicalRange(
                 filteredBars.length, resolvedTf,
-                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
               )
               _from = _def.from; _to = _def.to
             }
@@ -10522,11 +10528,13 @@ export default function StockChart({
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
-            // Today's developing daily bar is now part of the served history
-            // (server-include, api/routers/bars.py), so filteredBars already ends at the
-            // current session and the plain length frames it correctly.
+            // ⚠️ THE COLD-FIRST-PAINT ANCHOR. The served TAIL includes today, but a COLD
+            // first paint renders the STALE IDB/pack provisional first — which ends at the last
+            // SEALED period (yesterday) — so `filteredBars.length` frames yesterday-at-0.95, and
+            // when today's bar lands a commit later the frame slides ("today's candle opens on
+            // tomorrow, then snaps back"). rightReserve pins today's slot up front so it doesn't.
             const { from: _from, to: _to } = computeDefaultLogicalRange(
-              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
             )
             chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to })
           }
@@ -10618,7 +10626,7 @@ export default function StockChart({
           from = to - _pt.width
         } else {
           ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
           ))
         }
         try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
