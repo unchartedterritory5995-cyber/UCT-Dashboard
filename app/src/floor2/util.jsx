@@ -50,28 +50,29 @@ function shade(hex, pct) {
 // missing — detected via naturalWidth>2, same trick as CompanyLogo/FloorAvatar),
 // otherwise the colored initial monogram.
 export function Avatar({ id, info, size = 26 }) {
-  const [hasImage, setHasImage] = useState(false)
+  const [imgOk, setImgOk] = useState(true)
   const name = info?.name || 'member'
   const mentor = !!info?.is_mentor
   const color = colorFor(id || name)
+  // The monogram always renders underneath; the avatar image overlays it. When a
+  // user has no avatar the endpoint returns a 1x1 transparent pixel (so the
+  // monogram shows through), and a real upload covers it — no onLoad/naturalWidth
+  // gate, so a first-time cross-user view shows reliably regardless of caching.
   const style = {
-    width: size, height: size, fontSize: size * 0.4, position: 'relative',
-    background: hasImage ? 'transparent' : (mentor
+    width: size, height: size, fontSize: size * 0.4, position: 'relative', overflow: 'hidden',
+    background: mentor
       ? 'linear-gradient(145deg, #3a3110, #241d07)'
-      : `linear-gradient(145deg, ${color}, ${shade(color, -22)})`),
+      : `linear-gradient(145deg, ${color}, ${shade(color, -22)})`,
     color: mentor ? '#ddc06a' : '#0d0f14',
-    border: mentor && !hasImage ? '1px solid rgba(201,168,76,.5)' : 'none',
-    overflow: 'hidden',
+    border: mentor ? '1px solid rgba(201,168,76,.5)' : 'none',
   }
   return (
     <span className="avatar" style={style} title={name}>
-      {!hasImage && initialsFor(name)}
-      {id && (
-        <img src={`/api/auth/avatar/${id}`} alt="" width={size} height={size} loading="lazy"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%',
-            objectFit: 'cover', display: hasImage ? 'block' : 'none' }}
-          onLoad={(e) => { if (e.target.naturalWidth > 2) setHasImage(true) }}
-          onError={() => setHasImage(false)} />
+      {initialsFor(name)}
+      {id && imgOk && (
+        <img src={`/api/auth/avatar/${id}`} alt="" width={size} height={size}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => setImgOk(false)} />
       )}
     </span>
   )
