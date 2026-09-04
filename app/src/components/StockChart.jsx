@@ -4609,6 +4609,12 @@ export default function StockChart({
   const originSawFetchRef = useRef(false)   // saw the deep fetch actually start (isValidating→true)
   const originBaseLenRef = useRef(0)        // filteredBars length at click — detects the deeper history landing
   const [originLoading, setOriginLoading] = useState(false)  // "Loading chart history…" until the true first bar lands
+  // Fix 2 dwell: gate the FIRST-PAINT edge deep fetch on the sym/tf being stable ~150ms, so a
+  // fast scroll-through (theme tracker) doesn't fire a heavy 12.5k-bar deep fetch for tickers
+  // never landed on. Reset synchronously on sym/tf change (below), re-armed by a timer effect;
+  // only gates _histFirstPaint (the pan path is untouched). The /api/bars tail still paints
+  // instantly; the deep fills ~150ms after the chart settles.
+  const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
   const _overlayActive = !!(
@@ -4619,6 +4625,7 @@ export default function StockChart({
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
     pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
     originSawFetchRef.current = false
     if (originLoading) setOriginLoading(false)
@@ -4675,6 +4682,14 @@ export default function StockChart({
   // merge effect so within any single commit this sync runs first.
   const idbBarsRef = useRef(null)
   useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
+  // Fix 2 dwell timer: arm the first-paint edge deep fetch ~150ms after the sym/tf settles, so a
+  // fast scroll-through never fires it. Early-returns when Fix 2 is off → no state churn, dark-safe.
+  useEffect(() => {
+    if (!sym || !resolvedTf) return undefined
+    if (!_firstPaintEdgeEnabled()) return undefined
+    const _t = setTimeout(() => _setFpDwellReady(true), 150)
+    return () => clearTimeout(_t)
+  }, [sym, resolvedTf])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -4868,7 +4883,8 @@ export default function StockChart({
   // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
   // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
   const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
-  const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _firstPaintEdgeEnabled()
+  const _fpEdge = _firstPaintEdgeEnabled()
+  const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
   // Deep sealed history from the edge — after the user pans PAST the first-paint tail
   // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
@@ -5065,10 +5081,22 @@ export default function StockChart({
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
     if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
-    // Fix 2 cold-race: on first paint (Fix 2) histData can arrive BEFORE the /api/bars tail
-    // establishes idbBars. Bail now, but idbBars is in the deps → this re-runs the moment the
-    // tail lands and completes the merge (instead of dropping the deep history until a pan).
-    if (!cur?.length) return                                       // wait for the tail to establish the series
+    // Fix 2 cold-tail paint: when the /api/bars tail is slow or HUNG (a cold-server long-tail
+    // ticker — XXII/KORU-class microcaps + thin ETFs can stall the tail 20s+), the deep SEALED
+    // history from the edge has already arrived but the chart stayed BLANK because the render +
+    // merge both waited for the tail. Seed idbBars straight from the sealed history so the chart
+    // paints its full past (through the last sealed day) instantly; the [data] effect above then
+    // heals the recent tail + today's live bar when /api/bars finally lands (deeperInIdb keeps the
+    // deep, wins the overlap). idbBars is in the deps, so once the tail establishes idbBars this
+    // re-runs and mergeDelta reconciles. Only reachable via the Fix 2 first-paint histData (gated),
+    // so inert at PCT=0.
+    if (!cur?.length) {
+      idbBarsRef.current = histData.bars
+      setIdbBars(histData.bars)
+      idbPut(sym, resolvedTf, histData.bars)
+      memPut(sym, resolvedTf, histData.bars)
+      return
+    }
     const merged = mergeDelta(histData.bars, cur)
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
     idbBarsRef.current = merged
@@ -5241,7 +5269,10 @@ export default function StockChart({
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
             ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
-            : (_idbFresh
+            : ((_idbFresh || (_splitDeepUsable && _fpEdge))
+                // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
+                // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
+                // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
                 ? idbBars
                 : (_netMatches
                     ? data.bars
