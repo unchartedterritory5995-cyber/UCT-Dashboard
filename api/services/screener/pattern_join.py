@@ -442,7 +442,9 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     for those four.
     """
     from api.services.pattern_engine import pattern_db
-    from api.services.pattern_engine.canonical_adapter import build_scanner_summary
+    from api.services.pattern_engine.canonical_adapter import (
+        build_scanner_summary, reconstruct_persisted_evidence,
+    )
 
     cutoff = int(time.time()) - _WINDOW_SECS
     placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
@@ -498,23 +500,128 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
         if eligibility_json is not None:
             reconstructed["eligibility"] = json.loads(eligibility_json)
         # Transitional storage mapping, not native canonical persistence
-        # (ChatGPT relay review, 2026-09-04): PEG's event data has no column
-        # of its own -- it is reconstructed from the pre-existing
-        # geometry_json.extras fields the same way canonical_adapter.
-        # adapt_power_earnings_gap does in memory. The canonical model is
-        # cleaner than this legacy physical layout; this mapping exists only
-        # to prove the shadow contract against real persisted rows.
+        # (ChatGPT relay review, 2026-09-04): PEG's event/gate_trace data has
+        # no column of its own -- both are reconstructed from the
+        # pre-existing geometry_json.extras fields the detector itself
+        # already writes (real for every persisted PEG row, adapted or
+        # not). Package 8F factored this out into
+        # canonical_adapter.reconstruct_persisted_evidence so this reader
+        # and the internal detail-response reader share ONE implementation
+        # instead of two that could drift.
         extras = reconstructed["geometry"].get("extras", {})
-        days = extras.get("days_to_earnings")
-        if days is not None or "earnings_linkage_verified" in extras:
-            verified = extras.get("earnings_linkage_verified")
-            status_ = (
-                "unavailable" if days is None
-                else "verified" if verified
-                else "contradicted"
-            )
-            reconstructed["event"] = {"event_type": "earnings", "verification_status": status_,
-                                       "days_from_event": days}
+        reconstructed.update(
+            reconstruct_persisted_evidence(best_row["pattern_id"], extras)
+        )
 
         out[tu] = build_scanner_summary(reconstructed)
+    return out
+
+
+# ─── Phase 8 Package 8F — bounded shadow-observation comparison ────────────
+#
+# Mismatch taxonomy, frozen BEFORE this was ever run against real data
+# (ChatGPT relay review, 2026-09-04 — "define expected success criteria...
+# do not move the goalposts after seeing production-shaped data"):
+#
+#   missing_in_canonical  — legacy has a result for this ticker, canonical
+#                           doesn't (row loss in the canonical read)
+#   missing_in_legacy     — the reverse (should not structurally happen —
+#                           both read the same table — included for symmetry)
+#   direction_mismatch    — the best-detection's direction differs between
+#                           the two for the same ticker (a real correctness
+#                           bug — both sides select "best" via the identical
+#                           entry+stop-required / highest-confidence /
+#                           tie-newest rule over the same underlying rows,
+#                           so they must agree)
+#   comparison_error      — building either side for one ticker raised
+#
+# ⛔ CONFIDENCE IS DELIBERATELY NOT COMPARED. `read_pattern_fields`'s
+# `pattern_engine_conf` is `max(d["confidence"] for d in dets)` — the
+# highest confidence across EVERY active detection for the ticker,
+# regardless of whether that detection has levels. Canonical's `confidence`
+# is the BEST-detection's own confidence (entry+stop required). These are
+# two different aggregates by design (module docstring's own "D6: two
+# confidence scales collide") — comparing them would manufacture a
+# systematic false-mismatch signal on any ticker where a levels-less
+# detector (e.g. `swing_pivots`, always confidence=100) outranks the
+# levels-qualified best one. Found and excluded BEFORE this ever ran
+# against real data, not after seeing a misleading result.
+#
+# `eligibility_unpopulated` is DELIBERATELY NOT a mismatch category either:
+# a canonical result with `scanner_eligible is None` means this row was
+# never canonically adapted (Package 8F's own finding —
+# `_scan_patterns_daily` writes eligibility_json only when
+# PATTERN_CANONICAL_ADAPT_ENABLED=1), the expected, benign state for most
+# rows today. Counting it as a mismatch would misread "not yet adapted" as
+# "adapter failed" — the confusion the relay review's own
+# enumerate-other-write-paths point warned against.
+_MISMATCH_CATEGORIES = (
+    "missing_in_canonical", "missing_in_legacy",
+    "direction_mismatch", "comparison_error",
+)
+_SHADOW_LOG_CAP = 25  # bounded diagnostic — never an unbounded per-ticker dump
+_DIRECTION_NUM_TO_STR = {1: "bullish", -1: "bearish", 0: "neutral"}
+
+
+def compare_pattern_shadow(targets, legacy_map: dict | None = None) -> dict:
+    """Compare `read_pattern_fields` (served) against
+    `read_pattern_fields_canonical_shadow` (never served) for `targets`.
+    LOG-ONLY — returns a bounded record; callers must never serve this
+    output to any user-facing path. Never raises: a bad ticker is caught
+    individually and tallied under `comparison_error`, so one bad row can't
+    hide the rest of the comparison (same consumer-seam discipline as
+    `snapshot_builder._read_market_source`).
+
+    `legacy_map` lets a caller that already computed the served
+    `pattern_map` pass it in, avoiding a second identical query.
+    """
+    if legacy_map is None:
+        legacy_map = read_pattern_fields(targets)
+    try:
+        canonical_map = read_pattern_fields_canonical_shadow(targets)
+    except Exception as e:
+        return {"compared": 0, "comparison_error": 1,
+                "comparison_error_sample": [f"shadow read itself failed: {e}"],
+                "eligibility_unpopulated": 0, "parity_clean": 0}
+
+    tallies = {cat: [] for cat in _MISMATCH_CATEGORIES}
+    eligibility_unpopulated = 0
+    parity_clean = 0
+    all_tickers = set(legacy_map) | set(canonical_map)
+
+    for t in all_tickers:
+        try:
+            legacy = legacy_map.get(t)
+            canonical = canonical_map.get(t)
+            if legacy is not None and canonical is None:
+                tallies["missing_in_canonical"].append(t)
+                continue
+            if legacy is None and canonical is not None:
+                tallies["missing_in_legacy"].append(t)
+                continue
+            if legacy is None and canonical is None:
+                continue  # neither side has this ticker — not a comparison at all
+
+            mismatched = False
+            legacy_dir_num = legacy.get("pattern_engine_dir")
+            canonical_dir = canonical.get("direction")
+            if legacy_dir_num is not None and canonical_dir is not None:
+                if _DIRECTION_NUM_TO_STR.get(legacy_dir_num) != canonical_dir:
+                    tallies["direction_mismatch"].append(t)
+                    mismatched = True
+
+            if canonical.get("scanner_eligible") is None:
+                eligibility_unpopulated += 1
+            elif not mismatched:
+                parity_clean += 1
+        except Exception as e:
+            tallies["comparison_error"].append(f"{t}: {e}")
+
+    out = {"compared": len(all_tickers), "eligibility_unpopulated": eligibility_unpopulated,
+           "parity_clean": parity_clean}
+    for cat in _MISMATCH_CATEGORIES:
+        rows = tallies[cat]
+        out[cat] = len(rows)
+        if rows:
+            out[f"{cat}_sample"] = rows[:_SHADOW_LOG_CAP]
     return out

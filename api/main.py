@@ -353,6 +353,26 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     # Importing patterns router triggers detector registration:
     from api.routers import patterns as _patterns  # noqa: F401
 
+    # Phase 8 Package 8F: the live write-path integration for eligibility_json
+    # — OFF by default. This is a WRITE-side flag only; nothing in this
+    # package builds a scanner-READ-authority switch, so there is no
+    # served-output path this can affect (snapshot_builder.py's caller of
+    # pattern_join.read_pattern_fields is untouched). Checked per-call, not
+    # cached at import, so a flag flip takes effect on the job's next
+    # scheduled run without a process restart.
+    canonical_adapt_enabled = os.environ.get("PATTERN_CANONICAL_ADAPT_ENABLED") == "1"
+    canonical_adapt_fns = {}
+    if canonical_adapt_enabled:
+        from api.services.pattern_engine.canonical_adapter import (
+            adapt_high_tight_flag, adapt_power_earnings_gap,
+        )
+        canonical_adapt_fns = {
+            "high_tight_flag": adapt_high_tight_flag,
+            "power_earnings_gap": adapt_power_earnings_gap,
+        }
+    canonical_adapted = 0
+    canonical_adapt_failed = 0
+
     scanned = 0
     stored = 0
     for sym in symbols:
@@ -380,6 +400,25 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
                     extras["from_leader_universe"] = sym in leader_set
                 except Exception:
                     pass
+                # Phase 8 Package 8F: canonical adaptation, HTF/PEG only,
+                # BEFORE store — fail-safe (ChatGPT relay review, 2026-09-04):
+                # a raise here must never lose the underlying legacy
+                # detection or break the nightly universe job. On failure,
+                # `d` is left exactly as the detector emitted it and this
+                # row's eligibility_json writes NULL, same as if the flag
+                # were off — the canonical layer is never a new
+                # availability dependency for the scan itself.
+                adapt_fn = canonical_adapt_fns.get(d.get("pattern_id"))
+                if adapt_fn is not None:
+                    try:
+                        d = adapt_fn(d)
+                        canonical_adapted += 1
+                    except Exception as adapt_err:
+                        canonical_adapt_failed += 1
+                        _plog.warning(
+                            "[patterns] canonical adapt failed for %s %s: %s",
+                            sym, d.get("pattern_id"), adapt_err,
+                        )
                 try:
                     memory.store_detection(d)
                     stored += 1
@@ -388,6 +427,11 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
             scanned += 1
         except Exception as scan_err:
             _plog.debug("[patterns] scan failed for %s D: %s", sym, scan_err)
+    if canonical_adapt_enabled and (canonical_adapted or canonical_adapt_failed):
+        _plog.info(
+            "[patterns] canonical adapt: %d succeeded, %d failed",
+            canonical_adapted, canonical_adapt_failed,
+        )
     return scanned, stored
 
 

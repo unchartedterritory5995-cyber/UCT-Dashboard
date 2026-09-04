@@ -293,9 +293,15 @@ def _current_stage_facts(detection: Detection) -> list[ExplanationFact]:
     phrase_fns = _FAMILY_PHRASE_FNS.get(pid)
     if phrase_fns and context:
         stage_fn, ma_fn, rs_fn = phrase_fns
+        # ma_fn(context) already includes the word "moving-average" for
+        # HTF's own phrasing ("fully stacked-bullish moving-average") but
+        # not PEG's ("fully stacked-bullish") — matching each detector's own
+        # narrative template exactly (`{ma_phrase} alignment`, no extra word
+        # inserted here) avoids a "moving-average moving-average" duplication
+        # for HTF. Caught against real market data, Package 8F.
         facts.append(_fact(
             "market_context", "lifecycle", "direct",
-            f"Forming in {stage_fn(context)} with {ma_fn(context)} moving-average "
+            f"Forming in {stage_fn(context)} with {ma_fn(context)} "
             f"alignment and {rs_fn(context)} relative strength vs. the broader market.",
             "context.trend_stage", "neutral", 2,
         ))
