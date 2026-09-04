@@ -1164,19 +1164,36 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         as_of_ts = last_completed_session(conn)
     if not as_of_ts:
         return None
+    # The measured session, not the frame's end (see the key below).
+    measured_ts = _ts_int(_now_et().date())
+
+    # Fast in-memory hit for this session (built OR snapshot-loaded) — avoids a disk
+    # read per call. Keyed loosely on (as_of, measured_ts): the levels are the same
+    # for a session regardless of a small intraday universe drift.
+    with _levels_lock:
+        ck = _levels_cache.get("key")
+        if not force and ck and ck[0] == as_of_ts and ck[-1] == measured_ts:
+            return _levels_cache["levels"]
+
+    # ⭐ SNAPSHOT-FIRST restart survival, BEFORE universe()/frame. A GOOD snapshot for
+    # this session (same prior-close moving averages, constant all day) recovers the
+    # ENTIRE live path across a restart — even when the cold bars.db OR an empty/flaky
+    # `universe_list` read would otherwise return None here and 503 the live row (the
+    # daily "breadth gone till 4:30" failure). Written by an earlier warm build today.
+    if not force:
+        disk = _load_persisted_levels(as_of_ts)
+        if disk is not None and _levels_coverage(disk) >= _LEVELS_MIN_COVERAGE:
+            dkey = (as_of_ts, disk.get("universe_date"),
+                    len(disk.get("tickers", [])), measured_ts)
+            with _levels_lock:
+                _levels_cache["key"] = dkey
+                _levels_cache["levels"] = disk
+            return disk
 
     tickers, uni_date = universe()
     if not tickers:
         return None
-    # The measured session, not the frame's end. It joins the cache key because
-    # a holiday or weekend holds `as_of_ts` still while the day moves, and the
-    # dividend anchor follows the day (see `_apply_dividend_basis`).
-    measured_ts = _ts_int(_now_et().date())
     key = (as_of_ts, uni_date, len(tickers), measured_ts)
-
-    with _levels_lock:
-        if not force and _levels_cache.get("key") == key:
-            return _levels_cache["levels"]
 
     with _levels_build_lock:
         # Re-check: while we queued, the first caller may have finished.
@@ -1189,19 +1206,6 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         dates = _session_dates(conn, as_of_ts, start)
         if len(dates) < 221:
             return None
-
-        # Snapshot-FIRST restart survival: a GOOD levels snapshot for THIS session
-        # is the same prior-close moving averages (constant all day), so load it and
-        # SKIP the heavy 2,600-ticker frame build. After a restart the bars are cold
-        # and that build is both slow AND a sliver; skipping it is what makes recovery
-        # fast (seconds, from snapshot + live prices) instead of a pile-up of slow
-        # cold builds — which is the 524 storm this whole failure produced.
-        disk = _load_persisted_levels(as_of_ts)
-        if disk is not None and _levels_coverage(disk) >= _LEVELS_MIN_COVERAGE:
-            with _levels_lock:
-                _levels_cache["key"] = key
-                _levels_cache["levels"] = disk
-            return disk
 
         closes, volumes = _load_frame(conn, tickers, dates)
         closes = _apply_dividend_basis(tickers, dates, closes, measured_ts)

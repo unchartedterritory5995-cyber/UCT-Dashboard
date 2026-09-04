@@ -736,6 +736,30 @@ def test_levels_snapshot_survives_a_cold_rebuild(tmp_path, monkeypatch):
     assert bl._load_persisted_levels(20260902)["marker"] == "GOOD"
 
 
+def test_reference_levels_recovers_from_snapshot_when_universe_is_empty(tmp_path, monkeypatch):
+    """The daily 503 (2026-09-04): after a restart the `universe_list` read comes back
+    empty → `universe()` returns [] → `reference_levels` used to return None → the live
+    row 503'd ('reference levels unavailable') for the rest of the day. A GOOD snapshot
+    for the session must recover it, because the snapshot check now runs BEFORE
+    `universe()`."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    monkeypatch.setattr(bl, "last_completed_session", lambda conn=None: 20260903)
+    bl._levels_cache.clear()
+
+    good = {"as_of_ts": 20260903, "universe_date": "2026-09-03",
+            "tickers": [f"T{i}" for i in range(2000)],
+            "sma_ok": {200: np.ones(2000, bool)}, "marker": "SNAP"}
+    bl._persist_levels(good)
+
+    # universe() is BROKEN (empty) — the flaky post-restart read that caused the 503.
+    monkeypatch.setattr(bl, "universe", lambda *a, **k: ([], None))
+    out = bl.reference_levels()
+    assert out is not None, "must not 503 when a good snapshot exists"
+    assert out.get("marker") == "SNAP", "recovered from the snapshot before universe()"
+
+
 def test_anchor_snapshot_recovers_coverage_across_a_cold_build(tmp_path, monkeypatch):
     """A warm anchor build is persisted; when the bars go cold (a restart) the fresh
     build is a sliver, but the persisted snapshot restores full coverage — so the
