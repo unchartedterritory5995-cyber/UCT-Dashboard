@@ -118,24 +118,27 @@ owner confirms otherwise — read freely, do not write there.
 - `PROGRESS.md` — this file.
 - `REQUIREMENTS_LEDGER.md` (120 rows), `CONSTRAINT_LEDGER.md` (19 entries) — done.
 
-## Next steps once dispatched work returns
+## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 
-1. Reconcile the two archaeology agents' findings into `CURRENT_ARCHITECTURE.md` once both have landed.
-2. **Benchmark reproduction (MP-007) — repro commands identified, not yet run:**
-   ```
-   cd app
-   npx vitest run src/components/chart/engine/ast/doorScorecard.test.js
-   npx vitest run src/components/chart/engine/ast/pine.corpus.test.js
-   npx vitest run src/components/chart/engine/ast/pine.blindCorpus.test.js
-   npx vitest run src/components/chart/engine/ast/pine.screenerCorpus.test.js
-   npx vitest run src/components/chart/engine/ast/thinkscript.corpus.test.js
-   # Python cross-lane differential (deepest evidence class):
-   python tools/ast_conformance.py --check
-   python tools/ast_conformance.py --coverage
-   ```
-   No number from memory or the master prompt gets used in any report until these are actually run.
-3. Decide second-wave dispatches based on what's actually found (don't pre-commit further agents before
+Ran the actual corpus tests + the Python cross-lane conformance tool (commands + full results in that
+file). Headline: **43/58 and 21/48 were exactly right, live; "28/48 after assisted edits" is currently
+FALSE — the repo's own test is red on this today (stuck at 21, the offer mechanism isn't lifting any of
+the 21 blocked blind-corpus scripts); memory's "17/21" is superseded (today: 14/21).** Also found: TC2000
+(PCF) is 57/57 on its own corpus — not just non-greenfield, plausibly the most mature door by this metric
+(caveat: unknown whether it has a blind/adversarial corpus the way Pine does). Also found a second live
+red check: `ast_conformance.py --coverage` shows one manifest scalar (`base_relation_count`) with zero
+fixture coverage. Both red findings are real, narrow, already self-tracked by the repo — not fabricated,
+not hidden.
+
+## Next steps
+
+1. Reconcile all findings so far (both archaeology agents + this reproduction) into `CURRENT_ARCHITECTURE.md`
+   once the still-running program-status agent lands.
+2. Decide second-wave dispatches based on what's actually found (don't pre-commit further agents before
    seeing wave-one evidence, per master-prompt §61 "determine optimal parallelization after initial
-   orientation").
-4. Commit this folder's contents once reviewed — 3 commits landed so far this session (kickoff docs,
-   ledgers, this update).
+   orientation"). Candidates raised by this reproduction specifically: (a) investigate the blind-corpus
+   assisted-edit gap as a real, scoped bug rather than leaving it as a red test someone else trips over;
+   (b) determine whether TC2000/PCF has (or needs) a blind corpus equivalent to Pine's before trusting its
+   57/57 as broadly representative.
+3. Commit this folder's contents once reviewed — 5 commits landed so far this session (kickoff docs,
+   ledgers, Pine/thinkScript reconciliation, this update, benchmark reproduction).
