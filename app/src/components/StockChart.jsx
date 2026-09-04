@@ -1115,21 +1115,41 @@ if (typeof window !== 'undefined') {
     } catch { /* ignore */ }
   }
 }
-// Slots to reserve to the right so a settling intraday load doesn't shift when newer buckets land.
-// 0 unless the gate is on AND this is an intraday tf AND the last loaded bar is a unix-stamped
-// intraday bucket that is at least one whole tf-interval behind NOW. Capped at INTRADAY_RESERVE_MAX
-// so a deeply-stale provisional (or the overnight gap, where the last bar is yesterday) can never
-// open a big empty right gap — it just leaves the small residual shift those rarer cases already had.
+// Slots to reserve to the right so a settling load doesn't shift when the current developing
+// bar/bucket lands in a later commit. 0 unless the gate is on. Covers ALL timeframes:
+//   • intraday (unix `t`): the count of whole tf-intervals the last loaded bucket is behind NOW,
+//     capped at INTRADAY_RESERVE_MAX (a deeply-stale/overnight last bar can't open a big gap).
+//   • daily/weekly/monthly (ISO-date `t`): ONE slot when the last loaded bar is still a SEALED
+//     prior period (its date < the ET sealed-period cutoff). The daily deep-history tail
+//     (bars-history) transiently ends at the last SEALED day before the primary /api/bars tail's
+//     server-included TODAY bar merges in; that late +1 re-pins the newest and slides the frame
+//     ("today's candle lands on tomorrow, then snaps back"). Reserving today's slot up front keeps
+//     the frame invariant. When the developing bar IS present, the last date is NOT < the cutoff
+//     → reserve 0 → self-cancels, so the anchor is byte-identical once settled.
 export const INTRADAY_RESERVE_MAX = 3
 export function _intradayLoadReserve(bars, tf) {
   if (!_intradayLoadAnchorEnabled()) return 0
-  if (!(tf === '1' || tf === '5' || tf === '15' || tf === '30' || tf === '60')) return 0
   if (!Array.isArray(bars) || bars.length === 0) return 0
   const lt = bars[bars.length - 1] && bars[bars.length - 1].t
-  if (typeof lt !== 'number') return 0   // sealed daily/weekly bars carry ISO strings, not unix
-  const tfSec = (Number(tf) || 5) * 60
-  const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
-  return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
+  if (tf === '1' || tf === '5' || tf === '15' || tf === '30' || tf === '60') {
+    if (typeof lt !== 'number') return 0
+    const tfSec = (Number(tf) || 5) * 60
+    const gap = Math.floor((Date.now() / 1000 - lt) / tfSec)
+    return gap > 0 ? Math.min(INTRADAY_RESERVE_MAX, gap) : 0
+  }
+  if (tf === 'D' || tf === 'W' || tf === 'M') {
+    if (typeof lt !== 'string' || lt.length < 10) return 0
+    // Only reserve when a developing-period bar is actually expected — i.e. today (ET) is a
+    // weekday. On weekends there's no session pending, so no late bar will land; reserving
+    // would just open a phantom right gap that never fills. (Weekday holidays — rare — still
+    // reserve, a harmless ≤1-bar gap in the future pad.)
+    let dow = 6
+    try { dow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay() } catch { return 0 }
+    if (dow === 0 || dow === 6) return 0
+    const ps = _etPeriodStartISO(tf)
+    return (ps && lt < ps) ? 1 : 0
+  }
+  return 0
 }
 
 // ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
