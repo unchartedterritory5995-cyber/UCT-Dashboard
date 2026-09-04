@@ -2538,6 +2538,87 @@ function contextBoundedPlan(node) {
   return null
 }
 
+/** ⭐⭐ A RUN-LENGTH COUNTER, WHICH IS A BOUNDED QUESTION WEARING UNBOUNDED CLOTHES.
+ *
+ *      var int downRun = 0
+ *      downRun := close < close[1] ? downRun + 1 : 0
+ *      ... downRun >= 3
+ *
+ *  `downRun` reads as a running total and refuses at `pine:state` — the update
+ *  arm `self + 1` never forgets its seed, so `forgetsItsSeed` answers NO and it
+ *  is RIGHT to: folding it into `accum` would draw a rolling window over the
+ *  warm-up rather than a counter. But the counter is never OBSERVED unbounded.
+ *  Compared against a whole number K, only the last K bars can decide it.
+ *
+ *  ⭐ THE IDENTITY, and it is exact rather than close. `x[t] = c[t] ? x[t-1]+1 : 0`
+ *  makes `x[t]` the length of the maximal run of true `c` ending at t, so
+ *  `x >= n`  ⟺  `c and c[1] and … and c[n-1]`.
+ *  Where the run reaches back past the first bar the counter reads `seed + t + 1`
+ *  and the conjunction reads all-true — they agree, because a run that long
+ *  already contains n true bars. The only bars where a seed could disagree are
+ *  the first n-1, which are inside this tree's own `maxLookback` and therefore
+ *  NOT COMPUTABLE either way. ⛔ A NEGATIVE SEED WOULD BREAK THAT — it could hold
+ *  the counter under n on the first bar the tree can answer — so the seed must be
+ *  a non-negative whole number, checked rather than assumed.
+ *
+ *  ⛔ THIS WIDENS NO VOCABULARY. `downRun` bare still refuses with the
+ *  `pine:state` sentence, and so does `downRun` compared against another series:
+ *  what is recognised is the one shape in which the unbounded part provably
+ *  cannot be observed — exactly the rule `contextBoundedPlan` states for
+ *  `ta.barssince` and `ta.obv`.
+ *
+ *  Returns `{ cond, invert }`; `invert` marks the `c ? 0 : self + 1` spelling,
+ *  whose run is over `not c`. */
+function runLengthShape(node, name) {
+  if (!node || node.type !== 'ternary') return null
+  // ⚰️ BOTH SPELLINGS OF "THIS COUNTER'S PREVIOUS BAR" ARE ACCEPTED, AND THE
+  // FIRST TWO DRAFTS EACH TOOK ONLY ONE. A `state` binding's `update` still holds
+  // the bare NAME the member typed (`downRun + 1`) — the walker has not rewritten
+  // it — while `selfref` is what the other stateful path emits. Matching one and
+  // not the other declines every script this rule exists to serve while reading as
+  // if it were working.
+  const isSelf = (n) => !!n && ((n.type === 'name' && n.name === name) || n.type === 'selfref')
+  // ⚠️ THE INCREMENT MUST BE EXACTLY ONE. `self + 2` counts something real but it
+  // is not a run length, and `>= n` over it is a different question.
+  const increments = (arm) => {
+    if (!arm || arm.type !== 'binary' || arm.op !== '+') return false
+    return (isSelf(arm.left) && litInt(arm.right) === 1)
+      || (litInt(arm.left) === 1 && isSelf(arm.right))
+  }
+  const resets = (arm) => litInt(arm) === 0
+  if (increments(node.yes) && resets(node.no)) return { cond: node.test, invert: false }
+  if (resets(node.yes) && increments(node.no)) return { cond: node.test, invert: true }
+  return null
+}
+
+/** The SIGNED number a canonical node is, or null.
+ *
+ *  ⚰️ `litInt`-STYLE `type === 'num'` CANNOT SEE A NEGATIVE ONE, and that made
+ *  the seed check below a gate that could not fail. `cNum` emits a negative
+ *  literal as `u-` applied to a positive one — because that is what the text this
+ *  module prints re-parses to — so `var int n = -5` resolved to an `op`, missed
+ *  the `num` test, and declined for the WRONG REASON. Mutation testing is what
+ *  found it: relaxing `seedValue < 0` changed no test result, which is the
+ *  signature of protection nobody has seen fire.
+ */
+function signedNum(node) {
+  if (!node) return null
+  if (node.type === 'num') return Number(node.value)
+  if (node.type === 'op' && node.name === 'u-' && Array.isArray(node.args)
+      && node.args.length === 1 && node.args[0] && node.args[0].type === 'num') {
+    return -Number(node.args[0].value)
+  }
+  return null
+}
+
+/** ⛔ THE EXPANSION IS THE COST, AND IT IS PAID IN NODES. A run of K becomes K
+ *  copies of the condition, so a member's `downRun >= 500` would be five hundred
+ *  subtrees for one column. Past this ceiling the rewrite DECLINES and the
+ *  ordinary `pine:state` refusal stands, which is the honest outcome: a counter
+ *  that deep is a running total in everything but name. Real scripts ask for
+ *  three, five, ten. */
+export const PINE_RUN_LENGTH_MAX = 60
+
 function parseExpression(cur, minBp = 0) {
   let left = parseUnary(cur)
   for (;;) {
@@ -3775,6 +3856,103 @@ class Resolver {
     })
   }
 
+  /**
+   * `<run-length counter> <cmp> <whole number>` as a bounded conjunction, or null.
+   *
+   * ⭐ IT IS THE SAME SHAPE AS `boundedBarssinceThroughBinding` AND FOR THE SAME
+   * REASON: members name the counter on one line and compare it on another, so a
+   * rule that needed both halves in one expression would see none of them.
+   *
+   * ⛔⛔ THE WHOLE THING IS BUILT INSIDE `throughBinding`. The update arm is
+   * written in the binding's OWN scope — `close < close[1]` may mean something
+   * else where the comparison sits — and resolving it out here would translate
+   * the right shape against the wrong env, which yields a confident wrong column
+   * instead of a refusal.
+   */
+  /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
+  stateBindingOf(node) {
+    if (!node || node.type !== 'name') return null
+    const b = this.env.get(node.name)
+    return b && b.kind === 'state' ? b : null
+  }
+
+  /**
+   * `<run-length counter> <cmp> <whole number>` as a bounded conjunction, or null.
+   *
+   * ⭐ IT IS THE SAME SHAPE AS `boundedBarssinceThroughBinding` AND FOR THE SAME
+   * REASON: members name the counter on one line and compare it on another, so a
+   * rule that needed both halves in one expression would see none of them.
+   *
+   * ⛔⛔ THE SEED AND THE CONDITION RESOLVE IN THEIR OWN ENVIRONMENTS, which are
+   * DIFFERENT ONES — the seed was written before the first `:=` and the update
+   * after it. That is the same care `resolveBinding`'s `state` arm takes, and
+   * sharing one env is how the update's own past would come to mean the
+   * accumulator. `throughBinding` cannot be reused here because it swaps
+   * `bound.env`, a key a `state` binding does not have.
+   */
+  boundedRunLengthThroughBinding(node) {
+    if (!own(FLIP, node.op)) return null
+    let op = node.op
+    let counter = node.left
+    let limit = node.right
+    let binding = this.stateBindingOf(counter)
+    if (!binding) {
+      // ⭐ EITHER ORDER. `3 <= downRun` is as ordinary as `downRun >= 3`, and a
+      // rewrite that saw one of them would be a coin-flip on whether a script
+      // translated. ⛔ THE COUNTER IS FOUND BY BINDING KIND, NEVER BY TRYING TO
+      // FOLD IT TO A NUMBER FIRST: folding it means RESOLVING it, and resolving
+      // it is the `pine:state` refusal this rule exists to decide not to need.
+      binding = this.stateBindingOf(limit)
+      if (!binding) return null
+      op = FLIP[op]
+      const swap = counter; counter = limit; limit = swap
+    }
+    const k = this.constIntOf(limit)
+    if (k === null) return null
+    // `>= K` and `< K` split at a run of K; `> K` and `<= K` split at K+1.
+    const run = (op === '>=' || op === '<') ? k : k + 1
+    if (run < 1 || run > PINE_RUN_LENGTH_MAX) return null
+    const shape = runLengthShape(binding.update, counter.name)
+    if (!shape) return null
+    const andOp = PINE_OP_TO_TABLE.and
+    if (!own(this.table.operators, andOp) || !own(this.table.operators, '!')) return null
+    if (this.stack.has(binding)) return null
+
+    this.stack.add(binding)
+    const prevEnv = this.env
+    try {
+      // ⭐ THE SEED IS CHECKED, NOT ASSUMED — see `runLengthShape` for why a
+      // negative one would disagree with this tree on the first bar it can answer.
+      this.env = binding.seedEnv || prevEnv
+      let seed = null
+      try { seed = this.resolve(binding.seed) } catch { return null }
+      const seedValue = signedNum(seed)
+      if (seedValue === null || !Number.isInteger(seedValue) || seedValue < 0) return null
+
+      this.env = binding.updateEnv || prevEnv
+      // ⚠️ A THROW FROM HERE IS DELIBERATELY LET OUT. By this point the shape and
+      // the seed are confirmed, so the condition IS the only thing between the
+      // member and a translation — and its own refusal names the real blocker,
+      // where declining would hand back the `pine:state` sentence about a counter
+      // that was never the problem.
+      const base = this.resolve(shape.cond)
+      // ⚠️ RESOLVED ONCE AND COPIED. Sharing one object across K positions puts
+      // the same node in a tree twice, which any walker that annotates in place
+      // would then read as one node visited twice.
+      const copy = () => JSON.parse(JSON.stringify(base))
+      let tree = null
+      for (let i = 0; i < run; i++) {
+        let term = shape.invert ? cOp('!', [copy()]) : copy()
+        if (i > 0) term = { type: 'offset', value: i, args: [term] }
+        tree = tree === null ? term : cOp(andOp, [tree, term])
+      }
+      return (op === '<' || op === '<=') ? cOp('!', [tree]) : tree
+    } finally {
+      this.stack.delete(binding)
+      this.env = prevEnv
+    }
+  }
+
   /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
    *  it rather than a translation of it — used by `stringValueOf`. Returns null
    *  wherever `resolveBinding` would refuse, because a question has no caret. */
@@ -3902,6 +4080,11 @@ class Resolver {
         // the distance between the two halves changed.
         const viaBinding = this.boundedBarssinceThroughBinding(node)
         if (viaBinding) return viaBinding
+        // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
+        // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
+        // the state this engine cannot hold is state the comparison never reads.
+        const viaRun = this.boundedRunLengthThroughBinding(node)
+        if (viaRun) return viaRun
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.

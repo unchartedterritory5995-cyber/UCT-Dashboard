@@ -90,10 +90,15 @@ const ACCEPTED = FILES.filter((f) => {
 
 /** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
  *  once the member takes the engine's OWN offer, in a click rather than a retype. */
-const ACCEPT_FLOOR = 25
+const ACCEPT_FLOOR = 26
 
+/** ⭐ 2026-09-04 — 18 → 19 / 25 → 26: the RUN-LENGTH COUNTER identity
+ *  (`pine.runLength.test.js`). `var n = 0` + `n := cond ? n + 1 : 0` compared
+ *  against a whole number is decided by that many bars, so `pine:state` left this
+ *  exam's guard histogram entirely. It widened no vocabulary — a genuine running
+ *  total still refuses, and that control is the first test in the new file. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 18
+const FLOOR = 19
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
@@ -141,13 +146,30 @@ describe('the exam this project did not write', () => {
         needs[n] = (needs[n] || 0) + 1
       }
     }
+    // ⭐⭐ THE THIRD HISTOGRAM, AND IT IS THE ONE THAT DIRECTS WORK. `needs`
+    // above counts every miss INCLUDING the ones an offer already recovers, so it
+    // overstates what each name would buy. This counts only what is still blocked
+    // after the member takes every offer, so "serve this and N scripts translate"
+    // is READ OFF THE EXAM rather than estimated. Measured 2026-09-04, it is what
+    // showed `request.security` gating four scripts no other work can reach, and
+    // `ta.rising` five that are otherwise ONE name from translating.
+    const stillBlocked = {}
+    for (const r of MISSES) {
+      if (ACCEPTED.includes(`${r.name}.pine`)) continue
+      for (const n of new Set(r.source.match(BLOCKED) || [])) {
+        (stillBlocked[n] || (stillBlocked[n] = [])).push(r.name)
+      }
+    }
+    const ranked = Object.entries(stillBlocked)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([n, l]) => `${n}×${l.length}`).join('  ')
     const soleBlocker = MISSES.filter(
       (r) => new Set(r.source.match(BLOCKED) || []).size <= 1).length
     console.log(`
 BLIND EXAM  ${PASSING.length}/${RESULTS.length} translate to a boolean screen   (authored corpus: 38/38)
 guards      ${JSON.stringify(byGuard)}
 names       ${JSON.stringify(byName)}
-after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nneeds (all) ${JSON.stringify(needs)}\none blocker ${soleBlocker}/${MISSES.length} misses need exactly ONE unserved name\nmisses      ${MISSES.map((r) => r.name).join(', ')}
+after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nneeds (all) ${JSON.stringify(needs)}\none blocker ${soleBlocker}/${MISSES.length} misses need exactly ONE unserved name\nstill short ${ranked}\nmisses      ${MISSES.map((r) => r.name).join(', ')}
 `)
     expect(RESULTS.length).toBeGreaterThan(0)
   })
