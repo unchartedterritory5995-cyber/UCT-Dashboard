@@ -36,6 +36,27 @@ every row is decided where the formula is admitted rather than 3,742 times a
 night. The test that pinned it went RED and was deleted deliberately; what stands
 in its place asserts the CLOSURE, so this paragraph cannot quietly re-open.
 
+⚰️⚰️ AND NOW THERE WERE THREE -- `vwap()` ITSELF, the fixture this file was
+built on, CLOSED on 2026-09-02 the same way. `vwap`/`avwap` declare
+`cadence: "live"`, the nightly sweep runs daily bars, and one daily bar has no
+session inside it to accumulate over: the column was empty for every symbol,
+every night, measured at 0 answers on 3,742 symbols. `scan_definition`'s
+`gate:cadence` now refuses such a tree AT ADMISSION, so the three member
+spellings below can no longer reach the sweep at all.
+
+⭐ THAT IS A BETTER CLOSURE THAN THE ONE THIS FILE PINNED, and the difference
+is the whole argument of the paragraph above: a fact true of the FORMULA on every
+row belongs where the formula is admitted, not in a receipt a member reads the
+next morning. So the polarity test went RED and what stands in its place asserts
+the CLOSURE -- all three spellings, because a gate that caught only `>` would
+leave the `!`/`||` face live.
+
+⛔ THE DOWNSTREAM MACHINERY IS STILL RAILED, and it has to be: `gate:cadence`
+covers exactly the live-cadence readers, while `not_computable` is what answers
+for every OTHER hole. Section 2's derived sweep is that rail, and the
+`_logical`-reachability construction below was re-derived onto a bar reader the
+gate does not touch rather than deleted.
+
 ⭐ AND ONE FIXTURE HERE HOLES AN ENTRY IN THE MIDDLE RATHER THAN AT THE FRONT.
 A rail built only on warm-up prefixes measures the easy half: a prefix hole is
 also what the history question catches, so it cannot tell which question is
@@ -201,48 +222,48 @@ POLARITIES = {
 
 
 @pytest.mark.parametrize("label", sorted(POLARITIES))
-def test_a_screen_over_a_BAR_READER_is_NOT_COMPUTABLE_and_NAMES_IT(label, store, bars):
-    """🔴 THE DEFECT, IN A MEMBER'S OWN SPELLING, IN BOTH DIRECTIONS.
+def test_a_LIVE_CADENCE_reader_is_REFUSED_AT_ADMISSION_in_every_spelling(label):
+    """\U0001f534 THE CLOSURE, IN A MEMBER'S OWN SPELLING, IN EVERY DIRECTION.
 
-    ⛔ THE ASSERTION IS NOT "the hits are empty". An empty hit list is exactly
-    what the `>` face already produced while lying, and the `!`/`||` face is the
-    opposite — every symbol a hit. What has to be true is that NEITHER symbol is
-    counted as ANSWERED, and that the receipt NAMES what it could not resolve.
+    This test used to run these three trees through the sweep and assert the
+    receipt reported them NOT COMPUTABLE and named `vwap`. That behaviour was
+    correct and is now unreachable: `gate:cadence` refuses the definition when it
+    is SAVED, so no nightly sweep ever spends ~22 seconds deciding a column that
+    was decidably empty from the tree alone.
 
-    ⚠️ 1,000 BARS, WHICH IS MORE THAN `sessionMaxBars`, SO THIS TEST IS ABOUT ONE
-    THING. `vwap()` declares `lookback: "session"` = 960, so a short fixture would
-    fail the HISTORY question too and this rail would pass on the wrong axis — a
-    control agreeing with its subject for the wrong reason. A real daily store
-    holds thousands of bars, so this is also the production shape.
+    ⛔ ALL THREE SPELLINGS, NOT ONE. The defect had two observable faces --
+    `>` returns nothing, `!`/`||` return the whole board -- and a gate that caught
+    only the first would leave the face that puts 3,700 rows in front of a trader
+    exactly as live as before. The gate keys off the NAME in the tree, so it is
+    blind to polarity by construction; this asserts that rather than trusting it.
+
+    ⚠️ THE REFUSAL MUST STILL NAME THE FUNCTION. A member whose screen stops
+    being savable needs to know which term did it.
     """
-    universe = ["AAA", "BBB"]
-    for sym in universe:
-        bars[sym] = _daily_rows(n=1000)
-    assert ast_interpret.unresolved_lookback(
-        VWAP, _bars_from_rows(bars["AAA"])) == 0, (
-        "the fixture is short enough for the history question to fire, which "
-        "would make the assertions below pass on the wrong axis")
+    with pytest.raises(scan_definition.ScanRefused) as excinfo:
+        scan_definition.assert_scannable(_definition(POLARITIES[label]))
+    message = str(excinfo.value)
+    assert "[gate:cadence]" in message, message
+    assert "vwap" in message, (
+        f"{label}: the refusal did not NAME the term that caused it")
+    # ⭐ AND IT SAYS WHERE THE COLUMN IS STILL RIGHT. A refusal that only closes
+    # a door leaves a member with nothing to do.
+    assert "intraday" in message, message
 
-    r = _run(POLARITIES[label], universe)
 
-    assert r["answered"] == 0, (
-        f"{label}: the sweep counted a laundered comparison as an answer — "
-        "`_cmp` collapsed the hole to a finite 0.0/1.0 and the "
-        "`math.isfinite` test downstream cannot see it")
-    assert r["not_computable"] == 2, r
-    assert r["dropped"] == 0, r
-    assert r["hits"] == [], (
-        f"{label}: a symbol nothing is known about was returned as a HIT")
-    assert r["evaluated"] == r["answered"] + r["dropped"] + r["not_computable"]
-
-    listed = {d["ticker"]: d for d in r["dropped_symbols"]}
-    assert set(listed) == set(universe)
-    for sym in universe:
-        assert listed[sym]["reason"] == scan_evaluator.NOT_COMPUTABLE_REASON
-        assert "vwap" in listed[sym]["detail"], (
-            "the receipt did not NAME the input it could not resolve — a member "
-            f"cannot tell which datum their screen is waiting on "
-            f"({listed[sym]['detail']!r})")
+def test_the_gate_that_closed_it_is_the_CADENCE_one_not_a_lucky_side_effect():
+    """⛔ NON-VACUITY FOR THE THREE ABOVE. If `assert_scannable` refused these
+    trees for some unrelated reason -- a shape, an arity, a budget -- those tests
+    would pass having proved nothing about the cadence rule. The identical tree
+    with the live-cadence reader swapped for one the gate does not cover must be
+    ADMITTED, which is the only thing that makes the refusals above specific.
+    """
+    sweepable = [n for n in ast_table.bar_readers()
+                 if n not in ast_table.live_cadence_functions()]
+    assert sweepable, "no bar reader outside the live-cadence set to control with"
+    ok = _op(">", _series("close"), _call("obvN", _num(20)))
+    assert "obvN" in sweepable
+    assert scan_definition.assert_scannable(_definition(ok))["yields"] == "bool"
 
 
 def test_the_CONTROL_a_tree_with_no_bar_reader_still_ANSWERS(store, bars):
@@ -505,7 +526,15 @@ def test_cmp_COLLAPSES_and_logical_PROPAGATES__and_the_honest_one_is_reachable()
     assert set(ast_interpret.interpret(through, unmet, opts={"tf": TF})) == {0.0}
 
     # (b) WITHOUT one: `_logical`'s NaN branch fires, and the tree is savable.
-    direct = _op("&&", VWAP, _op(">", _series("volume"), _num(1)))
+    #
+    # ⚰️ RE-DERIVED 2026-09-02, EXACTLY AS THE OLD ASSERTION MESSAGE DEMANDED.
+    # This was `vwap()`, and its own guard said: "the comparison-free spelling is
+    # refused at the save door, which would make `_logical`'s NaN branch
+    # unreachable after all — this verdict would need re-deriving". `gate:cadence`
+    # then refused it, so the verdict WAS re-derived rather than the assertion
+    # relaxed: the branch stays reachable through a bar reader the gate does not
+    # cover, which is what "reachable" has to mean now.
+    direct = _op("&&", _call("obvN", _num(20)), _op(">", _series("volume"), _num(1)))
     assert scan_definition.assert_scannable(
         _definition(direct))["yields"] == "bool", (
         "the comparison-free spelling is refused at the save door, which would "
@@ -516,7 +545,11 @@ def test_cmp_COLLAPSES_and_logical_PROPAGATES__and_the_honest_one_is_reachable()
 
     # (c) AND THE FIX MAKES THE RECEIPT INDEPENDENT OF THE SPELLING.
     assert ast_interpret.unresolved_inputs(through, {}, unmet, -1) == ["vwap"]
-    assert ast_interpret.unresolved_inputs(direct, {}, unmet, -1) == ["vwap"]
+    # ⛔ THE NAME FOLLOWS THE TREE. `direct` was re-derived onto `obvN` above, so
+    # asserting "vwap" here would be a stale copy of a fact that moved — and it
+    # would pass for the wrong reason if the question ever stopped naming
+    # anything at all.
+    assert ast_interpret.unresolved_inputs(direct, {}, unmet, -1) == ["obvN"]
 
 
 def test_an_OFFSET_above_a_bar_reader_is_asked_about_THE_BAR_IT_ACTUALLY_READS():

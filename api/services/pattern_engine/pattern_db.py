@@ -96,6 +96,33 @@ _SCHEMA = """
 
 _TABLES = ("pattern_detections", "pattern_outcomes", "pattern_stats", "pattern_feedback")
 
+# Phase 8 Package 8C: additive column for the canonical Eligibility section
+# (types.py). CREATE TABLE IF NOT EXISTS in _SCHEMA above is a no-op against
+# an already-existing table -- it will NOT add this column to the live
+# production patterns.db, which already has the table. Mirrors the
+# `_PHASE_2_ALTERS` idiom in api/services/journal_two/db.py exactly:
+# idempotent via try/except, since SQLite has no ADD COLUMN IF NOT EXISTS.
+# Nullable (no DEFAULT) is deliberate -- NULL means "eligibility was never
+# computed for this row" (every row written before this change, and every
+# row from a detector this section hasn't been wired to yet), never a
+# fabricated True/False.
+_PATTERN_ALTERS = (
+    "ALTER TABLE pattern_detections ADD COLUMN eligibility_json TEXT",
+)
+
+# The legacy-migration bulk copy below used a bare `SELECT *`, which requires
+# the source and destination column counts to match. Adding eligibility_json
+# to the LOCAL table via _PATTERN_ALTERS means a legacy auth.db snapshot
+# taken before this column existed has one column fewer -- an explicit list
+# keeps the one-shot migration correct regardless of which side of that
+# change either database is on. New rows simply get eligibility_json=NULL,
+# the honest "not persisted for this row" state.
+_PATTERN_DETECTIONS_LEGACY_COLUMNS = (
+    "id, sym, tf, pattern_id, category, direction, start_t, end_t, confidence, "
+    "quality_json, geometry_json, levels_json, context_json, narrative_json, "
+    "status, detected_at, last_seen_at, hash_key"
+)
+
 # Legacy copy guard: prod auth.db held 2.37M detection rows (~15+ GB with the
 # JSON blobs) — a blanket INSERT..SELECT built a 10 GB WAL inside one request
 # and nearly filled the volume (2026-07-17). Detections/outcomes are transient
@@ -110,10 +137,68 @@ _init_lock = threading.Lock()
 _initialized_paths: set[str] = set()
 
 
+class PatternDbSharedRootGuard(RuntimeError):
+    """Raised when an unconfigured caller is about to resolve patterns.db
+    onto this box's real, shared C:\\data directory instead of a safe
+    per-worktree/per-session location.
+
+    Package 8G-0 (2026-09): a standalone Python check run outside pytest
+    briefly wrote synthetic HTF/PEG rows into the real, shared
+    C:\\data\\patterns.db before being caught and cleaned up -- exactly the
+    class of accident this guard exists to make loud instead of silent.
+    """
+
+
+def _would_hit_shared_root() -> bool:
+    """True only when ALL of: no explicit override was given, we're on this
+    box's own platform (Windows -- Railway's production runtime is always
+    Linux, so this check is structurally inert there regardless of env
+    state), and `auth_db`'s OWN existing local-dev fallback (see
+    auth_db.py's own `if not os.path.exists(...)` guard) did NOT trigger --
+    meaning `/data` genuinely exists here and every default resolution
+    lands on the real, shared directory rather than a safe repo-local one.
+
+    Pytest is unaffected: the repo-root conftest.py always pins
+    AUTH_DB_PATH to an isolated temp path at collection time, so
+    `auth_db._DB_PATH` never equals the raw unconfigured default under a
+    test run, and this function returns False before ever reaching that
+    comparison whenever a caller (test or otherwise) sets PATTERN_DB_PATH
+    or AUTH_DB_PATH itself.
+
+    Deliberately narrow, by design: this does not try to distinguish "the
+    real app booted locally" from "an ad-hoc script" (no cheap, reliable
+    signal for that was found) -- a local dev-server boot on this box with
+    no override also asks for the explicit PATTERN_DB_ALLOW_SHARED_ROOT=1
+    opt-in. That is accepted friction, not a gap: it costs one env var for
+    a legitimate local run and closes the actual incident class (a bare
+    script silently touching real, shared, cross-session data).
+    """
+    if os.name != "nt":
+        return False
+    if os.environ.get("PATTERN_DB_PATH") or os.environ.get("AUTH_DB_PATH"):
+        return False
+    if os.environ.get("PATTERN_DB_ALLOW_SHARED_ROOT") == "1":
+        return False
+    from api.services import auth_db
+    # The exact literal auth_db.py's own default uses -- see its module
+    # docstring/`_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")`.
+    raw_default = os.path.abspath("/data/auth.db")
+    return os.path.abspath(auth_db._DB_PATH) == raw_default
+
+
 def _db_path() -> str:
     override = os.environ.get("PATTERN_DB_PATH")
     if override:
         return override
+    if _would_hit_shared_root():
+        raise PatternDbSharedRootGuard(
+            "patterns.db would resolve onto this box's real, shared "
+            "C:\\data directory with no explicit override in effect. "
+            "Set PATTERN_DB_PATH to an isolated file for an ad-hoc "
+            "script or a standalone validation run, or set "
+            "PATTERN_DB_ALLOW_SHARED_ROOT=1 if you deliberately intend "
+            "to use the real, shared store."
+        )
     from api.services import auth_db
     return os.path.join(os.path.dirname(os.path.abspath(auth_db._DB_PATH)), "patterns.db")
 
@@ -161,7 +246,13 @@ def _migrate_from_auth_db(conn: sqlite3.Connection) -> None:
                 return
             for t in _BULK_TABLES:
                 if _legacy_has(t):
-                    cur = conn.execute(f"INSERT OR IGNORE INTO {t} SELECT * FROM legacy.{t}")
+                    if t == "pattern_detections":
+                        cur = conn.execute(
+                            f"INSERT OR IGNORE INTO {t} ({_PATTERN_DETECTIONS_LEGACY_COLUMNS}) "
+                            f"SELECT {_PATTERN_DETECTIONS_LEGACY_COLUMNS} FROM legacy.{t}"
+                        )
+                    else:
+                        cur = conn.execute(f"INSERT OR IGNORE INTO {t} SELECT * FROM legacy.{t}")
                     copied += max(cur.rowcount or 0, 0)
                     conn.commit()
             if copied:
@@ -172,8 +263,24 @@ def _migrate_from_auth_db(conn: sqlite3.Connection) -> None:
         logger.warning("pattern legacy migration skipped: %s", e)
 
 
+def _apply_pattern_alters(conn: sqlite3.Connection) -> None:
+    """Idempotent additive-column migration (Phase 8 Package 8C). Same idiom
+    as _PHASE_2_ALTERS in api/services/journal_two/db.py: try each ALTER,
+    swallow only "duplicate column"/"already exists" (SQLite has no ADD
+    COLUMN IF NOT EXISTS), re-raise anything else."""
+    for stmt in _PATTERN_ALTERS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if "duplicate column" not in msg and "already exists" not in msg:
+                raise
+    conn.commit()
+
+
 def init_db() -> None:
-    """Idempotent schema init (+ one-shot legacy migration) for the current path."""
+    """Idempotent schema init (+ additive-column migration + one-shot legacy
+    migration) for the current path."""
     path = _db_path()
     with _init_lock:
         if path in _initialized_paths:
@@ -182,6 +289,7 @@ def init_db() -> None:
         try:
             conn.executescript(_SCHEMA)
             conn.commit()
+            _apply_pattern_alters(conn)
             _migrate_from_auth_db(conn)
         finally:
             conn.close()

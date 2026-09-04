@@ -1,0 +1,19 @@
+//@version=6
+indicator("Weekly Trend Daily MACD")
+
+[macdLine, sigLine, hist] = ta.macd(close, 12, 26, 9)
+
+wkClose = request.security(syminfo.tickerid, "W", close)
+wkEma   = request.security(syminfo.tickerid, "W", ta.ema(close, 30))
+wkRsi   = request.security(syminfo.tickerid, "W", ta.rsi(close, 14))
+
+mfi       = ta.mfi(hlc3, 14)
+dollarVol = ta.sma(close * volume, 20)
+
+weeklyUp = wkClose > wkEma and wkRsi > 50
+trigger  = ta.crossover(macdLine, sigLine) and hist > hist[1]
+posture  = close > ta.sma(close, 50) and ta.sma(close, 50) > ta.sma(close, 200)
+flow     = mfi > 50 and mfi < 85
+liquid   = dollarVol > 20000000
+
+plot(weeklyUp and trigger and posture and flow and liquid ? 1 : 0)

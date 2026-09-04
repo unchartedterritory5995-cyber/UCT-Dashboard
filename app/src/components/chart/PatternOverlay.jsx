@@ -88,6 +88,18 @@ export default function PatternOverlay({
   const priceToY = (price) => {
     try { return series.priceToCoordinate(price) } catch { return null }
   }
+  // Package 8D: an APPROXIMATE candle half-width in pixels, for CandleMark's
+  // new candle-emphasis outline (the white-outline requirement) — not exact
+  // candle-body geometry. lightweight-charts' timeScale barSpacing option is
+  // read defensively (same try/catch convention as tToX/priceToY above); a
+  // failure or unexpected shape falls back to a small fixed default rather
+  // than throwing. Recomputed every render, same as tToX/priceToY, so it
+  // tracks zoom changes via the existing forceRedraw subscription.
+  let barHalfWidthPx = 4
+  try {
+    const spacing = chart.timeScale().options()?.barSpacing
+    if (typeof spacing === 'number' && spacing > 0) barHalfWidthPx = spacing / 2
+  } catch { /* keep the default */ }
 
   return (
     <svg
@@ -122,6 +134,7 @@ export default function PatternOverlay({
             detection={d}
             tToX={tToX}
             priceToY={priceToY}
+            barHalfWidthPx={barHalfWidthPx}
             onClick={onDetectionClick}
           />
         )

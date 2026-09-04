@@ -1,0 +1,191 @@
+{
+  "prereg_source": "phase6_group3_prereg_full_2026-09-03.json",
+  "universe_scanned": 3693,
+  "total_ep_cases": 26,
+  "correct_predictions": 26,
+  "incorrect_predictions": 0,
+  "results": [
+    {
+      "sym": "ALVO",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.0028011204481793364,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "AMLX",
+      "predicted_post_fix": "SURVIVES",
+      "computed_gap_pct": 0.3957069528698087,
+      "actual_post_fix": "SURVIVES",
+      "prediction_correct": true
+    },
+    {
+      "sym": "AMWD",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.015738783180643687,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "ARGX",
+      "predicted_post_fix": "SURVIVES",
+      "computed_gap_pct": 0.08932326234303244,
+      "actual_post_fix": "SURVIVES",
+      "prediction_correct": true
+    },
+    {
+      "sym": "ASST",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.011718749999999889,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "BMNR",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.013676148796498906,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "BRBS",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.043360433604336085,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "CRSP",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.03832357938455732,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "EDIT",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.04513888888888885,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "EL",
+      "predicted_post_fix": "SURVIVES",
+      "computed_gap_pct": 0.11237688382579802,
+      "actual_post_fix": "SURVIVES",
+      "prediction_correct": true
+    },
+    {
+      "sym": "ENGN",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.005617977528089893,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "EZPW",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.013212795549374096,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "FDMT",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.0008203445447087603,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "FUTU",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.021733345161004194,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "GIW",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": -0.0009861932938855806,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "NDSN",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.019617965926690708,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "NGNE",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.03308102046537706,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "NVAX",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.06305170239596469,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "RXRX",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.059870550161812315,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "SANA",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.02203856749311297,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "SBC",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.0,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "SBET",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.009538950715421242,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "SDHI",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.0,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "UEC",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.03497757847533621,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "WPM",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.05177091183119823,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    },
+    {
+      "sym": "YB",
+      "predicted_post_fix": "REFUSED",
+      "computed_gap_pct": 0.039346696362286514,
+      "actual_post_fix": "REFUSED",
+      "prediction_correct": true
+    }
+  ]
+}

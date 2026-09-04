@@ -1,0 +1,394 @@
+<!doctype html>
+<title>Blind Setup Review</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-alt: #f4f6fa;
+    --border: #d7dce6;
+    --ink: #1b2233;
+    --ink-dim: #626b80;
+    --ink-faint: #939bb0;
+    --accent: #9c7714;
+    --accent-ink: #ffffff;
+    --candle-up: #1f8f7d;
+    --candle-down: #c8433c;
+    --sma10: #3f6fd6;
+    --sma20: #8b4fc7;
+    --sma50: #b5720f;
+    --grid: rgba(0,0,0,0.08);
+    --grid-strong: rgba(0,0,0,0.16);
+    --chip-bg: #f4f6fa;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0f16;
+      --surface: #141926;
+      --surface-alt: #1b2233;
+      --border: #2a3247;
+      --ink: #e8ebf2;
+      --ink-dim: #8992a8;
+      --ink-faint: #5c6478;
+      --accent: #d8b84a;
+      --accent-ink: #14171f;
+      --candle-up: #35b6a4;
+      --candle-down: #e2564f;
+      --sma10: #7fb2ff;
+      --sma20: #c98fef;
+      --sma50: #f0a34e;
+      --grid: rgba(255,255,255,0.07);
+      --grid-strong: rgba(255,255,255,0.14);
+      --chip-bg: #1b2233;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c0f16;
+    --surface: #141926;
+    --surface-alt: #1b2233;
+    --border: #2a3247;
+    --ink: #e8ebf2;
+    --ink-dim: #8992a8;
+    --ink-faint: #5c6478;
+    --accent: #d8b84a;
+    --accent-ink: #14171f;
+    --candle-up: #35b6a4;
+    --candle-down: #e2564f;
+    --sma10: #7fb2ff;
+    --sma20: #c98fef;
+    --sma50: #f0a34e;
+    --grid: rgba(255,255,255,0.07);
+    --grid-strong: rgba(255,255,255,0.14);
+    --chip-bg: #1b2233;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header.top {
+    margin-bottom: 36px;
+  }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    color: var(--ink-dim);
+    max-width: 62ch;
+    margin: 0 0 20px;
+    font-size: 15px;
+  }
+  .protocol {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-size: 13.5px;
+    color: var(--ink-dim);
+  }
+  .protocol strong { color: var(--ink); font-weight: 600; }
+  .protocol ul { margin: 8px 0 0; padding-left: 20px; }
+  .protocol li { margin: 3px 0; }
+
+  section.case {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 24px 22px;
+    margin-bottom: 22px;
+  }
+  .case-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .case-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 5px;
+    padding: 3px 11px;
+    letter-spacing: 0.02em;
+  }
+  .case-sym {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: 0.03em;
+  }
+  .case-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    margin-left: auto;
+  }
+  .case-note {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin: 2px 0 14px;
+  }
+
+  .chart-box { width: 100%; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  .legend {
+    display: flex;
+    gap: 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    margin: 6px 2px 0;
+    flex-wrap: wrap;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  .facts {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .fact {
+    background: var(--surface-alt);
+    padding: 10px 14px;
+  }
+  .fact .k {
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 3px;
+  }
+  .fact .v {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .catalyst {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  .answer {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .answer .opt-label { color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; font-size: 10.5px; display: block; margin-bottom: 4px; }
+  .answer .opts { color: var(--ink-faint); }
+
+  footer.foot {
+    margin-top: 30px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Blind Setup Review &middot; Episodic Pivot</p>
+    <h1>Five candidate setups, no verdict attached</h1>
+    <p class="lede">Each panel below shows exactly what was on the tape through the candidate bar's own session &mdash; nothing after it. No threshold, no engine output, and no source recommendation appears anywhere on this page.</p>
+    <div class="protocol">
+      <strong>Reading this page:</strong> daily bars, most recent 13 sessions through the candidate bar (right-most, wider tick marks below the axis). Overlays are 10/20/50-session moving averages, computed only from data available at or before the candidate bar.
+      <ul>
+        <li>Ticker and dates are real &mdash; shown because they're part of what was legitimately known at the time.</li>
+        <li>Catalyst/news context could not be independently retrieved this session (search budget exhausted) &mdash; marked where relevant rather than guessed at.</li>
+        <li>Case order (A&ndash;E) does not correlate with gap size, ticker, or any other property &mdash; it's shuffled.</li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="cases"></main>
+
+  <footer class="foot">
+    Prices sourced from live daily bars, unmodified. This page renders in your system theme.
+  </footer>
+</div>
+
+<script>
+const CASES = [{"label": "A", "sym": "NVAX", "rows": [{"date": "2026-08-03", "o": 7.37, "h": 7.61, "l": 7.26, "c": 7.41, "v": 2580500, "sma10": 7.57, "sma20": 8.16, "sma50": 8.95}, {"date": "2026-08-04", "o": 7.49, "h": 7.7, "l": 7.46, "c": 7.66, "v": 3249400, "sma10": 7.52, "sma20": 8.07, "sma50": 8.92}, {"date": "2026-08-05", "o": 7.71, "h": 7.76, "l": 7.54, "c": 7.7, "v": 3632800, "sma10": 7.5, "sma20": 7.99, "sma50": 8.89}, {"date": "2026-08-06", "o": 7.83, "h": 7.91, "l": 7.53, "c": 7.74, "v": 4902600, "sma10": 7.49, "sma20": 7.91, "sma50": 8.84}, {"date": "2026-08-07", "o": 7.75, "h": 8.09, "l": 7.6, "c": 7.95, "v": 5704200, "sma10": 7.54, "sma20": 7.84, "sma50": 8.77}, {"date": "2026-08-10", "o": 7.89, "h": 7.96, "l": 7.7, "c": 7.89, "v": 3225300, "sma10": 7.58, "sma20": 7.79, "sma50": 8.73}, {"date": "2026-08-11", "o": 7.92, "h": 8.03, "l": 7.78, "c": 7.95, "v": 2607400, "sma10": 7.64, "sma20": 7.77, "sma50": 8.66}, {"date": "2026-08-12", "o": 7.91, "h": 7.99, "l": 7.83, "c": 7.96, "v": 2541800, "sma10": 7.7, "sma20": 7.74, "sma50": 8.61}, {"date": "2026-08-13", "o": 8.01, "h": 8.23, "l": 7.92, "c": 8.14, "v": 3506500, "sma10": 7.77, "sma20": 7.74, "sma50": 8.57}, {"date": "2026-08-14", "o": 8.13, "h": 8.13, "l": 7.92, "c": 8.05, "v": 2279600, "sma10": 7.85, "sma20": 7.73, "sma50": 8.53}, {"date": "2026-08-17", "o": 8.05, "h": 8.17, "l": 7.95, "c": 8.07, "v": 1928300, "sma10": 7.91, "sma20": 7.74, "sma50": 8.49}, {"date": "2026-08-18", "o": 7.97, "h": 8.08, "l": 7.84, "c": 7.93, "v": 2015500, "sma10": 7.94, "sma20": 7.73, "sma50": 8.46}, {"date": "2026-08-19", "o": 8.43, "h": 8.83, "l": 8.19, "c": 8.79, "v": 11451100, "sma10": 8.05, "sma20": 7.77, "sma50": 8.46}]}, {"label": "B", "sym": "BRBS", "rows": [{"date": "2026-07-30", "o": 3.49, "h": 3.53, "l": 3.47, "c": 3.5, "v": 259400, "sma10": 3.47, "sma20": 3.48, "sma50": 3.4}, {"date": "2026-07-31", "o": 3.49, "h": 3.54, "l": 3.48, "c": 3.51, "v": 217900, "sma10": 3.48, "sma20": 3.47, "sma50": 3.41}, {"date": "2026-08-03", "o": 3.52, "h": 3.62, "l": 3.52, "c": 3.6, "v": 269800, "sma10": 3.48, "sma20": 3.48, "sma50": 3.41}, {"date": "2026-08-04", "o": 3.6, "h": 3.7, "l": 3.6, "c": 3.65, "v": 406300, "sma10": 3.5, "sma20": 3.49, "sma50": 3.42}, {"date": "2026-08-05", "o": 3.66, "h": 3.7, "l": 3.65, "c": 3.68, "v": 189300, "sma10": 3.53, "sma20": 3.5, "sma50": 3.43}, {"date": "2026-08-06", "o": 3.7, "h": 3.71, "l": 3.65, "c": 3.69, "v": 269400, "sma10": 3.56, "sma20": 3.51, "sma50": 3.44}, {"date": "2026-08-07", "o": 3.67, "h": 3.72, "l": 3.67, "c": 3.7, "v": 322100, "sma10": 3.59, "sma20": 3.53, "sma50": 3.44}, {"date": "2026-08-10", "o": 3.73, "h": 3.78, "l": 3.69, "c": 3.72, "v": 276900, "sma10": 3.61, "sma20": 3.54, "sma50": 3.45}, {"date": "2026-08-11", "o": 3.71, "h": 3.75, "l": 3.71, "c": 3.73, "v": 159000, "sma10": 3.63, "sma20": 3.55, "sma50": 3.46}, {"date": "2026-08-12", "o": 3.73, "h": 3.8, "l": 3.72, "c": 3.78, "v": 290100, "sma10": 3.66, "sma20": 3.57, "sma50": 3.47}, {"date": "2026-08-13", "o": 3.78, "h": 3.79, "l": 3.74, "c": 3.75, "v": 123900, "sma10": 3.68, "sma20": 3.58, "sma50": 3.48}, {"date": "2026-08-14", "o": 3.73, "h": 3.74, "l": 3.68, "c": 3.69, "v": 200800, "sma10": 3.7, "sma20": 3.59, "sma50": 3.49}, {"date": "2026-08-17", "o": 3.85, "h": 4.05, "l": 3.83, "c": 4.0, "v": 6723800, "sma10": 3.74, "sma20": 3.61, "sma50": 3.51}]}, {"label": "C", "sym": "RXRX", "rows": [{"date": "2026-08-03", "o": 3.03, "h": 3.2, "l": 3.0, "c": 3.18, "v": 14721800, "sma10": 3.03, "sma20": 3.2, "sma50": 3.3}, {"date": "2026-08-04", "o": 3.27, "h": 3.36, "l": 3.21, "c": 3.31, "v": 21577800, "sma10": 3.05, "sma20": 3.17, "sma50": 3.31}, {"date": "2026-08-05", "o": 3.08, "h": 3.23, "l": 3.01, "c": 3.17, "v": 17458800, "sma10": 3.07, "sma20": 3.14, "sma50": 3.31}, {"date": "2026-08-06", "o": 3.13, "h": 3.26, "l": 3.12, "c": 3.18, "v": 14794400, "sma10": 3.09, "sma20": 3.12, "sma50": 3.31}, {"date": "2026-08-07", "o": 3.25, "h": 3.27, "l": 3.18, "c": 3.22, "v": 9355900, "sma10": 3.11, "sma20": 3.1, "sma50": 3.32}, {"date": "2026-08-10", "o": 3.2, "h": 3.36, "l": 3.19, "c": 3.29, "v": 14034800, "sma10": 3.14, "sma20": 3.1, "sma50": 3.31}, {"date": "2026-08-11", "o": 3.32, "h": 3.42, "l": 3.27, "c": 3.35, "v": 11008300, "sma10": 3.17, "sma20": 3.1, "sma50": 3.31}, {"date": "2026-08-12", "o": 3.37, "h": 3.38, "l": 3.26, "c": 3.29, "v": 10305100, "sma10": 3.2, "sma20": 3.1, "sma50": 3.3}, {"date": "2026-08-13", "o": 3.31, "h": 3.35, "l": 3.27, "c": 3.31, "v": 10700000, "sma10": 3.23, "sma20": 3.11, "sma50": 3.29}, {"date": "2026-08-14", "o": 3.3, "h": 3.31, "l": 3.14, "c": 3.16, "v": 10545200, "sma10": 3.25, "sma20": 3.12, "sma50": 3.29}, {"date": "2026-08-17", "o": 3.12, "h": 3.16, "l": 3.08, "c": 3.11, "v": 10621600, "sma10": 3.24, "sma20": 3.13, "sma50": 3.27}, {"date": "2026-08-18", "o": 3.03, "h": 3.1, "l": 2.92, "c": 3.09, "v": 16348300, "sma10": 3.22, "sma20": 3.13, "sma50": 3.27}, {"date": "2026-08-19", "o": 3.27, "h": 3.5, "l": 3.19, "c": 3.5, "v": 30369700, "sma10": 3.25, "sma20": 3.16, "sma50": 3.27}]}, {"label": "D", "sym": "EDIT", "rows": [{"date": "2026-08-03", "o": 2.6, "h": 2.65, "l": 2.53, "c": 2.65, "v": 775100, "sma10": 2.68, "sma20": 2.94, "sma50": 2.93}, {"date": "2026-08-04", "o": 2.69, "h": 2.78, "l": 2.64, "c": 2.77, "v": 1559400, "sma10": 2.67, "sma20": 2.9, "sma50": 2.93}, {"date": "2026-08-05", "o": 2.79, "h": 2.87, "l": 2.75, "c": 2.75, "v": 1938300, "sma10": 2.67, "sma20": 2.85, "sma50": 2.93}, {"date": "2026-08-06", "o": 2.82, "h": 3.14, "l": 2.81, "c": 2.9, "v": 3429400, "sma10": 2.68, "sma20": 2.83, "sma50": 2.92}, {"date": "2026-08-07", "o": 2.99, "h": 3.09, "l": 2.87, "c": 2.88, "v": 1692900, "sma10": 2.71, "sma20": 2.81, "sma50": 2.91}, {"date": "2026-08-10", "o": 2.84, "h": 2.9, "l": 2.79, "c": 2.81, "v": 1464800, "sma10": 2.73, "sma20": 2.79, "sma50": 2.9}, {"date": "2026-08-11", "o": 2.84, "h": 2.99, "l": 2.83, "c": 2.95, "v": 1910800, "sma10": 2.76, "sma20": 2.78, "sma50": 2.89}, {"date": "2026-08-12", "o": 2.96, "h": 3.02, "l": 2.82, "c": 2.84, "v": 1629900, "sma10": 2.78, "sma20": 2.77, "sma50": 2.88}, {"date": "2026-08-13", "o": 2.85, "h": 2.9, "l": 2.81, "c": 2.81, "v": 1272400, "sma10": 2.79, "sma20": 2.77, "sma50": 2.88}, {"date": "2026-08-14", "o": 2.81, "h": 2.85, "l": 2.71, "c": 2.82, "v": 1478000, "sma10": 2.82, "sma20": 2.76, "sma50": 2.88}, {"date": "2026-08-17", "o": 2.8, "h": 2.9, "l": 2.77, "c": 2.84, "v": 2113700, "sma10": 2.84, "sma20": 2.76, "sma50": 2.87}, {"date": "2026-08-18", "o": 2.89, "h": 2.99, "l": 2.8, "c": 2.88, "v": 2232600, "sma10": 2.85, "sma20": 2.76, "sma50": 2.88}, {"date": "2026-08-19", "o": 3.01, "h": 3.3, "l": 2.99, "c": 3.25, "v": 9641300, "sma10": 2.9, "sma20": 2.78, "sma50": 2.89}]}, {"label": "E", "sym": "WPM", "rows": [{"date": "2026-08-03", "o": 109.3, "h": 112.0, "l": 108.0, "c": 111.86, "v": 1101300, "sma10": 110.82, "sma20": 109.25, "sma50": 115.9}, {"date": "2026-08-04", "o": 113.22, "h": 116.37, "l": 113.1, "c": 115.41, "v": 2170900, "sma10": 111.36, "sma20": 109.43, "sma50": 115.66}, {"date": "2026-08-05", "o": 121.5, "h": 125.5, "l": 120.68, "c": 122.82, "v": 3578200, "sma10": 112.51, "sma20": 110.19, "sma50": 115.59}, {"date": "2026-08-06", "o": 121.87, "h": 125.59, "l": 121.13, "c": 125.3, "v": 2541600, "sma10": 114.03, "sma20": 110.92, "sma50": 115.49}, {"date": "2026-08-07", "o": 133.26, "h": 136.02, "l": 132.56, "c": 134.2, "v": 3448500, "sma10": 116.3, "sma20": 112.13, "sma50": 115.63}, {"date": "2026-08-10", "o": 133.4, "h": 134.62, "l": 129.37, "c": 133.39, "v": 2206600, "sma10": 118.44, "sma20": 113.41, "sma50": 115.7}, {"date": "2026-08-11", "o": 133.22, "h": 135.15, "l": 132.86, "c": 134.41, "v": 1425700, "sma10": 120.93, "sma20": 114.7, "sma50": 115.73}, {"date": "2026-08-12", "o": 137.98, "h": 137.98, "l": 134.4, "c": 134.88, "v": 1747000, "sma10": 123.47, "sma20": 116.02, "sma50": 115.86}, {"date": "2026-08-13", "o": 133.0, "h": 133.72, "l": 131.21, "c": 131.86, "v": 1818300, "sma10": 125.32, "sma20": 117.4, "sma50": 115.89}, {"date": "2026-08-14", "o": 133.67, "h": 135.62, "l": 133.01, "c": 134.21, "v": 1366700, "sma10": 127.83, "sma20": 118.9, "sma50": 116.07}, {"date": "2026-08-17", "o": 135.36, "h": 137.57, "l": 134.34, "c": 136.61, "v": 1695600, "sma10": 130.31, "sma20": 120.56, "sma50": 116.23}, {"date": "2026-08-18", "o": 134.04, "h": 135.29, "l": 131.76, "c": 132.7, "v": 1826600, "sma10": 132.04, "sma20": 121.7, "sma50": 116.56}, {"date": "2026-08-19", "o": 139.57, "h": 147.69, "l": 138.5, "c": 147.43, "v": 6607800, "sma10": 134.5, "sma20": 123.5, "sma50": 117.22}]}];
+
+const FACTS = {
+  A: { base_bars: 25, base_depth: '15.9%', base_range: '$7.15 &ndash; $8.50', close_strength: '93.7%', prior_advance: '+9.3%', gap: '+6.3%', range_x: '2.2x 20-bar avg', vol_x: '3.7x 20-bar avg', trend_stage: 'Stage 1 (basing)', ma_align: 'Mixed', rs: 'Up' },
+  B: { base_bars: 60, base_depth: '15.1%', base_range: '$3.23 &ndash; $3.80', close_strength: '77.5%', prior_advance: '+1.5%', gap: '+4.3%', range_x: '3.1x 20-bar avg', vol_x: '26.0x 20-bar avg', trend_stage: 'Stage 2 (uptrend)', ma_align: 'Stacked bullish', rs: 'Up' },
+  C: { base_bars: 26, base_depth: '17.4%', base_range: '$2.84 &ndash; $3.44', close_strength: '100.0%', prior_advance: '+20.6%', gap: '+6.0%', range_x: '2.2x 20-bar avg', vol_x: '2.0x 20-bar avg', trend_stage: 'Stage 2 (uptrend)', ma_align: 'Mixed', rs: 'Up' },
+  D: { base_bars: 27, base_depth: '21.5%', base_range: '$2.52 &ndash; $3.21', close_strength: '83.9%', prior_advance: '+34.5%', gap: '+4.5%', range_x: '2.1x 20-bar avg', vol_x: '6.1x 20-bar avg', trend_stage: 'Stage 2 (uptrend)', ma_align: 'Mixed', rs: 'Up' },
+  E: { base_bars: 21, base_depth: '23.6%', base_range: '$105.47 &ndash; $137.98', close_strength: '97.2%', prior_advance: '+8.2%', gap: '+5.2%', range_x: '2.6x 20-bar avg', vol_x: '3.5x 20-bar avg', trend_stage: 'Stage 2 (uptrend)', ma_align: 'Mixed', rs: 'Up' },
+};
+
+const NOTES = {
+  A: null,
+  B: null,
+  C: 'This name trades at elevated average daily volume (roughly 10&ndash;20M shares) even in its quiet sessions &mdash; the "base" here is a base in price terms, not a volume dry-up.',
+  D: 'On 8/6 (two weeks prior), a one-day range spike (high 3.14 vs. a surrounding ~2.7&ndash;2.9 band) resolved back into the range.',
+  E: 'The 12 sessions shown already trend steadily upward before the candidate bar &mdash; roughly +25% across that stretch alone.',
+};
+
+function fmtPrice(v) {
+  return v >= 100 ? v.toFixed(2) : v.toFixed(2);
+}
+
+function renderChart(rows) {
+  const W = 860, H = 340;
+  const padL = 54, padR = 14, padTop = 12, priceH = 230, volTop = priceH + 34, volH = 64;
+  const plotW = W - padL - padR;
+  const n = rows.length;
+  const slot = plotW / n;
+  const bodyW = Math.min(22, slot * 0.62);
+
+  let lo = Infinity, hi = -Infinity;
+  rows.forEach(r => {
+    lo = Math.min(lo, r.l, r.sma10 ?? r.l, r.sma20 ?? r.l, r.sma50 ?? r.l);
+    hi = Math.max(hi, r.h, r.sma10 ?? r.h, r.sma20 ?? r.h, r.sma50 ?? r.h);
+  });
+  const pad = (hi - lo) * 0.08;
+  lo -= pad; hi += pad;
+  const y = v => padTop + (1 - (v - lo) / (hi - lo)) * priceH;
+
+  let maxV = Math.max(...rows.map(r => r.v));
+  const yv = v => volTop + volH - (v / maxV) * volH;
+
+  const xC = i => padL + slot * i + slot / 2;
+
+  let svg = '';
+
+  // grid + price axis labels (4 ticks)
+  const ticks = 4;
+  for (let t = 0; t <= ticks; t++) {
+    const val = lo + (hi - lo) * (t / ticks);
+    const yy = y(val);
+    svg += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--grid)" stroke-width="1"/>`;
+    svg += `<text x="${padL-8}" y="${yy+4}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-faint)">${val.toFixed(2)}</text>`;
+  }
+  svg += `<line x1="${padL}" y1="${padTop}" x2="${padL}" y2="${volTop+volH}" stroke="var(--grid-strong)" stroke-width="1"/>`;
+
+  // volume bars
+  rows.forEach((r, i) => {
+    const up = r.c >= r.o;
+    const bx = xC(i) - bodyW/2;
+    svg += `<rect x="${bx}" y="${yv(r.v)}" width="${bodyW}" height="${volTop+volH-yv(r.v)}" fill="${up ? 'var(--candle-up)' : 'var(--candle-down)'}" opacity="0.45"/>`;
+  });
+
+  // candles
+  rows.forEach((r, i) => {
+    const up = r.c >= r.o;
+    const col = up ? 'var(--candle-up)' : 'var(--candle-down)';
+    const cx = xC(i);
+    const isLast = i === rows.length - 1;
+    svg += `<line x1="${cx}" y1="${y(r.h)}" x2="${cx}" y2="${y(r.l)}" stroke="${col}" stroke-width="${isLast?2:1.4}"/>`;
+    const top = y(Math.max(r.o, r.c));
+    const bot = y(Math.min(r.o, r.c));
+    const bh = Math.max(1.4, bot - top);
+    svg += `<rect x="${cx-bodyW/2}" y="${top}" width="${bodyW}" height="${bh}" fill="${col}" ${isLast ? 'stroke="var(--ink)" stroke-width="1.2"' : ''}/>`;
+  });
+
+  // SMA overlays
+  function line(key, color) {
+    let pts = [];
+    rows.forEach((r, i) => { if (r[key] != null) pts.push(`${xC(i)},${y(r[key])}`); });
+    if (pts.length < 2) return '';
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  svg += line('sma50', 'var(--sma50)');
+  svg += line('sma20', 'var(--sma20)');
+  svg += line('sma10', 'var(--sma10)');
+
+  // x-axis dates (every other bar, plus the last)
+  rows.forEach((r, i) => {
+    const isLast = i === rows.length - 1;
+    if (i % 2 === 0 || isLast) {
+      const [y_, m_, d_] = r.date.split('-');
+      svg += `<text x="${xC(i)}" y="${volTop+volH+16}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${isLast?'var(--ink)':'var(--ink-faint)'}" font-weight="${isLast?600:400}">${m_}/${d_}</text>`;
+      if (isLast) svg += `<line x1="${xC(i)}" y1="${volTop+volH}" x2="${xC(i)}" y2="${volTop+volH+4}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    }
+  });
+
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+}
+
+function renderCase(c) {
+  const f = FACTS[c.label];
+  const note = NOTES[c.label];
+  const el = document.createElement('section');
+  el.className = 'case';
+  el.innerHTML = `
+    <div class="case-head">
+      <span class="case-badge">CASE ${c.label}</span>
+      <span class="case-sym">${c.sym}</span>
+      <span class="case-meta">Daily &middot; ${c.rows[0].date} &rarr; ${c.rows[c.rows.length-1].date} &middot; evaluated as of candidate bar close</span>
+    </div>
+    <div class="chart-box">${renderChart(c.rows)}</div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--sma10)"></i>SMA 10</span>
+      <span><i class="swatch" style="background:var(--sma20)"></i>SMA 20</span>
+      <span><i class="swatch" style="background:var(--sma50)"></i>SMA 50</span>
+      <span><i class="swatch" style="background:var(--candle-up)"></i>Up close</span>
+      <span><i class="swatch" style="background:var(--candle-down)"></i>Down close</span>
+    </div>
+    <div class="facts">
+      <div class="fact"><div class="k">Prior base</div><div class="v">${f.base_bars} bars, ${f.base_depth} deep</div></div>
+      <div class="fact"><div class="k">Base range</div><div class="v">${f.base_range}</div></div>
+      <div class="fact"><div class="k">Prior advance into base</div><div class="v">${f.prior_advance}</div></div>
+      <div class="fact"><div class="k">Candidate bar gap</div><div class="v">${f.gap}</div></div>
+      <div class="fact"><div class="k">Range vs. 20-bar avg</div><div class="v">${f.range_x}</div></div>
+      <div class="fact"><div class="k">Volume vs. 20-bar avg</div><div class="v">${f.vol_x}</div></div>
+      <div class="fact"><div class="k">Close position in bar</div><div class="v">${f.close_strength} of range</div></div>
+      <div class="fact"><div class="k">Trend context</div><div class="v">${f.trend_stage}</div></div>
+      <div class="fact"><div class="k">MA alignment</div><div class="v">${f.ma_align}</div></div>
+      <div class="fact"><div class="k">Relative strength trend</div><div class="v">${f.rs}</div></div>
+    </div>
+    ${note ? `<p class="catalyst">Note: ${note}</p>` : `<p class="catalyst">No independently-retrieved catalyst/news context available this session.</p>`}
+    <div class="answer">
+      <div><span class="opt-label">Identity</span><span class="opts">YES &middot; BORDERLINE &middot; NO &middot; INSUFFICIENT DATA</span></div>
+      <div><span class="opt-label">Quality</span><span class="opts">HIGH &middot; MEDIUM &middot; LOW</span></div>
+    </div>
+  `;
+  return el;
+}
+
+const root = document.getElementById('cases');
+CASES.forEach(c => root.appendChild(renderCase(c)));
+</script>

@@ -1,0 +1,27 @@
+//@version=6
+indicator("Inside Bar Continuation")
+
+atrLen  = input.int(14, "ATR length")
+fastLen = input.int(21, "Fast EMA")
+slowLen = input.int(50, "Slow EMA")
+
+inside  = high <= high[1] and low >= low[1]
+inside2 = inside and inside[1]
+
+motherRange = high[1] - low[1]
+medRange    = ta.median(high - low, 20)
+wideMother  = motherRange > math.max(ta.atr(atrLen), medRange * 1.3)
+
+tightBody = math.abs(close - open) < 0.5 * math.max(high - low, syminfo.mintick)
+
+emaFast = ta.ema(close, fastLen)
+emaSlow = ta.ema(close, slowLen)
+stacked = emaFast > emaSlow and close > emaFast
+
+freshTrend  = ta.barssince(ta.crossover(emaFast, emaSlow)) < 40
+notExtended = close < ta.sma(close, 10) * 1.06
+contracting = ta.atr(5) < ta.atr(20)
+
+screen = (inside or inside2) and wideMother and tightBody and stacked and freshTrend and notExtended and contracting
+
+plot(screen ? 1 : 0)

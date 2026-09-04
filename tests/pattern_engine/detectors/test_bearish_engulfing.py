@@ -212,3 +212,26 @@ def test_levels_are_bearish_setup():
     assert levels["entry"] < pattern_low * 1.001
     assert levels["stop"] > pattern_high
     assert levels["target_primary"] < levels["entry"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3A: Bulkowski citation correction regression
+# ---------------------------------------------------------------------------
+
+def test_bulkowski_citation_is_accurate():
+    """The narrative previously described bearish-engulfing follow-through as
+    Bulkowski's "mirror statistics" at ~73% of the (also-wrong) bullish figure.
+    His actual published bearish-engulfing figure is 79% (rank 91st of 103) —
+    a 16-point gap from bullish's 63%, not a mirror. Guards against the
+    misquote reappearing."""
+    fixtures = load_all_fixtures("bearish_engulfing", include_internal=False)
+    pos = [f for f in fixtures if f.category == "positive"]
+    assert pos
+    fixture = pos[0]
+    ctx = fixture.context if fixture.context is not None else build_context(fixture.bars, sym="TEST")
+    detections = detect_bearish_engulfing(fixture.bars, ctx)
+    assert detections
+    text = detections[0]["narrative"]["what_it_is"]
+    assert "79%" in text, f"expected the corrected 79% Bulkowski figure in narrative: {text!r}"
+    assert "73%" not in text, f"stale ~73% Bulkowski misquote still present: {text!r}"
+    assert "mirror statistics" not in text, f"stale 'mirror statistics' framing still present: {text!r}"

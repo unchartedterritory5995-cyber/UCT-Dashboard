@@ -1,0 +1,202 @@
+{
+  "id": "6574e129-c11d-422a-94d3-9aaceb7d8c70",
+  "sym": "MSFT",
+  "tf": "D",
+  "pattern_id": "power_earnings_gap",
+  "pattern_name": "Power Earnings Gap (PEG)",
+  "category": "uct",
+  "direction": "bullish",
+  "start_t": 1703801600,
+  "end_t": 1704320000,
+  "pivot_ts": [
+    1703801600,
+    1703888000,
+    1704320000
+  ],
+  "geometry": {
+    "shape": "candle_mark",
+    "anchors": [
+      {
+        "t": 1703801600,
+        "price": 50.0
+      },
+      {
+        "t": 1703888000,
+        "price": 54.5
+      },
+      {
+        "t": 1703888000,
+        "price": 56.35
+      },
+      {
+        "t": 1704320000,
+        "price": 56.55
+      },
+      {
+        "t": 1704320000,
+        "price": 56.12
+      }
+    ],
+    "extras": {
+      "gap_pct": 9.0,
+      "gap_volume_ratio": 4.0,
+      "post_gap_bars": 5,
+      "post_gap_range_pct": 0.59,
+      "gap_fill_pct": 2.97,
+      "gap_height": 6.35,
+      "gap_open": 54.5,
+      "gap_high": 56.68,
+      "gap_low": 54.5,
+      "gap_close": 56.35,
+      "prior_close": 50.0,
+      "post_gap_high": 56.55,
+      "post_gap_low": 56.12,
+      "gap_range_pct": 3.87,
+      "days_to_earnings": null,
+      "earnings_linkage_verified": false,
+      "dcr_score_adj": 0.0,
+      "higher_low": true,
+      "higher_low_lift_pct": 13.95,
+      "aligned_ma": null,
+      "ma_distance_pct": 0.0
+    },
+    "anchor_roles": [
+      "prior_close",
+      "gap_open",
+      "gap_close",
+      "post_gap_high",
+      "post_gap_low"
+    ],
+    "semantic_subtype": "gap_event"
+  },
+  "levels": {
+    "entry": 56.61,
+    "entry_condition": "close > 56.61 on volume >= 1.5x 20-bar avg",
+    "stop": 53.68,
+    "stop_basis": "gap_bar_low_minus_1.5pct",
+    "target_primary": 62.7,
+    "target_secondary": null,
+    "risk_reward": 2.08
+  },
+  "context": {
+    "trend_stage": 2,
+    "rs_trend": "up",
+    "ma_alignment": "stacked_bullish",
+    "volume_signature": "expanding",
+    "regime": "bullish",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null
+  },
+  "confidence": 86.25,
+  "quality_components": {
+    "geometry_score": 100.0,
+    "volume_score": 75.0049556469597,
+    "context_score": 100.0,
+    "historical_score": 50.0
+  },
+  "narrative": {
+    "headline": "Power Earnings Gap - 9.0% gap-up on 4.0x volume, 5 bars of tight post-gap action holding the gap. Pivot $56.61, target $62.70, R:R 2.1.",
+    "what_it_is": "The Power Earnings Gap, codified by Pradeep Bonde of Stockbee from years of post-earnings price-action study on liquid US equities, is the chart pattern that captures the market's most decisive vote on new fundamentals. After an earnings release (or sometimes FDA approval, acquisition news, or guidance raise), a stock gaps up dramatically - here 9.0% from a prior close of $50.00 to an opening print of $54.50 - on volume of 4.0x the 20-bar average, signaling that the new information has caused a wholesale revaluation in the equity. What distinguishes a Power Earnings Gap from a normal earnings gap is what happens AFTER the gap: institutional buyers refuse to let the gap fill, and price action contracts into a tight consolidation that holds above the gap-up open. The 5-bar post-gap action here has averaged 0.59% daily range, well inside the gap bar's 3.87% range - that contraction is the supply-absorbed tell: buyers who chased the gap have not been shaken out, and sellers testing the gap have not been able to push price back into the prior range. No earnings-date data was available for this evaluation, so the 'earnings' half of this pattern's name is UNVERIFIED for this candidate \u2014 treat it as a price/volume/hold gap-continuation setup until a reported earnings date near the gap confirms the catalyst.",
+    "why_it_matters": "This PEG is forming in a confirmed Stage 2 uptrend with fully stacked-bullish moving-average alignment and improving relative strength versus the broader market, which is supportive context for continuation. The 9.0% gap on 4.0x volume crossed both of this detector's hard gates - 8% minimum gap and 3x minimum volume - with significant margin, indicating this isn't a borderline event but a high-conviction institutional move that's already been ratified by the tape. The fact that the gap has held for 5 bars without a fill (the closest test came within 2.97% of the gap-up open at $54.50) is the strongest validation: longs who chased the gap haven't been forced out, and shorts who faded haven't been able to push price down into the prior range. Within the bullish regime, a PEG that combines a 9.0% gap with 4.0x volume in a Stage 2 structure is precisely the profile Bonde teaches as the highest-conviction post-earnings setup. Within the bullish regime, PEGs are particularly potent because they reset the supply/demand equation overnight - every prior overhead supply level becomes irrelevant once the gap clears it, so the path of least resistance is straight up to the next obvious resistance. Higher low confirmed \u2014 pullback low ($56.12) is 13.9% above the prior swing low ($49.25). Strong uptrend structure.",
+    "what_to_watch_for": "The trigger is a close above the post-gap consolidation high ($56.61, which is the 5-bar post-gap high of $56.55 plus a small confirmation buffer) on volume of at least 1.5x the 20-bar average. The ideal trigger bar closes in the upper half of its range with above-average volume - that confirms the breakout is institutionally backed rather than retail momentum chasing. Measured target is $62.70, derived by adding the gap height ($6.35) onto the gap close ($56.35); this is conservative because strong PEGs frequently 2-3x this initial projection. Position sizing should reflect the 5.2% stop distance - a 1% account risk implies roughly 19% of equity allocated to the trade. Bonde teaches that you can also enter on a tight 1-2 bar pullback that holds the prior bar's mid-range, but never chase more than 3-5% above the pivot - chasing PEG breakouts is the number-one way to give back the edge that the gap-and-hold pattern was supposed to deliver.",
+    "failure_signal": "The PEG is invalidated when price closes below the gap-up day low at $54.50 (stop set at $53.68, 1.5% below) - that's a 'filling the gap' event in Bonde's terminology, and it signals that the new fundamentals didn't sustain institutional commitment. A subtler failure mode: post-gap action that drifts down on each successive bar (lower highs, lower lows) over 5+ bars even if it doesn't technically fill the gap - this drift pattern typically precedes a deeper fade as institutions quietly distribute the shares they accumulated on the gap. The penalty for being wrong on a PEG is the 9.0% gap size itself (from gap-up open down through the gap fill) PLUS the breakout failure distance, so disciplined stops at $53.68 are non-negotiable. Trail stops up below each new swing low as the stock advances; PEGs frequently retest the post-gap consolidation high ($56.55) once before extending, so the first stop should survive that retest. Failed PEGs often see the underlying news re-evaluated as not as strong as initially perceived - the chart is leading the fundamental reassessment."
+  },
+  "status": "ready",
+  "outcome": null,
+  "detected_at": 1788493910,
+  "last_seen_at": 1788493910,
+  "eligibility": {
+    "eligible": true,
+    "evaluated_at": 1788493910,
+    "eligibility_scope": "system_default",
+    "eligibility_version": "phase8.8b.1",
+    "eligibility_reasons": [
+      "within active window",
+      "status=ready"
+    ],
+    "freshness_bars": null,
+    "freshness_window_bars": null,
+    "active_window_secs": 604800
+  },
+  "event": {
+    "event_id": null,
+    "event_type": "earnings",
+    "event_timestamp": null,
+    "ingested_at": null,
+    "days_from_event": null,
+    "verification_status": "unavailable",
+    "source": "context.days_to_earnings_hint"
+  },
+  "gate_trace": [
+    {
+      "criterion_id": "peg_gap_pct_floor",
+      "criterion_name": "gap percentage vs. floor",
+      "observed_value": 0.09,
+      "expected_value": 0.08,
+      "operator": ">=",
+      "unit": "fraction",
+      "role": "identity",
+      "required": true,
+      "result": "pass",
+      "criterion_ref": null,
+      "definition_version": null
+    },
+    {
+      "criterion_id": "peg_volume_ratio_floor",
+      "criterion_name": "gap-bar volume vs. 20-bar average",
+      "observed_value": 4.0,
+      "expected_value": 3.0,
+      "operator": ">=",
+      "unit": "ratio",
+      "role": "identity",
+      "required": true,
+      "result": "pass",
+      "criterion_ref": null,
+      "definition_version": null
+    },
+    {
+      "criterion_id": "peg_gap_holding",
+      "criterion_name": "post-gap low held above gap-fill threshold",
+      "observed_value": 1.0297,
+      "expected_value": 0.99,
+      "operator": ">",
+      "unit": "fraction_of_gap_open",
+      "role": "identity",
+      "required": true,
+      "result": "pass",
+      "criterion_ref": null,
+      "definition_version": null
+    },
+    {
+      "criterion_id": "peg_post_gap_tightness",
+      "criterion_name": "post-gap average range vs. gap-bar range",
+      "observed_value": 0.1525,
+      "expected_value": 0.7,
+      "operator": "<",
+      "unit": "ratio",
+      "role": "quality",
+      "required": true,
+      "result": "pass",
+      "criterion_ref": null,
+      "definition_version": null
+    },
+    {
+      "criterion_id": "peg_post_gap_bar_count",
+      "criterion_name": "post-gap bar count within detection window",
+      "observed_value": 5,
+      "expected_value": [
+        3,
+        10
+      ],
+      "operator": "within_range",
+      "unit": "bars",
+      "role": "eligibility",
+      "required": true,
+      "result": "pass",
+      "criterion_ref": null,
+      "definition_version": null
+    }
+  ]
+}

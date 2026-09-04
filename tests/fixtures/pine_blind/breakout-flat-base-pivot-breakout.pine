@@ -1,0 +1,21 @@
+//@version=6
+indicator("Flat Base Pivot Breakout")
+
+pivLeft  = input.int(10, "Pivot left bars")
+pivRight = input.int(3, "Pivot right bars")
+baseLen  = input.int(35, "Min base length")
+maxDepth = input.float(12.0, "Max base depth %")
+
+pivotHi  = ta.pivothigh(high, pivLeft, pivRight)
+baseHigh = ta.valuewhen(not na(pivotHi), high[pivRight], 0)
+baseLow  = ta.lowest(low, baseLen)
+depthPct = (baseHigh - baseLow) / baseHigh * 100
+
+barsSincePivot = nz(ta.barssince(not na(pivotHi)), 0)
+matured = barsSincePivot >= baseLen
+
+breakout = ta.crossover(close, baseHigh)
+volPush  = volume > ta.sma(volume, 50) * 1.4
+inTrend  = close > ta.sma(close, 50) and ta.sma(close, 50) > ta.sma(close, 200)
+
+plot(breakout and matured and depthPct < maxDepth and volPush and inTrend ? 1 : 0)

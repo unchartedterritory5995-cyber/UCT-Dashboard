@@ -115,6 +115,12 @@ def status(user: dict = Depends(get_current_user)):
             mentions_unseen = store.count_unseen_mentions(user["id"])
         except Exception:
             pass
+    notifications_unseen = 0
+    if enabled:
+        try:
+            notifications_unseen = store.unread_notifications(user["id"])
+        except Exception:
+            pass
     return {
         "enabled": enabled,
         "acked": store.has_ack(user["id"]) if enabled else False,
@@ -127,6 +133,8 @@ def status(user: dict = Depends(get_current_user)):
         # for the nav badge (ambient aliveness outside /community)
         "chat_unread": chat_unread,
         "mentions_unseen": mentions_unseen,
+        # forum-v2 (The Floor redesign) notification badge
+        "notifications_unseen": notifications_unseen,
     }
 
 
@@ -475,6 +483,299 @@ def serve_image(owner_id: str, name: str, user: dict = Depends(require_community
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="image/webp",
                         headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  The Floor (forum v2 / redesign) — a Reddit×Discord×Twitter forum on top of
+#  threads/posts. Reuses require_community (paid + admin-preview) + _writer
+#  (ack/mute). Everything is namespaced under /floor so the legacy /threads API
+#  is untouched. Ships dark behind COMMUNITY_ENABLED; admins preview.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class FloorThreadIn(BaseModel):
+    title: str
+    body: str = ""
+    flair: str = "Discussion"
+    ticker_tags: list[str] | None = None
+    chart: dict | None = None
+
+
+class FloorPostIn(BaseModel):
+    body: str
+    parent_post_id: int | None = None
+    chart: dict | None = None
+
+
+class VoteIn(BaseModel):
+    target_type: str      # 'thread' | 'post'
+    target_id: int
+    dir: int              # +1 | -1
+
+
+class EmojiReactionIn(BaseModel):
+    target_type: str      # 'thread' | 'post'
+    target_id: int
+    emoji: str
+
+
+class AnswerIn(BaseModel):
+    post_id: int | None = None
+
+
+def _clean_chart(chart):
+    """A post's embedded chart is a static snapshot descriptor, never markup."""
+    if not isinstance(chart, dict):
+        return None
+    ticker = str(chart.get("ticker") or "").strip().upper()[:12]
+    if not ticker:
+        return None
+    return {"ticker": ticker,
+            "tf": str(chart.get("tf") or "D")[:4],
+            "caption": str(chart.get("caption") or "")[:300]}
+
+
+def _floor_thread_item(d: dict) -> dict:
+    return {
+        "id": d["id"],
+        "author_id": d.get("author_id"),
+        "flair": d.get("flair") or "Discussion",
+        "title": d.get("title"),
+        "body": d.get("body") or "",
+        "tickers": d.get("ticker_tags") or [],
+        "chart": d.get("chart_json"),
+        "score": d.get("score", 0),
+        "my_vote": d.get("my_vote", 0),
+        "reactions": d.get("reactions") or [],
+        "bookmarked": bool(d.get("bookmarked")),
+        "pinned": bool(d.get("pinned")),
+        "answered": bool(d.get("answered")),
+        "answer_post_id": d.get("answer_post_id"),
+        "comment_count": d.get("reply_count", 0),
+        "created_at": d.get("created_at"),
+        "last_activity_at": d.get("last_activity_at"),
+    }
+
+
+def _floor_post_item(p: dict) -> dict:
+    return {
+        "id": p["id"],
+        "author_id": p.get("author_id"),
+        "parent_post_id": p.get("parent_post_id"),
+        "body": p.get("body") or "",
+        "chart": p.get("chart_json"),
+        "score": p.get("score", 0),
+        "my_vote": p.get("my_vote", 0),
+        "reactions": p.get("reactions") or [],
+        "mentor_highlight": bool(p.get("mentor_highlight")),
+        "deleted": bool(p.get("deleted")),
+        "created_at": p.get("created_at"),
+    }
+
+
+def _attach_event_authors(events):
+    """floor_events carry actor_id; borrow _attach_authors by aliasing it."""
+    for e in events:
+        e["author_id"] = e.get("actor_id")
+    _attach_authors(events)
+    for e in events:
+        e["actor"] = e.pop("author", None)
+        e.pop("author_id", None)
+    return events
+
+
+@router.get("/floor/feed")
+def floor_feed(flair: str | None = Query(None), sort: str = Query("hot"),
+               filter: str = Query("all"), limit: int = Query(100, ge=1, le=200),
+               offset: int = Query(0, ge=0),
+               user: dict = Depends(require_community)):
+    items = store.list_feed(flair=flair, sort=sort, viewer_id=user["id"],
+                            filter=filter, limit=limit, offset=offset)
+    out = [_floor_thread_item(d) for d in items]
+    _attach_authors(out)
+    return {"threads": out}
+
+
+@router.get("/floor/threads/{thread_id}")
+def floor_thread_detail(thread_id: int, user: dict = Depends(require_community)):
+    t = store.get_floor_thread(thread_id, viewer_id=user["id"])
+    if not t:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    item = _floor_thread_item(t)
+    posts = [_floor_post_item(p) for p in t["posts"]]
+    _attach_authors([item])
+    _attach_authors(posts)
+    item["posts"] = posts
+    return item
+
+
+@router.post("/floor/threads")
+def floor_create_thread(body: FloorThreadIn, user: dict = Depends(require_community)):
+    _writer(user)
+    title = (body.title or "").strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="Title required (max 200 chars)")
+    if body.flair not in store.FLOOR_FLAIRS:
+        raise HTTPException(status_code=400, detail="Unknown flair")
+    if not _is_mentor(user) and store.count_recent_threads(user["id"]) >= THREADS_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Thread rate limit — try again later")
+    tid = store.create_floor_thread(
+        user["id"], title, body=_validate_body(body.body), flair=body.flair,
+        ticker_tags=[t.upper()[:8] for t in (body.ticker_tags or [])][:10],
+        chart_json=_clean_chart(body.chart))
+    store.add_event("post", actor_id=user["id"], thread_id=tid)  # global activity
+    _broadcast_board(store.FLOOR_SPACE, "floor_thread_created", tid)
+    return {"id": tid}
+
+
+@router.post("/floor/threads/{thread_id}/posts")
+def floor_create_post(thread_id: int, body: FloorPostIn,
+                      user: dict = Depends(require_community)):
+    _writer(user)
+    if not _is_mentor(user) and store.count_recent_posts(user["id"]) >= POSTS_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Post rate limit — try again later")
+    try:
+        pid = store.create_floor_post(
+            thread_id, user["id"], _validate_body(body.body, require_content=True),
+            parent_post_id=body.parent_post_id, chart_json=_clean_chart(body.chart))
+    except ValueError as e:
+        code = {"no-thread": 404, "locked": 409, "bad-parent": 400}.get(str(e), 400)
+        raise HTTPException(status_code=code, detail=str(e))
+    # Notify the person being replied to (parent post author, else thread author).
+    kind = "reply" if body.parent_post_id else "comment"
+    target = None
+    thread = store.get_thread(thread_id)
+    if body.parent_post_id:
+        parent = store.get_post(body.parent_post_id)
+        target = parent.get("author_id") if parent else None
+    elif thread:
+        target = thread.get("author_id")
+    store.add_event(kind, actor_id=user["id"], thread_id=thread_id, post_id=pid,
+                    target_user_id=target)
+    _broadcast_board(store.FLOOR_SPACE, "floor_post_created", thread_id)
+    return {"id": pid}
+
+
+@router.post("/floor/votes")
+def floor_vote(body: VoteIn, user: dict = Depends(require_community)):
+    _writer(user)
+    try:
+        r = store.toggle_vote(body.target_type, body.target_id, user["id"], body.dir)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Bad vote")
+    return r
+
+
+@router.post("/floor/reactions")
+def floor_react(body: EmojiReactionIn, user: dict = Depends(require_community)):
+    _writer(user)
+    try:
+        on = store.toggle_emoji_reaction(
+            body.target_type, body.target_id, user["id"], body.emoji)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    # Notify the target's author on a NEW reaction (not on un-react).
+    if on:
+        if body.target_type == "thread":
+            t = store.get_thread(body.target_id)
+            target = t.get("author_id") if t else None
+            store.add_event("reaction", actor_id=user["id"], thread_id=body.target_id,
+                            emoji=body.emoji, target_user_id=target)
+        else:
+            p = store.get_post(body.target_id)
+            if p:
+                store.add_event("reaction", actor_id=user["id"],
+                                thread_id=p.get("thread_id"), post_id=body.target_id,
+                                emoji=body.emoji, target_user_id=p.get("author_id"))
+    return {"on": on}
+
+
+@router.post("/floor/bookmarks/{thread_id}")
+def floor_bookmark(thread_id: int, user: dict = Depends(require_community)):
+    on = store.toggle_bookmark(user["id"], thread_id)
+    return {"on": on}
+
+
+@router.get("/floor/bookmarks")
+def floor_bookmarks(user: dict = Depends(require_community)):
+    return {"thread_ids": store.list_bookmark_ids(user["id"])}
+
+
+@router.post("/floor/threads/{thread_id}/answer")
+def floor_set_answer(thread_id: int, body: AnswerIn,
+                     user: dict = Depends(require_community)):
+    t = store.get_thread(thread_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    # Only the thread author or a mentor may accept an answer.
+    if t.get("author_id") != user["id"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Only the author or a mentor")
+    try:
+        answer_id = store.set_answer(thread_id, body.post_id)
+    except ValueError as e:
+        code = {"no-thread": 404, "bad-post": 400}.get(str(e), 400)
+        raise HTTPException(status_code=code, detail=str(e))
+    if answer_id:
+        p = store.get_post(answer_id)
+        if p:
+            store.add_event("answer", actor_id=user["id"], thread_id=thread_id,
+                            post_id=answer_id, target_user_id=p.get("author_id"))
+    _broadcast_board(store.FLOOR_SPACE, "floor_answer", thread_id)
+    return {"answer_post_id": answer_id}
+
+
+@router.delete("/floor/threads/{thread_id}")
+def floor_delete_thread(thread_id: int, user: dict = Depends(require_community)):
+    t = store.get_thread(thread_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if t["author_id"] != user["id"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Not your thread")
+    store.soft_delete_thread(thread_id)
+    _broadcast_board(store.FLOOR_SPACE, "floor_thread_deleted", thread_id)
+    return {"ok": True}
+
+
+@router.delete("/floor/posts/{post_id}")
+def floor_delete_post(post_id: int, user: dict = Depends(require_community)):
+    p = store.get_post(post_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if p["author_id"] != user["id"] and not _is_mentor(user):
+        raise HTTPException(status_code=403, detail="Not your post")
+    store.soft_delete_post(post_id)
+    _broadcast_board(store.FLOOR_SPACE, "floor_post_deleted", p.get("thread_id"))
+    return {"ok": True}
+
+
+@router.get("/floor/notifications")
+def floor_notifications(user: dict = Depends(require_community)):
+    items = store.list_notifications(user["id"])
+    _attach_event_authors(items)
+    return {"notifications": items, "unseen": store.unread_notifications(user["id"])}
+
+
+@router.post("/floor/notifications/read")
+def floor_notifications_read(user: dict = Depends(require_community)):
+    store.mark_notifications_seen(user["id"])
+    return {"ok": True}
+
+
+@router.get("/floor/activity")
+def floor_activity(limit: int = Query(30, ge=1, le=100),
+                   user: dict = Depends(require_community)):
+    items = store.list_activity(limit=limit)
+    _attach_event_authors(items)
+    return {"activity": items}
+
+
+@router.get("/floor/search")
+def floor_search(q: str = Query("", max_length=120),
+                 user: dict = Depends(require_community)):
+    items = store.search_floor(q, viewer_id=user["id"])
+    out = [_floor_thread_item(d) for d in items]
+    _attach_authors(out)
+    return {"threads": out}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

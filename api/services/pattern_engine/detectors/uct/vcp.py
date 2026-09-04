@@ -7,6 +7,11 @@ where each successive pullback is shallower than the prior AND volume
 dries up dramatically into the breakout pivot.
 
 Geometric definition:
+  - Trend Template precondition (Phase 3A, 2026-09-02): price above both the
+    150-day and 200-day SMA, and the 150-day SMA above the 200-day SMA (2 of
+    Minervini's 8 Trend Template conditions -- the ones computable from a
+    single symbol's own OHLCV). Fails open when there isn't 200 bars of
+    history to evaluate it. See _passes_trend_template_precondition.
   - Window: 30-90 bars (typically 6-13 weeks)
   - Prior advance: >=20% gain in the 60 bars preceding the formation
   - Series of contractions: at least 2 successive pullback cycles, each
@@ -71,6 +76,20 @@ from api.services.pattern_engine.types import Bar, Detection
 _PATTERN_ID = "vcp"
 _MIN_PATTERN_BARS = 30
 _MAX_PATTERN_BARS = 90
+# Trend Template precondition (Phase 3A, 2026-09-02): 2 of Minervini's 8 Trend
+# Template conditions -- price above both the 150-day and 200-day SMA, and the
+# 150-day SMA above the 200-day SMA. Chosen because they are the only Trend
+# Template conditions computable from a single symbol's own OHLCV without a
+# cross-sectional RS-rank universe. When there isn't 200 bars of history to
+# compute the 200-day SMA, the precondition cannot be evaluated and is not
+# enforced (fail-open, matching the graceful-degradation convention used
+# elsewhere in this engine, e.g. context.py's _ma_alignment "insufficient
+# history" fallback). Deliberately local to this file rather than reusing
+# context.py's ma_alignment: that field requires a stricter, different
+# condition (last > sma10 > sma20 > sma50 > sma200, no sma150 at all) and is
+# not a substitute for this specific two-SMA check.
+_TREND_TEMPLATE_SMA_SHORT = 150
+_TREND_TEMPLATE_SMA_LONG = 200
 _MIN_CONTRACTIONS = 2
 _MAX_FIRST_CONTRACTION_PCT = 0.40      # first contraction must be <=40%
 _MIN_FIRST_CONTRACTION_PCT = 0.06      # and at least 6%
@@ -85,6 +104,9 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_vcp(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Volatility Contraction Patterns. May emit 0-N detections (best one)."""
     if len(bars) < _MIN_PATTERN_BARS:
+        return []
+
+    if not _passes_trend_template_precondition(bars):
         return []
 
     pivots = detect_pivots(bars, window=3)
@@ -349,6 +371,34 @@ def _fallback_recent_low(bars: List[Bar], after_idx: int) -> Optional[dict]:
         "type": "low",
         "strength": 40,  # synthesized, slightly weaker than a real pivot
     }
+
+
+def _sma(values: List[float], period: int) -> Optional[float]:
+    """Latest SMA value, or None if insufficient data."""
+    if len(values) < period:
+        return None
+    return sum(values[-period:]) / period
+
+
+def _passes_trend_template_precondition(bars: List[Bar]) -> bool:
+    """Hard precondition: price above both the 150-day and 200-day SMA, with
+    the 150-day SMA above the 200-day SMA (2 of Minervini's 8 Trend Template
+    conditions -- the ones computable from a single symbol's own OHLCV).
+
+    A VCP is a continuation setup inside an established uptrend; without this
+    precondition the contraction-sequence geometry can fire on a name that is
+    structurally still below its long-term moving averages (e.g. a base
+    forming during a downtrend, not on top of one). Fails open (returns True)
+    when there isn't enough history to compute the 200-day SMA -- see the
+    module-level comment by _TREND_TEMPLATE_SMA_SHORT/_LONG.
+    """
+    closes = [b["c"] for b in bars]
+    sma150 = _sma(closes, _TREND_TEMPLATE_SMA_SHORT)
+    sma200 = _sma(closes, _TREND_TEMPLATE_SMA_LONG)
+    if sma150 is None or sma200 is None:
+        return True
+    last_close = closes[-1]
+    return last_close > sma150 and last_close > sma200 and sma150 > sma200
 
 
 def _already_broken(bars: List[Bar], candidate: dict) -> bool:
@@ -742,9 +792,7 @@ def _build_detection(bars, c, confidence, context,
         f"{rs_phrase} relative strength versus the broader market. The {n}-contraction "
         f"sequence - particularly the tight {final_pct_pct:.1f}% final pullback on "
         f"{vol_sig} volume (~{final_vol_ratio:.0%} of the 50-bar average) - signals that "
-        f"the supply at ${pivot_price:.2f} is finite and weakening. Historically, VCPs with "
-        f"{n}+ contractions and a final tightening below 8% produce 25%+ moves within 8-12 "
-        f"weeks when they trigger cleanly on volume. The {regime} regime adds further "
+        f"the supply at ${pivot_price:.2f} is finite and weakening. The {regime} regime adds further "
         f"context to position-sizing decisions, and the {pattern_bars}-bar formation length "
         f"is well inside Minervini's 6-13 week sweet spot for the highest-quality bases. "
         f"{dcr_phrase(context.get('dcr_signature'), context.get('recent_dcr_avg'))}. "

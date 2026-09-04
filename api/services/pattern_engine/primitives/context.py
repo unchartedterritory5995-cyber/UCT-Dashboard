@@ -2,8 +2,29 @@
 
 Pulls trend/MA/RS/volume context from the bars themselves. Reads regime
 from existing wire_data cache when available, else accepts a hint argument.
-Earnings proximity + sector strength rank are stubbed for Phase 0 (None)
-and wired in later phases.
+Sector strength rank remains a Phase 0 stub (None), wired in a later phase.
+
+Earnings proximity (Phase 6 Group 3, 2026-09-03): `days_to_earnings` used
+to be an UNCONDITIONAL `None` regardless of caller -- Phase 5's audit found
+this stated as a real schema field while never actually computed anywhere,
+and neither power_earnings_gap.py nor episodic_pivot.py could verify their
+own namesake's earnings linkage as a result. It is now real WHEN a caller
+supplies `earnings_hint`, and honestly `None` otherwise -- this function
+stays pure and synchronous (no DB/network I/O), mirroring the existing
+`regime_hint` precedent, DELIBERATELY. The real earnings-date sources in
+this codebase (`earnings_table._next_report_date` / `_last_report_date`)
+are network-bound (Finnhub/FMP) with TTL caching, not safe to call from a
+function invoked in every test in this suite and in per-symbol hot scan
+loops. This codebase has already been burned by exactly this class of bug
+once (`CLAUDE.md`'s 2026-07-01 launch-hardening section: "Unbounded
+external calls pin threadpool workers" -> a production outage) --
+`build_context` must not become the second instance. The production
+universe scan (`api/main.py::_scan_patterns_daily`) does not yet supply
+`earnings_hint`; wiring it needs a BULK per-cycle earnings-calendar fetch
+(one call for the whole scanned set, not one per symbol), which is
+backlogged as an architecture input for Phase 7, not squeezed into this
+pass. Until then, `days_to_earnings` is honestly `None` in production and
+detectors that need it must degrade gracefully, not assume it is present.
 """
 from __future__ import annotations
 
@@ -127,8 +148,9 @@ def build_context(
     bars: List[Bar],
     sym: str,
     regime_hint: Optional[str] = None,
+    days_to_earnings_hint: Optional[int] = None,
 ) -> Context:
-    """Build a Context dict from bars + optional regime hint.
+    """Build a Context dict from bars + optional regime/earnings hints.
 
     Args:
       bars: OHLCV list, sorted by t asc, most-recent last.
@@ -136,6 +158,12 @@ def build_context(
       regime_hint: caller-supplied regime tag. Phase 0 doesn't read from
         wire_data cache directly — that wiring is left for Phase 1+ if the
         regime hint is missing.
+      days_to_earnings_hint (Phase 6 Group 3): caller-supplied day count to
+        the ticker's nearest known earnings report (signed: negative if it
+        already happened, per the caller's own convention). This function
+        does NOT look this up itself — see the module docstring for why —
+        so `days_to_earnings` in the returned Context is this value
+        verbatim, or `None` when no caller supplies one.
 
     Returns:
       Context dict matching the TypedDict schema.
@@ -167,7 +195,7 @@ def build_context(
         "regime": regime,
         "nearest_resistance": _nearest_resistance(bars),
         "nearest_support": _nearest_support(bars),
-        "days_to_earnings": None,
+        "days_to_earnings": days_to_earnings_hint,
         "sector_strength_rank": None,
         "recent_dcr_avg": round(avg_dcr(bars, lookback=10), 4),
         "dcr_signature": dcr_sig,

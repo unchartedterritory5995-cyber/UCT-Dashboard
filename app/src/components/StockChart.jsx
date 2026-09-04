@@ -944,6 +944,17 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
 // localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
 // cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+// RE-ENABLED to a 25% canary (2026-09-03) after the render bug was fixed + verified.
+// The render bug (disabled 2026-09-02): with split on, /api/bars is capped to the ~600-bar
+// tail and deep history lives only in idbBars, which the selector gated behind `_idbFresh`
+// — false every weekday after 16:00 ET (idbStaleDaily) — so the deep merged series was
+// discarded and daily charts "stopped at ~2024". FIXED by `_splitDeepUsable` (render the
+// deep idbBars under split-fetch, bypassing only the STALENESS gates the fresh tail heals,
+// keeping the correctness gates). VERIFIED end-to-end on prod (localStorage opt-in): AMT
+// renders to its 1999 IPO, deep history served from the Cloudflare edge in ~2ms, no errors.
+// Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
+// stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
+// window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
 export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
 
 function _barsHistoryBucket() {
@@ -972,6 +983,135 @@ export function setBarsHistorySplitEnabled(on) {
   } catch { /* ignore */ }
 }
 if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+
+// ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
+// The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
+// (`_histFire` needs fetchDepth > FIRST_PAINT_BARS). So a cold browser's first-ever view of a
+// ticker paints only the ~600-bar tail until it's scrolled back. This gate fires the edge
+// fetch ON first paint too — full history from the 2ms Cloudflare edge, no pan required — for
+// a standalone backgroundWarm D/W/M chart whose IDB isn't already deep (a warm-deep browser
+// renders full history via _splitDeepUsable already, so it's skipped: no redundant fetch).
+// Separate per-browser canary from the split rollout so it ramps + reverts independently.
+// Ship DARK at 0; owner opt-in `window.__uctBarsHistoryFP(true)`; ramp = raise the constant.
+// Ramped 0 → 100 on 2026-09-03 after the owner verified on prod (opted-in): cold tickers
+// XXII/KORU paint full history "literally instant to the eye," fast scroll-through skips the
+// deep fetch (dwell), and the cold-tail hang no longer blanks the chart. Instant revert = set
+// this to 0 + redeploy, or per-browser window.__uctBarsHistoryFP(false).
+export const BARS_HISTORY_FIRST_PAINT_PCT = 100
+export function _firstPaintEdgeEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistoryFP.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    return _barsHistoryBucket() < BARS_HISTORY_FIRST_PAINT_PCT   // reuses the split gate's stable bucket
+  } catch { return false }
+}
+export function setFirstPaintEdgeEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsHistoryFP.enabled', '1')
+    else localStorage.removeItem('uct.barsHistoryFP.enabled')
+    window.dispatchEvent(new Event('uct-barshistory-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdgeEnabled
+
+// ── Intraday smooth-switch (Phase 3', dark canary) ──────────────────────────
+// Daily switches are smooth (one deep first paint, one anchor). Intraday switches jank
+// because the dwell-warm auto-grows the rendered series 600 → 20-32k bars ~900ms after
+// every switch, forcing a SECOND repaint + re-anchor (the view nudge + crosshair skitter,
+// while you're just scanning recent price). When on, intraday does NOT auto-deep-bump on a
+// switch — it stays a single stable 600-bar paint; deep history still loads on PAN (the
+// pan-backfill), where a re-anchor is natural and expected. Daily is untouched (its dwell is
+// already a no-op — _deepFirstPaint loaded full up front). Ship DARK at 0; owner opt-in
+// window.__uctIntradaySmooth(true); ramp = the constant. Instant revert = 0 / opt-out.
+// RAMPED 100 (2026-09-04): verified live on prod (cold ALAB 5m — first fetch bars=600 shallow,
+// deep bars=3000 fired ~1.9s after paint off the critical path, poll reverted to a since= delta).
+// This carries Part 1 (no auto-fullTarget-bump on switch) + the flood-abort + deep-backfill; the
+// old "history only loads on pan" tradeoff is retired by deep-backfill. Instant revert: set to 0.
+export const INTRADAY_SMOOTH_SWITCH_PCT = 100
+// Default intraday history depth under smooth-switch: open showing WEEKS of history in ONE stable
+// paint (5m≈7-8wk, 1m≈1.5wk, 60m≈2yr), not the ~600-bar/3.5-day window that looked empty and not
+// the janky 20-32k deep-bump re-anchor. Deeper history still loads on pan (the pan-backfill). Rides
+// the smooth-switch gate; at PCT=0/opt-out barCount is byte-identical (Math.max(fetchDepth,600)).
+export const INTRADAY_DEFAULT_BARS = 3000
+export function _intradaySmoothSwitchEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradaySmooth.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradaySmooth.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradaySmooth.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_SMOOTH_SWITCH_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradaySmooth = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradaySmooth.enabled', '1')
+      else localStorage.removeItem('uct.intradaySmooth.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Intraday deep-backfill (Phase 3' Part 3, dark canary) ───────────────────
+// The smooth-switch's first cut put INTRADAY_DEFAULT_BARS on the FIRST /api/bars fetch to show
+// "weeks of history in one paint" — but that ~200KB/~500ms fetch lands BEFORE first paint, so a
+// COLD/searched name shows a spinner for ~half a second (warm names paint instantly from IDB).
+// This keeps first paint SHALLOW+instant (FIRST_PAINT_BARS) and loads the deep window OFF the
+// critical path: one /api/bars?bars=INTRADAY_DEFAULT_BARS fetch ~900ms AFTER the sym/tf settles,
+// folded into idbBars via the same mergeDelta prepend the daily edge split-fetch uses (older bars
+// to the LEFT, right-anchored view held → no jump/blink). It NEVER bumps fetchDepth, so the 30s
+// tail poll stays a tiny since= delta (the reason the first cut used a display-only depth). Rides
+// smooth-switch (needs its flood-abort + no-auto-fullTarget-bump); default = smooth's state, force
+// on/off via uct.intradayDeepBackfill.enabled ('1'/'0'). Inert whenever smooth-switch is off.
+export function _intradayDeepBackfillEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayDeepBackfill.enabled') : null
+    if (ls === '0') return false
+    if (ls === '1') return true
+    return _intradaySmoothSwitchEnabled()
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayDeepBackfill = (on) => {
+    try {
+      if (on === false) localStorage.setItem('uct.intradayDeepBackfill.enabled', '0')
+      else if (on === true) localStorage.setItem('uct.intradayDeepBackfill.enabled', '1')
+      else localStorage.removeItem('uct.intradayDeepBackfill.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
+// On a switch to an intraday name last viewed earlier this session, the stale cache's LAST
+// bar is a FROZEN PARTIAL developing bar from that prior view (understated OHLC/volume at an
+// OLD bucket). Rendered as the rightmost candle it IS the "wrong / one-candle-behind candle
+// that fixes itself." When on, drop that single stale partial from the last-resort provisional
+// paint → the first paint is correct SEALED history (never a misleading last candle); the
+// forced full refetch (already firing because the tail is stale) supplies the correct current
+// tail. No spinner regression, live price keeps ticking. Ship DARK at 0; owner opt-in
+// window.__uctIntradayFirstPaint(true); ramp = the constant. Instant revert = 0 / opt-out.
+export const INTRADAY_FIRST_PAINT_PCT = 0
+export function _correctFirstPaintEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayFirstPaint.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradayFirstPaint.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradayFirstPaint.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_FIRST_PAINT_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradayFirstPaint = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradayFirstPaint.enabled', '1')
+      else localStorage.removeItem('uct.intradayFirstPaint.enabled')
+    } catch { /* ignore */ }
+  }
+}
 
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
@@ -4566,12 +4706,29 @@ export default function StockChart({
   // Overlay modes (compare / index pane / multi-symbol comparisons) keep the
   // full fetch so their overlays align across the whole range.
   const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
+  // Phase 3' Part 3: armed ~900ms after the sym/tf settles → fires the ONE off-critical-path
+  // intraday deep-backfill fetch. Reset synchronously on sym/tf change (the _depthKey block below)
+  // so quick ticker-flips while scanning never deepen.
+  const [_intradayDeepArmed, _setIntradayDeepArmed] = useState(false)
   const pendingNavRef = useRef(null)   // deferred time-nav awaiting full history: null | { kind:'origin'|'date'|'year', target }
   const originSawFetchRef = useRef(false)   // saw the deep fetch actually start (isValidating→true)
   const originBaseLenRef = useRef(0)        // filteredBars length at click — detects the deeper history landing
   const [originLoading, setOriginLoading] = useState(false)  // "Loading chart history…" until the true first bar lands
+  // Fix 2 dwell: gate the FIRST-PAINT edge deep fetch on the sym/tf being stable ~150ms, so a
+  // fast scroll-through (theme tracker) doesn't fire a heavy 12.5k-bar deep fetch for tickers
+  // never landed on. Reset synchronously on sym/tf change (below), re-armed by a timer effect;
+  // only gates _histFirstPaint (the pan path is untouched). The /api/bars tail still paints
+  // instantly; the deep fills ~150ms after the chart settles.
+  const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
+  // First paint is SHALLOW (FIRST_PAINT_BARS) for an instant cold open on EVERY tf. An earlier
+  // smooth-switch cut set _fpBars = INTRADAY_DEFAULT_BARS to show weeks of history in one paint,
+  // but that put a ~200KB/~500ms fetch on the critical path (the "half-second loading screen" when
+  // searching up new intraday names). The deep intraday window now loads OFF the critical path via
+  // the deep-backfill SWR below (Phase 3' Part 3). _fpBars === FIRST_PAINT_BARS now, so barCount /
+  // since are byte-identical to the original; kept as a named constant for its two call sites.
+  const _fpBars = FIRST_PAINT_BARS
   const _overlayActive = !!(
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
@@ -4580,6 +4737,8 @@ export default function StockChart({
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    if (_intradayDeepArmed) _setIntradayDeepArmed(false)   // Part 3: re-arm the deep-backfill dwell for the new sym/tf
+    if (_fpDwellReady) _setFpDwellReady(false)   // Fix 2: re-arm the dwell for the new sym/tf (timer effect re-enables)
     pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
     originSawFetchRef.current = false
     if (originLoading) setOriginLoading(false)
@@ -4595,7 +4754,17 @@ export default function StockChart({
   // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
   // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
   const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
-  const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
+  // No-blink first paint (2026-09-03): a standalone D/W/M chart fetches its FULL depth as the
+  // SINGLE first request, instead of the viewport-first shallow(600)→deep two-stage that
+  // repaints ~900 ms later ("blink" back to full history). The deep fetch already happens
+  // unconditionally via the dwell-warm below, so this is FEWER fetches, not more — it just
+  // makes the one deep fetch BE the first paint. Scoped to backgroundWarm charts (grid cells
+  // pass backgroundWarm=false → keep viewport-first, the herd guard) and to D/W/M (intraday
+  // full depth is 20-32k bars — too heavy for a first paint; intraday keeps viewport-first).
+  // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
+  const _deepFirstPaint = backgroundWarm && !barsOverridePending
+    && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
+  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -4626,6 +4795,14 @@ export default function StockChart({
   // merge effect so within any single commit this sync runs first.
   const idbBarsRef = useRef(null)
   useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
+  // Fix 2 dwell timer: arm the first-paint edge deep fetch ~150ms after the sym/tf settles, so a
+  // fast scroll-through never fires it. Early-returns when Fix 2 is off → no state churn, dark-safe.
+  useEffect(() => {
+    if (!sym || !resolvedTf) return undefined
+    if (!_firstPaintEdgeEnabled()) return undefined
+    const _t = setTimeout(() => _setFpDwellReady(true), 150)
+    return () => clearTimeout(_t)
+  }, [sym, resolvedTf])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -4812,24 +4989,45 @@ export default function StockChart({
     && !_hasOverride && !replayCutoff && !_pinnedFull
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
   const _primaryBars = _splitOn ? Math.min(barCount, FIRST_PAINT_BARS) : barCount
-  // Deep sealed history from the edge — only once the user has panned PAST the first-paint
-  // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
-  // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
+  // Fix 2 (first-paint edge, gated dark): fire the edge deep-history fetch on FIRST PAINT for a
+  // standalone backgroundWarm D/W/M chart whose IDB is NOT already deep — a cold browser's
+  // first-ever view then shows full sealed history from the 2ms edge, no pan required. A
+  // warm-deep browser renders full history via _splitDeepUsable (Fix 1) with no edge fetch, so
+  // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
+  // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
+  const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
+  const _fpEdge = _firstPaintEdgeEnabled()
+  const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
+  // Deep sealed history from the edge — after the user pans PAST the first-paint tail
+  // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-    && fetchDepth > FIRST_PAINT_BARS
+    && (fetchDepth > FIRST_PAINT_BARS || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
   // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
   // makes it immutable + self-refreshing. Falls back to no `d` (short cache) if we can't yet
   // read a sealed bar — still correct, just not immutable for that one request.
   let _histSealedDate = ''
-  if (_histFire && Array.isArray(idbBars) && idbBars.length) {
+  if (_histFire) {
     const _cut = _etPeriodStartISO(resolvedTf)
-    if (_cut) {
+    if (_cut && Array.isArray(idbBars) && idbBars.length) {
       for (let i = idbBars.length - 1; i >= 0; i--) {
         const _t = idbBars[i]?.t
         if (typeof _t === 'string' && _t.length === 10 && _t < _cut) { _histSealedDate = _t; break }
       }
+    }
+    // Fix 2 cold fallback: a cold browser has no idbBars to derive the sealed date from. `d` is a
+    // cache KEY only (the server always returns its current sealed set regardless), so a miss just
+    // short-caches the same correct data. For DAILY, the barspack build session (localStorage
+    // 'barspack.version', ISO "YYYY-MM-DD") equals the server's last_sealed on any day after the
+    // pack built → the cold first paint STILL hits the globally pre-warmed immutable edge object.
+    // W/M dating differs from a daily session, so leave d empty there (short cache) rather than
+    // pass a guaranteed mismatch. Gated by _histFirstPaint → inert at PCT=0.
+    if (!_histSealedDate && _histFirstPaint && resolvedTf === 'D' && _cut) {
+      try {
+        const _pv = localStorage.getItem('barspack.version')
+        if (typeof _pv === 'string' && _pv.length === 10 && _pv < _cut) _histSealedDate = _pv
+      } catch { /* ignore */ }
     }
   }
   const histUrl = _histFire
@@ -4916,6 +5114,28 @@ export default function StockChart({
     : null
   const { data: compareData } = useSWR(compareSwrUrl, fetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
+  // ── Phase 3' Part 3: intraday deep-backfill (OFF the critical path) ──
+  // First paint is the shallow tail SWR above (instant, cold-safe). Once the sym/tf has been stable
+  // ~900ms (_intradayDeepArmed) we pull the deep window in ONE fetch and prepend it via mergeDelta
+  // (the effect below). Gated so it never runs on a quick flip (armed only after the dwell), never
+  // on override/replay/pinned/overlay/custom charts, and stops firing once idb is already deep. It
+  // does NOT touch fetchDepth → the 30s tail poll stays a tiny since= delta.
+  const _intradayDeepFire = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
+    && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive
+    && _intradayDeepArmed
+    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && (idbBars?.length || 0) < INTRADAY_DEFAULT_BARS
+  const _intradayDeepUrl = _intradayDeepFire
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}`
+    : null
+  const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, fetcher, {
+    dedupingInterval: 60_000,
+    revalidateOnFocus: false,
+    refreshInterval: 0,          // one-shot deep pull; the tail SWR owns freshness + the live bar
+    refreshWhenHidden: false,
+    onErrorRetry: barsSwrOnErrorRetry,
+  })
+
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
     if (!data?.bars || !sym || !resolvedTf) return
@@ -4996,14 +5216,69 @@ export default function StockChart({
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
     if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
-    if (!cur?.length) return                                       // wait for the tail to establish the series
+    // Fix 2 cold-tail paint: when the /api/bars tail is slow or HUNG (a cold-server long-tail
+    // ticker — XXII/KORU-class microcaps + thin ETFs can stall the tail 20s+), the deep SEALED
+    // history from the edge has already arrived but the chart stayed BLANK because the render +
+    // merge both waited for the tail. Seed idbBars straight from the sealed history so the chart
+    // paints its full past (through the last sealed day) instantly; the [data] effect above then
+    // heals the recent tail + today's live bar when /api/bars finally lands (deeperInIdb keeps the
+    // deep, wins the overlap). idbBars is in the deps, so once the tail establishes idbBars this
+    // re-runs and mergeDelta reconciles. Only reachable via the Fix 2 first-paint histData (gated),
+    // so inert at PCT=0.
+    if (!cur?.length) {
+      idbBarsRef.current = histData.bars
+      setIdbBars(histData.bars)
+      idbPut(sym, resolvedTf, histData.bars)
+      memPut(sym, resolvedTf, histData.bars)
+      return
+    }
     const merged = mergeDelta(histData.bars, cur)
+    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
+    idbBarsRef.current = merged
+    setIdbBars(merged)
+    idbPut(sym, resolvedTf, merged)
+    memPut(sym, resolvedTf, merged)
+  }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Phase 3' Part 3: arm the intraday deep-backfill ~900ms after the sym/tf settles ──
+  // Quick ticker-flips (scanning every 1-2s) never fire the deep fetch — only a name you dwell on
+  // deepens. Reset synchronously on sym/tf change via the _depthKey block above. Skipped once idb
+  // is already deep so a re-render doesn't re-arm a satisfied backfill.
+  useEffect(() => {
+    if (!_intradayDeepBackfillEnabled()) return undefined
+    if (!isIntraday || !sym || _isCustomTf) return undefined
+    if (_intradayDeepArmed) return undefined
+    if ((idbBarsRef.current?.length || 0) >= INTRADAY_DEFAULT_BARS) return undefined
+    const id = setTimeout(() => _setIntradayDeepArmed(true), 900)
+    return () => clearTimeout(id)
+  }, [sym, resolvedTf, isIntraday, _isCustomTf, _intradayDeepArmed])
+
+  // ── Phase 3' Part 3: fold the intraday DEEP window into idbBars (off the critical path) ──
+  // Mirrors the daily edge split-fetch merge above, but the deep intraday history comes from
+  // /api/bars (there's no sealed edge endpoint intraday). Older bars are PREPENDED via mergeDelta
+  // (the fresher tail wins the overlap); the right-anchored default view holds so there's no jump.
+  // fetchDepth is untouched → the tail SWR keeps polling a tiny since= delta, and its deeperInIdb
+  // branch keeps this deep set if a full tail fetch ever lands. Same cross-ticker guards as the tail.
+  useEffect(() => {
+    if (!_intradayDeepData?.bars?.length || !sym || !resolvedTf) return
+    if (_intradayDeepData.ticker && _intradayDeepData.ticker !== sym.toUpperCase()) return
+    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return
+    const cur = idbBarsRef.current
+    if (!cur?.length) {
+      idbBarsRef.current = _intradayDeepData.bars
+      setIdbBars(_intradayDeepData.bars)
+      idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
+      idbPut(sym, resolvedTf, _intradayDeepData.bars)
+      memPut(sym, resolvedTf, _intradayDeepData.bars)
+      return
+    }
+    const merged = mergeDelta(_intradayDeepData.bars, cur)
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
     idbBarsRef.current = merged
     setIdbBars(merged)
     idbPut(sym, resolvedTf, merged)
     memPut(sym, resolvedTf, merged)
-  }, [histData])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_intradayDeepData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
@@ -5022,10 +5297,21 @@ export default function StockChart({
     const ORDER = ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
+    // Rapid-switch flood fix (Phase 3', gated): each switch speculatively warms ALL other TFs
+    // (~8 /api/bars each, many 17-25s COLD for non-pack intraday), and the in-flight fetch was
+    // NOT aborted on switch — the `cancelled` flag only stops the NEXT iteration. So fast scanning
+    // left a pile of 17-25s zombie fetches clogging the ~6 connection slots, queuing the VISIBLE
+    // chart's own fetch behind them (the rapid-switch lag, measured live: 37 fetches / 9 in-flight
+    // from 5 switches). (1) Abort in-flight prefetches on switch → free the slots immediately.
+    // (2) A longer dwell → a fast scan fires ZERO speculative prefetches (only the visible fetch);
+    // settling on a ticker warms the rest.
+    const _smooth = _intradaySmoothSwitchEnabled()
+    const _ac = (_smooth && typeof AbortController !== 'undefined') ? new AbortController() : null
 
     async function runSequential() {
-      // 600ms initial delay so the primary chart's fetch goes out alone first.
-      await new Promise(r => setTimeout(r, 600))
+      // Dwell so the primary chart's fetch goes out alone first; longer under smooth-switch so a
+      // fast scan-through never starts the speculative all-TF chain (cancelled + aborted first).
+      await new Promise(r => setTimeout(r, _smooth ? 1600 : 600))
       if (cancelled) return  // user may have switched tickers during the sleep
       for (const tf of tfs) {
         if (cancelled) return
@@ -5059,7 +5345,7 @@ export default function StockChart({
           // serves — the server checks the cache first); switching to a TF for real is
           // a non-warm fetch that always serves.
           const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
-          const r = await fetch(url)
+          const r = await fetch(url, _ac ? { signal: _ac.signal } : undefined)
           if (cancelled || !r.ok) continue
           const d = await r.json()
           if (cancelled || !d.bars?.length) continue
@@ -5073,7 +5359,7 @@ export default function StockChart({
     }
     runSequential()
 
-    return () => { cancelled = true }
+    return () => { cancelled = true; if (_ac) { try { _ac.abort() } catch { /* ignore */ } } }
   }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars: IDB renders instantly; full SWR data replaces it when available.
@@ -5105,6 +5391,19 @@ export default function StockChart({
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
+  // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
+  // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
+  // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
+  // today-dated tail as "provisional" every weekday after 16:00 ET — would discard that
+  // deep history and truncate the chart to the ~600-bar tail (the exact reason split-fetch
+  // was disabled 2026-09-02: "stops at 2024"). Those gates guard against painting a STALE
+  // cache, but here the fresh data.bars tail heals idbBars on the overlap (server wins),
+  // so staleness is moot. Keep only the CORRECTNESS gates — the ready key, basis match,
+  // and last-bar sanity — because a wrong-basis or corrupt deep history CANNOT be healed
+  // by merging just the recent tail. Split-gated, so split OFF = identical to before.
+  const _splitDeepUsable = _splitOn && idbBars?.length > 0
+    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !_idbDailyLastInsane && !_idbBasisMismatch
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -5113,8 +5412,14 @@ export default function StockChart({
   // net/mem/agg bars always win above it) AND we FREEZE the live-bar writers while
   // this layer is the one on screen (provisionalStaleRef below), so no phantom
   // developing candle can grow on the stale tail before authoritative bars swap in.
-  const _idbProvisional = (idbStaleIntraday && idbBars?.length
+  const _idbProvisionalRaw = (idbStaleIntraday && idbBars?.length
     && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
+  // Part 2 (gated): drop the single frozen-partial developing tail so the provisional first
+  // paint is never a misleading candle — the forced full refetch fills the correct current tail.
+  // Keep >1 bar (never blank the chart); inert at PCT=0.
+  const _idbProvisional = (_idbProvisionalRaw && _idbProvisionalRaw.length > 1 && _correctFirstPaintEnabled())
+    ? _idbProvisionalRaw.slice(0, -1)
+    : _idbProvisionalRaw
   // A2/A1: synchronous in-memory hit for THIS exact sym+tf. Used only as the
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
@@ -5155,8 +5460,11 @@ export default function StockChart({
             // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
             // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
             // recent tail from data.bars (server wins on overlap), so this stays correct.
-            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
-            : (_idbFresh
+            ? (((_idbFresh || _splitDeepUsable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            : ((_idbFresh || (_splitDeepUsable && _fpEdge))
+                // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
+                // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
+                // instant full chart (today's bar fills in when the tail lands). Gated → inert at PCT=0.
                 ? idbBars
                 : (_netMatches
                     ? data.bars
@@ -13421,9 +13729,14 @@ export default function StockChart({
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
+    // Phase 3' intraday smooth-switch (gated): don't auto-deep-bump an intraday chart on a
+    // switch — that 600→20-32k grow is the second repaint/re-anchor that janks scanning (view
+    // nudge + crosshair skitter). Deep history still loads on PAN (the pan-backfill above),
+    // where a re-anchor is natural. D/W/M keep the dwell (a no-op for daily anyway). Inert at PCT=0.
+    if (isIntraday && _intradaySmoothSwitchEnabled()) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {

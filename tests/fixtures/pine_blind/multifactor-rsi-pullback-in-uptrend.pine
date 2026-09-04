@@ -1,0 +1,22 @@
+//@version=6
+indicator("RSI Pullback Uptrend")
+
+rsiLen  = input.int(14, "RSI Length")
+fastLen = input.int(21, "Fast EMA")
+slowLen = input.int(50, "Slow EMA")
+volLen  = input.int(50, "Volume Average")
+
+r       = ta.rsi(close, rsiLen)
+emaFast = ta.ema(close, fastLen)
+emaSlow = ta.ema(close, slowLen)
+ma200   = ta.sma(close, 200)
+avgVol  = ta.sma(volume, volLen)
+atrPct  = ta.atr(14) / close * 100
+
+trendUp   = emaFast > emaSlow and emaSlow > ma200 and close > ma200
+pullback  = r <= 40 and close < emaFast and close > emaSlow
+turningUp = ta.crossover(r, ta.sma(r, 5))
+dryUp     = volume < avgVol * 0.9
+tradable  = atrPct > 1.5 and atrPct < 9 and avgVol * close > 10000000
+
+plot(trendUp and pullback and turningUp and dryVol_placeholder_removed ? 1 : 0)

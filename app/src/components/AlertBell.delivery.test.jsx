@@ -12,10 +12,16 @@
  * component with nothing joining them fails this — which is precisely what a
  * component test with a hand-built prop cannot detect.
  *
- * ⭐ REACHABILITY IS ALSO ASSERTED. AlertBell is rendered by NavBar (desktop)
- * and MobileNav (touch); if it stopped being mounted, this surface would be a
- * thirteenth instance no matter how green its own tests were. That is checked
- * against those files' source rather than described here.
+ * ⭐ REACHABILITY IS ALSO ASSERTED. If the bell stopped being mounted, this
+ * surface would be a thirteenth instance no matter how green its own tests were.
+ * That is checked against the nav sources rather than described here.
+ *
+ * ⚰️ THIS PARAGRAPH SAID "rendered by NavBar (desktop) and MobileNav (touch)"
+ * and half of it stopped being true on 2026-09-02 (`feat(nav): sidebar revamp`),
+ * which took the whole suite red. The desktop bell was removed BY OWNER REQUEST
+ * and NavBar carries its own note saying so — so the rail below now asserts what
+ * is true, and pins the absence as a DECISION rather than letting it read as a
+ * hole nobody noticed.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
@@ -23,7 +29,13 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { AuthContext } from '../context/AuthContext'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
+
 import AlertBell, { failedChannelsOf } from './AlertBell'
+
+/** JSX-aware parser — the same pair `Screener.door.test.jsx` uses. */
+const JSXParser = Parser.extend(jsx())
 
 vi.mock('../utils/alertSound', () => ({
   playAlertSound: () => {},
@@ -151,14 +163,57 @@ describe('AlertBell — undelivered alerts have a surface', () => {
     expect(screen.queryByText('AMD')).toBeNull()
   })
 
-  it('is REACHABLE — the bell it lives in is mounted by the real nav', () => {
+  it('is REACHABLE — the bell is mounted by the nav that still ships it', () => {
     // The thirteenth-instance guard. Derived from the nav sources, so deleting
     // the mount fails here even though every test above would stay green.
     const here = dirname(fileURLToPath(import.meta.url))
-    for (const file of ['NavBar.jsx', 'MobileNav.jsx']) {
-      const src = readFileSync(join(here, file), 'utf8')
-      expect(src).toMatch(/import\s+AlertBell\s+from/)
-      expect(src).toMatch(/<AlertBell\s*\/>/)
+    const mobile = readFileSync(join(here, 'MobileNav.jsx'), 'utf8')
+    expect(mobile).toMatch(/import\s+AlertBell\s+from/)
+    expect(mobile).toMatch(/<AlertBell\s*\/>/)
+  })
+
+  it('⛔ the DESKTOP absence is a decision on the record, not a hole', () => {
+    // ⚰️ `feat(nav): sidebar revamp` removed the bell from the desktop sidebar
+    // "(owner request)" and left instructions for putting it back. It also left
+    // this file red, because the old rail required BOTH navs to mount it.
+    //
+    // ⭐ THE HONEST RAIL IS NOT "DELETE THE ASSERTION". A member on a desktop
+    // viewport now has no notification bell at all — MobileNav is the ≤1024px
+    // surface — and that is a real consequence somebody chose. So this asserts
+    // the two halves together: the mount is gone AND the reason is still written
+    // where the next reader of NavBar will find it. Restoring the bell without
+    // clearing the note, or clearing the note while the bell stays gone, both
+    // go red here.
+    //
+    // ⚰️ AND THE ABSENCE IS READ WITH AN AST, NOT A REGEX. The first version of
+    // this case used `not.toMatch(/<AlertBell\s*\/>/)` and FAILED — because the
+    // restore note itself contains the literal text `<AlertBell />`. A grep
+    // cannot tell a mount from a mention of one, which is the whole reason this
+    // repo keeps reaching for the parser.
+    const here = dirname(fileURLToPath(import.meta.url))
+    const desktop = readFileSync(join(here, 'NavBar.jsx'), 'utf8')
+    const mounts = (src) => {
+      const found = []
+      const walk = (node) => {
+        if (!node || typeof node !== 'object') return
+        if (node.type === 'JSXOpeningElement' && node.name && node.name.name === 'AlertBell') {
+          found.push(node.name.name)
+        }
+        for (const k of Object.keys(node)) {
+          const v = node[k]
+          if (Array.isArray(v)) v.forEach(walk)
+          else if (v && typeof v === 'object' && v.type) walk(v)
+        }
+      }
+      walk(JSXParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module' }))
+      return found
     }
+    // ⛔ NON-VACUITY: the same walker MUST find the mount that does exist, or
+    // "none in NavBar" is a statement about a broken parser.
+    expect(mounts(readFileSync(join(here, 'MobileNav.jsx'), 'utf8'))).toHaveLength(1)
+    expect(mounts(desktop)).toHaveLength(0)
+    // The reason is still where the next reader of NavBar will meet it.
+    expect(desktop).toMatch(/AlertBell/)
+    expect(desktop).toMatch(/temporarily removed/i)
   })
 })

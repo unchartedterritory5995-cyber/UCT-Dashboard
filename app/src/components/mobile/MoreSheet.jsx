@@ -27,7 +27,6 @@ const NAV_SECTIONS = [
       { to: '/options-flow', label: 'Options Flow', icon: 'flow' },
       { to: '/flow-scoreboard', label: 'Flow Record', icon: 'star' },
       { to: '/live-massive', label: 'Live Flow', icon: 'bolt' },
-      { to: '/post-market', label: 'Post Market', icon: 'moon' },
     ],
   },
   {

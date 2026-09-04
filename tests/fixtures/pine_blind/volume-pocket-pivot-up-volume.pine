@@ -1,0 +1,23 @@
+//@version=6
+indicator("Pocket Pivot")
+
+lb = input.int(10, "Down-volume lookback")
+
+float maxDownVol = 0.0
+for i = 1 to lb
+    if close[i] < close[i + 1]
+        maxDownVol := math.max(maxDownVol, volume[i])
+
+upDay  = close > close[1]
+ema10  = ta.ema(close, 10)
+sma50  = ta.sma(close, 50)
+
+// pivoting up off the 10-day line, not extended from the 50
+riding      = close > ema10 and low <= ema10 * 1.02 and close > sma50
+inBase      = close >= ta.highest(high, 40) * 0.85
+notExtended = close < sma50 * 1.15
+liquid      = ta.sma(close * volume, 20) > 10000000
+
+screen = upDay and volume > maxDownVol and volume > ta.sma(volume, 50) and riding and inBase and notExtended and liquid
+
+plot(screen ? 1 : 0)

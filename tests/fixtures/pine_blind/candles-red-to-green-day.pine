@@ -1,0 +1,17 @@
+//@version=6
+indicator("Red To Green Day")
+
+gapThresh = input.float(-0.75, "Gap down % threshold")
+volLen    = input.int(50, "Relative volume length")
+minCR     = input.float(0.70, "Min closing range")
+
+gapPct   = (open - close[1]) / close[1] * 100
+gapDown  = gapPct <= gapThresh
+greenBar = close > open
+reclaim  = close > close[1] and close > open[1]
+closeTop = (close - low) / math.max(high - low, syminfo.mintick) >= minCR
+rvol     = volume / ta.sma(volume, volLen)
+trendOk  = close > ta.ema(close, 200) or ta.crossover(close, ta.ema(close, 20))
+held50   = ta.barssince(close < ta.ema(close, 50)) <= 5
+
+plot(gapDown and greenBar and reclaim and closeTop and rvol > 1.5 and trendOk and held50 ? 1 : 0)

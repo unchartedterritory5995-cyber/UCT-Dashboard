@@ -324,6 +324,26 @@ export async function idbDelete(sym, tf) {
  *
  * Returns { written, skipped, aborted }.
  */
+// Count stored keys ending in `suffix` (e.g. '_D'). A cheap presence probe for the
+// pack self-heal: a stamped-but-empty store (an ingest that reported success on failed
+// shards, or IDB evicted under storage pressure while the tiny localStorage stamp
+// survived) reads far below the universe size, so the client re-ingests instead of
+// trusting the stamp and staying cold forever. Never throws — returns 0 on any failure.
+export async function idbCountKeys(suffix = '') {
+  let db
+  try { db = await _open() } catch { return 0 }
+  return new Promise((resolve) => {
+    let tx
+    try { tx = db.transaction(STORE, 'readonly') } catch { return resolve(0) }
+    const req = tx.objectStore(STORE).getAllKeys()
+    req.onsuccess = () => {
+      const keys = req.result || []
+      resolve(suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length)
+    }
+    req.onerror = () => resolve(0)
+  })
+}
+
 export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false } = {}) {
   if (!entries?.length) return { written: 0, skipped: 0, aborted: false }
   let db

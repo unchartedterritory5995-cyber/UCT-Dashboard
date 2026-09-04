@@ -261,11 +261,19 @@ def _grade_snapshot_catchup_background():
 # NEVER crash the FastAPI app or trip the Railway healthcheck.
 
 def _run_patterns_track_outcomes():
-    """APScheduler job: resolve open pattern detections (entry/stop/target hits)."""
+    """APScheduler job: resolve open pattern detections (entry/stop/target hits).
+
+    Phase 3B (2026-09-03): was a hardcoded lookback_hours=72 -- confirmed via
+    real production data to silently abandon nearly all classical/structure/
+    uct-family detections (multi-week resolution horizons) before they ever
+    resolved. Now defers to memory.track_outcomes()'s own corrected default
+    (memory.TRACK_OUTCOMES_LOOKBACK_HOURS, env-overridable) so there is one
+    authority for the value, not two copies that can drift.
+    """
     _plog = logging.getLogger(__name__)
     try:
         from api.services.pattern_engine.memory import track_outcomes
-        n = track_outcomes(lookback_hours=72)
+        n = track_outcomes()
         _plog.info("[patterns] track_outcomes: resolved %d detections", n)
         print(f"[patterns] track_outcomes: resolved {n} detections")
     except Exception as e:
@@ -345,6 +353,26 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     # Importing patterns router triggers detector registration:
     from api.routers import patterns as _patterns  # noqa: F401
 
+    # Phase 8 Package 8F: the live write-path integration for eligibility_json
+    # — OFF by default. This is a WRITE-side flag only; nothing in this
+    # package builds a scanner-READ-authority switch, so there is no
+    # served-output path this can affect (snapshot_builder.py's caller of
+    # pattern_join.read_pattern_fields is untouched). Checked per-call, not
+    # cached at import, so a flag flip takes effect on the job's next
+    # scheduled run without a process restart.
+    canonical_adapt_enabled = os.environ.get("PATTERN_CANONICAL_ADAPT_ENABLED") == "1"
+    canonical_adapt_fns = {}
+    if canonical_adapt_enabled:
+        from api.services.pattern_engine.canonical_adapter import (
+            adapt_high_tight_flag, adapt_power_earnings_gap,
+        )
+        canonical_adapt_fns = {
+            "high_tight_flag": adapt_high_tight_flag,
+            "power_earnings_gap": adapt_power_earnings_gap,
+        }
+    canonical_adapted = 0
+    canonical_adapt_failed = 0
+
     scanned = 0
     stored = 0
     for sym in symbols:
@@ -372,6 +400,25 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
                     extras["from_leader_universe"] = sym in leader_set
                 except Exception:
                     pass
+                # Phase 8 Package 8F: canonical adaptation, HTF/PEG only,
+                # BEFORE store — fail-safe (ChatGPT relay review, 2026-09-04):
+                # a raise here must never lose the underlying legacy
+                # detection or break the nightly universe job. On failure,
+                # `d` is left exactly as the detector emitted it and this
+                # row's eligibility_json writes NULL, same as if the flag
+                # were off — the canonical layer is never a new
+                # availability dependency for the scan itself.
+                adapt_fn = canonical_adapt_fns.get(d.get("pattern_id"))
+                if adapt_fn is not None:
+                    try:
+                        d = adapt_fn(d)
+                        canonical_adapted += 1
+                    except Exception as adapt_err:
+                        canonical_adapt_failed += 1
+                        _plog.warning(
+                            "[patterns] canonical adapt failed for %s %s: %s",
+                            sym, d.get("pattern_id"), adapt_err,
+                        )
                 try:
                     memory.store_detection(d)
                     stored += 1
@@ -380,6 +427,11 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
             scanned += 1
         except Exception as scan_err:
             _plog.debug("[patterns] scan failed for %s D: %s", sym, scan_err)
+    if canonical_adapt_enabled and (canonical_adapted or canonical_adapt_failed):
+        _plog.info(
+            "[patterns] canonical adapt: %d succeeded, %d failed",
+            canonical_adapted, canonical_adapt_failed,
+        )
     return scanned, stored
 
 
@@ -3688,6 +3740,22 @@ async def lifespan(app: FastAPI):
         print("[startup] ticker-names prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
+
+    # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
+    # so the FIRST view of any watchlist / theme / calendar serves real logos from
+    # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
+    # (the 1-2s logo pop-in). Idempotent across reboots (skips already-cached), 30s
+    # stagger + a bounded CDN pool inside start_async so it never fights the other
+    # boot warms. Without this, only symbols someone has already viewed (or a manual
+    # POST /api/logos/prewarm) are ever warmed — the daily miss-retry only re-attempts
+    # tickers that already FAILED, and the hires pass only re-caches existing .png.
+    # Disable via TICKER_LOGOS_PREWARM_DISABLED=1.
+    try:
+        from api.services.ticker_logos_prewarm import start_async as _logos_start
+        _logos_start()
+        print("[startup] ticker-logos prewarm scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
 
     # Rich ticker SEARCH index (symbol + name + type + exchange from Massive's
     # reference feed) — powers the /charts Symbol Search modal's name matching

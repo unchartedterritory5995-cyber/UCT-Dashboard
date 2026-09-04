@@ -762,6 +762,27 @@ def patterns_judge(sym: str, tf: str = "D", user=Depends(require_admin)):
     return {"started": True}
 
 
+@router.get("/admin/canonical-detail/{detection_id}")
+def patterns_canonical_detail(detection_id: str, user=Depends(require_admin)):
+    """Admin, Phase 8 Package 8F: the end-to-end canonical proof surface.
+
+    Reads ONE detection back from patterns.db (never an in-memory object —
+    see detail_response.py's own module docstring for why that distinction
+    is load-bearing) and returns its geometry + structured explanation
+    together, both built from that same DB-read object. Admin-only via the
+    same `require_admin` (authenticated session, role='admin') every other
+    admin route on this router uses — never a client-supplied identity.
+    Does not expose PatternOverlay to ordinary users, does not change any
+    served scanner output, and does not activate canonical scanner
+    authority — it is a read-only proof endpoint.
+    """
+    from api.services.pattern_engine.detail_response import build_canonical_detail
+    detail = build_canonical_detail(detection_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="detection not found")
+    return detail
+
+
 @router.get("/admin/vision-stats")
 def patterns_vision_stats(user=Depends(require_admin)):
     """Admin: today's vision-judge spend + cap state."""

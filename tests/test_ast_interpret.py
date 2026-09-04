@@ -259,8 +259,25 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # that lets `_functions_excluded.obv` and the new `_functions_excluded.cum`
     # point at a successor instead of only refusing.
     assert len(ast_table.bar_names()) == 97, len(ast_table.bar_names())
-    assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 208, f"the table declares {len(declared)} names, not 208"
+    # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
+    # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
+    # were shipped screener columns the whole time and were held out by an
+    # exclusion reason that deferred to "Wave 6's job" -- a wave whose plan had
+    # already landed, so the sentence named an owner that had finished and nobody
+    # waits for a wave that is done (`tests/test_no_stale_handoffs.py` now fails
+    # on that shape). The BAR HALF IS UNTOUCHED at 97, which is the whole reason
+    # these are two assertions and not one total.
+    #
+    # 🔴 AND THIS PAIR WAS RED AGAIN WHEN THAT LANDED, for the fourth time --
+    # which means the assertion BELOW, the one this test is actually NAMED for,
+    # was not running. That is the cost the note above already spells out: a
+    # vacuity guard that goes stale takes the real check down with it, silently,
+    # and the AST claim is the half nothing else in the repo makes.
+    assert len(ast_table.scalar_names()) == 137, len(ast_table.scalar_names())
+    # ⭐ 208 -> 234 (2026-09-02) is the SAME 26 Wave-1 columns as the scalar
+    # bump below; this is their combined total, so the two move together or
+    # one of them is wrong.
+    assert len(declared) == 234, f"the table declares {len(declared)} names, not 234"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

@@ -15,8 +15,10 @@ Geometric definition:
     <=25% of the pole height.
   - Channel: parallel or slightly down-sloping; pennant convergence ok.
   - Volume: must contract dramatically in the flag (<=60% of pole avg).
-  - Liquidity: stock should be liquid (avg daily volume >= 200K)
-    (this gate is skipped in synthetic fixtures).
+  - Liquidity: shared liquidity/price-floor primitive (Phase 6 Group 2,
+    api/services/pattern_engine/primitives/liquidity.py) — this docstring
+    used to claim an "avg daily volume >= 200K" gate that the code never
+    implemented anywhere; that claim is corrected here rather than repeated.
   - Direction: bullish
 
 Scoring (composite 0-100):
@@ -36,6 +38,7 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
 )
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
@@ -80,6 +83,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_high_tight_flag(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect High Tight Flag patterns. May emit 0-N detections (best one)."""
     if len(bars) < (_MIN_POLE_BARS + _MIN_FLAG_BARS + 5):
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # synthetic 3-bar pole (this file's own documented floor) with gains
+    # of 119%/500%/1500% and flag_volume_ratio as low as 0.013 fired at
+    # confidence 82.5, well above the 50 floor — despite the module
+    # docstring's explicit but previously-fictional liquidity-gate claim.
+    if not liquidity_floor(bars).passes:
         return []
 
     pivots = detect_pivots(bars, window=3)
@@ -208,6 +219,15 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
         if b["l"] == flag_low:
             flag_low_idx = pole_top_idx + 1 + i
             break
+    # Find absolute bar index of the flag high, for geometry anchors — this
+    # was missing entirely (Phase 6 Group 4), which is why the flag_high
+    # anchor fell back to stamping the last bar's timestamp instead of the
+    # bar where the flag high actually occurred.
+    flag_high_idx = pole_top_idx + 1
+    for i, b in enumerate(flag_bars):
+        if b["h"] == flag_high:
+            flag_high_idx = pole_top_idx + 1 + i
+            break
     retrace = (pole_top["price"] - flag_low) / pole_height
     # HTF flags are SHALLOW — no minimum retrace gate beyond zero
     if retrace < 0.0 or retrace > _MAX_FLAG_RETRACE:
@@ -232,6 +252,7 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
         "flag_low": flag_low,
         "flag_low_idx": flag_low_idx,
         "flag_high": flag_high,
+        "flag_high_idx": flag_high_idx,
         "flag_range": flag_range,
         "retrace_pct": retrace,
         "flag_bars": flag_bars,
@@ -484,12 +505,19 @@ def _build_detection(bars, c, confidence, context,
     flag_vol_ratio = _flag_volume_ratio(bars, c)
     flag_vol_pct = flag_vol_ratio * 100.0
 
-    # Geometry anchors: pole_base, pole_top, flag_low, flag_high
+    # Geometry anchors: pole_base, pole_top, flag_low, flag_high — each
+    # stamped with the bar where that extreme actually occurred (Phase 6
+    # Group 4 fix: flag_low/flag_high were both previously stamped with
+    # last_bar["t"], collapsing the lower trendline into a degenerate
+    # vertical segment at the chart's right edge instead of a line spanning
+    # the flag's real low-to-high structure).
+    flag_low_bar = bars[c["flag_low_idx"]]
+    flag_high_bar = bars[c["flag_high_idx"]]
     anchors = [
         {"t": int(pole_base_bar["t"]), "price": float(c["pole_base_price"])},
         {"t": int(pole_top_bar["t"]), "price": float(pole_top_price)},
-        {"t": int(last_bar["t"]), "price": float(flag_low)},
-        {"t": int(last_bar["t"]), "price": float(flag_high)},
+        {"t": int(flag_low_bar["t"]), "price": float(flag_low)},
+        {"t": int(flag_high_bar["t"]), "price": float(flag_high)},
     ]
 
     now = int(time.time())
@@ -497,7 +525,8 @@ def _build_detection(bars, c, confidence, context,
     pivot_ts = [
         int(pole_base_bar["t"]),
         int(pole_top_bar["t"]),
-        int(last_bar["t"]),
+        int(flag_low_bar["t"]),
+        int(flag_high_bar["t"]),
     ]
 
     # ---- Narrative composition — RICH, paragraph-length, real values woven in ----
@@ -535,15 +564,14 @@ def _build_detection(bars, c, confidence, context,
         f"Historically, when HTF triggers cleanly on a volume surge, the next "
         f"8-12 weeks frequently produce 100%+ extensions, making this the "
         f"highest reward-to-risk continuation setup that exists on the chart. "
-        f"Mark Ritchie II — the post-IPO HTF specialist — has documented that "
-        f"HTFs forming in stocks within roughly 6 months of their IPO date "
-        f"carry the highest follow-through rates of any HTF subgroup, with his "
-        f"empirical work showing ~80%+ continuation when float, fundamental "
-        f"catalyst, and structural tightness all align. Kristjan Kullamägi "
-        f"treats the HTF after a 90%+ pole as his single highest-conviction "
-        f"'monster move' indicator — when this pattern fires in a liquid "
-        f"leader with a fresh catalyst, his playbook calls for maximum "
-        f"position size and a multi-week hold rather than a quick swing."
+        f"This matches the momentum-breakout structure Kristjan Kullamägi "
+        f"describes on his own site: a leader up 30-100%+ in the prior 1-3 "
+        f"months, consolidating 2 weeks to 2 months while riding a rising "
+        f"10- and 20-day average, that then expands out of the range on "
+        f"volume. He sizes setups like this 5-25% of account (most around "
+        f"10-15%), scaled by the stock's liquidity and his conviction, with "
+        f"risk capped near 0.25-1% of account and a stop no wider than the "
+        f"stock's own ADR."
     )
 
     why_it_matters = (

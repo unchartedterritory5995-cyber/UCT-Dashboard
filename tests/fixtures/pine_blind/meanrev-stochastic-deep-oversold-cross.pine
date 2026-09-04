@@ -1,0 +1,19 @@
+//@version=6
+indicator("Stoch Oversold Cross")
+
+kLen    = input.int(14, "%K length")
+smoothK = input.int(3, "%K smoothing")
+dLen    = input.int(3, "%D smoothing")
+
+k = ta.sma(ta.stoch(close, high, low, kLen), smoothK)
+d = ta.sma(k, dLen)
+
+deepOversold = ta.lowest(k, 5) < 20
+crossUp      = ta.crossover(k, d) and d < 30
+freshDip     = ta.barssince(ta.crossunder(k, 20)) <= 6
+regime       = close > ta.ema(close, 100)
+range20      = ta.highest(high, 20) - ta.lowest(low, 20)
+notDead      = range20 / close > 0.05
+
+screen = deepOversold and crossUp and freshDip and regime and notDead
+plot(screen ? 1 : 0)

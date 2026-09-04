@@ -130,7 +130,13 @@ def detect_pullback_to_50sma(bars: List[Bar], context: dict) -> List[Detection]:
     # The pullback should be on quieter-than-average volume
     if test_vol_ratio > 1.3:
         return []
-    # The reclaim should show expansion (>=1.0x — O'Neil wants explicit institutional return)
+    # The reclaim should show at least roughly average volume returning (>=0.9x
+    # the 20-bar average) — not the dramatic expansion an unverified "O'Neil
+    # institutional return" framing previously implied. Phase 2B checked
+    # Minervini's primary text directly for a specific reclaim-volume figure
+    # (the "1.4x" comparison Phase 1 had cited) and found no supporting quote,
+    # so this gate documents the threshold the code actually enforces instead
+    # of restating an unverified number.
     if reclaim_vol_ratio < 0.9:
         return []
 
@@ -392,6 +398,26 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
     vol_phrase = volume_signature_phrase(context.get("volume_signature"))
     dcr_p = dcr_phrase(context.get("dcr_signature"), context.get("recent_dcr_avg"))
 
+    # ⭐ THE GATE FLOOR IS 0.9x, WHICH IS *BELOW* AVERAGE VOLUME -- calling that
+    # "expanding" is a literal contradiction the reader can catch in the same
+    # sentence (Phase 3A decision-log's "adjacent finding, not fixed" backlog
+    # item). Only the geometry that is actually true -- reclaim_vol >= 1.0 --
+    # earns "expanding"/"expansion" language; below that, the sentence states
+    # the ratio without claiming a direction the number doesn't support.
+    reclaim_is_expansion = reclaim_vol >= 1.0
+    reclaim_expansion_clause = (
+        f"The expanding-volume reclaim at {reclaim_vol * 100:.0f}% of average "
+        f"is the signal O'Neil looks for on a second buy — without volume "
+        f"returning on the reclaim, the test could be a dead-cat bounce; with "
+        f"it, buyers are stepping back in rather than sitting on their hands."
+        if reclaim_is_expansion else
+        f"The reclaim closed back above the 50-day on volume at "
+        f"{reclaim_vol * 100:.0f}% of the 20-bar average — below the average, "
+        f"not an expansion, but inside this detector's floor for 'enough "
+        f"volume returned to hold the level' rather than a thin, unconvincing "
+        f"reclaim."
+    )
+
     headline = (
         f"Pullback to 50-SMA (O'Neil 2nd Buy Point) - rising 50-day at "
         f"${sma50:.2f} (slope {slope_pct:.2f}% over 20 bars), prior advance "
@@ -422,15 +448,15 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"50-day SMA is the institutional swing-trade reference for portfolio "
         f"managers running quarterly performance benchmarks — it's the level "
         f"at which BIG money makes the explicit decision to defend the "
-        f"position OR exit. When the 50-day holds and reclaims on expanding "
-        f"volume, that decision has been made: institutional ownership is "
-        f"committed and the markup phase continues. CAN SLIM's full pillar "
-        f"framework — Current quarterly EPS up 25%+, Annual EPS up 25%+, "
-        f"New highs/products/management, Supply & demand favorable, Leader "
-        f"or laggard (RS 80+), Institutional sponsorship growing, Market "
-        f"direction confirmed — provides the broader fundamental context "
-        f"that makes the 50-day test high-edge; the bar-level setup is the "
-        f"trigger inside that broader institutional structure."
+        f"position OR exit, and this bar's reclaim is a vote for 'defend.' "
+        f"CAN SLIM is O'Neil's broader framework this setup borrows its name "
+        f"from (Current + Annual EPS growth, New catalysts, Supply & demand, "
+        f"Leadership/RS, Institutional sponsorship, Market direction) — this "
+        f"detector does not independently verify all seven pillars, only "
+        f"the trend stage, moving-average stack, relative-strength direction, "
+        f"and the prior-advance/volume geometry described above; treat a "
+        f"strong CAN SLIM grade in the account's own research as additional "
+        f"confirmation, not something this bar-level signal already checked."
     )
 
     why_it_matters = (
@@ -444,14 +470,12 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"same behavior O'Neil documented across decades of leadership "
         f"audits in IBD as the footprint of portfolio managers adding to "
         f"winning positions rather than exiting. {dcr_p} "
-        f"{dcr_interpretation(context, 'bullish')} The expanding-volume "
-        f"reclaim at {reclaim_vol * 100:.0f}% of average is the explicit "
-        f"signal O'Neil looks for — without volume expansion on the reclaim, "
-        f"the test could be a dead-cat bounce; with it, institutional capital "
-        f"is overtly defending the 50-day reference. O'Neil's published "
-        f"data from IBD shows 50-SMA tests in stocks already up >=30% "
-        f"deliver positive expectancy at hit rates in the 65-72% range when "
-        f"the full CAN SLIM context is met. The structural edge of the "
+        f"{dcr_interpretation(context, 'bullish')} {reclaim_expansion_clause} "
+        f"O'Neil publishes the second-buy-point RULE (test the rising "
+        f"50-day, prior advance >=30%, reclaim on volume) but no measured "
+        f"hit rate, sample size, or benchmark for it in the primary text — "
+        f"so this detector states the rule's conditions, not a win-rate "
+        f"claim it cannot support. The structural edge of the "
         f"50-day reference comes from three reinforcing dynamics: (1) "
         f"the 50-day is the quarterly benchmark for active portfolio "
         f"managers — performance reviews use this reference frequently; "
@@ -475,22 +499,23 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"normal volatility. The target at ${target:.2f} reflects "
         f"O'Neil's measurement: 40% of the prior advance height "
         f"(${c['prior_advance_height']:.2f}) projected from entry — "
-        f"reflecting that second buy points typically run 40-60% of the "
-        f"first-base move before requiring another consolidation. "
+        f"this detector's own measurement rule, not a published O'Neil "
+        f"target figure. "
         f"Position sizing should reflect the {stop_distance_pct:.2f}% "
         f"stop distance — risking 1% of account on the trade implies "
         f"roughly "
         f"{(1.0 / (stop_distance_pct / 100)) if stop_distance_pct > 0 else 0:.0f}% "
-        f"of equity per position. O'Neil's specific execution rules: "
+        f"of equity per position. O'Neil's execution rules this setup is "
+        f"built from: "
         f"(a) take the trade only in stocks with rising 50-day AND "
         f"prior advance >=30% — the second-buy edge requires confirmed "
         f"leadership; (b) trail the stop up to the 50-day as price "
         f"advances (O'Neil's 'sell when stock breaks 50-day on volume' "
-        f"rule); (c) take profits when distribution days accumulate "
-        f"(IBD distribution day count >=5 in 25 sessions) regardless of "
-        f"price action — the broader institutional environment is "
-        f"deteriorating; (d) clean second-buy setups typically resolve "
-        f"within 10-30 bars to the target."
+        f"rule); (c) watch for distribution days accumulating — O'Neil "
+        f"names this as a warning sign without publishing a specific count "
+        f"or rolling window for it, so treat a rising distribution-day "
+        f"count as a reason to tighten management rather than a number "
+        f"this detector checks."
     )
 
     failure_signal = (
@@ -507,12 +532,13 @@ def _compose_narrative(c: dict, context: dict, entry: float, stop: float,
         f"deeper retest of the 200-SMA or a full break of the Stage 2 "
         f"structure, and the prudent response is to exit on the first "
         f"bar that closes back below the 50-day with above-average "
-        f"volume. The deepest invalidation: the stock's CAN SLIM grade "
-        f"degrades (RS rating drops below 80, distribution days "
-        f"accumulate to 5+, or quarterly EPS growth slows below 20%) — "
-        f"when that happens, the position should be reduced even if the "
-        f"price stop hasn't fired, because the broader leadership context "
-        f"has degraded. O'Neil's track record was built on this discipline: "
+        f"volume. The deepest invalidation: the stock's broader leadership "
+        f"context degrades — relative strength rolling over, distribution "
+        f"days piling up, or the account's own CAN SLIM grade slipping — "
+        f"none of which this bar-level detector tracks on its own, so "
+        f"treat a degrading grade elsewhere in the research as a reason to "
+        f"reduce even if the price stop hasn't fired. O'Neil's track "
+        f"record was built on this discipline: "
         f"NEVER widen the structural stop, NEVER average down on a "
         f"failing leader, and ALWAYS honor the 7-8% hard stop. The "
         f"trader who treats the 50-day reference as 'flexible' will "

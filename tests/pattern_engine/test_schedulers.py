@@ -39,6 +39,30 @@ def test_leaders_scan_job_callable():
     _run_patterns_leaders_scan()
 
 
+def test_track_outcomes_job_does_not_hardcode_a_stale_lookback():
+    """Phase 3B (2026-09-03): the scheduled job used to call
+    track_outcomes(lookback_hours=72) — a hardcoded value that silently
+    abandoned nearly all classical/structure/uct-family detections (see
+    tests/pattern_engine/test_memory.py's Phase 3B section for the real-data
+    evidence). The fix removed the override so the job defers to
+    memory.TRACK_OUTCOMES_LOOKBACK_HOURS — one authority for the value. A
+    source sweep (not just the smoke-call above) so a future hardcoded
+    override can't silently reintroduce the defect."""
+    import ast
+    import inspect
+    from api.main import _run_patterns_track_outcomes
+    tree = ast.parse(inspect.getsource(_run_patterns_track_outcomes))
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and getattr(n.func, "attr", getattr(n.func, "id", None)) == "track_outcomes"]
+    assert calls, "expected a track_outcomes(...) call in the job body"
+    for call in calls:
+        assert not call.args and not call.keywords, (
+            "the scheduled job must call track_outcomes() with no arguments — "
+            "it should defer to memory.TRACK_OUTCOMES_LOOKBACK_HOURS as the "
+            "single authority, not pass its own lookback_hours override"
+        )
+
+
 def test_prune_job_callable():
     """The retention-sweep wrapper never raises, even on an empty store."""
     from api.main import _run_patterns_prune

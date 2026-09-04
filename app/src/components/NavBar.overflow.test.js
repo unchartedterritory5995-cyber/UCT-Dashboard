@@ -63,49 +63,42 @@ describe('the scrolling item list', () => {
   })
 })
 
-describe('the group labels cost no height while the rail is collapsed', () => {
-  test('.groupLabel is display:none by default, not merely transparent', () => {
+describe('Option 5 — no group headings or dividers, icons distributed evenly', () => {
+  // The owner asked for a flat rail: nav icons in one uniform-spaced list, no
+  // section labels, no separators. Two declarations carry it — a hidden label
+  // and a dissolved wrapper — with the items at their natural row rhythm.
+  test('.groupLabel renders nothing (display:none) — no headings, no reserved height', () => {
     const b = block('.groupLabel')
     expect(b, '.groupLabel is gone from NavBar.module.css').not.toBe('')
-    expect(b, '.groupLabel is hidden by opacity again — that is free on an inline '
-      + '.label and ~26px each on this block, which is how ~106px of invisible '
-      + 'height got into a rail with ~77px to spare')
+    expect(b, '.groupLabel is not display:none — a section heading (and the height '
+      + 'it reserves) is back in what should be a flat rail')
       .toMatch(/display:\s*none/)
   })
 
-  test('…and it comes back on the deliberate-hover expand', () => {
-    // The control: without this, "costs no height" is satisfied by a label that
-    // is never shown at all, which would silently delete the taxonomy.
-    expect(block('.nav:hover .groupLabel'),
-      'the group headings never render — the four-group taxonomy is gone')
-      .toMatch(/display:\s*block/)
+  test('.navGroup is display:contents so the wrappers add no spacing between clusters', () => {
+    // With the group wrappers as real boxes, each group would introduce its own
+    // box into the flex column and break the uniform item rhythm. contents
+    // dissolves them so every item is a direct flex child of .mainItems.
+    expect(block('.navGroup'),
+      '.navGroup is not display:contents — the group boxes are back and the flat, '
+      + 'uniform spacing is gone')
+      .toMatch(/display:\s*contents/)
   })
 
-  test('the touch/tablet block re-hides them, or specificity re-adds the 106px', () => {
-    // 🔴 THE THIRD CHANGE THE FIX NEEDED, AND THE ONE THAT WAS NOT RAILED.
-    // `@media (hover: none), (max-width: 900px)` already carried a bare
-    // `.groupLabel { display: none }` at (0,1,0). The hover rule above is
-    // (0,3,0) — two classes plus `:hover`, a pseudo-CLASS — and specificity
-    // beats source order, so it wins INSIDE that media block too: a touch
-    // device that fires :hover re-adds the ~106px the block exists to avoid.
-    // Deleting the hover selector from that block left all five other
-    // assertions in this file green, which is exactly why it needs its own.
-    const i = css.indexOf('@media (hover: none)')
-    expect(i, 'the touch/tablet lock block is gone').toBeGreaterThan(-1)
-    const tablet = css.slice(i).split('\n}')[0]
-    expect(tablet,
-      'the tablet block hides `.groupLabel` but not `.nav:hover .groupLabel`, '
-      + 'which outranks it — a touch device that fires :hover gets the invisible '
-      + 'height back')
-      .toMatch(/\.nav:hover\s+\.groupLabel[^{]*\{[^}]*display:\s*none|\.nav:hover\s+\.groupLabel\s*\{\s*display:\s*none/)
+  test('no group divider rule survives — Option 5 removed all separators', () => {
+    // The per-group `.groupLabel::before` hairline is gone. `block()` returns ''
+    // for a selector that no longer opens a rule.
+    expect(block('.groupLabel::before'),
+      'a .groupLabel::before divider rule is back — Option 5 removed every divider')
+      .toBe('')
   })
 
-  test('CONTROL: .label keeps the opacity recipe, which is correct FOR IT', () => {
-    // The point of the fix is not "opacity is bad" — it is that the recipe's
-    // cost depends on the box. `.label` is inline inside a sized row.
+  test('CONTROL: .label keeps the opacity recipe (item labels still fade in on hover)', () => {
+    // Removing the section headings does NOT touch the per-ITEM labels — those
+    // still fade in with the width transition on hover.
     const b = block('.label')
     expect(b).toMatch(/opacity:\s*0/)
-    expect(b, '.label was "fixed" too — it never had this problem, and '
-      + 'display:none on it would kill the width transition').not.toMatch(/display:\s*none/)
+    expect(b, '.label uses display:none — that would kill the label fade/transition')
+      .not.toMatch(/display:\s*none/)
   })
 })

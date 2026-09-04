@@ -23,11 +23,23 @@ export default function useUserTickerSet() {
   })
 
   return useMemo(() => {
+    // ⛔⛔ `|| []` DOES NOT MAKE A VALUE ITERABLE. It only replaces null and
+    // undefined — an OBJECT passes straight through it and `for...of` throws
+    // "is not iterable". That matters far more here than it looks: `LogoPrewarm`
+    // calls this hook at APP ROOT, outside any error boundary, so one unexpected
+    // response shape from /api/watchlists takes down the ENTIRE app for every
+    // member, on every route. Measured: it crashed five route tests at once, and
+    // the failure named the pages rather than the cause.
+    // ⭐ THE ENDPOINT RETURNS A LIST TODAY. This is not about doubting it — it is
+    // that a proxy error page served with 200, or a future shape change, should
+    // cost a warmed logo cache and nothing else.
+    const flags = Array.isArray(flagged) ? flagged : []
+    const lists = Array.isArray(watchlists) ? watchlists : []
     const s = new Set()
-    for (const sym of (flagged || [])) {
+    for (const sym of flags) {
       if (sym) s.add(String(sym).toUpperCase())
     }
-    for (const wl of (watchlists || [])) {
+    for (const wl of lists) {
       for (const item of (wl?.items || [])) {
         const sym = item?.sym || item?.ticker
         if (sym) s.add(String(sym).toUpperCase())

@@ -201,3 +201,24 @@ def test_no_reversal_context_never_fires():
         f"Paired control with strong engulfing geometry + reversal context should fire with "
         f"confidence >= 70.0, got {result_dn[0]['confidence']}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3A: Bulkowski citation correction regression
+# ---------------------------------------------------------------------------
+
+def test_bulkowski_citation_is_accurate():
+    """The narrative previously misquoted Bulkowski's Encyclopedia of Chart
+    Patterns as putting bullish-engulfing follow-through near ~73%. His
+    published figure is 63% (rank 84th of 103 candlestick patterns). Guards
+    against the misquote reappearing."""
+    fixtures = load_all_fixtures("bullish_engulfing", include_internal=False)
+    pos = [f for f in fixtures if f.category == "positive"]
+    assert pos
+    fixture = pos[0]
+    ctx = fixture.context if fixture.context is not None else build_context(fixture.bars, sym="TEST")
+    detections = detect_bullish_engulfing(fixture.bars, ctx)
+    assert detections
+    text = detections[0]["narrative"]["what_it_is"]
+    assert "63%" in text, f"expected the corrected 63% Bulkowski figure in narrative: {text!r}"
+    assert "73%" not in text, f"stale ~73% Bulkowski misquote still present: {text!r}"

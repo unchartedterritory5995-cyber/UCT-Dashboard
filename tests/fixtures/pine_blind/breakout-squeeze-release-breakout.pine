@@ -1,0 +1,25 @@
+//@version=6
+indicator("Squeeze Release Breakout")
+
+len    = input.int(20, "Squeeze length")
+mult   = input.float(2.0, "BB mult")
+kcMult = input.float(1.5, "KC mult")
+rankLen = input.int(120, "Width rank lookback")
+
+[bbMid, bbUp, bbLow] = ta.bb(close, len, mult)
+bbWidthPct = (bbUp - bbLow) / bbMid * 100
+widthRank  = ta.percentrank(bbWidthPct, rankLen)
+
+basis = ta.ema(close, len)
+rng   = ta.atr(len)
+kcUp  = basis + rng * kcMult
+kcLow = basis - rng * kcMult
+
+squeeze      = bbUp < kcUp and bbLow > kcLow
+justReleased = not squeeze and nz(ta.barssince(squeeze), 1000) <= 3
+wasTight     = widthRank[5] < 20
+pushUp       = close > ta.highest(high, 10)[1]
+slopeUp      = ta.linreg(close, 50, 0) > ta.linreg(close, 50, 0)[10]
+volKick      = volume > ta.sma(volume, 20) * 1.3
+
+plot(wasTight and justReleased and pushUp and slopeUp and volKick ? 1 : 0)

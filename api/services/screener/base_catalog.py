@@ -40,6 +40,7 @@ Sources: the 15-lane sweep in `docs/superpowers/research/bases/`.
 from dataclasses import dataclass
 
 from api.services.pattern_engine.primitives import cup, shape
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from typing import Callable, Optional
 
 #: Darvas's own count. Sourced — see the DARVAS_BOX criteria below.
@@ -1257,7 +1258,7 @@ def _prior_advance(bars, k, look: int = FLAT_ADVANCE_LOOKBACK):
     return ((entry - lo) / lo) if lo > 0 else None
 
 
-def flat_base_qualifies(st: Optional[dict]) -> bool:
+def flat_base_qualifies(st: Optional[dict], bars: Optional[list] = None) -> bool:
     """Does a base state clear every gate the Flat Base structure applies?
 
     ⛔⛔ ONE DEFINITION, ONE PLACE. `flat_base_state` finds the SHAPE; these
@@ -1268,6 +1269,14 @@ def flat_base_qualifies(st: Optional[dict]) -> bool:
     4.5%. A structure built out of another must not be looser than the thing
     it is built from, and the only way to guarantee that is for both to ask
     the same function.
+
+    `bars` (Phase 6 Group 2): the same bars/end window passed to the
+    `flat_base_state` call that produced `st` -- the liquidity/price-floor
+    gate judges the base's OWN base period, not necessarily the full current
+    series (a base composed deep in a `base_on_base`/`base_stack` search is
+    evaluated against the bars at the time IT formed). Optional and skipped
+    when omitted so existing internal callers that don't yet pass it degrade
+    to the pre-Group-2 gates rather than raising.
     """
     if st is None:
         return False
@@ -1275,7 +1284,15 @@ def flat_base_qualifies(st: Optional[dict]) -> bool:
         return False
     if st["drift"] > FLAT_MAX_DRIFT:
         return False
-    return (st["prior_advance"] or 0.0) >= FLAT_PRIOR_ADVANCE
+    if (st["prior_advance"] or 0.0) < FLAT_PRIOR_ADVANCE:
+        return False
+    # Reproduced live: a synthetic $0.35/share series with ~$750/day dollar
+    # volume fired flat_base at confidence 67.6 with "institutional
+    # sponsorship" narrative -- no price/liquidity gate existed anywhere in
+    # base_catalog.py.
+    if bars is not None and not liquidity_floor(bars).passes:
+        return False
+    return True
 
 
 def _detect_flat_base(ctx) -> bool:
@@ -1287,7 +1304,7 @@ def _detect_flat_base(ctx) -> bool:
     label two-fifths of the market carries would say nothing, and that is the
     failure the coverage harness was built after.
     """
-    return flat_base_qualifies(flat_base_state(ctx.bars))
+    return flat_base_qualifies(flat_base_state(ctx.bars), ctx.bars)
 
 
 FLAT_BASE = Structure(
@@ -1453,7 +1470,7 @@ def base_on_base_state(bars) -> Optional[dict]:
     """
     head_max = _head_max_array(bars)
     b2 = flat_base_state(bars, head_max=head_max)
-    if not flat_base_qualifies(b2):
+    if not flat_base_qualifies(b2, bars):
         return None
     n = len(bars)
     start2 = n - b2["bars"]
@@ -1464,7 +1481,7 @@ def base_on_base_state(bars) -> Optional[dict]:
     floor = max(FLAT_MIN_BARS, start2 - BOB_MAX_GAP)
     for e1 in range(top, floor - 1, -BOB_SEARCH_STEP):
         b1 = flat_base_state(bars, end=e1, head_max=head_max)
-        if not flat_base_qualifies(b1):
+        if not flat_base_qualifies(b1, bars[:e1]):
             continue
         pivot1 = b1["pivot"]
         if pivot1 <= 0:
@@ -1500,7 +1517,7 @@ def base_stack(bars, max_bases: int = BOB_MAX_STACK) -> list:
     head_max = _head_max_array(bars)
     while len(out) < max_bases:
         b = flat_base_state(bars, end=end, head_max=head_max)
-        if not flat_base_qualifies(b):
+        if not flat_base_qualifies(b, bars[:end]):
             break
         start = end - b["bars"]
         out.append({"start": start, "end": end, "base": b})
@@ -2652,6 +2669,64 @@ VCP_RATIO_MAX = 0.75
 #: `_vcp_still_in_base` asks.
 VCP_MAX_AGE_BARS = 60
 
+#: Minervini's Trend Template (`[TTLAC]` Section 6, "THE TREND TEMPLATE"): the
+#: gate on the TREND itself, evaluated before any base pattern -- VCP included
+#: -- is even considered. Only the two conditions computable from a single
+#: symbol's own price + moving averages (no cross-sectional RS-rank universe)
+#: are enforced here -- the same choice already made for System A
+#: (api/services/pattern_engine/detectors/uct/vcp.py::_passes_trend_template_precondition,
+#: Phase 3A, 2026-09-02). Named WITHOUT the VCP_ prefix on purpose: these are
+#: the same two numbers Minervini attaches to the Trend Template generally,
+#: not a VCP-specific tunable -- and `tests/test_two_engines_do_not_agree.py`
+#: sweeps VCP_-prefixed module constants specifically to catch drift in the
+#: five per-pattern thresholds its 2026-09-01 agreement measurement covered;
+#: this precondition is a different kind of thing and is not one of them.
+_TREND_TEMPLATE_SMA_SHORT = 150
+_TREND_TEMPLATE_SMA_LONG = 200
+
+
+def _passes_vcp_trend_template_precondition(bars: list) -> bool:
+    """Hard precondition: price above both the 150-day and 200-day SMA, with
+    the 150-day SMA above the 200-day SMA.
+
+    ⛔⛔ THE CONFIRMED DEFECT THIS EXISTS TO FIX (Phase 3C, 2026-09-03). VCP is
+    explicitly a CONTINUATION pattern -- this Structure's own criteria tuple
+    already cites Minervini saying so: "the VCP is going to happen at higher
+    levels, after the stock has already moved up 30, 40, 50 percent or even
+    much more, because the VCP is a continuation pattern as part of a much
+    larger upward move." Before this fix, `vcp_state` enforced only a
+    point-to-point prior-advance check (VCP_PRIOR_ADVANCE over
+    VCP_ADVANCE_LOOKBACK bars) and NOTHING about price's position relative to
+    its own long-term moving averages -- so a sharp point-to-point rally
+    occurring inside an overall downtrend, or a violent whipsaw, could satisfy
+    "prior advance" while the stock sat below a declining long-term trend.
+    `[TTLAC]`'s own worked counter-example is exactly this shape (GoPro):
+    "the 150-day line was below the 200-day, and both were trending down."
+
+    Evidence: on the frozen 82-case VCP gold-standard set
+    (docs/uct-scanner-intelligence/vcp_gold_standard/), of System D's 14
+    reviewer-confirmed false positives unique to this engine, 11 (78.6%) have
+    `trend_template_150_200=False` in the blinded neutral_context reviewers
+    were shown -- reviewers independently rejected these charts as VCPs
+    without ever seeing detector output, citing exactly this gap ("MA order
+    not ascending", "trend_template holds only marginally", etc.). System D's
+    only 2 reviewer-confirmed true positives both already have
+    `trend_template_150_200=True` -- zero measured downside from this fix on
+    the frozen evidence.
+
+    Fails open (returns True) when there isn't 200 bars of history to compute
+    the 200-day SMA -- the same fail-open convention System A already uses for
+    the identical check, and the convention this file's `cheat_state`/`_sma`
+    already follow (`_sma` returns None on insufficient history rather than a
+    partial average).
+    """
+    sma150 = _sma(bars, _TREND_TEMPLATE_SMA_SHORT)
+    sma200 = _sma(bars, _TREND_TEMPLATE_SMA_LONG)
+    if sma150 is None or sma200 is None:
+        return True
+    last_close = bars[-1].get("c") or 0.0
+    return last_close > sma150 and last_close > sma200 and sma150 > sma200
+
 
 def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
     """The current volatility contraction sequence, or None.
@@ -2665,6 +2740,8 @@ def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
     bars = ctx.bars
     swings = ctx.swings
     if not bars or len(swings) < 3:
+        return None
+    if not _passes_vcp_trend_template_precondition(bars):
         return None
 
     # Walk the confirmed swings and collect (high -> next low) pullbacks.
@@ -2829,6 +2906,26 @@ VCP = Structure(
             source_id=_MINERVINI, confidence="high",
         ),
         Criterion(
+            condition=("Trend Template precondition (Phase 3C, 2026-09-03), "
+                       "1 of 2: price above both the 150-day and 200-day "
+                       "moving averages -- the point-to-point prior-advance "
+                       "criterion above is not a substitute for this; a sharp "
+                       "point-to-point rally can occur inside an overall "
+                       "downtrend."),
+            value="close > sma150 and close > sma200",
+            quote=("Stock price is above both the 150-day (30-week) and the "
+                   "200-day (40-week) moving average price lines."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("Trend Template precondition, 2 of 2: the 150-day "
+                       "moving average is above the 200-day moving average."),
+            value="sma150 > sma200",
+            quote=("The 150-day moving average is above the 200-day moving "
+                   "average."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
             condition="Minimum base duration",
             value=None,
             source_id=_MINERVINI, confidence="high",
@@ -2967,6 +3064,13 @@ def ascending_base_state(ctx) -> Optional[dict]:
     bars = ctx.bars
     swings = ctx.swings
     if not bars or len(swings) < ASC_PULLBACKS * 2:
+        return None
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live:
+    # ascending_base_state fired True with pivot=0.225 on a stock trading
+    # $0.10-$0.125 -- no price/liquidity gate existed anywhere in this file
+    # for either structure.
+    if not liquidity_floor(bars).passes:
         return None
 
     pairs = []

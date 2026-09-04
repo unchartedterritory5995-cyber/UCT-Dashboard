@@ -1,0 +1,15 @@
+//@version=6
+indicator("ADX Trend Strength")
+
+diLen     = input.int(14, "DI Length")
+adxSmooth = input.int(14, "ADX Smoothing")
+adxFloor  = input.int(25, "ADX Floor")
+
+[diPlus, diMinus, adx] = ta.dmi(diLen, adxSmooth)
+emaTrend = ta.ema(close, 50)
+
+strong      = adx > adxFloor and adx > adx[5]
+directional = diPlus > diMinus and diPlus > 20
+aligned     = close > emaTrend and ta.rising(emaTrend, 5)
+
+plot(strong and directional and aligned ? 1 : 0)

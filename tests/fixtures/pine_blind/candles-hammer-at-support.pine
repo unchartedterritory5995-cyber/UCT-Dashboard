@@ -1,0 +1,19 @@
+//@version=6
+indicator("Hammer At Support")
+
+atrLen   = input.int(14, "ATR length")
+lookback = input.int(20, "Support lookback")
+wickMult = input.float(2.0, "Lower wick vs body")
+
+rng       = high - low
+body      = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+
+hammer    = rng > 0 and lowerWick >= body * wickMult and lowerWick / rng >= 0.55 and upperWick <= rng * 0.15
+closesUp  = close >= low + rng * 0.60
+atSupport = low <= ta.lowest(low, lookback)[1] * 1.01
+saneRange = rng < ta.atr(atrLen) * 2.5
+washed    = ta.rsi(close, 14) < 40
+
+plot(hammer and closesUp and atSupport and saneRange and washed ? 1 : 0)

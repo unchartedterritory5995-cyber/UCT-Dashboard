@@ -1,0 +1,24 @@
+//@version=6
+indicator("Squeeze Break RS")
+
+length = input.int(20, "Squeeze Length")
+kcMult = input.float(1.5, "KC Multiplier")
+
+[bbMid, bbUp, bbLow] = ta.bb(close, length, 2.0)
+[kcMid, kcUp, kcLow] = ta.kc(close, length, kcMult)
+
+squeezeOn    = bbUp < kcUp and bbLow > kcLow
+squeezeFired = squeezeOn[1] and not squeezeOn
+
+priorHigh = ta.highest(high, length)[1]
+breakout  = close > priorHigh and close > open and close > (high + low) / 2
+
+relVol = volume / ta.sma(volume, 20)
+
+spy   = request.security("AMEX:SPY", timeframe.period, close)
+rs    = close / spy
+rsNew = rs > ta.highest(rs, 60)[1]
+
+mom = ta.linreg(close - ta.sma(close, length), length, 0)
+
+plot(squeezeFired and breakout and mom > 0 and (relVol > 1.8 or rsNew) and close > ta.sma(close, 50) ? 1 : 0)

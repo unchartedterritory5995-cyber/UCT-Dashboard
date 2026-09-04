@@ -1,0 +1,15 @@
+//@version=6
+indicator("Fresh Golden Cross")
+fastLen = input.int(50, "Fast MA")
+slowLen = input.int(200, "Slow MA")
+within = input.int(15, "Within bars")
+f = ta.sma(close, fastLen)
+s = ta.sma(close, slowLen)
+gc = ta.crossover(f, s)
+dc = ta.crossunder(f, s)
+barsGC = ta.barssince(gc)
+barsDC = ta.barssince(dc)
+fresh = not na(barsGC) and barsGC <= within
+notUndone = na(barsDC) or barsDC > barsGC
+volOk = volume > ta.sma(volume, 50)
+plot(fresh and notUndone and close > f and volOk ? 1 : 0)

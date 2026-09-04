@@ -1,0 +1,20 @@
+//@version=6
+indicator("RS Leaders vs SPY")
+
+rsLookback = input.int(63, "RS Lookback")
+benchSym   = input.symbol("SPY", "Benchmark")
+
+bench = request.security(benchSym, timeframe.period, close)
+
+rsLine = close / bench
+rsHigh = ta.highest(rsLine, rsLookback)
+rsAvg  = ta.sma(rsLine, 50)
+
+emaTrend = ta.ema(close, 50)
+smaBase  = ta.sma(close, 200)
+
+rsLeading = rsLine >= rsHigh * 0.98 and rsLine > rsAvg and rsAvg > rsAvg[20]
+priceOk   = close > emaTrend and ta.rising(emaTrend, 10) and close > smaBase
+outpacing = ta.roc(close, rsLookback) > ta.roc(bench, rsLookback)
+
+plot(rsLeading and priceOk and outpacing ? 1 : 0)

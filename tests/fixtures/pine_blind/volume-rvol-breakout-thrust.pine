@@ -1,0 +1,24 @@
+//@version=6
+indicator("RVOL Breakout")
+
+lenVol  = input.int(20, "RVOL lookback")
+mult    = input.float(2.0, "RVOL multiple")
+baseLen = input.int(50, "Pivot lookback")
+
+avgVol  = ta.sma(volume, lenVol)
+medVol  = ta.median(volume, lenVol)
+rvol    = volume / math.max(avgVol, 1)
+rvolMed = volume / math.max(medVol, 1)
+
+pivot   = ta.highest(high[1], baseLen)
+sma50   = ta.sma(close, 50)
+sma200  = ta.sma(close, 200)
+stage2  = close > sma50 and sma50 > sma200 and sma200 > sma200[21]
+
+barRange    = math.max(high - low, syminfo.mintick)
+closeStrong = close > open and (close - low) / barRange > 0.6
+dvOk        = ta.sma(close * volume, 20) > 10000000
+
+screen = rvol >= mult and rvolMed >= mult and close > pivot and stage2 and closeStrong and dvOk and close > 5
+
+plot(screen ? 1 : 0)

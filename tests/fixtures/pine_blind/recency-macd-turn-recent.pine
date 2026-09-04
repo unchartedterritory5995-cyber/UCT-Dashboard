@@ -1,0 +1,11 @@
+//@version=6
+indicator("MACD Turn Recent")
+within = input.int(3, "Max bars since cross")
+[macdLine, signalLine, hist] = ta.macd(close, 12, 26, 9)
+cross = ta.crossover(macdLine, signalLine)
+age = ta.barssince(cross)
+crossLevel = ta.valuewhen(cross, macdLine, 0)
+fresh = not na(age) and age <= within
+turnFromBelow = crossLevel < 0
+histBuilding = hist > hist[1] and hist > 0
+plot(fresh and turnFromBelow and histBuilding and close > ta.sma(close, 100) ? 1 : 0)

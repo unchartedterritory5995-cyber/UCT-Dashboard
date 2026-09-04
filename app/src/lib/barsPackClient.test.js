@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the IDB import so the hot-pack ingest can be asserted without a real
 // IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
-const { idbImportPack, idbApplyDelta } = vi.hoisted(() => ({
-  idbImportPack: vi.fn(), idbApplyDelta: vi.fn(),
+const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
+  idbImportPack: vi.fn(), idbApplyDelta: vi.fn(), idbCountKeys: vi.fn(),
 }))
-vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta }))
+vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent } from './barsPackClient'
 
 const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
 
@@ -108,5 +108,62 @@ describe('_ingestHotPack (server hot shard)', () => {
     await _ingestHotPack(HOT_CFG)
     expect(idbImportPack).toHaveBeenCalledTimes(1)
     expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
+  })
+})
+
+const FULL_CFG = { base: '/api/barspack', ingestBatchSize: 60, ingestYield: true }
+const okShard = { format: 1, tickers: { AAPL: { D: columnar([{ t: '2026-09-02', o: 1, h: 2, l: 1, c: 1.5, v: 10 }]) } } }
+
+describe('_ingestFull — never reports false success (the dead-stamp bug)', () => {
+  beforeEach(() => { idbImportPack.mockReset() })
+
+  it('returns FALSE when every shard download fails, so the version is NOT stamped', async () => {
+    // The bug: shard 404s (a deploy window, offline) were skipped silently and the
+    // run still returned success → version stamped over an empty store → cold forever.
+    globalThis.fetch = vi.fn(async () => ({ ok: false, json: async () => ({}) }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }, { idx: 1 }])
+    expect(ok).toBe(false)
+    expect(idbImportPack).not.toHaveBeenCalled()
+  })
+
+  it('returns FALSE when a shard comes back empty (also a fetch failure, [] on !ok)', async () => {
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ tickers: {} }) }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }])
+    expect(ok).toBe(false)
+  })
+
+  it('returns TRUE only when shards download AND import rows', async () => {
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }])
+    expect(ok).toBe(true)
+    expect(idbImportPack).toHaveBeenCalled()
+  })
+
+  it('returns FALSE on a quota abort even though data downloaded', async () => {
+    idbImportPack.mockResolvedValue({ written: 0, skipped: 0, aborted: true })
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }])
+    expect(ok).toBe(false)
+  })
+})
+
+describe('_packDataPresent — verify the pre-seed before trusting the stamp', () => {
+  beforeEach(() => { idbCountKeys.mockReset() })
+
+  it('is FALSE when the stored key count is far below the manifest ticker_count', async () => {
+    idbCountKeys.mockResolvedValue(100)          // 100 of 1000 = 10% → evicted / dead-stamped
+    expect(await _packDataPresent({ presenceSuffix: '_D' }, { ticker_count: 1000 })).toBe(false)
+  })
+
+  it('is TRUE when the store holds most of the universe', async () => {
+    idbCountKeys.mockResolvedValue(900)          // 90% present → trust the stamp, skip
+    expect(await _packDataPresent({ presenceSuffix: '_D' }, { ticker_count: 1000 })).toBe(true)
+  })
+
+  it('is TRUE (does not force churn) when it cannot verify — no ticker_count', async () => {
+    idbCountKeys.mockResolvedValue(0)
+    expect(await _packDataPresent({ presenceSuffix: '_D' }, {})).toBe(true)
+    expect(idbCountKeys).not.toHaveBeenCalled()  // short-circuits before the probe
   })
 })

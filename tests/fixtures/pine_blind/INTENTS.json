@@ -1,0 +1,245 @@
+{
+ "_": "What each script is screening for, in its author's words. GENERATED with the corpus; do not hand-edit.",
+ "scripts": [
+  {
+   "file": "breakout-donchian-breakout-volume.pine",
+   "lens": "breakout",
+   "intent": "55-bar Donchian high taken out on a volume surge, close still within 1.5 ATR of the pivot so the entry isn't extended, in an uptrend."
+  },
+  {
+   "file": "breakout-fifty-two-week-high-proximity.pine",
+   "lens": "breakout",
+   "intent": "Within 5% of the 52-week high, made that high in the last 15 bars, well off the low, moving averages stacked and 200 rising — the classic trend template."
+  },
+  {
+   "file": "breakout-flat-base-pivot-breakout.pine",
+   "lens": "breakout",
+   "intent": "Close crosses the last confirmed pivot high after a base at least 35 bars long and shallower than 12%, on above-average volume in an uptrend."
+  },
+  {
+   "file": "breakout-gap-up-holding.pine",
+   "lens": "breakout",
+   "intent": "A 3%+ gap up that never fills, closes in the top third of its bar above the prior 20-bar high on double average volume, with real dollar liquidity."
+  },
+  {
+   "file": "breakout-squeeze-release-breakout.pine",
+   "lens": "breakout",
+   "intent": "Bollinger bands were inside the Keltner channel and in the bottom fifth of their own width history, the squeeze just released, and price is taking out the 10-bar high with a rising trend slope."
+  },
+  {
+   "file": "breakout-tight-consolidation-range.pine",
+   "lens": "breakout",
+   "intent": "Price coiling in a shallow 20-bar range with contracting ATR and drying volume, sitting in the upper half of the range, weekly trend intact."
+  },
+  {
+   "file": "candles-bullish-engulfing-pullback.pine",
+   "lens": "candles",
+   "intent": "Bullish engulfing bar finishing a shallow pullback inside a rising 50-day trend, confirmed by a volume expansion."
+  },
+  {
+   "file": "candles-doji-at-extension.pine",
+   "lens": "candles",
+   "intent": "Doji / indecision bar printing after an extended run and stretched away from the 21 EMA - a stall candidate."
+  },
+  {
+   "file": "candles-hammer-at-support.pine",
+   "lens": "candles",
+   "intent": "Hammer / long-lower-wick rejection bar printing at a 20-day support shelf with a washed-out RSI."
+  },
+  {
+   "file": "candles-key-reversal-bar.pine",
+   "lens": "candles",
+   "intent": "Classic key reversal: makes a new 20-day low, engulfs the prior bar's range, and closes above the previous high on surging volume."
+  },
+  {
+   "file": "candles-red-to-green-day.pine",
+   "lens": "candles",
+   "intent": "Gap-down that gets bought: opens below the prior close, reclaims it, and finishes in the top of the bar on heavy relative volume while still above the 50 EMA."
+  },
+  {
+   "file": "candles-strong-closing-range.pine",
+   "lens": "candles",
+   "intent": "Sellers absent: five straight sessions closing in the upper third of the bar with negligible upper wicks, price tight and breaking to a 20-day high."
+  },
+  {
+   "file": "meanrev-atr-stretch-below-ema.pine",
+   "lens": "meanrev",
+   "intent": "Price stretched an unusual number of ATRs below its 21 EMA while the long-term trend is still up - a rubber-band snapback candidate."
+  },
+  {
+   "file": "meanrev-bollinger-lower-band-tag.pine",
+   "lens": "meanrev",
+   "intent": "Lower Bollinger band tagged intrabar with a close back inside, %b under 0.2, RSI soft and volume expanding - a band-touch reversion setup."
+  },
+  {
+   "file": "meanrev-consecutive-down-closes-exhaustion.pine",
+   "lens": "meanrev",
+   "intent": "Four or more consecutive lower closes with RSI(2) in single digits, still above the 200 SMA - classic short-term exhaustion."
+  },
+  {
+   "file": "meanrev-rsi-oversold-uptrend-pullback.pine",
+   "lens": "meanrev",
+   "intent": "Pullback buy: strong long-term uptrend, RSI dipped under 30 in the last few bars and is now curling back up on decent volume."
+  },
+  {
+   "file": "meanrev-stochastic-deep-oversold-cross.pine",
+   "lens": "meanrev",
+   "intent": "Slow stochastic buried under 20 and %K crossing back above %D while price is still above its 100 EMA."
+  },
+  {
+   "file": "meanrev-zscore-multi-oscillator-washout.pine",
+   "lens": "meanrev",
+   "intent": "Statistical washout: price more than 2 standard deviations below its 20 SMA with Williams %R, CCI and MFI all pinned, but the weekly RSI still healthy."
+  },
+  {
+   "file": "momentum-adx-trend-strength.pine",
+   "lens": "momentum",
+   "intent": "ADX above 25 and still climbing with +DI dominant, price above a rising 50 EMA — a trend that is strong and getting stronger."
+  },
+  {
+   "file": "momentum-ma-stack-alignment.pine",
+   "lens": "momentum",
+   "intent": "Fast-to-slow moving averages fanned out in bullish order over a rising 200-day base, with price holding the 20 EMA and not stretched more than 4 ATRs above it."
+  },
+  {
+   "file": "momentum-momentum-acceleration.pine",
+   "lens": "momentum",
+   "intent": "Quarterly momentum outrunning the half-year rate and still expanding, MACD histogram building three bars positive, regression slope up, RSI strong but not blown off."
+  },
+  {
+   "file": "momentum-new-52w-high-breakout.pine",
+   "lens": "momentum",
+   "intent": "Close crossing above the prior 52-week high on at least 1.5x average volume, with the 50 SMA already rising underneath it."
+  },
+  {
+   "file": "momentum-rising-ma-trend-template.pine",
+   "lens": "momentum",
+   "intent": "Classic trend template: price above 50 > 150 > 200 SMA, all three averages rising, within 25% of the 52-week high and at least 30% off the 52-week low."
+  },
+  {
+   "file": "momentum-rs-leaders-vs-spy.pine",
+   "lens": "momentum",
+   "intent": "Relative-strength line versus SPY at or near a 63-bar high and above its rising 50-period average, with price above a rising 50 EMA and the 200 SMA, and 3-month return beating the index."
+  },
+  {
+   "file": "multifactor-exhaustion-fade-short.pine",
+   "lens": "multifactor",
+   "intent": "Vertical, overbought move fading: RSI(14) above 70 with RSI(2) pinned, price outside the upper Keltner or 3+ ATRs above the 20 EMA after a 15% ten-bar run, printing a reversal bar on either distribution volume or a rolling-over OBV."
+  },
+  {
+   "file": "multifactor-gap-up-continuation-hold.pine",
+   "lens": "multifactor",
+   "intent": "A 2-12% gap up that holds above yesterday's high and never fills into yesterday's close, on 2x relative volume, with Supertrend long, stacked EMAs, stochastic in the upper half, and price not yet stretched more than 4 ATRs from the 20 EMA."
+  },
+  {
+   "file": "multifactor-pocket-pivot-accumulation.pine",
+   "lens": "multifactor",
+   "intent": "Classic pocket pivot inside a constructive base: an up day whose volume exceeds every down-day volume of the last 10 bars, price above a rising 50-day MA, strong close location, ADX confirming direction, and the base either tightening or sitting near its 3-month high."
+  },
+  {
+   "file": "multifactor-rsi-pullback-in-uptrend.pine",
+   "lens": "multifactor",
+   "intent": "Long-term uptrend still intact, price pulled back into the 21/50 EMA zone on drying volume with RSI just turning back up, and the name is liquid and volatile enough to be worth trading."
+  },
+  {
+   "file": "multifactor-squeeze-breakout-relative-strength.pine",
+   "lens": "multifactor",
+   "intent": "A Bollinger-inside-Keltner squeeze that just released, price closing through the 20-bar high with positive momentum, confirmed by either a volume surge or a new 3-month relative-strength high versus SPY."
+  },
+  {
+   "file": "multifactor-weekly-trend-daily-macd-trigger.pine",
+   "lens": "multifactor",
+   "intent": "Weekly trend is up (above the 30-week EMA with weekly RSI over 50), the daily MACD just crossed its signal with the histogram expanding, money flow is constructive but not blown off, and average dollar volume clears $20M."
+  },
+  {
+   "file": "recency-breakout-hold-since-trigger.pine",
+   "lens": "recency",
+   "intent": "Broke out over the 50-bar high in the last 10 bars and has held every close above the breakout price and above the 21 EMA since."
+  },
+  {
+   "file": "recency-fresh-golden-cross.pine",
+   "lens": "recency",
+   "intent": "50/200 SMA golden cross occurred within the last 15 bars, has not been undone by a death cross since, and volume is running above average."
+  },
+  {
+   "file": "recency-macd-turn-recent.pine",
+   "lens": "recency",
+   "intent": "MACD crossed above its signal line in the last three bars, with the cross happening below zero, while price holds the 100-day."
+  },
+  {
+   "file": "recency-pullback-down-streak.pine",
+   "lens": "recency",
+   "intent": "Three or more consecutive down closes with RSI(2) washed out, inside an intact long-term uptrend — the classic buy-the-dip streak screen."
+  },
+  {
+   "file": "recency-rsi-reclaim-recent.pine",
+   "lens": "recency",
+   "intent": "RSI crossed back above 30 within the last few bars while the 50-day is still rising — a fresh oversold reclaim inside an uptrend."
+  },
+  {
+   "file": "recency-stalled-under-high.pine",
+   "lens": "recency",
+   "intent": "Has not made a new 100-bar high for at least 20 bars but is still within 10% of it and above the 200-day — a base building under resistance."
+  },
+  {
+   "file": "volatility-atr-expansion-breakout.pine",
+   "lens": "volatility",
+   "intent": "Quiet stock waking up: fast ATR crosses decisively above slow ATR on a wide, strong-closing bar that clears the 20-day high on heavy volume, in an uptrend."
+  },
+  {
+   "file": "volatility-bb-kc-squeeze-fire.pine",
+   "lens": "volatility",
+   "intent": "TTM-style squeeze release: Bollinger Bands were inside the Keltner Channels for most of the last 10 bars and just popped out, with rising positive momentum above the 200 SMA."
+  },
+  {
+   "file": "volatility-hv-percentile-crush.pine",
+   "lens": "volatility",
+   "intent": "Annualized 20-day historical volatility in the bottom decile of its one-year range, with 10-day HV crushed below it — a coiled name in an established uptrend."
+  },
+  {
+   "file": "volatility-inside-bar-continuation.pine",
+   "lens": "volatility",
+   "intent": "Inside bar (or two-bar inside) rest after a wide mother bar, inside a fresh 21/50 EMA uptrend and not yet extended — a continuation trigger, not a reversal."
+  },
+  {
+   "file": "volatility-nr7-coil-uptrend.pine",
+   "lens": "volatility",
+   "intent": "NR7 (also NR4) narrowest-range coil printing on dry volume inside the top of a 20-day base while ATR% is below its own average — the classic pre-expansion setup."
+  },
+  {
+   "file": "volatility-range-contraction-base.pine",
+   "lens": "volatility",
+   "intent": "Multi-week range contraction: Bollinger bandwidth at a 60-day low and inside Keltner width, 5-day true range collapsing versus 50-day, shallow 20-day base, calm weekly ATR."
+  },
+  {
+   "file": "volume-capitulation-volume-reversal.pine",
+   "lens": "volume",
+   "intent": "Selling climax: a 3x volume surge and 60-bar volume high on a wide bar that undercuts the lower Bollinger band, then closes in the upper half with a long lower tail while RSI is under 32."
+  },
+  {
+   "file": "volume-dollar-volume-money-flow.pine",
+   "lens": "volume",
+   "intent": "Institutional-quality liquidity (avg dollar volume above $20M) with positive Chaikin Money Flow, rising A/D line, an up-volume majority over the last 25 bars and no more than three distribution days."
+  },
+  {
+   "file": "volume-obv-accumulation-divergence.pine",
+   "lens": "volume",
+   "intent": "OBV at a 50-bar high while price still sits below its own 50-bar high — quiet accumulation ahead of price, confirmed by a rising OBV regression and rising PVT."
+  },
+  {
+   "file": "volume-pocket-pivot-up-volume.pine",
+   "lens": "volume",
+   "intent": "Pocket pivot: an up day whose volume exceeds the largest down-day volume of the prior 10 sessions, taken off the 10-day line while still inside the base."
+  },
+  {
+   "file": "volume-rvol-breakout-thrust.pine",
+   "lens": "volume",
+   "intent": "Breakout to a 50-bar pivot high on at least 2x relative volume (mean and median), in a Stage 2 uptrend, closing strong in the bar's range and liquid enough to trade."
+  },
+  {
+   "file": "volume-volume-dry-up-tight-base.pine",
+   "lens": "volume",
+   "intent": "Volume dry-up inside a tight, quiet base near the highs — supply exhausted after an earlier accumulation day, the classic pre-breakout setup."
+  }
+ ]
+}

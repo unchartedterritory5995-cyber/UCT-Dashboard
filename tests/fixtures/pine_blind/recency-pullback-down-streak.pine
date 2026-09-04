@@ -1,0 +1,11 @@
+//@version=6
+indicator("Pullback Down Streak")
+n = input.int(3, "Consecutive down closes")
+var int downRun = 0
+downRun := close < close[1] ? downRun + 1 : 0
+ma50 = ta.sma(close, 50)
+ma200 = ta.sma(close, 200)
+inTrend = close > ma200 and ma50 > ma200
+washed = ta.rsi(close, 2) < 15
+notBroken = close > ta.ema(close, 21) * 0.98
+plot(downRun >= n and inTrend and washed and notBroken ? 1 : 0)

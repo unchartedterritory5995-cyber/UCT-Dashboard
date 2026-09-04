@@ -15,7 +15,26 @@ from api.services import ticker_logos as tl
 from api.services import ticker_logos_prewarm as pw
 
 router = APIRouter()
-_HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
+
+# A real logo essentially never changes, so cache it effectively FOREVER: once a
+# browser fetches a logo it stores the PNG on its own disk and every later view is a
+# zero-network read (that's the "saved for good, never fetched again" behavior) — and
+# the edge (Cloudflare rule on `/api/ticker-logo/*`) holds it just as long, so the
+# origin is hit at most once per logo per PoP. 1 year + immutable = the browser never
+# even revalidates within the year. The ESCAPE HATCH for the rare case a logo does
+# change (rebrand / a resolution upgrade): bump `LOGO_ASSET_VERSION` in CompanyLogo.jsx
+# — the `?v=` in the cache key changes and every browser refetches. So DO bump v after
+# any hires/logo-content change, or the old logo lingers in caches for up to a year.
+_HIT_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
+
+# A cold miss returns a transparent 1x1 pixel while the real logo resolves in the
+# background. This MUST NOT be shared-cached: if Cloudflare pinned the pixel at the
+# edge, every OTHER viewer would get a blank for that ticker until the (short) TTL
+# expired, even after the logo resolved. `no-store` keeps it origin-only + tells the
+# browser to re-request next render, so the real logo is picked up as soon as it's
+# warm (the client's own retry loop also re-hits with `?_r=`). The frontend detects
+# the pixel via naturalWidth<=2 and shows a monogram, so this is never a broken image.
+_MISS_HEADERS = {"Cache-Control": "no-store"}
 
 
 @router.get("/api/ticker-logo/{sym}")
@@ -25,11 +44,10 @@ def ticker_logo(sym: str, name: str = None, alt: str = None):
     under their bare symbol — passed by the Model Book for foreign stocks."""
     path = tl.get_logo_path(sym)
     if path:
-        return FileResponse(path, media_type="image/png", headers=_HEADERS)
+        return FileResponse(path, media_type="image/png", headers=_HIT_HEADERS)
     tl.schedule_resolve(sym, name=name, alt=alt)
-    # Short cache (60s) so a just-warmed logo is picked up on the next render/visit.
     return Response(content=tl.TRANSPARENT_PNG, media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=60"})
+                    headers=_MISS_HEADERS)
 
 
 @router.post("/api/logos/prewarm")

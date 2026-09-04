@@ -68,6 +68,21 @@ class Geometry(TypedDict):
     ]
     anchors: list[Anchor]
     extras: dict   # pattern-specific extras (height_pct, depth_pct, etc.)
+    # Phase 8 Package 8D: optional, additive semantic labels for `anchors` —
+    # the Phase-7 spec's own finding was that every renderer today addresses
+    # anchors POSITIONALLY (anchors[0], anchors[1]...), which is exactly what
+    # made VCP's variable-length zigzag and flat_base's 4th "prior advance
+    # origin" anchor ambiguous under the same `shape` string as families
+    # whose anchor count/meaning is fixed. `anchor_roles` (same length as
+    # `anchors` when present) and `semantic_subtype` (a family-specific label
+    # disambiguating intent beyond the 6 shape primitives, e.g.
+    # "pole_and_flag" vs. "gap_event" — both still render as `trendline_pair`/
+    # `candle_mark`) let a renderer opt into role-aware behavior without
+    # breaking positional access for every family that hasn't been updated
+    # yet — omission is the correct, honest state for any family this hasn't
+    # been wired to, never a broken/incomplete-looking object.
+    anchor_roles: NotRequired[list[str]]
+    semantic_subtype: NotRequired[str]
 
 
 class Levels(TypedDict):
@@ -123,6 +138,205 @@ class Outcome(TypedDict):
     resolved_at: int | None
 
 
+class Eligibility(TypedDict, total=False):
+    """Phase 7/8: whether a detection should surface in the scanner RIGHT NOW,
+    kept explicitly separate from pattern identity/lifecycle. Recon (Phase 7)
+    found this was previously 4 independently-coded, non-communicating
+    mechanisms (the shared 7-day `memory.ACTIVE_WINDOW_SECS`, ad hoc per-
+    detector age gates that disagree in units, `pattern_join.py`'s own
+    re-implemented copy of the 7-day window) — this section makes the
+    engine-level piece of that into DATA instead of something re-derived from
+    `detected_at` by hand every time.
+
+    `eligible` is a POINT-IN-TIME evaluation, not a timeless stored fact — a
+    consumer must treat a stale `evaluated_at` as unknown, not true (ChatGPT
+    relay review, 2026-09-03). `eligibility_scope` is always the
+    detector/scanner's own DEFAULT eligibility; a member's personal filters
+    are a separate, later layer that composes on top of this, never inside it.
+    """
+    eligible: bool
+    evaluated_at: int                      # unix sec this verdict was computed
+    eligibility_scope: Literal["system_default"]
+    eligibility_version: str               # bumped when the RULE changes, independent
+                                            # of detector_version
+    eligibility_reasons: list[str]
+    freshness_bars: int | None             # bars since the family's own structurally-
+                                            # defining event, if it has one — None is a
+                                            # legitimate, honestly-reported "this family
+                                            # has no such gate", not a missing value
+    freshness_window_bars: int | None      # this family's OWN ceiling, if any — surfaced
+                                            # as data so a cross-engine mismatch (e.g. the
+                                            # rules-engine VCP's 15-bar ceiling vs.
+                                            # base_catalog's 60-bar ceiling for the same
+                                            # pattern name) is visible, not silently
+                                            # normalized away
+    active_window_secs: int                # the shared engine-level constant actually applied
+
+
+class EventProvenance(TypedDict, total=False):
+    """Phase 7/8: real today in exactly one field, one family (PEG's
+    `days_to_earnings`/`earnings_linkage_verified`, Phase 6 Group 3) — living
+    in the untyped `geometry.extras` grab-bag. This promotes it to a typed,
+    optional section so a family with no event concept (bull_flag) can omit
+    it entirely, while PEG's sibling `episodic_pivot` (currently missing the
+    equivalent despite prose citations) has somewhere real to put it later.
+
+    `event_id`/`ingested_at` (ChatGPT relay review, 2026-09-03): a plain
+    source STRING is not enough to answer "which actual earnings event caused
+    this detector to fire" during a future debugging session — both are
+    optional, so a family with no addressable event record can still omit them.
+    """
+    event_id: str | None
+    event_type: str
+    event_timestamp: int | None
+    ingested_at: int | None
+    days_from_event: int | None
+    verification_status: Literal["verified", "contradicted", "unavailable"]
+    source: str | None
+
+
+class Criterion(TypedDict):
+    """= `api/services/screener/base_catalog.py`'s existing `Criterion`
+    dataclass, promoted verbatim (NOT reinvented) as the canonical vocabulary
+    for THRESHOLD PROVENANCE — "is this threshold's own number sourced?"
+    Phase 7 recon found 3 of the 7 rules-engine detector files' own header
+    comments explicitly name base_catalog.py as the answer to a DIFFERENT
+    question ("is this structure present, with sourced criteria") than what
+    they themselves compute ("where do I enter one") — a deliberate,
+    2026-08-31-ruled split. This type is reused where a family's threshold
+    genuinely has a sourced citation; it is NOT force-populated onto the
+    rules-engine detectors, which is what `GateEvaluation` below is for.
+    """
+    condition: str
+    value: object
+    quote: str | None
+    source_id: str | None
+    confidence: Literal["high", "med"]
+    missing: str | None
+    origin: Literal["source", "uct"]
+    missing_kind: Literal["source_silent", "not_computable", "our_scope"] | None
+
+
+class GateEvaluation(TypedDict, total=False):
+    """Phase 8 (added per ChatGPT relay review, 2026-09-03): distinct from
+    `Criterion` above. `Criterion` answers "is this THRESHOLD sourced?" — a
+    citation about a number's provenance. This answers a different question —
+    "did THIS candidate clear THIS gate, and by how much?" — an evaluation
+    trace, the vocabulary the 7 rules-engine detectors actually need to
+    become explainable, since today every one of their gates is a bare
+    `if not X: continue` with zero record kept of what passed or by how much
+    margin. The two compose (`criterion_ref` may cite a `Criterion`'s
+    `source_id` for the threshold's own provenance) without merging the two
+    deliberately-separate engines.
+    """
+    criterion_id: str
+    criterion_name: str
+    observed_value: object
+    expected_value: object | None
+    operator: str | None                   # e.g. ">=", "<", "within_range"
+    unit: str | None
+    role: Literal["identity", "quality", "lifecycle", "eligibility", "context"]
+    required: bool
+    result: Literal["pass", "fail", "weak", "missing"]
+    criterion_ref: str | None
+    definition_version: str | None
+
+
+class ScannerSummary(TypedDict, total=False):
+    """Phase 8 Package 8C: the lightweight, scanner-facing projection of a
+    canonical Detection (Phase-7 spec §16 / the Package-8C authorization §6).
+    Built from an already-adapted Detection (one that has been through a
+    `canonical_adapter.py` `adapt_*` function) by `canonical_adapter.
+    build_scanner_summary` — every field is read straight off the Detection,
+    never fabricated.
+
+    ⛔ NOT YET WIRED INTO THE REAL SCANNER. `api/services/screener/
+    pattern_join.py` (the actual, live scanner data path — traced directly,
+    Package 8C) reads `pattern_detections` with a raw SQL projection of only
+    5 existing columns (sym/pattern_id/direction/confidence/levels_json) and
+    has no column for any Phase-7/8 canonical section. This type exists to
+    prove the summary CONTRACT is correct in isolation; making it reach the
+    real scanner requires the persistence change documented in this file's
+    module docstring reference (Phase-7 spec, "Persistence Design for
+    Canonical Sections" section) — a separately-owner-authorized schema
+    change, not implied by this type's existence.
+    """
+    pattern_id: str
+    pattern_name: str
+    direction: Literal["bullish", "bearish", "neutral"]
+    status: str                        # lifecycle, as the detector's own field — see
+                                        # eligibility below for the SEPARATE concept
+    scanner_eligible: bool | None       # None only if no Eligibility was ever computed
+                                        # for this detection — never fabricated as True/False
+    confidence: float
+    quality_components: QualityComponents
+    primary_reason: str                 # narrative.headline — already real, never invented
+    freshness_note: str                 # honest description of the family's own freshness
+                                        # gate, or its honest absence
+    event_note: NotRequired[str]        # present only when the Detection carries `event`
+    warnings: list[str]
+
+
+class ExplanationFact(TypedDict, total=False):
+    """Phase 8 Package 8E: one sentence of structured, evidence-traceable
+    explanation. Built by `explanation_builder.py` by READING an already-
+    canonical (adapted) Detection's existing fields — never by recomputing
+    detector logic or inventing a value the Detection doesn't carry.
+
+    `claim_type` records what kind of claim `label` is making, per this
+    package's own authorization:
+      - "direct":   read straight off a Detection field with no interpretation
+                    (e.g. geometry.extras.pole_pct).
+      - "derived":  computed deterministically FROM canonical facts already on
+                    the Detection (e.g. re-running the SAME context-scoring
+                    helper the detector itself used, on the Detection's own
+                    stored `context`) — never a new measurement, always a
+                    re-derivation of something the detector already decided.
+      - "qualified": a claim that is real but incomplete/conditional and says
+                    so explicitly (e.g. "no family-specific freshness signal
+                    exists" or "this is a neutral prior, not measured
+                    performance").
+
+    `supporting_evidence` is a field-path string INTO the Detection this fact
+    was built from (e.g. "geometry.extras.pole_pct", "gate_trace[0]",
+    "eligibility.eligibility_reasons") — never a description, an id a reader
+    can go look up.
+    """
+    fact_id: str
+    category: Literal[
+        "identity", "context_strength", "context_weakness",
+        "lifecycle", "eligibility", "event", "quality", "warning",
+    ]
+    claim_type: Literal["direct", "derived", "qualified"]
+    label: str
+    supporting_evidence: str
+    polarity: Literal["supports", "weakens", "neutral", "warning"]
+    priority: int
+
+
+class ExplanationSection(TypedDict):
+    section: Literal[
+        "why_it_matched", "strengths", "weaknesses",
+        "current_stage", "scanner_eligibility", "event", "warnings",
+    ]
+    facts: list[ExplanationFact]
+
+
+class Explanation(TypedDict):
+    """Phase 8 Package 8E: the structured explanation for one Detection.
+    Sections are omitted entirely (never emitted empty) when a family has no
+    facts for them — same "honest absence, not a broken-looking object"
+    convention as `Eligibility`/`EventProvenance` (types.py Phase 7/8 notes
+    above). Built by `explanation_builder.build_explanation`; NOT persisted
+    (same "shadow mode only" status as every other Phase 8 canonical section
+    ahead of its own explicitly-authorized persistence stage).
+    """
+    detection_id: str
+    pattern_id: str
+    generator_version: str
+    sections: list[ExplanationSection]
+
+
 class Detection(TypedDict):
     id: str
     sym: str
@@ -144,3 +358,14 @@ class Detection(TypedDict):
     outcome: Outcome | None
     detected_at: int
     last_seen_at: int
+    # Phase 7/8 additive canonical extension — all optional-by-family, all
+    # absent from every detection emitted before this change (see
+    # NotRequired below). NOT YET PERSISTED: pattern_db.py's schema has 5
+    # dedicated JSON columns (quality/geometry/levels/context/narrative), not
+    # one blob for the whole Detection, so populating these sections does not
+    # yet round-trip through storage — that is real future work (Phase 7
+    # spec, migration Stage C+), not something this addition silently implies.
+    eligibility: NotRequired[Eligibility]
+    event: NotRequired[EventProvenance]
+    criteria: NotRequired[list[Criterion]]
+    gate_trace: NotRequired[list[GateEvaluation]]

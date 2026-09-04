@@ -16,12 +16,14 @@
 // not — so the one deliberate gap stays a documented, verified fact instead
 // of a silent landmine the next person re-derives by hand.
 export const NAV_GROUPS = [
-  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/dashboard', '/morning-wire'] },
+  // routes[0] = the group's primary navigable target; home also contributes
+  // routes[1] as the free-tier Wire entry (/morning-wire) — see navigableTargets().
+  { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
-    routes: ['/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
-             '/post-market', '/screener', '/calendar', '/catalysts', '/ai-search', '/uct-20'] },
+    routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
+             '/post-market', '/screener', '/catalysts', '/ai-search', '/uct-20'] },
   { key: 'charts', label: 'Charts', icon: 'chart',
-    routes: ['/charts', '/watchlists', '/theme-tracker', '/model-book', '/setup-library'] },
+    routes: ['/model-book', '/watchlists', '/theme-tracker', '/setup-library'] },
   { key: 'journal', label: 'Journal', icon: 'journal',
     routes: ['/journal', '/community', '/desk', '/support'] },
 ]

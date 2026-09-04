@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import time
 from typing import Optional
 
@@ -31,14 +32,45 @@ _VALID_FEEDBACK_RATINGS = {"great", "good", "miss", "wrong"}
 #: expire once a row is older than track_outcomes' 48h lookback.
 ACTIVE_WINDOW_SECS = 7 * 24 * 60 * 60
 
-#: Retention for pattern_detections. Nothing reads past ACTIVE_WINDOW_SECS
-#: (scan/join/voice window 7d; track_outcomes looks back 48h; stats aggregate
-#: from what remains), so rows past this only grow the file: measured 2026-08-26,
-#: prod patterns.db hit 13.57 GB / 1.54M rows in 6 weeks with no prune. With this
-#: retention, pattern_stats becomes a ROLLING-window aggregate rather than
-#: since-forever — the honest read, and the n_resolved>0 gate downstream already
-#: handles thin windows.
-PRUNE_RETENTION_DAYS = 10
+#: Retention for pattern_detections. Rows past this only grow the file: measured
+#: 2026-08-26, prod patterns.db hit 13.57 GB / 1.54M rows in 6 weeks with no
+#: prune. With this retention, pattern_stats becomes a ROLLING-window aggregate
+#: rather than since-forever — the honest read, and the n_resolved>0 gate
+#: downstream already handles thin windows.
+#:
+#: Phase 3B data-foundation correction (2026-09-03): the prior value (10 days)
+#: was measured against real production data (`C:\data\patterns.db`, a local
+#: read-only mirror) to be structurally inadequate for the historical-score
+#: prerequisite: candlestick-family detections (short resolution horizon)
+#: resolved at 21-77%, but classical/structure/uct-family detections (VCP,
+#: double_top, head_shoulders, flat_base, etc. -- multi-week resolution
+#: horizons, per e.g. vcp.py's own docstring "VCPs frequently extend 30-100%
+#: over the following 4-12 weeks") resolved at 0.0-0.5% (vcp itself: 515
+#: detections, 0 resolved). The 10-day window was pruning these rows before
+#: TRACK_OUTCOMES_LOOKBACK_HOURS below (also corrected, from 72h) ever gave
+#: them a realistic chance to hit target/stop/expire. New default (120 days)
+#: is chosen to exceed the corrected lookback (90 days) with a ~30-day margin
+#: for recompute_stats() to aggregate resolved rows before they're pruned --
+#: not "keep forever" (see PATTERN_PRUNE_RETENTION_DAYS to tune). This is a
+#: DATA-FOUNDATION change only: it does not alter classification confidence,
+#: pattern quality, or expose any new score -- every detector's
+#: historical_score component is still the hardcoded 50.0 neutral prior.
+PRUNE_RETENTION_DAYS = int(os.environ.get("PATTERN_PRUNE_RETENTION_DAYS", "120"))
+
+#: Default lookback for track_outcomes() -- see PRUNE_RETENTION_DAYS above for
+#: the evidence. 72 hours (the prior production value, passed explicitly by
+#: main.py's scheduled job) meant a detection's status was NEVER re-evaluated
+#: past 3 days from detection, regardless of the pattern's real resolution
+#: horizon -- silently abandoning nearly all classical/structure/uct-family
+#: detections mid-flight before prune_old() then deleted them. 90 days
+#: comfortably covers VCP's own documented 4-12 week typical follow-through.
+#: Configurable via PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS; a future
+#: per-pattern-family horizon (candlesticks need far less than 90 days) is a
+#: real refinement NOT built this phase -- a single shared window is the
+#: minimum correction that fixes the confirmed defect.
+TRACK_OUTCOMES_LOOKBACK_HOURS = int(
+    os.environ.get("PATTERN_TRACK_OUTCOMES_LOOKBACK_HOURS", str(90 * 24))
+)
 
 
 def _hash_key(sym: str, tf: str, pattern_id: str, start_t: int, end_t: int) -> str:
@@ -53,6 +85,16 @@ def store_detection(d: Detection) -> None:
     last_seen_at + confidence + status (whichever the engine last computed)."""
     hk = _hash_key(d["sym"], d["tf"], d["pattern_id"], d["start_t"], d["end_t"])
 
+    # Phase 8 Package 8C: serialize the canonical Eligibility section when the
+    # caller's Detection carries one. NotRequired means "may be absent" — a
+    # Detection that never went through canonical_adapter.adapt_* simply has
+    # no "eligibility" key, and this writes NULL, the honest "not persisted
+    # for this row" state (never a fabricated True/False). This function
+    # only serializes what it's given; it is not itself an eligibility
+    # engine — no detector or scheduled job currently populates this key
+    # (see canonical_adapter.py's own module docstring).
+    eligibility_json = json.dumps(d["eligibility"]) if "eligibility" in d else None
+
     conn = get_connection()
     try:
         conn.execute("""
@@ -60,12 +102,12 @@ def store_detection(d: Detection) -> None:
               id, sym, tf, pattern_id, category, direction,
               start_t, end_t, confidence,
               quality_json, geometry_json, levels_json, context_json, narrative_json,
-              status, detected_at, last_seen_at, hash_key
+              status, detected_at, last_seen_at, hash_key, eligibility_json
             ) VALUES (
               ?, ?, ?, ?, ?, ?,
               ?, ?, ?,
               ?, ?, ?, ?, ?,
-              ?, ?, ?, ?
+              ?, ?, ?, ?, ?
             )
             ON CONFLICT(hash_key) DO UPDATE SET
               confidence    = excluded.confidence,
@@ -75,7 +117,8 @@ def store_detection(d: Detection) -> None:
               context_json  = excluded.context_json,
               narrative_json = excluded.narrative_json,
               status        = excluded.status,
-              last_seen_at  = excluded.last_seen_at
+              last_seen_at  = excluded.last_seen_at,
+              eligibility_json = excluded.eligibility_json
         """, (
             d["id"], d["sym"], d["tf"], d["pattern_id"], d["category"], d["direction"],
             d["start_t"], d["end_t"], d["confidence"],
@@ -84,7 +127,7 @@ def store_detection(d: Detection) -> None:
             json.dumps(d["levels"]),
             json.dumps(d["context"]),
             json.dumps(d["narrative"]),
-            d["status"], d["detected_at"], d["last_seen_at"], hk,
+            d["status"], d["detected_at"], d["last_seen_at"], hk, eligibility_json,
         ))
         conn.commit()
     finally:
@@ -93,7 +136,7 @@ def store_detection(d: Detection) -> None:
 
 def _row_to_detection(row) -> dict:
     """Reconstitute a Detection dict from a sqlite row."""
-    return {
+    d = {
         "id": row["id"],
         "sym": row["sym"],
         "tf": row["tf"],
@@ -117,6 +160,17 @@ def _row_to_detection(row) -> dict:
         "detected_at": row["detected_at"],
         "last_seen_at": row["last_seen_at"],
     }
+    # Phase 8 Package 8C: eligibility_json is NULL for every row written
+    # before this column existed, and for every row no adapter has ever
+    # enriched — in both cases the honest reconstruction is an ABSENT
+    # "eligibility" key (matching NotRequired), never a fabricated value.
+    # `row["eligibility_json"]` access requires a `SELECT *`-shaped row
+    # (true for every caller of this function today: get_active_detections
+    # and get_detection_by_id both use `SELECT *`).
+    eligibility_json = row["eligibility_json"]
+    if eligibility_json is not None:
+        d["eligibility"] = json.loads(eligibility_json)
+    return d
 
 
 def get_active_detections(
@@ -218,7 +272,7 @@ def prune_old(retention_days: int = PRUNE_RETENTION_DAYS, batch: int = 50_000) -
         conn.close()
 
 
-def track_outcomes(lookback_hours: int = 48) -> int:
+def track_outcomes(lookback_hours: int = TRACK_OUTCOMES_LOOKBACK_HOURS) -> int:
     """Walk forward bars to resolve open detections.
 
     For each detection with status in ("forming", "ready", "triggered") detected

@@ -110,7 +110,7 @@ import { memberNumber } from './memberValue.js'
  *  the exact token, because "somewhere in your script" is not a refusal a member
  *  can act on. */
 export class PineRefusal extends Error {
-  constructor(guard, message, at, suggest) {
+  constructor(guard, message, at, suggest, span) {
     super(message)
     this.name = 'PineRefusal'
     this.guard = guard
@@ -120,6 +120,8 @@ export class PineRefusal extends Error {
     // shipped. It rides the refusal because the refusal is the only thing the
     // member sees.
     this.suggest = suggest || null
+    /** `[start, end)` source offsets a `suggest` replaces, or null. */
+    this.span = span || null
   }
 }
 
@@ -1123,6 +1125,39 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`. `pine.derived.test.js`
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
+/**
+ * Built-ins this engine has RULED on BY NAME, so the refusal teaches instead of
+ * shrugging. Same arrangement as `_functions_excluded` one layer down: a name we
+ * have actually thought about gets the thinking, not the generic sentence.
+ *
+ * ⭐ EARNED BY MEASUREMENT. On a 48-script corpus written blind to this engine,
+ * `syminfo.mintick` was the single most common blocker — SEVEN scripts — and
+ * every one of its nine uses was the SAME idiom. A generic "the grammar does not
+ * hold this" told those authors nothing they could act on.
+ */
+const BUILTIN_RULED = Object.freeze({
+  'request.security':
+    "It reads another SYMBOL or another TIMEFRAME, and this engine evaluates one "
+    + 'symbol on one timeframe. That is not a gap in the grammar — the values it '
+    + 'asks for are not a function of the series being screened, so no expression '
+    + 'over these bars can produce them. ⭐ WHAT DOES REACH A HIGHER TIMEFRAME is '
+    + 'the `tf` node: a screen may read a resampled daily or weekly value of THIS '
+    + 'symbol. What has no spelling here is another ticker — a comparison against '
+    + 'SPY, a sector proxy, or a relative-strength line — because that needs a '
+    + 'second feed rather than a wider vocabulary.',
+  'syminfo.mintick':
+    "It is the symbol's minimum price increment, which differs per symbol and is "
+    + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
+    + '`math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar '
+    + 'whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero '
+    + 'denominator is reported as NOT COMPUTABLE for that symbol rather than '
+    + 'quietly replaced, so write `(close - low) / (high - low)` and a halted, '
+    + 'zero-range bar is left unanswered instead of being scored as though it '
+    + 'closed on its low. ⚠️ That is a REAL difference, not a simplification: '
+    + 'Pine answers 0 on such a bar and this engine answers nothing, which is why '
+    + 'the edit is yours to make rather than one taken silently on your behalf.',
+})
+
 export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
   // here it fell into the generic arm and answered with the WHOLE declared
@@ -1164,7 +1199,14 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'The two line up positionally and answer different numbers, so mapping them would '
     + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
     + 'with the number of BARS you want searched — and note that an occurrence older '
-    + 'than the most recent one has no spelling here at all.',
+    + 'than the most recent one has no spelling here at all. '
+    + '⭐ THE VENDOR SAYS IT IN ITS OWN WORDS, which turns this ruling from ours '
+    + "into the field's: TradingView documents the third argument as the "
+    + 'occurrence of the condition — 0 is the most recent occurrence, 1 is the '
+    + 'second most recent and so forth. Its own example plots '
+    + '`ta.valuewhen(ta.cross(slow, fast), close, 1)` under a comment reading '
+    + '"value of close on the SECOND most recent cross". Ours would read that 1 '
+    + 'as a one-bar window.',
   // ⚰️⚰️ THIS SAID "this engine's ONLY accumulator re-seeds a fixed number of
   // bars back" AND THAT STOPPED BEING TRUE. `cumFrom(source, anchor, window)` is
   // declared in the manifest, implemented in BOTH lanes, carries eight
@@ -1773,6 +1815,54 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       return [line, signal, bin('-', line, signal)]
     },
   },
+  // ⭐⭐ KELTNER, AND THE SMOOTHER IS THE WHOLE POINT.
+  //
+  // ⛔⛔ `ta.kc` SMOOTHS TRUE RANGE WITH `ema`, NOT WITH `atr`. Almost every
+  // third-party Keltner — and TradingView's own CHART indicator of that name —
+  // uses ATR/RMA (Wilder alpha 1/L). `ta.kc` does not: the vendor's published
+  // equivalent is `ta.ema(span, length)`, alpha 2/(L+1). At L=20 that is 0.0952
+  // against 0.05, about twice the responsiveness, so writing `atr(...)` here
+  // would compute confidently and be wrong on every mature bar. That is exactly
+  // the look-alike this engine refuses elsewhere (`_functions_excluded.obv`, the
+  // MIN/lowest trap), and it is the single easiest mistake to make in this entry.
+  //
+  // ⚠️ THE VENDOR'S OWN PROSE IS WRONG HERE AND ITS CODE IS RIGHT: the reference
+  // calls `mult` a "standard deviation factor", which is copy-paste from `ta.bb`
+  // — there is no standard deviation anywhere in the formula. Trust the code.
+  //
+  // ⭐ ONE length DRIVES BOTH the basis and the range; there is no separate ATR
+  // length. The tuple is [middle, upper, lower], middle FIRST — many libraries
+  // order it (upper, middle, lower), and getting that wrong silently swaps a
+  // member's bands.
+  //
+  // ⚠️ VENDOR NOTE, in the same spirit as the one already on `atr`: this engine
+  // seeds `ema` with the mean of the first full window while Pine seeds it with
+  // the first source value, and `ta.kc` runs `ema` TWICE (basis and range), so
+  // warm-up bars differ from TradingView's and converge. Structure is exact;
+  // early bars are not bit-identical.
+  //
+  // `ta.tr` is used rather than a hand-written max-of-three so the range can
+  // never drift from the one the rest of the engine draws.
+  kc: {
+    arity: [3, 4],
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const nm = (name) => ({ type: 'name', name, tok })
+      // `useTrueRange` defaults to TRUE and must be a literal to be read here;
+      // Pine types it `simple bool`, and `true`/`false` parse as 1/0.
+      const flag = a[3]
+      const isNum = (n, v) => n && n.type === 'number' && Number(n.value) === v
+      let span = null
+      if (flag === undefined || isNum(flag, 1)) span = nm('ta.tr')
+      else if (isNum(flag, 0)) span = bin('-', nm('high'), nm('low'))
+      else return null
+      const mid = pc('ta.ema', [a[0], a[1]])
+      const band = bin('*', a[2], pc('ta.ema', [span, a[1]]))
+      return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
 })
 
 /** `[a, b, c] = ta.bb(...)` / `ta.macd(...)` → three bindings, or `null`.
@@ -1796,10 +1886,17 @@ function builtinTupleParts(toks, close, names, env, first) {
   // them by position anyway is how `ta.bb(mult = 2, series = close)` would build
   // a band out of the wrong two arguments.
   if (raw.some((a) => a && a.name != null)) return null
-  if (raw.length !== spec.arity || names.length !== spec.parts) return null
+  // ⭐ AN ENTRY MAY DECLARE SEVERAL ARITIES. `ta.kc` ships with and without its
+  // trailing `useTrueRange`, and both are the same tuple.
+  const arities = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+  if (!arities.includes(raw.length) || names.length !== spec.parts) return null
   const at = locate(first)
-  return spec.build(raw.map((a) => a.value), first)
-    .map((node) => exprBinding(node, new Map(env), at))
+  // ⛔ AND A BUILDER MAY DECLINE. `ta.kc`'s flag has to be a literal to be read
+  // statically; anything else falls through to the ordinary refusal rather than
+  // being guessed at.
+  const built = spec.build(raw.map((a) => a.value), first)
+  if (!built) return null
+  return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
 /** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
@@ -2286,6 +2383,41 @@ class Cursor {
   }
 }
 
+/** `[from, to)` source offsets covering a parsed node, or null.
+ *
+ *  ⛔ A SPAN IS A CLAIM ABOUT THE MEMBER'S SOURCE. A call reaches its closing
+ *  paren through `endTok`; anything else covers exactly the characters of its own
+ *  token. When neither is knowable this answers null rather than guessing, because
+ *  an offer with a wrong span edits the wrong part of somebody's script. */
+function spanOfNode(node) {
+  if (!node || typeof node !== 'object') return null
+  // A call knows both ends outright.
+  if (node.tok && node.endTok
+      && typeof node.tok.index === 'number' && typeof node.endTok.index === 'number') {
+    return [node.tok.index, node.endTok.index + 1]
+  }
+  // ⛔ EVERYTHING ELSE IS THE UNION OF ITS PARTS. A binary node's own `tok` is
+  // the OPERATOR, so `high - low` would otherwise report the span of `-` and an
+  // offer built on it would replace one character in the middle of the member's
+  // expression. Taking min/max over the children is what makes the span cover
+  // what a reader would call "that subexpression".
+  let lo = Infinity
+  let hi = -Infinity
+  const own = node.tok
+  if (own && typeof own.index === 'number') {
+    lo = Math.min(lo, own.index)
+    hi = Math.max(hi, own.index + String(own.raw ?? own.value ?? '').length)
+  }
+  const visit = (child) => {
+    if (!child || typeof child !== 'object' || !child.type) return
+    const s = spanOfNode(child)
+    if (s) { lo = Math.min(lo, s[0]); hi = Math.max(hi, s[1]) }
+  }
+  visit(node.left); visit(node.right); visit(node.arg)
+  for (const a of (node.args || [])) visit(a && a.value ? a.value : a)
+  return lo !== Infinity && lo < hi ? [lo, hi] : null
+}
+
 const locate = (tok) => (tok
   ? { line: tok.line, column: tok.column, index: tok.index, token: String(tok.raw ?? tok.value) }
   : null)
@@ -2343,6 +2475,121 @@ function isBareObv(node) {
     : (node.type === 'call' && (!node.args || node.args.length === 0)) ? node.name
       : null
   return named === 'ta.obv' || named === 'obv'
+}
+
+/** `ta.sma(ta.obv, n)` — an average of OBV over its OWN window. Returns the
+ *  length NODE (unresolved, because a member writes it as an input as often as a
+ *  literal), or null.
+ *
+ *  ⛔ `ta.ema` IS DELIBERATELY NOT ACCEPTED HERE and the difference is not
+ *  stylistic. `sma` is a FINITE average, so `obv - sma(obv, n)` telescopes into
+ *  n-1 differences and the unknown baseline cancels exactly. An exponential
+ *  average weights every bar back to the first one, so the same subtraction
+ *  leaves an infinite tail — there is no finite tree for it, and truncating one
+ *  would answer a confident wrong number rather than refuse.
+ */
+function smaOfBareObv(node) {
+  if (!node || node.type !== 'call') return null
+  if (node.name !== 'ta.sma' && node.name !== 'sma') return null
+  if (!Array.isArray(node.args) || node.args.length !== 2) return null
+  const [src, len] = node.args
+  // ⚠️ POSITIONAL ONLY — a named argument reaches the ordinary path and its
+  // existing refusal, rather than a second spelling of this rule.
+  if (!src || src.name || !len || len.name) return null
+  if (!isBareObv(src.value)) return null
+  return len.value || null
+}
+
+/** ⭐⭐ THE VENUES WHOSE `EXCHANGE:TICKER` NAMES THE INSTRUMENT THIS STORE HOLDS.
+ *
+ *  ⛔⛔ THIS EXISTS BECAUSE ONE SENTENCE HAD TWO SPELLINGS AND THEY ANSWERED
+ *  DIFFERENTLY. `request.security('BINANCE:BTCEUR', …)` refused — there is a rail
+ *  for it — while `request.security(ticker.new('BINANCE', 'BTCEUR',
+ *  session.regular), …)` translated to `sym('BTCEUR', …)` and had done all along,
+ *  because `tickerCallArg` read argument ONE and never looked at the venue. A euro
+ *  crypto pair became a lookup against our US equity store, silently, in the
+ *  spelling nobody had railed. Measured, not supposed.
+ *
+ *  ⭐ SO THE POLICY IS STATED ONCE AND BOTH SPELLINGS ASK IT. The criterion is not
+ *  taste: it is whether the ticker after the venue names the SAME instrument our
+ *  bars store holds. `NASDAQ:AAPL` does. `BINANCE:BTCEUR` does not — we have no
+ *  such series, and translating it builds a column that is NOT COMPUTABLE on every
+ *  row, which reads to a member as a quiet market rather than as an answer we
+ *  cannot give. `LSE:VOD` is the sharpest case: it is a REAL instrument that is
+ *  NOT the `VOD` this store would fetch, so dropping the venue there is the
+ *  look-alike this table refuses everywhere else.
+ *
+ *  ⚠️ WHY A ROSTER AND NOT A RULE. There is no derivable property of the string
+ *  that says "US equity venue"; it is a fact about listings. So it is a list, and
+ *  like every list in this repo it is wrong the day a venue is added — the rail
+ *  beside it checks the SHAPE of the answer (allowlisted resolves, non-allowlisted
+ *  refuses, both spellings agree), never the membership, so adding a venue is a
+ *  one-line change that nothing else has to follow.
+ */
+const US_EQUITY_VENUES = Object.freeze(new Set([
+  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
+]))
+
+/** `"AMEX:SPY"` → `'SPY'`; a bare `"SPY"` → `'SPY'`; a venue we do not serve →
+ *  null, which the callers turn into the ordinary `pine:request` refusal.
+ *
+ *  ⛔ A SINGLE COLON AND PLAUSIBLE HALVES, NEVER A BLIND SPLIT. `CME_MINI:ES1!`
+ *  keeps its `!` and fails `TICKER_SHAPE` at the caller, which is the right answer:
+ *  a continuous futures contract is not a ticker this store holds.
+ */
+const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
+
+function tickerWithoutVenue(raw) {
+  const found = VENUE_QUALIFIED.exec(raw)
+  if (!found) return raw
+  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+}
+
+/** The same question asked of `ticker.new`'s SEPARATE exchange argument.
+ *
+ *  ⭐ ONLY A STRING LITERAL IS JUDGED. A computed prefix (`syminfo.prefix`) is not
+ *  a venue this translator can read, and refusing it here would refuse the shape
+ *  that means "this chart's own exchange" — which is the commonest use of the call.
+ */
+function venueArgIsServable(node) {
+  if (!node || node.type !== 'string') return true
+  return US_EQUITY_VENUES.has(String(node.value).trim().toUpperCase())
+}
+
+/** The NAME inside `not na(<name>)`, or null. */
+function naGuardedName(node) {
+  if (!node || node.type !== 'unary' || node.op !== 'not') return null
+  const call = node.arg
+  if (!call || call.type !== 'call' || call.name !== 'na') return null
+  const args = call.args || []
+  if (args.length !== 1 || !args[0] || args[0].name) return null
+  const inner = args[0].value
+  return inner && inner.type === 'name' ? inner.name : null
+}
+
+/** Is `name` compared against something as a CONJUNCT of this expression?
+ *
+ *  ⛔⛔ THROUGH `and` ONLY, AND THAT RESTRICTION IS THE WHOLE PROOF. Under a
+ *  disjunction the guard is NOT redundant: in `not na(x) and (x <= 3 or close >
+ *  open)` an `x` that is `na` makes the left arm falsy but the right arm can still
+ *  be true, so dropping the guard would turn a false into a true. Walking only
+ *  through `and` is what keeps "the comparison is falsy whenever x is na" a
+ *  statement about the WHOLE expression.
+ */
+function comparesNameAsConjunct(node, name) {
+  if (!node) return false
+  if (node.type !== 'binary') return false
+  if (node.op === 'and') {
+    return comparesNameAsConjunct(node.left, name)
+      || comparesNameAsConjunct(node.right, name)
+  }
+  // ⚠️ THE FOUR INEQUALITIES ONLY. `==` and `!=` against `na` are also falsy in
+  // Pine, so they would be sound too — they are left out because nothing in any
+  // corpus writes them and an unexercised branch of a soundness argument is a
+  // liability, not a feature.
+  if (!own(FLIP, node.op)) return false
+  const isName = (n) => !!n && n.type === 'name' && n.name === name
+  return isName(node.left) || isName(node.right)
 }
 
 /** The CONDITION inside a one-argument `barssince(...)`, in either spelling.
@@ -2405,6 +2652,93 @@ function contextBoundedPlan(node) {
 
   return null
 }
+
+/** ⭐⭐ A RUN-LENGTH COUNTER, WHICH IS A BOUNDED QUESTION WEARING UNBOUNDED CLOTHES.
+ *
+ *      var int downRun = 0
+ *      downRun := close < close[1] ? downRun + 1 : 0
+ *      ... downRun >= 3
+ *
+ *  `downRun` reads as a running total and refuses at `pine:state` — the update
+ *  arm `self + 1` never forgets its seed, so `forgetsItsSeed` answers NO and it
+ *  is RIGHT to: folding it into `accum` would draw a rolling window over the
+ *  warm-up rather than a counter. But the counter is never OBSERVED unbounded.
+ *  Compared against a whole number K, only the last K bars can decide it.
+ *
+ *  ⭐ THE IDENTITY, and it is exact rather than close. `x[t] = c[t] ? x[t-1]+1 : 0`
+ *  makes `x[t]` the length of the maximal run of true `c` ending at t, so
+ *  `x >= n`  ⟺  `c and c[1] and … and c[n-1]`.
+ *  Where the run reaches back past the first bar the counter reads `seed + t + 1`
+ *  and the conjunction reads all-true — they agree, because a run that long
+ *  already contains n true bars. The only bars where a seed could disagree are
+ *  the first n-1, which are inside this tree's own `maxLookback` and therefore
+ *  NOT COMPUTABLE either way. ⛔ A NEGATIVE SEED WOULD BREAK THAT — it could hold
+ *  the counter under n on the first bar the tree can answer — so the seed must be
+ *  a non-negative whole number, checked rather than assumed.
+ *
+ *  ⛔ THIS WIDENS NO VOCABULARY. `downRun` bare still refuses with the
+ *  `pine:state` sentence, and so does `downRun` compared against another series:
+ *  what is recognised is the one shape in which the unbounded part provably
+ *  cannot be observed — exactly the rule `contextBoundedPlan` states for
+ *  `ta.barssince` and `ta.obv`.
+ *
+ *  Returns `{ cond, invert }`; `invert` marks the `c ? 0 : self + 1` spelling,
+ *  whose run is over `not c`. */
+function runLengthShape(node, name) {
+  if (!node || node.type !== 'ternary') return null
+  // ⚰️ BOTH SPELLINGS OF "THIS COUNTER'S PREVIOUS BAR" ARE ACCEPTED, AND THE
+  // FIRST TWO DRAFTS EACH TOOK ONLY ONE. A `state` binding's `update` still holds
+  // the bare NAME the member typed (`downRun + 1`) — the walker has not rewritten
+  // it — while `selfref` is what the other stateful path emits. Matching one and
+  // not the other declines every script this rule exists to serve while reading as
+  // if it were working.
+  const isSelf = (n) => !!n && ((n.type === 'name' && n.name === name) || n.type === 'selfref')
+  // ⚠️ THE INCREMENT MUST BE EXACTLY ONE. `self + 2` counts something real but it
+  // is not a run length, and `>= n` over it is a different question.
+  const increments = (arm) => {
+    if (!arm || arm.type !== 'binary' || arm.op !== '+') return false
+    return (isSelf(arm.left) && litInt(arm.right) === 1)
+      || (litInt(arm.left) === 1 && isSelf(arm.right))
+  }
+  const resets = (arm) => litInt(arm) === 0
+  if (increments(node.yes) && resets(node.no)) return { cond: node.test, invert: false }
+  if (resets(node.yes) && increments(node.no)) return { cond: node.test, invert: true }
+  return null
+}
+
+/** The SIGNED number a canonical node is, or null.
+ *
+ *  ⚰️ `litInt`-STYLE `type === 'num'` CANNOT SEE A NEGATIVE ONE, and that made
+ *  the seed check below a gate that could not fail. `cNum` emits a negative
+ *  literal as `u-` applied to a positive one — because that is what the text this
+ *  module prints re-parses to — so `var int n = -5` resolved to an `op`, missed
+ *  the `num` test, and declined for the WRONG REASON. Mutation testing is what
+ *  found it: relaxing `seedValue < 0` changed no test result, which is the
+ *  signature of protection nobody has seen fire.
+ */
+function signedNum(node) {
+  if (!node) return null
+  if (node.type === 'num') return Number(node.value)
+  if (node.type === 'op' && node.name === 'u-' && Array.isArray(node.args)
+      && node.args.length === 1 && node.args[0] && node.args[0].type === 'num') {
+    return -Number(node.args[0].value)
+  }
+  return null
+}
+
+/** ⛔ THE EXPANSION IS THE COST, AND IT IS PAID IN NODES. A run of K becomes K
+ *  copies of the condition, so a member's `downRun >= 500` would be five hundred
+ *  subtrees for one column. Past this ceiling the rewrite DECLINES and the
+ *  ordinary `pine:state` refusal stands, which is the honest outcome: a counter
+ *  that deep is a running total in everything but name. Real scripts ask for
+ *  three, five, ten. */
+export const PINE_RUN_LENGTH_MAX = 60
+
+/** ⛔ THE SAME COST IN THE SAME COIN: `obv` against its own n-bar average
+ *  expands to n-1 `obvN` calls. A member asking for a two-hundred-bar average of
+ *  OBV is asking for two hundred subtrees in one column, and past this the rule
+ *  declines and the standing `obv` ruling is what they read. */
+export const PINE_OBV_WINDOW_MAX = 100
 
 function parseExpression(cur, minBp = 0) {
   let left = parseUnary(cur)
@@ -2585,7 +2919,15 @@ function parsePrimary(cur) {
     if (isPunct(cur.peek(), '(')) {
       cur.next()
       const args = parseArguments(cur)
-      return { type: 'call', name: tok.value, args, tok }
+      // ⭐⭐ THE CLOSING PAREN, REMEMBERED. `refusalValue` used to ship
+      // `span: null` with a note saying exactly this: "thinkScript's reader
+      // stamps it because its call nodes remember their closing paren; Pine's do
+      // not, so this door can offer the TEXT of a completion but not the PLACE
+      // to put it, and the member retypes it. Giving Pine's call nodes an
+      // `endTok` is the whole of what would change this." This is that.
+      // `parseArguments` consumes through the `)`, so the last token it ate IS
+      // the closing paren — the same way `thinkscript.js::parseCall` gets it.
+      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -3146,6 +3488,10 @@ const MAX_CALL_DEPTH = 24
 class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
+    /** The member's own script, when the caller passed it — an offer quotes
+     *  their text back rather than re-printing a tree, so what lands in the box
+     *  is what they wrote. */
+    this.source = typeof opts.source === 'string' ? opts.source : null
     this.table = table
     this.types = types || new Map()
     this.index = functionIndex(table)
@@ -3556,6 +3902,282 @@ class Resolver {
     }
   }
 
+  /**
+   * `<bound one-arg barssince> <cmp> <whole number>` as the bounded call, or null.
+   *
+   * ⛔⛔ THE WHOLE THING IS BUILT INSIDE `throughBinding`, AND THAT IS NOT A
+   * STYLE CHOICE. A binding carries its own `env`, which `throughBinding` swaps
+   * in for the callback and restores after. The condition inside
+   * `ta.barssince(cross)` is written in THAT env — `cross` may be a name that
+   * means something else, or nothing, where the comparison sits. Asking for the
+   * node here and resolving it out there would translate the right shape against
+   * the wrong scope, which is the class of bug that produces a confident wrong
+   * column rather than a refusal.
+   *
+   * ⭐ THE IDENTITY IS UNCHANGED — see `contextBoundedPlan`. `< K` and `>= K`
+   * take K bars; `<= K` and `> K` take K+1. Only the distance between the call
+   * and its bound differs.
+   */
+  /**
+   * The whole number a node IS, folding inputs and bindings — or null.
+   *
+   * ⚰️ `litInt` ALONE WAS NOT ENOUGH, and the blind corpus is what said so.
+   * Every one of those authors wrote the window as a knob:
+   *     within = input.int(3, "Max bars since cross")
+   *     ... age <= within
+   * so the bound is an `input` behind a binding, not a numeric token. The door
+   * already folds inputs to their defaults everywhere else — a window arm
+   * "RESOLVES its argument and then requires a `num`" — and TradingView's own
+   * screener does the same. This is that rule, reused rather than restated.
+   *
+   * ⛔ IT SWALLOWS A REFUSAL ON PURPOSE. Asking "is this a constant?" must not
+   * raise for an operand that simply is not one; the caller then declines the
+   * rewrite and the ordinary path produces the real refusal, with the real caret.
+   */
+  constIntOf(node) {
+    if (!node) return null
+    const direct = litInt(node)
+    if (direct !== null) return direct
+    let folded = null
+    try { folded = this.resolve(node) } catch { return null }
+    if (!folded || folded.type !== 'num') return null
+    const v = Number(folded.value)
+    return Number.isInteger(v) && v >= 0 ? v : null
+  }
+
+  boundedBarssinceThroughBinding(node) {
+    let { op, left, right } = node
+    if (!own(FLIP, op)) return null
+    // Either order, exactly as the direct shape allows.
+    if (this.constIntOf(left) !== null) { [op, left, right] = [FLIP[op], right, left] }
+    const k = this.constIntOf(right)
+    if (k === null || !left) return null
+    // ⚰️ A BARE IDENTIFIER IS A `name` HERE, NOT A `bound`. The `bound` shape
+    // exists, but binding lookup happens INSIDE `resolve` (`this.env.get(name)`),
+    // so at the comparison the operand is still the name the member typed. The
+    // first version of this method tested for `bound` only and changed nothing at
+    // all — the blind corpus scored identically before and after, which is how it
+    // was caught.
+    const binding = left.type === 'bound' ? left.binding
+      : left.type === 'name' ? this.env.get(left.name)
+        : null
+    if (!binding) return null
+    const window = (op === '<' || op === '>=') ? k : k + 1
+    if (window < 1) return null
+    const tableOp = PINE_OP_TO_TABLE[op]
+    if (!tableOp || !own(this.table.operators, tableOp)) return null
+
+    return this.throughBinding(binding, (b) => {
+      const cond = oneArgBarssince(b.node)
+      if (!cond) return null
+      return cOp(tableOp, [
+        cCall('barssince', [this.resolve(cond), cNum(window)]),
+        cNum(k),
+      ])
+    })
+  }
+
+  /**
+   * `<run-length counter> <cmp> <whole number>` as a bounded conjunction, or null.
+   *
+   * ⭐ IT IS THE SAME SHAPE AS `boundedBarssinceThroughBinding` AND FOR THE SAME
+   * REASON: members name the counter on one line and compare it on another, so a
+   * rule that needed both halves in one expression would see none of them.
+   *
+   * ⛔⛔ THE WHOLE THING IS BUILT INSIDE `throughBinding`. The update arm is
+   * written in the binding's OWN scope — `close < close[1]` may mean something
+   * else where the comparison sits — and resolving it out here would translate
+   * the right shape against the wrong env, which yields a confident wrong column
+   * instead of a refusal.
+   */
+  /**
+   * `obv <cmp> sma(obv, n)` as a bounded tree, or null.
+   *
+   * ⭐⭐ THE BASELINE CANCELS, WHICH IS WHY THIS IS AN IDENTITY AND NOT A
+   * CONVENIENCE. `ta.obv` is cumulative from the first bar and `obvN` is its only
+   * bounded form — the LEVEL has no absolute seed, so this engine cannot say what
+   * it IS. That is `_functions_excluded.obv`, and it stands. What it CAN say is
+   * how much OBV has CHANGED over k bars, which is `obvN(k)`, and an average of
+   * OBV over its own window is made only of such changes:
+   *
+   *     obv - sma(obv, n) = (1/n) · Σ(i=0..n-1) (obv - obv[i])
+   *                       = (1/n) · Σ(i=1..n-1) obvN(i)
+   *
+   * The i=0 term is zero, and every surviving term is a DIFFERENCE, so whatever
+   * the unknown baseline is it appears on both sides and disappears. n > 0, so
+   * multiplying through by n cannot flip the comparison and the tree is simply
+   *
+   *     Σ(i=1..n-1) obvN(i)   <cmp>   0
+   *
+   * ⛔ VERIFIED AGAINST AN ARBITRARY BASELINE rather than argued: the rails run
+   * the comparison over synthetic OBV series seeded at 0, at a million and at a
+   * negative number, and require the same answer on every bar of all three.
+   *
+   * ⚠️ n = 1 IS DECLINED. `sma(obv, 1)` is `obv`, so the comparison is a constant
+   * — there is no conjunction to build and nothing worth answering.
+   */
+  boundedObvAgainstOwnAverage(node) {
+    let { op, left, right } = node
+    if (!own(FLIP, op)) return null
+    if (!isBareObv(left)) {
+      // ⭐ EITHER ORDER: `sma(obv, 10) > obv` is the same screen written the
+      // other way round.
+      if (!isBareObv(right)) return null
+      const swap = left; left = right; right = swap
+      op = FLIP[op]
+    }
+    const lenNode = smaOfBareObv(right)
+    if (!lenNode) return null
+    const n = this.constIntOf(lenNode)
+    if (n === null || n < 2 || n > PINE_OBV_WINDOW_MAX) return null
+    const tableOp = PINE_OP_TO_TABLE[op]
+    if (!tableOp || !own(this.table.operators, tableOp)) return null
+    if (!own(this.table.functions, 'obvN')) return null
+    let sum = null
+    for (let i = 1; i < n; i++) {
+      const term = cCall('obvN', [cNum(i)])
+      sum = sum === null ? term : cOp('+', [sum, term])
+    }
+    return cOp(tableOp, [sum, cNum(0)])
+  }
+
+  /**
+   * `not na(X) and (X <cmp> K)` → the conjunction WITHOUT the guard, or null.
+   *
+   * ⭐⭐ THE GUARD IS REDUNDANT IN PINE, AND THAT IS AN IDENTITY RATHER THAN A
+   * SIMPLIFICATION. A comparison against `na` yields `na`, and `na` is falsy, so
+   * `X <= K` is ALREADY false whenever `X` is `na` — which is exactly what
+   * `not na(X)` was there to enforce. Both spellings answer false on the same
+   * bars, so dropping it changes no column.
+   *
+   * ⚰️ AND IT IS WHY FOUR SCRIPTS REFUSED. `ta.barssince(c)` bare is unbounded and
+   * refuses; `ta.barssince(c) <= K` is bounded and translates
+   * (`boundedBarssinceThroughBinding`). Every careful author writes the FIRST form
+   * beside the second —
+   *     age = ta.barssince(cross)
+   *     fresh = not na(age) and age <= within
+   * — so the `na(age)` reached `resolve` on its own, hit the unbounded refusal, and
+   * took the whole script down over a term that could not change the answer. The
+   * defensive spelling was strictly worse than the careless one.
+   *
+   * ⚠️ WHAT THIS DOES NOT CHANGE: this engine answers NOT COMPUTABLE where Pine
+   * answers false for a condition that never occurred in the window. That
+   * divergence belongs to the bounded `barssince` rewrite and is documented there;
+   * dropping a term that was false on exactly those bars neither creates it nor
+   * widens it.
+   */
+  naGuardDroppedFrom(node) {
+    if (node.op !== 'and') return null
+    const left = naGuardedName(node.left)
+    const name = left !== null ? left : naGuardedName(node.right)
+    if (name === null) return null
+    const other = left !== null ? node.right : node.left
+    if (!comparesNameAsConjunct(other, name)) return null
+    // ⛔⛔ ONLY WHEN THE GUARD IS WHAT STOPS THE SCRIPT, AND THE CORPUS IS WHY.
+    // The identity holds in PINE — a comparison against `na` is falsy either way —
+    // but it is NOT an identity in this engine: `!na(x) && x > k` answers a hard
+    // FALSE on a bar where `x` is blank, while `x > k` alone answers NOT
+    // COMPUTABLE. Those are different facts to a member ("it did not match" versus
+    // "we could not tell"), and `CoverageLine` exists to keep them apart.
+    //
+    // ⚰️ MEASURED: dropping it unconditionally rewrote `20-smc-toolkit-udt`, a
+    // script that already translated, turning explicit zeroes before the first
+    // pivot into blanks. So the trade is only taken where the alternative is NO
+    // COLUMN AT ALL — blanks on a few warm-up bars beat a refusal, and nothing
+    // that works today is touched.
+    let guardResolves = false
+    try {
+      this.resolve(left !== null ? node.left : node.right)
+      guardResolves = true
+    } catch { guardResolves = false }
+    if (guardResolves) return null
+    return this.resolve(other)
+  }
+
+  /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
+  stateBindingOf(node) {
+    if (!node || node.type !== 'name') return null
+    const b = this.env.get(node.name)
+    return b && b.kind === 'state' ? b : null
+  }
+
+  /**
+   * `<run-length counter> <cmp> <whole number>` as a bounded conjunction, or null.
+   *
+   * ⭐ IT IS THE SAME SHAPE AS `boundedBarssinceThroughBinding` AND FOR THE SAME
+   * REASON: members name the counter on one line and compare it on another, so a
+   * rule that needed both halves in one expression would see none of them.
+   *
+   * ⛔⛔ THE SEED AND THE CONDITION RESOLVE IN THEIR OWN ENVIRONMENTS, which are
+   * DIFFERENT ONES — the seed was written before the first `:=` and the update
+   * after it. That is the same care `resolveBinding`'s `state` arm takes, and
+   * sharing one env is how the update's own past would come to mean the
+   * accumulator. `throughBinding` cannot be reused here because it swaps
+   * `bound.env`, a key a `state` binding does not have.
+   */
+  boundedRunLengthThroughBinding(node) {
+    if (!own(FLIP, node.op)) return null
+    let op = node.op
+    let counter = node.left
+    let limit = node.right
+    let binding = this.stateBindingOf(counter)
+    if (!binding) {
+      // ⭐ EITHER ORDER. `3 <= downRun` is as ordinary as `downRun >= 3`, and a
+      // rewrite that saw one of them would be a coin-flip on whether a script
+      // translated. ⛔ THE COUNTER IS FOUND BY BINDING KIND, NEVER BY TRYING TO
+      // FOLD IT TO A NUMBER FIRST: folding it means RESOLVING it, and resolving
+      // it is the `pine:state` refusal this rule exists to decide not to need.
+      binding = this.stateBindingOf(limit)
+      if (!binding) return null
+      op = FLIP[op]
+      const swap = counter; counter = limit; limit = swap
+    }
+    const k = this.constIntOf(limit)
+    if (k === null) return null
+    // `>= K` and `< K` split at a run of K; `> K` and `<= K` split at K+1.
+    const run = (op === '>=' || op === '<') ? k : k + 1
+    if (run < 1 || run > PINE_RUN_LENGTH_MAX) return null
+    const shape = runLengthShape(binding.update, counter.name)
+    if (!shape) return null
+    const andOp = PINE_OP_TO_TABLE.and
+    if (!own(this.table.operators, andOp) || !own(this.table.operators, '!')) return null
+    if (this.stack.has(binding)) return null
+
+    this.stack.add(binding)
+    const prevEnv = this.env
+    try {
+      // ⭐ THE SEED IS CHECKED, NOT ASSUMED — see `runLengthShape` for why a
+      // negative one would disagree with this tree on the first bar it can answer.
+      this.env = binding.seedEnv || prevEnv
+      let seed = null
+      try { seed = this.resolve(binding.seed) } catch { return null }
+      const seedValue = signedNum(seed)
+      if (seedValue === null || !Number.isInteger(seedValue) || seedValue < 0) return null
+
+      this.env = binding.updateEnv || prevEnv
+      // ⚠️ A THROW FROM HERE IS DELIBERATELY LET OUT. By this point the shape and
+      // the seed are confirmed, so the condition IS the only thing between the
+      // member and a translation — and its own refusal names the real blocker,
+      // where declining would hand back the `pine:state` sentence about a counter
+      // that was never the problem.
+      const base = this.resolve(shape.cond)
+      // ⚠️ RESOLVED ONCE AND COPIED. Sharing one object across K positions puts
+      // the same node in a tree twice, which any walker that annotates in place
+      // would then read as one node visited twice.
+      const copy = () => JSON.parse(JSON.stringify(base))
+      let tree = null
+      for (let i = 0; i < run; i++) {
+        let term = shape.invert ? cOp('!', [copy()]) : copy()
+        if (i > 0) term = { type: 'offset', value: i, args: [term] }
+        tree = tree === null ? term : cOp(andOp, [tree, term])
+      }
+      return (op === '<' || op === '<=') ? cOp('!', [tree]) : tree
+    } finally {
+      this.stack.delete(binding)
+      this.env = prevEnv
+    }
+  }
+
   /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
    *  it rather than a translation of it — used by `stringValueOf`. Returns null
    *  wherever `resolveBinding` would refuse, because a question has no caret. */
@@ -3671,6 +4293,35 @@ class Resolver {
             return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
           }
         }
+        // ⭐⭐ …AND THROUGH A BINDING, WHICH IS HOW PEOPLE ACTUALLY WRITE IT.
+        // Measured on a corpus written blind to this engine: every one of the
+        // four `ta.barssince` scripts names the count first and compares it on a
+        // later line —
+        //     age = ta.barssince(cross)
+        //     ...
+        //     age <= 5
+        // — so the shape above, which needs the call and the literal in one
+        // expression, saw none of them. The identity is the SAME identity; only
+        // the distance between the two halves changed.
+        const viaBinding = this.boundedBarssinceThroughBinding(node)
+        if (viaBinding) return viaBinding
+        // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
+        // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
+        // the state this engine cannot hold is state the comparison never reads.
+        const viaRun = this.boundedRunLengthThroughBinding(node)
+        if (viaRun) return viaRun
+        // ⭐⭐ …AND OBV AGAINST ITS OWN AVERAGE IS BOUNDED FOR THE SAME REASON
+        // `obv > obv[k]` is: the comparison is made of DIFFERENCES, so the
+        // baseline this engine cannot know cancels. See
+        // `boundedObvAgainstOwnAverage`.
+        const viaObvAvg = this.boundedObvAgainstOwnAverage(node)
+        if (viaObvAvg) return viaObvAvg
+        // ⭐⭐ …AND A REDUNDANT `na` GUARD IS DROPPED BEFORE IT CAN REFUSE. Asked
+        // here, with the others, because resolving `na(age)` IS the unbounded
+        // `ta.barssince` refusal this is deciding not to need. See
+        // `naGuardDroppedFrom` for why the term cannot change the answer.
+        const viaNaGuard = this.naGuardDroppedFrom(node)
+        if (viaNaGuard) return viaNaGuard
         // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
         // BEFORE the operands are resolved, because resolving either of them is
         // the `pine:text-value` refusal this is deciding not to need.
@@ -4020,6 +4671,14 @@ class Resolver {
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
+      // shrug — the same precedence `_functions_excluded` takes over the
+      // sixty-four-name dump one layer down.
+      if (own(BUILTIN_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
+          locate(node.tok))
+      }
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
@@ -4110,7 +4769,46 @@ class Resolver {
       || (defined.kind === 'opaque' && defined.isFunction))
   }
 
+  /**
+   * `math.max(<expr>, syminfo.mintick)` — a refusal that can be TAKEN, not retyped.
+   *
+   * ⭐ EARNED BY MEASUREMENT: on a corpus written blind to this engine,
+   * `syminfo.mintick` was the most common blocker, and every one of its nine uses
+   * was this one idiom — a guard against dividing by a zero-range bar. This
+   * engine does not need the guard, because a zero denominator is reported as NOT
+   * COMPUTABLE rather than quietly replaced.
+   *
+   * ⛔ IT IS AN OFFER, NOT A REWRITE, AND THAT IS THE POINT. The two answers
+   * genuinely differ on a zero-range bar — Pine says 0, this engine says nothing —
+   * so the member CONSENTS by taking it. Doing it silently would be the
+   * look-alike this door refuses everywhere else.
+   *
+   * ⚠️ THE REPLACEMENT IS PARENTHESISED. Splicing a bare `high - low` into
+   * `(close - low) / math.max(high - low, syminfo.mintick)` would reassociate the
+   * division and answer a different number — a fix that silently breaks the
+   * expression it repairs.
+   */
+  mintickGuardOffer(node) {
+    if (node.name !== 'math.max' && node.name !== 'max') return null
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const isMintick = (n) => n && n.type === 'name' && n.name === 'syminfo.mintick'
+    const keep = isMintick(args[0].value) ? args[1].value
+      : isMintick(args[1].value) ? args[0].value : null
+    if (!keep) return null
+    const callSpan = spanOfNode(node)
+    const keepSpan = spanOfNode(keep)
+    if (!callSpan || !keepSpan || !this.source) return null
+    const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
+    if (!text) return null
+    return new PineRefusal('pine:builtin',
+      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_RULED['syminfo.mintick']}`,
+      locate(node.tok), `(${text})`, callSpan)
+  }
+
   resolveCall(node) {
+    const offer = this.mintickGuardOffer(node)
+    if (offer) throw offer
     const name = node.name
     const dot = name.indexOf('.')
     const ns = dot > 0 ? name.slice(0, dot) : null
@@ -4628,6 +5326,18 @@ class Resolver {
       const spelled = a.value && a.value.type === 'name' ? a.value.name : null
       if (spelled !== 'session.regular') return null
     }
+    // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
+    // ZERO was never read, so `ticker.new('BINANCE', 'BTCEUR', session.regular)`
+    // resolved to `sym('BTCEUR', …)` — a lookup against a US equity store for a
+    // series it does not hold — while the string spelling of the same request
+    // refused. `US_EQUITY_VENUES` is asked by both so one script cannot mean two
+    // things depending on how it was typed.
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      const isPrefix = a.name === 'prefix' || (!a.name && i === 0)
+      if (isPrefix && !venueArgIsServable(a.value)) return null
+    }
     for (let i = 0; i < args.length; i += 1) {
       const a = args[i]
       if (!a) continue
@@ -4694,9 +5404,15 @@ class Resolver {
     const tick = this.tickerCallArg(node)
     if (tick) return this.otherSymbolNameOf(tick, depth + 1)
     if (node.type === 'string') {
-      const ticker = String(node.value).trim().toUpperCase()
+      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+      // one string — see `tickerWithoutVenue` for why the venue is dropped and what
+      // that costs.
+      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+      // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
+      // disagree about one script.
+      const ticker = tickerWithoutVenue(String(node.value).trim().toUpperCase())
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
-      return TICKER_SHAPE.test(ticker) ? ticker : null
+      return ticker !== null && TICKER_SHAPE.test(ticker) ? ticker : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
@@ -6130,9 +6846,10 @@ function tupleRefusalTail(call, names, env) {
       return '`' + shown + '`' + ' is taken apart BY POSITION here, so its arguments have to '
         + 'be positional too — a named one could build the answer out of the wrong two'
     }
-    if (supplied.length !== spec.arity) {
-      return '`' + shown + '`' + ' takes ' + spec.arity + ' arguments and was given '
-        + supplied.length
+    const wanted = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
+    if (!wanted.includes(supplied.length)) {
+      return '`' + shown + '`' + ' takes ' + wanted.join(' or ')
+        + ' arguments and was given ' + supplied.length
     }
     if (names.length !== spec.parts) {
       return '`' + shown + '`' + ' answers with ' + spec.parts + ' values and '
@@ -6900,7 +7617,7 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned })
+      { finalBindings, finalLocals, mutated: reassigned, source })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -7299,7 +8016,7 @@ function verifyRoundTrip(formula, ast) {
 // refusal values
 // --------------------------------------------------------------------------- //
 
-function refusalValue(guard, message, at, suggest) {
+function refusalValue(guard, message, at, suggest, span) {
   return {
     guard,
     message,
@@ -7318,26 +8035,27 @@ function refusalValue(guard, message, at, suggest) {
     // Pine is fully documented — it is that this door had nothing to offer YET.
     suggest: suggest || null,
     /** ⭐ THE CHARACTERS A SUGGESTION WOULD REPLACE, `[from, to)` in the member's
-     *  own source — the key carried here for the same reason `suggest` is, and
-     *  with the same honesty about the value: this door does not name one YET.
+     *  own source. With both this and `suggest`, an offer is a CLICK rather than
+     *  a retype: `src.slice(0, span[0]) + suggest + src.slice(span[1])`.
      *
-     *  ⛔ THAT IS A MISSING CAPABILITY, NOT A PROPERTY OF PINE. thinkScript's
-     *  reader stamps it because its call nodes remember their closing paren
-     *  (`parseCall`); Pine's do not, so this door can offer the text of a
-     *  completion but not the place to put it, and the member retypes it. Giving
-     *  Pine's call nodes an `endTok` is the whole of what would change this.
+     *  ✅ THIS FIELD WAS HARD-NULL AND SAID WHY: "thinkScript's reader stamps it
+     *  because its call nodes remember their closing paren; Pine's do not, so
+     *  this door can offer the text of a completion but not the place to put it
+     *  — giving Pine's call nodes an `endTok` is the whole of what would change
+     *  this." That is done; Pine call nodes carry `endTok` and `spanOfNode`
+     *  turns a node into offsets.
      *
-     *  ⚠️ AND THE KEY IS HERE ANYWAY, because `a key present in one door and
-     *  absent in another is the divergence that contract exists to prevent` —
-     *  the sentence directly above, which this field is now the second instance
-     *  of rather than the first exception to. */
-    span: null,
+     *  ⚠️ STILL NULL WHEREVER A REFUSAL HAS NO NODE TO POINT AT. A span is a
+     *  claim about the member's source, so it is set only where the exact
+     *  characters to replace are known; an offer with a wrong span would edit
+     *  the wrong part of their script, which is worse than making them retype. */
+    span: span || null,
   }
 }
 
 function fromError(err) {
   if (err instanceof PineRefusal) {
-    return refusalValue(err.guard, err.message, err.at, err.suggest)
+    return refusalValue(err.guard, err.message, err.at, err.suggest, err.span)
   }
   return refusalValue('pine:statement',
     `${REFUSALS['pine:statement']} (${err && err.message ? err.message : err})`, null)

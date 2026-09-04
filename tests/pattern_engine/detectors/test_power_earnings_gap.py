@@ -94,7 +94,10 @@ def test_geometry_extras_richness():
                 "prior_close", "post_gap_high", "post_gap_low"):
         assert key in extras, f"missing geometry.extras.{key}"
 
-    # Sanity: gap signature respects the hard gates
-    assert extras["gap_pct"] >= 4.0
+    # Sanity: gap signature respects the hard gates (Phase 3A: floor raised
+    # 4%->8%, sourced to Bonde's "5+ points OR 8%+ gain"; see
+    # power_earnings_gap.py docstring)
+    assert extras["gap_pct"] >= 8.0
+    assert extras["gap_pct"] <= 100.0
     assert extras["gap_volume_ratio"] >= 3.0
     assert 3 <= extras["post_gap_bars"] <= 10

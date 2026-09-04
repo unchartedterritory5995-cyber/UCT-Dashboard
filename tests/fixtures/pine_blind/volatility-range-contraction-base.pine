@@ -1,0 +1,29 @@
+//@version=6
+indicator("Range Contraction Base")
+
+lookback = input.int(60, "Bandwidth lookback")
+bbLen    = input.int(20, "BB length")
+kcLen    = input.int(20, "KC length")
+
+bw = ta.bbw(close, bbLen, 2.0)
+kw = ta.kcw(close, kcLen, 1.5)
+
+bwLow    = bw <= ta.lowest(bw, lookback)
+insideKC = bw < kw
+
+tr      = ta.tr(true)
+trShort = ta.rma(tr, 5)
+trLong  = ta.rma(tr, 50)
+contracting = trShort / trLong < 0.7 and ta.falling(ta.rma(tr, 10), 3)
+
+hi20    = ta.highest(high, 20)
+lo20    = ta.lowest(low, 20)
+depth   = (hi20 - lo20) / hi20 * 100
+shallow = depth < 10 and close > hi20 * 0.96
+
+wkAtr       = request.security(syminfo.tickerid, "W", ta.atr(10))
+calmWeekly  = wkAtr / close * 100 < 8
+
+screen = bwLow and insideKC and contracting and shallow and calmWeekly and close > ta.sma(close, 200)
+
+plot(screen ? 1 : 0)

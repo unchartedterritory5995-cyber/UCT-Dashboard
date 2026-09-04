@@ -1,0 +1,16 @@
+//@version=6
+indicator("Rising MA Template")
+
+sma50  = ta.sma(close, 50)
+sma150 = ta.sma(close, 150)
+sma200 = ta.sma(close, 200)
+
+hi52 = ta.highest(high, 252)
+lo52 = ta.lowest(low, 252)
+
+order      = close > sma50 and sma50 > sma150 and sma150 > sma200
+allRising  = ta.rising(sma50, 10) and ta.rising(sma150, 20) and ta.rising(sma200, 20)
+nearHigh   = close >= hi52 * 0.75
+wellOffLow = close >= lo52 * 1.30
+
+plot(order and allRising and nearHigh and wellOffLow ? 1 : 0)
