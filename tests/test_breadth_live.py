@@ -28,6 +28,15 @@ import pytest
 
 from api.services import breadth_live as bl
 
+
+@pytest.fixture(autouse=True)
+def _no_levels_persist(monkeypatch):
+    """Levels/anchor disk persistence OFF by default so tests don't read/write real
+    snapshots or pollute each other via a shared file. The dedicated persistence
+    tests opt back in with their own tmp DATA_DIR."""
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)
+
+
 # The collector lives in a sibling repo and is NOT deployed with the dashboard,
 # so the drift check below runs only where it is checked out.
 COLLECTOR = Path(
@@ -649,6 +658,7 @@ def test_anchor_reflects_a_reheal_of_the_stored_row_without_force(monkeypatch):
     """
     from api.services import breadth_monitor as bm
     bl._anchor_cache.clear()
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)  # these test in-memory caching only
     # Bars price the full universe at the prior close on every call (unchanged).
     monkeypatch.setattr(bl, "_bars_conn", lambda: None)
     monkeypatch.setattr(bl, "_metrics_at_close",
@@ -679,6 +689,7 @@ def test_a_cold_anchor_build_is_not_cached_so_it_self_heals_when_bars_warm(monke
     """
     from api.services import breadth_monitor as bm
     bl._anchor_cache.clear()
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)  # these test in-memory caching only
     monkeypatch.setattr(bl, "_bars_conn", lambda: None)
     stored = {"date": "2026-08-31", "universe_count": 2602, "stage2_count": 470}
     monkeypatch.setattr(bm, "get_history", lambda days=30: [stored])
@@ -701,6 +712,53 @@ def test_a_cold_anchor_build_is_not_cached_so_it_self_heals_when_bars_warm(monke
     # And once warm, it IS cached (no third build).
     bl.anchor_basis(20260831, ["A", "B"])
     assert calls["n"] == 2, "a warm live_prev is cached"
+
+
+# ── restart survival: persist the prior-close levels + anchor to disk (2026-09-03) ──
+
+def test_levels_snapshot_survives_a_cold_rebuild(tmp_path, monkeypatch):
+    """The restart-survival core: a GOOD levels build is persisted, and a later COLD
+    build (few names priced) reloads that snapshot instead of serving the sliver —
+    which is what keeps the live row alive across a mid-session restart."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    good = {"as_of_ts": 20260902, "sma_ok": {200: np.ones(2000, bool)}, "marker": "GOOD"}
+    cold_ok = np.zeros(2000, bool); cold_ok[:18] = True
+    cold = {"as_of_ts": 20260902, "sma_ok": {200: cold_ok}, "marker": "COLD"}
+    assert bl._levels_coverage(good) == 2000
+    assert bl._levels_coverage(cold) == 18
+
+    bl._persist_levels(good)
+    assert bl._load_persisted_levels(20260902)["marker"] == "GOOD"
+    assert bl._load_persisted_levels(20260101) is None, "a snapshot for another day is ignored"
+    # a cold build below the floor must NOT clobber the good snapshot
+    bl._persist_levels(cold)
+    assert bl._load_persisted_levels(20260902)["marker"] == "GOOD"
+
+
+def test_anchor_snapshot_recovers_coverage_across_a_cold_build(tmp_path, monkeypatch):
+    """A warm anchor build is persisted; when the bars go cold (a restart) the fresh
+    build is a sliver, but the persisted snapshot restores full coverage — so the
+    live row stays anchored (not degraded) across the restart."""
+    from api.services import breadth_monitor as bm
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    stored = {"date": "2026-09-01", "universe_count": 2600, "stage2_count": 470}
+    monkeypatch.setattr(bm, "get_history", lambda days=30: [stored])
+
+    bl._anchor_cache.clear()
+    monkeypatch.setattr(bl, "_metrics_at_close",
+                        lambda conn, tickers, ts: {"universe_count": 2600, "stage2_count": 470})
+    assert bl.anchor_basis(20260901, ["A", "B"], force=True)["counts_anchored"] is True
+
+    # Bars go cold: the fresh build prices a sliver, but the snapshot recovers it.
+    bl._anchor_cache.clear()
+    monkeypatch.setattr(bl, "_metrics_at_close",
+                        lambda conn, tickers, ts: {"universe_count": 18, "stage2_count": 3})
+    b = bl.anchor_basis(20260901, ["A", "B"], force=True)
+    assert b["counts_anchored"] is True, "persisted anchor recovered coverage across the cold build"
+    assert b["coverage"] == 1.0
 
 
 def test_a_missing_basis_leaves_the_numbers_untouched():

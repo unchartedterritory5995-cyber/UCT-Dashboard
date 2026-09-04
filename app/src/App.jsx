@@ -18,6 +18,7 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
+import LogoPrewarm from './components/LogoPrewarm'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
@@ -107,7 +108,9 @@ const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/Insights
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
 const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/CommunitySurface'))
 const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
-const Community = lazy(() => import('./pages/community/CommunityPage'))
+// LOCAL REDESIGN PROTOTYPE — /community points at the new Floor design.
+// To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
+const Community = lazy(() => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
@@ -297,6 +300,10 @@ export default function App() {
         <Suspense fallback={null}>
           <GlobalAddPositionProvider />
         </Suspense>
+        {/* Warm the browser logo cache for the user's flagged + watchlist symbols
+            at app load, so opening a list paints real logos with no monogram flash.
+            Null render; no-op when logged out. */}
+        <LogoPrewarm />
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
         <RouteErrorBoundary>

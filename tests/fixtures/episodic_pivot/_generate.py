@@ -51,6 +51,7 @@ def _build_ep_bars(
     ep_range_ratio=3.0,              # EP bar range vs 20-bar avg
     ep_volume_ratio=4.0,             # EP bar volume vs 20-bar avg
     ep_close_strength=0.90,          # where in bar's range close lands
+    ep_gap_pct=0.15,                 # EP bar's opening gap vs prior close
     ep_breaks_base=True,             # EP close above base_high?
     ep_offset_from_end=0,            # 0 = EP is most recent bar, N = N bars ago
     trailing_bars_after_ep=0,        # bars after the EP (still recent)
@@ -108,17 +109,29 @@ def _build_ep_bars(
     ep_range_target = avg_range * ep_range_ratio
     ep_volume_target = avg_volume * ep_volume_ratio
 
-    # Place the EP bar so it breaks above base_top (or doesn't, per param)
+    # Phase 6 Group 3 (2026-09-03): the EP bar's OPEN is anchored to
+    # ep_gap_pct above the prior bar's actual close -- decoupled from
+    # whether the bar breaks the base, so ep_gap_pct=0 reproduces the
+    # exact defect class (a same-day range-expansion breakout with a
+    # near-zero opening gap) while still clearing every other gate via
+    # the bar's own range expansion. The bar opens AT its low (a clean
+    # bar that only extends upward intraday, no early give-back) so the
+    # low is always exactly the gap-anchored open, never independently
+    # re-clamped.
+    prior_close = bars[-1]["c"]
+    ep_open_target = prior_close * (1.0 + ep_gap_pct)
+
     if ep_breaks_base:
-        # Low at slightly above base_top, range extends above
-        ep_low_target = base_top * 1.001
+        ep_low_target = ep_open_target
+        ep_high_target = ep_low_target + ep_range_target
     else:
-        # Low inside base, doesn't break
+        # Low inside base, doesn't break — the gap dimension isn't under
+        # test here.
         ep_low_target = base_price - half_range * 0.3
-    ep_high_target = ep_low_target + ep_range_target
+        ep_high_target = ep_low_target + ep_range_target
+        ep_open_target = ep_low_target + ep_range_target * max(0.05, ep_close_strength - 0.4)
     # Close position within the bar
-    ep_close_target = ep_low_target + ep_range_target * ep_close_strength
-    ep_open_target = ep_low_target + ep_range_target * max(0.05, ep_close_strength - 0.4)
+    ep_close_target = ep_low_target + (ep_high_target - ep_low_target) * ep_close_strength
 
     ep_bar = {
         "t": t,
@@ -279,7 +292,7 @@ def main():
     _write("long_base_modest_ep", "positive",
            _build_ep_bars(
                base_bars=50, base_depth_pct=0.12,
-               ep_range_ratio=2.0, ep_volume_ratio=2.2,
+               ep_range_ratio=2.05, ep_volume_ratio=2.2,
                ep_close_strength=0.85, seed=4),
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0})
@@ -292,9 +305,48 @@ def main():
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 75.0, "max_confidence": 100.0})
 
-    # ===== 8 NEGATIVE — must NOT fire (or <50) =====
+    # Owner decision (2026-09-04): the gap-identity floor moved from 8%
+    # (Bonde 2010) to 4% (Bonde 2014, his own later revision) after a
+    # blinded owner-adjudication review of 5 real live cases (BRBS 4.3%,
+    # EDIT 4.5%, WPM 5.2%, RXRX 6.0%, NVAX 6.3%). This fixture pins a
+    # synthetic case in that exact 4-8% band -- it must now SURVIVE, where
+    # it was correctly refused under the old 8% floor.
+    _write("boundary_band_5pct_gap", "positive",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=3.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.05, seed=45),
+           GOOD_CONTEXT,
+           {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0})
+
+    # The same band's FLOOR must still hold: a gap just under 4% is still
+    # not a real gap event under either published Bonde number and must
+    # stay refused.
+    _write("below_4pct_gap_still_refused", "negative",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=12.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.03, seed=46),
+           GOOD_CONTEXT,
+           {"fires": False})
+
+    # ===== 9 NEGATIVE — must NOT fire (or <50) =====
     _write("no_base", "negative",
            _build_random_walk_bars(n_bars=80, seed=10),
+           GOOD_CONTEXT,
+           {"fires": False})
+
+    # Phase 6 Group 3 (2026-09-03): the EXACT reproduced defect class -- a
+    # geometrically perfect EP (range/volume/close-strength/breakout all
+    # clear their gates) that is a SAME-DAY range-expansion breakout with
+    # ZERO opening gap. 23 of 26 currently-firing live cases measured this
+    # way on 2026-09-03 (gap_pct from -0.1% to 6.3%, all below the 8%
+    # floor). This must now be refused.
+    _write("no_gap_range_expansion_only", "negative",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=12.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.0, seed=44),
            GOOD_CONTEXT,
            {"fires": False})
 
@@ -372,6 +424,22 @@ def main():
                ep_close_strength=0.85, seed=21),
            GOOD_CONTEXT,
            {"fires": True, "min_confidence": 50.0, "max_confidence": 90.0})
+
+    # Owner decision 2026-09-04 (8pct->4pct): a gap just above the new 4%
+    # floor must fire. NOTE: this generator's cent-level price rounding
+    # means ep_gap_pct is a TARGET, not an exact output (measured ~4.09%
+    # here, not 4.00%) -- the mathematically exact `<` boundary test
+    # (gap_pct == 0.04 precisely) is a hand-crafted case in
+    # tests/pattern_engine/detectors/test_group3_event_semantics.py
+    # instead, where round-number prices avoid this fixture generator's
+    # rounding noise entirely.
+    _write("boundary_gap_near_4pct", "edge",
+           _build_ep_bars(
+               base_bars=25, base_depth_pct=0.10,
+               ep_range_ratio=3.0, ep_volume_ratio=4.0,
+               ep_close_strength=0.90, ep_gap_pct=0.041, seed=47),
+           GOOD_CONTEXT,
+           {"fires": True, "min_confidence": 50.0, "max_confidence": 100.0})
 
     print("\nDone - 15 fixtures written.")
 

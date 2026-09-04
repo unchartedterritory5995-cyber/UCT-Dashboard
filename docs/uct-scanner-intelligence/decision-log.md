@@ -194,3 +194,115 @@ rather than invent one, every changed constant/gate is tagged
 `tests/test_no_second_authority_across_axes.py` (8 passed) green. Diff
 review confirms only the 7 target detector files + their fixtures/tests
 changed — no unrelated production behavior touched.
+
+## Phase 6, Group 3 — episodic_pivot gap-identity threshold: owner decision 8% → 4%
+**Date:** 2026-09-04
+**Branch:** `phase6-package-b-group3` (Package B, isolated, unmerged — requires its own owner-review gate per Phase 6's authorization)
+
+### Background
+Phase 6 Group 3 (2026-09-03) added a real gap-identity gate to `episodic_pivot.py`
+(previously the detector extracted `ep_open` but never used it — see that
+section of this log / the Phase-6 report for the full defect). The gate was
+implemented at `_MIN_GAP_PCT = 0.08`, sourced to Bonde's 2010 Stockbee post.
+Phase-6 revalidation (closure report, 2026-09-03) found this number was not
+the only one Bonde himself published: his own 2014 process-flow post gives
+4% (`c/c1 > 1.04`). Of the 23 cases the 8% gate removed from a full-universe
+pre-registration scan, 5 (BRBS 4.3%, EDIT 4.5%, WPM 5.2%, RXRX 6.0%,
+NVAX 6.3%) sat specifically in the 4%-8% band — clearing Bonde's looser,
+later number but not his stricter, earlier one. This was flagged as a
+genuine sourced ambiguity, not a code defect, and escalated for an owner
+decision rather than resolved unilaterally.
+
+### Competing definitions
+| Source | Threshold | Note |
+|---|---|---|
+| Bonde, 2010 Stockbee post ("What are Episodic Pivots and how to find them") | 8%+ (or $5+/pt, OR'd) | His original published EP scan |
+| Bonde, 2014 process-flow post | 4%+ (`c/c1 > 1.04`) | Same author, same named setup, later revision — not a second coexisting tier |
+| Kullamägi (Qullamaggie) | 10%+ | Independent, explicitly-derivative variant; not part of this specific choice between Bonde's two numbers |
+
+No source in the corpus frames 4% vs. 8% as an identity/quality split (a
+looser floor for "still an EP but lower quality") — the honest read is that
+Bonde revised his own operational definition over time.
+
+### Evidence: blinded owner adjudication
+Five real live cases (the 4-8% band) were presented to the owner as a
+blinded chart-pattern review (ticker, dates, and structural facts shown;
+threshold values, engine output, and source recommendation withheld) via
+an artifact (`docs/uct-scanner-intelligence/tier1_validation/
+blinded_ep_review.html`). The owner was unable to independently verify
+chart-pattern identity from the material shown and explicitly directed
+recording `Identity: YES` for all five as a non-independent placeholder
+rather than a genuine chart read. Because a uniform answer cannot
+discriminate between the 4% and 8% interpretations (every case in the band
+would get the same label regardless of which specific case was shown),
+this was **not** treated as evidentiary for the threshold choice — see the
+Phase-6 Revalidation Closure Report and the Package-A-merge/Package-B-
+adjudication report for the full transcript of that reasoning, disclosed
+transparently to the owner at the time.
+
+### Owner decision
+**Move `_MIN_GAP_PCT` from 0.08 to 0.04.** Basis: Bonde is the detector's
+own cited origin; his 2014 figure is his own later revision of his 2010
+figure; keeping the superseded number over his self-updated one needed a
+justification that was never found. Decision made and approved by the
+owner 2026-09-04, independent of the placeholder blind-adjudication input
+above.
+
+### Implementation
+`api/services/pattern_engine/detectors/uct/episodic_pivot.py`:
+`_MIN_GAP_PCT = 0.08` → `0.04`, docstring/geometric-definition comments
+updated to match. Two new fixtures added to the test-first battery
+(`tests/fixtures/episodic_pivot/boundary_band_5pct_gap.json` — a 5% gap
+case that must now fire, confirmed to FAIL under the pre-change 8% floor
+before the fix, per test-first discipline; `below_4pct_gap_still_refused.json`
+— a 3% gap case that must stay refused under either interpretation, as a
+control). No other file touched — `power_earnings_gap.py` and `context.py`
+diffed at zero lines against the prior Package-B commit.
+
+### Revalidation
+- All 5 target cases (BRBS/EDIT/WPM/RXRX/NVAX) confirmed REFUSED pre-change,
+  SURVIVES post-change, matching the owner decision. This is the strong,
+  deterministic evidence for the change — synthetic-fixture inputs, exact
+  and reproducible.
+- Deterministic fixture battery (test-first): `boundary_band_5pct_gap.json`
+  (5% case, confirmed to FAIL under the pre-change 8% floor before the fix)
+  and `below_4pct_gap_still_refused.json` (3% control, refused under either
+  interpretation) both pass as specified. A precise, hand-built boundary
+  test (`test_gap_gate_boundary_is_inclusive_at_exactly_4_percent` +
+  neighbors, exact round-number prices, no fixture-generator rounding
+  noise) confirms the gate's `<` comparison is inclusive at exactly 4.00%
+  — added after independent review flagged that "clearly above" (5%) and
+  "clearly below" (3%) cases alone don't pin the exact operator semantics.
+- Full-universe rescan (3693 symbols, same universe as the original
+  pre-registration): firing count 3→7 (was 26 pre-Group-3-gap-gate, 3 under
+  8%, 7 under 4%), with no firing outside the already-characterized 26-case
+  set. **Caveat, not a controlled experiment:** `C:\data\bars.db` is a
+  live, continuously-updated mirror, and it advanced between the original
+  pre-registration scan and this revalidation (both run within the same
+  long session) — so this is a live-data sanity check corroborating the
+  deterministic evidence above, not a frozen, strictly-controlled
+  before/after comparison. The deterministic fixtures are what actually
+  establish the threshold's correctness; the rescan shows no unexpected
+  live-universe consequence, no more and no less.
+- One expected case (EL, one of the original 3 survivors under 8%) no
+  longer fires in the rescan — confirmed benign: its EP bar aged past the
+  detector's 5-bar recency window because bars.db advanced ~11 trading days
+  between the two scans. Its underlying gap_pct (11.24%) is unchanged and
+  still valid; only its "recent" status expired, which is the detector's
+  intended behavior for a live-scan freshness gate, not a threshold defect
+  — this is exactly the kind of data-currency artifact the caveat above
+  exists to name.
+- Evidence: `docs/uct-scanner-intelligence/tier1_validation/data/
+  phase6_group3_owner_4pct_revalidation_2026-09-04.json`.
+
+### Full regression
+`tests/pattern_engine/` (2355 passed, 9 pre-existing unrelated xfails) +
+Compass/scheduler consumer set (64 passed) green. `power_earnings_gap.py`
+and `context.py` confirmed untouched (zero diff).
+
+### Reversibility
+Single-constant change (`_MIN_GAP_PCT`), fully reversible by reverting one
+line; no schema, migration, or irreversible state change involved. Not yet
+merged — remains on `phase6-package-b-group3`, pending the Package-B
+owner-review gate covering the whole Group-3 correction (gap gate +
+earnings-linkage disclosure), not just this threshold sub-decision.

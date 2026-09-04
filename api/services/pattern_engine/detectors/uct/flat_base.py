@@ -6,7 +6,7 @@ one of the highest-success continuation patterns. After a stock has
 demonstrated institutional sponsorship via a strong prior advance
 (>=25%), price enters a tight horizontal consolidation (<=12% depth)
 for 15+ bars on contracting volume. The breakout from a flat base
-above the pivot (=base high) frequently produces 18-30% follow-through.
+fires above the pivot (=base high) on expanding volume.
 
 Geometric definition:
   - Prior advance: >=25% gain in the 60 bars preceding the base
@@ -31,6 +31,7 @@ from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.narrative_helpers import dcr_interpretation, dcr_phrase
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
@@ -79,6 +80,14 @@ def detect_flat_base(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Flat Base patterns. May emit 0-N detections (best one)."""
     # Need enough bars for prior advance + base + a final unbroken edge
     if len(bars) < (_PRIOR_ADVANCE_LOOKBACK // 2 + _MIN_BASE_BARS + 1):
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Reproduced live: a
+    # synthetic $0.35/share series with ~$750/day dollar volume fired at
+    # confidence 67.6, shipping "institutional sponsorship" narrative —
+    # neither this file nor base_catalog.py's flat_base_state/
+    # ascending_base_state gated on price or liquidity anywhere.
+    if not liquidity_floor(bars).passes:
         return []
 
     last_idx = len(bars) - 1
@@ -577,13 +586,11 @@ def _build_detection(bars, c, confidence, context,
         f"the base averaged {first_half_vol_avg:,.0f} shares per bar, the second half "
         f"averaged {second_half_vol_avg:,.0f}, a {vol_contraction_pct:.1f}% decline that tells "
         f"you patient buyers are mopping up shares while overhead supply quietly exhausts itself. "
-        f"Kristjan Kullamägi has built a substantial portion of his playbook around what he "
-        f"calls 'the 4-week-tight base' — a refinement of O'Neil's flat-base read where the "
-        f"final 4 weeks of consolidation show closes inside a 3-4% range — and treats this "
-        f"as his core trigger structure for momentum entries. The 4-week-tight is functionally "
-        f"the late-cycle tight phase of a longer flat base, and identifying it inside a "
-        f"longer O'Neil-style base is one of the highest-edge structural reads in modern "
-        f"growth-stock trading."
+        f"IBD's own material publishes a close cousin of this read under the name "
+        f"'three-weeks-tight' (sometimes stretching into a fourth week) — the shortest "
+        f"structure IBD assigns a buy point to, and the same underlying idea this flat "
+        f"base is built on: price going quiet on light volume is the tell that supply "
+        f"has been absorbed and the next leg is being set up."
     )
 
     why_it_matters = (
@@ -591,9 +598,9 @@ def _build_detection(bars, c, confidence, context,
         f"{rs_phrase} relative strength versus the broader market — the textbook context "
         f"O'Neil's CAN SLIM framework demands before a flat-base trigger is worth acting on. "
         f"The {prior_advance_pct_pct:.1f}% advance over {prior_advance_bars} bars qualifies "
-        f"this as an institutional-sponsorship name; flat bases on stocks that gained 25%+ "
-        f"before basing produce 18-30% follow-through with high frequency in O'Neil's "
-        f"historical studies. The base's {base_depth_pct:.1f}% depth is comfortably inside "
+        f"this as an institutional-sponsorship name, the prerequisite IBD's own material "
+        f"requires before a flat base counts as a continuation setup rather than a "
+        f"distribution top. The base's {base_depth_pct:.1f}% depth is comfortably inside "
         f"the 12% maximum, and the {base_bars}-bar duration sits in the {quality_zone} "
         f"range (15-35 bars is optimal; shorter is whipsaw-prone, longer is fatigue-prone "
         f"and frequently breaks down rather than out). Volume contraction of "

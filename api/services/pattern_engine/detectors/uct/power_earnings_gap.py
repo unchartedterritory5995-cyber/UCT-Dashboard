@@ -5,17 +5,32 @@ A Power Earnings Gap is a gap-up event where a stock gaps significantly
 post-gap consolidation. The combination of price gap + volume surge + tight
 post-gap action signals that institutions are aggressively buying the new
 fundamentals (typically post-earnings, but also FDA approvals, acquisitions,
-guidance raises). PEGs frequently extend 30-100% over the following 4-12
-weeks because the gap creates a clean break above all prior overhead supply.
+guidance raises). The gap creates a clean break above all prior overhead
+supply, which is why holding it without a fill is treated as a bullish tell.
 
-Gap-size calibration (Phase 3A, 2026-09-02): Bonde's own 2010 Stockbee post
-defines the qualifying gap as "a price move of 5+ points OR 8%+ gain" — an
-OR of an absolute-dollar move and a percentage move. This detector has only
-ever had a single percentage-based gate, so the correction adopts the
-percentage branch (8%) as that gate's floor rather than inventing a new
-dollar-based alternate condition (out of scope for a narrow calibration fix).
-This is stricter than Bonde's rule for high-priced names that would clear
-"5+ points" below 8% — a known, accepted limitation, not an oversight.
+Gap-size calibration (Phase 3A, 2026-09-02): Bonde's 2010 Stockbee post
+"What are Episodic Pivots and how to find them" defines a qualifying gap as
+"a price move of 5+ points OR 8%+ gain" — an OR of an absolute-dollar move
+and a percentage move. That post describes Bonde's Episodic Pivot setup, not
+a Power-Earnings-Gap-specific writeup; Bonde has never published a gap-size
+threshold under the "Power Earnings Gap" name, so this detector reuses his
+EP number as the closest sourced calibration reference available. This
+detector has only ever had a single percentage-based gate, so the correction
+adopts the percentage branch (8%) as that gate's floor rather than inventing
+a new dollar-based alternate condition (out of scope for a narrow calibration
+fix). This is stricter than Bonde's EP rule for high-priced names that would
+clear "5+ points" below 8% — a known, accepted limitation, not an oversight.
+
+Earnings linkage (Phase 6 Group 3, 2026-09-03): despite the name, this
+detector could never actually verify a gap was earnings-driven — it is a
+pure price/gap/volume/hold heuristic. `context.get('days_to_earnings')` is
+now real when a caller supplies it (see context.py) and this detector's
+narrative honestly states whether the linkage is verified, contradicted, or
+unavailable for each candidate (`_earnings_linkage_phrase`) rather than
+implying verification that never happened. The production universe scan
+does not yet supply this hint (see context.py's docstring for why), so in
+production today every PEG narrative currently reads as unverified — this
+is the honest state, not a regression.
 
 Geometric definition:
   - Detection window: last 30 bars (PEG must be recent)
@@ -45,6 +60,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
@@ -71,6 +87,14 @@ _CONFIDENCE_FLOOR = 50.0
 def detect_power_earnings_gap(bars: List[Bar], context: dict) -> List[Detection]:
     """Detect Power Earnings Gap patterns. Emits 0 or 1 detection."""
     if len(bars) < _AVG_LOOKBACK + _MIN_POST_GAP_BARS + 1:
+        return []
+
+    # Phase 6 Group 2: hard liquidity/price-floor gate. Only degenerate-
+    # input guards existed before this (prior_close<=0) — no price floor,
+    # no dollar-volume floor. Reproduced live: a synthetic $0.45 stock on
+    # 150K-480K share volume fired at confidence 78.62 with full
+    # entry/stop/target levels.
+    if not liquidity_floor(bars).passes:
         return []
 
     last_bar_idx = len(bars) - 1
@@ -404,6 +428,43 @@ def _rs_trend_phrase(context: dict) -> str:
     return "neutral"
 
 
+def _earnings_linkage_phrase(context: dict) -> str:
+    """Phase 6 Group 3 (2026-09-03): honestly state whether the earnings
+    linkage this detector's own name claims has actually been verified.
+
+    `context.get('days_to_earnings')` is real when a caller supplies it
+    (build_context's days_to_earnings_hint) and honestly `None` otherwise
+    — see context.py's module docstring for why this detector cannot look
+    it up itself. This detector was previously a pure price/volume/hold
+    heuristic that could not distinguish an earnings gap from any other
+    gap despite its name; this function makes that distinction explicit
+    rather than silently implying verification that never happened.
+    """
+    days = context.get("days_to_earnings")
+    if days is None:
+        return (
+            "No earnings-date data was available for this evaluation, so the "
+            "'earnings' half of this pattern's name is UNVERIFIED for this "
+            "candidate — treat it as a price/volume/hold gap-continuation "
+            "setup until a reported earnings date near the gap confirms the "
+            "catalyst."
+        )
+    if -5 <= days <= 1:
+        return (
+            f"An earnings report {abs(days)} day"
+            f"{'s' if abs(days) != 1 else ''} "
+            f"{'before' if days > 0 else 'ago from' if days < 0 else 'on'} "
+            f"this gap is on record, which is what actually earns this "
+            f"pattern its name rather than a generic gap-and-hold."
+        )
+    return (
+        f"The nearest earnings report on record is {abs(days)} days "
+        f"{'away' if days > 0 else 'in the past'} — too far from this gap to "
+        f"be its cause, so this specific gap does NOT verify as "
+        f"earnings-driven even though earnings-date data exists for the name."
+    )
+
+
 def _regime_context_sentence(context: dict, c: dict) -> str:
     """One-sentence regime/context connector for the narrative."""
     regime = context.get("regime", "current")
@@ -499,24 +560,18 @@ def _build_detection(bars, c, confidence, context,
         f"into a tight consolidation that holds above the gap-up open. The "
         f"{post_gap_bars}-bar post-gap action here has averaged {post_gap_range_pct:.2f}% "
         f"daily range, well inside the gap bar's {gap_range_pct:.2f}% range - that "
-        f"contraction is the supply-absorbed tell. Bonde's research shows PEGs that hold "
-        f"the gap for 3-10 bars before breaking out frequently extend 30-100%+ over the "
-        f"following 4-12 weeks. Kristjan Kullamägi has published extensive empirical work "
-        f"on earnings-driven gaps in liquid growth names, finding that PEGs in stocks "
-        f"already in confirmed uptrends with relative strength above the broader market "
-        f"have the highest follow-through profile of any swing setup he tracks. Mark "
-        f"Minervini's 'earnings breakout' rules — a clean gap-up on volume followed by "
-        f"a tight 3-7 bar consolidation above the gap-open — align almost exactly with "
-        f"Bonde's PEG criteria, suggesting that two independent traditions of empirical "
-        f"momentum research have converged on the same structural read."
+        f"contraction is the supply-absorbed tell: buyers who chased the gap have not "
+        f"been shaken out, and sellers testing the gap have not been able to push price "
+        f"back into the prior range. {_earnings_linkage_phrase(context)}"
     )
 
     why_it_matters = (
         f"This PEG is forming in {stage_phrase} with {ma_phrase} moving-average alignment "
         f"and {rs_phrase} relative strength versus the broader market, which is supportive "
         f"context for continuation. The {gap_pct_pct:.1f}% gap on {volume_ratio:.1f}x "
-        f"volume crossed both of Bonde's hard gates - 4% minimum gap and 3x minimum "
-        f"volume - with significant margin, indicating this isn't a borderline event but "
+        f"volume crossed both of this detector's hard gates - {_MIN_GAP_PCT * 100:.0f}% "
+        f"minimum gap and {_MIN_VOLUME_RATIO:.0f}x minimum volume - with significant "
+        f"margin, indicating this isn't a borderline event but "
         f"a high-conviction institutional move that's already been ratified by the tape. "
         f"The fact that the gap has held for {post_gap_bars} bars without a fill (the "
         f"closest test came within {gap_fill_pct:.2f}% of the gap-up open at "
@@ -594,6 +649,11 @@ def _build_detection(bars, c, confidence, context,
                 "post_gap_high": round(post_gap_high, 2),
                 "post_gap_low": round(post_gap_low, 2),
                 "gap_range_pct": round(gap_range_pct, 2),
+                "days_to_earnings": context.get("days_to_earnings"),
+                "earnings_linkage_verified": (
+                    context.get("days_to_earnings") is not None
+                    and -5 <= context.get("days_to_earnings") <= 1
+                ),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),
                 **structure_extras(c),
             },

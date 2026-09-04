@@ -85,6 +85,16 @@ def store_detection(d: Detection) -> None:
     last_seen_at + confidence + status (whichever the engine last computed)."""
     hk = _hash_key(d["sym"], d["tf"], d["pattern_id"], d["start_t"], d["end_t"])
 
+    # Phase 8 Package 8C: serialize the canonical Eligibility section when the
+    # caller's Detection carries one. NotRequired means "may be absent" — a
+    # Detection that never went through canonical_adapter.adapt_* simply has
+    # no "eligibility" key, and this writes NULL, the honest "not persisted
+    # for this row" state (never a fabricated True/False). This function
+    # only serializes what it's given; it is not itself an eligibility
+    # engine — no detector or scheduled job currently populates this key
+    # (see canonical_adapter.py's own module docstring).
+    eligibility_json = json.dumps(d["eligibility"]) if "eligibility" in d else None
+
     conn = get_connection()
     try:
         conn.execute("""
@@ -92,12 +102,12 @@ def store_detection(d: Detection) -> None:
               id, sym, tf, pattern_id, category, direction,
               start_t, end_t, confidence,
               quality_json, geometry_json, levels_json, context_json, narrative_json,
-              status, detected_at, last_seen_at, hash_key
+              status, detected_at, last_seen_at, hash_key, eligibility_json
             ) VALUES (
               ?, ?, ?, ?, ?, ?,
               ?, ?, ?,
               ?, ?, ?, ?, ?,
-              ?, ?, ?, ?
+              ?, ?, ?, ?, ?
             )
             ON CONFLICT(hash_key) DO UPDATE SET
               confidence    = excluded.confidence,
@@ -107,7 +117,8 @@ def store_detection(d: Detection) -> None:
               context_json  = excluded.context_json,
               narrative_json = excluded.narrative_json,
               status        = excluded.status,
-              last_seen_at  = excluded.last_seen_at
+              last_seen_at  = excluded.last_seen_at,
+              eligibility_json = excluded.eligibility_json
         """, (
             d["id"], d["sym"], d["tf"], d["pattern_id"], d["category"], d["direction"],
             d["start_t"], d["end_t"], d["confidence"],
@@ -116,7 +127,7 @@ def store_detection(d: Detection) -> None:
             json.dumps(d["levels"]),
             json.dumps(d["context"]),
             json.dumps(d["narrative"]),
-            d["status"], d["detected_at"], d["last_seen_at"], hk,
+            d["status"], d["detected_at"], d["last_seen_at"], hk, eligibility_json,
         ))
         conn.commit()
     finally:
@@ -125,7 +136,7 @@ def store_detection(d: Detection) -> None:
 
 def _row_to_detection(row) -> dict:
     """Reconstitute a Detection dict from a sqlite row."""
-    return {
+    d = {
         "id": row["id"],
         "sym": row["sym"],
         "tf": row["tf"],
@@ -149,6 +160,17 @@ def _row_to_detection(row) -> dict:
         "detected_at": row["detected_at"],
         "last_seen_at": row["last_seen_at"],
     }
+    # Phase 8 Package 8C: eligibility_json is NULL for every row written
+    # before this column existed, and for every row no adapter has ever
+    # enriched — in both cases the honest reconstruction is an ABSENT
+    # "eligibility" key (matching NotRequired), never a fabricated value.
+    # `row["eligibility_json"]` access requires a `SELECT *`-shaped row
+    # (true for every caller of this function today: get_active_detections
+    # and get_detection_by_id both use `SELECT *`).
+    eligibility_json = row["eligibility_json"]
+    if eligibility_json is not None:
+        d["eligibility"] = json.loads(eligibility_json)
+    return d
 
 
 def get_active_detections(
