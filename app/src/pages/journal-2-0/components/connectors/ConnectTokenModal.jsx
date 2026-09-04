@@ -15,6 +15,17 @@
  * BrokerConnectionsCard's consent panel. A required checkbox gates
  * `canSubmit` alongside the credential fields, and `consent: true` rides in
  * the connect POST body — the backend router 400s a connect without it.
+ *
+ * One-way disclosure (honesty audit, 2026-09-04): the OAuth path
+ * (`ConnectConsentPanel`) and the device path (`ObsidianConnectModal`) both
+ * tell the member up front that the sync is one-way (nothing is ever
+ * written back) and that attachments come along where the provider
+ * supports them — this token path (roam/craft) had NO such line at all, even
+ * though both providers implement `fetch_media` (attachments ARE pulled)
+ * and neither `NoteProvider` implementation anywhere in this system has a
+ * write-back method — every registered provider is pull-only by
+ * construction. The disclosure below matches ConnectConsentPanel's copy so
+ * a member reads the same promise regardless of which connect UI they hit.
  */
 import { useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
@@ -135,6 +146,12 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
             </p>
           </>
         )}
+
+        <p className={styles.helpText}>
+          We pull your {providerLabel} notes (and attachments where supported) into
+          the Notebook — one-way, nothing is ever written back to {providerLabel}.
+          Disconnect anytime; imported notes stay.
+        </p>
 
         <label className={styles.consentCheck}>
           <input

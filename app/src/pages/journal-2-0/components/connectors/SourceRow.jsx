@@ -8,6 +8,19 @@
  * A `DELETE /{provider}` on this repo's contract is provider-scoped (spec
  * §8), so disconnecting any one source disconnects the whole provider; the
  * confirm copy says so when the provider has more than one source.
+ *
+ * `onReconnect` (member-reachability fix, 2026-09-04): `freshnessLabel`
+ * below has always rendered "reconnect needed" for `status === 'broken'`,
+ * but nothing in this row could ever act on it — Sync now just re-runs the
+ * same failing credentials, and the only other control was Disconnect. The
+ * backend already supports healing a broken connector without disconnecting
+ * first (`connections.upsert_connector` / the OAuth callback both flip
+ * `'broken' -> 'active'` on a fresh connect — see
+ * `note_connectors/connections.py`'s own docstring), so the label was
+ * promising a recovery path this row had no button for — the exact
+ * "built, green, and unreachable" shape this codebase keeps re-shipping.
+ * `onReconnect` re-opens the SAME connect flow (token modal / OAuth
+ * consent) the provider tile's initial "Connect" button uses.
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
@@ -39,7 +52,7 @@ function freshnessLabel(source) {
   return 'not synced yet'
 }
 
-export default function SourceRow({ source, providerSourceCount = 1, onSync, onTogglePause, onDisconnect }) {
+export default function SourceRow({ source, providerSourceCount = 1, onSync, onTogglePause, onDisconnect, onReconnect }) {
   const [syncing, setSyncing] = useState(false)
   const [pauseBusy, setPauseBusy] = useState(false)
   const [armed, setArmed] = useState(false)
@@ -102,9 +115,28 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
         {conflicts > 0 && <Stat label="Conflicts" value={conflicts} warn />}
       </div>
 
+      {/* A count with no path to act on it is not reachable, just visible
+          (task brief: reachability, not rendering). A conflict is a real,
+          normal Notebook note — the engine tags BOTH the original and the
+          new version `sync-conflict` (note_connectors/engine.py's own
+          `_reroute_resolved_body_to_sibling`) rather than silently overwriting —
+          so the resolution path already exists (the Notebook's own tag
+          filter), it was just never named here. */}
+      {conflicts > 0 && (
+        <p className={styles.conflictHint}>
+          Conflicting versions are tagged <code>sync-conflict</code> in your
+          Notebook — open the Tags panel to review and keep the one you want.
+        </p>
+      )}
+
       {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
 
       <div className={styles.sourceActions}>
+        {source.status === 'broken' && onReconnect && (
+          <button type="button" className="btn btn-primary" onClick={() => onReconnect(source)}>
+            Reconnect
+          </button>
+        )}
         <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
           {syncing ? 'Syncing…' : 'Sync now'}
         </button>
