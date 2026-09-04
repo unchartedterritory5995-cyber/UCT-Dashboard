@@ -124,8 +124,10 @@ def test_peg_why_it_matched_mirrors_gate_trace_exactly(name, detection):
     gate_trace = detection["gate_trace"]
 
     assert len(facts) == len(gate_trace)
-    for i, (fact, gate) in enumerate(zip(facts, gate_trace)):
-        assert fact["supporting_evidence"] == f"gate_trace[{i}]"
+    for fact, gate in zip(facts, gate_trace):
+        # supporting_evidence cites the gate's own stable criterion_id, never
+        # its ordinal position in the list (ChatGPT relay review, 2026-09-04).
+        assert fact["supporting_evidence"] == f"gate_trace[criterion_id={gate['criterion_id']}]"
         assert fact["claim_type"] == "direct"
         assert str(gate["observed_value"]) in fact["label"]
         assert gate["criterion_name"] in fact["label"]
@@ -219,6 +221,11 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         neutral_fact = next(f for f in warnings if f["fact_id"] == "historical_score_neutral_prior")
         assert neutral_fact["claim_type"] == "qualified"
         assert "neutral prior" in neutral_fact["label"]
+        assert "unavailable" in neutral_fact["label"]
+        # ChatGPT relay review (2026-09-04): the raw score must never appear —
+        # a UI could mistake "50.0" for a measured percentage even inside a
+        # disclaiming sentence, so the fact states absence, not a value.
+        assert "50" not in neutral_fact["label"]
 
 
 @pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")

@@ -16,18 +16,31 @@ underlying evidence did not actually support):
      re-derivation of a field already on the Detection — no generation, no
      synthesis, no free text beyond a fixed template filled with real values.
 
-  2. NO DETECTOR RECALCULATION. This module never re-implements a detector's
-     own judgment about what counts as "good context." Where the detector
-     already exposes that judgment as a separately-callable function
-     (`_dcr_score_adjustment`, `_can_slim_score_adjustment` — identical in
-     both detector modules, verified by direct read), this module calls that
-     SAME function on the Detection's own stored `context`, so a "strength"
-     fact can never drift from what the detector itself would compute. Where
-     no such separable function exists (e.g. the trend-stage/MA-alignment
-     bonus logic is inlined inside each family's own monolithic
-     `_score_context`), this module does NOT invent an equivalent judgment —
-     it omits the fact rather than risk silently diverging from the
-     detector's real scoring.
+  2. NO DUPLICATED DETECTOR LOGIC. This module never re-implements a
+     detector's own judgment about what counts as "good context." Where the
+     detector already exposes that judgment as a separately-callable
+     function (`_dcr_score_adjustment`, `_can_slim_score_adjustment` —
+     identical in both detector modules, verified by direct read), this
+     module calls that SAME function against the Detection's own stored
+     `context` rather than a materialized fact already on the Detection
+     (ChatGPT relay review, 2026-09-04: this is real runtime re-derivation
+     from stored inputs, not a bare field read — described precisely rather
+     than folded into "no recomputation"). Where no such separable function
+     exists (e.g. the trend-stage/MA-alignment bonus logic is inlined inside
+     each family's own monolithic `_score_context`), this module does NOT
+     invent an equivalent judgment — it omits the fact rather than risk
+     silently diverging from the detector's real scoring.
+
+     KNOWN, ACCEPTED LIMITATION (relay review): calling the detector's
+     CURRENT helper against a historical Detection means an old Detection
+     could be re-explained through a newer helper version if the detector
+     module changes — a version-drift risk. Not a blocker today, since the
+     canonical production path is still dormant and every Detection this
+     module ever sees today is built and explained in the same process run.
+     A real requirement before broad live/historical explanation use, at
+     which point some detector-version provenance (not yet modeled anywhere
+     in this engine) would need to gate which helper version explains a
+     given historical Detection.
 
   3. GEOMETRY/EXPLANATION CONSISTENCY. `why_it_matched` facts read the exact
      same `geometry.extras` keys the Package-8D chart geometry adapter reads
@@ -160,16 +173,25 @@ _GATE_RESULT_POLARITY = {"pass": "supports", "fail": "weakens", "weak": "weakens
 
 
 def _peg_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """One fact per `gate_trace` entry (ChatGPT relay review, 2026-09-04):
+    `supporting_evidence` cites the gate's own `criterion_id` — a stable
+    semantic identifier GateEvaluation already carries — rather than the
+    entry's ordinal position in the list, which identifies position, not
+    identity, and isn't safe as a durable reference. Reading `gate` straight
+    out of the same `gate_trace` list this loop is iterating means the
+    reference can never point at the wrong gate by construction; there is no
+    separate lookup step that could drift from it."""
     gate_trace = detection.get("gate_trace") or []
     facts: list[ExplanationFact] = []
     for i, gate in enumerate(gate_trace):
         polarity = _GATE_RESULT_POLARITY.get(gate.get("result"), "neutral")
+        criterion_id = gate.get("criterion_id", str(i))
         facts.append(_fact(
-            f"peg_gate_{gate.get('criterion_id', i)}", "identity", "direct",
+            f"peg_gate_{criterion_id}", "identity", "direct",
             f"{gate.get('criterion_name', 'gate')}: observed "
             f"{gate.get('observed_value')} vs. required {gate.get('operator', '')} "
             f"{gate.get('expected_value')} — {gate.get('result')}.",
-            f"gate_trace[{i}]", polarity, i + 1,
+            f"gate_trace[criterion_id={criterion_id}]", polarity, i + 1,
         ))
     return facts
 
@@ -378,11 +400,15 @@ def _warning_facts(detection: Detection) -> list[ExplanationFact]:
 
     quality = detection.get("quality_components") or {}
     if quality.get("historical_score") == 50.0:
+        # ChatGPT relay review (2026-09-04): don't surface the raw neutral-
+        # prior number at all — a UI could mistake "50.0" for a measured
+        # percentage even inside a disclaiming sentence. State the absence
+        # of evidence instead of a value that looks like a measurement.
         facts.append(_fact(
             "historical_score_neutral_prior", "warning", "qualified",
-            "The historical-performance score (50.0) is a neutral prior, not a "
-            "measured win rate for this specific setup — do not read it as "
-            "backtested performance.",
+            "Historical outcome evidence is unavailable for this specific "
+            "setup — the historical-performance component is an unscored "
+            "neutral prior, not a measured win rate.",
             "quality_components.historical_score", "warning", p,
         ))
         p += 1
