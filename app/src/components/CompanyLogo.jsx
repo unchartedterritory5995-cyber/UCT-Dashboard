@@ -79,12 +79,21 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
   }
   const handleError = () => scheduleRetry(retry)
 
-  // Optional resolution hints for non-US tickers (company name + exchange-suffixed
-  // symbol) so the backend can fall back to name→domain / alt-symbol logo sources.
+  // Cache-key hygiene — this is what makes a logo INSTANT on first view. The FIRST
+  // request is always the bare `?v=` URL: identical across every surface (watchlist /
+  // calendar / theme / Model Book) AND every browser, so it shares ONE Cloudflare edge
+  // + browser-cache entry per symbol and resolves as a fast HIT. `name`/`alt` are only
+  // resolution HINTS the backend needs for a COLD non-US ticker (no logo under the bare
+  // symbol); sending them on EVERY request forked the cache key per-company-name, which
+  // forced a cold origin MISS on first view and — a whole watchlist's worth firing at
+  // once — the 1-2s batch pop-in. So attach them ONLY on a retry, i.e. after the bare
+  // request came back as the transparent placeholder (the rare cold/foreign path).
   const q = [`v=${LOGO_ASSET_VERSION}`]
-  if (name) q.push(`name=${encodeURIComponent(name)}`)
-  if (alt) q.push(`alt=${encodeURIComponent(alt)}`)
-  if (retry) q.push(`_r=${retry}`)   // cache-bust the 60s placeholder so the retry re-hits the server
+  if (retry) {
+    q.push(`_r=${retry}`)   // cache-bust the placeholder so the retry re-hits the server
+    if (name) q.push(`name=${encodeURIComponent(name)}`)
+    if (alt) q.push(`alt=${encodeURIComponent(alt)}`)
+  }
   const src = `/api/ticker-logo/${s}?${q.join('&')}`
 
   return (
