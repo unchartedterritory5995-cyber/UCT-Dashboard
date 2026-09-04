@@ -984,6 +984,34 @@ export function setBarsHistorySplitEnabled(on) {
 }
 if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
 
+// ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
+// The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
+// (`_histFire` needs fetchDepth > FIRST_PAINT_BARS). So a cold browser's first-ever view of a
+// ticker paints only the ~600-bar tail until it's scrolled back. This gate fires the edge
+// fetch ON first paint too — full history from the 2ms Cloudflare edge, no pan required — for
+// a standalone backgroundWarm D/W/M chart whose IDB isn't already deep (a warm-deep browser
+// renders full history via _splitDeepUsable already, so it's skipped: no redundant fetch).
+// Separate per-browser canary from the split rollout so it ramps + reverts independently.
+// Ship DARK at 0; owner opt-in `window.__uctBarsHistoryFP(true)`; ramp = raise the constant.
+// At PCT=0 with no opt-in, _firstPaintEdgeEnabled() is false everywhere → byte-identical.
+export const BARS_HISTORY_FIRST_PAINT_PCT = 0
+export function _firstPaintEdgeEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistoryFP.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    return _barsHistoryBucket() < BARS_HISTORY_FIRST_PAINT_PCT   // reuses the split gate's stable bucket
+  } catch { return false }
+}
+export function setFirstPaintEdgeEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsHistoryFP.enabled', '1')
+    else localStorage.removeItem('uct.barsHistoryFP.enabled')
+    window.dispatchEvent(new Event('uct-barshistory-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdgeEnabled
+
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
 // sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
@@ -4833,24 +4861,44 @@ export default function StockChart({
     && !_hasOverride && !replayCutoff && !_pinnedFull
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
   const _primaryBars = _splitOn ? Math.min(barCount, FIRST_PAINT_BARS) : barCount
-  // Deep sealed history from the edge — only once the user has panned PAST the first-paint
-  // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
-  // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
+  // Fix 2 (first-paint edge, gated dark): fire the edge deep-history fetch on FIRST PAINT for a
+  // standalone backgroundWarm D/W/M chart whose IDB is NOT already deep — a cold browser's
+  // first-ever view then shows full sealed history from the 2ms edge, no pan required. A
+  // warm-deep browser renders full history via _splitDeepUsable (Fix 1) with no edge fetch, so
+  // skip it there. _deepFirstPaint already scopes to backgroundWarm standalone D/W/M (grid cells
+  // pass backgroundWarm=false → excluded → viewport-first preserved). At PCT=0 this is false.
+  const _idbAlreadyDeep = idbBars?.length > FIRST_PAINT_BARS
+  const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _firstPaintEdgeEnabled()
+  // Deep sealed history from the edge — after the user pans PAST the first-paint tail
+  // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
   const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-    && fetchDepth > FIRST_PAINT_BARS
+    && (fetchDepth > FIRST_PAINT_BARS || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
   // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
   // makes it immutable + self-refreshing. Falls back to no `d` (short cache) if we can't yet
   // read a sealed bar — still correct, just not immutable for that one request.
   let _histSealedDate = ''
-  if (_histFire && Array.isArray(idbBars) && idbBars.length) {
+  if (_histFire) {
     const _cut = _etPeriodStartISO(resolvedTf)
-    if (_cut) {
+    if (_cut && Array.isArray(idbBars) && idbBars.length) {
       for (let i = idbBars.length - 1; i >= 0; i--) {
         const _t = idbBars[i]?.t
         if (typeof _t === 'string' && _t.length === 10 && _t < _cut) { _histSealedDate = _t; break }
       }
+    }
+    // Fix 2 cold fallback: a cold browser has no idbBars to derive the sealed date from. `d` is a
+    // cache KEY only (the server always returns its current sealed set regardless), so a miss just
+    // short-caches the same correct data. For DAILY, the barspack build session (localStorage
+    // 'barspack.version', ISO "YYYY-MM-DD") equals the server's last_sealed on any day after the
+    // pack built → the cold first paint STILL hits the globally pre-warmed immutable edge object.
+    // W/M dating differs from a daily session, so leave d empty there (short cache) rather than
+    // pass a guaranteed mismatch. Gated by _histFirstPaint → inert at PCT=0.
+    if (!_histSealedDate && _histFirstPaint && resolvedTf === 'D' && _cut) {
+      try {
+        const _pv = localStorage.getItem('barspack.version')
+        if (typeof _pv === 'string' && _pv.length === 10 && _pv < _cut) _histSealedDate = _pv
+      } catch { /* ignore */ }
     }
   }
   const histUrl = _histFire
@@ -5017,14 +5065,17 @@ export default function StockChart({
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
     if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
+    // Fix 2 cold-race: on first paint (Fix 2) histData can arrive BEFORE the /api/bars tail
+    // establishes idbBars. Bail now, but idbBars is in the deps → this re-runs the moment the
+    // tail lands and completes the merge (instead of dropping the deep history until a pan).
     if (!cur?.length) return                                       // wait for the tail to establish the series
     const merged = mergeDelta(histData.bars, cur)
-    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
+    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint (idempotent on re-run)
     idbBarsRef.current = merged
     setIdbBars(merged)
     idbPut(sym, resolvedTf, merged)
     memPut(sym, resolvedTf, merged)
-  }, [histData])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
