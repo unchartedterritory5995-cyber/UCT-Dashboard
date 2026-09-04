@@ -1025,6 +1025,11 @@ if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdge
 // already a no-op — _deepFirstPaint loaded full up front). Ship DARK at 0; owner opt-in
 // window.__uctIntradaySmooth(true); ramp = the constant. Instant revert = 0 / opt-out.
 export const INTRADAY_SMOOTH_SWITCH_PCT = 0
+// Default intraday history depth under smooth-switch: open showing WEEKS of history in ONE stable
+// paint (5m≈7-8wk, 1m≈1.5wk, 60m≈2yr), not the ~600-bar/3.5-day window that looked empty and not
+// the janky 20-32k deep-bump re-anchor. Deeper history still loads on pan (the pan-backfill). Rides
+// the smooth-switch gate; at PCT=0/opt-out barCount is byte-identical (Math.max(fetchDepth,600)).
+export const INTRADAY_DEFAULT_BARS = 3000
 export function _intradaySmoothSwitchEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradaySmooth.enabled') : null
@@ -4680,6 +4685,15 @@ export default function StockChart({
   const [_fpDwellReady, _setFpDwellReady] = useState(false)
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
+  // Intraday default depth (Phase 3'): under smooth-switch, an intraday chart's first paint shows
+  // WEEKS of history (INTRADAY_DEFAULT_BARS) in ONE stable fetch — not the ~600-bar/3.5-day window.
+  // barCount takes max(fetchDepth, _fpBars): the initial fetch is _fpBars deep (no 600→deep blink),
+  // fetchDepth stays 600 so the 30s delta-poll still works, and a pan grows fetchDepth past _fpBars
+  // → deeper full fetch (natural re-anchor). Non-intraday / flag-off → _fpBars = FIRST_PAINT_BARS
+  // (600), and max(fetchDepth, 600) === fetchDepth → byte-identical.
+  const _fpBars = (['1', '5', '15', '30', '60'].includes(resolvedTf) && _intradaySmoothSwitchEnabled())
+    ? Math.min(_fullTarget, INTRADAY_DEFAULT_BARS)
+    : FIRST_PAINT_BARS
   const _overlayActive = !!(
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
@@ -4714,7 +4728,7 @@ export default function StockChart({
   // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
   const _deepFirstPaint = backgroundWarm && !barsOverridePending
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
-  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : fetchDepth
+  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
 
   // Intraday refetches more often to keep candles current during market hours
   const isIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -4917,6 +4931,13 @@ export default function StockChart({
   // intermediate depth MUST also full-fetch or it would delta-fetch nothing. The
   // bar count grows and the existing same-ticker re-anchor holds the view steady.
   if (fetchDepth > FIRST_PAINT_BARS || _pinnedFull) _sinceParam = null
+  // Phase 3' deep default: if the cached intraday tail is SHALLOWER than the weeks-deep target
+  // (_fpBars, e.g. a name cached at the old 600-bar depth), a since= delta can't backfill the
+  // older bars — force a full fetch so it heals to the deeper default on its next view. Self-
+  // limits: once the full fetch caches ≥ _fpBars bars, this is false and the 30s delta-poll
+  // resumes (a genuinely thin name < _fpBars keeps full-fetching, but that's a small cheap set
+  // and the no-op render guard suppresses any repaint). _fpBars is FIRST_PAINT_BARS off-gate → inert.
+  if (isIntraday && Array.isArray(idbBars) && idbBars.length < _fpBars) _sinceParam = null
   // Custom (non-native) timeframe → the native path fetches nothing; the isolated
   // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
