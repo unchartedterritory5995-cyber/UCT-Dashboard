@@ -52,14 +52,53 @@ owner confirms otherwise — read freely, do not write there.
   `phase-b2-engine`, `indicator-endzone`, `candle-library`, `screener-deep-work`, `patterns-retire`,
   `live-scan-retire`). Answers establishment items 2–6 above. Read-only. Status: dispatched, awaiting
   result.
-- **Agent — Pine/thinkScript Translation Layer Archaeologist.** Scope: find and characterize the actual
-  current Pine/thinkScript parser/translator/evaluator/pattern-engine code on `origin/master`; reconcile
-  memory's "Pine parity ceiling 17/21" (dated 2026-08-12) against the master prompt's cited 38/38 · 43/58
-  · 21/48 · 28/48 figures (same benchmark evolved, or different benchmarks entirely — currently unknown);
-  determine whether the translation layer is strictly an *import* door (member already has a script) or
-  has drifted into a user-facing *authoring* surface (would conflict with DEC-002 — flagged as an
-  immediate high-priority finding if so); locate the "manifest" that `Segment G6: the member's grammar
-  reference` was generated from. Read-only. Status: dispatched, awaiting result.
+- **Agent — Pine/thinkScript Translation Layer Archaeologist. DONE.** Major findings:
+  - **Q1 (authoring-surface risk) resolved, high confidence: no conflict with DEC-002.** The translation
+    layer is structurally an import door only — raw Pine/thinkScript/PCF source is transient (parsed
+    client-side, never persisted); only the canonical AST is saved, through one write door
+    (`nativeRegistry.installUserDefinitions`). `PineBox.jsx`'s own header states this explicitly ("A
+    MODE, NOT A FOURTH BUILDER"). The one soft residual risk DEC-002 itself names (free-text editing of
+    *canonical* source) is not present today — members only edit *pre-translation* paste text.
+  - **The manifest = `app/src/components/chart/engine/ast/closedTable.json`** (169KB). Single writer, two
+    synchronized runtime readers (`interpret.js` JS, `ast_table.py`/`ast_interpret.py` Python), each
+    AST-walked by its own test to forbid a hand-copied vocabulary string — a real anti-drift mechanism.
+    `vocabulary.js` generates the member-facing `/formulas/reference` docs from it (the "Segment G6"
+    commit, confirmed), and `definition_concierge.py`'s AI tool schema is separately generated from the
+    same manifest. **Master-prompt MP-066 (docs derived from engine capability metadata) is already
+    substantially satisfied — predates this program.**
+  - **Correction to the ledger's TC2000 gap flag (MP-014C):** `pcf.js` (`parsePcf`) exists in the same
+    `engine/ast/` directory as the Pine/thinkScript parsers, and `tests/fixtures/ast/pcf_corpus.json`
+    exists with `accepted`/`offset_dependent`/`refused` buckets. TC2000/PCF is **not** greenfield — it has
+    an existing parser and test corpus, same as the other two doors. The ledger-construction fork's
+    "zero evidence" finding was accurate to what it could see from the master-prompt text and light repo
+    grounding, but incomplete — this is exactly the kind of cross-check multiple independent agents are
+    supposed to catch. `REQUIREMENTS_LEDGER.md` MP-014C updated accordingly (see below).
+  - **Benchmark reconciliation — all five cited numbers (memory's 17/21, master prompt's 38/38 · 43/58 ·
+    21/48 · 28/48) are stale or mischaracterized, not current measurements.** 38/38 = the self-authored
+    `pine_screener/` control corpus. 21/48 → 28/48 = the externally-styled `pine_blind/` corpus, a moving
+    ratchet (was 17/48 earlier). 17/21 = confirmed real for `pine/` (21 vendor scripts) but was an 8/12
+    *projected ceiling*, since revised — the permanently-refused set grew 4→5 by 8/30, and the last dated
+    in-file comment showed 14/21 measured. 43/58 was **not found literally** in the repo; best-fit is
+    `doorScorecard.test.js`'s combined Pine+community+thinkScript corpus, whose denominator has grown
+    from a presumed 58 to **77** while a "≥43 translate" floor was never raised — meaning a quoted "43/58"
+    today would overstate the real pass rate. That same test file apparently carries its own explicit
+    warning against exactly this: *"41/75 SCRIPTS TRANSLATE IS NOT THE NUMBER, AND QUOTING IT
+    UNDERSTATES THE PRODUCT."* **No number should be quoted anywhere until re-measured live** — exact
+    repro commands are recorded, not yet run (see "Next steps").
+  - **Architecture — matches master-prompt §12's hypothesized shape and appears to predate it.** All five
+    input doors (§14: Pine, thinkScript, TC2000/PCF, plain-language via `ConciergeBox.jsx`, screenshot via
+    `ImageBox.jsx`) already exist as modes inside one `BuilderSheet.jsx`, funneling into one canonical AST,
+    one write door, two synchronized (JS + Python) execution kernels cross-checked at 1e-9 tolerance via
+    `tools/ast_conformance.py`. **This is a shipped realization of "one grammar, many surfaces," not an
+    open research question** — Phase Zero effort here is better spent auditing depth/correctness within
+    each door than re-deriving the shape.
+  - **Disambiguation:** the candlestick/chart-structure "pattern engine" (`api/services/pattern_engine/`,
+    feeding the Compass coaching product) is architecturally separate from this translation layer — shares
+    no code, only loose commit-message proximity. Do not conflate the two when reasoning about "the
+    translation layer."
+  - **Unconfirmed by this agent (in scope for the still-running program archaeologist):** whether
+    `indicator-endzone`, `phase-b1-foundations`, or `phase-b2-engine` worktrees contain divergent,
+    uncommitted changes to this same translation layer — this agent's read was restricted to origin/master.
 
 ## Not yet started (second wave candidates)
 
@@ -81,11 +120,22 @@ owner confirms otherwise — read freely, do not write there.
 
 ## Next steps once dispatched work returns
 
-1. Reconcile the two archaeology agents' findings into `CURRENT_ARCHITECTURE.md` and update this file's
-   establishment-list table.
-2. Resolve the 17/21 vs. 38/38·43/58·21/48·28/48 benchmark question explicitly — do not use either
-   number in any report until resolved.
+1. Reconcile the two archaeology agents' findings into `CURRENT_ARCHITECTURE.md` once both have landed.
+2. **Benchmark reproduction (MP-007) — repro commands identified, not yet run:**
+   ```
+   cd app
+   npx vitest run src/components/chart/engine/ast/doorScorecard.test.js
+   npx vitest run src/components/chart/engine/ast/pine.corpus.test.js
+   npx vitest run src/components/chart/engine/ast/pine.blindCorpus.test.js
+   npx vitest run src/components/chart/engine/ast/pine.screenerCorpus.test.js
+   npx vitest run src/components/chart/engine/ast/thinkscript.corpus.test.js
+   # Python cross-lane differential (deepest evidence class):
+   python tools/ast_conformance.py --check
+   python tools/ast_conformance.py --coverage
+   ```
+   No number from memory or the master prompt gets used in any report until these are actually run.
 3. Decide second-wave dispatches based on what's actually found (don't pre-commit further agents before
    seeing wave-one evidence, per master-prompt §61 "determine optimal parallelization after initial
    orientation").
-4. Commit this folder's contents once reviewed — nothing has been committed yet this session.
+4. Commit this folder's contents once reviewed — 3 commits landed so far this session (kickoff docs,
+   ledgers, this update).
