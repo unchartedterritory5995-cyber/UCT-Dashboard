@@ -33,11 +33,20 @@ owner confirms otherwise — read freely, do not write there.
 
 ## Dispatched this session (2026-09-04)
 
-- **Fork — Ledger construction.** Reads `00-MASTER-PROMPT.md` end to end, produces
-  `REQUIREMENTS_LEDGER.md` (every numbered item from the master prompt + addendum, categorized
-  MUST/SHOULD/RESEARCH/HYPOTHESIS/FUTURE/NON-GOAL per DEC-001/DEC-002) and `CONSTRAINT_LEDGER.md`
-  (non-negotiable constraints, master-prompt section cited as authority). Writes into this same
-  directory. Status: dispatched, awaiting result.
+- **Fork — Ledger construction. DONE.** `REQUIREMENTS_LEDGER.md` (120 rows) and `CONSTRAINT_LEDGER.md`
+  (19 entries) written and committed. Key findings:
+  - **Gap flagged, not yet resolved:** Door C (TC2000/PCF, MP-014C) is rated MUST by the master prompt
+    on the same footing as Pine/thinkScript, but zero repo evidence of any TC2000 work exists anywhere
+    (no branch/worktree/doc/commit) — unlike Pine and thinkScript, which both have real active
+    engineering behind them. Kept at MUST (master prompt's own authority) but repo-area marked "unknown,
+    may be greenfield." A TC2000 specialist should expect to start from zero, unlike the other two doors.
+  - Several rows flag "likely already partially satisfied by the 7/31 program — verify, don't reinvent"
+    (MP-016 one-saved-logic-object vs. 7/31 §3 definition schema; MP-052 versioning vs. §3.1's
+    version/compute.rev split; MP-032 Vendor Oracle Protocol vs. the "ruling(bbw/percentrank/median)"
+    commit pattern; MP-066 doc-from-metadata vs. the "Segment G6 ... generated from the manifest"
+    commit). This is a direct, expected consequence of DEC-001 — confirming "already satisfied" is as
+    valid a Phase Zero outcome as finding a gap, and the archaeology agents below should check these
+    specifically rather than treating them as open.
 - **Agent — Indicator Platform Program Archaeologist.** Scope: origin/master + the Indicator-Platform-
   adjacent worktrees under `C:\Users\Patrick\uct-worktrees\` (`phase-a-signature`, `phase-b1-foundations`,
   `phase-b2-engine`, `indicator-endzone`, `candle-library`, `screener-deep-work`, `patterns-retire`,
@@ -68,7 +77,7 @@ owner confirms otherwise — read freely, do not write there.
 - `00-MASTER-PROMPT.md` — verbatim source objective + addendum + reconciliation. Read first.
 - `DECISIONS.md` — DEC-001 (program scope), DEC-002 (no standalone scripting language, preserved).
 - `PROGRESS.md` — this file.
-- `REQUIREMENTS_LEDGER.md`, `CONSTRAINT_LEDGER.md` — pending (fork in flight).
+- `REQUIREMENTS_LEDGER.md` (120 rows), `CONSTRAINT_LEDGER.md` (19 entries) — done.
 
 ## Next steps once dispatched work returns
 
