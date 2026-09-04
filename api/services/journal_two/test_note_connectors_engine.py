@@ -1893,3 +1893,51 @@ async def test_a_healthy_pass_still_records_ok_and_clears_a_stale_error(source, 
         "a healthy sync left the previous failure's reason on the row -- the "
         "member keeps reading a stale error for a source that is now fine"
     )
+
+
+# ── A1's PARTIAL sibling: mixed batch, real import_confirm failure ──────────
+# `test_a_pass_that_stores_nothing_persists_warning_and_why` above proves the
+# TOTAL-loss shape (0 of N landed -> status must not read "ok"). Nothing in
+# this suite exercised the MIXED shape through a REAL `import_confirm`
+# rejection (as opposed to an engine-level `raise_on_fetch_*` mock): one note
+# lands, one is genuinely too large for `notes_svc._validate_body_json`'s
+# >1MB backstop and is isolated into `import_confirm`'s own `failed` bucket
+# (session-audit.md A1/A2's per-note SAVEPOINT). Two separate Rule-3
+# properties had never been proven together at the engine level: the healthy
+# sibling must not be poisoned, AND the cursor -- computed from `refs`, not
+# from what actually landed -- must not advance past the note that never
+# stored, even though it is chronologically the NEWER of the two.
+
+async def test_a_real_oversized_note_is_isolated_and_holds_the_cursor_back(source, provider):
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Fits Fine", updated_at="2026-08-01T00:00:00+00:00"),
+        "p2": _rn(
+            "p2", "Too Big", text="x" * 2_000_000,
+            updated_at="2026-08-02T00:00:00+00:00",
+        ),
+    }
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["created"] == 1, "the healthy note must land despite its oversized sibling"
+    assert any("could not be stored" in f for f in result["failures"])
+
+    titles = {n["title"] for n in notes_svc.list_notes("u1")}
+    assert titles == {"Fits Fine"}, (
+        "the oversized note landed (should never happen), or it took its "
+        "healthy sibling down with it (the pre-SAVEPOINT 'whole batch rolls "
+        "back' defect)"
+    )
+
+    row = engine.connections.get_source_by_id(source["id"])
+    assert row["cursor"] is None, (
+        "the cursor advanced past a note that never landed -- p2's "
+        "updated_at is the newer of the two, so a naive max(refs) cursor "
+        "would skip past it forever: a plain re-push of unchanged remote "
+        "content is a no-op (no new hash, no new timestamp), so nothing "
+        "would ever ask for p2 again"
+    )
