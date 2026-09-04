@@ -186,17 +186,25 @@ All six of the user's numbered priorities from the most recent Phase Zero instru
 `RISK_REGISTER.md` now carries 25 entries total. `VALIDATION_COVERAGE_MAP.md` updated throughout with only
 earned levels — see that file for the current per-subsystem picture.
 
+## Wave three: DONE — CHATGPT_REVIEW_PACKET_01.md
+
+The full 21-section ChatGPT Review Packet is written and committed:
+`CHATGPT_REVIEW_PACKET_01.md`. This closes out the checkpoint the owner set — both explicit gates (remaining
+Golden Journeys, data/execution audit) plus every other track (P2/P5/P6) all landed and are synthesized into
+one document, section-exact to the required structure. Awaiting owner/ChatGPT review (§21 lists 10 open
+questions).
+
 ## Not yet started
 
-1. **The full 21-section ChatGPT Review Packet** — both explicit gates (remaining Golden Journeys, data/
-   execution audit) are now satisfied; this is the next and final item for this wave.
-2. Everything logged in `RISK_REGISTER.md` as "not fixed in Phase Zero" remains exactly that — 25 entries,
+1. Everything logged in `RISK_REGISTER.md` as "not fixed in Phase Zero" remains exactly that — 25 entries,
    none actioned beyond what the Phase Zero authorization allows (small, obviously-low-risk, independently-
-   testable, non-disruptive fixes only, and none of the entries above qualified).
-3. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
+   testable, non-disruptive fixes only, and none of the entries qualified).
+2. Competitive research (master-prompt §64–65) — still low urgency per the master prompt's own phase
    ordering; holding.
-4. RISK-018's populate-the-vendor-observations recommendation — the single highest-leverage open item this
+3. RISK-018's populate-the-vendor-observations recommendation — the single highest-leverage open item this
    program has found, per `TEST_CREDIBILITY_FINDINGS.md` — is a build-phase candidate, not attempted here.
+4. Everything in `CHATGPT_REVIEW_PACKET_01.md` §20 (Proposed Next Phase) and §21 (open questions) —
+   awaiting owner/ChatGPT direction before any of it proceeds.
 
 ## Artifacts in this folder so far
 
@@ -211,6 +219,7 @@ earned levels — see that file for the current per-subsystem picture.
 - `VALIDATION_COVERAGE_MAP.md` — evidence-cited, updated through all five journeys and both audit tracks.
 - `SCREENER_PRESERVATION_BASELINE.md`, `DATA_EXECUTION_FINDINGS.md`, `TEST_CREDIBILITY_FINDINGS.md`,
   `TELEMETRY_OBSERVABILITY_FINDINGS.md` — the four Track B/C/E synthesis documents, done.
+- `CHATGPT_REVIEW_PACKET_01.md` — the full 21-section synthesis deliverable, done.
 
 ## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 
