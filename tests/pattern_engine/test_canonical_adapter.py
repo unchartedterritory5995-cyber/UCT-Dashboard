@@ -58,10 +58,31 @@ HTF_DETECTIONS = _fired_detections("high_tight_flag", detect_high_tight_flag)
 PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_gap)
 
 
+_GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
+
+
 def _assert_parity(original: dict, adapted: dict, new_keys: set[str]):
-    """Every pre-existing key must be unchanged; only `new_keys` may differ."""
+    """Every pre-existing key must be unchanged; only `new_keys` may differ.
+
+    Package 8D exception, precisely scoped rather than loosened generally:
+    `geometry` itself may gain `anchor_roles`/`semantic_subtype` (Package 8D)
+    as an ENRICHMENT -- but its `shape`/`anchors`/`extras` (what the detector
+    actually supplied, this authorization's own §3 principle) must remain
+    byte-identical, and nothing else inside it may change.
+    """
     for key in original:
         assert key in adapted, f"adapter dropped existing key {key!r}"
+        if key == "geometry":
+            orig_geom, adapted_geom = original[key], adapted[key]
+            for sub in ("shape", "anchors", "extras"):
+                assert adapted_geom[sub] == orig_geom[sub], (
+                    f"adapter changed geometry.{sub}: {orig_geom[sub]!r} -> {adapted_geom[sub]!r}"
+                )
+            extra_geom_keys = set(adapted_geom) - set(orig_geom)
+            assert extra_geom_keys <= _GEOMETRY_ENRICHMENT_KEYS, (
+                f"adapter added unexpected geometry keys: {extra_geom_keys}"
+            )
+            continue
         assert adapted[key] == original[key], (
             f"adapter changed existing key {key!r}: {original[key]!r} -> {adapted[key]!r}"
         )
@@ -277,3 +298,61 @@ def test_package_8c_does_not_touch_the_real_scanner_data_path():
     assert "eligibility" not in source
     assert "gate_trace" not in source
     assert "event_json" not in source
+
+
+# ─── Package 8D: semantic geometry labels (anchor_roles / semantic_subtype) ─
+
+@pytest.mark.parametrize("name,detection", HTF_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_htf_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    """Re-verifies the exact anchor order high_tight_flag.py::_build_detection
+    emits (pole_base, pole_top, flag_low, flag_high) -- if that ever changes,
+    this label set would silently start describing the wrong points, and
+    this test is what would catch it."""
+    adapted = adapt_high_tight_flag(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "pole_and_flag"
+    assert geometry["anchor_roles"] == ["pole_base", "pole_top", "flag_low", "flag_high"]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 4
+    # anchors[0]->[1] is a REAL pole segment (re-verified against the source,
+    # not assumed): price must actually increase base->top for a firing HTF.
+    assert geometry["anchors"][1]["price"] > geometry["anchors"][0]["price"]
+
+
+@pytest.mark.parametrize("name,detection", PEG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_peg_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    adapted = adapt_power_earnings_gap(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "gap_event"
+    assert geometry["anchor_roles"] == [
+        "prior_close", "gap_open", "gap_close", "post_gap_high", "post_gap_low",
+    ]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 5
+    # gap_open and gap_close (the "gap candle" CandleMark's emphasis outline
+    # keys off) share the same timestamp -- re-verified, not assumed.
+    gap_open_anchor = geometry["anchors"][1]
+    gap_close_anchor = geometry["anchors"][2]
+    assert gap_open_anchor["t"] == gap_close_anchor["t"]
+
+
+def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():
+    assert HTF_DETECTIONS
+    _, detection = HTF_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapted = adapt_high_tight_flag(detection)
+    assert detection == snapshot  # original untouched
+    assert "anchor_roles" not in detection["geometry"]  # only the ADAPTED copy gained it
+    assert "anchor_roles" in adapted["geometry"]
+
+
+def test_labeled_geometry_falls_back_cleanly_on_a_cardinality_mismatch():
+    """If a future detector change ever desyncs anchor count from the role
+    list, the adapter must skip labeling rather than emit a lying role
+    array (Phase-7 spec §32's geometry-integrity requirement, exercised
+    directly)."""
+    from api.services.pattern_engine.canonical_adapter import _with_labeled_geometry
+    fake_detection = {"geometry": {"shape": "trendline_pair", "anchors": [{"t": 1, "price": 1.0}], "extras": {}}}
+    out = _with_labeled_geometry(fake_detection, ["a", "b", "c", "d"], "pole_and_flag")
+    assert "anchor_roles" not in out
+    assert "semantic_subtype" not in out
+    assert out["anchors"] == fake_detection["geometry"]["anchors"]  # untouched
