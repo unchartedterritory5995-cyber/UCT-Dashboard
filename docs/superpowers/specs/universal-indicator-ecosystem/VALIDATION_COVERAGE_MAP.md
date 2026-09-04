@@ -35,7 +35,7 @@ that hasn't happened.
 | Negative paths, broadly (addendum's ~20 named cases) | 0 — Exists (4 of ~20 exercised) | The four cases above; the rest are UNVERIFIED, not assumed similar |
 | Alert creation (`Indicator Alerts` dialog) | 0 — Exists (unverified) | Seen by accident during navigation, never exercised |
 | Plain-language (AI concierge) door | 1 — Unit, plus one live negative data point | `CORE_GOLDEN_JOURNEY_04_PLAIN_LANGUAGE.md`: live model round-trip is ENVIRONMENT-BLOCKED (no `ANTHROPIC_API_KEY` in the isolated sandbox); found and confirmed a real, environment-independent bug on the way (RISK-016, bars-cap 400); "interpretation visible"/"compilation is final authority" answered at the code level only (`sentence_for`'s determinism, `/propose` stores nothing) — not live-confirmed |
-| Screenshot (vision) door | 0 — Exists (unverified) | `ImageBox.jsx` confirmed to exist in code; nothing else |
+| Screenshot (vision) door | 1 — Unit, plus live-verified UI honesty | `CORE_GOLDEN_JOURNEY_05_SCREENSHOT_VISION.md`: live model round-trip ENVIRONMENT-BLOCKED (`INDICATOR_VISION_ENABLED` unset) — but refused cleanly through the documented 200/`ok:false` contract (contrast with RISK-016's plain-language 400), and the "picture does not tell us the formula / best guess / verify before trusting" disclaimer confirmed live from the actual shipped tab copy, not inferred. Same `sentence_for`-derived read-back authority as the plain-language door, confirmed at the code level |
 | Cross-browser | 0 — Exists (unverified) | Chromium only |
 | Mobile/responsive | 0 — Exists (unverified) | Not attempted |
 | Production/staging behavior | 0 — Exists (unverified) | Everything above is local + sandboxed; nothing checked against Railway |
