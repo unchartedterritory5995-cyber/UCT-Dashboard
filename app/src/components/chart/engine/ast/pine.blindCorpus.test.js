@@ -62,6 +62,36 @@ const RESULTS = FILES.map((f) => {
 const PASSING = RESULTS.filter((r) => r.ok).map((r) => r.name)
 const MISSES = RESULTS.filter((r) => !r.ok)
 
+
+/** The member taking the door's own offer: splice `suggest` over `span`, repeat. */
+function acceptEveryOffer(src, limit = 12) {
+  let cur = src
+  for (let i = 0; i < limit; i += 1) {
+    let o
+    try { o = translatePine(cur) } catch (e) { return null }
+    if (o.ok) return cur
+    const r = o.refusal
+    if (!r || !r.suggest || !Array.isArray(r.span)) return null
+    cur = cur.slice(0, r.span[0]) + r.suggest + cur.slice(r.span[1])
+  }
+  return null
+}
+
+const ACCEPTED = FILES.filter((f) => {
+  const src = fs.readFileSync(path.join(DIR, f), 'utf8')
+  const taken = acceptEveryOffer(src)
+  if (!taken) return false
+  const out = translatePine(taken)
+  if (!out.ok) return false
+  const row = out.outputs[out.selected]
+  const parsed = row && row.formula ? parseFormula(row.formula) : null
+  return !!(parsed && parsed.ok && treeYieldsBool(parsed.ast))
+})
+
+/** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
+ *  once the member takes the engine's OWN offer, in a click rather than a retype. */
+const ACCEPT_FLOOR = 25
+
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
 const FLOOR = 18
 
@@ -100,7 +130,7 @@ describe('the exam this project did not write', () => {
 BLIND EXAM  ${PASSING.length}/${RESULTS.length} translate to a boolean screen   (authored corpus: 38/38)
 guards      ${JSON.stringify(byGuard)}
 names       ${JSON.stringify(byName)}
-misses      ${MISSES.map((r) => r.name).join(', ')}
+after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nmisses      ${MISSES.map((r) => r.name).join(', ')}
 `)
     expect(RESULTS.length).toBeGreaterThan(0)
   })
@@ -207,5 +237,53 @@ describe('⭐⭐ ta.kc — and the smoother is the whole point', () => {
     // rather than being assumed true.
     const out = translatePine('//@version=6\nindicator(\"s\")\nf = close > open\n[m, u, l] = ta.kc(close, 20, 2.0, f)\nplot(close > u ? 1 : 0)\n')
     expect(out.ok).toBe(false)
+  })
+})
+
+const kcS = (b) => `//@version=6\nindicator("s")\nplot(${b} ? 1 : 0)\n`
+
+describe('⭐⭐ an offer a member can TAKE, not retype', () => {
+  it('⏳ the accepted floor moves one way too', () => {
+    expect(ACCEPTED.length, `accepted: ${ACCEPTED.join(', ')}`)
+      .toBeGreaterThanOrEqual(ACCEPT_FLOOR)
+    // ⛔ AND IT MUST BEAT THE PASTE NUMBER, or the offer machinery is doing
+    // nothing and this is a second name for the first measurement.
+    expect(ACCEPTED.length).toBeGreaterThan(PASSING.length)
+  })
+
+  it('⛔⛔ the replacement is PARENTHESISED, and that is not cosmetic', () => {
+    // ⚰️ SPLICING A BARE `high - low` INTO A DIVISION REASSOCIATES IT.
+    // `(close - low) / math.max(high - low, syminfo.mintick)` would become
+    // `(close - low) / high - low` — which PARSES, translates, and answers a
+    // different number on every bar. A fix that silently breaks the expression it
+    // repairs is worse than the refusal it replaced.
+    const src = kcS('(close - low) / math.max(high - low, syminfo.mintick) > 0.7')
+    const out = translatePine(src)
+    expect(out.ok).toBe(false)
+    expect(out.refusal.suggest).toBe('(high - low)')
+    const taken = src.slice(0, out.refusal.span[0]) + out.refusal.suggest
+      + src.slice(out.refusal.span[1])
+    expect(taken).toContain('(close - low) / (high - low)')
+    const after = translatePine(taken)
+    expect(after.ok, after.ok ? '' : after.refusal.message).toBe(true)
+    expect(after.outputs[after.selected].formula)
+      .toBe('(close - low) / (high - low) > 0.7 ? 1 : 0')
+  })
+
+  it('⛔ the span covers the WHOLE call, not the operator inside it', () => {
+    // A binary node's own token is the OPERATOR, so a naive span would replace
+    // one character in the middle of the member's expression.
+    const src = kcS('math.max(high - low, syminfo.mintick) > 1')
+    const r = translatePine(src).refusal
+    expect(src.slice(r.span[0], r.span[1]))
+      .toBe('math.max(high - low, syminfo.mintick)')
+  })
+
+  it('⛔ it stays an OFFER — nothing is rewritten without the member', () => {
+    // The two answers genuinely differ on a zero-range bar (Pine says 0, this
+    // engine says nothing), so taking it is consent. Untaken, it still refuses.
+    const out = translatePine(kcS('math.max(high - low, syminfo.mintick) > 1'))
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:builtin')
   })
 })
