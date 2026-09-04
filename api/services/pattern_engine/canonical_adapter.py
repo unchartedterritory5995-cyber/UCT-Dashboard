@@ -1,4 +1,20 @@
-"""Phase 8, Packages 8A/8B — canonical Detection adapter (SHADOW MODE ONLY).
+"""Phase 8, Packages 8A/8B/8C — canonical Detection adapter (SHADOW MODE ONLY).
+
+Package 8C addition: `build_scanner_summary()` (below), the canonical
+scanner-facing projection. Package 8C traced the REAL scanner data path
+(`api/services/screener/pattern_join.py::read_pattern_fields`) directly and
+found it runs a raw SQL projection of exactly 5 existing `pattern_detections`
+columns (sym/pattern_id/direction/confidence/levels_json) — it does not even
+read the 4 OTHER existing JSON columns (geometry/context/quality/narrative),
+let alone anything from a section this schema has no column for. The
+authoritative scanner path therefore CROSSES PERSISTENCE, and per the
+Package-8C authorization's own hard gate (§4), that means: STOP before this
+becomes authoritative, and do not shortcut it by hiding the new sections
+inside an existing, semantically-unrelated JSON column. `build_scanner_summary`
+proves the summary CONTRACT is correct against real, adapted Detections; it
+is not wired into `pattern_join.py`, `snapshot_builder.py`, or any live
+request path. See `docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md`
+for the concrete persistence-schema recommendation this finding produced.
 
 Converts an already-emitted `Detection` (unchanged) into the same object plus
 the Phase-7 additive canonical sections (`eligibility`, `event`, `criteria`,
@@ -58,7 +74,9 @@ from typing import Optional
 
 from api.services.pattern_engine import memory as _memory
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
-from api.services.pattern_engine.types import Detection, Eligibility, EventProvenance, GateEvaluation
+from api.services.pattern_engine.types import (
+    Detection, Eligibility, EventProvenance, GateEvaluation, ScannerSummary,
+)
 
 ADAPTER_VERSION = "phase8.8b.1"
 
@@ -156,6 +174,60 @@ def adapt_power_earnings_gap(detection: Detection, *, now: Optional[int] = None)
     }
     out["event"] = event
     out["gate_trace"] = _peg_gate_trace(extras)
+    return out
+
+
+def build_scanner_summary(detection: Detection) -> ScannerSummary:
+    """Phase 8 Package 8C — the canonical scanner-facing projection (Phase-7
+    spec §16 / this authorization's §6). Operates on an already-adapted
+    Detection (post `adapt_high_tight_flag`/`adapt_power_earnings_gap`) and
+    ONLY ever reads real fields off it — never fabricates a confidence,
+    quality, or eligibility value the Detection doesn't actually carry.
+
+    ⛔ NOT WIRED INTO THE REAL SCANNER — see ScannerSummary's docstring and
+    this module's own module docstring. `pattern_join.py`'s live SQL never
+    reaches this function; it exists to prove the summary contract in
+    isolation ahead of the persistence change that would let it.
+
+    Preserves the identity-vs-eligibility separation (§7): `status` (a
+    Detection's own lifecycle field) and `scanner_eligible` (this
+    detection's Eligibility.eligible, if computed) are reported as two
+    distinct fields, never collapsed into one.
+    """
+    eligibility = detection.get("eligibility")
+    event = detection.get("event")
+
+    warnings: list[str] = []
+    if eligibility is not None and not eligibility.get("eligible", True):
+        warnings.extend(
+            r for r in eligibility.get("eligibility_reasons", [])
+            if "outside" in r or "exceeded" in r
+        )
+    if "gate_trace" not in detection:
+        warnings.append("no gate-evaluation trace available for this family")
+    if event is None:
+        warnings.append("no event provenance for this family")
+
+    freshness_note = "no family-specific freshness gate (shared active window only)"
+    if eligibility is not None and eligibility.get("freshness_bars") is not None:
+        freshness_note = (
+            f"{eligibility['freshness_bars']}/{eligibility['freshness_window_bars']} bars"
+        )
+
+    out: ScannerSummary = {
+        "pattern_id": detection["pattern_id"],
+        "pattern_name": detection["pattern_name"],
+        "direction": detection["direction"],
+        "status": detection["status"],
+        "scanner_eligible": eligibility.get("eligible") if eligibility is not None else None,
+        "confidence": detection["confidence"],
+        "quality_components": detection["quality_components"],
+        "primary_reason": detection["narrative"]["headline"],
+        "freshness_note": freshness_note,
+        "warnings": warnings,
+    }
+    if event is not None:
+        out["event_note"] = f"{event.get('event_type', 'event')} linkage: {event['verification_status']}"
     return out
 
 

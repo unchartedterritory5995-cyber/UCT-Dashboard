@@ -227,6 +227,41 @@ class GateEvaluation(TypedDict, total=False):
     definition_version: str | None
 
 
+class ScannerSummary(TypedDict, total=False):
+    """Phase 8 Package 8C: the lightweight, scanner-facing projection of a
+    canonical Detection (Phase-7 spec §16 / the Package-8C authorization §6).
+    Built from an already-adapted Detection (one that has been through a
+    `canonical_adapter.py` `adapt_*` function) by `canonical_adapter.
+    build_scanner_summary` — every field is read straight off the Detection,
+    never fabricated.
+
+    ⛔ NOT YET WIRED INTO THE REAL SCANNER. `api/services/screener/
+    pattern_join.py` (the actual, live scanner data path — traced directly,
+    Package 8C) reads `pattern_detections` with a raw SQL projection of only
+    5 existing columns (sym/pattern_id/direction/confidence/levels_json) and
+    has no column for any Phase-7/8 canonical section. This type exists to
+    prove the summary CONTRACT is correct in isolation; making it reach the
+    real scanner requires the persistence change documented in this file's
+    module docstring reference (Phase-7 spec, "Persistence Design for
+    Canonical Sections" section) — a separately-owner-authorized schema
+    change, not implied by this type's existence.
+    """
+    pattern_id: str
+    pattern_name: str
+    direction: Literal["bullish", "bearish", "neutral"]
+    status: str                        # lifecycle, as the detector's own field — see
+                                        # eligibility below for the SEPARATE concept
+    scanner_eligible: bool | None       # None only if no Eligibility was ever computed
+                                        # for this detection — never fabricated as True/False
+    confidence: float
+    quality_components: QualityComponents
+    primary_reason: str                 # narrative.headline — already real, never invented
+    freshness_note: str                 # honest description of the family's own freshness
+                                        # gate, or its honest absence
+    event_note: NotRequired[str]        # present only when the Detection carries `event`
+    warnings: list[str]
+
+
 class Detection(TypedDict):
     id: str
     sym: str

@@ -26,6 +26,7 @@ from api.services.pattern_engine.canonical_adapter import (
     ADAPTER_VERSION,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
+    build_scanner_summary,
     compute_default_eligibility,
 )
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
@@ -209,3 +210,70 @@ def test_compute_default_eligibility_respects_family_freshness_gate():
     )
     assert outside["eligible"] is False
     assert any("exceeded family window" in r for r in outside["eligibility_reasons"])
+
+
+# ─── Package 8C: canonical scanner summary contract (identity vs eligibility,
+#     honest warnings, event surfacing) — NOT wired into pattern_join.py ────
+
+@pytest.mark.parametrize("name,detection", HTF_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_htf_scanner_summary_separates_status_from_eligibility(name, detection):
+    adapted = adapt_high_tight_flag(detection)
+    summary = build_scanner_summary(adapted)
+    # status (lifecycle) and scanner_eligible (eligibility) are two distinct
+    # fields, never collapsed -- the Phase-7 §3C / this authorization's §7
+    # requirement, checked directly rather than merely asserted in prose.
+    assert summary["status"] == adapted["status"] == "ready"
+    assert summary["scanner_eligible"] is True
+    assert summary["pattern_id"] == adapted["pattern_id"]
+    assert summary["confidence"] == adapted["confidence"]
+    assert summary["primary_reason"] == adapted["narrative"]["headline"]
+
+
+@pytest.mark.parametrize("name,detection", HTF_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_htf_scanner_summary_discloses_absent_sections_honestly(name, detection):
+    adapted = adapt_high_tight_flag(detection)
+    summary = build_scanner_summary(adapted)
+    assert "no gate-evaluation trace available for this family" in summary["warnings"]
+    assert "no event provenance for this family" in summary["warnings"]
+    assert "event_note" not in summary
+    assert summary["freshness_note"] == "no family-specific freshness gate (shared active window only)"
+
+
+@pytest.mark.parametrize("name,detection", PEG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_peg_scanner_summary_surfaces_event_note_not_just_a_gap(name, detection):
+    """The scanner summary must not reduce PEG to 'price gapped strongly' --
+    the earnings-linkage verification status must be visible in the summary
+    a scanner would actually display."""
+    adapted = adapt_power_earnings_gap(detection)
+    summary = build_scanner_summary(adapted)
+    assert "event_note" in summary
+    assert summary["event_note"] == f"earnings linkage: {adapted['event']['verification_status']}"
+    assert "no event provenance for this family" not in summary["warnings"]
+    assert "no gate-evaluation trace available for this family" not in summary["warnings"]
+
+
+def test_scanner_summary_never_fabricates_eligibility_when_absent():
+    """A Detection that never went through an adapter has no `eligibility`
+    key at all -- the summary must report None, never guess True/False."""
+    assert HTF_DETECTIONS
+    _, raw_detection = HTF_DETECTIONS[0]  # NOT adapted
+    summary = build_scanner_summary(raw_detection)
+    assert summary["scanner_eligible"] is None
+
+
+def test_package_8c_does_not_touch_the_real_scanner_data_path():
+    """Package 8C traced api/services/screener/pattern_join.py directly and
+    found it reads pattern_detections via raw SQL for exactly 5 existing
+    columns (sym/pattern_id/direction/confidence/levels_json) -- no column
+    exists for any canonical section. This test pins that pattern_join.py's
+    SQL is UNCHANGED by this package (the persistence gate in the
+    Package-8C authorization's §4 means it must not be), so a future editor
+    who touches this file is told directly, not left to discover it by
+    re-reading the module docstring."""
+    import inspect
+    from api.services.screener import pattern_join
+    source = inspect.getsource(pattern_join.read_pattern_fields)
+    assert "SELECT sym, pattern_id, direction, confidence, levels_json, detected_at" in source
+    assert "eligibility" not in source
+    assert "gate_trace" not in source
+    assert "event_json" not in source
