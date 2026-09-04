@@ -16,13 +16,16 @@ from api.services import ticker_logos_prewarm as pw
 
 router = APIRouter()
 
-# A real cached logo is content-addressed and never changes → immutable + 7 days.
-# This is what a Cloudflare cache rule on `/api/ticker-logo/*` edge-caches: served
-# once per PoP instead of a per-browser origin round-trip (the DYNAMIC-cache-status
-# origin hit that made a watchlist's worth of logos pop in over 1-2s). The `?v=`
-# asset-version + `?name=`/`?alt=` hints stay in the cache key (distinct variants =
-# distinct keys), so they cache correctly too.
-_HIT_HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
+# A real logo essentially never changes, so cache it effectively FOREVER: once a
+# browser fetches a logo it stores the PNG on its own disk and every later view is a
+# zero-network read (that's the "saved for good, never fetched again" behavior) — and
+# the edge (Cloudflare rule on `/api/ticker-logo/*`) holds it just as long, so the
+# origin is hit at most once per logo per PoP. 1 year + immutable = the browser never
+# even revalidates within the year. The ESCAPE HATCH for the rare case a logo does
+# change (rebrand / a resolution upgrade): bump `LOGO_ASSET_VERSION` in CompanyLogo.jsx
+# — the `?v=` in the cache key changes and every browser refetches. So DO bump v after
+# any hires/logo-content change, or the old logo lingers in caches for up to a year.
+_HIT_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
 
 # A cold miss returns a transparent 1x1 pixel while the real logo resolves in the
 # background. This MUST NOT be shared-cached: if Cloudflare pinned the pixel at the
