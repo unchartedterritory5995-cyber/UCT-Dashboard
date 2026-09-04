@@ -1015,6 +1015,36 @@ export function setFirstPaintEdgeEnabled(on) {
 }
 if (typeof window !== 'undefined') window.__uctBarsHistoryFP = setFirstPaintEdgeEnabled
 
+// ── Intraday smooth-switch (Phase 3', dark canary) ──────────────────────────
+// Daily switches are smooth (one deep first paint, one anchor). Intraday switches jank
+// because the dwell-warm auto-grows the rendered series 600 → 20-32k bars ~900ms after
+// every switch, forcing a SECOND repaint + re-anchor (the view nudge + crosshair skitter,
+// while you're just scanning recent price). When on, intraday does NOT auto-deep-bump on a
+// switch — it stays a single stable 600-bar paint; deep history still loads on PAN (the
+// pan-backfill), where a re-anchor is natural and expected. Daily is untouched (its dwell is
+// already a no-op — _deepFirstPaint loaded full up front). Ship DARK at 0; owner opt-in
+// window.__uctIntradaySmooth(true); ramp = the constant. Instant revert = 0 / opt-out.
+export const INTRADAY_SMOOTH_SWITCH_PCT = 0
+export function _intradaySmoothSwitchEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradaySmooth.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.intradaySmooth.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.intradaySmooth.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < INTRADAY_SMOOTH_SWITCH_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctIntradaySmooth = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.intradaySmooth.enabled', '1')
+      else localStorage.removeItem('uct.intradaySmooth.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
 // Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
 // in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
 // sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
@@ -13540,9 +13570,14 @@ export default function StockChart({
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
+    // Phase 3' intraday smooth-switch (gated): don't auto-deep-bump an intraday chart on a
+    // switch — that 600→20-32k grow is the second repaint/re-anchor that janks scanning (view
+    // nudge + crosshair skitter). Deep history still loads on PAN (the pan-backfill above),
+    // where a re-anchor is natural. D/W/M keep the dwell (a no-op for daily anyway). Inert at PCT=0.
+    if (isIntraday && _intradaySmoothSwitchEnabled()) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
