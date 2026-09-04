@@ -92,6 +92,43 @@ const ACCEPTED = FILES.filter((f) => {
  *  once the member takes the engine's OWN offer, in a click rather than a retype. */
 const ACCEPT_FLOOR = 27
 
+/** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
+ *  cannot quietly go stale.
+ *
+ *  ⚰️ `ta.linreg` SAT IN THIS LIST WHILE THE ENGINE SERVED IT. Three misses were
+ *  reported as needing a name they already had, so the histogram whose whole job
+ *  is to DIRECT work pointed at a job already done — the hand-typed-list defect
+ *  this repo keeps paying for, in the artifact meant to measure the gap honestly.
+ *  The probes are the fix: a name may sit in this roster only while a minimal
+ *  script using it actually refuses, and the rail below checks that every run.
+ */
+const UNSERVED_PROBES = Object.freeze({
+  'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
+  'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
+  'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
+  'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
+  'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
+  'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
+  'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
+  'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
+  'ta.valuewhen': 'plot(ta.valuewhen(close > open, close, 0) > 10 ? 1 : 0)',
+  'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
+  'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
+  'request.security': 'plot(request.security(syminfo.tickerid, "D", close) > 10 ? 1 : 0)',
+  'syminfo.mintick': 'plot(high - low > syminfo.mintick ? 1 : 0)',
+})
+const UNSERVED = Object.keys(UNSERVED_PROBES)
+
+/** ⛔ THE CONTROL SIDE: names the engine DOES serve. Without these a probe
+ *  helper that refused every input would keep the roster check green over a list
+ *  that had gone entirely wrong. `ta.linreg` leads because it is the one that
+ *  was wrong. */
+const SERVED_CONTROLS = Object.freeze({
+  'ta.linreg': 'plot(ta.linreg(close, 20, 0) > ta.linreg(close, 20, 1) ? 1 : 0)',
+  'ta.mfi': 'plot(ta.mfi(hlc3, 14) > 50 ? 1 : 0)',
+  'ta.dev': 'plot(ta.dev(close, 20) > 1 ? 1 : 0)',
+})
+
 /** ⭐ 2026-09-04 — 19 → 20 / 26 → 27: OBV AGAINST ITS OWN AVERAGE
  *  (`pine.obvAverage.test.js`). `obv - sma(obv, n)` is a finite sum of `obvN`
  *  differences, so the fetch-dependent baseline cancels. The LEVEL is still
@@ -144,7 +181,8 @@ describe('the exam this project did not write', () => {
     // ⭐ SO THE SECOND HISTOGRAM READS THE SOURCE, not the first stumble: every
     // name a miss MENTIONS that this engine does not serve. It is the honest
     // "what would it take", and it is derived so it cannot drift.
-    const BLOCKED = /\b(?:ta\.(?:rising|falling|bbw|percentrank|median|cmf|obv|supertrend|valuewhen|cci|linreg|kcw)|request\.security|syminfo\.mintick)\b/g
+    // ⛔ BUILT FROM `UNSERVED`, never retyped — see that roster for why.
+    const BLOCKED = new RegExp('\\b(?:' + UNSERVED.map(function (n) { return n.replace('.', '\\.') }).join('|') + ')\\b', 'g')
     const needs = {}
     for (const r of MISSES) {
       for (const n of new Set(r.source.match(BLOCKED) || [])) {
@@ -177,6 +215,25 @@ names       ${JSON.stringify(byName)}
 after offer ${ACCEPTED.length}/${RESULTS.length} once the member takes the door's own offer\nneeds (all) ${JSON.stringify(needs)}\none blocker ${soleBlocker}/${MISSES.length} misses need exactly ONE unserved name\nstill short ${ranked}\nmisses      ${MISSES.map((r) => r.name).join(', ')}
 `)
     expect(RESULTS.length).toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ THE BLOCKER ROSTER IS NOT STALE — every name in it really does refuse', () => {
+    const wrap = (body) => '//@version=6\nindicator("s")\n' + body + '\n'
+    for (const [name, body] of Object.entries(UNSERVED_PROBES)) {
+      const out = translatePine(wrap(body))
+      expect(out.ok, name + ' is listed as unserved but TRANSLATES — every '
+        + 'histogram above is overstating the gap by one name').toBe(false)
+    }
+    // ⛔ THE CONTROL, and it is what makes the loop above mean anything: a helper
+    // that refused every input would pass a roster that had gone completely wrong.
+    for (const [name, body] of Object.entries(SERVED_CONTROLS)) {
+      const out = translatePine(wrap(body))
+      expect(out.ok, 'control ' + name + ' should translate but refused: '
+        + (out.ok ? '' : out.refusal.message)).toBe(true)
+    }
+    // ⛔ AND THE TWO SIDES MUST BE DISJOINT, or a name could sit in both and the
+    // pair of loops above would contradict each other rather than check anything.
+    for (const n of Object.keys(SERVED_CONTROLS)) expect(UNSERVED).not.toContain(n)
   })
 
   it('⛔ the judge can FAIL a script — it is not counting everything as a pass', () => {
