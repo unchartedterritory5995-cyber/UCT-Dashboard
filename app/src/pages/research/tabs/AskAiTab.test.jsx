@@ -123,4 +123,97 @@ describe('AskAiTab', () => {
     await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
     expect(screen.queryByText(/bullish|bearish/i)).not.toBeInTheDocument()
   })
+
+  // ── Security Research Q&A Slice 2: the three new response states ─────────
+
+  it('renders an answer_with_caveat response with the caveat text visible', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'answer_with_caveat',
+      summary: 'Apple beat earnings estimates on strong Mac sales.',
+      key_facts: [{ statement: 'Apple beat earnings estimates.', evidence_id: 'E1' }],
+      interpretation: '', caveat: 'This is the most recent available evidence, several days old -- not from today.',
+      clarification_question: '', citations: [], insufficient_evidence: false,
+      insufficient_evidence_reason: '', model: 'claude-sonnet-5', error: null,
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What happened today?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
+    expect(screen.getByTestId('ask-ai-caveat')).toHaveTextContent(/not from today/)
+    expect(screen.getByText('Apple beat earnings estimates on strong Mac sales.')).toBeInTheDocument()
+  })
+
+  it('renders a partially_answer response with the unsupported portion named', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'partially_answer',
+      summary: 'Q2 2026 revenue was $94.5B, EPS $1.52.',
+      key_facts: [{ statement: 'Q2 2026 revenue was $94.5B.', evidence_id: 'E1' }],
+      interpretation: '',
+      caveat: 'The 10-Q\'s body text (e.g. supply-chain risk commentary) is not available to me.',
+      clarification_question: '',
+      citations: [{ id: 'E1', type: 'financials_quarter', date: 'Q2 2026', source: 'UCT Financials', url: null }],
+      insufficient_evidence: false, insufficient_evidence_reason: '',
+      model: 'claude-sonnet-5', error: null,
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What were Q2 financials and what does the 10-Q say?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
+    expect(screen.getByText('Q2 2026 revenue was $94.5B, EPS $1.52.')).toBeInTheDocument()
+    expect(screen.getByTestId('ask-ai-unsupported')).toHaveTextContent(/10-Q's body text/)
+  })
+
+  it('renders an ask_for_clarification response as a question, not a fabricated answer', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'ask_for_clarification',
+      summary: '', key_facts: [], interpretation: '', caveat: '',
+      clarification_question: 'Did you mean analyst sentiment, forward estimates, or reported financials?',
+      citations: [], insufficient_evidence: true,
+      insufficient_evidence_reason: 'Did you mean analyst sentiment, forward estimates, or reported financials?',
+      model: 'claude-sonnet-5', error: null,
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'How has the outlook changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-clarification')).toBeInTheDocument())
+    expect(screen.getByTestId('ask-ai-clarification')).toHaveTextContent(/Did you mean analyst sentiment/)
+    expect(screen.queryByTestId('ask-ai-answer')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ask-ai-insufficient')).not.toBeInTheDocument()
+  })
+
+  it('renders a caveat the model attached to a plain "answer" state (not just answer_with_caveat)', async () => {
+    // Live-validation finding: the model can honestly populate `caveat`
+    // while still choosing response_state "answer" -- the UI must not
+    // silently drop that text just because the state isn't literally
+    // "answer_with_caveat".
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'answer',
+      summary: 'Institutional investors own approximately 66.37% of AAPL.',
+      key_facts: [{ statement: 'Institutional ownership is 66.37%.', evidence_id: 'E1' }],
+      interpretation: '',
+      caveat: 'This figure and the 13F data are on different clocks and should not be treated as the same moment in time.',
+      clarification_question: '', citations: [], insufficient_evidence: false,
+      insufficient_evidence_reason: '', model: 'claude-sonnet-5', error: null,
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What percentage is owned by institutions?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
+    expect(screen.getByTestId('ask-ai-caveat')).toHaveTextContent(/different clocks/)
+  })
+
+  it('still renders a pre-Slice-2 payload with no response_state field correctly (backward compat)', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, summary: 'Analysts turned more positive.',
+      key_facts: [{ statement: 'Goldman Sachs upgraded from Hold to Buy.', evidence_id: 'E1' }],
+      interpretation: '', citations: [{ id: 'E1', type: 'analyst_action', date: '2026-08-30', source: 'Goldman Sachs', url: null }],
+      insufficient_evidence: false, insufficient_evidence_reason: '', model: 'claude-sonnet-5', error: null,
+    })
+    render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
+    expect(screen.getByText('Analysts turned more positive.')).toBeInTheDocument()
+    expect(screen.queryByTestId('ask-ai-caveat')).not.toBeInTheDocument()
+  })
 })

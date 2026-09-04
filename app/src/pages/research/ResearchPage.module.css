@@ -122,6 +122,9 @@
 .explainCitation a { color: var(--info); text-decoration: none; }
 .explainCitation a:hover { text-decoration: underline; }
 .explainInsufficient { color: var(--text-muted); font-style: italic; padding: 8px 2px; }
+.explainCaveat { display: flex; gap: 6px; align-items: flex-start; background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid var(--ut-gold); border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px; font-size: var(--text-xs); color: var(--text-muted); }
+.explainUnsupported { display: flex; gap: 6px; align-items: flex-start; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin-top: 10px; font-size: var(--text-xs); color: var(--text-muted); }
+.explainClarification { color: var(--text-bright); font-size: var(--text-base); line-height: 1.5; padding: 8px 2px; }
 
 /* ratings tab */
 .compHero { display: flex; align-items: center; gap: 16px; }

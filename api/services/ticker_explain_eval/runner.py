@@ -57,8 +57,13 @@ def run_question(question: _gs.Question, *, model_fn: Optional[Callable] = None)
 
     entity = {"status": "resolved", "entityId": f"eval_{question.sym.lower()}"}
     with contextlib.ExitStack() as stack:
+        # Evidence is always the question's own SEED, regardless of what
+        # Slice 2's domain router (`_classify_domains`) would have picked
+        # for the real question text -- routing is a production-only
+        # concern; the golden set's ground truth must never depend on it
+        # (same reasoning as never depending on live FMP data).
         stack.enter_context(mock.patch.object(
-            te, "_build_evidence", lambda sym: (entity, list(question.evidence))))
+            te, "_build_evidence", lambda sym, q="": (entity, list(question.evidence))))
         if model_fn is not None:
             stack.enter_context(mock.patch.object(te, "_call_model", model_fn))
             stack.enter_context(mock.patch(
