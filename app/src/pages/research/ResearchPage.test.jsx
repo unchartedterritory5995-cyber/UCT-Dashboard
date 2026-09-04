@@ -134,4 +134,19 @@ describe('ResearchPage', () => {
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
   })
+
+  it('honours ?section=ai — lands on the new Ask AI tab', () => {
+    // AI-Native Research Assistant Slice 1 (2026-09-04): the one contextual
+    // AI door inside the existing research experience.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=ai' })
+    expect(screen.getByText('Ask AI — AAPL')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Ask AI" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Ask AI' })).toBeInTheDocument()
+  })
 })

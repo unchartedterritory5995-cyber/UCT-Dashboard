@@ -102,6 +102,27 @@
 .newsTitle:hover { color: var(--ut-gold); text-decoration: underline; }
 .newsSummary { margin: 3px 0 0; font-size: var(--text-base); line-height: 1.5; color: var(--text-muted); }
 
+/* Ask AI tab (I1 Intelligence Layer Slice 1, 2026-09-04 -- the "Explain"
+   assistant; not a general chat product, so no message-list/thread chrome). */
+.explainSuggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.explainChip { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 14px); padding: 5px 10px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; }
+.explainChip:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.explainForm { display: flex; gap: 8px; margin-bottom: 12px; }
+.explainInput { flex: 1; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: var(--text-base); color: var(--text); resize: vertical; min-height: 40px; font-family: inherit; }
+.explainBtn { background: var(--ut-gold-dim); border: 1px solid var(--ut-gold); border-radius: 8px; padding: 0 16px; color: var(--ut-gold); font-weight: 700; cursor: pointer; white-space: nowrap; }
+.explainBtn:disabled { opacity: 0.5; cursor: default; }
+.explainSummary { font-size: var(--text-base); line-height: 1.55; color: var(--text-bright); margin-bottom: 10px; }
+.explainSectionLbl { font-size: var(--text-xs); letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin: 10px 0 4px; }
+.explainFact { font-size: var(--text-base); line-height: 1.5; padding: 3px 0; }
+.explainFactMark { color: var(--ut-gold); font-size: var(--text-xs); margin-left: 4px; }
+.explainInterp { font-size: var(--text-base); line-height: 1.55; color: var(--text); font-style: italic; }
+.explainCitations { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.explainCitation { font-size: var(--text-xs); color: var(--text-muted); display: flex; gap: 6px; }
+.explainCitationMark { color: var(--ut-gold); font-weight: 700; flex-shrink: 0; }
+.explainCitation a { color: var(--info); text-decoration: none; }
+.explainCitation a:hover { text-decoration: underline; }
+.explainInsufficient { color: var(--text-muted); font-style: italic; padding: 8px 2px; }
+
 /* ratings tab */
 .compHero { display: flex; align-items: center; gap: 16px; }
 .compNum { font-size: 46px; font-weight: 900; line-height: 1; }

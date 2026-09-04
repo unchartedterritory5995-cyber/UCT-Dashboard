@@ -14,6 +14,7 @@ from api.services.research.estimates import get_estimates
 from api.services.research.analyst_ratings import get_analyst_ratings
 from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
+from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
 
@@ -113,6 +114,26 @@ def research_company_news(sym: str):
     except Exception as exc:
         _logger.warning("research company-news failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
+
+
+@router.post("/api/research/explain/{sym}")
+def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get_current_user)):
+    """AI-Native Research Assistant Slice 1 (I1, owner-authorized narrow
+    slice, 2026-09-04) -- the "Ask AI" tab's Explain endpoint. Auth-required:
+    unlike the plain GET research routes, this one makes a real LLM call
+    with real cost (see ticker_explain.py's own narrative_cost_guard use),
+    so an anonymous caller must not be able to reach it.
+    """
+    question = str((body or {}).get("question") or "")[:500]
+    try:
+        return explain_recent_activity(sym, question)
+    except Exception as exc:
+        _logger.warning("ticker explain failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "summary": "",
+                "key_facts": [], "interpretation": "", "citations": [],
+                "insufficient_evidence": True,
+                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "model": None, "error": "internal error"}
 
 
 @router.get("/api/research/quote/{sym}")

@@ -13,6 +13,7 @@ import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
+import AskAiTab from './tabs/AskAiTab'
 import PaywallTeaser from './PaywallTeaser'
 import styles from './ResearchPage.module.css'
 
@@ -41,7 +42,16 @@ import styles from './ResearchPage.module.css'
 // numbers. The calendar modal's own separate News tab
 // (EarningsResearchModal.jsx's Coverage group) is a COMPATIBILITY BRIDGE,
 // untouched -- this is a second, canonical surface, not a replacement.
-const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings']
+//
+// 2026-09-04 AI-Native Research Assistant Slice 1 (I1 Intelligence Layer,
+// owner-authorized narrow slice): "Ask AI" is the ONE contextual AI door
+// inside this already-canonical security context (OQ-05's provisional
+// answer -- a context layer on an existing surface, not a second AI entry
+// point). It EXPLAINS (news + analyst activity, cited); it does not
+// decide -- see api/services/ticker_explain.py. Placed last, mirroring
+// the calendar modal's own tab ordering (Ask AI is that modal's last
+// group too).
+const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -50,7 +60,7 @@ const SECTION_TO_TAB = {
   overview: 'Overview', news: 'News', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
-  filings: 'Filings',
+  filings: 'Filings', ai: 'Ask AI',
 }
 
 export default function ResearchPage() {
@@ -97,6 +107,7 @@ export default function ResearchPage() {
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
+      {active === 'Ask AI' && <AskAiTab sym={sym} />}
     </div>
   )
 }
