@@ -33,9 +33,10 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, datetime as _datetime
 
 from api.alpha_gold_eod import _fmt_prem, _post_discord_image
 from api import oi_snapshots
@@ -507,3 +508,152 @@ def run_oi_morning(*, force: bool = False, post: bool = True,
     except Exception as e:  # noqa: BLE001
         log.exception("[oi-morning] run failed")
         return {"ok": False, "reason": f"error: {e}"}
+
+
+# ─── ⚰️ A MISSED SLOT LEFT NO TRACE AT ALL ──────────────────────────────────
+#
+# The cron below is registered on APScheduler's IN-MEMORY job store, so a pod
+# that restarts across 08:00 ET never SCHEDULES that fire — `misfire_grace_time`
+# cannot see a job that was never scheduled. Flow-worker redeploys on a narrow
+# watch path and the tape is bounced deliberately after hours, so crossing the
+# slot is not hypothetical. The card simply did not appear, no log line said so,
+# and nobody found out until they went looking for a board that was never built.
+#
+# ⭐ THIS IS THE SHAPE `/buzz` ALREADY SOLVED, reused rather than reinvented:
+# a per-slot record on the volume, a catch-up that rides the 60s poll and posts
+# a late board while it is still honest, and a CRITICAL alert once it is not.
+#
+# ⛔ "COMPLETED" IS THE RECORD, NOT "POSTED". `run_oi_morning` answers
+# `posted=False, reason="no qualifying OI builds"` on a quiet morning, and that
+# is a real answer — re-running it would build the same empty board. Marking the
+# day done on completion is what stops the catch-up retrying every minute for
+# the rest of the session.
+
+#: The one authority for WHEN this runs. `flow_worker_main` reads it rather than
+#: repeating 8:00, so the cron and the catch-up can never disagree about the slot
+#: they are both talking about.
+SLOT_ET = (8, 0)
+
+#: How late a board may be and still be worth posting. It is an HONESTY limit,
+#: not a retry budget: this card says "the biggest overnight OI builds", and one
+#: posted at noon is a different claim wearing the morning's label.
+CATCHUP_GRACE_MIN = 45
+
+_RUN_LOCK = threading.Lock()
+
+
+def _state_path() -> str:
+    return os.getenv("OI_MORNING_STATE_PATH",
+                     os.path.join(os.getenv("DATA_DIR", "/data"), "oi_morning_state.json"))
+
+
+def _load_state() -> dict:
+    try:
+        with open(_state_path(), "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:  # noqa: BLE001 — a missing or corrupt file is "nothing recorded"
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    """⛔ tmp -> os.replace. `open(path, "w")` truncates BEFORE the write can
+    fail, so a crash mid-write would leave an empty file and forget every slot
+    already handled — which reads as "nothing posted today" and re-posts."""
+    path = _state_path()
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        os.replace(tmp, path)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[oi-morning] could not persist slot state: %s", e)
+
+
+def slot_done(day: str) -> bool:
+    return bool(_load_state().get("done", {}).get(day))
+
+
+def mark_slot_done(day: str, how: str) -> None:
+    state = _load_state()
+    done = state.setdefault("done", {})
+    done[day] = how
+    # Keep the file small; 40 weekdays is ample to debug a fortnight of mornings.
+    for stale in sorted(done)[:-40]:
+        done.pop(stale, None)
+    _save_state(state)
+
+
+def _alert_missed(day: str, late: int) -> None:
+    """⛔ A LOG LINE IS NOT A NOTIFICATION. This pod's stream is flooded and
+    batched; a warning closes the hole in the CODE and leaves it open in
+    PRACTICE. `critical` is the only severity `chart_health_alerts` pages on.
+    Never raises — an alerting failure must not cost the tape its ingest."""
+    try:
+        from api.services import chart_health_alerts
+        chart_health_alerts.emit(
+            f"oi_morning_missed:{day}", "critical",
+            f"The morning OI card for {day} was never posted ({late}m past the "
+            f"{CATCHUP_GRACE_MIN}m catch-up window). Most likely the flow-worker "
+            f"restarted across the {SLOT_ET[0]:02d}:{SLOT_ET[1]:02d} ET slot.",
+            {"day": day, "minutes_late": late},
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("[oi-morning] could not raise a missed-slot alert: %s", e)
+
+
+def _now_et():
+    from zoneinfo import ZoneInfo
+    return _datetime.now(ZoneInfo("America/New_York"))
+
+
+def run_scheduled(*, now=None, **kw) -> dict:
+    """The cron's entry point: run the card and RECORD that the day is handled.
+
+    ⛔ SEPARATE FROM `run_oi_morning` ON PURPOSE. A manual preview or a `force`
+    run must never mark the slot done — that would suppress the real card for the
+    rest of the day, which is the opposite of what someone previewing it wants.
+    """
+    now_dt = now or _now_et()
+    day = now_dt.date().isoformat()
+    with _RUN_LOCK:
+        if slot_done(day):
+            return {"ok": False, "reason": "already handled today"}
+        res = run_oi_morning(**kw)
+        if res.get("ok"):
+            mark_slot_done(day, "posted" if res.get("posted") else
+                           str(res.get("reason") or "completed"))
+        return res
+
+
+def catch_up(*, now=None, **kw) -> dict:
+    """Post a slot the scheduler never fired, or say why it will not be.
+
+    Safe to call every minute: `_RUN_LOCK` makes a race with the cron a no-op for
+    whichever arrives second, and the persisted per-day record makes a
+    double-post impossible even across a restart.
+    """
+    if os.getenv("OI_MORNING_ENABLED", "0") != "1":
+        return {"posted": False, "reason": "disarmed"}
+    now_dt = now or _now_et()
+    if now_dt.weekday() > 4:                      # the cron is mon-fri
+        return {"posted": False, "reason": "weekend"}
+    day = now_dt.date().isoformat()
+    if slot_done(day):
+        return {"posted": False, "reason": "already handled today"}
+    late = (now_dt.hour * 60 + now_dt.minute) - (SLOT_ET[0] * 60 + SLOT_ET[1])
+    if late <= 0:
+        return {"posted": False, "reason": "not due yet"}
+    if late <= CATCHUP_GRACE_MIN:
+        log.warning("[oi-morning] the %02d:%02d ET slot never fired (%dm ago) — "
+                    "catching it up now", SLOT_ET[0], SLOT_ET[1], late)
+        return run_scheduled(now=now_dt, **kw)
+    with _RUN_LOCK:
+        if slot_done(day):
+            return {"posted": False, "reason": "already handled today"}
+        mark_slot_done(day, f"missed ({late}m late)")
+    log.warning("[oi-morning] MISSED today's card — %dm late, past the %dm "
+                "catch-up window, so it will not be posted.", late, CATCHUP_GRACE_MIN)
+    _alert_missed(day, late)
+    return {"posted": False, "reason": "past the catch-up window"}

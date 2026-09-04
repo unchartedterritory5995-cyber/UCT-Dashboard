@@ -526,14 +526,31 @@ def _start_flow_schedulers():
             # to the worker watch paths.
             if os.getenv("OI_MORNING_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _OIMCron
+                from apscheduler.triggers.interval import IntervalTrigger as _OIMEvery
                 from api import oi_morning as _oim
-                sched.add_job(_oim.run_oi_morning,
-                              trigger=_OIMCron(day_of_week="mon-fri", hour=8, minute=0,
+                # ⛔ THE SLOT IS READ, NOT RETYPED. `oi_morning.SLOT_ET` is the one
+                # authority, so the cron and the catch-up below cannot disagree
+                # about which fire they are both talking about.
+                _oih, _oimin = _oim.SLOT_ET
+                sched.add_job(_oim.run_scheduled,
+                              trigger=_OIMCron(day_of_week="mon-fri", hour=_oih, minute=_oimin,
                                                timezone=ZoneInfo("America/New_York")),
                               id="oi_morning_push", max_instances=1,
                               coalesce=True, replace_existing=True)
                 n += 1
-                log.info("[startup] Morning OI cron registered (08:00 ET weekdays) [single-name v5]")
+                # ⚰️ AND A CATCH-UP, because the job store is IN-MEMORY: a pod that
+                # restarts across the slot never SCHEDULES that fire, so
+                # `misfire_grace_time` cannot see it and the card vanishes with no
+                # trace. Flow-worker redeploys on a narrow watch path and its tape
+                # is bounced deliberately after hours, so crossing 08:00 is not
+                # hypothetical. Same shape `/buzz` already runs.
+                sched.add_job(_oim.catch_up,
+                              trigger=_OIMEvery(seconds=60),
+                              id="oi_morning_catchup", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] Morning OI cron registered (%02d:%02d ET weekdays) "
+                         "+ 60s catch-up [single-name v5]", _oih, _oimin)
             else:
                 log.info("[startup] Morning OI push disabled (set OI_MORNING_ENABLED=1) [single-name v5]")
         except Exception as e:  # noqa: BLE001
