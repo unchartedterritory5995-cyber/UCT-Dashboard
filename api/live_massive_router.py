@@ -1961,8 +1961,24 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     alert_name, tier_key, tier_priority = result
     is_leaps = dte >= 180
 
+    # Aggregate-graded tiers (Ask Accumulation / Alpha LEAPS) represent a BUILD —
+    # sweeps + blocks on ONE contract — not a single print, so grade on the session
+    # ask aggregate (agg_ask_premium) so the grade reflects the whole position and
+    # matches the Watchlist (PPTA graded C on the $484K anchor vs A-tier on the real
+    # $1.21M build). alertPremium (the field) stays the single print so the Market
+    # Read bull/bear math isn't double-counted against the build's constituent prints;
+    # the aggregate is carried separately in aggAskPremium (what the row DISPLAYS).
+    _grade_prem, _grade_vol = premium, volume
+    if tier_key in ("ask_accum", "alpha_leaps"):
+        if agg_ask_premium:
+            _grade_prem = max(premium, int(agg_ask_premium or 0))
+        if agg_ask_volume:
+            # OI-break on the BUILD's session ask volume (7,277 vs 2,321 OI = 3.1x
+            # for PPTA), not the anchor print's, so the grade sees the real position.
+            _grade_vol = max(volume, int(agg_ask_volume or 0))
+
     score, grade = _compute_conviction(
-        premium=premium, oi=oi, volume=volume,
+        premium=_grade_prem, oi=oi, volume=_grade_vol,
         tier_priority=tier_priority, moneyness_label=money_label,
         moneyness_pct=money_pct, is_leaps=is_leaps,
     )

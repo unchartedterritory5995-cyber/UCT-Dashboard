@@ -567,6 +567,21 @@ def test_ask_accum_curated_survives_hide_block_only():
                                 contract_types={}) is False
 
 
+def test_ask_accum_grades_on_aggregate_not_anchor(monkeypatch):
+    # The row must grade on the $1.21M / 7,277-vol BUILD, not the $484K anchor print
+    # (which alone graded C). aggAskPremium carries the build for display.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    a = m._row_to_alert(_ppta_full_row(), agg_ask_premium=1_210_952, agg_ask_volume=7277)
+    assert a["_tierKey"] == "ask_accum"
+    assert a["grade"][0] in ("A", "B")          # lifted off C by the aggregate
+    assert a["aggAskPremium"] == 1_210_952       # the value the row displays
+    # grading the anchor print alone (the old behaviour) would be strictly worse
+    anchor = m._compute_conviction(premium=484532, oi=2321, volume=3000,
+                                   tier_priority=m.TIER_PRIORITY["ask_accum"],
+                                   moneyness_label="OTM", moneyness_pct=-29.1, is_leaps=False)
+    assert anchor[1][0] == "C"                   # anchor-only would be C
+
+
 def test_alpha_gold_beats_ask_accum(monkeypatch):
     # A $1M+ single ASK print (<180 DTE) is still Alpha Gold — Ask Accumulation
     # runs only AFTER Alpha declines the row.
