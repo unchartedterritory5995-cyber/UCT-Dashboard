@@ -958,8 +958,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  min-height: 32px;
+  /* No vertical padding — the fixed height keeps this row the SAME height as the period bar
+     (34px) so both header rows line up with the chart widget's title + timeframe rows. */
+  padding: 0 10px;
+  height: 34px;
   box-sizing: border-box;
   background: var(--tt-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--tt-divider, var(--border));
@@ -973,6 +975,11 @@
   min-height: auto;
   flex: 1;
   min-width: 0;
+}
+/* Match the search input's height to the set-name / Edit buttons (compact, centered). */
+.searchRow .searchInput {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 .setPickerBtn {
