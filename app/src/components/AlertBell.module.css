@@ -169,6 +169,9 @@
 }
 .item:last-child { border-bottom: none; }
 .item:hover { background: var(--bg-hover); }
+/* S7 first slice: a small, honest affordance that this item navigates
+   somewhere (vs. mark-read-only) — no new component, no redesign. */
+.itemLinked:hover .itemTitle { text-decoration: underline; }
 
 .unread {
   background: rgba(74, 222, 128, 0.04);

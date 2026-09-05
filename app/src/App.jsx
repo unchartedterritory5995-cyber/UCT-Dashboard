@@ -163,6 +163,7 @@ const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
+const ProvenanceDemo = lazy(() => import('./pages/ProvenanceDemo'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
@@ -335,6 +336,13 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/methodology" element={<Methodology />} />
+            {/* S8 Step 2 capability demo — live D1 -> S8 provenance/freshness
+                wiring, reachable directly by URL. Deliberately NOT in
+                NavBar/MobileNav or FREE_PAGES — where it belongs in the real
+                Terminal UI is a product decision this pass does not make.
+                Public/no-gate, same class as /methodology: reads only
+                public market quote data via /api/provenance/quote. */}
+            <Route path="/provenance-demo" element={<ProvenanceDemo />} />
             {/* Public marketing comparison page (UCT vs. TradeZella/TraderSync/
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}

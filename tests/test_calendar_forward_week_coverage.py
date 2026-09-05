@@ -92,7 +92,7 @@ def test_a_forward_day_reporter_only_finnhub_knows_is_added_to_its_session(monke
     fh = {"earningsCalendar": [_fh_row("BABA", THU.isoformat(), "bmo"),
                                _fh_row("FUTU", THU.isoformat(), "bmo")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     # ONE range call covering the whole still-future window, not one per day.
@@ -111,8 +111,8 @@ def test_a_forward_day_reporter_only_fmp_knows_lands_in_tbd_with_its_numbers(mon
     days = _week(**{TUE.isoformat(): {"bmo": ["HD"]}})
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("BIDU", TUE.isoformat(), 1.51),
-                                         _fmp_row("KLAR", TUE.isoformat(), -0.05)]) as fmp:
+                           return_value=([_fmp_row("BIDU", TUE.isoformat(), 1.51),
+                                          _fmp_row("KLAR", TUE.isoformat(), -0.05)], None)) as fmp:
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert fmp.call_args.args == (MON.isoformat(), FRI.isoformat())
@@ -135,7 +135,7 @@ def test_a_symbol_the_schedule_already_placed_is_never_added_on_another_day(monk
     fh = {"earningsCalendar": [_fh_row("DE", WED.isoformat(), "bmo")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("DE", TUE.isoformat())]):
+                           return_value=([_fmp_row("DE", TUE.isoformat())], None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert added == 0
@@ -151,7 +151,7 @@ def test_finnhub_beats_fmp_when_the_two_disagree_about_the_day(monkeypatch):
     fh = {"earningsCalendar": [_fh_row("NTES", WED.isoformat(), "bmo")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("NTES", THU.isoformat())]):
+                           return_value=([_fmp_row("NTES", THU.isoformat())], None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert added == 1
@@ -166,7 +166,7 @@ def test_a_name_that_already_reported_earlier_this_week_is_not_re_added_ahead(mo
     days = _week(**{MON.isoformat(): {"bmo": ["WMT"]}})
     fh = {"earningsCalendar": [_fh_row("WMT", THU.isoformat(), "bmo")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, WED.isoformat(), CAP)
 
     assert added == 0
@@ -186,7 +186,7 @@ def test_the_finviz_leg_obeys_the_one_placement_rule_too(monkeypatch):
     monkeypatch.setattr(cal, "_merge_finviz_sessions", _fake_merge)
     days = _week(**{THU.isoformat(): {"bmo": ["WMT"]}})
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         cal._supplement_live_days(days, WED.isoformat(), CAP)
 
     assert captured == {"keep_placed": False, "keep_fresh": True}
@@ -205,7 +205,7 @@ def test_a_projected_forward_date_is_flagged_as_an_estimate(monkeypatch):
                                _fh_row("TGT", WED.isoformat(), "bmo")]}   # WED == today
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("NTES", THU.isoformat())]):
+                           return_value=([_fmp_row("NTES", THU.isoformat())], None)):
         cal._supplement_live_days(days, WED.isoformat(), CAP)
 
     thu, wed = days[THU.isoformat()], days[WED.isoformat()]
@@ -225,7 +225,7 @@ def test_every_still_future_day_is_supplemented_not_only_today(monkeypatch):
                                _fh_row("BABA", THU.isoformat()),
                                _fh_row("BEKE", FRI.isoformat())]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert added == 5
@@ -242,7 +242,7 @@ def test_past_days_of_the_week_are_left_to_the_backfill(monkeypatch):
     fh = {"earningsCalendar": [_fh_row("HD", MON.isoformat()),      # already past
                                _fh_row("TGT", WED.isoformat())]}    # today
     with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, WED.isoformat(), CAP)
 
     assert m.call_args.args == (WED.isoformat(), FRI.isoformat())
@@ -259,7 +259,7 @@ def test_the_live_schedules_entries_are_never_touched_or_duplicated(monkeypatch)
     fh = {"earningsCalendar": [_fh_row("WMT", THU.isoformat(), "amc", eps_est=9.9)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("WMT", THU.isoformat(), 8.8)]):
+                           return_value=([_fmp_row("WMT", THU.isoformat(), 8.8)], None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert added == 0
@@ -275,7 +275,7 @@ def test_finnhub_wins_the_session_and_fmp_never_duplicates_its_add(monkeypatch):
     fh = {"earningsCalendar": [_fh_row("BABA", THU.isoformat(), "bmo")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("BABA", THU.isoformat())]):
+                           return_value=([_fmp_row("BABA", THU.isoformat())], None)):
         added = cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     assert added == 1
@@ -292,8 +292,8 @@ def test_the_same_universe_gate_as_every_other_week(monkeypatch):
                                _fh_row("600641.SS", THU.isoformat())]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
-                           return_value=[_fmp_row("PNCINFRA.NS", THU.isoformat()),
-                                         _fmp_row("NTES", THU.isoformat())]):
+                           return_value=([_fmp_row("PNCINFRA.NS", THU.isoformat()),
+                                          _fmp_row("NTES", THU.isoformat())], None)):
         cal._supplement_live_days(days, SUNDAY_S, CAP)
 
     thu = days[THU.isoformat()]
@@ -306,7 +306,7 @@ def test_a_double_provider_failure_leaves_the_week_exactly_as_it_was(monkeypatch
     _no_finviz(monkeypatch)
     days = _week(**{THU.isoformat(): {"bmo": ["WMT"]}})
     with mock.patch.object(cal, "_fh_get_month", side_effect=RuntimeError("429")), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         assert cal._supplement_live_days(days, SUNDAY_S, CAP) == 0
     assert [e["sym"] for e in days[THU.isoformat()]["bmo"]] == ["WMT"]
 
@@ -334,7 +334,7 @@ def test_a_forward_day_takes_the_schedule_cap_and_ew_names_are_never_cut(monkeyp
     days = _week(**{THU.isoformat(): {"bmo": ["KEEPME"]}})
     fh = {"earningsCalendar": [_fh_row(f"S{i:04d}", THU.isoformat()) for i in range(n)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         cal._supplement_live_days(days, SUNDAY_S, cap)
 
     bmo = days[THU.isoformat()]["bmo"]
@@ -352,7 +352,7 @@ def test_today_keeps_the_loose_session_cap(monkeypatch):
     days = _week(**{WED.isoformat(): {"bmo": ["KEEPME"]}})
     fh = {"earningsCalendar": [_fh_row(f"S{i:04d}", WED.isoformat()) for i in range(n)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         cal._supplement_live_days(days, WED.isoformat(), cap)   # WED == today
 
     bmo = days[WED.isoformat()]["bmo"]
@@ -383,7 +383,7 @@ def test_the_finviz_leg_runs_over_the_forward_window_add_only(monkeypatch):
     monkeypatch.setattr(cal, "_merge_finviz_sessions", _fake_merge)
     days = _week()
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         added = cal._supplement_live_days(days, WED.isoformat(), CAP)
 
     assert seen["target"] == {WED.isoformat(), THU.isoformat(), FRI.isoformat()}
@@ -401,7 +401,7 @@ def test_finviz_is_skipped_when_no_filter_covers_the_shown_week(monkeypatch):
                         mock.Mock(side_effect=AssertionError("must not run")))
     days = _week()
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
-         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+         mock.patch.object(cal, "_fmp_range_week", return_value=(None, None)):
         assert cal._supplement_live_days(days, SUNDAY_S, CAP) == 0
 
 
@@ -434,7 +434,7 @@ def test_build_current_week_carries_the_reporters_the_schedule_never_listed(monk
                                _fh_row("BIDU", TUE.isoformat(), "bmo"),
                                _fh_row("KLAR", TUE.isoformat(), "bmo")]}
     monkeypatch.setattr(cal, "_fh_get_month", lambda *a, **kw: fh)
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: None)
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: (None, None))
 
     payload = cal._build_current_week()
 
@@ -455,7 +455,7 @@ def test_the_build_records_what_the_schedule_alone_knew(monkeypatch):
     fh = {"earningsCalendar": [_fh_row("BABA", THU.isoformat(), "bmo"),
                                _fh_row("BIDU", TUE.isoformat(), "bmo")]}
     monkeypatch.setattr(cal, "_fh_get_month", lambda *a, **kw: fh)
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: None)
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: (None, None))
 
     cal._build_current_week()
     report = cal.calendar_coverage_status()
@@ -475,7 +475,7 @@ def test_the_coverage_report_survives_a_total_provider_failure(monkeypatch):
     _pin_build(monkeypatch, SUNDAY, live)
     monkeypatch.setattr(cal, "_fh_get_month",
                         lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("429")))
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: None)
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: (None, None))
 
     cal._build_current_week()
     report = cal.calendar_coverage_status()
@@ -494,7 +494,7 @@ def test_the_admin_refresh_rebuilds_through_the_same_path(monkeypatch):
     _pin_build(monkeypatch, SUNDAY, live)
     fh = {"earningsCalendar": [_fh_row("BABA", THU.isoformat(), "bmo")]}
     monkeypatch.setattr(cal, "_fh_get_month", lambda *a, **kw: fh)
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: None)
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda *a, **kw: (None, None))
 
     out = cal.refresh_calendar(user={"id": "admin", "role": "admin"})
 

@@ -38,14 +38,12 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-import requests
-
 from api.services.finnhub_client import fh_get
+from api.services import fmp_client
 
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 8
-_FMP_TIMEOUT = 6
 
 
 def _norm_meta(raw: dict) -> dict:
@@ -93,24 +91,22 @@ def get_analyst_candidates() -> dict[str, dict]:
     return out
 
 
-def _fmp_get(path: str, params: dict, timeout: int = _FMP_TIMEOUT):
-    """Fire a Financial Modeling Prep GET. Returns parsed JSON or None on
-    failure. Own tiny client (matches the idiom already in
-    api/services/analyst_grades.py / api/services/engine.py::_fmp_get) —
-    FMP is a different provider from Finnhub and must never touch
-    finnhub_client's token bucket / cooldown."""
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return None
-    call_params = dict(params)
-    call_params["apikey"] = key
+def _fmp_grades_rows(ticker: str) -> Optional[list]:
+    """Most-recent FMP `stable/grades` rows for `ticker` via the D1
+    `fmp_client` adapter. Returns the raw row list, or None on any failure
+    (not configured, network error, rate-limited, no data) — mirrors the
+    retired local `_fmp_get`'s "None on any failure" contract so both call
+    sites below are unchanged."""
     try:
-        r = requests.get(f"https://financialmodelingprep.com{path}", params=call_params, timeout=timeout)
-        r.raise_for_status()
-        return r.json()
-    except Exception as exc:
-        logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
+        result = fmp_client.get_analyst_grades(ticker)
+    except fmp_client.FMPNotFound:
         return None
+    except Exception as exc:
+        logger.warning("FMP grades failed for %s: %s", ticker, exc)
+        return None
+    if result.degraded is not None:
+        return None
+    return result.value if isinstance(result.value, list) else None
 
 
 def _fmp_recent_action(ticker: str, within_hours: int, now: Optional[float] = None) -> Optional[dict]:
@@ -125,8 +121,8 @@ def _fmp_recent_action(ticker: str, within_hours: int, now: Optional[float] = No
     """
     if not ticker:
         return None
-    rows = _fmp_get("/stable/grades", {"symbol": ticker.upper()}, timeout=_FMP_TIMEOUT)
-    if not isinstance(rows, list) or not rows:
+    rows = _fmp_grades_rows(ticker)
+    if not rows:
         return None
 
     days = max(1, -(-int(within_hours) // 24))  # ceiling division
@@ -184,12 +180,8 @@ def analyst_grades_available(ticker: str) -> bool:
     if not ticker:
         return False
     sym = ticker.upper()
-    try:
-        rows = _fmp_get("/stable/grades", {"symbol": sym}, timeout=_FMP_TIMEOUT)
-        if isinstance(rows, list) and rows:
-            return True
-    except Exception:
-        logger.debug("[catalyst-analyst] FMP grades availability probe failed for %s", sym)
+    if _fmp_grades_rows(sym):
+        return True
     try:
         rows = fh_get("/stock/upgrade-downgrade", {"symbol": sym}, timeout=_TIMEOUT)
         return isinstance(rows, list) and bool(rows)

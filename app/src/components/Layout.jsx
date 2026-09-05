@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
+import CommandPalette from './CommandPalette'
 import FeedbackWidget from './FeedbackWidget'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
@@ -83,19 +84,25 @@ export default function Layout({ children }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const openMore = () => setMoreOpen(true)
 
+  // The visible NavBar/MobileNav search triggers (2026-09-03 discoverability
+  // slice) open the SAME palette the Ctrl/Cmd+K hotkey does — CommandPalette
+  // stays self-contained; this is just the imperative handle to reach it.
+  const paletteRef = useRef(null)
+  const openPalette = () => paletteRef.current?.open()
+
   return (
     <TickerHubProvider>
       <MoreSheetContext.Provider value={openMore}>
         <div className={styles.shell}>
           {/* Desktop sidebar — hidden at <=1024px via CSS */}
-          <NavBar />
+          <NavBar onOpenPalette={openPalette} />
           {/* Mobile top bar — shown at <=1024px via CSS. Its top-left menu
               button opens the ONE unified MoreSheet. The bottom tab bar that
               duplicated it route-for-route was removed 2026-09-01 (owner
               call): on touch, the hamburger is the app menu everywhere, and
               the phone chart shell — which hides this top bar — carries its
               own Menu trigger in the symbol strip via MoreSheetContext. */}
-          <MobileNav onMenu={openMore} />
+          <MobileNav onMenu={openMore} onOpenPalette={openPalette} />
           <main className={styles.main}>
             {children ?? <Outlet />}
           </main>
@@ -107,6 +114,7 @@ export default function Layout({ children }) {
           <FeedbackWidget />
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
+          <CommandPalette ref={paletteRef} />
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>

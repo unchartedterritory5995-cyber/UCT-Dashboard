@@ -7,10 +7,34 @@ or PRIOR close. The chart's live-tick writer then folded that stale close into
 the developing pre-market candle: a wick shooting down to the SAME price every
 few seconds, the right-axis tag snapping to it, then both reverting on the next
 good poll (the "ghost wick" report, 2026-07-29).
+D1 note: `_fetch_snapshots` now calls `client.get_batch_quotes(tickers)`
+rather than building the URL itself and calling `client._get` — see
+`test_live_prices_dual_class.py`'s matching note for the full explanation.
 """
 from __future__ import annotations
 
 from api.routers import live_prices as lp
+from api.services import provider_errors as _pe
+from api.services.massive import to_polygon_symbol
+
+
+def _batch_quotes_from_get(client, tickers):
+    poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
+    tickers_param = ",".join(poly_to_canon.keys())
+    url = (f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+           f"?tickers={tickers_param}&apiKey={client._api_key}")
+    data = client._get(url, timeout=5.0)
+    out = {}
+    for t in data.get("tickers", []):
+        poly_sym = t.get("ticker", "")
+        if not poly_sym:
+            continue
+        out[poly_to_canon.get(poly_sym, poly_sym)] = t
+    return _pe.ProviderResult(
+        value=out,
+        provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="test"),
+        licensing_class="R",
+    )
 
 
 class _FlappyClient:
@@ -30,6 +54,9 @@ class _FlappyClient:
             "todaysChangePerc": 0.75,
             "todaysChange": 0.06,
         }]}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 def _clear():

@@ -79,7 +79,11 @@ def test_absolute_fallback_when_no_distributions(rat):
     out = r.get_ratings("ABSTEST")
     assert out["basis"] == "absolute"
     assert out["universe_n"] is None
-    assert "future enhancement" in out["method"]
+    # 2026-09-03 A6/A7 pass: corrected wording -- percentile ranking is LIVE
+    # in production (RATINGS_PERCENTILE_ENABLED=1), not "a future enhancement";
+    # this test's own thin-distribution fixture is what makes THIS metric fall
+    # back to the absolute bands, not the percentile machinery being unbuilt.
+    assert "too thin for a percentile rank" in out["method"]
     # earnings_growth 50% → absolute _EPS_BANDS gives 98
     assert out["components"]["eps"] == 98
     assert out["composite"] is not None

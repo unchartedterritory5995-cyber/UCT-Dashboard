@@ -107,7 +107,7 @@ def _fallback_symbol_scan(qq: str, limit: int):
     out = []
     for t in (exact + prefix + substring)[:limit]:
         out.append({"ticker": t, "name": _name_from_cache(t), "type": "stock",
-                    "exchange": None})
+                    "exchange": None, "entity_id": None})
     return out
 
 
@@ -124,7 +124,13 @@ def ticker_search(
 
     `type` filters by category chip: stock | etf | index | breadth | '' (all).
 
-    Row shape: {"ticker","name"|None,"type","exchange"|None,[breadth|delisted flags]}
+    Row shape: {"ticker","name"|None,"type","exchange"|None,"entity_id"|None,[breadth|delisted flags]}
+
+    `entity_id` (Checkpoint 6, entity-master-spec.md §2.2): populated for live
+    index rows once Entity Master has resolved that symbol; `null` for breadth
+    pseudo-tickers and delisted rows (out of this checkpoint's authorized
+    scope) and while the rich index is still building. Purely additive — a
+    client that ignores this field behaves exactly as before.
     """
     qq = (q or "").strip().upper()
     if not qq:
@@ -161,7 +167,8 @@ def ticker_search(
             b_front, b_back = [], []
             for rec in _breadth_syms.search(qq, limit):
                 row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
-                       "exchange": "UCT", "breadth": True, "group_label": rec.get("group_label")}
+                       "exchange": "UCT", "entity_id": None,
+                       "breadth": True, "group_label": rec.get("group_label")}
                 (b_front if rec.get("symbol_hit") else b_back).append(row)
             results = b_front + results + b_back
         except Exception:
@@ -176,7 +183,7 @@ def ticker_search(
                     continue
                 results.append({
                     "ticker": rec["ticker"], "name": rec.get("name"),
-                    "type": "delisted", "exchange": None,
+                    "type": "delisted", "exchange": None, "entity_id": None,
                     "delisted": True, "delisted_date": rec.get("delisted_date"),
                 })
         except Exception:

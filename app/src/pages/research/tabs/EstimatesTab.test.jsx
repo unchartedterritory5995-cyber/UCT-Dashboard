@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
+// 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
+// split): EstimatesTab is narrowed to forward estimates + revisions only.
+// Consensus / price-target / recent-rating-change coverage moved to
+// AnalystRatingsTab.test.jsx -- this file no longer references those fields.
+
 const data = {
   sym: 'AAPL',
   forward: [
@@ -9,9 +14,6 @@ const data = {
   revisions: [
     { period: 'Current Qtr', current: 2.10, ago30: 2.05, ago90: 1.95, up30: 5, down30: 1 },
   ],
-  rating_changes: [
-    { date: '2026-05-01', firm: 'Goldman Sachs', from_grade: 'Neutral', to_grade: 'Buy', action: 'up' },
-  ],
 }
 
 vi.mock('../hooks/useEstimates', () => ({ default: () => ({ data, isLoading: false }) }))
@@ -19,12 +21,47 @@ vi.mock('../hooks/useEstimates', () => ({ default: () => ({ data, isLoading: fal
 import EstimatesTab from './EstimatesTab'
 
 describe('EstimatesTab', () => {
-  it('renders forward estimates, revisions, and rating changes', () => {
+  it('renders forward estimates and revisions', () => {
     render(<EstimatesTab sym="AAPL" />)
     expect(screen.getByText('Forward estimates (analyst consensus)')).toBeInTheDocument()
     expect(screen.getByText('+15.0%')).toBeInTheDocument()      // eps growth
     expect(screen.getByText('$95.00B')).toBeInTheDocument()     // revenue avg
-    expect(screen.getByText('Goldman Sachs')).toBeInTheDocument()
-    expect(screen.getByText('Buy')).toBeInTheDocument()         // to_grade
+    expect(screen.getByText('EPS estimate revisions')).toBeInTheDocument()
+  })
+
+  it('does not render any analyst-consensus / price-target / rating-change content', () => {
+    render(<EstimatesTab sym="AAPL" />)
+    expect(screen.queryByText('Analyst consensus')).not.toBeInTheDocument()
+    expect(screen.queryByText('Price target')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recent rating changes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recent analyst actions')).not.toBeInTheDocument()
+  })
+})
+
+describe('EstimatesTab -- entity + empty state', () => {
+  it('renders an honest note when the symbol has not resolved to a canonical entity', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useEstimates', () => ({
+      default: () => ({
+        data: { sym: 'ZZZ', entity: { status: 'not_found', entityId: null }, forward: [], revisions: [] },
+        isLoading: false,
+      }),
+    }))
+    const { default: FreshEstimatesTab } = await import('./EstimatesTab')
+    render(<FreshEstimatesTab sym="ZZZ" />)
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+  })
+
+  it('shows the empty-state note when forward and revisions are both empty', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useEstimates', () => ({
+      default: () => ({
+        data: { sym: 'ZZZ', entity: { status: 'resolved', entityId: 'e_1' }, forward: [], revisions: [] },
+        isLoading: false,
+      }),
+    }))
+    const { default: FreshEstimatesTab } = await import('./EstimatesTab')
+    render(<FreshEstimatesTab sym="ZZZ" />)
+    expect(screen.getByText('Estimate data is unavailable for this ticker.')).toBeInTheDocument()
   })
 })

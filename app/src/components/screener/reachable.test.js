@@ -426,6 +426,16 @@ const AWAITING_A_DECISION = {
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
     'app/src/pages/optionsFlow/flowFactsEntry.js':
     'NOT dead, and the SAME SHAPE as cotFactsEntry above — the ENTRY POINT of the flow facts bundle: app/scripts/build-flow-facts.mjs builds it into app/dist/flow-facts.cjs (npm run build), and api/services/flow_aggregate.py runs that bundle by subprocess to serve GET /api/flow/aggregate. It exists so the SERVER can run the browser own parseCSV + processFlowData rather than a Python port of them, which would put a second authority on the numbers members trade on. A walk from App.jsx cannot see a build-script entry, so it is recorded here.',
+
+  // ⚰️ S8 STEP 1's three entries (Provenance.jsx, FreshnessBadge.jsx,
+  // freshnessContract.js) LIVED HERE UNTIL STEP 2 (2026-09-02), which wired
+  // them into a real, reachable route (`pages/ProvenanceDemo.jsx` at
+  // `/provenance-demo`, App.jsx). This is the reassuring direction the
+  // `thinkscript.js` note above describes: the rail caught the wire landing
+  // and demanded the stale exemptions be removed, rather than staying green
+  // by accident. See `pages/ProvenanceDemo.jsx`'s own header for what it is
+  // and is not (a capability demo, not a product-placement decision).
+
   // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
   // AND ITS ENTRY SAID "MOUNTS AT W3.7 … through ImportBox's translateThinkScript".
   // W3.7 mounted it and the entry became FALSE, which is what this rail caught —

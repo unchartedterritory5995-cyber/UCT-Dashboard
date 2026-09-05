@@ -13,6 +13,7 @@ import requests
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services import yf_util
+from api.services import fmp_client
 
 _logger = logging.getLogger(__name__)
 
@@ -342,7 +343,26 @@ def _surprise_pct(actual, estimate):
 
 
 def _fmp_get(path: str, params: dict, timeout: int = 10):
-    """Fire a Financial Modeling Prep GET. Returns parsed JSON or None on failure."""
+    """Fire a Financial Modeling Prep GET. Returns parsed JSON or None on
+    failure.
+
+    ⚠️ D1 NOTE (found while migrating this module's own 6 originally-scoped
+    call sites onto `fmp_client`): this function is NOT private to
+    earnings_estimates.py. A `financialmodelingprep.com` string grep would
+    never find them, but at least 9 other modules import and call `_fmp_get`
+    directly as a de facto shared low-level FMP client: `api/routers/research.py`,
+    `api/services/bars_sanitize.py`, `api/services/call_recap_warmer.py`,
+    `api/services/fundamentals.py`, `api/services/ipo_calendar.py`,
+    `api/services/ir_webcast.py`, `api/services/research/financial_history.py`,
+    `api/services/screener/earnings_dates.py`, `api/services/transcript_indexer.py`
+    — for endpoints (`/stable/profile`, `/stable/splits`, and others) outside
+    this build's approved D1 scope. Deleting this function would silently
+    break every one of them. It stays defined, unchanged, for THEIR use;
+    `_fmp_rows` below (routed through `fmp_client`) is what this module's own
+    6 originally-scoped call sites now use internally. See
+    `docs/d1-implementation-log.md` Section 1 addendum — recorded as a
+    deviation from the spec's own (already-corrected-once) FMP call-site
+    census, not migrated in this build per the anti-scope-creep boundary."""
     key = os.environ.get("FMP_API_KEY", "")
     if not key:
         return None
@@ -354,6 +374,25 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     except Exception as exc:
         _logger.warning("FMP %s failed for %s: %s", path, params.get("symbol", "?"), exc)
         return None
+
+
+def _fmp_rows(ticker: str, fn, **kwargs) -> list | None:
+    """Call a `fmp_client` typed function (e.g. `fmp_client.get_earnings`)
+    for `ticker` and return its raw row list, or None on ANY failure (not
+    configured, network error, rate-limited, degraded, or genuinely no
+    data) — mirrors `_fmp_get`'s "None on any failure" contract so every
+    call site below (this module's own 6 originally-scoped ones) is
+    otherwise unchanged."""
+    try:
+        result = fn(ticker, **kwargs)
+    except fmp_client.FMPNotFound:
+        return None
+    except Exception as exc:
+        _logger.warning("FMP %s failed for %s: %s", fn.__name__, ticker, exc)
+        return None
+    if result.degraded is not None:
+        return None
+    return result.value if isinstance(result.value, list) else None
 
 
 def _fmp_price_target_fallback(ticker: str) -> dict | None:
@@ -369,15 +408,15 @@ def _fmp_price_target_fallback(ticker: str) -> dict | None:
     targetMean stays None rather than being fabricated under the wrong name.
     `lastUpdated` is likewise absent from this endpoint and stays None too.
 
-    `_fmp_get` already bounds the call (4s timeout, own try/except, never
-    raises) and is a different provider entirely — it never touches the
-    Finnhub token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`)
-    above, so a busy Finnhub minute can't starve this fallback and vice versa.
+    `_fmp_rows` (via `fmp_client`) already bounds the call and never raises,
+    and is a different provider entirely — it never touches the Finnhub
+    token bucket (`_fh_take_token`) or cooldown (`_fh_cooldown_until`) above,
+    so a busy Finnhub minute can't starve this fallback and vice versa.
 
     Returns None (never an all-None dict) when FMP has nothing usable, so the
     caller's `partial` calculation still treats the leg as genuinely missing.
     """
-    data = _fmp_get("/stable/price-target-consensus", {"symbol": ticker}, timeout=4)
+    data = _fmp_rows(ticker, fmp_client.get_price_target_consensus)
     row = data[0] if isinstance(data, list) and data and isinstance(data[0], dict) else None
     if not row:
         return None
@@ -412,7 +451,7 @@ def _fmp_consensus_snapshot(ticker: str) -> dict | None:
     the caller's Finnhub fallback still fires and a genuine all-zero
     consensus from Finnhub is never confused with an absent one.
     """
-    row = _fmp_get("/stable/grades-consensus", {"symbol": ticker}, timeout=4)
+    row = _fmp_rows(ticker, fmp_client.get_grades_consensus)
     row = row[0] if isinstance(row, list) and row and isinstance(row[0], dict) else None
     if not row:
         return None
@@ -443,7 +482,7 @@ def _fmp_grades_historical(ticker: str, limit: int = 4) -> list:
     need no downstream change. Returns [] (never a partial/malformed row) on
     failure — callers fall back to Finnhub in that case.
     """
-    data = _fmp_get("/stable/grades-historical", {"symbol": ticker, "limit": limit}, timeout=4)
+    data = _fmp_rows(ticker, fmp_client.get_grades_historical, limit=limit)
     if not isinstance(data, list):
         return []
     out = []
@@ -530,7 +569,7 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
     a consensus-tracked row + an alternate figure with no estimate), which would
     otherwise show as a duplicate quarter — so we dedup by (year, quarter),
     keeping the row that has a real surprise (estimate present), else the latest."""
-    data = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": _history_limit(year)})
+    data = _fmp_rows(ticker, fmp_client.get_earnings, limit=_history_limit(year))
     if not isinstance(data, list):
         return []
     best = {}
@@ -887,7 +926,7 @@ def _build_chart_markers(ticker: str) -> dict:
         # limit 400 ≈ full available history (FMP returns newest-first) so markers
         # go back as far as the provider has data — matches the since-inception
         # chart history. Future estimate rows (epsActual=None) are skipped below.
-        fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 400})
+        fmp_rows = _fmp_rows(ticker, fmp_client.get_earnings, limit=400)
         best_by_date = {}
         forward = []
         from datetime import date as _date
@@ -969,7 +1008,7 @@ def _build_chart_markers(ticker: str) -> dict:
                 s = str(q or "").upper().strip().lstrip("Q")
                 return int(s) if s.isdigit() else None
 
-            td = _fmp_get("/stable/earning-call-transcript-dates", {"symbol": ticker})
+            td = _fmp_rows(ticker, fmp_client.get_transcript_dates)
             qmap = {}
             if isinstance(td, list):
                 for t in td:

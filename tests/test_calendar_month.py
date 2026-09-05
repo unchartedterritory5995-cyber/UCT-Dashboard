@@ -106,7 +106,7 @@ def test_month_empty_safe_on_fh_failure():
     with mock.patch("api.routers.calendar.cache.get", return_value=None), \
          mock.patch("api.routers.calendar.cache.set"), \
          mock.patch("api.routers.calendar._load_cap_universe", return_value=_CAP_UNIVERSE), \
-         mock.patch("api.routers.calendar._fh_get_month", return_value=None),          mock.patch("api.routers.calendar._fmp_range_week", return_value=None),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
+         mock.patch("api.routers.calendar._fh_get_month", return_value=None),          mock.patch("api.routers.calendar._fmp_range_week", return_value=(None, None)),          mock.patch("api.routers.calendar._attach_names"),          mock.patch("api.routers.calendar._curate_econ_events"):
         r = client.get("/api/calendar/month?year=2026&month=6")
     assert r.status_code == 200
     body = r.json()

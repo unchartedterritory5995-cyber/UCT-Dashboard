@@ -231,6 +231,16 @@ def get_call_recap_with_status(
         _log.debug("[call_recap] store read failed for %s: %s", sym, exc)
         stored = None
     if stored:
+        # Honest as-of: the recap's own {quarter, generated_at} -- both were
+        # computed at write time and dropped before this read (2026-09-03
+        # A6/A7 pass fixes that). Best-effort: a meta-read failure still
+        # serves the recap itself, just without the stamp.
+        try:
+            meta = _store().get_meta(sym, quarter)
+        except Exception:
+            meta = None
+        if meta:
+            stored = {**stored, "quarter": meta.get("quarter"), "generated_at": meta.get("created_at")}
         _cache().set(ck, stored, _RECAP_TTL)
         return stored, "ready"
 

@@ -143,7 +143,7 @@ def test_build_merges_both_provider_legs_and_applies_the_universe_gate(monkeypat
          "epsActual": 0.5, "revenueActual": 1_000_000},
     ]})
     monkeypatch.setattr(cal, "_fmp_range_week",
-                        lambda a, b: [_prow("SLAB"), _prow("600641.SS")])
+                        lambda a, b: ([_prow("SLAB"), _prow("600641.SS")], None))
     monkeypatch.setattr("api.services.wire.store.get_prints", lambda md: [_wrow("BGS")])
     monkeypatch.setattr("api.services.wire.detector.todays_reporters",
                         lambda md: [{"sym": "BGS"}])
@@ -160,7 +160,7 @@ def test_a_double_provider_failure_is_not_measured_and_invents_nothing(monkeypat
     import api.routers.calendar as cal
     monkeypatch.setattr(cal, "_load_cap_universe", lambda: CAP)
     monkeypatch.setattr(cal, "_fh_get_month", lambda a, b: None)
-    monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: None)
+    monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: (None, None))
     monkeypatch.setattr("api.services.wire.store.get_prints", lambda md: [_wrow("SE")])
     monkeypatch.setattr("api.services.wire.detector.todays_reporters", lambda md: [])
 

@@ -29,6 +29,7 @@ from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
 from api.services import calendar_personalization as _cp
+from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -437,7 +438,7 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
     if not still_pending:
         return
     try:
-        fmp_rows = _fmp_range_week(past_dates[0], today_str)
+        fmp_rows, _fmp_meta = _fmp_range_week(past_dates[0], today_str)
         if not fmp_rows:
             return
         fmp_map = {}
@@ -981,7 +982,7 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
         # when FMP_API_KEY is unset). This is what keeps a past day non-empty
         # when Finnhub 429s/errors entirely — `rows` above can be `[]` and
         # this leg still runs (no early return on an empty Finnhub result).
-        fmp_rows = _fmp_range_week(from_ds, to_ds)
+        fmp_rows, _fmp_meta = _fmp_range_week(from_ds, to_ds)
         if fmp_rows:
             for row in fmp_rows:
                 sym = (row.get("symbol") or "").strip().upper()
@@ -1223,7 +1224,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
 
         fmp_rows = None
         try:
-            fmp_rows = _fmp_range_week(from_ds, to_ds)
+            fmp_rows, _fmp_meta = _fmp_range_week(from_ds, to_ds)
         except Exception as exc:
             _logger.warning("Calendar: live-window FMP leg failed: %s", exc)
         for row in fmp_rows or []:
@@ -1526,6 +1527,29 @@ def _attach_names(days: dict) -> None:
             _NAME_POOL.submit(_backfill)
 
 
+def _attach_entities(days: dict) -> None:
+    """Canonical entity resolution (S3) onto every EARNINGS entry of a week —
+    2026-09-03 A5 modernization. Never applied to `econ`/`fed` entries: a
+    macro release carries no ticker to resolve, so S3 genuinely does not
+    apply there (an economic event is not a security event). No `vendor=` —
+    calendar's own provider calls are market-wide range queries, never
+    routed by a resolved vendor symbol, so there is nothing here for Entity
+    Master's vendor-symbol mapping to do. Best-effort, like `_attach_names`:
+    a resolution miss (`resolve_entity` never raises) still stamps an honest
+    `{"status": "not_found", "entityId": None}` rather than leaving the field
+    absent — the frontend's entity-unresolved note relies on the field always
+    being present, not merely present-when-happy."""
+    for day in days.values():
+        for e in _day_entries(day):
+            if "entity" in e:
+                continue
+            sym = (e.get("sym") or "").strip()
+            if not sym:
+                continue
+            entity, _effective_sym = resolve_entity(sym)
+            e["entity"] = entity
+
+
 # ── Range-week builder (non-current weeks) ─────────────────────────────────────
 # Finnhub /calendar/earnings range is PRIMARY (US-focused, carries the session
 # where known); FMP stable/earnings-calendar is the fallback (broader tape but
@@ -1555,8 +1579,10 @@ _FMP_CAL_CHUNK_TIMEOUT_SECS = 10
 _FMP_CAL_CHUNK_MAX_WORKERS = 6
 
 
-def _fmp_calendar_day(day: date, key: str) -> list[dict] | None:
-    """One `stable/earnings-calendar` call scoped to a SINGLE calendar day.
+def _fmp_calendar_day(day: date) -> tuple[list[dict] | None, dict | None]:
+    """One `stable/earnings-calendar` call scoped to a SINGLE calendar day,
+    via the typed D1 adapter (`fmp_client.get_earnings_calendar` — 2026-09-03
+    A5 modernization; was a raw `requests.get`, same single-day scoping).
 
     🔴 Never span more than one day in a single FMP calendar call — live-
     measured (`api/services/implied_store.py:384-398`, the already-proven
@@ -1564,52 +1590,72 @@ def _fmp_calendar_day(day: date, key: str) -> list[dict] | None:
     with ZERO of them dated day 1, and a 14-day call dropped days 0-1
     entirely. FMP silently truncates a multi-day range and the truncation is
     NOT date-fair, so chunking one call per day is the only way a wide range
-    stays complete. Returns None on failure — the caller treats that as
-    "this day contributed nothing" (never a whole-provider failure — one bad
-    day-chunk must not blank the rest of the range)."""
-    import requests
+    stays complete. Returns `(None, None)` on a genuine transport failure —
+    the caller treats that as "this day contributed nothing" (never a
+    whole-provider failure — one bad day-chunk must not blank the rest of
+    the range). Returns `([], None)`, NOT `(None, None)`, when FMP was
+    reached successfully and genuinely has no rows for the day (2026-09-03
+    range_empty follow-up): `not_found_if=_empty_list` on the shared typed
+    method raises `FMPNotFound` for an empty JSON array, which is the right
+    read for that method's other, per-symbol callers but WRONG here — a
+    market-wide calendar day legitimately has zero rows on a quiet day, and
+    folding that into the same signal as a real network/auth failure is
+    exactly the ambiguity `_build_range_week`'s `range_empty`/`range_error`
+    split exists to resolve; see that function's docstring. The `dict` half
+    is the D1 provenance/freshness envelope, `None` whenever rows are."""
+    from api.services import fmp_client
+    ds = day.isoformat()
     try:
-        resp = requests.get(
-            "https://financialmodelingprep.com/stable/earnings-calendar",
-            params={"from": day.isoformat(), "to": day.isoformat(), "apikey": key},
-            timeout=_FMP_CAL_CHUNK_TIMEOUT_SECS,
-        )
-        if not resp.ok:
-            _logger.warning("Calendar range: FMP HTTP %d for %s", resp.status_code, day.isoformat())
-            return None
-        data = resp.json()
+        result = fmp_client.get_earnings_calendar(ds, ds)
+    except fmp_client.FMPNotFound:
+        return [], None
     except Exception as exc:
-        _logger.warning("Calendar range: FMP fetch failed for %s: %s", day.isoformat(), exc)
-        return None
-    return data if isinstance(data, list) else None
+        _logger.warning("Calendar range: FMP fetch failed for %s: %s", ds, exc)
+        return None, None
+    if result.degraded is not None and not result.value:
+        return None, None
+    data = result.value if isinstance(result.value, list) else None
+    if data is None:
+        return None, None
+    meta = {
+        "vendor": result.provenance.vendor,
+        "sourceActivity": result.provenance.source_activity,
+        "fetchedAt": result.provenance.fetched_at,
+        "sourceObservedAt": result.provenance.source_observed_at,
+        "tieBreak": result.provenance.tie_break,
+        "freshnessClass": result.freshness,
+        "licensingClass": result.licensing_class,
+        "degraded": result.degraded,
+    }
+    return data, meta
 
 
-def _fmp_range_week(from_date: str, to_date: str) -> list[dict] | None:
+def _fmp_range_week(from_date: str, to_date: str) -> tuple[list[dict] | None, dict | None]:
     """FMP stable/earnings-calendar rows for a date range, chunked ONE CALL
-    PER CALENDAR DAY (see `_fmp_calendar_day`) and concatenated. Returns None
-    only on TOTAL failure (no key, or every single day-chunk failed) so a
-    caller can distinguish "FMP is down" from "FMP had nothing" — a partial
-    failure (some days ok, some not) returns whatever succeeded, matching
-    `implied_store._fmp_reporters`'s contract. Probe-verified on this plan
-    2026-07-09 (200, actuals inline, lastUpdated — but NO session field and
-    international symbols mixed in)."""
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return None
+    PER CALENDAR DAY (see `_fmp_calendar_day`) and concatenated. Returns
+    `(None, None)` only on TOTAL failure (no key, or every single day-chunk
+    failed) so a caller can distinguish "FMP is down" from "FMP had nothing"
+    — a partial failure (some days ok, some not) returns whatever succeeded,
+    matching `implied_store._fmp_reporters`'s contract. Probe-verified on
+    this plan 2026-07-09 (200, actuals inline, lastUpdated — but NO session
+    field and international symbols mixed in). The `dict` half is the D1
+    provenance/freshness envelope from the first successful day-chunk (every
+    chunk shares the same vendor/endpoint/licensing class — only the actual
+    row VALUES vary per day, never what the envelope describes)."""
     try:
         start = date.fromisoformat(from_date)
         end = date.fromisoformat(to_date)
     except (ValueError, TypeError):
-        return None
+        return None, None
     if end < start:
-        return None
+        return None, None
     day_list = [start + timedelta(days=i) for i in range((end - start).days + 1)]
 
     import concurrent.futures
-    results: list[list[dict] | None] = [None] * len(day_list)
+    results: list[tuple[list[dict] | None, dict | None]] = [(None, None)] * len(day_list)
     with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(_FMP_CAL_CHUNK_MAX_WORKERS, len(day_list))) as pool:
-        future_to_idx = {pool.submit(_fmp_calendar_day, d, key): i
+        future_to_idx = {pool.submit(_fmp_calendar_day, d): i
                           for i, d in enumerate(day_list)}
         for fut in concurrent.futures.as_completed(future_to_idx):
             i = future_to_idx[fut]
@@ -1617,14 +1663,17 @@ def _fmp_range_week(from_date: str, to_date: str) -> list[dict] | None:
                 results[i] = fut.result()
             except Exception as exc:  # noqa: BLE001 — one worker's failure isolates to its own day
                 _logger.warning("Calendar range: FMP day-chunk worker failed: %s", exc)
-                results[i] = None
-    if all(r is None for r in results):
-        return None  # every single day-chunk failed -> total provider failure
+                results[i] = (None, None)
+    if all(r is None for r, _ in results):
+        return None, None  # every single day-chunk failed -> total provider failure
     out: list[dict] = []
-    for r in results:
+    meta: dict | None = None
+    for r, m in results:
         if r:
             out.extend(r)
-    return out
+        if meta is None and m is not None:
+            meta = m
+    return out, meta
 
 
 def _build_range_week(monday: date) -> dict:
@@ -1662,6 +1711,12 @@ def _build_range_week(monday: date) -> dict:
     sym_index: dict[str, dict[str, dict]] = {ds: {} for ds in days}
 
     raw = _fh_get_month(week_start, week_end)
+    # 2026-09-03 range_empty follow-up: captured BEFORE the `or {}` below
+    # collapses "Finnhub's call itself failed" (`raw is None`) into the same
+    # falsy shape as "Finnhub succeeded and genuinely had nothing" (`raw ==
+    # {"earningsCalendar": []}`) — see the `source` decision after the FMP
+    # leg for why the distinction matters.
+    fh_call_failed = raw is None
     fh_rows = (raw or {}).get("earningsCalendar") or []
     if fh_rows:
         source = "range_finnhub"
@@ -1703,7 +1758,13 @@ def _build_range_week(monday: date) -> dict:
     # coerced into bmo/amc). This is what keeps a week non-empty when
     # Finnhub 429s/errors entirely (fh_rows == [] above; `source` stays
     # "range_empty" until this leg proves otherwise).
-    fmp_rows = _fmp_range_week(week_start, week_end)
+    fmp_rows, fmp_earnings_meta = _fmp_range_week(week_start, week_end)
+    # `fmp_rows is None` now means FMP genuinely never got a usable answer for
+    # ANY day in the range (`_fmp_calendar_day` returns `[]`, not `None`, for
+    # a day it reached successfully and found nothing — see that function's
+    # docstring) — so this is an honest transport-failure signal, not a mix
+    # of "failed" and "queried clean, zero results" the way it used to be.
+    fmp_call_failed = fmp_rows is None
     if fmp_rows:
         source = "range_fmp" if source == "range_empty" else f"{source}+fmp"
         for row in fmp_rows:
@@ -1741,6 +1802,21 @@ def _build_range_week(monday: date) -> dict:
             }
             days[ds]["tbd"].append(entry)
             sym_index.setdefault(ds, {})[sym] = entry
+
+    # 2026-09-03 range_empty follow-up. `source` is still exactly
+    # "range_empty" at this point iff NEITHER primary leg contributed a row —
+    # which used to mean two different things a member could not tell apart:
+    # a genuinely quiet range (both legs reached, both correctly answered
+    # "nothing here" — a real, common outcome for a far-future or holiday
+    # week) and a real provider outage (neither leg could even be reached).
+    # Flip to "range_error" ONLY when both calls themselves failed — a
+    # single successful call reporting zero is still an honest, trustworthy
+    # "empty," never an error. The Finviz leg below can still upgrade this
+    # to "range_error+finviz" if it rescues real rows despite both primary
+    # legs failing — that compound value is deliberately NOT treated as an
+    # error by the frontend (see Calendar.jsx), since real data did arrive.
+    if source == "range_empty" and fh_call_failed and fmp_call_failed:
+        source = "range_error"
 
     # ── Finviz Elite leg for a PAST week ──────────────────────────────────
     # `_backfill_past_days` gave the CURRENT week a third source; this closes
@@ -1788,9 +1864,10 @@ def _build_range_week(monday: date) -> dict:
     # it skips the (slow, this-week-only) ForexFactory fetches for far weeks and
     # goes straight to FMP, which serves any range. The old guard here predated
     # the FMP fallback and left every week beyond ±7 days with no econ at all.
-    _curate_econ_events(week_start, week_end, days)
+    econ_meta = _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
     _attach_date_moves(days)
+    _attach_entities(days)
 
     return {
         "week_start":      week_start,
@@ -1800,6 +1877,15 @@ def _build_range_week(monday: date) -> dict:
         # `is_current_week` means "the default anchored payload", NOT "contains
         # today" — see the note at its `True` emission in `_build_current_week`.
         "is_current_week": False,
+        # 2026-09-03 A5 modernization — honest per-payload disclosure of the
+        # FMP leg's own D1 provenance/freshness for the two merged, multi-
+        # provider-prone categories (earnings, economic). `None` whenever
+        # that leg didn't run or failed entirely; never fabricated. This is
+        # the ENVELOPE for the leg, not per-entry metadata — see
+        # `_attach_entities`'s docstring for why per-entry S8 badges would
+        # clutter a dense weekly grid instead of informing it.
+        "earnings_provenance": fmp_earnings_meta,
+        "econ_provenance":     econ_meta,
     }
 
 
@@ -1821,7 +1907,14 @@ def _get_or_build_range_week(monday: date) -> dict | None:
         except Exception as exc:
             _logger.warning("Calendar: range week build failed for %s: %s", monday, exc)
             return None
-        if payload.get("source") == "range_empty":
+        # 2026-09-03 range_empty follow-up: "range_error" is the honest
+        # failure signal now (both primary providers unreachable) — a plain
+        # "range_empty" means they were BOTH reached and genuinely found
+        # nothing, which is a real, stable answer worth the normal TTL below,
+        # not a suspected outage. `startswith` also catches "range_error+finviz"
+        # (Finviz salvaged some rows despite both primaries failing — still
+        # worth a fast recheck, since the primaries themselves are still down).
+        if (payload.get("source") or "").startswith("range_error"):
             # Both providers failed (e.g. a transient Finnhub 429). Caching that
             # for hours would resurrect the empty-calendar trust bug — keep it
             # only long enough to absorb a click-storm, then self-heal.
@@ -1904,7 +1997,10 @@ def get_month_calendar(year: int = 0, month: int = 0):
     monday = _monday_of(first)
     while monday <= last:
         wk = _get_or_build_range_week(monday)
-        if wk is None or wk.get("source") == "range_empty":
+        # 2026-09-03 range_empty follow-up: "range_error" is the honest
+        # failure signal now — a plain "range_empty" week is a genuinely
+        # confirmed-quiet week, not a degraded one (see _build_range_week).
+        if wk is None or (wk.get("source") or "").startswith("range_error"):
             degraded = True
         for ds, day in ((wk or {}).get("days") or {}).items():
             if not ds.startswith(month_prefix):
@@ -2160,17 +2256,29 @@ def _build_current_week() -> dict:
 
     # ── 5. Econ events: ALWAYS from ForexFactory (real data, never AI) ────────
     #    Overlays econ/fed on whichever earnings path ran above.
-    _curate_econ_events(week_start, week_end, days)
+    econ_meta = _curate_econ_events(week_start, week_end, days)
 
     # ── 6. Company names from the ticker_meta cache (non-blocking) ───────────
     _attach_names(days)
     _attach_date_moves(days)
+    _attach_entities(days)
 
     result = {
         "week_start":      week_start,
         "week_end":        week_end,
         "days":            days,
         "source":          source,
+        # 2026-09-03 A5 modernization — see `_build_range_week`'s identical
+        # fields for the full rationale. `earnings_provenance` stays `None`
+        # here on purpose: on the CURRENT week, FMP is a patch/backfill leg
+        # spread across three separate augmentation passes
+        # (`_patch_today_actuals`/`_backfill_past_days`/`_supplement_live_days`),
+        # not the single first-class merge leg it is for a range week — wiring
+        # disclosure through all three for a role that's already secondary
+        # would cost more than it honestly discloses. `econ_provenance` is
+        # real here too — `_curate_econ_events` runs identically either way.
+        "earnings_provenance": None,
+        "econ_provenance":     econ_meta,
         # ⛔ `is_current_week` REPORTS "THIS IS THE DEFAULT ANCHORED PAYLOAD",
         # NOT "this week contains today". ⭐ THIS COMMENT IS THE FIELD'S ONE
         # OWNER; the three `False` emissions point here rather than restating it.
@@ -2431,7 +2539,7 @@ def _fetch_ff_events(week_start: str, week_end: str, include_low: bool = False) 
     return result
 
 
-def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
+def _curate_econ_events(week_start: str, week_end: str, days: dict) -> dict | None:
     """Real economic events, injected in-place. ForexFactory first, FMP for gaps.
 
     FF only publishes `ff_calendar_thisweek.json` — `…_nextweek.json` 404s — so
@@ -2440,6 +2548,12 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
 
     The fallback fills DAYS FF did not cover; it never replaces an FF day, since
     FF is the richer source (it carries `actual` once a print releases).
+
+    Returns the FMP leg's D1 provenance/freshness envelope (2026-09-03 A5
+    modernization) when that leg actually ran, else `None` — `None` covers
+    both "FF alone already covered every day" (the FMP leg never fires) and
+    "the FMP leg ran but failed entirely." A caller uses this for honest
+    per-payload disclosure; it is not required reading for the merge itself.
     """
     # FF publishes only `ff_calendar_thisweek.json` (nextweek 404s), so for any
     # other week its two fetches are pure request-path waste — 2 × 12s timeouts
@@ -2468,11 +2582,13 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
     if not missing:
         _logger.info("Calendar: FF econ loaded %d events across %d days",
                      ff_total, len(ff))
-        return
+        return None
 
+    econ_meta = None
     try:
         from api.services import econ_calendar_fmp
-        fmp = econ_calendar_fmp.fetch_us_econ_week(week_start, week_end) or {}
+        fmp, econ_meta = econ_calendar_fmp.fetch_us_econ_week_with_meta(week_start, week_end)
+        fmp = fmp or {}
     except Exception as exc:
         _logger.warning("Calendar: FMP econ fallback failed: %s", exc)
         fmp = {}
@@ -2504,6 +2620,7 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> None:
             filled += 1
     _logger.info("Calendar: econ loaded — FF %d events / %d days, FMP filled %d "
                  "across %d uncovered days", ff_total, len(ff), filled, len(missing))
+    return econ_meta
 
 
 # ── IPO calendar endpoint ──────────────────────────────────────────────────────

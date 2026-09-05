@@ -310,6 +310,21 @@ export default function EarningsResearchModal({
   const body = (
     <>
       {banner}
+      {/* 2026-09-03 A5 modernization — same entity-unresolved note pattern as
+          the embedded research tabs (Filings/Ownership/Ratings), reading the
+          canonical identity now stamped on every calendar event by
+          `api/routers/calendar.py::_attach_entities`. This is representative
+          of what those tabs will independently show too (same `resolve_entity`
+          call, same symbol) — shown once here so it is visible before the
+          reader even opens a section, not duplicated per-panel. */}
+      {row?.entity && row.entity.status !== 'resolved' && (
+        <div
+          data-testid="entity-unresolved-note"
+          style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 16px' }}
+        >
+          Symbol not yet linked to a canonical identity ({row.entity.status}).
+        </div>
+      )}
       {/* ONE sub-head band, not two. The session line and the chart action used
           to be a strip and a 44px pinned footer at opposite ends of the modal,
           which is two full-width bands of chrome for two small things. They

@@ -63,7 +63,7 @@ const GROUPED_NAV_ITEMS = (() => {
   return groups
 })()
 
-export default function NavBar() {
+export default function NavBar({ onOpenPalette }) {
   const { user, isPaid, plan } = useAuth()
   const isAdmin = user?.role === 'admin'
   const showAll = isPaid  // admin + pro/premium/lifetime (AuthContext single source)
@@ -167,6 +167,17 @@ export default function NavBar() {
           <span className={styles.brandNameSub}>INTELLIGENCE</span>
         </span>
       </Link>
+
+      <button
+        type="button"
+        className={`${styles.item} ${styles.searchTrigger}`}
+        onClick={() => onOpenPalette?.()}
+        aria-label="Search — Ctrl+K"
+      >
+        <span className={styles.icon} aria-hidden="true"><UIcon name="search" gold /></span>
+        <span className={styles.label}>Search</span>
+        <kbd className={styles.shortcutHint} aria-hidden="true">⌘K</kbd>
+      </button>
 
       <div className={styles.mainItems}>
         {GROUPED_NAV_ITEMS.map((group) => (

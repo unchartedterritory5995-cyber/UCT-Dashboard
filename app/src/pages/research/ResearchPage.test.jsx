@@ -27,6 +27,27 @@ vi.mock('./hooks/useOwnership', () => ({
 vi.mock('../../hooks/useFilings', () => ({
   default: () => ({ data: { filings: [] }, isLoading: false }),
 }))
+// 2026-09-03 dedicated Analyst Ratings slice: the new tab needs its own data
+// hook resolved (not perpetually loading) so ?section=analyst-ratings has
+// positive content to assert against, mirroring Ownership/Filings above.
+vi.mock('./hooks/useAnalystRatings', () => ({
+  default: () => ({
+    data: {
+      sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_1' },
+      consensus: { label: 'Buy', total: 10, strongBuy: 2, buy: 6, hold: 2, sell: 0, strongSell: 0 },
+      price_target: null, recent_actions: { items: [], _meta: null },
+    },
+    isLoading: false,
+  }),
+}))
+// A8 News/Intelligence Slice 1 (2026-09-04): same idiom -- the new tab's
+// own hook resolved so ?section=news has positive content to assert.
+vi.mock('./hooks/useCompanyNews', () => ({
+  default: () => ({
+    data: { sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_1' }, items: [], _meta: null },
+    isLoading: false,
+  }),
+}))
 
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
@@ -81,5 +102,51 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=filings' })
     expect(screen.getByText('SEC filings (EDGAR)')).toBeInTheDocument()
+  })
+
+  it('honours ?section=analyst-ratings — lands on the new Analyst Ratings tab', () => {
+    // 2026-09-03 dedicated Analyst Ratings slice: a new tab, not a rename of
+    // Estimates or Ratings (UCT Composite) -- assert its own content.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=analyst-ratings' })
+    expect(screen.getByText('Analyst consensus')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Analyst Ratings" tab button distinct from "Ratings" (UCT Composite)', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Analyst Ratings' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ratings' })).toBeInTheDocument()
+  })
+
+  it('honours ?section=news — lands on the new News tab', () => {
+    // A8 Slice 1 (2026-09-04): a new, security-scoped tab, distinct from the
+    // calendar modal's own News tab (untouched compatibility bridge).
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=news' })
+    expect(screen.getByText('No recent news for this ticker.')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "News" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
+  })
+
+  it('honours ?section=ai — lands on the new Ask AI tab', () => {
+    // AI-Native Research Assistant Slice 1 (2026-09-04): the one contextual
+    // AI door inside the existing research experience.
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=ai' })
+    expect(screen.getByText('Ask AI — AAPL')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Ask AI" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Ask AI' })).toBeInTheDocument()
   })
 })

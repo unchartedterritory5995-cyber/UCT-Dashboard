@@ -1,0 +1,219 @@
+/* app/src/components/CommandPalette.module.css
+   Global Ctrl/Cmd+K command palette. Same --menu-* token vocabulary as
+   SymbolSearch.module.css (chart dialogs' surface family) for visual
+   consistency with the rest of the app's overlays. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 20px 20px;
+  background: rgba(6, 8, 11, 0.5);
+  backdrop-filter: blur(2.5px);
+  -webkit-backdrop-filter: blur(2.5px);
+}
+
+.dialog {
+  position: relative;
+  width: min(600px, 92vw);
+  max-height: min(480px, 74vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-surface, var(--menu-bg, #0e0e10));
+  border: 1px solid var(--menu-border, #26262a);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px var(--menu-shadow, rgba(0, 0, 0, 0.6)), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  font-family: 'Instrument Sans', var(--font-sans), system-ui, sans-serif;
+  color: var(--menu-text, #e6e6e8);
+  overflow: hidden;
+  animation: cmdkPop 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes cmdkPop { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+.searchRow {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 12px 8px;
+  padding: 0 12px;
+  height: 46px;
+  min-height: 46px;
+  background: var(--menu-input-bg, #141416);
+  border: 1px solid var(--menu-border, #2b2b2d);
+  border-radius: 10px;
+}
+.searchIcon { flex: 0 0 auto; color: var(--menu-text-faint, #7a7a80); display: inline-flex; }
+.searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--menu-accent, #c9a84c);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.searchInput::placeholder { color: var(--menu-text-faint, #6b6b6b); font-weight: 400; letter-spacing: 0; }
+.searchSpinner {
+  flex: 0 0 auto;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--menu-border, #2b2b2d);
+  border-top-color: var(--menu-accent, #c9a84c);
+  animation: cmdkSpin 0.7s linear infinite;
+}
+@keyframes cmdkSpin { to { transform: rotate(360deg); } }
+.hintKey {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 10.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--menu-input-bg, #17171a);
+  border: 1px solid var(--menu-border, #2b2b2d);
+  color: var(--menu-text-dim, #9a9aa0);
+}
+
+.resultList {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-border, #2c2c30) transparent;
+}
+.resultList::-webkit-scrollbar { width: 8px; }
+.resultList::-webkit-scrollbar-track { background: transparent; }
+.resultList::-webkit-scrollbar-thumb { background: var(--menu-border, #2c2c30); border-radius: 4px; }
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.resultRow:hover, .resultActive { background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
+
+.resultLogo {
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.resultMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.resultSym {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--menu-text, #f0f0f2);
+}
+.resultName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--menu-text-dim, #9a9aa0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.resultExch {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--menu-text-faint, #6c6c70);
+}
+.resultTyped { font-size: 13px; color: var(--menu-text-dim, #9a9aa0); }
+
+/* '?' in-box help mode (P10 — "the grammar documents itself from inside the box"). */
+.helpPanel { padding: 14px 12px 6px; }
+.helpPanel p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--menu-text-dim, #9a9aa0);
+}
+.helpPanel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.helpPanel li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--menu-text, #e6e6e8);
+}
+.helpPanel kbd {
+  font-family: inherit;
+  font-size: 10.5px;
+  min-width: 15px;
+  padding: 1px 5px;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--menu-input-bg, #17171a);
+  border: 1px solid var(--menu-border, #2b2b2d);
+  color: var(--menu-accent, #c9a84c);
+}
+.resultTyped strong { color: var(--menu-accent, #c9a84c); font-weight: 700; }
+.resultEmpty {
+  padding: 22px 10px;
+  text-align: center;
+  color: var(--menu-text-faint, #6c6c70);
+  font-size: 12.5px;
+}
+.resultError {
+  padding: 8px 10px 4px;
+  text-align: center;
+  color: var(--menu-text-faint, #6c6c70);
+  font-size: 11.5px;
+}
+
+.dialogFoot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--menu-divider, #1c1c1f);
+  color: var(--menu-text-faint, #6c6c70);
+  font-size: 11px;
+}
+.dialogFoot span { display: inline-flex; align-items: center; gap: 5px; }
+.dialogFoot kbd {
+  font-family: inherit;
+  font-size: 10px;
+  min-width: 15px;
+  padding: 1px 4px;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--menu-input-bg, #17171a);
+  border: 1px solid var(--menu-border, #2b2b2d);
+  color: var(--menu-text-dim, #9a9aa0);
+}
+
+@media (max-width: 640px) {
+  .backdrop { padding: 8vh 12px 12px; }
+  .dialog { border-radius: 12px; }
+  .searchInput { font-size: 16px; } /* avoid iOS zoom on focus */
+  .dialogFoot { display: none; }
+}

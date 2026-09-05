@@ -9,12 +9,14 @@ import os
 import time
 import threading
 import concurrent.futures as _cf
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
 from api.services import yf_util
 from api.services.cache import cache
+from api.services import provider_errors as _pe
+from api.services import provider_licensing_class as _plc
 
 _REST_BASE = "https://api.massive.com"
 
@@ -51,6 +53,76 @@ def to_polygon_symbol(ticker: str) -> str:
     normal tickers (no hyphen)."""
     return ticker.upper().replace("-", ".")
 
+
+# ── Provider Abstraction Layer (D1) — the Massive adapter ───────────────────
+# Per provider-abstraction-spec.md §10.1: EXTEND `_MassiveRestClient` in
+# place (this is the vendor's existing chokepoint class — unlike FMP, which
+# had none), rather than a parallel module. Every EXISTING method's external
+# contract (never raises; returns {}/[]/None on any failure) is left
+# unchanged — acceptance criterion 9's "zero application call-site changes
+# beyond the one-time migration". The typed, ProviderResult-returning
+# capabilities below (`get_quote`, `get_batch_quotes`) are ADDITIONS used by
+# the narrow, explicitly-approved migration slice (spec §10.2:
+# `live_prices.py`); every other existing caller of `get_single_ticker_
+# snapshot`/`get_batch_snapshots`/etc. is untouched.
+
+_ERR = _pe.make_vendor_errors("massive", class_prefix="Massive")
+MassiveNotConfigured = _ERR.NotConfigured
+MassiveAuthError = _ERR.AuthError
+MassiveRateLimited = _ERR.RateLimited
+MassiveTransient = _ERR.Transient
+MassiveNotFound = _ERR.NotFound
+
+# 🔴 Open item, same shape as fmp_client.py's (spec §10.4/§25): Massive's
+# actual per-minute ceiling on UCT's plan is tier-gated and unconfirmed
+# (OI-03a). Configuration value with a conservative-but-workable default —
+# existing batch-snapshot code already fires ~11 parallel chunk requests for
+# a 2,050-ticker universe with no throttle at all, so 300/min is a floor,
+# not a guess at the true ceiling — changeable with no code change once the
+# real ceiling is known.
+_MASSIVE_RATE_LIMIT_PER_MIN = float(os.environ.get("MASSIVE_RATE_LIMIT_PER_MIN", "300"))
+_bucket_tokens = _MASSIVE_RATE_LIMIT_PER_MIN
+_bucket_updated = time.monotonic()
+_bucket_lock = threading.Lock()
+_bucket_denied_total = 0
+# Spec §18.2's evidence-ladder "OC" (observed-called) field: incremented
+# once per actual network attempt through _typed_get, success or failure
+# alike — a token-shed doesn't count as "called", it counts as denied.
+_served_total = 0
+
+_FORBIDDEN_TTL = 86_400  # 24h, same precedent as fmp_client.py / finnhub_client.py
+
+
+def _take_token() -> bool:
+    """Non-blocking — never sleeps, same reasoning as fmp_client.py's
+    `_take_token`: this runs on the shared request-path threadpool."""
+    global _bucket_tokens, _bucket_updated, _bucket_denied_total
+    with _bucket_lock:
+        now = time.monotonic()
+        elapsed = max(0.0, now - _bucket_updated)
+        _bucket_updated = now
+        _bucket_tokens = min(
+            _MASSIVE_RATE_LIMIT_PER_MIN,
+            _bucket_tokens + elapsed * (_MASSIVE_RATE_LIMIT_PER_MIN / 60.0),
+        )
+        if _bucket_tokens >= 1.0:
+            _bucket_tokens -= 1.0
+            return True
+        _bucket_denied_total += 1
+        return False
+
+
+def budget() -> dict:
+    """Spec §7.1's `budget(vendor)` primitive."""
+    with _bucket_lock:
+        return {
+            "tokens_remaining": _bucket_tokens,
+            "ceiling": _MASSIVE_RATE_LIMIT_PER_MIN,
+            "denied_total": _bucket_denied_total,
+            "served_total": _served_total,
+        }
+
+
 _client = None
 
 # Shared httpx session — persistent TCP connections.
@@ -86,6 +158,224 @@ class _MassiveRestClient:
         resp = _http.get(url, timeout=timeout)  # None = use client-level timeout (read=25s)
         resp.raise_for_status()
         return resp.json()
+
+    def _typed_get(self, path: str, *, timeout: Optional[float] = None) -> dict:
+        """Shared typed transport for the NEW ProviderResult-returning
+        methods (`get_quote`/`get_batch_quotes`) — rate-limited, raises
+        typed errors instead of the class's other methods' "never raises"
+        contract. `path` is relative to `_REST_BASE` and must already
+        include the query string (including `apiKey`).
+
+        Real-Provider Validation Checkpoint (2026-09-02) finding: Massive's
+        snapshot endpoint answers a bare HTTP 404 for a genuinely
+        unsupported/delisted/nonexistent symbol — NOT only the 200-body-
+        with-non-OK-status shape spec §10.5 anticipated. Both shapes raise
+        `MassiveNotFound` here; per-endpoint 200-body status-field checks
+        stay in each typed method (§10.5: "the exact value varies by
+        endpoint family... not resolvable from the three functions this
+        pass read" — still true, so this transport does not guess a
+        universal status-field rule)."""
+        forbidden_key = f"massive_forbidden_{path.split('?')[0]}"
+        forbidden_since = cache.get(forbidden_key)
+        if forbidden_since is not None:
+            return {"__degraded__": "cached_forbidden", "__degraded_since__": forbidden_since}
+
+        if not _take_token():
+            raise _ERR.rate_limited(f"local Massive budget exhausted for {path.split('?')[0]}")
+
+        global _served_total
+        with _bucket_lock:
+            _served_total += 1
+
+        url = f"{_REST_BASE}{path}"
+        try:
+            resp = _http.get(url, timeout=timeout)
+        except Exception as exc:
+            raise _ERR.transient(f"Massive request failed: {exc}") from exc
+
+        if resp.status_code == 429:
+            raise _ERR.rate_limited(f"Massive rate-limited ({path.split('?')[0]})", status=429)
+        if resp.status_code in (401, 403):
+            now = time.time()
+            cache.set(forbidden_key, now, ttl=_FORBIDDEN_TTL)
+            raise _ERR.auth_error(f"Massive rejected ({resp.status_code})", status=resp.status_code)
+        if resp.status_code >= 500:
+            raise _ERR.transient(f"Massive server error ({resp.status_code})", status=resp.status_code)
+        if resp.status_code == 404:
+            raise _ERR.not_found(f"Massive: not found (HTTP 404) for {path.split('?')[0]}")
+        try:
+            resp.raise_for_status()
+        except Exception as exc:
+            raise _ERR.transient(f"Massive unexpected status {resp.status_code}") from exc
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise _ERR.transient("Massive returned non-JSON body") from exc
+
+    @staticmethod
+    def _resolve_symbol(ticker: str, entity_id: Optional[str]) -> str:
+        """Entity Master's `vendor_symbol()` first when `entity_id` is given
+        and a mapping exists (D1 authorization Section 6's design); falls
+        back to `to_polygon_symbol()` otherwise. Never raises."""
+        if entity_id:
+            try:
+                from api.services.entity_master import api as em_api
+                vs = em_api.vendor_symbol(entity_id, "massive")
+                if vs:
+                    return vs
+            except Exception:
+                pass
+        return to_polygon_symbol(ticker)
+
+    @staticmethod
+    def _ticker_observed_at(ticker_data: dict) -> Optional[float]:
+        """The vendor's OWN reported observation timestamp for one ticker's
+        snapshot (D1 provenance/freshness hardening, 2026-09-02) -- live-
+        verified shape: the top-level `updated` field on a ticker object is
+        epoch NANOSECONDS (confirmed live 2026-09-02: `updated` and
+        `lastTrade.t` agree to within a second of each other for a live
+        quote). `lastTrade.t` is the fallback when `updated` is absent.
+        Returns None (never a fabricated guess) when neither field is
+        present or parseable -- e.g. a pre-market snapshot with no trade
+        yet today."""
+        raw = ticker_data.get("updated")
+        if not isinstance(raw, (int, float)):
+            lt = ticker_data.get("lastTrade")
+            raw = lt.get("t") if isinstance(lt, dict) else None
+        if not isinstance(raw, (int, float)) or raw <= 0:
+            return None
+        return raw / 1e9
+
+    def get_quote(self, ticker: str, *, entity_id: Optional[str] = None) -> _pe.ProviderResult:
+        """Single-ticker snapshot, D1 typed contract. Live-validated during
+        the Real-Provider Validation Checkpoint (2026-09-02) against AAPL,
+        BRK-B (both the Entity Master and to_polygon_symbol paths — byte-
+        identical live results), SPY, ATLQ; MassiveNotFound confirmed live
+        for a delisted equity, a plain index ticker, and a nonexistent
+        symbol."""
+        if not self._api_key:
+            raise _ERR.not_configured("MASSIVE_API_KEY not set")
+        sym = self._resolve_symbol(ticker, entity_id)
+        path = f"/v2/snapshot/locale/us/markets/stocks/tickers/{sym}?apiKey={self._api_key}"
+        data = self._typed_get(path, timeout=8.0)
+        if data.get("__degraded__"):
+            return _pe.ProviderResult(
+                value=None,
+                provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_quote"),
+                licensing_class=_plc.licensing_class_for("massive", "quotes"),
+                degraded="cached_forbidden", degraded_since=data["__degraded_since__"],
+            )
+        status = data.get("status")
+        if status not in ("OK", "DELAYED"):
+            raise _ERR.not_found(f"Massive get_quote: no data for {sym!r} (status={status!r})")
+        # Section 10 adversarial-review finding: this used to hardcode
+        # "real_time" regardless of the vendor's own status field, which is
+        # exactly the false-equivalence class the D1 authorization singled
+        # out ("realtime vs delayed... If the abstraction is hiding a
+        # difference a Terminal user... would care about, correct the
+        # contract"). Massive's plan/entitlement can answer DELAYED for a
+        # given symbol; FreshnessClass has no vendor-agnostic "delayed,
+        # exact minutes unknown" literal, so "delayed_15" (the same label
+        # FMP's genuinely-15-min-delayed quote uses) is the closest honest
+        # fit -- imprecise on the exact minutes, but never claims real-time
+        # when the vendor itself says otherwise.
+        ticker_data = data.get("ticker") or {}
+        observed_at = self._ticker_observed_at(ticker_data)
+        normal = "real_time" if status == "OK" else "delayed_15"
+        # D1 provenance/freshness hardening (2026-09-02): a quote whose OWN
+        # observation timestamp is stale (finding #2 -- a delisted/illiquid
+        # symbol can answer 200/status=OK with an old last print, not an
+        # error) must not be reported as `normal` just because the HTTP
+        # call itself succeeded.
+        freshness = _pe.freshness_from_observed_age(observed_at, normal=normal)
+        return _pe.ProviderResult(
+            value=ticker_data,
+            provenance=_pe.ProvenanceRecord(
+                vendor="massive", source_activity="massive.get_quote", source_observed_at=observed_at,
+            ),
+            licensing_class=_plc.licensing_class_for("massive", "quotes"),
+            freshness=freshness,
+        )
+
+    def get_batch_quotes(self, tickers: list[str], *, entity_ids: Optional[dict] = None) -> _pe.ProviderResult:
+        """Batch snapshot, D1 typed contract — the FULL per-ticker fields
+        (day/prevDay/lastTrade/min), unlike `get_batch_snapshots`'s reduced
+        {ticker: pct} shape. Built for `live_prices.py::_fetch_snapshots`
+        (spec §10.2's narrow first slice), whose own docstring already
+        named the exact bug this fixes: dual-class tickers sent unmapped to
+        this batch endpoint come back n=0 for that symbol. `entity_ids`
+        (optional `{ticker: entity_id}`) lets each ticker resolve through
+        Entity Master's `vendor_symbol()` before falling back to
+        `to_polygon_symbol()`, same as `get_quote`.
+
+        Raises MassiveNotConfigured/typed errors for a totally failed
+        fetch; returns an empty `value` dict (never raises) when the batch
+        call succeeds but resolves zero of the requested tickers — matching
+        spec §6.4 (a genuine empty answer is a successful ProviderResult,
+        not an exception)."""
+        if not self._api_key:
+            raise _ERR.not_configured("MASSIVE_API_KEY not set")
+        if not tickers:
+            # D1 provenance/freshness hardening (2026-09-02): no request
+            # was made and there is nothing to have a freshness opinion
+            # about -- `None` (unknown/not-applicable), never a claimed
+            # "real_time" for zero data.
+            return _pe.ProviderResult(
+                value={},
+                provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),
+                licensing_class=_plc.licensing_class_for("massive", "quotes"),
+                freshness=None,
+            )
+        entity_ids = entity_ids or {}
+        poly_to_canon = {
+            self._resolve_symbol(t, entity_ids.get(t)): t for t in tickers
+        }
+        tickers_param = ",".join(poly_to_canon.keys())
+        path = (f"/v2/snapshot/locale/us/markets/stocks/tickers"
+                f"?tickers={tickers_param}&apiKey={self._api_key}")
+        data = self._typed_get(path, timeout=8.0)
+        if data.get("__degraded__"):
+            return _pe.ProviderResult(
+                value=None,
+                provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),
+                licensing_class=_plc.licensing_class_for("massive", "quotes"),
+                degraded="cached_forbidden", degraded_since=data["__degraded_since__"],
+            )
+        out: dict[str, dict] = {}
+        for t in data.get("tickers", []):
+            poly_sym = t.get("ticker", "")
+            if not poly_sym:
+                continue
+            canon = poly_to_canon.get(poly_sym, poly_sym)
+            out[canon] = t
+        # D1 provenance/freshness hardening (2026-09-02): the batch
+        # endpoint's top-level "status" field is NOT usable for freshness --
+        # live-verified 2026-09-02 to read "OK" on every successful HTTP
+        # call regardless of any individual ticker's staleness (it is a
+        # request-success indicator, not a per-symbol delay signal; this
+        # was checked rather than assumed, per "do not guess"). What each
+        # ticker DOES carry is its own `updated`/`lastTrade.t` observation
+        # timestamp, so freshness here is the WORST CASE across the batch:
+        # if any resolved ticker's own timestamp is stale, the whole result
+        # is reported "stale" rather than falsely claiming "real_time" for
+        # tickers that are fine. This is a result-level (not per-ticker)
+        # aggregate because ProviderResult has no field-level granularity
+        # yet -- the S8 Provenance & Freshness spec's own §4/PRD explicitly
+        # defers that exact decision, so this does not attempt to invent it
+        # here. A genuinely per-ticker freshness feature is future work,
+        # not silently done via a lossy aggregate.
+        oldest_age_freshness = "real_time"
+        for t in out.values():
+            observed_at = self._ticker_observed_at(t)
+            if _pe.freshness_from_observed_age(observed_at, normal="real_time") == "stale":
+                oldest_age_freshness = "stale"
+                break
+        return _pe.ProviderResult(
+            value=out,
+            provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),
+            licensing_class=_plc.licensing_class_for("massive", "quotes"),
+            freshness=oldest_age_freshness,
+        )
 
     def get_top_movers(self, direction: str = "gainers", limit: int = 20) -> list:
         """Return top gaining or losing stocks for the current session.
@@ -223,7 +513,16 @@ class _MassiveRestClient:
             except (TypeError, ValueError):
                 return None
 
-        uniq = list(dict.fromkeys(t.upper() for t in tickers))
+        # D1 fix (spec §10.6): dual-class tickers (BRK-B, BF-B) must be sent to
+        # Massive in DOT form or the request returns n=0 for them — this batch
+        # path never called to_polygon_symbol() before, unlike the single-
+        # ticker paths (get_single_ticker_snapshot/get_quote), which always
+        # have. `_poly_to_canon` maps the response's own ticker field (which
+        # comes back in whatever form was requested) straight back to the
+        # canonical keys every caller of this method already expects, so the
+        # external contract (keys in caller's original casing/form) is unchanged.
+        _poly_to_canon = {to_polygon_symbol(t): t.upper() for t in tickers}
+        uniq = list(dict.fromkeys(_poly_to_canon.keys()))
         chunks = [uniq[i:i + self._SNAPSHOT_BATCH]
                   for i in range(0, len(uniq), self._SNAPSHOT_BATCH)]
 
@@ -279,6 +578,7 @@ class _MassiveRestClient:
             ticker = t.get("ticker", "")
             if not ticker:
                 continue
+            ticker = _poly_to_canon.get(ticker, ticker)
             day_c = _f((t.get("day") or {}).get("c"))
             prev_c = _f((t.get("prevDay") or {}).get("c"))
             chg = _f(t.get("todaysChangePerc"))
@@ -323,7 +623,10 @@ class _MassiveRestClient:
         """
         if not tickers:
             return {}
-        tickers_param = ",".join(t.upper() for t in tickers)
+        # D1 fix (spec §10.6) -- same dual-class translation gap as
+        # get_batch_snapshots above; see that method's comment.
+        _poly_to_canon = {to_polygon_symbol(t): t.upper() for t in tickers}
+        tickers_param = ",".join(_poly_to_canon.keys())
         url = (
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
             f"?tickers={tickers_param}&apiKey={self._api_key}"
@@ -338,6 +641,7 @@ class _MassiveRestClient:
             ticker = t.get("ticker", "")
             if not ticker:
                 continue
+            ticker = _poly_to_canon.get(ticker, ticker)
             day      = t.get("day", {})
             prev_day = t.get("prevDay", {})
             last     = t.get("lastTrade", {})

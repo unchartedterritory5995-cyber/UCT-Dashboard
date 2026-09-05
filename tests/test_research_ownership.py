@@ -3,24 +3,57 @@ import pandas as pd
 
 from api.services.research import ownership as own
 from api.services.cache import cache
+from api.services import provider_errors as pe
+
+
+def _result(value, *, degraded=None, freshness="end_of_day"):
+    return pe.ProviderResult(
+        value=value,
+        provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test", source_observed_at=None),
+        licensing_class="R",
+        freshness=freshness,
+        degraded=degraded,
+    )
 
 
 class TestShort:
+    """_short() is yfinance-only now (2026-09-03 D1 pass) -- float/shares-
+    outstanding moved to _reconcile_share_counts/get_ownership's `share_counts`
+    field, see TestReconcileShareCounts and TestShareClassMixing below."""
+
     def test_short_normalization(self):
         info = {
             "sharesShort": 50_000_000, "shortPercentOfFloat": 0.0073, "shortRatio": 1.8,
-            "floatShares": 6_800_000_000, "sharesOutstanding": 15_000_000_000,
             "sharesShortPriorMonth": 48_000_000,
         }
         s = own._short(info)
         assert s["shares_short"] == 50_000_000
         assert s["short_pct_float"] == 0.73  # 0.0073 -> 0.73%
         assert s["days_to_cover"] == 1.8
-        assert s["float_shares"] == 6_800_000_000
+        assert s["prior_month_short"] == 48_000_000
+        assert "float_shares" not in s
 
     def test_short_empty(self):
         s = own._short({})
         assert s["shares_short"] is None
+
+
+class TestReconcileShareCounts:
+    """The float/shares-outstanding consistency guard, extracted out of
+    _short() so it can be applied independently of the (now yfinance-only)
+    short-interest fields."""
+
+    def test_fmp_counts_used_directly(self):
+        fs, so = own._reconcile_share_counts({}, {"float_shares": 6.8e9, "shares_outstanding": 1.5e10})
+        assert fs == 6.8e9 and so == 1.5e10
+
+    def test_falls_back_to_yfinance_per_field(self):
+        fs, so = own._reconcile_share_counts({"floatShares": 900.0, "sharesOutstanding": 1000.0}, None)
+        assert fs == 900.0 and so == 1000.0
+
+    def test_impossible_pair_suppressed(self):
+        fs, so = own._reconcile_share_counts({"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0}, {})
+        assert fs is None and so is None
 
 
 class TestInstitutional:
@@ -64,6 +97,10 @@ class TestGetOwnership:
         assert out["institutional"]["pct_held"] == 60.0
         assert out["short"]["short_pct_float"] == 1.0
         assert out["insider"][0]["type"] == "buy"
+        # 2026-09-03 D1 pass: canonical-identity + share-counts fields always
+        # present in the shape, even when Entity Master/FMP have nothing.
+        assert "entity" in out and out["entity"]["status"] in ("resolved", "not_found", "ambiguous")
+        assert set(out["share_counts"].keys()) == {"float_shares", "shares_outstanding", "_meta"}
         assert cache.get("research_own::TEST") is not None
 
     def _captured_ttl(self, monkeypatch, *, fetch_yf, insider, thirteen_f=lambda s: None):
@@ -124,6 +161,77 @@ class TestGetOwnership:
         assert ttl == own._CACHE_TTL
 
 
+class TestEntityResolutionAndD1:
+    """2026-09-03 A6/A7 pass: canonical-entity resolution now runs before
+    every provider fetch, and the FMP-vendor-effective symbol (not the raw
+    route param) is what reaches fmp_client and the insider-activity leg."""
+
+    def setup_method(self):
+        cache.invalidate("research_own::BRK-B")
+        cache.invalidate("research_own::ZZZZ")
+
+    def test_fmp_effective_symbol_reaches_share_counts_and_insider(self, monkeypatch):
+        monkeypatch.setattr(own, "resolve_entity",
+                            lambda sym, vendor=None: ({"status": "resolved", "entityId": "em_1"}, "BRK.B"))
+        monkeypatch.setattr(own, "_fetch_yf", lambda sym: {"info": {}, "inst": None})
+
+        seen = {}
+
+        def fake_shares_float(ticker):
+            seen["shares_float_ticker"] = ticker
+            return _result([{"floatShares": 1.0, "outstandingShares": 2.0}])
+
+        def fake_insider(ticker):
+            seen["insider_ticker"] = ticker
+            return []
+
+        monkeypatch.setattr(own.fmp_client, "get_shares_float", fake_shares_float)
+        monkeypatch.setattr(own, "get_insider_activity", fake_insider)
+        monkeypatch.setattr(own, "_thirteen_f", lambda sym: None)
+
+        out = own.get_ownership("BRK-B")
+        assert out["sym"] == "BRK-B"                    # display symbol stays the raw route param
+        assert out["entity"] == {"status": "resolved", "entityId": "em_1"}
+        assert seen["shares_float_ticker"] == "BRK.B"    # FMP calls use the resolved vendor symbol
+        assert seen["insider_ticker"] == "BRK.B"
+        assert out["share_counts"]["float_shares"] == 1.0
+        assert out["share_counts"]["_meta"]["vendor"] == "fmp"
+
+    def test_yfinance_leg_still_uses_the_raw_symbol(self, monkeypatch):
+        """Entity Master resolution must not change what yfinance is asked
+        for -- only the FMP-touching legs get the vendor-effective symbol."""
+        monkeypatch.setattr(own, "resolve_entity",
+                            lambda sym, vendor=None: ({"status": "resolved", "entityId": "em_1"}, "BRK.B"))
+        seen = {}
+
+        def fake_fetch_yf(sym):
+            seen["yf_sym"] = sym
+            return {"info": {}, "inst": None}
+
+        monkeypatch.setattr(own, "_fetch_yf", fake_fetch_yf)
+        monkeypatch.setattr(own, "get_insider_activity", lambda sym: [])
+        monkeypatch.setattr(own, "_thirteen_f", lambda sym: None)
+        monkeypatch.setattr(own, "_fmp_share_counts", lambda sym: ({}, None))
+
+        own.get_ownership("BRK-B")
+        assert seen["yf_sym"] == "BRK-B"
+
+    def test_entity_master_miss_never_blocks_the_fetch(self, monkeypatch):
+        """resolve_entity's own contract is 'never raises, falls back to the
+        raw symbol' -- confirm ownership.py relies on exactly that, never a
+        try/except of its own around the call."""
+        monkeypatch.setattr(own, "resolve_entity",
+                            lambda sym, vendor=None: ({"status": "not_found", "entityId": None}, sym))
+        monkeypatch.setattr(own, "_fetch_yf", lambda sym: {"info": {"heldPercentInstitutions": 0.4}, "inst": None})
+        monkeypatch.setattr(own, "get_insider_activity", lambda sym: [])
+        monkeypatch.setattr(own, "_thirteen_f", lambda sym: None)
+        monkeypatch.setattr(own, "_fmp_share_counts", lambda sym: ({}, None))
+
+        out = own.get_ownership("ZZZZ")
+        assert out["entity"]["status"] == "not_found"
+        assert out["institutional"]["pct_held"] == 40.0   # the fetch still ran
+
+
 class TestRoute:
     def setup_method(self):
         cache.invalidate("research_own::AAPL")
@@ -166,14 +274,14 @@ class TestShareClassMixing:
 
     def test_fmp_share_counts_win_over_yfinance(self):
         for sym, yf_float, yf_out, fmp_float, fmp_out in self.DUAL_CLASS:
-            s = own._short(
+            fs, so = own._reconcile_share_counts(
                 {"floatShares": yf_float, "sharesOutstanding": yf_out},
                 {"float_shares": fmp_float, "shares_outstanding": fmp_out},
             )
-            assert s["float_shares"] == fmp_float, sym
-            assert s["shares_outstanding"] == fmp_out, sym
+            assert fs == fmp_float, sym
+            assert so == fmp_out, sym
             # The whole point: the published pair is now arithmetically possible.
-            assert s["float_shares"] <= s["shares_outstanding"], sym
+            assert fs <= so, sym
 
     def test_yfinance_alone_would_have_published_the_impossible_pair(self):
         """Control — proves the fixtures really are broken upstream, so the
@@ -192,28 +300,27 @@ class TestShareClassMixing:
     def test_contradictory_pair_is_suppressed_not_clamped(self):
         """When FMP has nothing and yfinance's pair still contradicts itself,
         publish neither — we cannot tell which side is wrong."""
-        s = own._short({"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0}, {})
-        assert s["float_shares"] is None
-        assert s["shares_outstanding"] is None
-        # Unrelated fields on the same card must survive the suppression.
-        s2 = own._short(
-            {"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0,
-             "sharesShort": 1_234_567, "shortRatio": 2.5}, {})
+        fs, so = own._reconcile_share_counts({"floatShares": 40_337_603.0, "sharesOutstanding": 10_900_000.0}, {})
+        assert fs is None
+        assert so is None
+        # Unrelated fields (now purely _short()'s concern) must survive the
+        # suppression -- the two functions are independent.
+        s2 = own._short({"sharesShort": 1_234_567, "shortRatio": 2.5})
         assert s2["shares_short"] == 1_234_567
         assert s2["days_to_cover"] == 2.5
 
     def test_equal_float_and_outstanding_is_legal(self):
         """Boundary: float == outstanding is possible (no restricted stock),
         so the guard must be strictly-greater, not >=."""
-        s = own._short({}, {"float_shares": 5_000.0, "shares_outstanding": 5_000.0})
-        assert s["float_shares"] == 5_000.0
-        assert s["shares_outstanding"] == 5_000.0
+        fs, so = own._reconcile_share_counts({}, {"float_shares": 5_000.0, "shares_outstanding": 5_000.0})
+        assert fs == 5_000.0
+        assert so == 5_000.0
 
     def test_fmp_partial_falls_back_per_field(self):
-        s = own._short({"floatShares": 900.0, "sharesOutstanding": 1_000.0},
-                       {"float_shares": None, "shares_outstanding": 1_000.0})
-        assert s["float_shares"] == 900.0
-        assert s["shares_outstanding"] == 1_000.0
+        fs, so = own._reconcile_share_counts({"floatShares": 900.0, "sharesOutstanding": 1_000.0},
+                                             {"float_shares": None, "shares_outstanding": 1_000.0})
+        assert fs == 900.0
+        assert so == 1_000.0
 
     def test_institutional_pct_over_100_suppressed(self):
         """ATRO read 101.84% institutional ownership on 2026-08-06."""

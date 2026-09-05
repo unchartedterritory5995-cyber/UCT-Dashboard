@@ -303,3 +303,37 @@ describe('CalendarHeader — Week Navigator', () => {
     })
   })
 })
+
+// 2026-09-03 A5 modernization — the honest degraded-data note, shown ONLY
+// when the D1 envelope for a merged leg reports `degraded`.
+describe('CalendarHeader — data degraded note (A5)', () => {
+  it('shows nothing on a healthy build (both provenance objects null)', () => {
+    renderHeader({ earningsProvenance: null, econProvenance: null })
+    expect(screen.queryByTestId('calendar-data-degraded-note')).toBeNull()
+  })
+
+  it('shows nothing when a leg ran cleanly (no degraded flag)', () => {
+    renderHeader({
+      earningsProvenance: { vendor: 'fmp', freshnessClass: 'end_of_day', degraded: null },
+      econProvenance: null,
+    })
+    expect(screen.queryByTestId('calendar-data-degraded-note')).toBeNull()
+  })
+
+  it('surfaces a plain-language note when the earnings FMP leg is degraded', () => {
+    renderHeader({
+      earningsProvenance: { vendor: 'fmp', degraded: 'cached_forbidden' },
+      econProvenance: null,
+    })
+    const note = screen.getByTestId('calendar-data-degraded-note')
+    expect(note.textContent).toMatch(/may be incomplete/i)
+  })
+
+  it('surfaces the same note when only the econ leg is degraded', () => {
+    renderHeader({
+      earningsProvenance: null,
+      econProvenance: { vendor: 'fmp', degraded: 'cached_forbidden' },
+    })
+    expect(screen.getByTestId('calendar-data-degraded-note')).toBeTruthy()
+  })
+})

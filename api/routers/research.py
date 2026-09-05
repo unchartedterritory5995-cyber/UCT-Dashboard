@@ -11,7 +11,10 @@ from fastapi import APIRouter, Body, Depends
 from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
+from api.services.research.analyst_ratings import get_analyst_ratings
+from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
+from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
 
@@ -97,6 +100,44 @@ def research_news(sym: str, limit: int = 20):
         return {"sym": sym, "items": []}
 
 
+@router.get("/api/research/company-news/{sym}")
+def research_company_news(sym: str):
+    """The canonical, S3/D1/S8-wired News tab on /research/:sym (A8 Slice 1,
+    2026-09-04, owner-authorized narrow slice). Deliberately a NEW route,
+    not a rewrite of `/api/research/news/{sym}` above -- that route stays
+    byte-for-byte untouched as a COMPATIBILITY BRIDGE for the calendar
+    modal's NewsSection.jsx, per the readiness review's explicit "do not
+    touch a working legacy consumer" instruction.
+    """
+    try:
+        return get_company_news(sym)
+    except Exception as exc:
+        _logger.warning("research company-news failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
+
+
+@router.post("/api/research/explain/{sym}")
+def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get_current_user)):
+    """AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2
+    (I1, owner-authorized, 2026-09-04) -- the "Ask AI" tab's endpoint.
+    Auth-required: unlike the plain GET research routes, this one makes a
+    real LLM call with real cost (see ticker_explain.py's own
+    narrative_cost_guard use), so an anonymous caller must not be able to
+    reach it.
+    """
+    question = str((body or {}).get("question") or "")[:500]
+    try:
+        return explain_recent_activity(sym, question)
+    except Exception as exc:
+        _logger.warning("ticker explain failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "response_state": "refuse",
+                "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
+                "clarification_question": "", "citations": [],
+                "insufficient_evidence": True,
+                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "model": None, "error": "internal error"}
+
+
 @router.get("/api/research/quote/{sym}")
 def research_quote(sym: str):
     """The session line — price, change, OHLC, volume, 52-week range.
@@ -172,7 +213,17 @@ def research_estimates(sym: str):
         return get_estimates(sym)
     except Exception as exc:
         _logger.warning("research estimates failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "forward": [], "revisions": [], "rating_changes": []}
+        return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+
+
+@router.get("/api/research/analyst-ratings/{sym}")
+def research_analyst_ratings(sym: str):
+    try:
+        return get_analyst_ratings(sym)
+    except Exception as exc:
+        _logger.warning("research analyst ratings failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "consensus": None,
+                "price_target": None, "recent_actions": {"items": [], "_meta": None}}
 
 
 @router.get("/api/research/ownership/{sym}")

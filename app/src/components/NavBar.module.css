@@ -124,6 +124,36 @@
   color: var(--text-bright);
   background: var(--bg-hover);
 }
+/* Pinned Search trigger — a plain `.item` row (button, not NavLink) between
+   the brand and the scrollable groups, so it reads as "just another nav row"
+   at rest and is always visible in both the 60px and 200px-hover widths. */
+.searchTrigger {
+  border: none;
+  background: none;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: inherit;
+  cursor: pointer;
+}
+.shortcutHint {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.nav:hover .shortcutHint {
+  opacity: 1;
+  transition-delay: 0.12s;
+}
 /* Paid tools shown to free users: dimmed, with a gold lock, → upgrade page. */
 .locked { opacity: 0.5; }
 .locked:hover { opacity: 0.85; color: var(--text-bright); background: var(--bg-hover); }

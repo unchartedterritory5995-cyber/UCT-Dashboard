@@ -274,6 +274,15 @@ export default function CalendarHeader({
   dayTabs = [],
   isCurrentWeek = true,
   onPrevWeek, onNextWeek, onGotoToday, onGotoWeek, onDayTab, onSearchJump,
+  // 2026-09-03 A5 modernization — the D1 provenance/freshness envelope for
+  // the earnings/econ FMP legs (`null` on a healthy build; see
+  // `api/routers/calendar.py::_curate_econ_events`/`_build_range_week`).
+  // Read ONLY for `degraded` — same "TrustStrip only where genuinely
+  // needed" discipline as the research tabs' S8 wiring: a healthy week
+  // shows nothing extra here, matching the existing `isScoped`/"N hidden"
+  // grey-prose idiom in this file rather than inventing a persistent badge.
+  earningsProvenance = null,
+  econProvenance = null,
 }) {
   const isPhone = useIsPhone()
   const [panelOpen, setPanelOpen] = useState(false)            // desktop ⚙ Filters popover
@@ -292,6 +301,15 @@ export default function CalendarHeader({
   const sectorReadWeek = dayTabs.length ? dayTabs[0].ds : null
   const { line: sectorReadLine, generating: sectorReadBusy } =
     useSectorRead(sectorReadOpen ? (filters.sector || null) : null, sectorReadWeek)
+
+  // A member-facing hint ONLY when the FMP leg genuinely failed for this
+  // build (`degraded` is set) — never a permanent badge on the healthy path,
+  // and never implying certainty the merge doesn't have (§6 "raw fact vs
+  // UCT-merged result" — this is a note about ONE leg's health, not a claim
+  // about which provider supplied any single row).
+  const dataDegradedNote = (earningsProvenance?.degraded || econProvenance?.degraded)
+    ? 'Some earnings/economic data may be incomplete this week (a provider was unavailable).'
+    : null
 
   const set = (k, v) => setFilters({ ...filters, [k]: v })
   // ── The SCOPING filters, and their undo ──────────────────────────────────
@@ -709,6 +727,11 @@ export default function CalendarHeader({
               />
             )}
           </span>
+          {!isPhone && dataDegradedNote && (
+            <span className={styles.quickSummary} data-testid="calendar-data-degraded-note">
+              {dataDegradedNote}
+            </span>
+          )}
         </div>
       )}
 

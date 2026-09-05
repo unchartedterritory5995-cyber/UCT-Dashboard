@@ -2,10 +2,15 @@
 
 Exists because ForexFactory's `ff_calendar_nextweek.json` 404s, so the calendar
 payload carries zero econ events for any week but the current one.
+
+D1 note (2026-09-03 A5 modernization): the raw `requests.get` transport moved
+to `fmp_client.get_economic_calendar` (a typed D1 adapter call), so these
+tests mock `fmp_client` rather than `requests.get` directly.
 """
 from unittest import mock
 
 from api.services import econ_calendar_fmp as fmp
+from api.services import provider_errors as pe
 
 
 def _row(event, date_utc, impact="Medium", country="US", est=1.0, prev=2.0):
@@ -13,11 +18,18 @@ def _row(event, date_utc, impact="Medium", country="US", est=1.0, prev=2.0):
             "country": country, "estimate": est, "previous": prev}
 
 
+def _result(rows):
+    return pe.ProviderResult(
+        value=rows,
+        provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test"),
+        licensing_class="R",
+        freshness="end_of_day",
+    )
+
+
 def _fetch(rows, **kw):
-    resp = mock.Mock(ok=True)
-    resp.json.return_value = rows
-    with mock.patch("requests.get", return_value=resp), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
         return fmp.fetch_us_econ_week("2026-08-03", "2026-08-07", **kw)
 
 
@@ -27,10 +39,8 @@ def test_utc_times_convert_to_et_through_a_real_timezone():
     edt = _fetch([_row("Non Farm Payrolls", "2026-08-07 12:30:00", "High")])
     assert edt["2026-08-07"][0]["time"] == "8:30 AM"
 
-    resp = mock.Mock(ok=True)
-    resp.json.return_value = [_row("Consumer Price Index", "2026-01-13 13:30:00", "High")]
-    with mock.patch("requests.get", return_value=resp), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result([_row("Consumer Price Index", "2026-01-13 13:30:00", "High")])):
         est = fmp.fetch_us_econ_week("2026-01-12", "2026-01-16")
     assert est["2026-01-13"][0]["time"] == "8:30 AM"
 
@@ -109,26 +119,48 @@ def test_integral_floats_render_without_a_trailing_zero():
 
 
 def test_never_raises_and_returns_empty_on_failure():
-    with mock.patch("requests.get", side_effect=RuntimeError("boom")), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     side_effect=RuntimeError("boom")):
         assert fmp.fetch_us_econ_week("2026-08-03", "2026-08-07") == {}
 
-    resp = mock.Mock(ok=False, status_code=402)
-    with mock.patch("requests.get", return_value=resp), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    from api.services import fmp_client
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     side_effect=fmp_client.FMPTransient("HTTP 402", vendor="fmp")):
         assert fmp.fetch_us_econ_week("2026-08-03", "2026-08-07") == {}
 
 
 def test_no_api_key_is_a_quiet_no_op():
-    with mock.patch.dict("os.environ", {}, clear=True):
+    from api.services import fmp_client
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     side_effect=fmp_client.FMPNotConfigured("FMP_API_KEY not set", vendor="fmp")):
         assert fmp.fetch_us_econ_week("2026-08-03", "2026-08-07") == {}
 
 
+def test_fetch_with_meta_surfaces_the_d1_provenance_envelope():
+    """The new disclosure entry point the calendar page's honest per-payload
+    provenance is built on -- `fetch_us_econ_week` itself must keep returning
+    a bare dict (three other callers depend on that), so this is a second,
+    additive entry point."""
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result([_row("Non Farm Payrolls", "2026-08-07 12:30:00", "High")])):
+        rows, meta = fmp.fetch_us_econ_week_with_meta("2026-08-03", "2026-08-07")
+    assert rows["2026-08-07"][0]["event"] == "Non Farm Payrolls"
+    assert meta["vendor"] == "fmp"
+    assert meta["freshnessClass"] == "end_of_day"
+    assert meta["licensingClass"] == "R"
+
+
+def test_fetch_with_meta_returns_none_meta_on_failure():
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     side_effect=RuntimeError("boom")):
+        rows, meta = fmp.fetch_us_econ_week_with_meta("2026-08-03", "2026-08-07")
+    assert rows == {}
+    assert meta is None
+
+
 def _fetch_jh(rows, **kw):
-    resp = mock.Mock(ok=True)
-    resp.json.return_value = rows
-    with mock.patch("requests.get", return_value=resp), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
         return fmp.fetch_us_econ_week("2026-08-24", "2026-08-28", **kw)
 
 
@@ -173,10 +205,8 @@ def test_a_chair_speech_row_never_seeds_a_keynote_of_its_own():
 
 
 def _fetch_full_jh(rows):
-    resp = mock.Mock(ok=True)
-    resp.json.return_value = rows
-    with mock.patch("requests.get", return_value=resp), \
-         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
         return fmp.fetch_us_econ_week_full("2026-08-24", "2026-08-28")
 
 

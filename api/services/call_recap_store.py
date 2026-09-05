@@ -117,6 +117,30 @@ def get(symbol: str, quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
         return None
 
 
+def get_meta(symbol: str, quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
+    """{quarter, created_at} for a stored recap, without the (possibly large)
+    payload -- additive sibling to `get()` so existing callers of `get()` are
+    byte-for-byte unaffected. Added 2026-09-03 so CallsTab can disclose an
+    honest as-of stamp instead of an undated recap."""
+    sym = (symbol or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        with contextlib.closing(_connect()) as c:
+            if quarter:
+                row = c.execute(
+                    "SELECT quarter, created_at FROM recaps WHERE symbol=? AND quarter=?",
+                    (sym, quarter)).fetchone()
+            else:
+                row = c.execute(
+                    "SELECT quarter, created_at FROM recaps WHERE symbol=? "
+                    "ORDER BY created_at DESC LIMIT 1", (sym,)).fetchone()
+        return {"quarter": row[0], "created_at": row[1]} if row else None
+    except Exception as exc:
+        _log.warning("[recap_store] meta read failed for %s: %s", sym, exc)
+        return None
+
+
 def has(symbol: str, quarter: str) -> bool:
     """Is this exact call already stored? The warmer's skip check."""
     sym = (symbol or "").upper().strip()

@@ -22,6 +22,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
+from api.services import fmp_client
+
 _logger = logging.getLogger(__name__)
 
 _TTL = 12 * 3_600          # statements change quarterly; 12h is generous
@@ -35,12 +37,23 @@ def _cache():
     return cache
 
 
+_FMP_STATEMENT_FNS = {
+    "income-statement": fmp_client.get_income_statement,
+    "balance-sheet-statement": fmp_client.get_balance_sheet_statement,
+    "cash-flow-statement": fmp_client.get_cash_flow_statement,
+}
+
+
 def _fmp(path: str, sym: str, period: str, limit: int):
-    from api.services.earnings_estimates import _fmp_get
-    params = {"symbol": sym, "limit": limit}
-    if period == "quarter":
-        params["period"] = "quarter"
-    return _fmp_get(f"/stable/{path}", params, timeout=20)
+    """One statement leg via the D1 `fmp_client` adapter. Left to raise on
+    failure (including `FMPNotFound` for a genuinely empty statement) —
+    `get_history`'s own `except Exception: got[k] = None` around each
+    future's `.result()` already treats a missing leg as None, which
+    `income = got.get("income") or []` / `_by_date(None)` both already
+    handle as "no data", identically to the retired `_fmp_get`'s "empty
+    list" outcome."""
+    fn = _FMP_STATEMENT_FNS[path]
+    return fn(sym, period=period, limit=limit).value
 
 
 def _by_date(rows) -> dict:
