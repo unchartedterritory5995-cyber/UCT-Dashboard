@@ -10,6 +10,7 @@
 .hdrPx { margin-left: auto; text-align: right; }
 .hdrPxBig { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .hdrSearch { margin-top: 4px; }
+.hdrCompare { margin-top: 4px; font-size: var(--text-sm); }
 .hdrRatings { flex-basis: 100%; }
 .up { color: var(--gain); } .down { color: var(--loss); }
 .gold { color: var(--ut-gold); } .muted { color: var(--text-muted); }
