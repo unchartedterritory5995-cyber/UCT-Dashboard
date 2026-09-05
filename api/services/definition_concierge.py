@@ -209,6 +209,9 @@ REFUSALS: Mapping[str, str] = {
         "the assistant was asked for a kind of formula it does not draft"),
     "scan:not-a-condition": (
         "a screen needs a yes-or-no condition and this expression produces a number"),
+    "model:unresolved": (
+        "the assistant could not confidently express part of this request in "
+        "the supported vocabulary"),
 }
 
 #: ⭐ THE TWO THINGS ONE PIPELINE CAN DRAFT, DECLARED ONCE. An indicator is a
@@ -401,8 +404,23 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["ast"],
-        "properties": {"ast": node},
+        # ⭐⛔ `unresolved` IS REQUIRED, NOT OPTIONAL -- Track E Golden Journey
+        # #4 live findings, 2026-09-05. An OPTIONAL field the model can simply
+        # never populate is indistinguishable, at the boundary, from a field
+        # that does not exist; requiring it forces an explicit answer -- an
+        # empty list is an affirmative claim ("I grounded everything"), not
+        # silence. See `propose()`'s handling and this module's own docstring
+        # note for the honest limit of what a REQUIRED schema field can and
+        # cannot guarantee (it raises the bar past free-text prompting; it
+        # does not make the model's self-report unconditionally trustworthy).
+        "required": ["ast", "unresolved"],
+        "properties": {
+            "ast": node,
+            "unresolved": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+        },
         "$defs": {
             # ⭐ DERIVED FROM `NODE_TYPES` MINUS THE DECLARED OMISSIONS, so a
             # `$ref` here can only name something `$defs` below actually defines.
@@ -597,6 +615,32 @@ SYSTEM_PROMPT = (
     "  * the formula must not read any bar later than the one it writes\n\n"
     "You do NOT name the indicator, describe it, summarise it, or claim anything "
     "about whether it repaints. Emit the tree.\n\n"
+    "You ALSO emit `unresolved`: a list of the exact words or short phrases from "
+    "the request that name a SPECIFIC indicator, concept, or threshold you could "
+    "NOT confidently express using only the vocabulary below and what the "
+    "request itself supplied. This is REQUIRED on every answer -- an empty list "
+    "is your explicit claim that nothing was left ungrounded, not merely an "
+    "omission.\n"
+    "  * If the request names a specific indicator/concept that is not in the "
+    "vocabulary below (a name you may recognise from general knowledge, or one "
+    "you do not), put that exact name in `unresolved` rather than substituting "
+    "the nearest thing you DO have in the vocabulary. Emitting a tree for a "
+    "DIFFERENT indicator than the one named, without saying so, is the one "
+    "failure mode this field exists to prevent.\n"
+    "  * If part of the request is a vague, subjective, or purely qualitative "
+    "description with no objective threshold or comparison ('the vibe', 'looks "
+    "strong', 'feels ready') and nothing in the vocabulary or the request's own "
+    "numbers grounds it, put that phrase in `unresolved` rather than inventing "
+    "a threshold or comparison for it.\n"
+    "  * Ordinary English the vocabulary has no single entry for -- a spelled-"
+    "out number, a plain reference like 'it' or 'that', a window size, a common "
+    "arithmetic phrase -- is NOT what `unresolved` is for. Only put a phrase "
+    "there when answering it would mean inventing a name, a concept, or a "
+    "judgment call the request and the vocabulary do not supply.\n"
+    "  * A non-empty `unresolved` may still carry an `ast` built from whatever "
+    "the request DID supply, or an empty/minimal one if nothing else remains -- "
+    "either way, `unresolved` is what tells the caller not to trust that tree "
+    "as a complete answer to the original request.\n\n"
     "VOCABULARY\n"
 )
 
@@ -1611,6 +1655,16 @@ def _stem_key(words: Tuple[str, ...]) -> Tuple[Tuple[str, ...], int]:
 CONCEPT_ENTRY, REFUSED_ENTRY, TABLE_ENTRY, EXCLUDED_ENTRY = (
     "concept", "refused", "table", "excluded")
 
+#: ⭐ A FIFTH KIND, FOUND BY SHAPE RATHER THAN BY LOOKUP. Every kind above comes
+#: from a match AGAINST the lexicon -- something the manifest or the vocabulary
+#: file already declares. This one is the opposite: a run of Title-Case words
+#: ("McGinley Dynamic", "Ichimoku Cloud") READS like a proper name for a
+#: specific technical concept, independent of whether this door has ever heard
+#: of it. See `_named_phrases` -- it is what lets a member ask for an indicator
+#: this table does not have and be told THAT, by name, rather than have the
+#: model quietly substitute the nearest thing it does have.
+NAMED_ENTRY = "named"
+
 #: Which lane answered a proposal. ⚠️ NOT one of the manifest's names -- the
 #: fourth reads "unanchored" rather than the obvious word because that word is a
 #: declared bar field and the anti-copy rail would report it, correctly.
@@ -2037,6 +2091,102 @@ def _matches(prompt: str, lexicon: Dict[str, Any]) -> List[dict]:
 
 
 # --------------------------------------------------------------------------- #
+# named-but-unrecognized phrases -- THE MEMBER NAMED SOMETHING SPECIFIC
+# --------------------------------------------------------------------------- #
+#
+# 🔴 A STRUCTURALLY VALID TREE IS NOT THE SAME CLAIM AS "THIS TREE IS WHAT THE
+# MEMBER ASKED FOR". `_matches` above can only find what the lexicon already
+# declares, so a member who names a REAL, SPECIFIC, well-known indicator this
+# table does not implement -- "McGinley Dynamic", "Ichimoku Cloud" -- is
+# invisible to it: not a TABLE_ENTRY (not in the manifest), not an
+# EXCLUDED_ENTRY (the manifest only lists columns it deliberately omits, not
+# every indicator that has ever existed), not a refused CONCEPT (the vocabulary
+# file only lists vague words the firm anticipated -- "cheap", "momentum" --
+# not proper names). The text reaches the model as ordinary prose with nothing
+# telling it "this word names something specific"; a capable model then does
+# the plausible thing and substitutes the nearest concept it does know
+# (EMA for McGinley Dynamic) and reports `ok: True` -- a structurally valid
+# tree that answers a DIFFERENT question than the one asked. This was found
+# live (Track E Golden Journey #4, 2026-09-05): a real credentialed run
+# returned `ok: True` for exactly this prompt.
+#
+# ⛔ FOUND BY SHAPE, NEVER BY NAME. A run of two or more Title-Case words is
+# how English proper nouns are conventionally written -- indicator names
+# included -- so this generalizes to ANY future unsupported named indicator
+# without listing one. It does NOT catch a single-word proper name ("Aroon",
+# "Vortex"); that is a real, narrower, known-remaining gap (single capitalized
+# words are common enough in ordinary English -- "I", sentence-initial words,
+# tickers -- that flagging them all would be far too aggressive), not
+# something this pass claims to close.
+_WORD_TOKEN = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
+
+
+def _is_name_word(word: str) -> bool:
+    """A word shaped like part of a proper noun, not an acronym or a filler.
+
+    ⛔ `not word.isupper()`, NOT "starts with a capital", IS WHAT EXCLUDES
+    ACRONYMS. "RSI"/"EMA"/"USD" start with a capital too, but this door's own
+    supported functions are exactly the acronyms this must NOT flag -- an
+    all-caps word is a DIFFERENT, already-handled shape (a TABLE_ENTRY if
+    it's one of ours, ordinary unmatched filler otherwise), never a signal
+    that a proper name was written.
+
+    ⚠️ `len(word) > 1`, NOT ALSO A LOWERCASE-LETTER REQUIREMENT. "McGinley"
+    has no all-lowercase tail (`isupper()` is already False the moment ANY
+    letter is lowercase, and "McGinley" has plenty), so requiring "ends in a
+    run of lowercase" would silently exclude exactly the internal-capital
+    surnames ("McGinley", "MacArthur", "DeMarco") this function exists to
+    catch. `len(word) > 1` alone rules out the real false-positive case: a
+    single capital letter standing alone (a mid-sentence initial).
+    """
+    return len(word) > 1 and word[0].isupper() and not word.isupper()
+
+
+def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
+    """Runs of two-or-more proper-noun-shaped words `prompt` contains that no
+    existing match already accounts for.
+
+    ⛔ A MANUAL WORD-BY-WORD WALK, NOT ONE REGEX. `[A-Z][a-z]+` (a single
+    capital followed by ONLY lowercase) cannot match "McGinley" at all -- the
+    internal capital in "Ginley" ends the lowercase run early, so the regex
+    version of this function matched zero words in the exact prompt this was
+    built to catch (caught before shipping, by running it against the real
+    fixture rather than trusting the pattern by inspection).
+
+    ⛔ ONLY WHITESPACE MAY SEPARATE THE WORDS OF ONE PHRASE. A comma or "and"
+    between two capitalized words ("Close, Volume") is two separate mentions,
+    not one proper name -- and `_CLAUSE_BREAK` would cut between them anyway.
+
+    ⛔ OVERLAP-CHECKED, NOT RE-MATCHED. A concept or table entry that happens to
+    be written in Title Case ("Close" at the start of a sentence naming the
+    `close` series) is already grounded by `_matches` above; re-flagging it
+    here would refuse something this door already understood perfectly.
+    """
+    text = str(prompt)
+    words = list(_WORD_TOKEN.finditer(text))
+    out: List[dict] = []
+    i, n = 0, len(words)
+    while i < n:
+        if not _is_name_word(words[i].group(0)):
+            i += 1
+            continue
+        j = i + 1
+        while (j < n and _is_name_word(words[j].group(0))
+               and text[words[j - 1].end():words[j].start()].isspace()):
+            j += 1
+        if j - i >= 2:
+            start, end = words[i].start(), words[j - 1].end()
+            phrase = text[start:end]
+            if not any(start < f["end"] and f["start"] < end for f in already_found):
+                out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
+                            "start": start, "end": end, "matched_as": phrase})
+            i = j
+        else:
+            i += 1
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # clauses -- THE UNIT A MEMBER CAN FIX
 # --------------------------------------------------------------------------- #
 #
@@ -2182,6 +2332,12 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
         LEXICON if (table is None and vocab is None) else build_lexicon(table, vocab))
     text = str(prompt or "")
     found = _matches(text, lex)
+    # ⭐ MERGED IN BEFORE `written`/`clauses`, NOT ADDED AS A SEPARATE PASS
+    # LATER: `_numbers_in` must skip a number embedded in a named phrase, and
+    # `_clauses` must not split a named phrase across a clause boundary --
+    # both already do exactly that for every OTHER match kind, for free, once
+    # a named-phrase span is part of `found`.
+    found = sorted(found + _named_phrases(text, found), key=lambda m: m["start"])
     written = _numbers_in(text, found)
     clauses = _clauses(text, found + written)
 
@@ -2217,6 +2373,23 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
                 {"phrase": match["matched_as"], "name": match["key"],
                  "reason": excluded.get(match["key"], "")})
             continue
+        if match["kind"] == NAMED_ENTRY:
+            # ⛔ THE SAME GATE `resolve()` WOULD RETURN, NOT A NEW ONE. A member
+            # who names a real concept this door lacks (matched via the lexicon)
+            # and a member who names one via a Title-Case phrase this door has
+            # never heard of (matched here, by shape) are the SAME failure --
+            # reusing `GATE_UNGROUNDED` says so rather than inventing a second
+            # vocabulary of refusal reasons for one underlying gap.
+            refusals_by_clause.setdefault(index, []).append({
+                "phrase": match["matched_as"],
+                "gate": concept_vocabulary.GATE_UNGROUNDED,
+                "reason": (
+                    f'"{match["matched_as"]}" is not one of this door\'s supported '
+                    "functions or concepts, so there is no formula to expand it "
+                    "into. Name a supported indicator, or ask for it to be added "
+                    "and reviewed."),
+            })
+            continue
         answer = concept_vocabulary.resolve(match["key"], vocab=vocab, table=table)
         if answer["ok"]:
             concepts_by_clause.setdefault(index, []).append(
@@ -2226,6 +2399,26 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
             refusals_by_clause.setdefault(index, []).append(
                 {"phrase": match["matched_as"], "gate": answer["gate"],
                  "reason": answer["reason"]})
+
+    # ⛔⛔ A CLAUSE MATCHING NOTHING IS **NOT**, BY ITSELF, A REFUSAL SIGNAL.
+    # A first version of this fix refused every clause with zero matches of any
+    # kind ("unanchored" applied at clause granularity) -- measured against this
+    # module's OWN pre-existing test suite, that broke real, intentional,
+    # already-verified behavior: `test_a_plain_COMPOSITION_needs_NO_GROUNDING...`
+    # ("a twenty bar average of it") and `test_a_SCAN_that_IS_a_condition...`
+    # ("stocks where that holds") are BOTH fully unanchored -- no term, no
+    # concept, no number -- and BOTH are contractually required to reach the
+    # model and succeed. "Unanchored" and "illegitimate" are not the same
+    # property: ordinary English the firm's vocabulary has no entry for is the
+    # NORMAL case this whole door exists to handle, not a defect. Reverted
+    # rather than kept as a false generalization; see `_named_phrases` above
+    # for the mechanism that DID generalize cleanly (a proper-noun-shaped name
+    # is a much narrower, more precise signal than "matched nothing at all"),
+    # and see this file's own module docstring / DECISIONS.md-adjacent note for
+    # why ambiguous-sentiment language ("vibe turns bullish") is being closed
+    # at the model-contract layer instead -- a syntactic vocabulary-coverage
+    # check cannot distinguish it from "a twenty bar average" by construction,
+    # since neither one is covered either.
 
     kept = [i for i in range(len(clauses)) if i not in refusals_by_clause]
     not_understood: List[dict] = []
@@ -2498,6 +2691,22 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
 
         tool_input = _tool_input(msg)
         tree = (tool_input or {}).get("ast")
+        # ⭐⛔ THE MODEL'S OWN REQUIRED SELF-REPORT, CHECKED BEFORE THE TREE IS
+        # EVEN VALIDATED. Track E Golden Journey #4 live findings, 2026-09-05:
+        # a structurally valid tree is not proof the request was answered
+        # faithfully (see `_input_schema`'s `unresolved` field, and the
+        # SYSTEM_PROMPT section that defines it). A NON-RETRYING terminal
+        # refusal, deliberately: the model is not reporting a mistake it could
+        # fix on a repair turn, it is reporting a genuine limitation of the
+        # request against the vocabulary it was given, and asking it again
+        # would spend a second call to hear the same honest answer.
+        unresolved = [u.strip() for u in ((tool_input or {}).get("unresolved") or [])
+                     if isinstance(u, str) and u.strip()]
+        if unresolved:
+            return {"ok": False, "gate": "model:unresolved",
+                    "reason": f"{REFUSALS['model:unresolved']}: {', '.join(unresolved)}",
+                    "not_understood": not_understood,
+                    "unavailable": understanding["unavailable"]}
         try:
             if tool_input is None or tree is None:
                 raise _Refused("model:no-tool", "no formula tree in the answer")

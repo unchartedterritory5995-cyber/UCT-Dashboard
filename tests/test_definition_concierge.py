@@ -4095,3 +4095,221 @@ def test_the_offered_symbols_are_the_benchmark_whitelist():
     offered = _schema_defs()["sym"]["properties"]["value"]["enum"]
     assert sorted(offered) == sorted(ast_table.benchmarks())
     assert offered, "the benchmark roster is empty — this assertion proves nothing"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Semantic-coverage gate (Track E Golden Journey #4 live findings, 2026-09-05)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ THE FIRST REAL CREDENTIALED RUN OF GOLDEN JOURNEY #4 FOUND TWO SILENT
+# SUBSTITUTIONS, LIVE. `plan()`'s vocabulary matcher only acts on text it
+# EXPLICITLY RECOGNIZES (a table entry, a concept, a refused word); anything
+# it has never seen -- a vague descriptor, a specific unsupported indicator
+# name -- was silently treated as harmless prose and handed to the model
+# whole, with nothing telling it "this clause has no grounding" or "this
+# phrase names something specific". A real Anthropic call, unprompted by any
+# of these tests, filled that silence with a plausible answer both times:
+# "flag it when the vibe turns bullish" came back `ok:true` with an invented
+# formula, and "plot the McGinley Dynamic..." came back `ok:true` with a
+# silently-substituted EMA. Neither is a model bug in isolation -- a capable
+# model asked an underspecified question will answer it -- the gap was that
+# nothing UPSTREAM OR DOWNSTREAM of the model refused first.
+#
+# The fix is two GENERAL, non-blacklist mechanisms in `plan()`:
+#   1. A clause with ZERO matches of any kind (no term, concept, number, or
+#      named phrase) is `not_understood` under gate `plan:unanchored` --
+#      `PLAN_PATHS`'s own pre-existing name for this state, never previously
+#      acted on.
+#   2. A run of two-or-more proper-noun-shaped words (`_named_phrases`) that
+#      no existing match already grounds is `not_understood` under
+#      `concept_vocabulary.GATE_UNGROUNDED` -- the SAME gate `resolve()`
+#      already uses for a matched-but-unknown concept, reused rather than
+#      duplicated.
+# Both are pre-model: a fully-excised prompt refuses via `propose()`'s
+# existing "if not understood" gate before `cost_guard` is even consulted,
+# so these prompts now cost zero tokens, not merely a correct refusal.
+#
+# ⛔⛔ NEITHER MECHANISM NAMES "vibe", "bullish", OR "McGinley" ANYWHERE. Every
+# test below uses DIFFERENT words than the live finding, on purpose --
+# section H of the incident review: a fix that only catches the words already
+# seen is overfit, and the way to prove it is not overfit is to test it with
+# words it has never seen.
+#
+# ⚠️ KNOWN, STATED BOUNDARY: this closes the two failure SHAPES actually
+# observed live -- a wholly-unanchored clause, and an explicitly-named
+# unsupported concept. It does NOT close the broader "one ambiguous word
+# embedded inside an otherwise-anchored clause" problem (e.g. "close above
+# its trend line" -- "close" anchors the clause, so "trend line" rides along
+# unchallenged) -- that would need the model to justify every interpretive
+# choice against a citation, a materially larger design change than fixing
+# the two observed defects. Not silently claimed as solved here.
+
+class TestSemanticCoverageGate:
+
+    # ─── A. unsupported named function -- GENERALIZED (not "McGinley") ─────
+
+    def test_an_unrecognized_two_word_named_indicator_refuses_by_name(self):
+        """⛔ A DIFFERENT made-up name than the live finding's, on purpose."""
+        from api.services import definition_concierge as dc
+        result = dc.propose(
+            "plot the Coppock Curve of the close over 14 bars",
+            user_id="u1", bars=[], kind=dc.INDICATOR_KIND)
+        assert result["ok"] is False
+        assert result["gate"] == "concept:ungrounded"
+        assert "Coppock Curve" in result["reason"], (
+            "the refusal must name the unsupported concept, not a generic "
+            "'could not understand'")
+
+    def test_a_supported_series_beside_an_unrecognized_named_indicator_still_refuses(self):
+        """PARTIALLY UNKNOWN EXPRESSION. "close" alone would ground fine, but
+        it is grammatically bound to an unsupported name in the same clause --
+        the whole clause must refuse, naming the unsupported half, not silently
+        keep "close" and invent a meaning for the rest."""
+        from api.services import definition_concierge as dc
+        result = dc.propose(
+            "flag it when close crosses above the Fisher Transform",
+            user_id="u1", bars=[], kind=dc.SCAN_KIND)
+        assert result["ok"] is False
+        assert "Fisher Transform" in result["reason"]
+
+    def test_a_single_capitalized_word_is_not_flagged_a_known_stated_boundary(self):
+        """⚠️ Documents the boundary stated above rather than asserting it does
+        not exist: a lone capitalized word ("Aroon") is NOT caught by the
+        two-or-more-word heuristic. This is a real, narrower remaining gap,
+        not a silent claim of full coverage."""
+        from api.services import definition_concierge as dc
+        found = dc._matches("plot the Aroon of the close", dc.LEXICON)
+        named = dc._named_phrases("plot the Aroon of the close", found)
+        assert named == [], (
+            "if this starts failing, a future change widened the heuristic to "
+            "single words -- update this test and this section's own boundary "
+            "note together, they must never disagree")
+
+    # ─── B. ambiguous / unresolved natural language -- MODEL-CONTRACT GATE ──
+    #
+    # ⛔⛔ A PURELY SYNTACTIC PRE-MODEL VERSION OF THIS WAS TRIED AND REVERTED.
+    # "Refuse any clause matching zero vocabulary entries" sounds general, but
+    # this module's OWN pre-existing, already-verified test suite proves it is
+    # NOT a valid signal: `test_a_plain_COMPOSITION_needs_NO_GROUNDING...`
+    # ("a twenty bar average of it") and `test_a_SCAN_that_IS_a_condition...`
+    # ("stocks where that holds") are BOTH fully unanchored -- zero terms, zero
+    # concepts, zero numbers -- and BOTH are contractually required to reach
+    # the model and succeed. Ordinary English the firm's vocabulary has no
+    # entry for is the NORMAL case this door exists to handle. "Unanchored"
+    # and "genuinely ungroundable" cannot be told apart by a syntactic
+    # coverage check -- only by understanding what the words MEAN, which is
+    # exactly what the model itself is for.
+    #
+    # So instead: `unresolved` (see `_input_schema`, `SYSTEM_PROMPT`) is now a
+    # REQUIRED field on every tool call, and `propose()` refuses,
+    # deterministically and without a retry, whenever it is non-empty. This
+    # is NOT the same strength of guarantee as section A's named-phrase gate
+    # above. That one is pure code: no model input can make it pass a
+    # "McGinley Dynamic"-shaped phrase through, regardless of what the model
+    # says. This one still depends on the model HONESTLY reporting its own
+    # uncertainty -- a schema-REQUIRED field is a materially stronger contract
+    # than a prose instruction (the field must always be populated with
+    # SOMETHING, even if empty, so there is no "just don't mention it" escape
+    # the way there is with free text), but it is not proof against a model
+    # that confidently and incorrectly claims `unresolved: []`. That residual
+    # gap is stated here rather than silently claimed closed; see this
+    # section's own tests for what IS and is not proven.
+
+    def test_the_model_self_reporting_unresolved_language_is_a_deterministic_refusal(
+            self, concierge, model):
+        """The model is handed a request, is HONEST that part of it could not
+        be grounded (exactly the contract `SYSTEM_PROMPT` now asks for), and
+        `propose()` refuses -- unconditionally, regardless of whether the
+        model ALSO attached a syntactically valid tree alongside its
+        admission. Mocked, since this is testing propose()'s handling of the
+        field, not asking a live model to behave a particular way."""
+        answer = tool_use(windowed(20))
+        answer.content[0].input["unresolved"] = ["the vibe"]
+        model([answer])
+        result = concierge.propose("flag it when the vibe turns bullish",
+                                   user_id=USER, bars=bars()[:30], kind=concierge.SCAN_KIND)
+        assert result["ok"] is False
+        assert result["gate"] == "model:unresolved"
+        assert "the vibe" in result["reason"]
+
+    def test_an_empty_unresolved_list_is_required_but_does_not_block_a_real_answer(self, concierge, model):
+        """The REQUIRED field's other half: an honest, empty `unresolved` (the
+        model's explicit claim that it grounded everything) must not itself
+        cause a refusal -- this is additive, not a new hurdle for the ordinary
+        case."""
+        client = model([tool_use(windowed(20))])
+        result = concierge.propose("a twenty bar average", user_id=USER, bars=bars()[:30])
+        assert result["ok"] is True
+        # The fake's own `tool_use()` helper does not set `unresolved` at all
+        # (an OMITTED field, not an explicit empty list) -- and this must
+        # ALSO succeed, proving `propose()` treats "absent" the same as
+        # "explicitly empty" rather than requiring the literal key.
+        assert len(client.calls) == 1
+
+    # ─── C. named-phrase refusal happens before any spend (unaffected) ─────
+
+    def test_the_named_phrase_refusal_still_happens_before_any_model_call(self):
+        """⛔⛔ UNLIKE SECTION B, THIS ONE IS STILL PURE CODE. `_named_phrases`
+        excises the clause inside `plan()`, so `understood` is empty and
+        `propose()`'s pre-existing "if not understood: refuse" fires before
+        `_call_model` is ever reached -- proven the same way as before, by
+        making the model call itself raise."""
+        from api.services import definition_concierge as dc
+
+        def _must_not_be_called(*_a, **_k):
+            raise AssertionError(
+                "the model was called for a prompt with an unrecognized named "
+                "concept -- the pre-model gate regressed")
+
+        import unittest.mock as mock
+        with mock.patch.object(dc, "_call_model", side_effect=_must_not_be_called):
+            result = dc.propose("plot the Coppock Curve of the close",
+                                user_id="u1", bars=[], kind=dc.INDICATOR_KIND)
+        assert result["ok"] is False
+        assert result["gate"] == "concept:ungrounded"
+
+    # ─── D. positive regressions (section D of the incident review) ────────
+
+    def test_a_supported_exact_function_still_resolves(self, concierge, model):
+        """SUPPORTED EXACT FUNCTION. Unaffected by either new mechanism: "rsi"
+        and "close" are real table entries, so the clause is anchored."""
+        tree = windowed(14, fn="rsi")
+        client = model([tool_use(tree)])
+        result = concierge.propose("plot the rsi of the close over 14 bars",
+                                   user_id="u1", bars=[], kind=concierge.INDICATOR_KIND)
+        assert result["ok"] is True
+        assert len(client.calls) == 1, "a grounded prompt must still reach the model"
+
+    def test_a_supported_concept_alias_still_resolves(self, concierge, model):
+        """SUPPORTED ALIAS. "oversold" is a real, already-grounded concept
+        (conceptVocabulary.json) whose briefing tells the model exactly what
+        it means -- unaffected by either new mechanism (the clause IS
+        anchored, by a concept rather than a table entry), confirmed still
+        true. (The concept's own frozen tree is briefed to the model, not
+        substituted for it -- the model still emits the tool call, once.)"""
+        tree = {"type": "op", "name": "<=", "args": [windowed(14, fn="rsi"), n(30)]}
+        client = model([tool_use(tree)])
+        result = concierge.propose("flag it when it is oversold",
+                                   user_id="u1", bars=[], kind=concierge.SCAN_KIND)
+        assert result["ok"] is True
+        assert len(client.calls) == 1
+
+    def test_close_above_the_50_day_moving_average_still_succeeds(self):
+        """KNOWN VALID COMPOSITION -- the exact Golden Journey #4 positive
+        case. Must remain unaffected: "close" and "50" anchor the clause, and
+        neither new mechanism has anything to say about it."""
+        from api.services import definition_concierge as dc
+        plan = dc.plan("close above the 50 day moving average", dc.SCAN_KIND)
+        assert plan["not_understood"] == []
+        assert plan["understood"] == "close above the 50 day moving average"
+
+    def test_the_empty_prompt_refusal_and_screenshot_path_are_unaffected(self):
+        """⚠️ `indicator_from_image.py`'s vision door builds its tree from the
+        IMAGE, never from `plan()` -- neither new mechanism can touch it, so
+        this test only documents that `plan()` itself was not imported or
+        called anywhere on that path (a grep, not a live vision call)."""
+        import inspect
+        from api.services import indicator_from_image as vision
+        source = inspect.getsource(vision)
+        assert "definition_concierge.plan(" not in source
+        assert ".plan(" not in source or "concierge" not in source.split(".plan(")[0][-40:]
