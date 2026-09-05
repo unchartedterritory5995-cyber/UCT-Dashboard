@@ -49,6 +49,15 @@ vi.mock('./hooks/useCompanyNews', () => ({
   }),
 }))
 
+// Chart/Technical Intelligence Convergence (2026-09-05): same idiom -- the
+// new tab's own hook resolved so ?section=technical has positive content.
+vi.mock('./hooks/useTechnical', () => ({
+  default: () => ({
+    data: { verdicts: [{ setup: 'bull_flag', tf: 'D', asof_date: '2026-09-04', confirmed: 1, vision_confidence: 82, rationale: 'Clean flag on declining volume.', key_level: 191.5, checks: [{ criterion: 'Prior uptrend visible', passed: true }] }] },
+    isLoading: false,
+  }),
+}))
+
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
 vi.mock('../../context/AuthContext', () => ({
@@ -133,6 +142,22 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'News' })).toBeInTheDocument()
+  })
+
+  it('honours ?section=technical — lands on the new Technical tab', () => {
+    // Chart/Technical Intelligence Convergence Phase B (2026-09-05): a new
+    // tab, deterministic-only, backed by the existing confirmed-only
+    // /api/patterns/{sym} endpoint (never the raw scanner firehose).
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=technical' })
+    expect(screen.getByText('Bull Flag')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('renders the "Technical" tab button', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.getByRole('button', { name: 'Technical' })).toBeInTheDocument()
   })
 
   it('honours ?section=ai — lands on the new Ask AI tab', () => {

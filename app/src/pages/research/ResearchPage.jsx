@@ -9,6 +9,7 @@ import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
 import AnalystRatingsTab from './tabs/AnalystRatingsTab'
 import NewsTab from './tabs/NewsTab'
+import TechnicalTab from './tabs/TechnicalTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
@@ -51,13 +52,19 @@ import styles from './ResearchPage.module.css'
 // decide -- see api/services/ticker_explain.py. Placed last, mirroring
 // the calendar modal's own tab ordering (Ask AI is that modal's last
 // group too).
-const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI']
+// 2026-09-05 Chart/Technical Intelligence Convergence (owner-authorized
+// narrow slice, Phase B): "Technical" is a NEW tab, placed right after News —
+// both answer "what's happening / why does this matter right now" before the
+// fundamental-data tabs. Source is the EXISTING /api/patterns/{sym} endpoint's
+// confirmed-only (Opus-vision-verified) output, never the raw scanner
+// firehose the owner already ruled untrustworthy. See TechnicalTab.jsx.
+const TABS = ['Overview', 'News', 'Technical', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', news: 'News', financials: 'Financials', estimates: 'Estimates',
+  overview: 'Overview', news: 'News', technical: 'Technical', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
   filings: 'Filings', ai: 'Ask AI',
@@ -100,6 +107,7 @@ export default function ResearchPage() {
       </nav>
       {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'News' && <NewsTab sym={sym} />}
+      {active === 'Technical' && <TechnicalTab sym={sym} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
       {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}
