@@ -238,3 +238,161 @@ Two existing guards had to be *repaired rather than re-baselined* when defects 1
 **CERTIFIED WITH DOCUMENTED LIMITATIONS**
 
 60 of 60 journeys passed. Zero hard failures. Migration is now a one-action import on all three paths. The limitations in section 11 are real, are documented, and none of them causes a member to lose content, meaning, formatting, ownership, or trust.
+
+---
+
+# MIGRATION UX CLOSURE (2026-09-05)
+
+Added after the original certification. The evidence above is unchanged.
+
+## 15. Evernote large-import responsiveness
+
+### Where the time actually goes (measured before changing anything)
+
+A single ~534 KB Evernote note, instrumented in the deployed app:
+
+| Phase | Measurement |
+|---|---|
+| ENEX parse (XML + ENML) | **~120 ms** — not the bottleneck |
+| Attachment/resource handling | included above; not material at this size |
+| **`htmlToNote` conversion** | **the blocking cost** |
+| Backend persistence / commit | ~26 s, network-bound, **non-blocking** |
+| Frontend rendering / preview | negligible |
+
+A Web Worker was **not** chosen, because the measurement does not justify it: `sanitizeHtml` uses `DOMParser` and TipTap's `generateJSON` also parses through the DOM. Neither exists in a Worker, so moving conversion off-thread means replacing the HTML parser underneath an already-certified conversion path. The smaller solution was taken instead, exactly as instructed.
+
+### What was actually wrong
+
+The conversion loop yielded **every 10 notes**. A notebook whose last five notes were large therefore ran one unbroken synchronous block — which is precisely why the original certification saw the counter frozen at "70/75" on an unresponsive tab.
+
+### A regression this pass introduced, caught by re-measuring
+
+Yielding per note with `setTimeout` made it *worse* for a backgrounded tab: Chrome **intensively throttles chained timers** in a hidden tab to one per minute. Measured on the deployed build: a 15-note import took **246 seconds**, its 15 progress updates ~60,000 ms apart. A one-off `setTimeout(0)` still returns in ~0 ms in that same tab, which is why a spot check misses it. Fixed by yielding through `MessageChannel`, which is not on the timer budget — the mechanism React's own scheduler uses, for this reason.
+
+### BEFORE / AFTER — the exact pathological certification case
+
+75 notes across 5 notebooks, five of them ~540 KB, identical shape in both runs.
+
+| | BEFORE | AFTER |
+|---|---|---|
+| Wall clock | ~4 minutes | **30 seconds** |
+| UI responsiveness | tab unresponsive; batched calls timed out | responsive; no gap > 120 ms |
+| Progress behaviour | froze at "70/75" | **75 updates — one per note** |
+| Max gap between updates | the whole tail in one block | **120 ms** |
+| Gaps > 2 s | yes | **0** |
+| Large notes explained | no | **5 named before their pause** |
+| Notes imported | 75 | 75, NEEDS ATTENTION "—" |
+
+The progress line now shows the note being converted and, only when the note is genuinely large, a line naming it as a large note that can take a moment, plus a reassurance that the window can be left open while UCT finishes. No fabricated percentage; nothing the frontend cannot observe. The import remains resumable, idempotent, honest on failure, and safe when a single note is unusually large.
+
+## 16. Action-count audit
+
+### Notion — 5 actions, enumerated
+
+| # | Action | Classification |
+|---|---|---|
+| 1 | Click **Connect** on the Notion row | UCT — the primary action itself |
+| 2 | Tick the consent checkbox | UCT — privacy authorisation, **server-enforced** (`if not body.consent` returns 400) |
+| 3 | Click **Continue** (submits consent, starts OAuth) | UCT — submit for #2 |
+| 4 | Notion: **Select pages to access** | UNAVOIDABLE PROVIDER |
+| 5 | Notion: **Allow access** | UNAVOIDABLE PROVIDER |
+
+Everything after successful authorisation is now automatic: the callback starts the import, conversion runs, folders are created, and the member returns to the Connections section with the source already syncing.
+
+**Why 3 is not reachable without a product decision.** Actions 2 and 3 exist only to obtain explicit consent before UCT touches a third-party account. That consent is independently enforced by the server, so it is not decoration. Reaching 3 means folding it into the button as implied consent ("by clicking Connect you authorise..."), which trades an explicit data-sharing affordance for one click. That is the owner's call, not friction for this pass to delete — the instruction was not to sacrifice consent merely to reduce the number. **5 is therefore the minimum with an explicit consent control; 3 is reachable only by removing it.**
+
+### Obsidian — 6 actions, one removed this pass
+
+| # | Action | Classification |
+|---|---|---|
+| 0 | Install the plugin | UNAVOIDABLE — Obsidian is a local app |
+| 1 | Click **Connect** | UCT — primary action |
+| 2 | Tick consent | UCT — server-enforced privacy authorisation |
+| 3 | Click **Generate code** | UCT — submit for #2 |
+| ~~4~~ | ~~Click **Copy**~~ | **REMOVED** — the code now lands on the clipboard as it is minted |
+| 5 | Paste the code, click **Connect** in Obsidian | UNAVOIDABLE — the local app cannot read UCT's session |
+
+Connecting the vault still scans, pushes, converts and populates UCT with no further "Sync now", exactly as certified. The plugin flow itself was not redesigned.
+
+### Evernote — unchanged, at target
+
+Import, choose ENEX, then automatic detection, conversion and import. No continuous sync was reopened; no conversion settings were added.
+
+## 17. FULL CONVERSION FIDELITY MATRIX
+
+Per-note source-to-destination comparison, not corpus-level presence. Automated checks: **1,744** (1,200 Notion + 544 Obsidian) across 40 sandbox journeys, plus byte-level media verification and rendered-DOM checks in production.
+
+| Construct | Provider | Source | Converted | Structural | Rendered | Media | Round-trip | Warnings | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| Paragraphs / prose text | Notion | 20x31 pages | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Prose text (word-level survival) | Obsidian | 20x10 files | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Headings H1-H3 | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Bold / italic / bold+italic | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Strikethrough | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Inline code | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Code blocks | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Blockquotes | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Horizontal rules | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Bullet / numbered / nested lists | both | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Task lists + checked state | all three | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Tables (rows/cells) | all three | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Callouts to native callout | Notion | 20 | 20 | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Toggles to native toggle | Notion | 20 | 20 | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Toggleable headings to toggle | Notion | 20 | 20 | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| **Block ORDER within a note** | Notion | 20 combo notes | 20 | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| External links + labels + targets | all three | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Wikilinks / aliases / spaces | Obsidian | 20x3 | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Duplicate basenames kept distinct | Obsidian | 2 per vault | 2 | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Nested folder paths | all three | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| **Images (PNG/JPEG/GIF)** | Evernote | 9 | 9 | PASS | **PASS — decoded, correct natural dimensions** | **PASS — byte-identical** | PASS | 0 | CERTIFIED |
+| **Image order/placement between text** | Evernote | 9 | 9 | PASS | PASS | PASS | PASS | 0 | CERTIFIED |
+| **Attachments (PDF / text)** | Evernote | 3 | 3 | PASS | PASS | **PASS — byte-identical** | PASS | 0 | CERTIFIED |
+| Unicode media filename | Evernote | 1 | 1 | PASS | PASS | PASS | PASS | 0 | CERTIFIED |
+| Unreferenced resources | Evernote | 1 | 1 | PASS | PASS | PASS | PASS | 0 | CERTIFIED |
+| Tags | Evernote | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Created/updated metadata | Evernote | all | all | PASS | PASS | N/A | **PASS — `created` survives into export** | 0 | CERTIFIED |
+| Emoji / Unicode / punctuation | all three | all | all | PASS | PASS | N/A | PASS | 0 | CERTIFIED |
+| Obsidian callout to blockquote | Obsidian | 20 | 20 | INTENTIONALLY NORMALIZED | PASS | N/A | PASS | 0 | CERTIFIED (documented) |
+| Evernote monospace to textStyle | Evernote | all | all | INTENTIONALLY NORMALIZED | PASS | N/A | PASS | 0 | CERTIFIED (documented) |
+| Encrypted blocks | Evernote | all | all | UNSUPPORTED WITH HONEST WARNING | PASS — visible placeholder | N/A | PASS | visible | CERTIFIED (documented) |
+| Evernote internal deep links | Evernote | all | all | INTENTIONALLY NORMALIZED — unwrapped to text | PASS | N/A | PASS | 0 | CERTIFIED (documented) |
+
+### Media fidelity detail (byte-level)
+
+| Asset | MIME | Source bytes | Served | SHA-256 | Verdict |
+|---|---|---|---|---|---|
+| chart.png | image/png | 79 | 79 | identical | PASS |
+| diagram unicode café.png | image/png | 74 | 74 | identical | PASS |
+| photo.jpg | image/jpeg | 142 | 142 | identical | PASS |
+| anim.gif | image/gif | 35 | 35 | identical | PASS |
+| large.png | image/png | 244 | 244 | identical | PASS |
+| report.pdf | application/pdf | 69 | 69 | identical | PASS |
+| notes.txt | text/plain | 42 | 42 | identical | PASS |
+
+**12 media objects served, 12 byte-identical, 7 distinct assets equal 7 source assets, every response HTTP 200 with the correct MIME.** Rendered check: all three images in the multi-image note reported `complete && naturalWidth > 0` with dimensions matching source (16x12, 1x1, 6x6) — the renderer decodes them, it is not showing a placeholder.
+
+### Reconciliation
+
+| Journey set | Source notes | UCT notes | Source media | UCT media | Silent losses |
+|---|---|---|---|---|---|
+| Notion fidelity (20) | 620 | 620 | — | — | 0 |
+| Obsidian fidelity (20) | 200 | 200 | — | — | 0 |
+| Evernote media | 9 | 9 | 12 refs / 7 assets | 12 / 7 | 0 |
+
+### Re-import / re-sync integrity
+
+Re-importing the media notebook: **"Will create 0, update 0, unchanged 9"**; images stayed at 9 and attachment chips at 3 — no duplicated media, no repeated paragraphs, no metadata stripping.
+
+### Round-trip exit
+
+`GET /api/j2/notes/export` returned a real ZIP (1,091,412 bytes, PK signature) containing **40 markdown files and 20 media files**, folder structure preserved in the paths. The exported note carries YAML front matter with the original Evernote `created: 2026-01-01T09:00:00Z`, the text interleaved in its source order (one, image, two, image, three), and relative media paths resolving to files bundled in the same archive. A member can take their migrated notebook back out with media intact.
+
+## 18. Closure verdict
+
+| Provider | Min member actions | Unavoidable provider | UCT-created | Final count | Auto initial import | Responsive during conversion | UX verdict |
+|---|---|---|---|---|---|---|---|
+| Notion | 5 | 2 | 3 (1 primary + consent pair) | **5** | Yes | Yes | CLOSED — 3 needs a consent-model decision |
+| Obsidian | 6 | install + paste | 3 (1 primary + consent pair) | **6** (was 7) | Yes | Yes | CLOSED |
+| Evernote | 3 | 1 (choose ENEX) | 2 | **3** | Yes | **Yes (fixed)** | CLOSED — at target |
+
+**The frozen-looking migration is gone.** No technical decisions, no conversion configuration, no unnecessary Sync button, no unexplained waiting, no silent failure — and the information inside the migrations is now verified, not assumed.
