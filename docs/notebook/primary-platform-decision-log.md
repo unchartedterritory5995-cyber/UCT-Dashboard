@@ -77,7 +77,27 @@ Durable record of major decisions across Phase Zero, the Evidence-Integrity Audi
 
 **Test evidence:** new `NoteEditorPage.draft.test.jsx` (7 tests, driving the REAL TipTap editor, no mock — matching this file's existing `NoteEditorPage.rails.test.jsx` convention): no banner on a clean note; a keystroke writes the local draft before the network debounce fires at all; a successful save clears it; a stale draft that differs from the server offers Restore/Discard; an identical draft is silently self-cleaned with no banner; Restore applies the draft and schedules a real save with the recovered content; Discard clears the draft and leaves server content untouched. Existing `NoteEditorPage.rails.test.jsx` + `.video.test.jsx`: unaffected (5/5 still pass). Full `journal-2-0` suite: **154 files / 1419 tests passing, 0 failures** (up from 153/1412 — +1 file, +7 tests, matching this slice exactly).
 
-**Not yet started (the rest of Wave 0):** the search read-latency benchmark at 100/1k/10k/50k+ notes; real member-facing E2E (incl. adversarial trust-recovery: double-delete, restore-twice, folder-deletion interaction, multi-user isolation — through the actual UI, not just the service layer); discoverability verification (two-rail: route/AST reachability + unmocked mount); deploy; production verification; the final Wave 0 certification report.
+### Slice 4 — Search/folder-count read-latency benchmark (VERIFICATION ONLY — no code changes)
+
+Per the plan's Performance gate ("benchmark FTS5 read path at 5k/20k/100k... before declaring search 'proven at scale'") and the directive's explicit instruction not to generate a performance claim from trivial fixtures. `tools/notebook_scale_benchmark.py` seeds a REAL SQLite file (via `ensure_schema` + the real FTS5 triggers — a bulk raw `INSERT` still fires `AFTER INSERT ON j2_notes` identically to `create_note()`, so the FTS index it produces is byte-for-byte what production builds) at 100 / 1,000 / 10,000 / 50,000 notes, with a realistic shape: one "catch-all" folder holding ~15% of the library (the exact shape of the P0-2 defect), varied tags/tickers, ~10% of notes carrying a chart embed, and real trading-journal-style body text with an injected common term (~30% of notes) and a rare term (exactly 1 note) for FTS measurement. Every tier also runs 6 CORRECTNESS assertions (whole-library count matches the seed, the heavy folder's honest count matches what was actually seeded, `notes_for_folders` returns the folder's true size rather than a capped page, FTS list/count agree, the rare term finds exactly the one note, backlinks count matches the seeded embed rows) — a fast wrong answer is not a pass.
+
+**Result: all 4 tiers, all correctness checks passed.** Honest latency (ms), this dev box:
+
+| Operation | 100 | 1,000 | 10,000 | 50,000 |
+|---|---|---|---|---|
+| `list_notes` (page 1, default sort) | 2.3 | 1.3 | 1.4 | 1.4 |
+| `count_notes` (whole library) | 0.04 | 0.05 | 0.4 | 1.9 |
+| `list_notes` (FTS, common term ~30%) | 0.7 | 2.2 | 8.6 | 36.2 |
+| `count_notes` (FTS, common term ~30%) | 0.2 | 1.0 | 16.2 | 88.5 |
+| `list_notes` (FTS, rare term, 1 note) | 0.1 | 0.5 | 8.6 | 44.3 |
+| `folder_note_counts` (whole library) | 0.06 | 0.25 | 16.4 | 92.3 |
+| `notes_for_folders` (heavy + 2 others) | 0.6 | 3.8 | 22.1 | 91.8 |
+| `get_symbol_backlinks` | 0.2 | 0.4 | 6.5 | 52.4 |
+| `tag_counts` (whole library) | 0.2 | 1.0 | 14.2 | 78.1 |
+
+**Reading it honestly:** `list_notes`'s default (unfiltered, paginated) path is flat across every tier — it's an indexed `ORDER BY ... LIMIT 100` and scales the way a member's actual "open the Notebook" load does. Everything else (FTS search, `folder_note_counts`, `notes_for_folders`, `tag_counts`, `get_symbol_backlinks`) grows with library size and is clearly super-linear between 10k and 50k, landing in the **40–92ms range at 50,000 notes** — noticeable but not alarming for what are session-cached, once-per-load fetches (SWR caches `folder_note_counts` and the tag cloud after first fetch), not per-keystroke costs. **Flagged, not fixed (out of this task's verification-only scope):** `folder_note_counts` and `notes_for_folders` both filter/group on `(user_id, folder_id, deleted_at)` with only `idx_j2_notes_user_deleted` (`user_id, deleted_at`) to lean on — no index covers `folder_id` — which is the most likely explanation for their super-linear growth; an index on `j2_notes(user_id, folder_id)` would be the obvious next step if a future wave needs snappier behavior at 50k+ notes or wants to support noticeably larger libraries (100k+). Not built now, per this task's explicit verification-only scope. Peak traced Python memory stayed under 1.2MB at every tier (not a concern at this scale). Full machine-readable report + the script are committed for re-running against any future change.
+
+**Not yet started (the rest of Wave 0):** real member-facing E2E (incl. adversarial trust-recovery: double-delete, restore-twice, folder-deletion interaction, multi-user isolation — through the actual UI, not just the service layer); discoverability verification (two-rail: route/AST reachability + unmocked mount); deploy; production verification; the final Wave 0 certification report.
 
 ---
 
