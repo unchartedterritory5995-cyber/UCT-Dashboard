@@ -14,10 +14,21 @@
 // every other test in the builder suite stays green and this one goes red.
 //
 // ⭐ AND IT ASSERTS THE HALF THAT IS EASY TO GET WRONG. A paste with no
-// declarable input must keep handing back a STRING, byte for byte, because
-// `StarterLibrary` and the older callers depend on that shape. A feature that
-// "worked" by converting every hand-back into an object would pass a naive
-// version of this file and change a contract nobody asked to change.
+// declarable input AND no Track F-eligible parameter must keep handing back
+// a STRING, byte for byte, because `StarterLibrary` and the older callers
+// depend on that shape. A feature that "worked" by converting every
+// hand-back into an object would pass a naive version of this file and
+// change a contract nobody asked to change.
+//
+// ⭐⭐ TRACK F (DEC-006) LEGITIMATELY WIDENS WHEN THE OBJECT FORM APPEARS. A
+// window-bound length (`sma(close, len)`) cannot become a `declareInputs`
+// row — `pine.js::foldWindow`'s own comment says why — so it used to be one
+// of the cases this file pinned to the STRING form. It no longer is: Track F
+// reaches exactly this case through a different, literal-preserving
+// mechanism, and the tests below were updated (not weakened) to assert the
+// object form's `paramManifest` field for it. A script with NEITHER a
+// declarable input NOR a Track F-eligible one is the case that must still
+// produce a bare string.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
@@ -114,11 +125,21 @@ describe("the paste box hands the sheet the author's knobs", () => {
     expect(screen.queryByTestId('pine-inputs-kept')).toBeNull()
 
     await clickUse()
-    // ⛔ UNTOUCHED, THE OLD CONTRACT HOLDS BYTE FOR BYTE. A length is not a
-    // declarable input, so nothing declarable exists and the hand-back is a STRING
-    // — which is what `StarterLibrary` and every older caller depend on.
-    expect(typeof onPick.mock.calls[0][0]).toBe('string')
-    expect(onPick.mock.calls[0][0]).toBe('sma(close, 14)')
+    // ⚰️ THIS SAID "a length is not a declarable input, so nothing declarable
+    // exists and the hand-back is a STRING" — true of `declareInputs` (which
+    // cannot put an identifier in a window slot, per `foldWindow`'s own
+    // comment) and now incomplete: Track F (DEC-006) reaches EXACTLY this
+    // case through a separate, literal-preserving mechanism
+    // (`pine.paramManifest.test.js`). `inputs` stays empty (declareInputs
+    // still declares nothing here) while `paramManifest` carries what
+    // Track F minted.
+    const handed = onPick.mock.calls[0][0]
+    expect(typeof handed).toBe('object')
+    expect(handed.source).toBe('sma(close, 14)')
+    expect(handed.inputs).toEqual([])
+    expect(handed.paramManifest).toMatchObject({
+      __uct_param_1: expect.objectContaining({ sourceName: 'len', title: 'Length', type: 'int', default: 14 }),
+    })
   })
 
   it('⭐⭐ …and typing in it re-folds the formula the member will save', async () => {
@@ -135,7 +156,16 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // their own screen against the script they copied.
     expect(screen.getByTestId('pine-input-was-len')).toHaveTextContent('was 14')
     await clickUse()
-    expect(onPick.mock.calls[0][0]).toBe('sma(close, 50)')
+    const handed = onPick.mock.calls[0][0]
+    // ⭐⭐ TRACK F (DEC-006) — the manifest's `default` reflects whatever value
+    // was active at translation time, INCLUDING a paste-dialog preview
+    // override — a disclosed v1 simplification (`paramEdit.js`'s own header):
+    // "default" here means "where this saved instance starts", not
+    // necessarily the original Pine author's own literal, when the two
+    // differ. The AUTHOR'S OWN number (14) is still what "was 14" shows
+    // above — that sentence is unaffected by this.
+    expect(handed.source).toBe('sma(close, 50)')
+    expect(handed.paramManifest.__uct_param_1).toMatchObject({ default: 50 })
   })
 
   it('⛔⛔ CLEARING the field returns to the author\'s length — blank is not zero', async () => {
@@ -151,7 +181,13 @@ describe("the paste box hands the sheet the author's knobs", () => {
     fireEvent.change(field, { target: { value: '' } })
     await waitFor(() => expect(screen.getByTestId('pine-formula-0')).toHaveTextContent('sma(close, 14)'))
     await clickUse()
-    expect(onPick.mock.calls[0][0]).toBe('sma(close, 14)')
+    const handed = onPick.mock.calls[0][0]
+    // ⭐⭐ TRACK F (DEC-006) — the object form now carries `paramManifest`
+    // (see the two tests above); the CLAIM this test exists for (blank
+    // clears back to the author's 14, never a coerced 0) is unchanged and
+    // still checked, on `handed.source`.
+    expect(handed.source).toBe('sma(close, 14)')
+    expect(handed.paramManifest.__uct_param_1).toMatchObject({ default: 14 })
   })
 
   it('⛔⛔ a length OUTSIDE the author\'s bounds REFUSES, and the field stays', async () => {

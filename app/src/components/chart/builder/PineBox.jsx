@@ -28,6 +28,7 @@ import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { buildParamManifest } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
@@ -383,6 +384,21 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   )
   const [text, setText] = useState(initialSource)
   const [report, setReport] = useState(() => (initialSource ? inspect(initialSource) : null))
+  // ⭐⭐ TRACK F (DEC-006) — a SEPARATE, plain `translatePine` call, never
+  // routed through `inspect`/`memberInputTranslation`. Those wrap every
+  // translation in `declareInputs` (probe-all, then declare-the-survivors),
+  // which would starve THIS mechanism of exactly the window-bound inputs it
+  // exists for: a name `declareInputs` chooses NOT to declare (the common
+  // case — see `pine.js::foldWindow`'s own comment on why a length cannot be
+  // an identifier) falls through to the ordinary literal fold either way,
+  // but a name `declareInputs` DOES declare takes an early return in
+  // `resolveInput` before Track F's own tagging code ever runs — so sharing
+  // one call would silently split one script's parameters across two
+  // different, non-interoperating mechanisms depending on each input's own
+  // position. A plain call with no `declareInputs` at all routes EVERY
+  // eligible int/float input through Track F uniformly, regardless of where
+  // it lands.
+  const [paramReport, setParamReport] = useState(null)
   const [chosen, setChosen] = useState(null)
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
@@ -434,7 +450,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   useEffect(() => {
     if (text.trim() === '') {
-      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
+      setReport(null); setChosen(null); setAuthorKnobs([]); setParamReport(null); return undefined
     }
     const id = setTimeout(() => {
       const values = memberSettings(settings)
@@ -449,6 +465,15 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       setChosen((prev) => ((isNewText || prev == null)
         ? (next.selected >= 0 ? next.selected : null) : prev))
       if (!overridden) setAuthorKnobs((next.outputs || []).map((o) => o.pasteInputs || []))
+      // ⭐⭐ TRACK F (DEC-006) — same text, same overrides, a DIFFERENT
+      // (uncoupled from `declareInputs`) translation. `dialect !== undefined`
+      // (thinkScript/PCF) or a non-Pine detected dialect simply refuses here
+      // (`translatePine` never throws on foreign syntax — it returns `{ok:
+      // false}` like any other refusal), leaving `paramReport.inputParams`
+      // empty, harmlessly.
+      setParamReport(translatePine(text, {
+        paramManifest: true, ...(overridden ? { inputValues: values } : {}),
+      }))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
   }, [text, settings, inspect])
@@ -457,6 +482,19 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     if (!report || chosen == null) return null
     return report.outputs[chosen] || null
   }, [report, chosen])
+
+  // ⭐⭐ TRACK F (DEC-006) — the manifest for the CURRENTLY CHOSEN output only.
+  // `paramReport.outputs` shares the same statement-order-derived indexing
+  // `report.outputs` does (declareInputs affects only how an `input.*` call
+  // folds, never which statements become outputs), so `chosen` validly
+  // indexes both arrays from the same debounced pass.
+  const activeParamManifest = useMemo(() => {
+    if (!paramReport || chosen == null) return null
+    const row = paramReport.outputs[chosen]
+    if (!row || !row.ast) return null
+    const manifest = buildParamManifest(paramReport.inputParams, [{ treeIndex: null, ast: row.ast }])
+    return Object.keys(manifest).length ? manifest : null
+  }, [paramReport, chosen])
 
   // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
   // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
@@ -515,8 +553,21 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const rows = active.memberInputs || []
     // ⛔ THE COMPARISON WRAPS THE COLUMN, so the author's knobs still sit inside it
     // and travel unchanged. A member who left the threshold blank gets the column.
-    const picked = condition && condition.ok ? condition.formula : active.formula
-    onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
+    const wrapped = condition && condition.ok
+    const picked = wrapped ? condition.formula : active.formula
+    // ⭐⭐ TRACK F (DEC-006) — NEVER ATTACHED WHEN A SCREEN THRESHOLD WRAPS THE
+    // COLUMN. `activeParamManifest`'s astPath locators were computed against
+    // `active.ast` — the UNWRAPPED tree — and `conditionFrom` builds `wrapped`
+    // as NEW TEXT (`rsi(close,14) > 50`), which the eventual save re-parses
+    // into a tree where the original positions sit one level deeper (under a
+    // comparison op node). Attaching the unwrapped locators to that saved
+    // document would point them at the wrong nodes. Known, disclosed v1
+    // scope cut: a Pine import saved AS A SCREEN CONDITION in this same
+    // action does not get an adjustable parameter — the formula still saves
+    // and screens correctly, exactly as it does today, just without the
+    // control. The pure-numeric artifact path (no condition) is unaffected.
+    const paramManifest = wrapped ? null : activeParamManifest
+    onPick?.((rows.length || paramManifest) ? { source: picked, inputs: rows, paramManifest } : picked)
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
     // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —
@@ -534,7 +585,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // is declared further down this component's body, and closing over it
     // here would be a temporal-dead-zone reference at first render.
     onImportTelemetry?.((report && report.dialect) || 'pine')
-  }, [active, onPick, onImportTelemetry, condition, report])
+  }, [active, onPick, onImportTelemetry, condition, report, activeParamManifest])
 
   // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
   //

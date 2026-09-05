@@ -289,12 +289,19 @@ function isUntouchedRow(row) {
  * body reaches the SAME object for the simplest input, so the two are one
  * meaning with two spellings rather than two meanings.
  */
-function legacyDefinition({ defId, version, rev, source, ast, mode, readback, declared, trimmed, short }) {
+function legacyDefinition({ defId, version, rev, source, ast, mode, readback, declared, trimmed, short,
+  paramManifest = null }) {
   return {
     schemaVersion: SCHEMA_VERSION,
     id: defId,
     version,
-    compute: { kind: 'ast', fn: astHash(ast), rev, ast, source },
+    compute: {
+      kind: 'ast', fn: astHash(ast), rev, ast, source,
+      // ⭐ TRACK F (DEC-006) — additive, OMITTED (never a null key) for every
+      // non-Pine save, keeping every one of the "21 stored v1 documents"
+      // this function's own header guards byte-identical.
+      ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
+    },
     meta: {
       name: trimmed,
       shortName: short,
@@ -385,7 +392,7 @@ function legacyDefinition({ defId, version, rev, source, ast, mode, readback, de
  */
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
   readback = '', inputs = BUILDER_INPUTS,
-  plots = null, scanPlot = null, placement = null, levels = null }) {
+  plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null }) {
   // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
   // scope below and the document's own `inputs` are the SAME array, because a
   // member-declared name that reached one and not the other would badge a
@@ -397,7 +404,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
   if (plots === null && placement === null && levels === null) {
     return legacyDefinition({
       defId, version, rev, source, ast, mode, readback,
-      declared: declaredMember, trimmed, short,
+      declared: declaredMember, trimmed, short, paramManifest,
     })
   }
 
@@ -456,6 +463,24 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     version,
     compute: {
       kind: 'ast', fn: astHash(scan.ast), rev, ast: scan.ast, source: scan.source,
+      // ⭐ TRACK F (DEC-006) — additive, OMITTED for every non-Pine save. A
+      // `treeIndex: null` locator (the only kind `legacyDefinition`'s single-
+      // tree path ever produces) resolves against `compute.ast` regardless of
+      // whether this document is single- or multi-plot, since `compute.ast`
+      // stays aliased to the CURRENT scan row's tree either way (`ast:
+      // scan.ast` above) — so a Pine import that later gains unrelated extra
+      // plot rows keeps its parameter correctly attached without this branch
+      // needing to know anything about `treeIndex` remapping.
+      // ⚠️ KNOWN, DISCLOSED V1 EDGE CASE: if the member REASSIGNS which row
+      // is the scan plot AFTER importing a parameterized Pine script into a
+      // different row, this `null` locator now points at the NEW scan row's
+      // tree, not the one the parameter was minted from — server-side
+      // reconciliation still fails safely (a mismatched position either
+      // doesn't resolve, going `detached`, or coincidentally resolves to an
+      // unrelated literal) but never something this v1 pass builds active
+      // tracking for. Not reachable from the golden-journey fixture (a
+      // single-plot import never reassigns `scanPlot`).
+      ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
       ...(multi ? {
         trees,
         treesHash: treesHash(trees),
@@ -513,13 +538,24 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
  * byte-identical document must not move. That divergence is now VISIBLE at the
  * one call site that needs it instead of being invisible in two copies.
  */
-function evaluatedDocArgs(evaluation, memberInputs) {
+function evaluatedDocArgs(evaluation, memberInputs, paramManifest) {
   return {
     source: evaluation.source,
     ast: evaluation.ast,
     mode: evaluation.verdict.mode,
     readback: evaluation.readback,
     inputs: [...BUILDER_INPUTS, ...memberInputs],
+    // ⭐⭐ TRACK F (DEC-006) — additive, `null` for every non-Pine build. The
+    // locators inside `paramManifest` were computed against PineBox's OWN
+    // translated tree, not `evaluation.ast` (the NATIVE reader's re-parse of
+    // the same printed text) — they still apply correctly because `pine.js`
+    // already verifies (`verifyRoundTrip`, called on every translation) that
+    // its printed formula reads back to a tree with the IDENTICAL `astHash`,
+    // and an identical hash over this canonical grammar means an identical
+    // structure (`assertCanonical`'s exact-key-set requirement is what makes
+    // that true) — so the astPath positions line up by construction, not by
+    // coincidence.
+    ...(paramManifest && Object.keys(paramManifest).length ? { paramManifest } : {}),
   }
 }
 
@@ -690,6 +726,16 @@ export default function BuilderSheet({
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
   const [memberInputs, setMemberInputs] = useState([])
+
+  /** ⭐⭐ TRACK F (DEC-006) — the Pine import's OWN parameter manifest, when
+   *  the current formula came from a Pine script with an eligible int/float
+   *  input (`PineBox.jsx`'s `onPick`, below). `null` for every other build
+   *  mode and every hand-typed formula — mirrors `memberInputs`' own
+   *  set/clear lifecycle exactly (reset on a fresh formula, restored when
+   *  reopening a saved definition, replaced on a new Pine pick) rather than
+   *  inventing a separate one. Threaded into `evaluatedDocArgs` so both the
+   *  live preview and the real save read the SAME assembly. */
+  const [paramManifest, setParamManifest] = useState(null)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -990,7 +1036,7 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
+    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setResult(evaluateFormula('', inputScope))
     // ⛔ NO `setAcknowledged` HERE ANY MORE — `resetPlots()` below already puts a
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
@@ -1126,6 +1172,13 @@ export default function BuilderSheet({
         .filter((spec) => spec && typeof spec.key === 'string' && !chromeKeySet.has(spec.key))
         .map((spec) => ({ ...spec })),
     )
+    // ⭐⭐ TRACK F (DEC-006) — REOPENING A SAVED PARAMETERIZED DEFINITION MUST
+    // RESTORE ITS MANIFEST, exactly the same reason the comment above restores
+    // `memberInputs`: a document that reopens without it would look
+    // permanently frozen even though it was saved adjustable.
+    setParamManifest(
+      compute?.paramManifest && typeof compute.paramManifest === 'object' ? compute.paramManifest : null,
+    )
 
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
     setName(String(def?.meta?.name || ''))
@@ -1156,7 +1209,7 @@ export default function BuilderSheet({
   }, [resetPlots])
 
   const cancelEdit = useCallback(() => {
-    setEditing(null); setSource(''); setName(''); setMemberInputs([])
+    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1266,7 +1319,7 @@ export default function BuilderSheet({
   const previewDefinition = useMemo(() => (
     result && result.ok && result.ast && result.verdict && inputsValid
       ? buildDefinition({
-        ...evaluatedDocArgs(result, memberInputs),
+        ...evaluatedDocArgs(result, memberInputs, paramManifest),
         defId: PREVIEW_DEF_ID,
         // A preview must draw before the member has named the thing; `save()`
         // requires a name and `canSave` is the one authority on that.
@@ -1412,7 +1465,7 @@ export default function BuilderSheet({
       // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
       // the ONE assembly the live preview also asks — so the two cannot drift
       // apart the day a field moves. See `evaluatedDocArgs`.
-      ...evaluatedDocArgs(result, memberInputs),
+      ...evaluatedDocArgs(result, memberInputs, paramManifest),
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
@@ -1818,6 +1871,18 @@ export default function BuilderSheet({
                 const formula = typeof picked === 'string'
                   ? picked
                   : (picked && typeof picked.source === 'string' ? picked.source : '')
+                // ⭐⭐ TRACK F (DEC-006) — A THIRD, INDEPENDENT FIELD ON THE SAME
+                // OBJECT FORM, never colliding with `inputs` above. `inputs`
+                // (W1b.9's `declareInputs` mechanism) and `paramManifest`
+                // (Track F's astPath-locator mechanism) are two SEPARATE,
+                // non-overlapping answers to "which Pine inputs survive" —
+                // see `pine.paramManifest.js`'s own header for why a window-
+                // bound length can only ever reach this door via the SECOND
+                // one. Reading it here does not depend on `inputs` existing
+                // or being non-empty.
+                const pickedParamManifest = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && picked.paramManifest && typeof picked.paramManifest === 'object')
+                  ? picked.paramManifest : null
                 // ⛔ REPLACE RATHER THAN APPEND: `defSchema.validateInput`
                 // refuses a duplicate key outright, so pasting the same script
                 // twice would produce a document that cannot be saved.
@@ -1840,6 +1905,11 @@ export default function BuilderSheet({
                     ...declared.map((d) => ({ ...d })),
                   ])
                 }
+                // ⭐⭐ TRACK F (DEC-006) — a fresh Pine pick REPLACES the prior
+                // manifest outright (never merged) — a new paste is a new
+                // script, and its astPath locators have nothing to do with
+                // whatever the previous paste's manifest pointed at.
+                setParamManifest(pickedParamManifest)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
