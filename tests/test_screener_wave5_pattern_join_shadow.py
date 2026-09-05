@@ -332,3 +332,65 @@ def test_query_param_count_scales_with_targets_not_table_size(monkeypatch, tmp_p
 
     assert len(captured) == 2
     assert captured[1] - captured[0] == 2  # +2 targets -> +2 bound params, never +49
+
+
+def test_shadow_query_forces_the_sym_tf_index_in_source():
+    """The SQL text itself must force idx_pd_sym_tf -- the structural fact
+    that prevents SQLite's planner from silently choosing a worse index
+    (idx_pd_status) for this exact WHERE shape. Measured live on real
+    production data (Phase 8 Package 8G-B Residual Performance Closure,
+    2026-09-05): the unforced planner chose idx_pd_status and visited
+    ~57,000 status-matching rows table-wide, 350x slower than forcing
+    idx_pd_sym_tf for an identical 4-ticker result (~400ms vs ~1.2ms)."""
+    import inspect
+    from api.services.screener import pattern_join as pj
+
+    source = inspect.getsource(pj.read_pattern_fields_canonical_shadow)
+    assert "INDEXED BY idx_pd_sym_tf" in source
+
+
+def test_shadow_query_plan_actually_uses_the_sym_tf_index(monkeypatch, tmp_path):
+    """Not just the SQL text -- the REAL SQLite query planner, against a
+    real populated table, must report idx_pd_sym_tf in EXPLAIN QUERY PLAN.
+    Captures the ACTUAL SQL `read_pattern_fields_canonical_shadow` executes
+    (via this file's own SpyConn idiom, never a hand-retyped copy) so a
+    regression that renamed or dropped the hint goes red here even if it
+    slipped past a looser source-text match."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+    import api.services.pattern_engine.pattern_db as pattern_db
+
+    memory.store_detection(_detection(id="d1", sym="AAPL"))
+
+    real_get_connection = pattern_db.get_connection
+    captured = {}
+
+    class _SpyConn:
+        def __init__(self, real_conn):
+            self._real = real_conn
+
+        def execute(self, sql, params=()):
+            if "sym IN" in sql:
+                captured["sql"], captured["params"] = sql, params
+            return self._real.execute(sql, params)
+
+        def close(self):
+            return self._real.close()
+
+    monkeypatch.setattr(
+        "api.services.pattern_engine.pattern_db.get_connection",
+        lambda: _SpyConn(real_get_connection()))
+
+    pj.read_pattern_fields_canonical_shadow(["AAPL"])
+    assert "sql" in captured
+
+    conn = real_get_connection()
+    try:
+        plan = [dict(r) for r in conn.execute(
+            "EXPLAIN QUERY PLAN " + captured["sql"], captured["params"]).fetchall()]
+    finally:
+        conn.close()
+    detail = " ".join(str(p.get("detail", "")) for p in plan)
+    assert "idx_pd_sym_tf" in detail
+    assert "idx_pd_status" not in detail
