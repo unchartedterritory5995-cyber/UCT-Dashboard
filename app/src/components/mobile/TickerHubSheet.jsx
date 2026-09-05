@@ -5,6 +5,7 @@ import { useTickerHub } from './TickerHubContext'
 import { useFlagged } from '../../hooks/useFlagged'
 import useLivePrices from '../../hooks/useLivePrices'
 import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
+import useFilingWatch from '../../hooks/useFilingWatch'
 import useTickerTweets from '../../hooks/useTickerTweets'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
@@ -35,6 +36,28 @@ function TickerHubBody({ sym, onClose }) {
   const { isFlagged, toggle } = useFlagged()
   const { prices } = useLivePrices([sym])
   const { createAlert, hasAlert } = useWatchlistAlerts()
+  // S7 filing watch — a DIFFERENT, distinct capability from the price alert
+  // above ("Alert" = above/below a price threshold). Never reuse that UI.
+  const filingWatch = useFilingWatch()
+  const filingWatchState = filingWatch.watchState(sym)
+  const filingWatchBusy = filingWatchState === 'CREATING' || filingWatchState === 'SUSPENDING' || filingWatchState === 'LOADING'
+  const onFilingWatch = () => {
+    if (filingWatchBusy) return
+    if (filingWatchState === 'ACTIVE') {
+      const w = filingWatch.getWatch(sym)
+      if (w) filingWatch.suspend(w.id, sym)
+    } else {
+      filingWatch.createOrReactivate(sym)
+    }
+  }
+  const FILING_WATCH_TITLE = {
+    NOT_WATCHING: `Notify me about new SEC filings for ${sym}`,
+    ACTIVE: 'Watching SEC filings — tap to suspend',
+    SUSPENDED: `Filing watch suspended — tap to reactivate`,
+    CREATING: 'Setting up filing watch…',
+    SUSPENDING: 'Suspending filing watch…',
+    ERROR: 'Filing watch failed — tap to retry',
+  }[filingWatchState] || 'Filing watch'
   const { data: tweets } = useTickerTweets(sym, { hours: 24 })
 
   const [tf, setTf] = useState('D')
@@ -113,6 +136,17 @@ function TickerHubBody({ sym, onClose }) {
             onClick={() => setAlertOpen((o) => !o)}
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="bell" size={14} /></span>Alert
+          </button>
+          <button
+            type="button"
+            className={`${styles.action} ${filingWatchState === 'ACTIVE' ? styles.on : ''}`}
+            onClick={onFilingWatch}
+            disabled={filingWatchBusy}
+            title={FILING_WATCH_TITLE}
+            aria-label={FILING_WATCH_TITLE}
+            aria-pressed={filingWatchState === 'ACTIVE'}
+          >
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="document" size={14} /></span>Filings
           </button>
           <button
             type="button"

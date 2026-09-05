@@ -15,6 +15,7 @@ import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
+import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -2081,6 +2082,17 @@ export default function Settings() {
         </TileCard>
   )
 
+  // ── S7 Filing Watches (Stage 5, owner authorization) ──────────────────
+  // Minimal management surface for the member's own document-arrival watches
+  // ("Notify me about new SEC filings for {sym}"). NOT a new Alerts
+  // dashboard — one compact list, suspend/reactivate only (no hard delete,
+  // no edit — matches the backend's suspend/reactivate-only model).
+  const filingWatchesCard = (
+    <TileCard icon="document" title="Filing Watches">
+      <FilingWatchesPanel />
+    </TileCard>
+  )
+
   /* 🔴 THE ALERT MANAGER (audit-not-wired finding 5). `list_for_user`'s own
      docstring calls the unscoped listing "the alert manager's view" and there
      was no alert manager: `IndicatorAlertPopover` filters to the chart's symbol,
@@ -2289,6 +2301,7 @@ export default function Settings() {
       card('prefs', preferencesCard),
       card('notifications', notificationsCard),
       card('indicatorAlerts', indicatorAlertsCard),
+      card('filingWatches', filingWatchesCard),
       card('digest', digestCard),
       card('tags', tagsCard),
     ],

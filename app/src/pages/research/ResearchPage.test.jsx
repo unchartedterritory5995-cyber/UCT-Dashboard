@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 
 // Stable overview data for all renders.
@@ -55,6 +55,16 @@ vi.mock('../../context/AuthContext', () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
 }))
+
+// S7 filing-watch — controlled mock so the header action's tests are
+// deterministic rather than depending on an unmocked real fetch.
+const filingWatchMock = vi.hoisted(() => ({
+  watchState: vi.fn(() => 'NOT_WATCHING'),
+  getWatch: vi.fn(() => null),
+  createOrReactivate: vi.fn(),
+  suspend: vi.fn(),
+}))
+vi.mock('../../hooks/useFilingWatch', () => ({ default: () => filingWatchMock }))
 
 import ResearchPage from './ResearchPage'
 
@@ -148,5 +158,45 @@ describe('ResearchPage', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'Ask AI' })).toBeInTheDocument()
+  })
+})
+
+describe('S7 filing-watch header action (Stage 4, D7 — visible regardless of active tab)', () => {
+  beforeEach(() => {
+    auth.isPaid = true
+    filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.getWatch.mockReset().mockReturnValue(null)
+    filingWatchMock.createOrReactivate.mockReset()
+    filingWatchMock.suspend.mockReset()
+  })
+
+  it('renders on Overview and creates a watch for the security on click', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    const btn = screen.getByRole('button', { name: /Notify me about new SEC filings for AAPL/ })
+    fireEvent.click(btn)
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
+  })
+
+  it('is still present after switching to a non-Overview tab (does not live inside a tab body)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filings' }))
+    expect(screen.getByRole('button', { name: /Notify me about new SEC filings for AAPL/ })).toBeInTheDocument()
+  })
+
+  it('ACTIVE: renders "Watching SEC filings" and suspends on click', () => {
+    filingWatchMock.watchState.mockReturnValue('ACTIVE')
+    filingWatchMock.getWatch.mockReturnValue({ id: 'p1' })
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    const btn = screen.getByRole('button', { name: /Watching SEC filings/ })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
+    expect(filingWatchMock.suspend).toHaveBeenCalledWith('p1', 'AAPL')
+  })
+
+  it('SUSPENDED: reactivates via the same create call', () => {
+    filingWatchMock.watchState.mockReturnValue('SUSPENDED')
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: /Filing watch suspended/ }))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
   })
 })

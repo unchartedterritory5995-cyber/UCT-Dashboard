@@ -8,6 +8,7 @@ import { useDarkPoolBars } from './chart/useDarkPoolBars'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
+import useFilingWatch from '../hooks/useFilingWatch'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
 import { useTickerHub } from './mobile/TickerHubContext'
@@ -71,6 +72,28 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tagColor = getTag(activeSym)
+  // S7 filing watch — "Notify me about new SEC filings for {sym}". Re-checks
+  // as activeSym changes (ticker switched inside the popup via SwitchTickerBox).
+  const filingWatch = useFilingWatch()
+  const filingWatchState = filingWatch.watchState(activeSym)
+  const onFilingWatchClick = () => {
+    if (filingWatchState === 'CREATING' || filingWatchState === 'SUSPENDING' || filingWatchState === 'LOADING') return
+    if (filingWatchState === 'ACTIVE') {
+      const w = filingWatch.getWatch(activeSym)
+      if (w) filingWatch.suspend(w.id, activeSym)
+    } else {
+      filingWatch.createOrReactivate(activeSym)
+    }
+  }
+  const FILING_WATCH_LABEL = {
+    NOT_WATCHING: `Notify me about new SEC filings for ${activeSym}`,
+    ACTIVE: 'Watching SEC filings — click to suspend',
+    SUSPENDED: `Filing watch suspended — reactivate for ${activeSym}`,
+    CREATING: 'Setting up filing watch…',
+    SUSPENDING: 'Suspending filing watch…',
+    ERROR: 'Filing watch failed — click to retry',
+    LOADING: 'Filing watch',
+  }[filingWatchState] || 'Filing watch'
   const tickerActions = useTickerActions()
   const { openTicker } = useTickerHub()
   const isTouch = useIsTouch()
@@ -235,6 +258,16 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   aria-label={`Ask AI about ${activeSym}`}
                 >
                   <UIcon name="sparkle" size={14} />
+                </button>
+                <button
+                  className={styles.actionBtn}
+                  onClick={onFilingWatchClick}
+                  disabled={filingWatchState === 'CREATING' || filingWatchState === 'SUSPENDING' || filingWatchState === 'LOADING'}
+                  title={FILING_WATCH_LABEL}
+                  aria-label={FILING_WATCH_LABEL}
+                  aria-pressed={filingWatchState === 'ACTIVE'}
+                >
+                  <UIcon name="document" size={14} gold={filingWatchState === 'ACTIVE'} />
                 </button>
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}

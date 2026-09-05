@@ -7,6 +7,16 @@
 .hdrCo { color: var(--text); font-weight: 600; font-size: 14px; }
 .hdrSub { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
 .hdrRs { display: flex; align-items: center; }
+.hdrWatchBtn {
+  display: flex; align-items: center; gap: 6px;
+  min-height: var(--tap-min);
+  padding: 6px 12px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  color: var(--text-bright); font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.hdrWatchBtn:disabled { opacity: 0.6; cursor: default; }
+.hdrWatchBtn[aria-pressed="true"] { color: var(--ut-gold); border-color: var(--ut-gold); }
 .hdrPx { margin-left: auto; text-align: right; }
 .hdrPxBig { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .hdrSearch { margin-top: 4px; }
