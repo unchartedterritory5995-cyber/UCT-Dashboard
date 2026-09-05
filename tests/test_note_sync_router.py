@@ -224,6 +224,50 @@ def test_status_source_counts_reflect_the_most_recent_sync_log_row(client, monke
     }
 
 
+# ── connect == import: the first sync must START, not be scheduled ──────────
+
+def test_the_oauth_callback_starts_the_first_sync_for_the_source_it_creates(client, monkeypatch):
+    """⛔ "Connect" is the member's *import my notebook* action.
+
+    Before this wiring, finishing Notion's OAuth created a `j2_note_sources`
+    row and redirected to an EMPTY Notebook with nothing running -- the
+    content appeared only when the hourly `:23` incremental tick came round
+    (up to 60 minutes later) or when the member found "Sync now" themselves.
+    The engine was always correct; the WIRING was missing, so that is what
+    this pins, by driving the real callback route.
+    """
+    import api.routers.note_sync as ns
+
+    started: list[str] = []
+    monkeypatch.setattr(ns, "_start_initial_sync", started.append)
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "notion-tok", "workspaceId": "ws-1", "workspaceName": "Acme"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    state = ns._sign_state("u1", "notion")
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302 and "connected=1" in r.headers["location"]
+
+    sources = client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["sources"]
+    assert len(sources) == 1, "callback did not create the source this rail is about"
+    assert started == [sources[0]["id"]], (
+        "the OAuth callback created a source without starting its first sync -- "
+        "the member lands on an empty Notebook until the scheduled tick"
+    )
+
+
+def test_start_initial_sync_never_raises_into_a_successful_connect():
+    """A failed kick-off must never turn a SUCCESSFUL connect into an error
+    the member sees; with no running loop it degrades to the scheduled tick."""
+    import api.routers.note_sync as ns
+    ns._start_initial_sync("src-no-loop-at-all")
+
+
 # ── POST /{provider}/connect — token providers (roam/craft) ─────────────────
 
 def test_connect_requires_consent(client):
@@ -574,6 +618,15 @@ def test_notion_callback_never_takes_the_onenote_whole_account_branch(client, mo
         return {"accessToken": "notion-tok", "workspaceId": "ws1", "workspaceName": "My Workspace"}
 
     monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+    # ⛔ The callback now also kicks off the source's FIRST sync (connect ==
+    # import), and that background task legitimately builds a provider. This
+    # test is about BRANCH SELECTION -- "notion must not take the OneNote
+    # whole-account `validate()` path" -- so the kick-off is neutralised here
+    # to keep `build_calls == []` measuring the branch and nothing else.
+    # Without this the spy counts a call the branch never made, and the guard
+    # stops being able to tell the two apart. The kick-off has its own rail:
+    # test_the_oauth_callback_starts_the_first_sync_for_the_source_it_creates.
+    monkeypatch.setattr(ns, "_start_initial_sync", lambda *_a, **_k: None)
 
     build_calls = []
     real_build = registry.build_provider

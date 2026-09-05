@@ -468,6 +468,41 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
 _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
 
 
+
+def _start_initial_sync(source_id: str) -> None:
+    """Fire-and-forget the FIRST sync for a freshly connected source.
+
+    ⛔ Connecting is the member's "import my notebook" action; it is not a
+    request to schedule an import for some time in the next hour. Without
+    this, a member finished Notion's OAuth (or finished pushing an Obsidian
+    vault) and landed on an EMPTY Notebook with nothing running and nothing
+    saying so -- the content only appeared when the `:23` incremental tick
+    happened to come round, up to 60 minutes later, or when they found the
+    "Sync now" button themselves.
+
+    Detached exactly like `sync_source_now`'s `background=1` path so the
+    OAuth redirect / ingest response is never held open behind a provider
+    round-trip, and exception-walled so a failing first sync can never turn
+    a SUCCESSFUL connect into an error the member sees. A failure leaves the
+    source exactly as the old behaviour did -- waiting for the scheduled
+    tick -- and is recorded on the source row by the engine itself.
+    """
+    async def _run() -> None:
+        try:
+            await engine.sync_source(source_id, manual=True)
+        except Exception:  # noqa: BLE001 — never surface into the caller
+            log.exception("[note_sync] initial sync failed for source %s", source_id)
+
+    try:
+        asyncio.create_task(_run())
+    except RuntimeError:
+        # No running loop (sync test client / non-async caller) — the
+        # scheduled tick remains the fallback, same as before this existed.
+        log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+
+
+# ── GET /{provider}/callback ─────────────────────────────────────────────────
+
 @router.get("/{provider}/callback")
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
@@ -606,9 +641,12 @@ async def oauth_callback(
         )
     if remote_id:
         dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
-        connections.create_source(
+        source = connections.create_source(
             user_id, provider, remote_id, display_name=account_label, dest_folder_id=dest_folder_id,
         )
+        # CONNECT == IMPORT. See `_start_initial_sync`.
+        if source and source.get("id"):
+            _start_initial_sync(source["id"])
     # `connected=1` is the EXACT param the shipped frontend's OAuth
     # return-self-heal effect checks (Task 12, ConnectedAppsCard.jsx) — see
     # this file's module docstring / ConnectBody's contract note. `status=`
@@ -1137,13 +1175,28 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Consent is required to sync from Obsidian.")
 
     try:
-        return obsidian_staging.ingest_batch(
+        result = obsidian_staging.ingest_batch(
             user_id=device["user_id"],
             vault_id=device["vault_id"],
             notes=[n.model_dump() for n in body.notes],
             manifest=body.manifest,
             final=body.final,
         )
+        # A `final` batch is the plugin saying "that is the whole vault".
+        # Draining it into the Notebook right now is what makes connecting a
+        # vault mean "bring this vault into UCT" instead of "stage it and
+        # wait for the :23 tick". Only on `final` — an intermediate batch is
+        # a partial vault and must not be swept in mid-push. See
+        # `_start_initial_sync` for the fire-and-forget contract.
+        if body.final:
+            src = next(
+                (x for x in connections.list_sources(device["user_id"])
+                 if x.get("provider") == "obsidian" and x.get("remoteId") == device["vault_id"]),
+                None,
+            )
+            if src and src.get("id"):
+                _start_initial_sync(src["id"])
+        return result
     except errors.NoteConnError as e:
         # I3/I4/I7 (2026-09-02 review): `ingest_batch` now raises
         # `NoteConnValidationError` for a padded/empty manifest or an
