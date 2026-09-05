@@ -9,12 +9,17 @@ from api.services.journal_two import notes as notes_svc
 
 @pytest.fixture()
 def conn(tmp_path, monkeypatch):
-    """Fresh sandboxed J2 db with schema + both notebook migrations applied."""
+    """Fresh sandboxed J2 db with the real, current schema applied.
+
+    Was a hand-rolled `executescript(_J2_SCHEMA)` + `run_notebook_migration_v2`
+    replica of `ensure_schema()` — it silently skipped `_PHASE_2_ALTERS`, so
+    every column added there (e.g. Wave 0's `deleted_at`) never reached this
+    fixture. Calling the real function keeps this fixture from drifting from
+    production schema again."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     c = sqlite3.connect(tmp_path / "j2_test.db")
     c.row_factory = sqlite3.Row
-    c.executescript(j2db._J2_SCHEMA)
-    j2db.run_notebook_migration_v2(c)
+    j2db.ensure_schema(c)
     yield c
     c.close()
 

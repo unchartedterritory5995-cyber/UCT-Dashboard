@@ -963,9 +963,14 @@ def _bulk_existing_note_meta(
     for i in range(0, len(keys), 500):  # sqlite variable-limit safety
         chunk = keys[i:i + 500]
         placeholders = ",".join("?" * len(chunk))
+        # Wave 0 trash: a soft-deleted note's import_key must read as
+        # "doesn't exist" to the sync engine, same reasoning as
+        # notes.py::import_check — otherwise a background sync would
+        # silently resurrect a note the member deliberately trashed.
         rows = conn.execute(
             f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
-            f"FROM j2_notes WHERE user_id = ? AND import_key IN ({placeholders})",
+            f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
+            f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
         ).fetchall()
         for row in rows:

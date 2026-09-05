@@ -1385,12 +1385,17 @@ def list_notes_endpoint(
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
+    deleted: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    """`deleted=true` (Wave 0 trash view): the mirror-image question — only
+    soft-deleted notes, everything else about the filter set unchanged.
+    There is deliberately no "both" mode; every call asks one question or
+    the other (see `_notes_filter_sql`'s own docstring)."""
     rows = notes_service.list_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
         embed_symbol=embed_symbol, embed_widget=embed_widget,
-        sort=sort, limit=limit, offset=offset,
+        sort=sort, limit=limit, offset=offset, deleted=deleted,
     )
     # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
     # never the length of `rows` — a migrated library of thousands of notes must
@@ -1399,7 +1404,7 @@ def list_notes_endpoint(
     # so the two can never disagree about which notes match.
     total = notes_service.count_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-        embed_symbol=embed_symbol, embed_widget=embed_widget,
+        embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
     )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
@@ -1432,6 +1437,39 @@ def note_tag_counts_endpoint(
     `/notes/backlinks` immediately above: FastAPI matches in declaration
     order and that route would otherwise swallow "tags" as a note id."""
     return {"tags": notes_service.tag_counts(user["id"])}
+
+
+@router.get("/notes/folder-counts")
+def note_folder_counts_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 (P0-2, folder-sidebar correctness): the TRUE whole-library
+    note count per folder + Unfiled, in one request — see
+    `notes_service.folder_note_counts`'s own docstring for the defect this
+    replaces.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks` and `/notes/tags` immediately above."""
+    return notes_service.folder_note_counts(user["id"])
+
+
+@router.get("/notes/by-folders")
+def notes_by_folders_endpoint(
+    ids: str,
+    limit: int = 200,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 (P0-2): the actual notes for the sidebar tree's inline leaf
+    rows, scoped to exactly the (in practice: currently-expanded) folders
+    the client asks for — see `notes_service.notes_for_folders`'s own
+    docstring. `ids` is a comma-separated folder-id list; an empty/blank
+    request returns an empty map rather than erroring, so a client that
+    calls this with no folders expanded gets a harmless no-op.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as the
+    other whole-library reads above."""
+    folder_ids = [i for i in (ids or "").split(",") if i]
+    return {"byFolder": notes_service.notes_for_folders(user["id"], folder_ids, limit_per_folder=limit)}
 
 
 @router.post("/notes/{note_id}/embeds")
@@ -1618,10 +1656,27 @@ def delete_note_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    """Wave 0 trash: soft delete. The note moves to the trash (restorable
+    via POST .../restore for TRASH_RETENTION_DAYS) rather than being
+    destroyed immediately — see notes_service.delete_note."""
     ok = notes_service.delete_note(user["id"], note_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+@router.post("/notes/{note_id}/restore")
+def restore_note_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 trash: undo a soft delete. 404 covers every case the caller
+    can't act on differently anyway (already restored, already hard-purged,
+    not this member's note, never existed)."""
+    n = notes_service.restore_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
 
 
 @router.post("/notes/{note_id}/images")

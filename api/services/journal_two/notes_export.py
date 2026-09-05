@@ -622,10 +622,16 @@ def _write_notes_archive(
             "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
             (user_id,))
     }
+    # Wave 0 trash: an export mirrors the member's ACTIVE notebook, not the
+    # trash — a soft-deleted note excluded here matches what they currently
+    # see everywhere else (list, search, tags, backlinks). The 30-day
+    # retention window is the safety net for "I want it back", not the
+    # export.
     rows = conn.execute(
         "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
         " hero_image_url, created_at, updated_at FROM j2_notes"
-        " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
+        " WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
+        (user_id,),
     ).fetchall()
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({

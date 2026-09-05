@@ -538,14 +538,30 @@ def test_create_note_syncs_embed_sidecar(conn):
     assert rows[1]["symbol"] is None
 
 
-def test_update_note_resyncs_and_delete_cleans_sidecar(conn):
+def test_update_note_resyncs_sidecar(conn):
     n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
     svc.update_note("u1", n["id"], {"bodyJson": {
         "type": "doc", "content": [WIDGET_DOC["content"][1]]}}, conn=conn)
     rows = conn.execute(
         "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
     assert [r["widget_id"] for r in rows] == ["chart"]
+
+
+def test_soft_delete_preserves_embeds_purge_clears_them(conn):
+    # Wave 0 trash: a soft-deleted note is restorable, so its widget embeds
+    # must survive delete_note — only the retention-expiry purge sweep may
+    # actually remove them (matching test_notes_import.py's restore round trip).
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
     svc.delete_note("u1", n["id"], conn=conn)
+    still_there = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert still_there["c"] == 2
+
+    from datetime import datetime, timedelta, timezone
+    future = datetime.now(timezone.utc) + timedelta(days=svc.TRASH_RETENTION_DAYS + 1)
+    purged = svc.purge_expired_deleted_notes(now=future, conn=conn)
+    assert purged == 1
+
     left = conn.execute(
         "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
     assert left["c"] == 0
@@ -882,3 +898,55 @@ def test_route_tags_endpoint_reflects_the_whole_library_not_a_page(monkeypatch, 
     r = client.get("/api/j2/notes/tags")
     assert r.status_code == 200
     assert r.json()["tags"] == [{"tag": "earnings", "count": 120}]
+
+
+# ── Wave 0 trash + folder-count routes ──────────────────────────────────────
+
+def test_route_delete_is_soft_restore_undoes_it(route_client):
+    r = route_client.get("/api/j2/notes?limit=1")
+    note_id = r.json()["notes"][0]["id"]
+
+    d = route_client.delete(f"/api/j2/notes/{note_id}")
+    assert d.status_code == 200 and d.json() == {"ok": True}
+
+    # Gone from the active view, present in the trash view.
+    assert route_client.get(f"/api/j2/notes/{note_id}").status_code == 404
+    trashed_ids = {n["id"] for n in route_client.get("/api/j2/notes?deleted=true").json()["notes"]}
+    assert note_id in trashed_ids
+
+    restore = route_client.post(f"/api/j2/notes/{note_id}/restore")
+    assert restore.status_code == 200
+    assert restore.json()["note"]["id"] == note_id
+    assert route_client.get(f"/api/j2/notes/{note_id}").status_code == 200
+
+
+def test_route_restore_of_a_never_deleted_note_404s(route_client):
+    r = route_client.get("/api/j2/notes?limit=1")
+    note_id = r.json()["notes"][0]["id"]
+    assert route_client.post(f"/api/j2/notes/{note_id}/restore").status_code == 404
+
+
+def test_route_delete_of_missing_note_404s(route_client):
+    assert route_client.delete("/api/j2/notes/does-not-exist").status_code == 404
+
+
+def test_route_folder_counts_reflects_the_whole_library(route_client):
+    r = route_client.get("/api/j2/notes/folder-counts")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["counts"] == {route_client.folder_id: 1}
+    assert body["unfiled"] == 120
+    assert body["total"] == 121
+
+
+def test_route_by_folders_returns_scoped_note_lists(route_client):
+    r = route_client.get(f"/api/j2/notes/by-folders?ids={route_client.folder_id}")
+    assert r.status_code == 200
+    by_folder = r.json()["byFolder"]
+    assert [n["title"] for n in by_folder[route_client.folder_id]] == ["Filed"]
+
+
+def test_route_by_folders_with_no_ids_is_a_harmless_no_op(route_client):
+    r = route_client.get("/api/j2/notes/by-folders?ids=")
+    assert r.status_code == 200
+    assert r.json()["byFolder"] == {}

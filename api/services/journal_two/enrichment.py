@@ -64,9 +64,13 @@ def scan_notes_for_tickers(
         for i in range(0, len(ids), 500):  # SQLite variable-count limit safety
             chunk = ids[i:i + 500]
             q = ",".join("?" * len(chunk))
+            # Wave 0 trash: don't offer ticker-embed suggestions for a
+            # trashed note — it's about to be purged and isn't shown
+            # anywhere a member could act on the offer.
             rows.extend(conn.execute(
                 f"SELECT id, title, body_plain FROM j2_notes "
-                f"WHERE user_id = ? AND id IN ({q})", (user_id, *chunk)
+                f"WHERE user_id = ? AND deleted_at IS NULL AND id IN ({q})",
+                (user_id, *chunk)
             ).fetchall())
 
         # Existing chart-embed symbols, per note -- one query, not N. A note

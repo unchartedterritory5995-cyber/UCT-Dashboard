@@ -88,6 +88,28 @@ def test_flag_gates_the_public_surface(monkeypatch):
     assert note_shares.enabled() is True
 
 
+# ── Wave 0 trash: a soft-deleted note is not shareable ──────────────────────
+
+def test_cannot_create_a_share_link_for_a_trashed_note(conn):
+    n = _note_with_image(conn)
+    notes_svc.delete_note("u1", n["id"], conn=conn)
+    assert note_shares.create_share("u1", n["id"], conn=conn) is None
+
+
+def test_an_existing_share_stops_resolving_once_its_note_is_trashed(conn):
+    n = _note_with_image(conn)
+    tok = note_shares.create_share("u1", n["id"], conn=conn)["token"]
+    assert note_shares.resolve_share(tok, conn=conn) is not None
+
+    notes_svc.delete_note("u1", n["id"], conn=conn)
+    assert note_shares.resolve_share(tok, conn=conn) is None
+
+    # Restoring the note brings the same still-active token back to life —
+    # revoke is final, but a soft delete is not.
+    notes_svc.restore_note("u1", n["id"], conn=conn)
+    assert note_shares.resolve_share(tok, conn=conn) is not None
+
+
 def test_attachment_proxy_scope(conn, root):
     n = _note_with_image(conn)
     tok = note_shares.create_share("u1", n["id"], conn=conn)["token"]

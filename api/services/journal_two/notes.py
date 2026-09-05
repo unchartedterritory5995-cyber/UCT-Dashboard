@@ -379,9 +379,16 @@ def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection 
         for i in range(0, len(keys), 500):  # SQLite variable limit safety
             chunk = keys[i:i + 500]
             q = ",".join("?" * len(chunk))
+            # Wave 0 trash: a soft-deleted note's import_key must read as
+            # "doesn't exist" here, not "exists, needs updating" — otherwise
+            # a routine re-sync would silently resurrect content the member
+            # deliberately trashed. `deleted_at IS NULL` is the same "this
+            # note is part of my active notebook" predicate applied
+            # everywhere else a note is looked up by identity.
             for row in conn.execute(
                 f"SELECT id, import_key, updated_at, import_hash FROM j2_notes "
-                f"WHERE user_id = ? AND import_key IN ({q})", (user_id, *chunk)):
+                f"WHERE user_id = ? AND deleted_at IS NULL AND import_key IN ({q})",
+                (user_id, *chunk)):
                 existing[row["import_key"]] = {
                     "id": row["id"], "updatedAt": row["updated_at"],
                     "importHash": row["import_hash"]}
@@ -480,9 +487,13 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                     path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
                                         if path else (dest or None))
                 folder_id = path_cache[path] or None
+                # Wave 0 trash: same reasoning as import_check above — a
+                # soft-deleted note's import_key must not match here, so a
+                # re-import creates fresh content instead of resurrecting a
+                # note the member deliberately trashed.
                 row = conn.execute(
                     "SELECT id, import_hash, import_media_pending FROM j2_notes "
-                    "WHERE user_id = ? AND import_key = ?",
+                    "WHERE user_id = ? AND deleted_at IS NULL AND import_key = ?",
                     (user_id, key)).fetchone()
                 item = {"importKey": key, "id": row["id"] if row else None}
                 # audit B5: a fingerprint match alone is NOT "already fully
@@ -577,6 +588,11 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "tags": json.loads(row["tags"] or "[]"),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+        # Wave 0 trash: present (ISO string) only for a soft-deleted row read
+        # via `include_deleted=True` (the restore/trash-detail path) — a
+        # normal `get_note` never returns a deleted row at all, so this key
+        # is `None` on every other read.
+        "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
     }
 
 
@@ -590,7 +606,7 @@ _LIST_PLAIN_CHARS = 400
 _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
-    "hero_image_url, first_image_url, ticker, tags, created_at, updated_at"
+    "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at"
 )
 
 
@@ -615,6 +631,9 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         "tags": json.loads(row["tags"] or "[]"),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+        # Wave 0 trash: present only in a trash-view list (`deleted=True`);
+        # `None` on every normal (active-notes) list row.
+        "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
     }
 
 
@@ -655,14 +674,22 @@ def _notes_filter_sql(
     q: str | None = None,
     embed_symbol: str | None = None,
     embed_widget: str | None = None,
+    deleted: bool = False,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
     BOTH build off this ONE predicate — two independently-written WHERE
     clauses for the same membership question is a defect shape this codebase
     has been burned by repeatedly: the moment either copy learns a rule the
-    other doesn't, the count and the page it counts silently disagree."""
-    sql = " WHERE user_id = ?"
+    other doesn't, the count and the page it counts silently disagree.
+
+    `deleted` (Wave 0 trash): False (default, every existing call site
+    unchanged) means the normal, everyday membership question — active
+    notes only. True means the trash view's question — soft-deleted notes
+    only. There is deliberately no third "both" mode: every caller asks one
+    question or the other, never a blend that could double-count or leak a
+    deleted note into a normal list."""
+    sql = " WHERE user_id = ? AND deleted_at IS " + ("NOT NULL" if deleted else "NULL")
     params: list[Any] = [user_id]
     if folder_id == "__unfiled__":
         sql += " AND folder_id IS NULL"
@@ -735,6 +762,7 @@ def list_notes(
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
+    deleted: bool = False,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -742,14 +770,17 @@ def list_notes(
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-            embed_symbol=embed_symbol, embed_widget=embed_widget,
+            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
         )
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         order_col = {
             "updated": "updated_at DESC",
             "created": "created_at DESC",
             "title": "title COLLATE NOCASE ASC",
-        }.get(sort, "updated_at DESC")
+            # Trash view default: most recently deleted first — a member
+            # scanning for "the thing I just deleted" shouldn't have to sort.
+            "deleted": "deleted_at DESC",
+        }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
         sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
@@ -768,6 +799,7 @@ def count_notes(
     q: str | None = None,
     embed_symbol: str | None = None,
     embed_widget: str | None = None,
+    deleted: bool = False,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -782,7 +814,7 @@ def count_notes(
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-            embed_symbol=embed_symbol, embed_widget=embed_widget,
+            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
         )
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
@@ -832,15 +864,106 @@ def tag_counts(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Wave 0 trash: a soft-deleted note's tags must not inflate the tag
+        # cloud — same "active notebook only" predicate as everywhere else.
         rows = conn.execute(
             "SELECT MAX(je.value) AS tag, LOWER(je.value) AS tag_key, COUNT(*) AS c"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-            " WHERE j2_notes.user_id = ?"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
             " GROUP BY LOWER(je.value)"
             " ORDER BY c DESC, tag_key ASC",
             (user_id,),
         ).fetchall()
         return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def folder_note_counts(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Wave 0 (P0-2, folder-sidebar correctness): the TRUE, whole-library
+    note count per folder (plus Unfiled) — ONE query, never derived from a
+    capped page.
+
+    Root cause this replaces: the sidebar tree used to derive its leaf-row
+    disclosure state (`hasChildren`) from `notesByFolder`, itself built by
+    grouping a SINGLE global page of up to 100 notes (sorted by title
+    across the ENTIRE unfiltered library) by `folderId`. Any folder whose
+    notes all happened to sort alphabetically past position 100 in the
+    whole library rendered as an empty, non-expandable folder — no arrow,
+    no rows, no signal anything was missing. The trigger was a global
+    alphabetical cutoff, not that folder's own size: a 150-note library
+    with everything dumped in one catch-all folder could show it; a
+    5,000-note library spread evenly across 100 folders might never.
+
+    Fix pattern: the exact one already proven in this same codebase for
+    `unfiledTotalFromServer` (FolderSidebar.jsx) — ask the server for the
+    real count instead of deriving it from a loaded page. This single
+    `GROUP BY` answers every folder (plus Unfiled) in one query, honest
+    at any library size."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT folder_id, COUNT(*) AS c FROM j2_notes"
+            " WHERE user_id = ? AND deleted_at IS NULL"
+            " GROUP BY folder_id",
+            (user_id,),
+        ).fetchall()
+        counts: dict[str, int] = {}
+        unfiled = 0
+        total = 0
+        for r in rows:
+            c = int(r["c"] or 0)
+            total += c
+            if r["folder_id"] is None:
+                unfiled = c
+            else:
+                counts[r["folder_id"]] = c
+        return {"counts": counts, "unfiled": unfiled, "total": total}
+    finally:
+        if owned:
+            conn.close()
+
+
+def notes_for_folders(
+    user_id: str,
+    folder_ids: list[str],
+    limit_per_folder: int = 200,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Wave 0 (P0-2): the actual note rows for the sidebar tree's inline
+    leaf-row rendering, scoped to exactly the folders the caller asks for
+    (in practice: the currently-EXPANDED folders only — never the whole
+    library in one page, which was the root cause `folder_note_counts`'
+    own docstring explains).
+
+    One query per folder (not a window-function fan-out) — `folder_ids` in
+    practice is small (a handful of expanded tree nodes, not thousands),
+    and per-folder queries are simpler to reason about and cannot silently
+    misattribute a row to the wrong folder. Each folder's own notes are
+    honestly complete up to `limit_per_folder` (200 — double the sidebar's
+    old, silently-wrong global cap of 100 — with `truncated` disclosed
+    per-folder rather than a page that quietly stops)."""
+    out: dict[str, list[dict[str, Any]]] = {}
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        for folder_id in folder_ids:
+            if not isinstance(folder_id, str) or not folder_id:
+                continue
+            rows = conn.execute(
+                f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes"
+                " WHERE user_id = ? AND deleted_at IS NULL AND folder_id = ?"
+                " ORDER BY title COLLATE NOCASE ASC"
+                " LIMIT ?",
+                (user_id, folder_id, max(1, min(limit_per_folder, 500))),
+            ).fetchall()
+            out[folder_id] = [_row_to_note_summary(r) for r in rows]
+        return out
     finally:
         if owned:
             conn.close()
@@ -871,10 +994,16 @@ def get_symbol_backlinks(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Wave 0 trash: `n.deleted_at IS NULL` on BOTH queries below — this
+        # function's own docstring says it must agree with the
+        # `embed_symbol` list filter (_notes_filter_sql), which already
+        # excludes soft-deleted notes via its base WHERE clause. Without
+        # this, a trashed note's embed would still count here while the
+        # list filter it's pinned against had already stopped counting it.
         row = conn.execute(
             "SELECT COUNT(DISTINCT e.note_id) AS c FROM j2_note_embeds e"
             " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            " WHERE e.user_id = ? AND e.symbol = ?",
+            " WHERE e.user_id = ? AND e.symbol = ? AND n.deleted_at IS NULL",
             (user_id, sym),
         ).fetchone()
         out["count"] = int(row["c"] or 0) if row else 0
@@ -886,7 +1015,7 @@ def get_symbol_backlinks(
             "       GROUP_CONCAT(DISTINCT e.widget_id) AS widgets"
             " FROM j2_note_embeds e"
             " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            " WHERE e.user_id = ? AND e.symbol = ?"
+            " WHERE e.user_id = ? AND e.symbol = ? AND n.deleted_at IS NULL"
             " GROUP BY n.id"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
@@ -909,14 +1038,20 @@ def get_note(
     user_id: str,
     note_id: str,
     conn: sqlite3.Connection | None = None,
+    include_deleted: bool = False,
 ) -> dict[str, Any] | None:
+    """`include_deleted=False` (default, every existing call site unchanged):
+    a soft-deleted note reads as 404, matching what the member sees — the
+    note is "gone" everywhere except the trash view. `include_deleted=True`
+    is for the trash view itself (viewing a deleted note's content before
+    deciding to restore it) and the restore endpoint's own lookup."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ? AND user_id = ?",
-            (note_id, user_id),
-        ).fetchone()
+        sql = "SELECT * FROM j2_notes WHERE id = ? AND user_id = ?"
+        if not include_deleted:
+            sql += " AND deleted_at IS NULL"
+        row = conn.execute(sql, (note_id, user_id)).fetchone()
         if row is None:
             return None
         note = _row_to_note(row)
@@ -1019,8 +1154,11 @@ def update_note(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Wave 0 trash: a soft-deleted note reads as 404 here too — editing
+        # a trashed note directly (without restoring it first) must not
+        # silently work, matching `get_note`'s default behavior.
         existing = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ? AND user_id = ?",
+            "SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if existing is None:
@@ -1120,8 +1258,10 @@ def append_widget_embed(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Wave 0 trash: same as update_note — appending to a trashed note
+        # must not silently work.
         row = conn.execute(
-            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ?",
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
@@ -1262,25 +1402,139 @@ def delete_capture(
             conn.close()
 
 
+TRASH_RETENTION_DAYS = 30
+
+
 def delete_note(
     user_id: str,
     note_id: str,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
+    """Wave 0 trash: soft delete. `deleted_at` set; the row, its embeds, and
+    its FTS index entry are left physically intact — `_notes_filter_sql`'s
+    `deleted_at IS NULL` predicate already keeps a soft-deleted note out of
+    every normal list/search/count (including FTS-matched search: the
+    outer `j2_notes` row is filtered by `deleted_at`, so a stale FTS entry
+    for a trashed note can never surface it — no separate FTS cleanup is
+    needed here). `purge_expired_deleted_notes` below does the real
+    `DELETE` once the retention window passes, which fires the existing
+    `AFTER DELETE` trigger and cleans the FTS mirror at that point, exactly
+    as the old hard-delete path always did.
+
+    Idempotent in the sense the caller expects: deleting an already-deleted
+    (or nonexistent) note returns False, matching the prior hard-delete
+    behavior's 404 semantics one layer up in the router."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         cur = conn.execute(
-            "DELETE FROM j2_notes WHERE id = ? AND user_id = ?",
-            (note_id, user_id),
+            "UPDATE j2_notes SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (_now_iso(), note_id, user_id),
         )
-        if cur.rowcount:
-            conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
         conn.commit()
         return cur.rowcount > 0
     finally:
         if owned:
             conn.close()
+
+
+def restore_note(
+    user_id: str,
+    note_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Undo a soft delete. Returns the restored note (full shape, same as
+    `get_note`) or None if there was no matching soft-deleted note to
+    restore (already restored, already hard-purged, wrong owner, or never
+    existed — the caller can't distinguish these and shouldn't need to;
+    they all mean "nothing to restore")."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            "UPDATE j2_notes SET deleted_at = NULL, updated_at = ?"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL",
+            (_now_iso(), note_id, user_id),
+        )
+        conn.commit()
+        if not cur.rowcount:
+            return None
+        return get_note(user_id, note_id, conn=conn)
+    finally:
+        if owned:
+            conn.close()
+
+
+def purge_expired_deleted_notes(
+    retention_days: int = TRASH_RETENTION_DAYS,
+    now: datetime | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Hard-delete every note soft-deleted more than `retention_days` ago,
+    across ALL users — the scheduled sweep behind the trash's retention
+    window. Real `DELETE`s (not scoped to one user_id, unlike almost every
+    other function in this file) so this is deliberately NOT exposed
+    through any router — call only from the scheduler job in main.py.
+    Returns the count of notes actually purged, for the job's own log line.
+
+    Reuses the exact hard-delete shape `delete_note` used before Wave 0
+    (real DELETE + embeds cleanup, firing the FTS `AFTER DELETE` trigger),
+    just widened to a cutoff-date WHERE clause instead of a single id."""
+    from datetime import timedelta
+    now = now or datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=retention_days)).isoformat()
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id FROM j2_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?",
+            (cutoff,),
+        ).fetchall()
+        ids = [r["id"] for r in rows]
+        for note_id in ids:
+            conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
+            conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
+        conn.commit()
+        return len(ids)
+    finally:
+        if owned:
+            conn.close()
+
+
+def register_trash_purge_job(scheduler) -> bool:
+    """Nightly trash-purge sweep, 03:20 ET every day — before the 03:40
+    attachment GC (attachment_gc.py), so a note hard-deleted here is already
+    gone by the time that sweep decides which images are still referenced;
+    running it the other order would have the attachment sweep protect
+    images for a note this job is about to remove anyway, a harmless but
+    pointless ordering, not a correctness bug either way.
+
+    Unlike `attachment_gc`'s dark-by-default rollout, this ships ON by
+    default (`J2_TRASH_PURGE_ENABLED` defaults to "1") — the trash feature's
+    own promise to members is "restorable for TRASH_RETENTION_DAYS, then
+    gone"; shipping the restore half without an active sweep for the
+    "then gone" half would leave that promise permanently unfulfilled. The
+    env var stays as a kill-switch, not a required opt-in."""
+    if os.environ.get("J2_TRASH_PURGE_ENABLED", "1") != "1":
+        return False
+    from zoneinfo import ZoneInfo
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _job() -> None:
+        try:
+            n = purge_expired_deleted_notes()
+            print(f"[j2-trash-purge] purged={n} retention_days={TRASH_RETENTION_DAYS}")
+        except Exception as e:  # noqa: BLE001 — a failed sweep must never break the scheduler
+            print(f"[j2-trash-purge] sweep failed: {e}")
+
+    scheduler.add_job(
+        _job,
+        CronTrigger(hour=3, minute=20, timezone=ZoneInfo("America/New_York")),
+        id="j2_trash_purge",
+        max_instances=1,
+        coalesce=True,
+    )
+    return True
 
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────

@@ -6709,6 +6709,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 attachment GC registered (03:40 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 attachment GC registration failed (non-fatal): {e}")
+        # Wave 0 (Notebook Primary-Platform trust foundation) — trash's
+        # retention-window sweep. Ships ON by default (see the function's
+        # own docstring for why this is the one exception to the
+        # dark-by-default convention above); 03:20 ET, before the 03:40
+        # attachment GC.
+        try:
+            from api.services.journal_two import notes as _j2_notes
+            if _j2_notes.register_trash_purge_job(_scheduler):
+                print("[startup] j2 trash purge registered (03:20 ET daily)")
+        except Exception as e:
+            print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 

@@ -1165,6 +1165,18 @@ _PHASE_2_ALTERS = [
     # a bare idempotent ALTER (this list's own pattern) is a genuine fit for
     # one nullable column with no data to backfill.
     "ALTER TABLE j2_notes ADD COLUMN import_media_pending INTEGER",
+    # Wave 0 (Notebook Primary-Platform, trust foundation): soft-delete
+    # marker. NULL = active (every existing row, every existing query path,
+    # unchanged). Set = in the trash — excluded from list/search/count by
+    # default (_notes_filter_sql), restorable, hard-purged by a scheduled
+    # sweep past the retention window. Deliberately ONE column, not a
+    # separate trash table: every existing note-scoped join (embeds, the
+    # FTS mirror, the account-deletion purge) keeps working unchanged, and
+    # `account_purge.py`'s `DELETE FROM j2_notes WHERE user_id = ?` already
+    # covers a soft-deleted row unconditionally — confirmed, not assumed,
+    # before this column was added.
+    "ALTER TABLE j2_notes ADD COLUMN deleted_at TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_deleted ON j2_notes(user_id, deleted_at)",
 ]
 
 
