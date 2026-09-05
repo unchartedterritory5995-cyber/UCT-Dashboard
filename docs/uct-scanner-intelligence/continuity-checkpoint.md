@@ -649,6 +649,64 @@ same GIL/CPU/SQLite-files as the anyio threadpool serving sync HTTP
 routes like `/api/screener/scan`). No production topology change made
 yet — pending owner authorization.
 
+## Production trace instrumentation — real evidence, corrected diagnosis (2026-09-05)
+
+Owner-authorized temporary instrumentation merged (`574f7d56a`, branch
+`fix/8gb-scanner-trace-instrumentation`, worktree
+`uct-dashboard-8gb-scanner-trace` — narrow diff: 2 files touched, 1 new
+module, 1 new test file; regression 2972 passed / 3 pre-existing unrelated
+failures / 2 skipped / 9 xfailed; 4 new tests for the instrumentation
+itself all pass). Deployed, verified (fresh process, health ok, pilot OFF/
+adapt ON confirmed). Logs only `POST /api/screener/scan` requests over
+300ms: `pre_route_ms` (auth+Pydantic+dispatch, bundled) / `run_scan_ms` /
+`post_scan_ms`, plus pid/thread/active-thread-count/git-sha/uptime. No
+sensitive data.
+
+**Real production traces captured (2 slow, 6 fast, all pilot OFF):**
+- Slow #1: total=1753.0ms, **pre_route=289.5ms, run_scan=1463.5ms**, post_scan=0.0ms
+- Slow #2: total=391.4ms, **pre_route=53.7ms, run_scan=337.8ms**, post_scan=0.0ms
+- Fast batch (6 samples, ~2 min later): 70-136ms each (no stage breakdown — below the 300ms log threshold by design)
+
+**Correction to the prior architecture review: `run_scan_ms` itself is the
+dominant, highly variable cost in production (337-1463ms), NOT pre-route
+dispatch/auth/queueing (which stayed low, 53-290ms, even during slow
+requests) and NOT response serialization (0.0ms both times).** This
+directly contradicts the earlier synthetic in-process benchmark (~4ms for
+the same code path) — the synthetic benchmark used an isolated tmp SQLite
+file with zero concurrent writers/background jobs, which the real
+production process never has.
+
+**Temporal correlation, not yet proof:** both slow requests' log timestamps
+align closely with concurrent background-job activity in the surrounding
+log window (`Calendar: live-window supplement`/`econ loaded` immediately
+before slow #1; `breadth_symbols warm pass done` logged between/during the
+two slow requests). The later fast batch had no such concurrent activity
+nearby. Market was closed (Saturday, post_market) during this observation,
+so `screener-live`'s own writes to `snapshot_db`'s live_tier tables were
+NOT active — meaning if this is DB-file lock contention, it isn't from
+that specific writer; more consistent with general GIL/CPU contention from
+other jobs' Python-level work coinciding with `run_scan`'s own Python/SQL
+work, though only 2 slow samples exist so this remains circumstantial,
+not conclusively isolated to one exact mechanism.
+
+**Hypothesis classification:** H1 (threadpool queue wait) — NOT supported,
+pre_route stayed low. H2 (GIL/CPU contention from scheduler jobs) —
+supported, best fit. H3 (SQLite lock/IO) — plausible contributor, not
+confirmed as primary (no known writer on the specific file at the time).
+H4 (auth-DB dominates) — NOT supported, lives in the low pre_route bucket.
+H5 (serialization dominates) — NOT supported, 0.0ms both times.
+
+**Revised conclusion: SHARED WEB-PROCESS CONTENTION CONFIRMED (refined:
+manifests inside run_scan's own execution when background jobs are
+concurrently active, not as pre-handler queueing) — DEDICATED SCANNER
+SERVICE (Option C / `scanner_api_main.py`, mirroring `bars_api_main.py`)
+RECOMMENDED. Not implemented — owner authorization required.**
+
+**Instrumentation cleanup:** not yet reverted. Low overhead (bounded to
+>300ms requests only). Revert is a single commit (undo `574f7d56a`'s
+4-file diff) whenever the owner is done observing — held pending that
+decision rather than causing another redeploy unprompted.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
