@@ -550,6 +550,23 @@ def test_incr_classify_reclassifies_when_aggregate_crosses_floor(monkeypatch):
     assert later is not None and later["_tierKey"] == "ask_accum"  # cache reclassified
 
 
+# ── Curated + auto-push: ask_accum BLOCK anchor survives hide_block_only ────
+# The tape's default view is non-curated so PPTA shows there; the CURATED feed +
+# Discord auto-push both run _qualifies_curated. PPTA's anchor is a BLOCK and its
+# sweeps are blank-side, so with hide_block_only on and no sweep registered in
+# contract_types the lone-block filter hid it — the last thing keeping the card
+# from firing. The ask_accum own-path now runs BEFORE that filter.
+
+def test_ask_accum_curated_survives_hide_block_only():
+    a = {"_tierKey": "ask_accum", "_type": "BLOCK", "_direction": "Bull",
+         "ticker": "PPTA", "cp": "C", "strike": "35", "exp": "1/15/2027"}
+    th = {"hide_block_only": True, "hide_sizeless": True}
+    assert m._qualifies_curated(a, th, contract_types={}) is True
+    # a direction-unconfirmed aggregate is still rejected (never auto-fire that)
+    assert m._qualifies_curated(dict(a, _directionUnconfirmed=True), th,
+                                contract_types={}) is False
+
+
 def test_alpha_gold_beats_ask_accum(monkeypatch):
     # A $1M+ single ASK print (<180 DTE) is still Alpha Gold — Ask Accumulation
     # runs only AFTER Alpha declines the row.

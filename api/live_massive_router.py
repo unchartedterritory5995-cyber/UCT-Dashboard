@@ -557,6 +557,19 @@ def _qualifies_curated(alert: dict, thresholds: dict,
     if tier == "algo":
         return False
 
+    # Ask Accumulation: own path, evaluated BEFORE the hide_sizeless / hide_block_only
+    # heuristics. The tier is assigned in _derive_alert_name ONLY after the contract's
+    # SESSION ask aggregate crossed the floor and passed the near-money + contract-
+    # level conviction gates — it is a proven block+SWEEP build, so the lone-block
+    # filter must not hide its (often BLOCK) anchor row, and it is never direction-
+    # unconfirmed. Require only a real direction. Its floor is an ASK-only session
+    # aggregate that contract_totals (all-side, this scan's rows) can't reconstruct,
+    # so re-checking a premium floor here would use the wrong basis and wrongly reject
+    # it. (Was below hide_block_only until 2026-09-05, which HID the PPTA block anchor
+    # because the contract_types map didn't register its blank-side sweeps.)
+    if tier == "ask_accum":
+        return not alert.get("_directionUnconfirmed")
+
     # Optional (2026-07-21): hide direction-unconfirmed "UCT Size" (keep-as-Size)
     # rows from the curated feed. They're big prints whose side we couldn't call —
     # SHOWN by default; the admin can hide them since they're non-directional.
@@ -596,17 +609,6 @@ def _qualifies_curated(alert: dict, thresholds: dict,
              else thresholds.get("unusual", {})) or {}
         return (prem >= u.get("min_premium", 100_000) and
                 v_oi >= u.get("vOI", 5.0))
-
-    # Ask Accumulation: own path. The tier is assigned in _derive_alert_name ONLY
-    # after the contract's SESSION ask premium already crossed
-    # ask_accum_min_aggregate_premium AND passed the dormant-name + near-money
-    # gates — so trust that classification here and require only a real direction
-    # (never auto-fire a direction-unconfirmed aggregate). Its floor is an
-    # ASK-only session aggregate, which contract_totals (all-side, this scan's
-    # rows) can't reconstruct, so re-checking a premium floor here would use the
-    # wrong basis and wrongly reject it.
-    if tier == "ask_accum":
-        return not alert.get("_directionUnconfirmed")
 
     if tier not in ("alpha", "size", "leaps", "bullish", "bearish"):
         return False
