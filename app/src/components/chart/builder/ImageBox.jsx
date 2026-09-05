@@ -42,6 +42,7 @@
 
 import { useCallback, useId, useState } from 'react'
 import { readBackFor } from './ConciergeBox.jsx'
+import { truncateBarsForPropose } from './proposeBars.js'
 import styles from './ImageBox.module.css'
 
 const ENDPOINT = '/api/indicator-vision/candidates'
@@ -101,7 +102,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
       const form = new FormData()
       form.append('file', file)
       form.append('note', note)
-      form.append('bars', JSON.stringify(bars || []))
+      form.append('bars', JSON.stringify(truncateBarsForPropose(bars)))
       const res = await doFetch(ENDPOINT, { method: 'POST', body: form })
       // ⚠️ `res.ok` IS CHECKED BEFORE `res.json()`. A 402 and a 429 both answer
       // JSON on this route, and treating every 2xx-or-not the same is how a

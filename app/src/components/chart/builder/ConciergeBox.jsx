@@ -50,6 +50,7 @@
 
 import { useCallback, useId, useState } from 'react'
 import { sentenceFor } from '../engine/ast/sentence.js'
+import { truncateBarsForPropose } from './proposeBars.js'
 
 const ENDPOINT = '/api/user-definitions/propose'
 
@@ -219,7 +220,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
       const res = await doFetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text, kind, bars: bars || [] }),
+        body: JSON.stringify({ prompt: text, kind, bars: truncateBarsForPropose(bars) }),
       })
       // ⚠️ `res.ok` IS CHECKED BEFORE `res.json()`. A 402 on this paid route
       // answers JSON too, and treating every 2xx-or-not the same is how a

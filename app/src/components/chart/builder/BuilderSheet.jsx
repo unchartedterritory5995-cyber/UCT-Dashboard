@@ -921,6 +921,16 @@ export default function BuilderSheet({
   // gate below.
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
+  // RISK-012 (Phase One Track B, 2026-09-04). `saving`/`canSave` are STATE —
+  // `setSaving(true)` schedules a re-render, it does not retroactively change
+  // the `canSave` a click handler already closed over. Two clicks fired before
+  // React repaints (the exact shape of a real double-click) both call the SAME
+  // memoized `save`, both read the SAME `canSave` computed from `saving=false`,
+  // and both pass `if (!canSave) return` — the state guard alone cannot see its
+  // own in-flight update. A ref mutation is synchronous and shared by every
+  // closure of `save` regardless of render, so it is checked-and-set as the
+  // very first thing inside `save()`, before the state-derived guard even runs.
+  const savingRef = useRef(false)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1354,10 +1364,15 @@ export default function BuilderSheet({
   }, [result, mode])
 
   const save = useCallback(async () => {
+    // ⛔⛔ RISK-012's ACTUAL FIX. Checked-and-set BEFORE the state-derived
+    // `canSave` guard, and synchronously — see the comment on `savingRef`'s
+    // declaration for why `canSave` alone let a real double-click through.
+    if (savingRef.current) return
     // ⛔ AN INVALID INPUT KEY BLOCKS THE SAVE. The document would otherwise
     // carry a declaration the formula cannot reference — or worse, one that
     // SHADOWS a table name and quietly computes something else.
     if (!canSave) return
+    savingRef.current = true
     setSaving(true)
     setStoreError(null)
     // ⚠️ THE DOCUMENT'S OWN `version` MOVES ON AN EDIT, AND IT HAS TO.
@@ -1418,6 +1433,7 @@ export default function BuilderSheet({
     const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       setStoreError(errors.join('\n') || 'The registry refused this definition.')
+      savingRef.current = false
       setSaving(false)
       return
     }
@@ -1426,6 +1442,7 @@ export default function BuilderSheet({
     // set of error words, one SWR invalidation. The route it reaches then bumps
     // `compute.rev` if the maths moved and force-migrates every bound alert.
     const res = await saveUserDefinition(doc, editing ? editing.defId : null)
+    savingRef.current = false
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }

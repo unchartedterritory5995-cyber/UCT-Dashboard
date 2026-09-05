@@ -128,6 +128,34 @@ def test_evaluate_one_mode_on_demand_WRITES_NOTHING_and_returns_hit_rows(store, 
     assert out["persisted"] is False
     assert out["recorded"] == 0 and out["record_refused"] == 0
     assert out["evaluated"] == out["answered"] + out["dropped"] + out["not_computable"] == 3
+
+
+def test_evaluate_one_mode_on_demand_REFUSES_an_intraday_tf(store, bars, monkeypatch):
+    """🔴 RISK-017 (Phase One Track B). `evaluate_one(..., mode='on-demand')` is
+    the ONLY entry point an on-demand run ever reaches — `run_sweep` explicitly
+    refuses to be called with `mode='on-demand'` (it is not a sweep), so there is
+    no earlier choke point the way `_run_live_cycle` gives `mode='live'`. Before
+    this fix, nothing server-side stopped an intraday `tf` from reaching this
+    function under on-demand mode; it was safe only because the frontend's
+    `RUN_TFS` picker doesn't offer one — a UI boundary, not an architectural one.
+    Every rung below the daily default must refuse, at the SAME gate live mode
+    uses, with the SAME reason text (`_wrong_tf_reason`) — two callers of one
+    rule, not two rules."""
+    _arm_writers(monkeypatch)
+
+    for tf in ("1", "5", "15", "30", "60", "W", "M"):
+        with pytest.raises(scan_evaluator.ScanRunRefused, match=r"\[gate:tf\]"):
+            scan_evaluator.evaluate_one(
+                DEFINITION, tf, universe=["NVDA"], as_of=SESSION, mode="on-demand")
+
+
+def test_evaluate_one_mode_on_demand_the_daily_default_still_scans(store, bars, monkeypatch):
+    """⛔ THE CONTROL. The gate above must not have widened to catch the case that
+    was always meant to work — the daily default is on-demand's only supported
+    timeframe today, and it must still answer, not refuse."""
+    out = scan_evaluator.evaluate_one(
+        DEFINITION, TF, universe=["NVDA"], as_of=SESSION, mode="on-demand")
+    assert out["hits"] == ["NVDA"]
     assert scan_store.coverage(DEF_HASH, TF, SESSION) is None
 
 
