@@ -21,6 +21,8 @@ per-contract prior ΔOI, so the card stops reading total OI as an overnight buil
 (2026-09-04 follow-up, same trigger:) pin the card's flow window to the session the ΔOI
 measures + fetch CARRY% volume for that session, so premium/volume/ΔOI align at any run
 hour and carry lands ≤100% instead of 3292%.
+(2026-09-04 follow-up #2:) sanity-gate ΔOI ≤ session volume — a build can't exceed what
+traded, so a prior=0 artifact (no captured baseline) is dropped from the board.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

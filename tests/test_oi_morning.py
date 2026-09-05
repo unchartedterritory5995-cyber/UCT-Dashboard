@@ -112,8 +112,8 @@ def test_etf_and_index_sources_excluded(tmp_path, monkeypatch):
     kS = oi_snapshots.make_key("SPY", "C", 500, _FUT)
     kQ = oi_snapshots.make_key("QQQ", "C", 500, _FUT)
     monkeypatch.setattr(oim, "_oi_deltas", lambda keys: ({
-        kA: (1000, 20000), kS: (100, 99999), kQ: (100, 99999)}, "2026-08-22", "2026-08-21"))
-    monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 50000)
+        kA: (1000, 20000), kS: (100, 40000), kQ: (100, 40000)}, "2026-08-22", "2026-08-21"))
+    monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 50000)  # ΔOI 39,900 ≤ vol → passes gate
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)   # default sources=('stocks',)
     assert [r["sym"] for r in rows] == ["AAPL"]
 
@@ -171,13 +171,14 @@ def test_flow_window_pinned_to_session_before_snapshot(tmp_path, monkeypatch):
     assert [r["sym"] for r in rows] == ["AAA"]
 
 
-def test_carry_over_100_is_clamped_then_suppressed(tmp_path, monkeypatch):
-    """Carry can't exceed 100% (OI can't grow more than the session traded). A small
-    rounding overshoot clamps to 100; a clearly-impossible value is suppressed."""
+def test_impossible_build_dropped_and_carry_clamped(tmp_path, monkeypatch):
+    """OI can't grow more than the session traded. A ΔOI far above the session volume
+    (a prior=0 artifact) is DROPPED from the board; a small rounding overshoot within
+    tolerance stays and clamps to 100%."""
     db = tmp_path / "flow.db"
     _seed_flow(str(db), [
-        _row("CLMP", "SWEEP", "CALL", 100, _FUT, 500000, 1000, 1000),   # ΔOI 10500 / vol 10000 = 105% → 100
-        _row("BADX", "SWEEP", "CALL", 20, _FUT, 500000, 1000, 1000),    # ΔOI 90000 / vol 10000 = 900% → None
+        _row("CLMP", "SWEEP", "CALL", 100, _FUT, 500000, 1000, 1000),   # ΔOI 10500 / vol 10000 = 1.05x → kept, 100%
+        _row("BADX", "SWEEP", "CALL", 20, _FUT, 500000, 1000, 1000),    # ΔOI 90000 / vol 10000 = 9x → dropped
     ])
     monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
     kC = oi_snapshots.make_key("CLMP", "C", 100, _FUT)
@@ -187,5 +188,23 @@ def test_carry_over_100_is_clamped_then_suppressed(tmp_path, monkeypatch):
     monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 10000)
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
     by = {r["sym"]: r for r in rows}
-    assert by["CLMP"]["carry"] == 100      # 105% clamped
-    assert by["BADX"]["carry"] is None     # 900% suppressed
+    assert "BADX" not in by                # ΔOI 9x the session volume → impossible, dropped
+    assert by["CLMP"]["carry"] == 100      # 105% within tolerance → clamped
+
+
+def test_gate_walks_past_drops_to_fill_top_n(tmp_path, monkeypatch):
+    """A dropped impossible row doesn't cost a slot — the walk continues down the
+    ranked list so a real lower-ΔOI build fills the board."""
+    db = tmp_path / "flow.db"
+    _seed_flow(str(db), [
+        _row("BADX", "SWEEP", "CALL", 20, _FUT, 500000, 1000, 1000),    # biggest ΔOI but impossible
+        _row("REAL", "SWEEP", "CALL", 50, _FUT, 500000, 1000, 1000),    # smaller ΔOI, physically fine
+    ])
+    monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
+    kX = oi_snapshots.make_key("BADX", "C", 20, _FUT)
+    kR = oi_snapshots.make_key("REAL", "C", 50, _FUT)
+    monkeypatch.setattr(oim, "_oi_deltas",
+                        lambda keys: ({kX: (0, 90000), kR: (1000, 6000)}, "2026-08-22", "2026-08-21"))
+    monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 10000)
+    rows, _ = oim.build_rows(days=1, top_n=1, min_delta=500)   # only ONE slot
+    assert [r["sym"] for r in rows] == ["REAL"]   # BADX dropped, REAL took the slot
