@@ -70,4 +70,39 @@ describe('CaptureMenu — Wave 1 (P1-1) destination + comment picker', () => {
     expect(sendMock.mock.calls[0][2].tradeRef).toBe('trade_42')
   })
 
+  it('a stale comment does NOT survive into the next, unrelated capture', async () => {
+    // The real host (TradeDetailPage, every widget door) renders <CaptureMenu>
+    // UNCONDITIONALLY and toggles `open` — this component instance never
+    // unmounts between captures. Caught by real browser E2E (2026-09-05):
+    // typing a comment on one capture, sending it, then opening the picker
+    // again for a DIFFERENT symbol/widget silently resent the FIRST comment,
+    // because `useState('')` only initializes once for a component that never
+    // remounts. Simulated here the same way — one instance, toggled via
+    // rerender — rather than mounting a fresh instance per open, which would
+    // pass trivially without proving the fix.
+    const { rerender } = render(
+      <CaptureMenu open onClose={() => {}} anchor={{ x: 0, y: 0 }}
+        widgetId="chart" capture={{ symbol: 'AMD' }} label="AMD" />,
+    )
+    fireEvent.change(screen.getByPlaceholderText(/add a comment/i), { target: { value: 'stale note about AMD' } })
+    fireEvent.click(screen.getByText('Notebook inbox'))
+    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1))
+
+    // Close (open=false — the host's onClose already did this in real usage).
+    rerender(
+      <CaptureMenu open={false} onClose={() => {}} anchor={{ x: 0, y: 0 }}
+        widgetId="chart" capture={{ symbol: 'AMD' }} label="AMD" />,
+    )
+    // Reopen for a DIFFERENT capture entirely.
+    rerender(
+      <CaptureMenu open onClose={() => {}} anchor={{ x: 0, y: 0 }}
+        widgetId="chart" capture={{ symbol: 'MSFT' }} label="MSFT" />,
+    )
+    expect(screen.getByPlaceholderText(/add a comment/i)).toHaveValue('')
+
+    fireEvent.click(screen.getByText('Notebook inbox'))
+    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(2))
+    expect(sendMock.mock.calls[1][2].comment).toBeUndefined()
+  })
+
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ContextPopover from '../../../components/mobile/ContextPopover'
 import { targetsFor } from '../lib/captureTargets'
 import { sendCaptureToJournal } from '../lib/sendToJournal'
@@ -26,6 +26,15 @@ export default function CaptureMenu({
 }) {
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
+
+  // The host renders <CaptureMenu> unconditionally and toggles `open` — this
+  // component instance never unmounts, so its `comment` state would otherwise
+  // survive from one capture into the NEXT, unrelated one (sent, cancelled, or
+  // dismissed via Escape/click-away all leave stale text sitting in the box
+  // for whatever gets captured next). Reset on every open, not just on send.
+  useEffect(() => {
+    if (open) setComment('')
+  }, [open])
 
   if (!open) return null
 
