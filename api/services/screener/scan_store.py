@@ -665,12 +665,19 @@ def prune(before_as_of: Any) -> dict:
             "coverage": max(removed_cov, 0)}
 
 
-#: RISK-024 (Phase One Track B, 2026-09-04). Same window as the pattern engine's
-#: own `PATTERN_PRUNE_RETENTION_DAYS` default (120) — no measured incident of our
-#: own to derive a different number from yet, and this table's own docstring
-#: already cites `pattern_detections`' 13.57 GB / 1.54M rows in six weeks as the
-#: cautionary precedent for shipping a prune function unwired. Override via env
-#: if a real growth measurement later justifies a different window.
+#: RISK-024 (Phase One Track B, 2026-09-04). ⚠️ 120 IS AN UNSETTLED DEFAULT, NOT A
+#: POLICY. Borrowed from the pattern engine's `PATTERN_PRUNE_RETENTION_DAYS` for
+#: its shape (an env-overridable retention-days constant) only — verified on
+#: owner review that PATTERN_PRUNE_RETENTION_DAYS's own 120 was itself derived
+#: from something specific to pattern outcome-tracking (a 90-day resolution
+#: lookback + a 30-day aggregation margin) that has no bearing on how long a
+#: screener member needs their scan-hit history. No design doc, requirements
+#: ledger, or prior config specifies a scan_hits-specific retention window; this
+#: constant did not exist before this fix. This table's own docstring cites
+#: `pattern_detections`' 13.57 GB / 1.54M rows in six weeks only as the reason a
+#: prune must ship WIRED, not as evidence for 120 specifically. Tracked as an
+#: open owner/policy decision in `PHASE_ONE_PLAN.md` — set via env on Railway,
+#: no code change needed, once a real number is chosen.
 SCAN_HITS_RETENTION_DAYS = int(os.environ.get("SCAN_HITS_RETENTION_DAYS", "120"))
 
 

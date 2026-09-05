@@ -35,6 +35,25 @@ stale references now as a small documentation-safety task; add/retain explicit s
 language (current executable code/runtime/test evidence > stale narrative documentation); no broader
 doc-hygiene rewrite in this phase.
 
+## Open owner/policy decision — `SCAN_HITS_RETENTION_DAYS` (surfaced 2026-09-04)
+
+**Not yet a DEC. Verified, not settled.** RISK-024's fix (Track B) wired a real prune job for
+`scan_hits`/`scan_coverage`, defaulting to 120 days. On owner request, I verified whether 120 was
+already an authoritative number (existing code/config/design doc) or newly chosen during the fix.
+**It was newly chosen** — borrowed from `pattern_engine.memory.PRUNE_RETENTION_DAYS`'s default for
+its *shape* only (an env-overridable retention constant). Its own 120 turns out to be justified by
+something specific to pattern-outcome tracking (a 90-day resolution lookback + 30-day aggregation
+margin) with no bearing on scan_hits. No design doc, requirements ledger, or prior config specifies
+a scan_hits-specific retention window, and the constant did not exist before this fix (confirmed via
+`git log` — introduced fresh in `9e8e1446e`). **The mechanism is sound and independent of the number**:
+`SCAN_HITS_RETENTION_DAYS` is env-overridable on Railway with no code change. **Action for the owner**:
+decide the real retention window (member-facing consideration: how far back would a member reasonably
+want to see "what my saved screen matched on date X"; operational consideration: table growth rate,
+not yet measured for `scan_hits` specifically the way `pattern_detections`' 13.57 GB/1.54M-row-in-six-
+weeks incident was measured for that table). Until ruled, 120 stays as the running default — replacing
+one unvalidated guess with another equally unvalidated guess would not improve anything ahead of a real
+decision. See `RISK_REGISTER.md` RISK-024 for full detail.
+
 ## A documentation wording correction (owner-flagged, not a new finding)
 
 The owner flagged an apparent contradiction in permanent documentation: one section says "nightly-only
