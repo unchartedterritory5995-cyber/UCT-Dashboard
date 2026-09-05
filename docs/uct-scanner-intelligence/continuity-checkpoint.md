@@ -1062,3 +1062,233 @@ instrumentation under real load (needs fresh owner authorization — the
 prior instrumentation was deliberately reverted) or a scheduled/timed
 capture that lands during an active writer window. Stopping for owner
 review per instruction. No implementation, no deploy, no app-code change.
+
+## Natural-load contention attribution — implementation in progress (2026-09-05)
+
+Owner accepted S3, authorized the final natural-load pass. New worktree
+`uct-dashboard-8gb-conn-lifecycle` continued (same branch,
+`fix/8g-b-screener-conn-lifecycle`).
+
+**Read-only `/data` topology (via `railway ssh`, `os.listdir`/`os.stat`
+only, no content reads).** 60 SQLite files under `/data`, **all sharing the
+same `st_dev` (87090880)** — one physical volume backs every database.
+Largest by far: `bars.db` 4.8GB, `patterns.db` 3.65GB, `darkpool.db` 2.5GB,
+`flow.db` 1.6GB (frozen pre-cutover copy per existing CLAUDE.md doc, not
+actively written by web anymore) — `screener.db` itself is only 13.7MB.
+This directly supports the cross-database volume-contention hypothesis
+structurally: any heavy write against one of the giant files can compete
+for the same volume's I/O with a screener.db read.
+
+**Static job → database map (from `api/main.py`, grep of every
+`add_job`/`_scheduler.add_job`, ~90+ registrations).** Confirmed
+screener.db writers: `screener_snapshot_nightly` (3:00 ET), the
+`SWEEP_HOUR_ET`/`MINUTE_ET` scan-definitions sweep, `screen_alerts` sweep
+(`SWEEP_HOUR_ET`+10min), `screener_scan_sweep_live` + `screener_live_tier`
+(both interval-based, run continuously per `scan_evaluator.live_interval_s()`
+/ `live_tier.interval_s()`), plus five 02:xx ET screener prep jobs
+(finviz/earnings-dates/opt-flow/insider/analyst-pass). Highest-frequency
+same-volume, non-screener candidates: `indicator_alert_shadow_cycle` +
+`alert_bars_freshness` (every 60s, always), `indicator_alert_silence_sweep`
+(every 300s), and four darkpool jobs at `hour="7-16"` with `minute="*/3"`
+(`_dp_intraday_run`), `*/5` (`_dp_scan_run`), `*/12` (`_dp_warm_run`) against
+the 2.5GB darkpool.db — i.e. market-hours-adjacent, every 3-12 minutes,
+regardless of whether the market itself is open (hour range is fixed,
+not session-gated).
+
+**Existing logs insufficient (owner's step 8).** The earlier stage-trace
+instrumentation that captured the original 4 real slow traces was already
+reverted this session (`697cc3e8d`) — no way to retroactively correlate
+scheduler activity against those specific timestamps without redeploying
+something. Historical exact timestamps were not preserved in this
+checkpoint (only aggregate ranges). Proceeding per owner's own contingency
+to step 9: one temporary instrumentation patch.
+
+**Precedent found and reused, not reinvented.** `api/services/memory_probe.py
+::instrument_scheduler` already wraps `_scheduler.add_job` (called ONCE,
+BEFORE any add_job, right after `_scheduler = BackgroundScheduler(...)` in
+`api/main.py`) to attach a per-job RSS-delta probe to every one of the
+~135+ registered jobs without touching each call site — its own docstring:
+"never changes the return value, never swallows the job's exception... a
+failure in the recording itself is discarded." Mirrored this EXACT
+technique in the new `api/services/screener/contention_trace_temp.py`
+instead of using APScheduler's event-listener API, since a proven,
+already-shipped precedent for "observe every job regardless of what's
+added next" exists in this file.
+
+**Implementation (branch `fix/8g-b-screener-conn-lifecycle`, not yet
+merged/pushed at time of writing).**
+- New file `api/services/screener/contention_trace_temp.py` — `stage()`
+  contextvar-based timer (identical safety shape to the earlier, already-
+  proven-and-reverted `scan_trace_temp` module: no-op if `reset_stages()`
+  was never called on that context, cleared by `pop_stages()`);
+  `instrument_scheduler()` (mirrors `memory_probe`'s wrap-add_job, tracking
+  `job_id -> start_time` in a lock-protected dict instead of RSS);
+  `record()` logs a `[contention-trace]` line ONLY for total request
+  latency ≥300ms (`tag=SLOW`), or a heavily rate-limited (≤1/60s) fast
+  control sample ≤10ms (`tag=fast-control`) — includes stage timings,
+  currently-active job IDs + how long each has been running, cheap process
+  context (pid/tid/active_thread_count/RSS/voluntary+involuntary context
+  switches via `resource.getrusage`, guarded for non-POSIX), and WAL-sidecar
+  existence/size for screener.db + the three largest same-volume files
+  (bars/patterns/darkpool). No payloads, no PII, no secrets — verified by
+  a dedicated test.
+- `api/main.py`: right after the existing `memory_probe.instrument_scheduler
+  (_scheduler)` call, added a second, independently flag-gated
+  (`CONTENTION_TRACE_ENABLED`, default `"1"`) call to
+  `contention_trace_temp.instrument_scheduler(_scheduler)` — same
+  before-any-add_job placement, non-fatal on failure.
+- `api/services/screener/query.py::run_scan`: added `reset_stages()` at
+  entry + `stage()` wraps around the existing single `with
+  snapshot_db.connect() as conn:` block (`run_scan_total`), the
+  `build_scan_sql(...)` call (`build_dynamic_plan`), and the main
+  `conn.execute(...).fetchall()` (`sql_execute_fetch`) — **the original
+  code's structure, nesting and every comment are unchanged**; the edit
+  only added timer wrappers, re-indenting the existing body one level
+  deeper without altering behavior (double-checked: `out_rows =
+  [dict(r) for r in rows]` remains outside the with-block exactly as
+  before).
+- `api/routers/screener.py::screener_scan`: captures route-entry
+  `perf_counter()`, and in a `finally` block (fires on both the success
+  return and the existing `except ValueError` path, never suppresses it)
+  computes total ms and calls `contention_trace_temp.record(total_ms,
+  contention_trace_temp.pop_stages())`.
+- New test file `tests/test_contention_trace_temp.py` (8 tests: no-op
+  without reset, stage round-trip, pop clears state, `record()` never
+  raises on a slow sample, below-threshold-and-not-fast-sampled logs
+  nothing, no password/token/secret/authorization/api_key substring ever
+  appears in a logged line, `instrument_scheduler` tracks a job as active
+  only during its own execution, and correctly un-tracks it even when the
+  wrapped job raises) — all 8 pass. `py_compile` + `ast.parse` clean on
+  all four touched/added files.
+
+## Natural-load contention attribution — DEPLOYED, observation phase active (2026-09-05)
+
+**Precise test record (per owner's explicit demand for unambiguous
+evidence — do not overclaim "full regression").**
+
+- Command 1 (superseded, do not cite): `python -m pytest tests/ -k "screener" -q 2>&1 | tail -25`,
+  run in background as task `b44yn7iw1`. This attempted a filter over the
+  WHOLE repo's test collection (~9,600 tests per this file's own
+  Performance & Scale section), NOT a scoped run. Its "exited with code 0"
+  is a **pipe-status artifact** — in a `cmd | tail` pipeline, the reported
+  exit code is `tail`'s, not pytest's, and must NOT be read as proof of a
+  clean run. Progress-dot output showed real `F`/`E` markers but was killed
+  mid-run (PID 9924, confirmed via `Get-Process` CPU delta still climbing)
+  before its own summary line was ever produced. **Superseded by Command 2;
+  not used as evidence for anything.**
+- Command 2 (the actual evidence): `python -m pytest tests/test_screener*.py
+  tests/test_scan*.py tests/test_contention_trace_temp.py -q --tb=short`
+  (101 files: 100 pre-existing `test_screener*`/`test_scan*` files + the 1
+  new file this package added), run in background as task `bwsa7nf1h`,
+  completed to its own real summary line: **`5 failed, 1841 passed, 2
+  skipped, 8 errors in 129.40s`.** This is a SCOPED run (screener/scan test
+  files only) — explicitly NOT the full ~9,600-test suite, and not
+  represented as one.
+- **8 errors** — all in `tests/test_scan_definition.py`, all identical root
+  cause read directly from the traceback: `Error [ERR_MODULE_NOT_FOUND]:
+  Cannot find package 'jsep' imported from
+  app/src/components/chart/engine/ast/parse.js` — a missing local Node.js
+  dependency (this worktree's `node_modules` was never `npm install`-ed).
+  Environment-level, cannot possibly be caused by a Python-only diff;
+  reasoned from the traceback, not re-verified via stash (unnecessary —
+  the failure occurs before any Python code of mine is reachable, in a
+  Node subprocess the test spawns).
+- **5 failures** — `test_screener_lane_parity.py` ×2 (SAME missing-`jsep`
+  root cause, confirmed from traceback), `test_scan_screener_auth.py` ×3
+  (`test_a_PAID_member_still_gets_200_on_EVERY_route`,
+  `test_an_ADMIN_gets_200_everywhere_including_the_refresh_route`,
+  `test_a_TRIAL_member_is_treated_as_paid`) — traceback shows `TypeError:
+  stub_services.<locals>.<lambda>() got an unexpected keyword argument
+  'user'` at the exact unchanged line `scr_query.run_scan(spec.model_dump(),
+  user_id=..., user=user)` in `api/routers/screener.py` (a line this
+  package's diff never touched).
+- **Directly, conclusively verified pre-existing** (not reasoned —
+  reproduced): `git stash push -u -m "contention-trace-wip-verify-
+  preexisting-failure"` (captured its exact SHA, `cf48bc1cf...`, applied
+  back via that SHA — never bare `stash pop` — then dropped the correct
+  `stash@{0}` by re-matching the SHA first, leaving an unrelated session's
+  own `broker-sync WIP` stash entry untouched throughout) → reran the
+  same 5 failing tests against the CLEAN, unmodified codebase (my diff
+  entirely absent) → **identical result: `5 failed, 839 warnings in 1.79s`**,
+  same 5 test names. This is direct, reproducible proof all 5 failures
+  pre-exist independent of this package's changes.
+- **This package's own 8 new tests** (`tests/test_contention_trace_temp.py`,
+  run standalone, isolated from the above): **`8 passed, 393 warnings in
+  0.29s`** — clean.
+- **Conclusion, stated precisely**: of the 101-file scoped run's 13 non-passing
+  items (5 failed + 8 errored), **zero are attributable to this package's
+  diff** — 8 are a missing local Node dependency, 5 are a pre-existing
+  test/stub mismatch reproduced identically with the diff completely
+  absent. No unresolved relevant failure exists. The whole-repository
+  ~9,600-test suite was NOT run to completion this package (Command 1 was
+  killed mid-run before producing a trustworthy summary) — this is
+  disclosed, not implied otherwise.
+
+**Merge + deploy.** Committed locally on `fix/8g-b-screener-conn-lifecycle`
+(`93686844d`). Re-fetched `origin/master` immediately before merging (7
+new unrelated commits had landed — theme-sets feature, theme-tracker
+polish, Live Massive ask-accumulation — confirmed via `git diff` that only
+2 lines of `api/main.py`, far from this package's edit region ~line 4400,
+were touched by any of them). Merged via the established
+`_merge_staging_ctrace` pattern off fresh `origin/master`, clean auto-merge
+(no conflicts), `grep -c broker_sync api/main.py` = 10 (≥7, standing rail
+satisfied), pushed `_merge_staging_ctrace:master` → **`d2f94e011`**, deleted
+the staging branch, returned to the feature branch (now behind
+`origin/master` by design — expected).
+
+**Production verification.** Railway `web` deployment status: `SUCCESS`.
+`GET /api/health` (browser User-Agent, Cloudflare requires this):
+`{"status":"ok","wire_date":"2026-09-04","uptime_seconds":65,...}` — fresh
+uptime confirms the new process. Startup logs (`railway logs --service web
+-d --lines 300`): **no** `"contention trace instrumentation failed"` line
+(the only failure-path print my code has) — confirms clean wiring.
+APScheduler's own log lines show jobs actively running as
+`"instrument_scheduler.<locals>.add_job.<locals>.wrapped"` and completing
+`"executed successfully"` at their normal cadence — proves the wrap-add_job
+layering (mine stacked on top of `memory_probe`'s, both already-shipped-safe
+technique) is intercepting real job execution without breaking it. At
+verification time the market was in `post_market` session
+(`[screener-live] cycle skipped: not_regular_session`) — expected, matches
+the hour. No `[contention-trace]` lines yet (no scanner traffic since
+deploy) and none manufactured — none expected yet, this is a `noop` reading,
+not evidence of anything.
+
+**Observation phase state.**
+- Pilot OFF/unset, `PATTERN_CANONICAL_ADAPT_ENABLED=1` — unaffected,
+  unchanged, not re-verified this cycle (no reason to expect drift).
+- Instrumentation ACTIVE in production (`CONTENTION_TRACE_ENABLED` default
+  `"1"`, confirmed wired, no failure logged).
+- No slow-scan evidence collected yet — market closed, light traffic.
+- Next meaningful natural windows: the 02:00–05:10 ET nightly screener
+  writer block (`screener_snapshot_nightly` 3:00 ET;
+  `SWEEP_HOUR_ET`/`MINUTE_ET` scan-definitions + `screen_alerts` sweeps
+  ~05:00/05:10 ET; five 02:xx ET screener prep jobs) — TONIGHT, ~9.5h out
+  at time of writing, since none of these carry a `day_of_week` restriction
+  in what was read; then the next real market-hours session (today's
+  market is already closed — Friday post-market — so the next trading
+  session is Monday 2026-09-08).
+- `/data` topology (established fact, kept explicitly as a HYPOTHESIS
+  driver, NOT a conclusion): all 60 SQLite files under `/data` share one
+  `st_dev` (87090880) — one physical volume. Largest: `bars.db` ~4.8GB,
+  `patterns.db` ~3.65GB, `darkpool.db` ~2.5GB; `screener.db` itself only
+  ~13.7MB. Darkpool jobs fire every 3–12 minutes across a fixed
+  `hour="7-16"` ET window (not session-gated). **This strengthens C2's
+  plausibility only — it does NOT prove C2.** All of C1–C6 remain open
+  until real slow-trace/active-job overlap evidence says otherwise; do not
+  select C2 (or any classification) on topology plausibility alone.
+- **Standing holds, explicitly reaffirmed, unaffected by anything above:**
+  Package 8G-B final HTTP acceptance remains BLOCKED BY UNRESOLVED
+  PRODUCTION-TIME SCREENER SQLITE LATENCY VARIANCE; 8G-C HOLD; 500ms gate
+  unchanged; long-running-scan/redeploy-reliability issue remains
+  separately open, not this package's to fix.
+- **No new implementation of any kind while observing** — connection
+  reuse, `_known_columns` caching, immutable snapshots, query
+  normalization, volume separation, scheduler migration, scan
+  checkpoint/resume, 8G-C, canonical pilot reactivation are all
+  explicitly OFF THE TABLE for the duration of this observation window.
+- Cleanup (surgical revert of `contention_trace_temp.py` + its three call
+  sites + its test file, regression, redeploy) is REQUIRED once sufficient
+  evidence exists, but not before — and not merely because the window
+  passed quietly; a quiet window is itself reportable evidence (see the
+  owner's C5/insufficient-evidence classifications), not a reason to
+  extend indefinitely without saying so.
