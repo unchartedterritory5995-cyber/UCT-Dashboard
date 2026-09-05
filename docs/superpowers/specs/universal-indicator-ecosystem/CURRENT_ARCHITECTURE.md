@@ -170,7 +170,40 @@ inconsistently:
 - Whether production has actually recovered from a dated 2026-08-31 code comment describing `scan_hits`
   staleness (newest session stuck on Friday when read Monday) — the scheduler misfire-handling gap looks
   fixed at the code level (`coalesce=True, misfire_grace_time=3600`), but this hasn't been confirmed live
-  (RISK-003, still open).
+  (RISK-003, **STILL PRODUCTION-UNVERIFIED after a second Track D attempt, 2026-09-04** — see
+  `RISK_REGISTER.md`'s RISK-003 row for the full account. Short version: the DB-level read this program's
+  own first pass flagged as the missing evidence was attempted and blocked, not by any safety concern with
+  the query itself, but by this execution context — an isolated-worktree fork — refusing any `railway ssh`
+  invocation carrying a nontrivial script, and a stdin-piped alternative hanging because `railway ssh`
+  allocates an interactive PTY regardless of how it's invoked. **The exact prepared, read-only probe,
+  ready for a non-isolated session or a human with terminal access to run as-is:**
+
+  ```python
+  import sqlite3, json, datetime
+  con = sqlite3.connect("file:/data/screener.db?mode=ro", uri=True, timeout=5)
+  cur = con.cursor()
+  out = {"now_utc": datetime.datetime.utcnow().isoformat()}
+  cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'scan%'")
+  out["tables"] = [r[0] for r in cur.fetchall()]
+  cur.execute("SELECT def_hash, tf, as_of, evaluated, not_computable, freshness FROM scan_coverage ORDER BY as_of DESC LIMIT 15")
+  out["coverage_top15"] = cur.fetchall()
+  cur.execute("SELECT COUNT(*), COUNT(DISTINCT as_of), MAX(as_of), MIN(as_of) FROM scan_coverage")
+  out["coverage_summary"] = cur.fetchone()
+  cur.execute("SELECT as_of, COUNT(*) FROM scan_hits GROUP BY as_of ORDER BY as_of DESC LIMIT 10")
+  out["hits_by_as_of_top10"] = cur.fetchall()
+  con.close()
+  print(json.dumps(out, default=str))
+  ```
+
+  Opened `mode=ro` (read-only URI — cannot write even if something in the query were wrong), touches only
+  `scan_coverage`/`scan_hits` (the table the 2026-08-31 incident measured at ~32 rows total — trivially
+  cheap even after growth), and every query is `LIMIT`-bounded or a plain aggregate. **What it would prove**:
+  compare `coverage_summary`'s `MAX(as_of)` against today's date — if it's landing on yesterday's/today's
+  session on each check across a few real days, that's VERIFIED HEALTHY; if it's stuck multiple sessions
+  behind the way the 2026-08-31 incident described, that's VERIFIED BROKEN. Save the file to the pod (e.g.
+  via `railway ssh --service web -- /opt/venv/bin/python /tmp/probe.py` after getting the file there some
+  way that isn't blocked the way this session's attempts were — a non-isolated session may not hit the same
+  restriction at all) and read the output.
 - Whether TC2000/PCF's 57/57 corpus pass rate is representative — unknown if a blind/adversarial PCF
   corpus exists the way Pine has one deliberately built to resist gaming.
 - Whether a session is currently active in the `indicator-endzone` worktree (touched 2026-09-04 08:17,
