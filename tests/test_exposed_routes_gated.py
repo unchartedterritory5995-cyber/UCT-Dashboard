@@ -1491,10 +1491,13 @@ def test_the_AI_DOOR_ITSELF_enforces_the_bound_not_just_the_helper(
 
     ⛔ AND IT NEVER SPENDS A TOKEN. `_charge_propose` runs BEFORE the
     `MAX_PROPOSE_BARS` check, so an over-long `bars` array makes every request
-    return 400 without the concierge ever being imported — while still being
-    CHARGED. The tell is therefore 400 → 400 → 400 → 429: the bound fires on a
-    request that never reached a model. Delete the call site and it is 400
-    forever, and this goes red.
+    answer the graceful `{ok:false, gate:"bars:too-large"}` refusal (RISK-016,
+    Phase One Track B — this used to be a raw 400; changing the status code did
+    not change what this test is actually about) without the concierge ever
+    being imported — while still being CHARGED. The tell is therefore
+    refused → refused → refused → 429: the bound fires on a request that never
+    reached a model. Delete the call site and the fourth call refuses too
+    instead of rate-limiting, and this goes red.
     """
     from api.routers import user_definitions as ud
 
@@ -1503,13 +1506,18 @@ def test_the_AI_DOOR_ITSELF_enforces_the_bound_not_just_the_helper(
     client = _client(app, PAID_USER, monkeypatch)
     body = {"prompt": "x", "bars": [0] * (ud.MAX_PROPOSE_BARS + 1)}
 
-    seen = [client.post("/api/user-definitions/propose", json=body).status_code
-            for _ in range(4)]
+    responses = [client.post("/api/user-definitions/propose", json=body)
+                 for _ in range(4)]
+    seen = [r.status_code for r in responses]
     ud._propose_calls.clear()
 
-    assert seen[:3] == [400, 400, 400], (
-        f"expected the bars cap to refuse each charged call without reaching the "
-        f"model, got {seen}")
+    assert seen[:3] == [200, 200, 200], (
+        f"expected the bars cap to refuse each charged call gracefully (200, "
+        f"ok:false) without reaching the model, got {seen}")
+    for r in responses[:3]:
+        body_json = r.json()
+        assert body_json["ok"] is False and body_json["gate"] == "bars:too-large", (
+            f"expected a graceful bars:too-large refusal, got {body_json}")
     assert seen[3] == 429, (
         f"the fourth call past a cap of 3 answered {seen[3]}, not 429 — the "
         "handler is not charging the caller, so the AI door is unbounded again")
