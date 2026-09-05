@@ -167,3 +167,69 @@ def test_empty_set_is_identity(monkeypatch):
     # Same themes, same group returns (untouched themes reused as-is).
     assert [t["name"] for t in out["themes"]] == [t["name"] for t in base["themes"]]
     assert out["themes"][0]["group_return"] == base["themes"][0]["group_return"]
+
+
+# -- router integration (TestClient) -------------------------------------------
+
+def test_router_end_to_end(tmp_path, monkeypatch):
+    monkeypatch.setenv("THEME_SETS_ENABLED", "1")
+    monkeypatch.setenv("THEME_SETS_DB_PATH", str(tmp_path / "r.db"))
+    import importlib
+    import api.services.theme_sets as s
+    importlib.reload(s)
+    s.init_db()
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import theme_sets as r
+    importlib.reload(r)
+
+    app = FastAPI()
+    app.include_router(r.router)
+    app.dependency_overrides[r.require_paid] = lambda: {"id": "userA"}
+    c = TestClient(app)
+
+    # enabled + empty
+    assert c.get("/api/theme-sets").json() == {"enabled": True, "sets": []}
+    # create
+    sid = c.post("/api/theme-sets", json={"name": "My Growth"}).json()["id"]
+    assert [x["name"] for x in c.get("/api/theme-sets").json()["sets"]] == ["My Growth"]
+    # edit (PUT whole diff)
+    put = c.put(f"/api/theme-sets/{sid}", json={
+        "name": "Growth", "hidden": ["cybersecurity"],
+        "removed": {"memory-hbm": ["AVGO"]},
+        "custom": [{"key": "k1", "name": "Memes", "members": ["gme"]}],
+    }).json()
+    assert put["name"] == "Growth" and put["hidden"] == ["cybersecurity"]
+    assert put["custom"][0]["members"] == ["GME"]
+    # read back
+    got = c.get(f"/api/theme-sets/{sid}").json()
+    assert got["removed"] == {"memory-hbm": ["AVGO"]}
+
+    # ownership: a different user can't see or delete it
+    app.dependency_overrides[r.require_paid] = lambda: {"id": "userB"}
+    assert c.get(f"/api/theme-sets/{sid}").status_code == 404
+    assert c.delete(f"/api/theme-sets/{sid}").status_code == 404
+    assert c.get("/api/theme-sets").json()["sets"] == []
+
+    # owner deletes
+    app.dependency_overrides[r.require_paid] = lambda: {"id": "userA"}
+    assert c.delete(f"/api/theme-sets/{sid}").json() == {"ok": True}
+    assert c.get("/api/theme-sets").json()["sets"] == []
+
+
+def test_router_disabled_refuses_writes(tmp_path, monkeypatch):
+    monkeypatch.setenv("THEME_SETS_ENABLED", "0")
+    monkeypatch.setenv("THEME_SETS_DB_PATH", str(tmp_path / "d.db"))
+    import importlib
+    import api.services.theme_sets as s
+    importlib.reload(s)
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import theme_sets as r
+    importlib.reload(r)
+    app = FastAPI()
+    app.include_router(r.router)
+    app.dependency_overrides[r.require_paid] = lambda: {"id": "u"}
+    c = TestClient(app)
+    assert c.get("/api/theme-sets").json() == {"enabled": False, "sets": []}
+    assert c.post("/api/theme-sets", json={"name": "x"}).status_code == 404   # writes refused
