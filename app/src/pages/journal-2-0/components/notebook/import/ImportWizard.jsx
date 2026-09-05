@@ -114,6 +114,37 @@ function readableError(err) {
 // progress line so the pause is attributed rather than mistaken for a hang.
 const LARGE_NOTE_HTML_CHARS = 150_000
 
+// ⛔⛔ NEVER yield with `setTimeout` inside the per-note conversion loop.
+//
+// MEASURED (2026-09-05): Chrome INTENSIVELY THROTTLES chained timers in a
+// hidden tab — a one-off `setTimeout(0)` still returns in ~0ms, which is
+// exactly why a spot check misses this, but a timer chained from the
+// previous timer's callback is clamped to ONE PER MINUTE. Switching the
+// loop from "yield every 10 notes" to "yield every note" therefore turned a
+// backgrounded 15-note import into a 246-SECOND one: 15 updates, ~60,000ms
+// apart. A member who switches tabs while UCT imports is the normal case,
+// not the exotic one.
+//
+// `MessageChannel` posts a macrotask that is NOT part of the timer budget,
+// so it still lets the browser paint and handle input between notes but is
+// not subject to background clamping. This is the same mechanism React's
+// own scheduler uses, and for the same reason. `setTimeout` remains only as
+// a fallback for environments without MessageChannel (jsdom provides it, so
+// the tests exercise the real path).
+function yieldToBrowser() {
+  if (typeof MessageChannel === 'function') {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel()
+      ch.port1.onmessage = () => {
+        ch.port1.close()
+        resolve()
+      }
+      ch.port2.postMessage(0)
+    })
+  }
+  return new Promise((resolve) => setTimeout(resolve))
+}
+
 function phaseLabel(phase) {
   if (phase === 'convert') return 'Converting notes'
   if (phase === 'confirm') return 'Saving notes'
@@ -679,7 +710,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
             note: doc.title || '',
             large: isLarge,
           })
-          await new Promise((r) => setTimeout(r))
+          await yieldToBrowser()
           if (cancelled()) return
 
           const { bodyJson, bodyPlain } = htmlToNote(doc.html)
@@ -688,7 +719,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
           done += 1
         }
         setProgress({ phase: 'convert', done, total: needsBody.length })
-        await new Promise((r) => setTimeout(r))
+        await yieldToBrowser()
         setProgress(null)
       }
 

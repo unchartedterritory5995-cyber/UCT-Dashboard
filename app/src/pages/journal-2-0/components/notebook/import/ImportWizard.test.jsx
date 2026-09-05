@@ -128,27 +128,37 @@ describe('ImportWizard wire', () => {
     await waitFor(() => expect(screen.getByText(/imported/i)).toBeInTheDocument())
   })
 
-  it('yields to the browser between EVERY note it converts, not every tenth', async () => {
-    // ⛔ MEASURED (2026-09-05): `htmlToNote` is a synchronous main-thread
-    // block -- ~3.5s for a 534 KB note, because both `sanitizeHtml`
-    // (DOMParser) and TipTap's `generateJSON` need the DOM. The loop used to
-    // yield only every 10 notes, so a notebook whose last five notes were
-    // large ran ~17s with no repaint and no counter movement: the
-    // certification observed the progress line frozen at "70/75" on an
-    // unresponsive tab, which a member reasonably reads as a crash.
+  it('yields per note via MessageChannel, never a chained setTimeout', async () => {
+    // TWO defects live at this line, both measured on 2026-09-05.
     //
-    // Counting yields is the discriminating check: batching by 10 is
-    // invisible to a count of converted notes, and invisible to any
-    // assertion about the final result, but it is exactly what made the
-    // import LOOK dead. 12 notes with a batch of 10 yields twice; yielding
-    // per note yields at least 12 times.
+    // 1. The loop used to yield every 10 notes. `htmlToNote` is a
+    //    synchronous main-thread block (~3.5s for a 534 KB note, because
+    //    sanitizeHtml uses DOMParser and TipTap's generateJSON also parses
+    //    through the DOM), so a notebook whose last five notes were large
+    //    ran ~17s with no repaint and no counter movement. The certification
+    //    watched the line sit at "70/75" on an unresponsive tab.
+    //
+    // 2. Fixing that with a per-note `setTimeout` yield made it WORSE for
+    //    anyone who switches tabs: Chrome intensively throttles CHAINED
+    //    timers in a hidden tab to one per minute, which turned a
+    //    backgrounded 15-note import into 246 seconds. A single
+    //    `setTimeout(0)` still returns in ~0ms, so a spot check misses it.
+    //
+    // `MessageChannel` is not on the timer budget, so it yields without
+    // being clamped. Counting the ports proves both properties at once:
+    // one yield per note, and not through a timer.
     const files = Array.from({ length: 12 }, (_, i) =>
       new File([`# Note ${i}`], `note-${i}.md`, { type: 'text/markdown' }))
 
+    const RealMessageChannel = globalThis.MessageChannel
+    let channels = 0
+    vi.stubGlobal('MessageChannel', class extends RealMessageChannel {
+      constructor() { super(); channels += 1 }
+    })
     const realSetTimeout = globalThis.setTimeout
-    let zeroDelayYields = 0
+    let timerYields = 0
     vi.stubGlobal('setTimeout', (fn, delay, ...rest) => {
-      if (delay === undefined || delay === 0) zeroDelayYields += 1
+      if (delay === undefined || delay === 0) timerYields += 1
       return realSetTimeout(fn, delay, ...rest)
     })
 
@@ -156,15 +166,20 @@ describe('ImportWizard wire', () => {
       render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
       fireEvent.change(screen.getByTestId('import-file-input'), { target: { files } })
       await waitFor(() => expect(screen.getByText(/12 notes/i)).toBeInTheDocument())
-      const before = zeroDelayYields
+
+      const chBefore = channels
+      const timerBefore = timerYields
       fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
       await waitFor(() =>
         expect(vi.mocked(fetch).mock.calls.map((c) => c[0]))
           .toContain('/api/j2/notes/import/confirm'))
 
-      const during = zeroDelayYields - before
-      expect(during).toBeGreaterThanOrEqual(12)
+      // one yield per note (+ the final progress paint)
+      expect(channels - chBefore).toBeGreaterThanOrEqual(12)
+      // ⛔ and NOT via chained timers, which a hidden tab clamps to 1/min
+      expect(timerYields - timerBefore).toBeLessThan(12)
     } finally {
+      vi.stubGlobal('MessageChannel', RealMessageChannel)
       vi.stubGlobal('setTimeout', realSetTimeout)
     }
   })
