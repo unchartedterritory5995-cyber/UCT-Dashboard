@@ -23,6 +23,21 @@ vi.mock('./StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid={`stock-chart-${sym}-${tf}`}>chart {sym} {tf}</div>,
 }))
 
+// The canonical SymbolSearch component (same one ResearchHeader's "+ Compare"
+// uses) has its own dedicated coverage elsewhere; stub it here exactly as
+// ResearchHeader.test.jsx does so the Compare action can be exercised without
+// its real dropdown/fetch machinery.
+vi.mock('./chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button
+      data-testid={sym ? 'symbol-search-primary' : 'symbol-search-compare'}
+      onClick={() => onSymbolChange(sym ? 'TSLA' : 'MSFT')}
+    >
+      {displayLabel || sym || 'search'}
+    </button>
+  ),
+}))
+
 import TickerPopup from './TickerPopup'
 
 test('renders ticker text', () => {
@@ -150,5 +165,48 @@ describe('Research / Ask AI deep-link actions (2026-09-04 slice)', () => {
     await user.click(screen.getByTestId('ticker-NVDA'))
     expect(screen.getByRole('button', { name: 'Add to flagged list' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close chart' })).toBeInTheDocument()
+  })
+})
+
+describe('Compare action (Portfolio/Position Intelligence Convergence V1 Part A1)', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('renders a Compare entry point distinct from the primary switch-ticker search', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.getByTestId('ticker-popup-compare-entry')).toBeInTheDocument()
+    expect(screen.getByTestId('symbol-search-compare')).toHaveTextContent('+ Compare')
+  })
+
+  test('choosing a comparator navigates to /research/:sym/compare/:COMPARATOR and closes the modal', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.click(screen.getByTestId('symbol-search-compare'))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA/compare/MSFT')
+    expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+  })
+
+  test('the Compare picker follows activeSym after switching ticker via the header search', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.type(screen.getByPlaceholderText('Switch ticker…'), 'AMD{enter}')
+    await user.click(screen.getByTestId('symbol-search-compare'))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/AMD/compare/MSFT')
+  })
+
+  test('Research and Ask AI still navigate correctly after the Compare action was added (regression)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.click(screen.getByRole('button', { name: 'Open full research for NVDA' }))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA')
   })
 })

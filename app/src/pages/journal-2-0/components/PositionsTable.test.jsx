@@ -1,16 +1,30 @@
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // TickerPopup pulls in AuthContext via useFlagged; stub it to a simple
 // button for table-render tests. Integration with the real TickerPopup
-// is exercised in the browser, not unit tests.
+// is exercised in the browser, not unit tests. The stub also tracks its
+// own open state on click so row-click-through tests (Part A2) can assert
+// the SAME trigger the chart-icon button uses gets clicked, without
+// re-implementing TickerPopup's real modal.
 vi.mock('../../../components/TickerPopup', () => ({
-  default: ({ sym, as: Tag = 'span', className, children }) => (
-    <Tag className={className} data-testid={`ticker-popup-${sym}`}>
-      {children}
-    </Tag>
-  ),
+  default: ({ sym, as: Tag = 'span', className, children }) => {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <Tag
+          className={className}
+          data-testid={`ticker-popup-${sym}`}
+          onClick={() => setOpen(true)}
+        >
+          {children}
+        </Tag>
+        {open && <div data-testid={`chart-modal-${sym}`}>chart modal for {sym}</div>}
+      </>
+    )
+  },
 }))
 
 import PositionsTable, { POSITIONS_COLUMNS } from './PositionsTable'
@@ -316,5 +330,78 @@ describe('PositionsTable — a manual position with no stop', () => {
     )
     expect(screen.getByText('$95.00')).toBeInTheDocument()
     expect(screen.getByText('$500.00')).toBeInTheDocument()   // (100−95)×100
+  })
+})
+
+// ─── Row click-through (Portfolio/Position Intelligence Convergence V1, Part A2) ───
+// Table view previously had NO row click-through — only the chart-icon button
+// opened TickerPopup. The whole row must now open the SAME TickerPopup, without
+// breaking the icon's own click or the other action buttons.
+describe('PositionsTable — row click-through opens the chart-icon TickerPopup', () => {
+  it('clicking anywhere on the row opens the same TickerPopup the chart icon opens', async () => {
+    const user = userEvent.setup()
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(screen.queryByTestId('chart-modal-YSS')).not.toBeInTheDocument()
+    // Click the Symbol cell — nowhere near the actions column.
+    await user.click(screen.getByText('YSS'))
+    expect(screen.getByTestId('chart-modal-YSS')).toBeInTheDocument()
+  })
+
+  it('the chart-icon button itself still opens the popup directly (regression)', async () => {
+    const user = userEvent.setup()
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    await user.click(screen.getByTestId('ticker-popup-YSS'))
+    expect(screen.getByTestId('chart-modal-YSS')).toBeInTheDocument()
+  })
+
+  it('clicking Edit/Close/Del does not also open the chart popup', async () => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+        onEdit={onEdit}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Edit YSS' }))
+    expect(onEdit).toHaveBeenCalledWith(YSS)
+    expect(screen.queryByTestId('chart-modal-YSS')).not.toBeInTheDocument()
+  })
+
+  it('an option row\'s row-click opens TickerPopup on the underlying only (unchanged from icon-click)', async () => {
+    const user = userEvent.setup()
+    const optRow = {
+      id: 9, isOption: true, symbol: 'CRWV Oct 16 $110C', side: 'Long Call',
+      sideKind: 'long', underlying: 'CRWV', shares: 2, entryPrice: 2,
+      optCurrent: 3, optMarketValue: 600, optPnlDollar: 200, optPnlPercent: 0.5,
+      strategy: { id: 's9' },
+    }
+    render(
+      <PositionsTable
+        positions={[optRow]}
+        prices={{}}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    await user.click(screen.getByText('CRWV Oct 16 $110C'))
+    expect(screen.getByTestId('chart-modal-CRWV')).toBeInTheDocument()
   })
 })

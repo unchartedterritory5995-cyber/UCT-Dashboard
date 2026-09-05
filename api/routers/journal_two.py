@@ -201,6 +201,60 @@ def list_positions(
     }
 
 
+@router.get("/positions/attention")
+def positions_attention(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Deterministic per-symbol attention facts for the caller's currently-held
+    open positions (Portfolio/Position Intelligence Convergence V1, Part B).
+
+    Reuses `watchlist_intelligence.get_intelligence_for_symbols()` VERBATIM —
+    no new intelligence engine, no reimplemented fact resolution. Registered
+    ABOVE `/positions/{position_id}` so "attention" is never swallowed as a
+    position id.
+
+    Response: {SYM: {status, notable, facts, context}} — the exact shape
+    `get_intelligence_for_symbols` returns, unmodified. Empty positions list
+    (or an account with no open positions) returns {} (200), not an error.
+
+    Never 500s: if resolving the live-price `changes` dict fails for any
+    reason, degrades to calling `get_intelligence_for_symbols(symbols)` with
+    `changes=None` (every fact but price_move still resolves) rather than
+    failing the whole endpoint — mirrors the "never raises" precedent already
+    documented for `portfolio_heat.py`.
+
+    Known, accepted limitation (not fixed here): a manually-entered dual-class
+    ticker (e.g. "BRK.B") may not match facts keyed by the broker-normalized
+    hyphenated form ("BRK-B"), or vice versa. Only the existing manual-entry
+    convention (`.strip().upper()`) is applied — no new normalization rule.
+    """
+    positions = positions_service.list_open_positions(user["id"], account_id=account_id)
+    symbols = list(dict.fromkeys(
+        (p.get("symbol") or "").strip().upper()
+        for p in positions
+        if (p.get("symbol") or "").strip()
+    ))
+    if not symbols:
+        return {}
+
+    changes: dict[str, float] | None = None
+    try:
+        from api.routers.live_prices import get_live_prices
+        live = get_live_prices(tickers=",".join(symbols))
+        if isinstance(live, dict):
+            changes = {
+                sym: v["change_pct"]
+                for sym, v in live.items()
+                if isinstance(v, dict) and v.get("change_pct") is not None
+            }
+    except Exception:
+        changes = None  # degrade gracefully — facts resolve minus price_move
+
+    from api.services.watchlist_intelligence import get_intelligence_for_symbols
+    return get_intelligence_for_symbols(symbols, changes)
+
+
 @router.get("/positions/{position_id}")
 def get_position(
     position_id: str,
