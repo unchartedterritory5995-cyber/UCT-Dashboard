@@ -665,6 +665,27 @@ def prune(before_as_of: Any) -> dict:
             "coverage": max(removed_cov, 0)}
 
 
+#: RISK-024 (Phase One Track B, 2026-09-04). Same window as the pattern engine's
+#: own `PATTERN_PRUNE_RETENTION_DAYS` default (120) — no measured incident of our
+#: own to derive a different number from yet, and this table's own docstring
+#: already cites `pattern_detections`' 13.57 GB / 1.54M rows in six weeks as the
+#: cautionary precedent for shipping a prune function unwired. Override via env
+#: if a real growth measurement later justifies a different window.
+SCAN_HITS_RETENTION_DAYS = int(os.environ.get("SCAN_HITS_RETENTION_DAYS", "120"))
+
+
+def prune_old(retention_days: int = SCAN_HITS_RETENTION_DAYS) -> dict:
+    """The scheduler's door onto `prune()` — mirrors
+    `pattern_engine.memory.prune_old`'s shape exactly (a retention-days default,
+    the cutoff computed here rather than by the caller). `prune()` itself stays a
+    pure "delete strictly before this horizon" primitive so its existing tests
+    (an explicit horizon) are untouched by this wrapper's addition.
+    """
+    cutoff = (datetime.datetime.now(_ET).date()
+              - datetime.timedelta(days=retention_days)).isoformat()
+    return prune(cutoff)
+
+
 # --------------------------------------------------------------------------- #
 # the LIVE side tables: one writer each, and the nightly tables untouched
 # --------------------------------------------------------------------------- #

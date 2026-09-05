@@ -1552,6 +1552,35 @@ def register_screener_jobs(scheduler):
             id="screener_scan_sweep", max_instances=1, replace_existing=True,
             coalesce=True, misfire_grace_time=3600)
 
+        # -- RISK-024 (Phase One Track B, 2026-09-04): the prune this table was --
+        # -- always meant to ship with, finally wired ---------------------------
+        #
+        # `scan_store.prune()` was fully implemented from day one, its own
+        # docstring already citing `pattern_detections`' 13.57 GB / 1.54M rows in
+        # six weeks as the mistake to not repeat — and then nobody called it.
+        # `scan_store.prune_old()` is the scheduler's door onto it, mirroring
+        # `pattern_engine.memory.prune_old` exactly (a retention-days default,
+        # SCAN_HITS_RETENTION_DAYS, computed here from nothing but `time.time()`).
+        # Fixed at 4:00 AM ET — a full hour ahead of the 05:00 ET sweep, same
+        # "prune well before the night's own write" spirit as the patterns prune
+        # sitting 20 minutes ahead of ITS scan (not derived from `SWEEP_HOUR_ET`
+        # arithmetic: `SWEEP_MINUTE_ET` is 0, and naive "minute - 20" clamped to
+        # 0 would collide with the sweep itself instead of leading it). Ordering
+        # doesn't change correctness either way — `prune` only ever removes rows
+        # strictly before the horizon — this is purely for tidiness.
+        def _run_scan_hits_prune():
+            try:
+                r = scan_evaluator.scan_store.prune_old()
+                print(f"[scheduler] scan_hits prune: removed hits={r['hits']} "
+                      f"coverage={r['coverage']} before={r['before_as_of']}")
+            except Exception as e:
+                print(f"[scheduler] scan_hits prune error: {e}")
+
+        scheduler.add_job(
+            _run_scan_hits_prune,
+            trigger=CronTrigger(hour=4, minute=0, timezone=_ET),
+            id="screener_scan_hits_prune", max_instances=1, replace_existing=True)
+
     # -- the LIVE scan sweep: every SCAN_LIVE_INTERVAL_S through the regular
     # session (spec §5.5, owner decision 1). The nightly answer above is a true
     # number implying something false by 10:00; this one re-evaluates the same

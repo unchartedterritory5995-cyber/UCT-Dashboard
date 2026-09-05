@@ -180,20 +180,29 @@ def run_nightly(deliver=None, tf=None) -> dict:
     if deliver is None:                       # lazy: keeps the import graph flat
         from api.services.watchlist_alert_service import deliver_alert_payload
         deliver = deliver_alert_payload
+    from api.services import user_definitions  # lazy, same reason
 
     with snapshot_db.connect() as conn:
         conn.row_factory = None
         subs = conn.execute(
-            "SELECT user_id, def_hash, name, mode FROM screen_alert_subs"
+            "SELECT user_id, def_hash, def_id, name, mode FROM screen_alert_subs"
         ).fetchall()
 
     by_hash = {}
-    for user_id, def_hash, name, mode in subs:
-        by_hash.setdefault(def_hash, []).append((user_id, name, mode))
+    for user_id, def_hash, def_id, name, mode in subs:
+        by_hash.setdefault(def_hash, []).append((user_id, def_id, name, mode))
 
+    # RISK-025 (Phase One Track B, 2026-09-04). `name` above is a SNAPSHOT taken
+    # at subscribe time; `screen_alert_subs` never checked whether the
+    # definition it points at still exists before this fix — a deleted or
+    # renamed definition's subscription used to fire forever under a stale name,
+    # or (for a delete) go silently quiet with no signal to the member. Both are
+    # the same silent-forever-pending shape `_stamped()` was fixed for once
+    # already on the screener-chip surface (CGJ#1); this closes the sibling gap
+    # on the alert surface.
     receipt = {"definitions": len(by_hash), "compared": 0, "no_previous": 0,
                "sent": 0, "skipped_dedup": 0, "skipped_quota": 0,
-               "skipped_quiet": 0, "errors": 0}
+               "skipped_quiet": 0, "skipped_dangling": 0, "errors": 0}
     per_user = {}
 
     for def_hash, watchers in by_hash.items():
@@ -209,7 +218,39 @@ def run_nightly(deliver=None, tf=None) -> dict:
             continue
         receipt["compared"] += 1
 
-        for user_id, name, mode in watchers:
+        for user_id, def_id, name, mode in watchers:
+            # ⛔ EXISTENCE CHECKED BEFORE ANYTHING ELSE — a dead or renamed
+            # definition must neither fire under its old name nor go quiet with
+            # no trace. `get()` returns `None` for both "never existed" and
+            # "soft-deleted", the exact same primitive `public_library` already
+            # trusts for this distinction. `ValueError` (a malformed `def_id`
+            # that never belonged to a real definition in the first place) is
+            # folded into the same "dangling" outcome rather than raised — a
+            # malformed reference is not a real reference either, and this loop
+            # must not let one bad subscription abort every other member's
+            # alerts, the same rule `diff_for`'s own exception guard follows.
+            try:
+                doc = user_definitions.get(user_id, def_id)
+            except ValueError:
+                doc = None
+            if doc is None:
+                with snapshot_db.connect() as conn:
+                    conn.execute(
+                        "DELETE FROM screen_alert_subs WHERE user_id=? AND def_hash=?",
+                        (str(user_id), str(def_hash)))
+                receipt["skipped_dangling"] += 1
+                log.info("[screen-alerts] dropped dangling subscription: "
+                         "user=%s def_id=%s (definition deleted or gone)",
+                         user_id, def_id)
+                continue
+            # ⭐ THE LIVE NAME, NOT THE SNAPSHOT — a rename must be reflected
+            # the very next time this fires, not indefinitely under the name it
+            # had at subscribe time. Falls back to the stored snapshot (never to
+            # a bare "Untitled") when the live definition genuinely has no
+            # `meta.name`, since the snapshot is still a better label than none.
+            live_meta = (doc.get("definition") or {}).get("meta") or {}
+            name = live_meta.get("name") or name
+
             want_in = entered if mode in ("entry", "both") else []
             want_out = exited if mode in ("exit", "both") else []
             if not want_in and not want_out:
