@@ -1,12 +1,19 @@
 # ADR v2.2: Pine input-parameter fidelity — one logical parameter, immutable/derived split, server-trusted manifest, spike additions
 
-**Status:** 🟡 **PROPOSED — design only, for owner review. No implementation
-in this ADR or alongside it.** A further delta on `TRACK_F_PARAMETER_ADR_V2.md`
-(approved in principle) and `TRACK_F_PARAMETER_ADR_V2_1.md` (§3's single-
-locator binding-identity scheme is corrected here; everything else in V2/V2.1
-— the closed/literal AST, `compute.source` reuse, `let`-binding mechanism,
-reject-not-clamp, the traced def_id/alert/scan safety, the `__uct_param_<n>`
-reserved-name scheme itself — is unchanged and not repeated).
+**Status:** 🟢 **ACCEPTED + SPIKE VERIFIED (2026-09-05).** Owner accepted this
+ADR, then authorized a 15th spike condition (crafted-PUT parameter-identity
+forgery on an existing definition, closing the one case §4 didn't separately
+name: a brand-new id rather than a widened existing one) before broad
+implementation. All 15 conditions now pass against real code — §6 below is
+the evidence record. **§1's locator schema is corrected by the spike** (see
+§6.0) — read §6.0 before implementing anything against §1's `{treeIndex,
+bindingId}` wording, which the spike proved unbuildable as written. A further
+delta on `TRACK_F_PARAMETER_ADR_V2.md` (approved in principle) and
+`TRACK_F_PARAMETER_ADR_V2_1.md` (§3's single-locator binding-identity scheme
+is corrected here; everything else in V2/V2.1 — the closed/literal AST,
+`compute.source` reuse, `let`-binding mechanism, reject-not-clamp, the traced
+def_id/alert/scan safety, the `__uct_param_<n>` reserved-name scheme itself —
+is unchanged and not repeated).
 
 **Date:** 2026-09-05 · **Phase:** One (Trust Foundation), Track F · **Governing
 decision:** `DECISIONS.md` DEC-006.
@@ -219,9 +226,132 @@ Keep V2.1's ten-point spike exactly as written; add:
 proceed** — V2.1 §6's closing rule is unchanged, just now counting to
 fourteen instead of ten.
 
+## 6. Spike verification (2026-09-05) — 15/15, one design assumption falsified
+
+**Owner's 15th condition, added at acceptance, not part of the original
+fourteen:** on an EXISTING saved definition, a crafted ordinary `PUT
+/{def_id}` must not be able to invent a brand-new logical parameter id and
+have it become trusted metadata merely because that id was absent from the
+prior manifest. §4 closed the *widen-an-existing-id* forgery; it did not
+separately name the *mint-a-new-id-on-an-edit* forgery, which is a distinct
+attack (no prior record to canonicalize from at all, so §4's "substitute
+`prev`'s copy" mechanism has nothing to substitute unless it also treats
+"absent from `prev`, and this is not a fresh creation" as its own refusal
+case). Spike point 15 proves that refusal directly.
+
+### 6.0 Design assumption falsified — locators are NOT `{treeIndex,
+bindingId}` re-parsed from `compute.source`
+
+§1's and §3's prose ("write the SAME new value into that tree's `let
+<bindingId> = <value>` line," a locator keyed by `bindingId`) implicitly
+assumed server-side reconciliation would re-parse `compute.source` text to
+find a `let` binding by name. **This is false of the running codebase and
+was verified directly, not assumed**: `api/services/user_definitions.py`
+states in its own comments that there is exactly one UCT-DSL parser and it
+is client-side JS (`letPrepass.js`/`parse.js`); a Python-side re-parse of
+`compute.source` would be a second parser on one grammar — "the defect this
+repo names most often," in that file's own words. The server never parses
+`compute.source` anywhere in the save path today.
+
+**Corrected, spike-proven schema:** a locator is `{treeIndex, astPath}` —
+`treeIndex` is `null` for a single-tree v1 document's own `compute.ast` or a
+string key into a v2 `compute.trees`; `astPath` is a list of dict-keys/
+list-indices walked from that tree's root to the literal argument node. This
+is **pure JSON traversal of the already-submitted, already-parsed AST** —
+data `save()` already receives and already interprets via
+`ast_interpret.py` — never a second parse of source text. It is the same
+"stamp, don't re-derive" idiom `user_definitions.py` already prefers
+elsewhere (the `sources[k]`/`treesHash` asymmetry it names for an unrelated
+reason). Keeping `compute.source`'s `let` line human-readable and consistent
+with the tree's literal at that path remains the client's job — the one lane
+that actually has a parser — exactly as it already is for every other
+consistency the client's translator owns.
+
+This does not change §1's *behavior* (one logical parameter, one or more
+locators, atomic multi-locator writes, `partially_detached`/`conflicted`
+states) or §3's immutable/derived split — both are proven exactly as
+specified. It changes the *shape* of one field. Anything implementing this
+ADR from §1's literal text alone would have built the wrong locator schema;
+implement against §6 instead.
+
+### Evidence
+
+New module `api/services/param_manifest_spike.py` (canonicalization,
+astPath-based `reconcile()`, reject-not-clamp bounds) + one additive,
+early-return hook in `api/services/user_definitions.py::save()` (inert —
+byte-for-byte unaffected — for every definition without a
+`compute.paramManifest` key) + `tests/test_param_manifest_spike.py`, run
+against real `save()`/`alert_user_series` code, no simulation:
+
+```
+21 passed in tests/test_param_manifest_spike.py (0 failed)
+  test_1  .. one numeric parameter imports adjustable, overrides cleanly
+  test_2  .. two independent parameters don't disturb each other
+  test_3  .. one parameter at multiple locations updates atomically
+  test_3b .. multiple locators that disagree are conflicted, not resolved
+  test_4  .. offset/window literal survives a parameter change
+  test_5  .. manual edit of the binding value == the UI-edit path
+  test_6  .. a deleted binding detaches; does not block the save
+  test_6b .. a binding rewritten to non-literal is non_literal, not a crash
+  test_7  .. a lookback-increasing change is accepted and reflected
+  test_8  .. an out-of-range override is REJECTED, not clamped
+  test_8b .. boundary values are inclusive, not an off-by-one
+  test_9  .. forget() still fires on every save carrying a paramManifest
+  test_10 .. a parameter change produces a new ast_hash for scan keying
+  test_11 .. [pt 11] one input feeding two trees updates both atomically
+  test_12 .. [pt 12] one locator disappearing -> partially_detached,
+             never a half-working slider
+  test_13 .. [pt 13] two locators disagreeing -> conflicted, neither
+             tree's value silently preferred
+  test_14  .. [pt 14] crafted PUT widening an existing bound is defeated
+  test_14b .. [pt 14] crafted PUT changing type/frozen status is ignored
+  test_14c .. a genuinely new parameter on a FRESH creation is trusted
+              (the honest boundary §4 draws, proven from the other side)
+  test_15  .. [pt 15] crafted PUT cannot invent a new trusted parameter
+              id on an EXISTING definition
+  test_15b .. a second, distinct definition may legitimately mint its
+              own fresh parameter (pt 15 doesn't over-refuse creation)
+```
+
+Regression: `tests/test_user_definitions.py` (68 tests, the full existing
+save/validate/alert suite) re-run after the hook landed — **68 passed, 0
+broken** — confirming the hook is inert for every definition shape that
+predates this spike. `tests/test_vendor_truth.py` (Track A, unrelated code
+touched earlier in this review cycle) re-confirmed at 22/22, unaffected by
+this spike's changes.
+
+**test_12's own first draft had a bug** (found during the spike, not before
+it): its fixture changed the value at a locator's path rather than removing
+the path, which the (correctly-implemented) `reconcile()` logic correctly
+scored `conflicted` — proving the fixture, not the code, was wrong. Fixed by
+making the rewritten tree genuinely omit the arg position the locator
+targets, so `_walk()` returns `None` for real. Recorded here because it is
+exactly the class of self-check this program keeps asking for: a red result
+is a reason to inspect the test before the implementation, never an excuse
+to weaken either one to make it pass.
+
+### Point-15 mechanism (§4 extended, not re-architected)
+
+`save()` already loads `prev = _newest(c, user_id, def_id)` before anything
+else (§4). The router's `PUT /{def_id}` route already 404s if `def_id`
+doesn't pre-exist, so `save()`'s `prev is None` branch is reachable **only**
+from a genuine first-creation call, never from an edit of something that
+already exists — this is what makes the rule airtight rather than a
+heuristic: `is_fresh_creation = prev_definition is None` is not a proxy, it
+is the literal precondition the route enforces. Canonicalization now has
+three cases instead of two: an id in `prev`'s manifest → `prev`'s record
+wins verbatim (§4, unchanged); an id absent from `prev`'s manifest AND
+`is_fresh_creation` → trusted from the submission (the one honest,
+necessarily-client-side boundary, unchanged); an id absent from `prev`'s
+manifest and **not** a fresh creation → **refused outright**
+(`ParamManifestRejected`, surfaced as the existing 400 path every other
+`save()` refusal already uses) — this third case is new, and is point 15.
+
 ---
 
-**Next step:** owner review of V2, V2.1, and this delta together. Per DEC-006,
-no broad implementation of the parameter mapping proceeds until all three are
-accepted (or revised) and the fourteen-point spike has actually run against
-real code.
+**Next step:** narrow v1 implementation scoping. See the accompanying spike
+report (delivered alongside this update) for the exact plan and gating
+suite. Per DEC-006 and the owner's own framing, this ADR being ACCEPTED +
+SPIKE VERIFIED does not by itself authorize starting that implementation —
+it authorizes *planning* it; the owner's explicit go-ahead is the
+remaining gate.
