@@ -193,7 +193,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   },
   themes: {
     labels: { header: 'Themes', menu: 'Theme Tracker', tab: 'Themes' },
-    defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    defaults: { w: 6, h: 10, minW: 3, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,

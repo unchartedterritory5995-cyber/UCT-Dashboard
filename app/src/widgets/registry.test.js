@@ -80,7 +80,7 @@ describe('widget registry — metadata pins', () => {
     expect(defaults).toEqual({
       chart:        { w: 12, h: 12, minW: 6, minH: 6 },
       watchlist:    { w: 6,  h: 10, minW: 2, minH: 4 },
-      themes:       { w: 6,  h: 10, minW: 2, minH: 4 },
+      themes:       { w: 6,  h: 10, minW: 3, minH: 4 },
       scanner:      { w: 8,  h: 10, minW: 2, minH: 4 },
       fundamentals: { w: 8,  h: 4,  minW: 6, minH: 2 },
       breadth:      { w: 8,  h: 10, minW: 4, minH: 4 },
@@ -172,12 +172,13 @@ describe('widget registry — workspace host bindings', () => {
   })
 
   it('prop shapes are preserved exactly as the retired WidgetBody switch passed them', () => {
-    // These shapes are load-bearing: breadth never received `color`, themes
-    // never received `onOptsChange`, aisearch received ONLY `color`, and only
-    // chart receives `chartId`. Uniform spreading would change behavior.
+    // These shapes are load-bearing: breadth never received `color`, aisearch received
+    // ONLY `color`, and only chart receives `chartId`. Uniform spreading would change
+    // behavior. (themes now DOES receive `onOptsChange` — the theme-sets editor persists
+    // per-widget opts through it.)
     const SPECIAL = {
       chart: ['chartId', 'color', 'onOptsChange', 'opts'],
-      themes: ['color', 'opts'],
+      themes: ['color', 'onOptsChange', 'opts'],
       breadth: ['onOptsChange', 'opts'],
       aisearch: ['color'],
     }

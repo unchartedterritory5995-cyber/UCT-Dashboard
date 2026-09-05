@@ -28,20 +28,19 @@
   min-height: 0;
 }
 
-/* Period bar keeps everything on ONE row — as the widget narrows, the tabs shrink (font +
-   padding + gap) instead of the gear dropping to a second row (wasted header height). */
-@container (max-width: 360px) {
+/* Period bar keeps everything on ONE row. As the widget narrows we HIDE the extra buttons
+   (notebook first, then the gear) so the timeframes stay full-size — only if it's still too
+   tight after both are gone do the tabs shrink (last resort). */
+@container (max-width: 330px) {
   .pageEmbedded .periodBar { gap: 3px; padding: 0 8px; }
-  .pageEmbedded .periodTab { padding: 3px 7px; font-size: calc(9.5px * var(--tt-font-scale, 1)); }
+  .pageEmbedded .journalBtn { display: none; }   /* 1) drop the notebook button */
 }
-@container (max-width: 300px) {
+@container (max-width: 290px) {
   .pageEmbedded .periodBar { gap: 2px; padding: 0 6px; }
-  .pageEmbedded .periodTab { padding: 2px 5px; font-size: calc(8.5px * var(--tt-font-scale, 1)); letter-spacing: 0.4px; }
-  .pageEmbedded .settingsBtn { margin-left: 3px; padding: 3px; }
+  .pageEmbedded .gearBtn { display: none; }        /* 2) then the gear → just the timeframes */
 }
-@container (max-width: 260px) {
-  .pageEmbedded .periodTab { padding: 2px 4px; font-size: calc(7.5px * var(--tt-font-scale, 1)); letter-spacing: 0.2px; }
-  .pageEmbedded .settingsBtn { margin-left: 2px; }
+@container (max-width: 250px) {
+  .pageEmbedded .periodTab { padding: 2px 5px; font-size: calc(8.5px * var(--tt-font-scale, 1)); letter-spacing: 0.4px; }
 }
 
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
@@ -67,6 +66,7 @@
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
+  white-space: nowrap;   /* never wrap "3M ↑" onto 2 lines mid-resize (grows the gold outline) */
   padding: 3px 10px;
   border-radius: 3px;
   border: 1px solid transparent;
@@ -987,7 +987,8 @@
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 4px;
   background: transparent;
-  color: var(--tt-accent, var(--ut-gold));
+  /* White, matching the rest of the tracker (was gold). */
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
   cursor: pointer;
   white-space: nowrap;
   max-width: 130px;
@@ -1194,4 +1195,46 @@
 .addStockInput::placeholder {
   color: var(--text-secondary, #a8b0bd);
   opacity: 1;
+}
+
+/* Delete-set inline confirm (replaces the non-discoverable 2-click trash). */
+.setConfirmRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+}
+.setConfirmLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  color: var(--text-bright, #e4e6ea);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setConfirmYes {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-danger, #f87171);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.setConfirmNo {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  flex-shrink: 0;
 }

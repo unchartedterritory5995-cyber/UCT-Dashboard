@@ -261,7 +261,9 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
         )}
       </div>
 
-      {open && (() => {
+      {/* The equal-weight $IDX index row shows ONLY for an UNEDITED owner theme — a custom
+          theme has no $IDX, and once membership is edited the shared $IDX no longer matches. */}
+      {open && !theme.is_custom && !theme.user_edited && (() => {
         const indexSym = `$IDX:${themeSlug(theme.name)}`
         return (
           <div
@@ -289,16 +291,11 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
         // Highlight only the SELECTED instance (by key). Falls back to the bare
         // symbol when no instance key is set (e.g. hub-driven selection).
         const isSelected = selectedNavKey ? selectedNavKey === rowKey : h.sym === selectedSym
-        // Provenance mark (T8): engine-added members render slightly dimmed so a
-        // trader can tell them from curated names. Absent source = owner (full).
-        const isEngine = h.source === 'engine'
         return (
           <div
             key={h.sym}
             ref={el => { if (rowRefs) rowRefs.current[rowKey] = el }}
             className={`${styles.stockRow} ${isSelected ? styles.selected : ''}`}
-            style={isEngine ? { opacity: 0.85 } : undefined}
-            title={isEngine ? 'Engine-added — pending curation' : undefined}
             onClick={() => onSelectSym(h.sym, h.name, theme.ticker)}
             onMouseEnter={onHoverSym ? () => onHoverSym(h.sym) : undefined}
             onFocus={onHoverSym ? () => onHoverSym(h.sym) : undefined}
@@ -389,7 +386,13 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, 
           <button className={`${styles.setMenuName} ${!themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(null); close() }}>UCT Default</button>
           {sets.map(s => (
             <div key={s.id} className={styles.setMenuRow}>
-              {renamingId === s.id ? (
+              {confirmDel === s.id ? (
+                <div className={styles.setConfirmRow}>
+                  <span className={styles.setConfirmLabel}>Delete “{s.name}”?</span>
+                  <button className={styles.setConfirmYes} onClick={() => { onDelete(s.id); close() }}>Delete</button>
+                  <button className={styles.setConfirmNo} onClick={() => setConfirmDel(null)}>Cancel</button>
+                </div>
+              ) : renamingId === s.id ? (
                 <input autoFocus className={styles.setInline} value={renameVal}
                   onChange={e => setRenameVal(e.target.value)}
                   onKeyDown={e => {
@@ -398,13 +401,14 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, 
                   }}
                   onBlur={() => setRenamingId(null)} />
               ) : (
-                <button className={`${styles.setMenuName} ${s.id === themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(s.id); close() }}>{s.name}</button>
+                <>
+                  <button className={`${styles.setMenuName} ${s.id === themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(s.id); close() }}>{s.name}</button>
+                  <button className={styles.setRowBtn} title="Rename" aria-label="Rename set"
+                    onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}><PencilIcon /></button>
+                  <button className={`${styles.setRowBtn} ${styles.setRowTrash}`} title="Delete set" aria-label="Delete set"
+                    onClick={() => setConfirmDel(s.id)}><TrashIcon /></button>
+                </>
               )}
-              <button className={styles.setRowBtn} title="Rename" aria-label="Rename set"
-                onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}><PencilIcon /></button>
-              <button className={`${styles.setRowBtn} ${styles.setRowTrash} ${confirmDel === s.id ? styles.setRowConfirm : ''}`}
-                title={confirmDel === s.id ? 'Click again to delete' : 'Delete set'} aria-label="Delete set"
-                onClick={() => { if (confirmDel === s.id) { onDelete(s.id); close() } else setConfirmDel(s.id) }}><TrashIcon /></button>
             </div>
           ))}
           <div className={styles.setMenuSep} />
@@ -606,27 +610,34 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // shows the saved edits right away (no manual refresh).
   const persistRef = useRef(null)
   const pendingBodyRef = useRef(null)
+  const inflightRef = useRef(Promise.resolve())
+  const editDisplayRef = useRef(null)   // latest edit-mode themes → the optimistic Done view
+  const doPut = useCallback((body) => {
+    const p = putSetDef(themeSetId, body).catch(() => {})
+    inflightRef.current = p
+    return p
+  }, [themeSetId])
   const persist = useCallback((next) => {
     if (!themeSetId) return
     const body = { themes: next.themeOrder, removed: next.removedMap, added: next.addedMap, custom: next.customThemes }
     pendingBodyRef.current = body
     clearTimeout(persistRef.current)
-    persistRef.current = setTimeout(() => { pendingBodyRef.current = null; putSetDef(themeSetId, body) }, 350)
-  }, [themeSetId])
+    persistRef.current = setTimeout(() => { pendingBodyRef.current = null; doPut(body) }, 350)
+  }, [themeSetId, doPut])
   const flushPersist = useCallback(async () => {
     clearTimeout(persistRef.current)
-    if (pendingBodyRef.current && themeSetId) {
-      const body = pendingBodyRef.current
-      pendingBodyRef.current = null
-      await putSetDef(themeSetId, body)
-    }
-  }, [themeSetId])
-  // Done: save any pending edit, then revalidate ?set= so the view updates instantly.
+    if (pendingBodyRef.current) { const b = pendingBodyRef.current; pendingBodyRef.current = null; await doPut(b) }
+    await inflightRef.current   // wait for any IN-FLIGHT save to actually land before we revalidate
+  }, [doPut])
+  // Done: show the edited set INSTANTLY (optimistic), save, then revalidate for exact numbers —
+  // so the finished view never shows the pre-edit state (the "have to refresh" bug).
   const stopEditing = useCallback(async () => {
+    const edited = editDisplayRef.current
+    if (edited && data) mutate({ ...data, themes: edited }, { revalidate: false })
     setEditing(false)
     await flushPersist()
     mutate()
-  }, [flushPersist, mutate])
+  }, [data, flushPersist, mutate])
   const materializeOrder = useCallback(() =>
     themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)), [themeOrder, data])
   const applyEdit = useCallback((patch) => {
@@ -687,7 +698,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const editDisplayThemes = useMemo(() => {
     if (!editing) return null
     const order = themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name))
-    const mk = (sym) => symIndex[_k(sym)] || { sym: (sym || '').toUpperCase(), name: (sym || '').toUpperCase(), returns: {}, ref_prices: {}, source: 'user', unresolved: true }
+    // A user-added stock is ALWAYS its own row (source 'user' → full brightness, counts in the
+    // aggregate), never inheriting an engine source from wherever it was found in the palette.
+    const mk = (sym) => {
+      const found = symIndex[_k(sym)]
+      return found ? { ...found, source: 'user' }
+        : { sym: (sym || '').toUpperCase(), name: (sym || '').toUpperCase(), returns: {}, ref_prices: {}, source: 'user', unresolved: true }
+    }
     const owner = order.map(slug => {
       const base = allIndex[slug]
       if (!base) return null
@@ -695,7 +712,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       let holdings = (base.holdings || []).filter(h => !rem.has(_k(h.sym)))
       const have = new Set(holdings.map(h => _k(h.sym)))
       for (const sym of (addedMap[slug] || [])) { const k = _k(sym); if (!have.has(k)) { holdings = [...holdings, mk(sym)]; have.add(k) } }
-      return { ...base, holdings, group_return: { [activeKey]: avgReturn(holdings, activeKey) } }
+      const edited = (removedMap[slug]?.length || 0) > 0 || (addedMap[slug]?.length || 0) > 0
+      return { ...base, holdings, group_return: { [activeKey]: avgReturn(holdings, activeKey) }, user_edited: edited }
     }).filter(Boolean)
     const customs = customThemes.map(c => {
       const holdings = (c.members || []).map(mk)
@@ -703,6 +721,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     })
     return [...owner, ...customs]
   }, [editing, themeOrder, data, allIndex, symIndex, removedMap, addedMap, customThemes, activeKey])
+  editDisplayRef.current = editDisplayThemes   // keep the optimistic-Done source current
 
   // ── Footer (embedded widget): "N stocks · Updated H:MM ET · ⟳" ──
   // Count = unique stocks tracked across every theme. Refresh re-pulls live-overlaid numbers
@@ -1113,7 +1132,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {/* → Journal: freeze the visible ranking into a note (payload capture). */}
           {filteredThemes.length > 0 && (
             <button
-              className={styles.settingsBtn}
+              className={`${styles.settingsBtn} ${styles.journalBtn}`}
               onClick={sendThemesToJournal}
               title="Send this ranking to Journal (frozen list)"
               aria-label="Send this ranking to Journal"
@@ -1121,7 +1140,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           )}
           <button
             ref={settingsBtnRef}
-            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+            className={`${styles.settingsBtn} ${styles.gearBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
             onClick={() => setSettingsOpen(o => !o)}
             title="Theme Tracker settings"
             aria-label="Theme Tracker settings"
@@ -1207,7 +1226,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         <div className={styles.tableBody}>
           {/* Skeleton ONLY when there's genuinely nothing to show yet. With cached/fallback data
               present the list renders instantly — never a skeleton stacked on top of real rows. */}
-          {(isLoading || isComputing) && filteredThemes.length === 0 && (
+          {!editing && (isLoading || isComputing) && filteredThemes.length === 0 && (
             isComputing
               ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
               : <SkeletonTileContent lines={6} />
