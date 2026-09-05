@@ -70,6 +70,19 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
       const result = await mintConnectCode('obsidian')
       setCode(result.connectCode)
       setExpiresInSeconds(result.expiresInSeconds)
+      // The very next thing the member must do with this code is paste it
+      // into Obsidian, so put it on the clipboard now rather than making
+      // them press Copy first. This runs inside the button's own click
+      // handler, so it still has the user gesture the Clipboard API needs.
+      // Best-effort only: on denial the code stays visible and the Copy
+      // button below is unchanged, so nothing depends on this succeeding.
+      try {
+        await navigator.clipboard.writeText(result.connectCode)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        /* clipboard unavailable — Copy button remains the fallback */
+      }
     } catch (err) {
       setErrorDetail(err?.detail || err?.message || 'Could not generate a connect code. Try again.')
     } finally {
@@ -182,7 +195,10 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
-          <p className={styles.helpText}>Expires in {expiresLabel}.</p>
+          <p className={styles.helpText}>
+            {copied ? 'Copied to your clipboard — paste it into Obsidian. ' : ''}
+            Expires in {expiresLabel}.
+          </p>
 
           <div className={styles.row}>
             <button type="button" className="btn btn-primary" onClick={handleClose}>

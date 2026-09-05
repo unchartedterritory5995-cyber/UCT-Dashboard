@@ -41,6 +41,42 @@ describe('ObsidianConnectModal', () => {
     expect(generateBtn).not.toBeDisabled()
   })
 
+  it('puts the freshly minted code on the clipboard without a second click', async () => {
+    // The only thing a member does next with this code is paste it into
+    // Obsidian, so requiring a separate "Copy" press was UCT-created
+    // friction. Minting happens inside the button's own click handler, so
+    // the Clipboard API still has the user gesture it requires.
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    const mintConnectCode = vi.fn().mockResolvedValue({
+      connectCode: 'CERT-CODE-123', expiresInSeconds: 900 })
+
+    render(<ObsidianConnectModal open providerLabel="Obsidian"
+      mintConnectCode={mintConnectCode} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /generate code/i }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('CERT-CODE-123'))
+    expect(await screen.findByText(/copied to your clipboard/i)).toBeInTheDocument()
+  })
+
+  it('still shows the code when the clipboard is unavailable', async () => {
+    // Best-effort only: a denied clipboard must never cost the member the
+    // code itself, nor the explicit Copy fallback.
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+    const mintConnectCode = vi.fn().mockResolvedValue({
+      connectCode: 'CERT-CODE-456', expiresInSeconds: 900 })
+
+    render(<ObsidianConnectModal open providerLabel="Obsidian"
+      mintConnectCode={mintConnectCode} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /generate code/i }))
+
+    expect(await screen.findByText('CERT-CODE-456')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy connect code/i })).toBeInTheDocument()
+  })
+
   it('checking consent then Generate code mints once, via the "obsidian" provider key, and shows the code exactly once', async () => {
     const mintConnectCode = vi.fn().mockResolvedValue({ connectCode: 'CODE-XYZ-789', expiresInSeconds: 900 })
     render(<ObsidianConnectModal open providerLabel="Obsidian" mintConnectCode={mintConnectCode} onClose={() => {}} />)
