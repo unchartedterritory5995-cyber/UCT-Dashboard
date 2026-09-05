@@ -116,6 +116,20 @@ def watchlist_performance(body: PerfRequest, user: dict = Depends(get_current_us
     return get_batch_returns(tickers)
 
 
+# ── Watchlist Intelligence V1 (owner authorization) ──
+
+class IntelRequest(BaseModel):
+    tickers: list[str]
+    changes: Optional[dict[str, float]] = None
+
+
+@router.post("/api/watchlists/intelligence")
+def watchlist_intelligence(body: IntelRequest, user: dict = Depends(get_current_user)):
+    from api.services.watchlist_intelligence import get_intelligence_for_symbols
+    tickers = list(set(t.upper() for t in body.tickers[:100]))  # cap at 100, mirrors watchlist-performance
+    return get_intelligence_for_symbols(tickers, body.changes)
+
+
 # ── Digest settings ──
 
 class DigestSettings(BaseModel):
