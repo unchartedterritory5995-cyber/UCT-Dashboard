@@ -184,6 +184,105 @@ recovery: **the repo name in a crash narrative is a claim, not a fact — the
 first move should be `git cat-file -t <hash>` against the candidate repo(s)
 before spending effort on anything else.**
 
+## True-HTTP validation attempt (2026-09-05, same day) — INCONCLUSIVE, pilot rolled back
+
+After the residual fix (`7233239c7`) was merged (`053850d3a`) and deployed with the
+pilot OFF, a true-HTTP validation attempt was made against the live production
+`POST /api/screener/scan` endpoint (admin session, real browser, real network
+round trip — not `query.run_scan()`). Summary: **functional proof succeeded
+cleanly; the performance verdict is INCONCLUSIVE, contaminated by three
+independent confounds, and the pilot was rolled back to OFF as a result.**
+
+### What worked
+- **Functional PEG-admin proof, twice, on live production:** with the pilot
+  flag on, ticker CRM (a real live PEG-tagged row) received
+  `pattern_canonical_pilot.pattern_id == "power_earnings_gap"`; HTF-tagged rows
+  (DAWN/APLS/GSHD/FIVN/BWIN) and every other-family row never did, across every
+  sample taken. Ordinary-user-over-HTTP isolation was **not** independently
+  re-verified this session (no second real non-admin account was available or
+  used — see "Not done" below); the code-level guarantee
+  (`_pilot_authorized` gates on `user.get("role")=="admin"`, the same
+  convention `require_admin` uses elsewhere) was reviewed but not exercised
+  live as a second account.
+- **Rollback verified structurally, not just via stored config:** after
+  `railway variable delete PATTERN_CANONICAL_SCANNER_PILOT_ENABLED` (which did
+  **not** trigger a redeploy on its own — the running process kept serving
+  canonical PEG data for several more minutes on the old process) followed by
+  an explicit `railway redeploy --service web --yes`, a fresh settled process
+  (uptime 376s at test time) was confirmed via live HTTP to no longer attach
+  `pattern_canonical_pilot` to any row. **Lesson: `railway variable delete`
+  is not proven to auto-redeploy the way `--set` does — always force a
+  redeploy and verify structurally after any flag change meant to take
+  effect immediately.**
+
+### What went wrong (the performance number is not trustworthy)
+1. **Self-inflicted page_size confound.** The legacy baseline (113–132ms,
+   clean, matches historical numbers) was measured at `page_size=50`. No
+   PEG-tagged row appears in the top 50 by default sort, so proving the
+   functional PEG-admin behavior required `page_size=500` — an unmatched,
+   10x-larger comparison against the legacy baseline from the start.
+2. **A second, independent session collided with this one mid-test.** While
+   the pilot was live and being measured, a different concurrent session
+   merged an unrelated branch (`fix/account-deletion-notebook-purge`) into
+   `origin/master` and pushed it (commit `dd66bbb59`, "Merge origin/master
+   into fix/account-deletion-notebook-purge... Pulls in 3 unrelated master
+   commits (Phase 8 8G-B pattern-engine residual performance closure)").
+   Railway auto-redeployed `web` off that push, swapping the container
+   **during** this session's own timing measurements — a real, live instance
+   of the already-open "long-running work can be killed by an unrelated
+   redeploy" issue, this time hitting a validation procedure instead of a
+   scan job. `web`'s deployed commit is now `dd66bbb59`, not `053850d3a` —
+   still contains the 8G-B code intact (verified no file overlap per that
+   commit's own message) but is a different build/container than the one
+   this validation started against.
+3. **An apparently unrelated legacy-path slowness at large page sizes,
+   independent of the canonical pilot entirely.** With the pilot confirmed
+   OFF on a fully-settled process, a plain legacy `page_size=500` scan still
+   took **18,235ms**. Production logs around the earlier turbulent window
+   show `Finnhub 429 (rest:/calendar/earnings) — shared cooldown engaged for
+   20.0s` — suspiciously close to the observed multi-second-to-20s stalls.
+   This strongly suggests per-row earnings/fundamentals enrichment in the
+   **legacy** scan path hits a shared external-provider rate-limit cooldown
+   at high page sizes, unrelated to Package 8G-B or the residual fix. This
+   is a real, separate, currently-uninvestigated production finding — flag
+   it, do not fix it inside this package.
+
+Given confound #3 alone, a same-page-size (500) legacy-vs-canonical
+comparison would still not isolate the canonical overlay's true cost — the
+legacy side itself is unstable at that page size for reasons that have
+nothing to do with this package. The one clean canonical@500 sample obtained
+(482ms, before the collision) is suggestive but not conclusive on its own.
+
+### Current safe state (verify before resuming)
+- `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED` — OFF, and **structurally
+  confirmed** via live HTTP (not just Railway's stored variable) as of this
+  writing.
+- `PATTERN_CANONICAL_ADAPT_ENABLED` — still ON (unaffected).
+- Deployed `web` revision: `dd66bbb59...` (the other session's push;
+  contains 8G-B code intact per that commit's own diff-stat claim, not
+  independently re-diffed by this session).
+- HTF, ordinary users, other families: still legacy (unaffected by any of
+  the above).
+
+### Not done / recommended before re-attempting closure
+- Re-run true-HTTP validation using a **ticker-filtered** request (find and
+  use the real scan-spec filter shape for a single symbol) instead of
+  `page_size=500`, so a fair, small, matched-size legacy-vs-canonical
+  comparison becomes possible without tripping the page_size-500 legacy
+  slowness.
+- Coordinate the re-attempt so no other session is mid-push to `origin/master`
+  during the measurement window — this collision was not hypothetical.
+- Investigate (separately, out of this package's scope) the Finnhub-429
+  large-page-size legacy stall — it's a real user-facing latency risk on its
+  own, independent of 8G-B.
+- Get a second real non-admin account (or an agreed alternative) to
+  independently re-verify ordinary-user isolation over true HTTP, not just
+  in-process/code-review.
+- **8G-B is NOT closed.** Functional architecture remains validated; the
+  500ms true-HTTP performance gate remains unevaluated under clean
+  conditions. Do not re-enable the pilot flag without repeating the sequence
+  above under calmer conditions.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
