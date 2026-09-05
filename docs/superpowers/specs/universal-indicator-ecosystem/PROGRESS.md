@@ -20,6 +20,21 @@ active third-party WIP — see `CLAUDE.md`/`2026-07-31-phase-a-signature-launch.
 was touched 2026-09-04 08:17, hours before this session started). Treat as possibly live until the
 owner confirms otherwise — read freely, do not write there.
 
+**2026-09-05 (session recovery + maximum-autonomy operating model, `GOVERNING_INTENT.md`/DEC-011):**
+recovered clean after a prior session's unexpected close (stale worktree lock, since removed via
+`git worktree unlock`); branch backed up to `origin/worktree-indicator-ecosystem`. Track D (RISK-003)
+resolved to **VERIFIED HEALTHY** via a third probe pass run from the main repo checkout — see
+`RISK_REGISTER.md`. Built and tested three pieces of durable tooling so the two remaining external gates
+resolve with minimal owner involvement: `tools/track_a_ingest_vendor_capture.py` (ingests an owner's real
+TradingView capture per `OWNER_VENDOR_CAPTURE_PACKET_V3_1.md`, cross-validates repeated probe rows +
+control arithmetic, classifies each of the four ambiguous builtins against its two candidates, and writes
+`tests/fixtures/vendor/observations/*.json`), `tools/track_d_risk003_probe.py` (packages the RISK-003
+probe for repeatable future spot-checks), `tools/track_e_run_golden_journey.py` (pre-flight-gates on
+`ANTHROPIC_API_KEY`/`INDICATOR_VISION_ENABLED` and runs `tests/test_golden_journey_04_05_live.py` the
+instant both exist, with full output captured to a log file). All three have their own test files; no
+regressions in adjacent suites (`test_vendor_truth.py`, `test_golden_journey_04_05_live.py` unchanged at
+1 passed/6 skipped without a key).
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

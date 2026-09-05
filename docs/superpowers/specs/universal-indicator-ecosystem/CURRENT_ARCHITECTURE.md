@@ -169,9 +169,11 @@ inconsistently:
   only. See `VALIDATION_COVERAGE_MAP.md` for the precise, row-by-row state.
 - Whether production has actually recovered from a dated 2026-08-31 code comment describing `scan_hits`
   staleness (newest session stuck on Friday when read Monday) — the scheduler misfire-handling gap looks
-  fixed at the code level (`coalesce=True, misfire_grace_time=3600`), but this hasn't been confirmed live
-  (RISK-003, **STILL PRODUCTION-UNVERIFIED after a second Track D attempt, 2026-09-04** — see
-  `RISK_REGISTER.md`'s RISK-003 row for the full account. Short version: the DB-level read this program's
+  fixed at the code level (`coalesce=True, misfire_grace_time=3600`), and this **IS now confirmed live**
+  (RISK-003, **RESOLVED TO VERIFIED HEALTHY, 2026-09-05, third Track D pass** — see `RISK_REGISTER.md`'s
+  RISK-003 row for the full evidence. The probe below is now packaged as a runnable, tested tool,
+  `tools/track_d_risk003_probe.py` — prefer running that over re-deriving the `railway ssh` invocation by
+  hand for any future spot-check). Short version of how the second pass was blocked, kept for the record:
   own first pass flagged as the missing evidence was attempted and blocked, not by any safety concern with
   the query itself, but by this execution context — an isolated-worktree fork — refusing any `railway ssh`
   invocation carrying a nontrivial script, and a stdin-piped alternative hanging because `railway ssh`
@@ -197,13 +199,14 @@ inconsistently:
 
   Opened `mode=ro` (read-only URI — cannot write even if something in the query were wrong), touches only
   `scan_coverage`/`scan_hits` (the table the 2026-08-31 incident measured at ~32 rows total — trivially
-  cheap even after growth), and every query is `LIMIT`-bounded or a plain aggregate. **What it would prove**:
-  compare `coverage_summary`'s `MAX(as_of)` against today's date — if it's landing on yesterday's/today's
-  session on each check across a few real days, that's VERIFIED HEALTHY; if it's stuck multiple sessions
-  behind the way the 2026-08-31 incident described, that's VERIFIED BROKEN. Save the file to the pod (e.g.
-  via `railway ssh --service web -- /opt/venv/bin/python /tmp/probe.py` after getting the file there some
-  way that isn't blocked the way this session's attempts were — a non-isolated session may not hit the same
-  restriction at all) and read the output.
+  cheap even after growth), and every query is `LIMIT`-bounded or a plain aggregate. **What it proved, run
+  for real on 2026-09-05**: `coverage_summary`'s `MAX(as_of)` (20260904) equaled the most recent possible
+  trading-session close at run time (the probe ran on a Saturday, so Friday's close is the ceiling),
+  4 independent scan definitions agreed, evaluated the full 3,742-ticker universe, and `scan_hits` showed
+  10 consecutive non-zero days — VERIFIED HEALTHY, per the rule stated when this probe was first designed
+  (landing on yesterday's/today's session = healthy; stuck multiple sessions behind = broken). Run it again
+  via `python tools/track_d_risk003_probe.py` from the main repo checkout (Railway linked) for any future
+  spot-check — it wraps this exact query and applies this exact rule automatically.
 - Whether TC2000/PCF's 57/57 corpus pass rate is representative — unknown if a blind/adversarial PCF
   corpus exists the way Pine has one deliberately built to resist gaming.
 - Whether a session is currently active in the `indicator-endzone` worktree (touched 2026-09-04 08:17,
