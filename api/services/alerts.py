@@ -165,6 +165,32 @@ def _s7_durable_alerts(user_id: str, limit: int) -> list[dict]:
     return out
 
 
+def _dual_write_s7_read_if_applicable(alert: dict, user_id: str) -> None:
+    """Read-state parity fix (owner authorization). While an S7 fire's
+    ephemeral copy still exists, `get_alerts()`'s dedup (by accession)
+    means that's the ONLY copy the member ever sees/marks read -- the
+    durable reconstruction is filtered out until the ephemeral copy is
+    gone. Without this, marking the ephemeral copy read updates only
+    process memory: if the process dies before that copy's 24h TTL
+    naturally expires, the durable reconstruction can reappear as unread
+    once it becomes the only copy left. Scoped to document-arrival only
+    (the only S7 trigger type that reaches this store today) -- never
+    raises, matching this module's existing "a taxonomy failure degrades,
+    never breaks the feed" posture.
+    """
+    data = alert.get("data")
+    if not isinstance(data, dict) or data.get("source") != "document_arrival":
+        return
+    accession = data.get("accession")
+    if not accession:
+        return
+    try:
+        from api.services.alert_taxonomy import receipts as _at_receipts
+        _at_receipts.mark_fire_read_by_fire_key(f"occ:{accession}", user_id)
+    except Exception:
+        pass
+
+
 def _mark_s7_fire_read(alert_id: str, user_id: str) -> bool:
     try:
         fire_id = int(alert_id[len(_S7_FIRE_PREFIX):])
@@ -307,6 +333,7 @@ def mark_read(alert_id: str, user_id: str) -> bool:
             if not a["read"]:
                 a["read"] = True
                 cache.set(_user_key(user_id), mine, ttl=_TTL)
+            _dual_write_s7_read_if_applicable(a, user_id)
             return True
 
     # A broadcast row is SHARED — record the read mark against the member, not

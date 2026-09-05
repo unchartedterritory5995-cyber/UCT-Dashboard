@@ -230,6 +230,30 @@ def mark_fire_read(fire_id: int, user_id: str, *, read_at: Optional[float] = Non
         conn.close()
 
 
+def mark_fire_read_by_fire_key(fire_key: str, user_id: str, *, read_at: Optional[float] = None, db_path: str | None = None) -> bool:
+    """Same ownership-scoped, idempotent read-mark as mark_fire_read, but
+    looked up by fire_key rather than durable row id -- the read-state
+    parity fix (owner authorization). An EPHEMERAL alert's own `data`
+    carries `accession`/`fire_key` info but never the durable row's own
+    `id` (the two stores use different id schemes by design, see
+    api/services/alerts.py's dedup comment), so the ephemeral mark-read
+    path needs this lookup to dual-write the durable row it corresponds
+    to. Scoped by user_id exactly like mark_fire_read -- fire_key alone is
+    only unique per predicate, not globally."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        cur = conn.execute(
+            "UPDATE alert_fires SET read_at = COALESCE(read_at, ?) "
+            "WHERE fire_key = ? AND predicate_id IN (SELECT id FROM alert_predicates WHERE user_id = ?)",
+            (read_at if read_at is not None else time.time(), fire_key, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def mark_all_fires_read(user_id: str, *, read_at: Optional[float] = None, db_path: str | None = None) -> int:
     """Mark every one of the caller's own currently-unread fires read.
     Returns the count newly marked (mirrors alerts.mark_all_read's contract)."""

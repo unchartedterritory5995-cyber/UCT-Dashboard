@@ -191,3 +191,57 @@ class TestFeedCoexistenceAndBounds:
 
 def _clear_cache_broadcast_kept():
     cache.delete_prefix("alerts:")
+
+
+class TestReadStateParity:
+    """Part C: the ephemeral copy is the ONLY copy the member ever sees/marks
+    read while it exists (dedup hides the durable reconstruction) — these
+    prove mark_read on THAT ephemeral id dual-writes the durable row, so the
+    read state survives once the ephemeral copy is gone."""
+
+    def test_marking_the_visible_ephemeral_copy_dual_writes_the_durable_fire(self, monkeypatch):
+        _register_and_fire(monkeypatch, "PYPL", "u_a")
+        rows = _s7_rows("u_a")
+        assert len(rows) == 1
+        ephemeral_id = rows[0]["id"]
+        assert not ephemeral_id.startswith("s7fire_"), "fixture broke: expected the ephemeral copy's own id scheme"
+        assert rows[0]["read"] is False
+
+        assert alerts_svc.mark_read(ephemeral_id, "u_a") is True
+
+        _clear_cache()
+        durable_rows = _s7_rows("u_a")
+        assert len(durable_rows) == 1
+        assert durable_rows[0]["read"] is True, (
+            "durable reconstruction reappeared UNREAD after the ephemeral copy "
+            "was marked read and then lost -- the exact gap this fix closes"
+        )
+
+    def test_repeated_mark_read_on_the_ephemeral_copy_is_idempotent(self, monkeypatch):
+        _register_and_fire(monkeypatch, "SQ", "u_a")
+        ephemeral_id = _s7_rows("u_a")[0]["id"]
+
+        assert alerts_svc.mark_read(ephemeral_id, "u_a") is True
+        assert alerts_svc.mark_read(ephemeral_id, "u_a") is True
+
+        _clear_cache()
+        assert _s7_rows("u_a")[0]["read"] is True
+
+    def test_another_user_cannot_dual_write_via_someone_elses_ephemeral_copy(self, monkeypatch):
+        _register_and_fire(monkeypatch, "SHOP", "u_a")
+        ephemeral_id = _s7_rows("u_a")[0]["id"]
+
+        ok = alerts_svc.mark_read(ephemeral_id, "u_b")
+        assert ok is False, "a different user marked-read someone else's alert via its ephemeral id"
+
+        _clear_cache()
+        assert _s7_rows("u_a")[0]["read"] is False, "another user's failed mark-read leaked into the owner's durable read state"
+
+    def test_legacy_alert_read_behavior_is_unaffected(self, monkeypatch):
+        alerts_svc.add_alert("scanner_match", "New candidate", "XYZ crossed threshold.", user_id="u_a")
+        legacy_row = [a for a in alerts_svc.get_alerts(limit=20, user_id="u_a") if a["type"] == "scanner_match"][0]
+
+        assert alerts_svc.mark_read(legacy_row["id"], "u_a") is True
+        rows = alerts_svc.get_alerts(limit=20, user_id="u_a")
+        legacy_row = [a for a in rows if a["type"] == "scanner_match"][0]
+        assert legacy_row["read"] is True, "legacy per-member alert read behavior regressed"
