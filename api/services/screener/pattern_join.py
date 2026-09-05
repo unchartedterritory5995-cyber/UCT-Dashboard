@@ -429,10 +429,20 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     touching that function or anything it feeds (snapshot_builder.py,
     screener_rows, the live nightly cron, or any member-facing output).
 
-    NOT called by snapshot_builder.py or any scheduled job. Its only caller
-    is the Package-8C shadow-parity test, which compares this function's
-    output against read_pattern_fields()'s real output for the same
-    targets to prove the canonical read adds evidence without changing
+    NOT called by snapshot_builder.py or any scheduled job — the shared,
+    universe-wide `screener_rows` snapshot every user's scan reads is still
+    built exclusively from `read_pattern_fields`, unconditionally, for
+    everyone.
+
+    ⚠️ THIS DOCSTRING PREVIOUSLY SAID "its only caller is the Package-8C
+    shadow-parity test" — that stopped being true the moment Package 8G-B's
+    `pattern_join.apply_canonical_pilot_overlay` started calling this
+    function too (still gated: `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED=1`
+    AND an admin/pilot caller AND a PEG-only match — see that function's own
+    docstring). This function is reachable from live application code now,
+    not just from tests: its own shadow-parity test still compares this
+    function's output against `read_pattern_fields()`'s real output for the
+    same targets to prove the canonical read adds evidence without changing
     detector-level facts (identity, direction, best-detection selection).
 
     Additive over read_pattern_fields's own SELECT: eligibility_json (the
