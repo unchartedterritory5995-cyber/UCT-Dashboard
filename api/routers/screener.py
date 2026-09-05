@@ -235,7 +235,7 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         # id off the client-supplied spec would let any member screen any other
         # member's lists.
         return scr_query.run_scan(spec.model_dump(),
-                                  user_id=(user or {}).get("id"))
+                                  user_id=(user or {}).get("id"), user=user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
