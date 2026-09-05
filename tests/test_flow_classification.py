@@ -282,39 +282,51 @@ def test_alpha_leaps_ask_premium_ledger_sums_only_ask(monkeypatch):
 
 
 # ── UCT Ask Accumulation — aggregate ask-build tier, any DTE (2026-09-04) ──
-# Same aggregate-ask machinery as Alpha LEAPS but WITHOUT the 180-DTE cap and at
-# a $1M floor, gated to DORMANT names via _is_dormant_ticker (NOT in the last-30-
-# day active set) — NOT _is_unusual_classification, whose hard V/OI>=5 gate would
-# reject a build that accrues through moderate-V/OI prints (the PPTA shape). A
-# quiet-name build usually prints YELLOW/WHITE per-print, so the tier ALSO
-# promotes to MAGENTA on the aggregate to reach the branch. Catches the PPTA 35C
-# 01/15/27 case (~$1.19M across a $484.5K block + a $679.9K sweep, all ask, ~133
-# DTE) that fell under the $1M single-print Alpha floor, under 180 DTE for Alpha
-# LEAPS, and the $3M by-contract accum push. Precedence: Alpha LEAPS > Alpha Gold
-# > Ask Accumulation > LEAPS / Unusual / Size / Bullish.
+# Same aggregate-ask machinery as Alpha LEAPS but WITHOUT the 180-DTE cap and at a
+# $1M floor. 2026-09-05 REDESIGN (both verified against flow.db):
+#   (1) The ask ledger now counts BLANK-side SWEEPs as presumed-ask
+#       (sweep_empty_side_as_ask), so a build made mostly of blank sweeps reaches
+#       its true aggregate. PPTA 35C 01/15/27 = a $484.5K A-block + 3 blank sweeps
+#       ($679.9K + $28.6K + $18.0K) = ~$1.21M; the old A/AA-only ledger saw only
+#       the $484.5K block and fell under the floor.
+#   (2) The noise guard is CONTRACT-LEVEL conviction (_ask_accum_conviction:
+#       session ask VOLUME / contract OI >= ask_accum_min_contract_voi = a NEW
+#       build), NOT name-level dormancy. PPTA is an ACTIVE name (alerts almost
+#       daily) so the dormancy gate wrongly excluded it — yet the 35C build is
+#       7,277 ask vol vs 2,321 OI = 3.1x, unambiguous new positioning.
+# Precedence: Alpha LEAPS > Alpha Gold > Ask Accumulation > LEAPS/Unusual/Size.
 
 _AATH = {"ask_accum_enabled": True,
          "ask_accum_min_aggregate_premium": 1_000_000,
          "ask_accum_max_otm_pct": 50.0,
-         "ask_accum_require_unusual": True}
+         "ask_accum_require_unusual": True,
+         "ask_accum_min_contract_voi": 1.0,
+         "fresh_strike_min_volume": 100}
 
 
 def _accrow(**over):
     # MAGENTA so it reaches the tier branch; DTE 133 (NOT a LEAP, and a sub-$1M
-    # single print so NOT Alpha Gold); ask side; V/OI>1. The PPTA 35C shape.
-    r = {"Color": "MAGENTA", "Type": "SWEEP", "Premium": "679900", "Side": "A",
-         "Dte": "133", "Volume": "4000", "OI": "1500", "Symbol": "PPTA"}
+    # single print so NOT Alpha Gold); ask side. Real PPTA 35C shape: OI 2321,
+    # contract session ask volume ~7277 → V/OI ~3.1 (a NEW build).
+    r = {"Color": "MAGENTA", "Type": "SWEEP", "Premium": "679865", "Side": "A",
+         "Dte": "133", "Volume": "4000", "OI": "2321", "Symbol": "PPTA"}
     r.update(over)
     return r
 
 
-def test_ask_accum_fires_on_dormant_name_aggregate(monkeypatch):
-    # Dormant name, sub-$1M single prints, ~$1.19M session ask aggregate → the
-    # tier the single-print gates all miss.
+# agg_ask_premium ~$1.21M (PPTA 35C session ask total, blank sweeps incl.);
+# agg_ask_volume 7277 vs OI 2321 → V/OI 3.1x (contract-level conviction).
+_PPTA_PREM = 1_210_952
+_PPTA_VOL = 7277
+
+
+def test_ask_accum_fires_on_active_name_with_contract_conviction(monkeypatch):
+    # THE PPTA CASE: an ACTIVE name (not dormant) whose 35C is a genuine NEW build
+    # (ask vol >> OI). The single-print gates all miss it; this tier catches it.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+        _accrow(), "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier == "ask_accum"
     assert name == "UCT Ask Accumulation Bull"
 
@@ -323,72 +335,85 @@ def test_ask_accum_counts_blocks(monkeypatch):
     # BLOCK is excluded from Alpha Gold, but Ask Accumulation grades the whole
     # position — the block premium is already in agg_ask_premium.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
-    r = _accrow(Type="BLOCK", Premium="484500")
+    r = _accrow(Type="BLOCK", Premium="484532")
     name, tier, _ = m._derive_alert_name(
-        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier == "ask_accum"
 
 
 def test_ask_accum_yellow_print_promotes_and_fires(monkeypatch):
-    # THE PPTA FIX: a moderate-V/OI print is YELLOW (not MAGENTA), so it never
-    # reached the tier branch. The aggregate promotion pulls it in when the
-    # SESSION ask total clears the floor on a dormant name.
+    # A moderate-V/OI print is YELLOW (not MAGENTA), so it never reached the tier
+    # branch. The aggregate promotion pulls it in when the SESSION ask total clears
+    # the floor AND the contract shows new-build conviction.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     r = _accrow(Color="YELLOW")
     name, tier, _ = m._derive_alert_name(
-        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier == "ask_accum"
 
 
-def test_ask_accum_yellow_not_promoted_when_not_dormant(monkeypatch):
-    # A YELLOW print on a LIQUID name with a big aggregate is NOT promoted — the
-    # promotion is scoped to dormant names so megacap churn can't trip it.
+def test_ask_accum_churn_on_existing_oi_does_not_fire(monkeypatch):
+    # THE NOISE GUARD: a big aggregate but LOW contract V/OI — a roll/adjustment on
+    # a large STANDING position (the megacap-churn shape that disabled accum). Ask
+    # vol 900 vs OI 200000 = 0.005x → not a new build → must NOT fire.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
-    r = _accrow(Color="YELLOW")
-    name, tier, _ = m._derive_alert_name(
-        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
-    assert tier != "ask_accum"
+    r = _accrow(OI="200000")
+    res = m._derive_alert_name(
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=900)
+    assert res is None or res[1] != "ask_accum"
 
 
-def test_ask_accum_requires_dormant_name(monkeypatch):
-    # A LIQUID name (in the active set) with the same aggregate does NOT fire —
-    # this is what keeps daily megacap churn out (the noise that disabled
-    # accum_enabled). Even MAGENTA, the dormant gate blocks it.
+def test_ask_accum_yellow_churn_not_promoted(monkeypatch):
+    # Same churn shape, YELLOW: the aggregate promotion is also gated on contract
+    # conviction, so a low-V/OI YELLOW row is not promoted to the tier.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
+    r = _accrow(Color="YELLOW", OI="200000")
+    res = m._derive_alert_name(
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=900)
+    assert res is None or res[1] != "ask_accum"
+
+
+def test_ask_accum_fresh_strike_conviction(monkeypatch):
+    # OI unknown/zero (a brand-new strike): every contract trading is new exposure
+    # → qualifies when ask volume clears the fresh floor.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    r = _accrow(OI="0")
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
-    assert tier != "ask_accum"
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=500)
+    assert tier == "ask_accum"
 
 
-def test_ask_accum_require_unusual_off_fires_on_any_name(monkeypatch):
-    # With the guard relaxed, the aggregate alone qualifies (even a liquid name).
+def test_ask_accum_require_unusual_off_fires_without_conviction(monkeypatch):
+    # With the guard relaxed, the aggregate alone qualifies — no contract-V/OI test.
     th = dict(_AATH, ask_accum_require_unusual=False)
     monkeypatch.setattr(m, "_load_thresholds", lambda: th)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
+    r = _accrow(OI="200000")
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+        r, "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=900)
     assert tier == "ask_accum"
 
 
 def test_ask_accum_under_floor_does_not_fire(monkeypatch):
     # Aggregate below $1M → not a build → falls through to its single-print tier.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=900_000)
+        _accrow(), "Bull", money_pct=-28.6,
+        agg_ask_premium=900_000, agg_ask_volume=_PPTA_VOL)
     assert tier != "ask_accum"
 
 
 def test_ask_accum_deep_otm_excluded(monkeypatch):
-    # Huge aggregate but beyond the near-money bound → not a conviction build.
+    # Huge aggregate + conviction but beyond the near-money bound → not a build.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-60.0, agg_ask_premium=1_164_400)
+        _accrow(), "Bull", money_pct=-60.0,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier != "ask_accum"
 
 
@@ -396,10 +421,10 @@ def test_ask_accum_bid_side_not_fired(monkeypatch):
     # Bid-side flow is not an ASK build — the ledger sums ask only, but guard the
     # side explicitly too.
     monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     r = _accrow(Side="BB")
     name, tier, _ = m._derive_alert_name(
-        r, "Bear", money_pct=-28.6, agg_ask_premium=1_164_400)
+        r, "Bear", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier != "ask_accum"
 
 
@@ -407,10 +432,95 @@ def test_ask_accum_kill_switch(monkeypatch):
     # Disabled → the same row reverts to its single-print tier.
     th = dict(_AATH, ask_accum_enabled=False)
     monkeypatch.setattr(m, "_load_thresholds", lambda: th)
-    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
     name, tier, _ = m._derive_alert_name(
-        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+        _accrow(), "Bull", money_pct=-28.6,
+        agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert tier != "ask_accum"
+
+
+# ── Ask ledger — blank-side SWEEPs count as presumed-ask (THE PPTA BUG FIX) ──
+# The 9/4 PPTA 35C build in flow.db: one A BLOCK + three BLANK-side SWEEPs. The
+# old ledger query pulled Side IN (A/AA/B/BB) only, so the aggregate was just the
+# $484.5K block — under the $1M floor — and ask_accum could never fire, dormancy
+# gate or not. These pin the presumption into the CONTRACT aggregate.
+
+def _ppta_ledger_rows():
+    K = dict(Symbol="PPTA", CallPut="CALL", Strike="35", ExpirationDate="1/15/2027")
+    return [
+        {"id": 1, "Side": "",  "Type": "SWEEP", "Premium": "679865", "Volume": "4000", **K},
+        {"id": 2, "Side": "A", "Type": "BLOCK", "Premium": "484532", "Volume": "3000", **K},
+        {"id": 3, "Side": "",  "Type": "SWEEP", "Premium": "28560",  "Volume": "168",  **K},
+        {"id": 4, "Side": "",  "Type": "SWEEP", "Premium": "17995",  "Volume": "109",  **K},
+    ]
+
+
+def test_ask_premium_ledger_counts_blank_sweeps():
+    led = m._build_session_ask_premium_ledger(_ppta_ledger_rows(), presume_sweep_ask=True)
+    assert led[1] == 1_210_952           # full contract aggregate on every row
+    assert led[2] == 1_210_952
+
+
+def test_ask_premium_ledger_strict_excludes_blank_sweeps():
+    led = m._build_session_ask_premium_ledger(_ppta_ledger_rows(), presume_sweep_ask=False)
+    assert led[2] == 484_532             # only the A block — the pre-fix behaviour
+
+
+def test_ask_volume_ledger_counts_blank_sweeps():
+    led = m._build_session_ask_volume_ledger(_ppta_ledger_rows(), presume_sweep_ask=True)
+    assert led[1] == 7277                # 4000 + 3000 + 168 + 109
+    assert led[2] == 7277
+
+
+def test_ask_ledger_blank_block_stays_strict():
+    # A BLANK-side BLOCK (not a sweep) is NOT presumed ask — blocks stay strict.
+    rows = [{"id": 9, "Side": "", "Type": "BLOCK", "Premium": "999999", "Volume": "500",
+             "Symbol": "X", "CallPut": "CALL", "Strike": "10", "ExpirationDate": "1/1/2027"}]
+    assert m._build_session_ask_premium_ledger(rows, presume_sweep_ask=True)[9] == 0.0
+
+
+def test_ask_accum_conviction_helper():
+    th = {"ask_accum_min_contract_voi": 1.0, "fresh_strike_min_volume": 100}
+    assert m._ask_accum_conviction(2321, 7277, th) is True     # PPTA: 3.1x
+    assert m._ask_accum_conviction(200000, 900, th) is False   # churn: 0.005x
+    assert m._ask_accum_conviction(0, 500, th) is True         # fresh strike, over floor
+    assert m._ask_accum_conviction(0, 50, th) is False         # fresh strike, under floor
+
+
+# ── Deep-OTM lottery EXEMPTION (the deepest PPTA blocker) ───────────────────
+# The PPTA 35C 01/15/27 at spot ~$24.81 is ~41% OTM vs spot — past the 30%-BLOCK
+# lottery bar in _row_to_alert's noise filter 2, so it was discarded BEFORE
+# classification, no matter how the tier gates were tuned. _ask_accum_qualifies
+# now exempts a real ask BUILD from that drop. These run the FULL _row_to_alert.
+
+def _ppta_full_row(**over):
+    r = {"id": 2, "Symbol": "PPTA", "CallPut": "CALL", "Strike": "35",
+         "ExpirationDate": "1/15/2027", "Dte": "133", "CreatedDate": "9/4/2026",
+         "CreatedTime": "12:00:00", "Side": "A", "Type": "BLOCK",
+         "Premium": "484532", "Volume": "3000", "OI": "2321", "Spot": "24.81",
+         "Price": "1.62", "Color": "YELLOW", "StockEtf": "stock", "Sector": "Materials",
+         "ER": "", "Uoa": "", "Weekly": "", "source": "stocks",
+         "MktCap": "2000000000", "ImpliedVolatility": "0.8"}
+    r.update(over)
+    return r
+
+
+def test_row_to_alert_exempts_ask_accum_build_from_deep_otm_drop(monkeypatch):
+    # 41% OTM vs spot, but a ~$1.21M ask build at 3.1x contract V/OI → conviction,
+    # NOT a lottery. Survives noise filter 2 and classifies ask_accum end-to-end.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    a = m._row_to_alert(_ppta_full_row(),
+                        agg_ask_premium=1_210_952, agg_ask_volume=7277)
+    assert a is not None and a["_tierKey"] == "ask_accum"
+    assert a["aggAskPremium"] == 1_210_952
+
+
+def test_row_to_alert_still_drops_deep_otm_lottery(monkeypatch):
+    # SAME 41%-OTM contract but a lone thin print with NO session aggregate → the
+    # retail lottery the filter exists to drop. Exemption must NOT rescue it.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    a = m._row_to_alert(_ppta_full_row(Premium="8000", Volume="50"),
+                        agg_ask_premium=0.0, agg_ask_volume=0.0)
+    assert a is None
 
 
 def test_alpha_gold_beats_ask_accum(monkeypatch):
