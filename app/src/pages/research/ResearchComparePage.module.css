@@ -1,0 +1,32 @@
+.page { padding: 18px 22px 26px; height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--bg); color: var(--text); }
+
+.loading, .errorBox { padding: 24px; color: var(--text-muted); }
+.errorBox { color: var(--text); background: var(--bg-elevated); border-radius: 8px; }
+.backLink { margin-top: 12px; background: none; border: none; color: var(--ut-gold); cursor: pointer; font-size: var(--text-sm); padding: 0; }
+
+.hdr { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; margin-bottom: 16px; }
+.hdrTitle { font-size: 18px; font-weight: 800; color: var(--text-heading); }
+.vs { color: var(--text-muted); font-weight: 500; margin: 0 4px; }
+.hdrActions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.hdrBtn { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: var(--text-sm); cursor: pointer; min-height: var(--tap-min); }
+.hdrBtn:hover { border-color: var(--ut-gold); }
+
+/* Desktop: true side-by-side. Mobile: single stacked column (never two
+   desktop columns crammed into a phone viewport — B10). */
+.columns2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.stackPhone { display: flex; flex-direction: column; gap: 14px; }
+
+.notFound { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
+.caveat { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
+.footnote { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
+
+.tbl { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.tbl thead th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.tbl tbody th { color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .page { padding: 14px 14px 20px; }
+  .hdrActions { width: 100%; }
+  .hdrBtn { flex: 1; }
+}
