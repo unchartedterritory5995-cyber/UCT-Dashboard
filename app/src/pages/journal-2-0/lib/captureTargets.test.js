@@ -133,3 +133,44 @@ describe('the inbox wire carries capture-time annotations', () => {
     expect(body.annotations).toEqual([expect.objectContaining({ id: 'mon-line' })])
   })
 })
+
+// ── Wave 1 (P1-1): a comment/trade link must survive every destination ─────
+describe('the inbox wire carries a comment and trade link', () => {
+  it('POST /api/j2/inbox includes caption and tradeRef from the built attrs', async () => {
+    const msg = await sendCaptureToJournal('chart', CAP, {
+      label: 'AMD', target: 'inbox', comment: 'watching for a breakout', tradeRef: 'tr_1',
+    })
+    expect(msg).toBe('AMD captured → Notebook inbox')
+    const inboxCall = journalCalls().find((c) => c.url === '/api/j2/inbox')
+    const body = JSON.parse(inboxCall.body)
+    expect(body.caption).toBe('watching for a breakout')
+    expect(body.tradeRef).toBe('tr_1')
+  })
+
+  it('omitting a comment leaves every existing door byte-identical (no caption/tradeRef keys forced)', async () => {
+    await sendCaptureToJournal('chart', CAP, { label: 'AMD', target: 'inbox' })
+    const inboxCall = journalCalls().find((c) => c.url === '/api/j2/inbox')
+    const body = JSON.parse(inboxCall.body)
+    expect(body.caption).toBeFalsy()
+    expect(body.tradeRef).toBeFalsy()
+  })
+})
+
+describe('a comment/trade link also reaches the "current note" and "new entry" destinations', () => {
+  it('append-to-note posts the full attrs, including caption and tradeRef', async () => {
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now(), title: 'T' }))
+    await sendCaptureToJournal('chart', CAP, { label: 'AMD', comment: 'nice setup', tradeRef: 'tr_2' })
+    const appendCall = journalCalls().find((c) => c.url === '/api/j2/notes/n1/embeds')
+    const body = JSON.parse(appendCall.body)
+    expect(body.attrs.caption).toBe('nice setup')
+    expect(body.attrs.tradeRef).toBe('tr_2')
+  })
+
+  it('newNote posts the full attrs, including caption and tradeRef', async () => {
+    await sendCaptureToJournal('chart', CAP, { label: 'AMD', target: 'newNote', comment: 'nice setup', tradeRef: 'tr_3' })
+    const post = journalCalls().find((c) => c.url === '/api/j2/notes' && c.method === 'POST')
+    const body = JSON.parse(post.body)
+    expect(body.bodyJson.content[0].attrs.caption).toBe('nice setup')
+    expect(body.bodyJson.content[0].attrs.tradeRef).toBe('tr_3')
+  })
+})

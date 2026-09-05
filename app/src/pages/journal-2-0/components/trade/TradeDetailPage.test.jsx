@@ -7,12 +7,13 @@ const navigateSpy = vi.fn()
 
 // Mutable per-feature flag state for the tradePng action-group tests. `vi.hoisted`
 // so the factory below can close over it before the module is imported.
-const { mockFlags, renderTradeCardPngMock, downloadBlobMock, copyBlobMock } =
+const { mockFlags, renderTradeCardPngMock, downloadBlobMock, copyBlobMock, sendCaptureMock } =
   vi.hoisted(() => ({
     mockFlags: { tradePng: true, adherence: true },
     renderTradeCardPngMock: vi.fn(),
     downloadBlobMock: vi.fn(),
     copyBlobMock: vi.fn(),
+    sendCaptureMock: vi.fn(() => Promise.resolve('NVDA sent to “Tuesday”')),
   }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -31,6 +32,9 @@ vi.mock('../../lib/tradeCardPng', () => ({
 vi.mock('../../../../components/chart/chartScreenshot', () => ({
   downloadBlob: (...a) => downloadBlobMock(...a),
   copyBlobToClipboard: (...a) => copyBlobMock(...a),
+}))
+vi.mock('../../lib/sendToJournal', () => ({
+  sendCaptureToJournal: (...a) => sendCaptureMock(...a),
 }))
 
 const FAKE_BLOB = new Blob(['png'], { type: 'image/png' })
@@ -129,6 +133,7 @@ beforeEach(() => {
   renderTradeCardPngMock.mockReset().mockResolvedValue(FAKE_BLOB)
   downloadBlobMock.mockReset()
   copyBlobMock.mockReset().mockResolvedValue(true)
+  sendCaptureMock.mockClear()
 })
 
 function renderPage(id = 't1') {
@@ -222,6 +227,26 @@ describe('TradeDetailPage', () => {
   it('renders the missing state for an unknown / option id', () => {
     renderPage('missing')
     expect(screen.getByText(/isn’t available/)).toBeInTheDocument()
+  })
+})
+
+describe('TradeDetailPage — Save to Notebook (Wave 1, P1-1: tradeRef)', () => {
+  it('captures this trade\'s chart, framed to the holding window, tagged with tradeRef', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /save to notebook/i }))
+    fireEvent.click(await screen.findByText('Notebook inbox'))
+
+    await waitFor(() => expect(sendCaptureMock).toHaveBeenCalledTimes(1))
+    const [widgetId, capture, opts] = sendCaptureMock.mock.calls[0]
+    expect(widgetId).toBe('chart')
+    expect(capture.symbol).toBe('NVDA')
+    expect(capture.tf).toBe('D')
+    // Framed around the holding window (entryDate 2026-05-01 → exitDate
+    // 2026-05-04), not "now" — a closed trade's chart should show the trade.
+    expect(capture.from).toBeLessThan(Date.parse('2026-05-01') / 1000)
+    expect(capture.to).toBeGreaterThan(Date.parse('2026-05-04') / 1000)
+    expect(opts.target).toBe('inbox')
+    expect(opts.tradeRef).toBe('t1')
   })
 })
 

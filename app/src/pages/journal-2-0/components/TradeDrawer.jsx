@@ -9,15 +9,30 @@
  * Hosts the "Tell me about this trade" Compass review surface.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
+import CaptureMenu from './CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
+import { useJournalToast, JournalToast } from '../lib/useJournalToast'
+
+// A trade has no live chart mounted here — frame the capture around the
+// holding period itself (±5 sessions) so "save this trade's chart" shows
+// the setup, not whatever the market is doing today.
+const DAY_SECONDS = 86400
+function tradeChartWindow(trade) {
+  const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
+  const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
+  if (!Number.isFinite(entry)) return {}
+  const fromMs = entry - 5 * DAY_SECONDS * 1000
+  const toMs = (Number.isFinite(exit) ? exit : entry) + 5 * DAY_SECONDS * 1000
+  return { from: Math.floor(fromMs / 1000), to: Math.floor(toMs / 1000) }
+}
 
 const _excFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -28,6 +43,8 @@ const _excFetcher = (url) =>
 export default function TradeDrawer({ trade, accountId, onClose }) {
   const isPhone = useIsPhone()
   const isPaid = useIsPaid()
+  const [captureMenu, setCaptureMenu] = useState(null)
+  const [journalMsg, setJournalMsg] = useJournalToast()
   // Option strategies: their excursion keys on id:<strategy id> and is served
   // by /strategies/{id}/excursion. Contract tier only ('option_daily') gets
   // surfaced — 'underlying'/'insufficient' rows add nothing to this compact
@@ -122,18 +139,36 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close drawer"
-            style={{
-              background: 'transparent', border: 'none',
-              color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer',
-              lineHeight: 1, padding: '2px 6px',
-            }}
-          >
-            <UIcon name="x" size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              type="button"
+              onClick={(e) => setCaptureMenu({
+                anchor: { x: e.clientX, y: e.clientY },
+                capture: { symbol: trade.symbol, tf: 'D', ...tradeChartWindow(trade) },
+              })}
+              aria-label="Save to Notebook"
+              title="Save to Notebook"
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', cursor: 'pointer',
+                lineHeight: 1, padding: '2px 6px', display: 'flex', alignItems: 'center',
+              }}
+            >
+              <UIcon name="journal" size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close drawer"
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer',
+                lineHeight: 1, padding: '2px 6px',
+              }}
+            >
+              <UIcon name="x" size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Trade detail grid */}
@@ -240,8 +275,19 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
             />
           </div>
           </>)}
+          <JournalToast msg={journalMsg} />
         </div>
       </aside>
+      <CaptureMenu
+        open={!!captureMenu}
+        onClose={() => setCaptureMenu(null)}
+        anchor={captureMenu?.anchor}
+        widgetId="chart"
+        capture={captureMenu?.capture || { symbol: trade.symbol }}
+        label={trade.symbol}
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        onSent={setJournalMsg}
+      />
     </>
   )
 }

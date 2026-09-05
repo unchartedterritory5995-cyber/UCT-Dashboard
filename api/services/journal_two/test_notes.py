@@ -711,6 +711,27 @@ def test_capture_inbox_crud(conn):
         )
 
 
+def test_capture_inbox_carries_a_comment_and_trade_ref(conn):
+    # Wave 1 (P1-1): a member-typed comment or trade link must survive
+    # regardless of which destination a capture is routed to. "current
+    # note"/"new entry" already carry these via the full widgetEmbed attrs
+    # bag; the inbox row needs its own columns for the same two fields.
+    svc.create_capture("u1", {
+        "widgetId": "chart", "params": {"symbol": "AMD"},
+        "caption": "watching for a breakout", "tradeRef": "tr_42",
+    }, conn=conn)
+    row = svc.list_captures("u1", conn=conn)[0]
+    assert row["caption"] == "watching for a breakout"
+    assert row["tradeRef"] == "tr_42"
+
+
+def test_capture_inbox_comment_and_trade_ref_are_optional(conn):
+    svc.create_capture("u1", {"widgetId": "chart", "params": {}}, conn=conn)
+    row = svc.list_captures("u1", conn=conn)[0]
+    assert row["caption"] is None
+    assert row["tradeRef"] is None
+
+
 def test_capture_inbox_carries_capture_time_annotations(conn):
     # Chart-parity review finding: the inbox wire dropped annotations, so the
     # tray's place() re-seeded drawings from the LIVE store at placement time —

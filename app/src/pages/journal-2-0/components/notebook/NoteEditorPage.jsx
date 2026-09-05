@@ -128,6 +128,10 @@ export function CaptureInboxTray({ editor, onPlaced }) {
         // shows what was on screen at CAPTURE, not at placement (review
         // finding). Legacy rows without the field keep the re-seed.
         ...(Array.isArray(cap.annotations) ? { annotations: cap.annotations } : {}),
+        // Wave 1 (P1-1): a comment/trade link typed before banking to the
+        // inbox must still be there once the capture is placed into a note.
+        ...(cap.caption ? { caption: cap.caption } : {}),
+        ...(cap.tradeRef ? { tradeRef: cap.tradeRef } : {}),
       }).run()
     if (!ok) return
     placedIdsRef.current.add(cap.id)

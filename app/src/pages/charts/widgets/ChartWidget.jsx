@@ -20,6 +20,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
@@ -399,6 +400,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setCtxToast(await sendCaptureToJournal('chart', buildJournalCapture()))
   }, [buildJournalCapture, closeCtx])
 
+  // Wave 1 (P1-1): the optional destination + comment picker, a SEPARATE
+  // secondary trigger next to the one-click default above — that default
+  // stays byte-identical. Captures ONCE, at the moment this menu opens, so a
+  // range dragged while the member is still typing a comment can never
+  // freeze a different window than what they saw when they opened it.
+  const [captureMenu, setCaptureMenu] = useState(null) // {anchor, capture}
+  const handleSendToJournalChoose = useCallback(() => {
+    const anchor = { x: ctxMenu?.rawX ?? ctxMenu?.x ?? 0, y: ctxMenu?.rawY ?? ctxMenu?.y ?? 0 }
+    setCaptureMenu({ anchor, capture: buildJournalCapture() })
+    closeCtx()
+  }, [buildJournalCapture, ctxMenu, closeCtx])
+
   // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
   // every other chart key uses: only the last-hovered chart answers, so one
   // press banks ONE chart into the inbox even with six on the board.
@@ -620,6 +633,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
+                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournalChoose}>
+                  <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
+                </button>
                 <button type="button" className={styles.chartCtxItem} onClick={() => {
                   ctxMenu.resetView?.(); closeCtx()
                   // Return focus to the chart so type-to-search works immediately (else
@@ -713,6 +729,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             />
           </div>
         </>
+      )}
+
+      {captureMenu && (
+        <CaptureMenu
+          open
+          onClose={() => setCaptureMenu(null)}
+          anchor={captureMenu.anchor}
+          widgetId="chart"
+          capture={captureMenu.capture}
+          label={symRef.current}
+          onSent={(msg) => setCtxToast(msg)}
+        />
       )}
     </>
   )

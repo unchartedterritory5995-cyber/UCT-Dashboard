@@ -37,7 +37,22 @@ import TradeReplay from './TradeReplay'
 import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
+import CaptureMenu from '../CaptureMenu'
+import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
+
+// A trade has no live-pane range reachable from here — frame the capture
+// around the holding period itself (±5 sessions) so "save this trade" shows
+// the setup, not whatever the market is doing today (Wave 1, P1-1: tradeRef).
+const DAY_SECONDS = 86400
+function tradeChartWindow(trade) {
+  const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
+  const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
+  if (!Number.isFinite(entry)) return {}
+  const fromMs = entry - 5 * DAY_SECONDS * 1000
+  const toMs = (Number.isFinite(exit) ? exit : entry) + 5 * DAY_SECONDS * 1000
+  return { from: Math.floor(fromMs / 1000), to: Math.floor(toMs / 1000) }
+}
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -122,6 +137,41 @@ function ReplayButton({ trade }) {
   )
 }
 
+
+/** Save-to-Notebook door for this trade — same CaptureMenu every widget door
+ *  uses, tagged with `tradeRef` so the note carries a link back to this trade
+ *  (Wave 1, P1-1: completes tradeRef wiring). */
+function SaveToNotebookButton({ trade, tf }) {
+  const [captureMenu, setCaptureMenu] = useState(null)
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  if (!trade?.symbol || !trade?.entryDate) return null
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.cardActionBtn}
+        onClick={(e) => setCaptureMenu({
+          anchor: { x: e.clientX, y: e.clientY },
+          capture: { symbol: trade.symbol, tf: tf || 'D', ...tradeChartWindow(trade) },
+        })}
+      >
+        <UIcon name="journal" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        Save to Notebook
+      </button>
+      <JournalToast msg={journalMsg} />
+      <CaptureMenu
+        open={!!captureMenu}
+        onClose={() => setCaptureMenu(null)}
+        anchor={captureMenu?.anchor}
+        widgetId="chart"
+        capture={captureMenu?.capture || { symbol: trade.symbol }}
+        label={trade.symbol}
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        onSent={setJournalMsg}
+      />
+    </>
+  )
+}
 
 function TradeCardActions({ trade }) {
   const flagOn = useFeatureFlag('tradePng')
@@ -418,6 +468,7 @@ export default function TradeDetailPage() {
         )}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
           <ReplayButton trade={trade} />
+          <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
           <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
         </span>

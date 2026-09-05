@@ -21,6 +21,7 @@ import useLivePrices from '../../../hooks/useLivePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
@@ -84,6 +85,8 @@ export default function AlertsWidget({
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
@@ -128,6 +131,15 @@ export default function AlertsWidget({
     (s) => (frozenAlerts ? null : (prices[(s || '').toUpperCase()]?.price ?? null)),
     [frozenAlerts, prices],
   )
+  // Freeze exactly what the widget shows right now — shared by the one-click
+  // default send AND the Wave 1 destination-picker, so both paths capture the
+  // identical payload rather than re-deriving it a second time at Send.
+  const buildAlertsCapture = useCallback(() => ({
+    alerts: allAlerts.map((a) => ({
+      ...a, levelAtCapture: levelNow(a), priceAtCapture: liveFor(a.sym),
+    })),
+    settings,
+  }), [allAlerts, liveFor, settings])
 
   // ── Quick-add — any ticker, a level, above/below ──
   const [ticker, setTicker] = useState('')
@@ -245,24 +257,44 @@ export default function AlertsWidget({
             a position:static door floated beside the title instead of beside
             the gear. right:34 pairs them, same geometry as the calendar's. */}
         {journalDoor && !readOnly && allAlerts.length > 0 && (
-          <button
-            type="button"
-            className={styles.gearBtn}
-            style={{ right: 34 }}
-            onClick={async () => {
-              setJournalMsg('sending…')
-              setJournalMsg(await sendCaptureToJournal('alerts', {
-                alerts: allAlerts.map((a) => ({
-                  ...a, levelAtCapture: levelNow(a), priceAtCapture: liveFor(a.sym),
-                })),
-                settings,
-              }, { label: `${active.length} alerts` }))
-            }}
-            title="Send these alerts to Journal"
-            aria-label="Send these alerts to Journal"
-          ><UIcon name="journal" size={13} /></button>
+          <>
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 34 }}
+              onClick={async () => {
+                setJournalMsg('sending…')
+                setJournalMsg(await sendCaptureToJournal('alerts', buildAlertsCapture(), { label: `${active.length} alerts` }))
+              }}
+              title="Send these alerts to Journal"
+              aria-label="Send these alerts to Journal"
+            ><UIcon name="journal" size={13} /></button>
+            {/* Wave 1 (P1-1): the optional destination + comment picker —
+                a separate trigger next to the one-click default above. */}
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 56 }}
+              onClick={(e) => setCaptureMenu({
+                anchor: { x: e.clientX, y: e.clientY }, capture: buildAlertsCapture(),
+              })}
+              title="Send to Journal — choose where"
+              aria-label="Send to Journal — choose where"
+            ><UIcon name="chevronDown" size={13} /></button>
+          </>
         )}
         <JournalToast msg={journalMsg} />
+        {captureMenu && (
+          <CaptureMenu
+            open
+            onClose={() => setCaptureMenu(null)}
+            anchor={captureMenu.anchor}
+            widgetId="alerts"
+            capture={captureMenu.capture}
+            label={`${active.length} alerts`}
+            onSent={setJournalMsg}
+          />
+        )}
         {!readOnly && (
         <button
           ref={settingsBtnRef}

@@ -24,6 +24,7 @@ import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS, FFILL_KEYS } from '../../breadth/heatmapMetrics'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
@@ -420,6 +421,8 @@ export default function BreadthWidget({
   const fetchedAt = stampRef.current.at
   const [refreshing, setRefreshing] = useState(false)
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
     try { await Promise.all([mutate(), globalMutate(LIVE_URL)]) } finally { setRefreshing(false) }
@@ -506,22 +509,50 @@ export default function BreadthWidget({
         {/* Send to Journal: freeze the shown heat-map into the note (payload capture,
             owner decision). A mid-session capture preserves the live intraday row the
             4:15 collector discards. */}
-        {journalDoor && !readOnly && currentRow && (
-          <button
-            type="button" className={styles.iconBtn}
-            onClick={async () => {
-              setJournalMsg('sending…')
-              const series = {}
-              for (const k of visibleKeys) series[k] = seriesFor(k)
-              setJournalMsg(await sendCaptureToJournal('breadth', {
-                hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
-                tileStyle, settings: bwSettings, row: currentRow, series, updated,
-              }, { label: 'Breadth' }))
-            }}
-            title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
-          ><UIcon name="journal" size={13} /></button>
-        )}
+        {journalDoor && !readOnly && currentRow && (() => {
+          // Freeze exactly what the widget shows right now — shared by the
+          // one-click default send AND the Wave 1 destination-picker, so
+          // both paths capture the identical payload.
+          const buildBreadthCapture = () => {
+            const series = {}
+            for (const k of visibleKeys) series[k] = seriesFor(k)
+            return {
+              hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
+              tileStyle, settings: bwSettings, row: currentRow, series, updated,
+            }
+          }
+          return (
+            <>
+              <button
+                type="button" className={styles.iconBtn}
+                onClick={async () => {
+                  setJournalMsg('sending…')
+                  setJournalMsg(await sendCaptureToJournal('breadth', buildBreadthCapture(), { label: 'Breadth' }))
+                }}
+                title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
+              ><UIcon name="journal" size={13} /></button>
+              <button
+                type="button" className={styles.iconBtn}
+                onClick={(e) => setCaptureMenu({
+                  anchor: { x: e.clientX, y: e.clientY }, capture: buildBreadthCapture(),
+                })}
+                title="Send to Journal — choose where" aria-label="Send to Journal — choose where"
+              ><UIcon name="chevronDown" size={13} /></button>
+            </>
+          )
+        })()}
         <JournalToast msg={journalMsg} />
+        {captureMenu && (
+          <CaptureMenu
+            open
+            onClose={() => setCaptureMenu(null)}
+            anchor={captureMenu.anchor}
+            widgetId="breadth"
+            capture={captureMenu.capture}
+            label="Breadth"
+            onSent={setJournalMsg}
+          />
+        )}
         {!readOnly && (
         <button
           ref={addBtnRef} type="button"

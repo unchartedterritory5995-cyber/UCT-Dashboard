@@ -14,9 +14,13 @@ import { CAPTURE_TARGETS } from './captureTargets'
 
 /** Build the frozen embed attrs for a capture (+ fire the bars warm for
  *  charts). Split out so a caller that wants to offer a TARGET MENU can build
- *  once and route to any target, instead of re-capturing per destination. */
-export function buildCapture(widgetId, capture) {
-  const attrs = buildWidgetEmbedAttrs(widgetId, capture)
+ *  once and route to any target, instead of re-capturing per destination.
+ *  `extra` forwards straight to buildWidgetEmbedAttrs — Wave 1's destination
+ *  menu uses this to carry an optional member-typed `caption` and/or
+ *  `tradeRef` through to the frozen attrs without every one of the 9 call
+ *  sites needing to know that shape. */
+export function buildCapture(widgetId, capture, extra) {
+  const attrs = buildWidgetEmbedAttrs(widgetId, capture, extra)
   // Bars-history warm is a chart concept; other widget types have no
   // (ticker, tf) to deep-fill.
   if (widgetId === 'chart') kickSnapshotWarm(attrs.params)
@@ -27,9 +31,16 @@ export function buildCapture(widgetId, capture) {
  *  toast surface. `label` names the capture in toasts (a symbol, a date…);
  *  `target` selects a captureTargets entry and defaults to the historical
  *  behavior (current note, inbox fallback), so every existing door is
- *  byte-identical without passing anything. */
-export async function sendCaptureToJournal(widgetId, capture, { label, target = 'note' } = {}) {
-  const attrs = buildCapture(widgetId, capture)
+ *  byte-identical without passing anything. `comment`/`tradeRef` (Wave 1,
+ *  P1-1) are optional and forward into the frozen embed attrs — omitted
+ *  entirely, every existing call site's capture is byte-identical to before. */
+export async function sendCaptureToJournal(
+  widgetId, capture, { label, target = 'note', comment, tradeRef } = {},
+) {
+  const extra = {}
+  if (comment) extra.caption = comment
+  if (tradeRef) extra.tradeRef = tradeRef
+  const attrs = buildCapture(widgetId, capture, extra)
   const name = label || attrs.params?.symbol || widgetId
   const t = CAPTURE_TARGETS[target] || CAPTURE_TARGETS.note
   try {

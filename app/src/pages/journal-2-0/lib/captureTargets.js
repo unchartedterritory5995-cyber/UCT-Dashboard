@@ -53,6 +53,11 @@ async function pushToInbox(widgetId, attrs) {
       // otherwise re-seed from the LIVE store at placement time, putting
       // Tuesday's drawings under a "captured Monday" stamp (review finding).
       annotations: attrs.annotations,
+      // Wave 1 (P1-1): a member-typed comment or trade link must survive
+      // regardless of destination — the "current note"/"new entry" targets
+      // already carry these via the full attrs bag; the inbox row needs its
+      // own columns for the same two fields (db.py's Phase-2 ALTERs).
+      caption: attrs.caption, tradeRef: attrs.tradeRef,
     }),
   })
   return res.ok

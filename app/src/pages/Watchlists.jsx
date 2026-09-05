@@ -61,6 +61,7 @@ import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
+import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -980,8 +981,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // price, chgPct} rows as they stand — lists mutate and delete, so the
   // capture is the only durable record. Rendered read-only by FrozenList.
   const [journalMsg, setJournalMsg] = useJournalToast()
-  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
-    setJournalMsg('sending…')
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture, label}.
+  // ONE shared state (not per-list) — only one list's picker can be open at once.
+  const [captureMenu, setCaptureMenu] = useState(null)
+  // Freeze exactly what this list shows right now — shared by the one-click
+  // default send AND the destination-picker, so both paths capture the
+  // identical payload rather than re-deriving it a second time at Send.
+  const buildListCapture = useCallback((watchKey, watchName, items) => {
     const rows = items.map((it) => {
       const sym = typeof it === 'string' ? it : it.sym
       const q = prices[sym]
@@ -992,10 +998,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         ...(Number.isFinite(q?.change_pct) ? { chgPct: q.change_pct } : {}),
       }
     })
-    setJournalMsg(await sendCaptureToJournal('watchlist', {
-      watchKey, watchName, symbols: rows.map((r) => r.sym), rows,
-    }, { label: watchName }))
-  }, [prices, setJournalMsg])
+    return { watchKey, watchName, symbols: rows.map((r) => r.sym), rows }
+  }, [prices])
+  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
+    setJournalMsg('sending…')
+    setJournalMsg(await sendCaptureToJournal('watchlist', buildListCapture(watchKey, watchName, items), { label: watchName }))
+  }, [buildListCapture, setJournalMsg])
+  const chooseListDestination = useCallback((e, watchKey, watchName, items) => {
+    setCaptureMenu({
+      anchor: { x: e.clientX, y: e.clientY },
+      capture: buildListCapture(watchKey, watchName, items),
+      label: watchName,
+    })
+  }, [buildListCapture])
 
   // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
   // a company logo/monogram — they have no company logo.
@@ -1939,12 +1954,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
               {items.length > 0 && (
-                <button
-                  className={styles.wlActionBtn}
-                  onClick={() => sendListToJournal(wl.id, wl.name, items)}
-                  title={`Send ${wl.name} to Journal (frozen list)`}
-                  aria-label={`Send ${wl.name} to Journal`}
-                ><UIcon name="journal" size={13} /></button>
+                <>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={() => sendListToJournal(wl.id, wl.name, items)}
+                    title={`Send ${wl.name} to Journal (frozen list)`}
+                    aria-label={`Send ${wl.name} to Journal`}
+                  ><UIcon name="journal" size={13} /></button>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={(e) => chooseListDestination(e, wl.id, wl.name, items)}
+                    title="Send to Journal — choose where"
+                    aria-label="Send to Journal — choose where"
+                  ><UIcon name="chevronDown" size={13} /></button>
+                </>
               )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -2090,12 +2113,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {user && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
               {flagged.length > 0 && (
-                <button
-                  className={styles.wlActionBtn}
-                  onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
-                  title="Send Flagged to Journal (frozen list)"
-                  aria-label="Send Flagged to Journal"
-                ><UIcon name="journal" size={13} /></button>
+                <>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
+                    title="Send Flagged to Journal (frozen list)"
+                    aria-label="Send Flagged to Journal"
+                  ><UIcon name="journal" size={13} /></button>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={(e) => chooseListDestination(e, 'flagged', flaggedName || 'Flagged', [...flagged])}
+                    title="Send to Journal — choose where"
+                    aria-label="Send to Journal — choose where"
+                  ><UIcon name="chevronDown" size={13} /></button>
+                </>
               )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === 'flagged' ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -2176,6 +2207,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           so a viewport anchor is the one spot that always reads. Below the
           popup band (8500+). */}
       <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+      {captureMenu && (
+        <CaptureMenu
+          open
+          onClose={() => setCaptureMenu(null)}
+          anchor={captureMenu.anchor}
+          widgetId="watchlist"
+          capture={captureMenu.capture}
+          label={captureMenu.label}
+          onSent={setJournalMsg}
+        />
+      )}
       {settingsOpen && (
         <WatchlistSettingsPanel
           settings={wlSettings}
@@ -2337,12 +2379,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                       {isColorShared(tc.key) && <span className={styles.pubBadge}>PUB</span>}
                       <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
                         {syms.length > 0 && (
-                          <button
-                            className={styles.wlActionBtn}
-                            onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
-                            title={`Send ${tc.label} to Journal (frozen list)`}
-                            aria-label={`Send ${tc.label} to Journal`}
-                          ><UIcon name="journal" size={13} /></button>
+                          <>
+                            <button
+                              className={styles.wlActionBtn}
+                              onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
+                              title={`Send ${tc.label} to Journal (frozen list)`}
+                              aria-label={`Send ${tc.label} to Journal`}
+                            ><UIcon name="journal" size={13} /></button>
+                            <button
+                              className={styles.wlActionBtn}
+                              onClick={(e) => chooseListDestination(e, `tag:${tc.key}`, tc.label, syms)}
+                              title="Send to Journal — choose where"
+                              aria-label="Send to Journal — choose where"
+                            ><UIcon name="chevronDown" size={13} /></button>
+                          </>
                         )}
                         <button
                           className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}

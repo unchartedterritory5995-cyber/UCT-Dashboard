@@ -25,6 +25,7 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
+import CaptureMenu from './journal-2-0/components/CaptureMenu'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -527,8 +528,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // holdings — as it stands; the taxonomy versions forward and returns have
   // no as-of endpoint, so the capture is the only record of that ranking.
   const [journalMsg, setJournalMsg] = useJournalToast()
-  const sendThemesToJournal = useCallback(async () => {
-    setJournalMsg('sending…')
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
+  const themesCaptureLabel = `Themes ${PERIOD_LABELS[activeKey] || activeKey}`
+  // Freeze exactly what the page shows right now — shared by the one-click
+  // default send AND the destination-picker, so both paths capture the
+  // identical payload rather than re-deriving it a second time at Send.
+  const buildThemesCapture = useCallback(() => {
     const rows = filteredThemes.slice(0, 40).map((t) => {
       const pct = groupReturn(t, activeKey)
       const top = [...(t.holdings || [])]
@@ -541,13 +547,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         ...(top ? { extraValue: top } : {}),
       }
     })
-    setJournalMsg(await sendCaptureToJournal('themes', {
+    return {
       period: activeKey, sortDir,
       ...(openTheme ? { openTheme } : {}),
       ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
       rows,
-    }, { label: `Themes ${PERIOD_LABELS[activeKey] || activeKey}` }))
-  }, [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch, setJournalMsg])
+    }
+  }, [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch])
+  const sendThemesToJournal = useCallback(async () => {
+    setJournalMsg('sending…')
+    setJournalMsg(await sendCaptureToJournal('themes', buildThemesCapture(), { label: themesCaptureLabel }))
+  }, [buildThemesCapture, themesCaptureLabel, setJournalMsg])
 
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {
@@ -760,12 +770,31 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           <span className={styles.periodBarSpacer} />
           {/* → Journal: freeze the visible ranking into a note (payload capture). */}
           {filteredThemes.length > 0 && (
-            <button
-              className={styles.settingsBtn}
-              onClick={sendThemesToJournal}
-              title="Send this ranking to Journal (frozen list)"
-              aria-label="Send this ranking to Journal"
-            ><UIcon name="journal" size={14} /></button>
+            <>
+              <button
+                className={styles.settingsBtn}
+                onClick={sendThemesToJournal}
+                title="Send this ranking to Journal (frozen list)"
+                aria-label="Send this ranking to Journal"
+              ><UIcon name="journal" size={14} /></button>
+              <button
+                className={styles.settingsBtn}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildThemesCapture() })}
+                title="Send to Journal — choose where"
+                aria-label="Send to Journal — choose where"
+              ><UIcon name="chevronDown" size={14} /></button>
+              {captureMenu && (
+                <CaptureMenu
+                  open
+                  onClose={() => setCaptureMenu(null)}
+                  anchor={captureMenu.anchor}
+                  widgetId="themes"
+                  capture={captureMenu.capture}
+                  label={themesCaptureLabel}
+                  onSent={setJournalMsg}
+                />
+              )}
+            </>
           )}
           <button
             ref={settingsBtnRef}

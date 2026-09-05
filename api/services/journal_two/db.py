@@ -1177,6 +1177,13 @@ _PHASE_2_ALTERS = [
     # before this column was added.
     "ALTER TABLE j2_notes ADD COLUMN deleted_at TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_deleted ON j2_notes(user_id, deleted_at)",
+    # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
+    # member-typed comment or a trade link — the SAME two fields the "current
+    # note"/"new entry" destinations already carry via the full widgetEmbed
+    # attrs bag. Without these columns, a comment only survived for 2 of the
+    # 4 destinations.
+    "ALTER TABLE j2_capture_inbox ADD COLUMN caption TEXT",
+    "ALTER TABLE j2_capture_inbox ADD COLUMN trade_ref TEXT",
 ]
 
 

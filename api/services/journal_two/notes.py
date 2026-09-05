@@ -1327,6 +1327,8 @@ def list_captures(user_id: str, conn: sqlite3.Connection | None = None) -> list[
             "annotations": json.loads(r["annotations_json"] or "[]"),
             "capturedAt": r["captured_at"],
             "createdAt": r["created_at"],
+            "caption": r["caption"] if "caption" in r.keys() else None,
+            "tradeRef": r["trade_ref"] if "trade_ref" in r.keys() else None,
         } for r in rows]
     finally:
         if owned:
@@ -1363,12 +1365,14 @@ def create_capture(
         now = _now_iso()
         conn.execute(
             "INSERT INTO j2_capture_inbox (id, user_id, widget_id, params_json,"
-            " search_text, fallback_url, annotations_json, captured_at, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " search_text, fallback_url, annotations_json, captured_at, created_at,"
+            " caption, trade_ref)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (cid, user_id, payload["widgetId"], json.dumps(params or {}),
              payload.get("searchText") or None, payload.get("fallbackUrl") or None,
              json.dumps(annotations) if annotations else None,
-             payload.get("capturedAt") or now, now),
+             payload.get("capturedAt") or now, now,
+             payload.get("caption") or None, payload.get("tradeRef") or None),
         )
         # Keep only the newest _CAPTURE_INBOX_CAP rows — anything older is
         # unreachable through the tray anyway (see the cap's comment above).
