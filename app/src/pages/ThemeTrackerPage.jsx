@@ -1,5 +1,6 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
+import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
@@ -247,7 +248,6 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
           <span className={styles.groupCaret}>{open ? '▾' : '▸'}</span>
           {theme.name}
           {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
-          {theme.is_custom && <span className={styles.customBadge}>MINE</span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
         {editing && onHideTheme ? (
@@ -334,6 +334,37 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
   )
 }
 
+// A dropdown menu rendered in a PORTAL (document.body) positioned under an anchor, so the
+// widget's overflow:hidden can never clip it — it floats on top and can spill past the edge.
+function FloatingMenu({ anchorRef, onClose, width = 210, children }) {
+  const [pos, setPos] = useState(null)
+  useLayoutEffect(() => {
+    const el = anchorRef?.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    let left = Math.max(6, Math.min(r.left, window.innerWidth - width - 6))
+    setPos({ top: r.bottom + 4, left })
+  }, [anchorRef, width])
+  return createPortal(
+    <>
+      <div className={styles.floatBackdrop} onClick={onClose} />
+      <div className={styles.floatMenu} style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, width }}>{children}</div>
+    </>,
+    document.body,
+  )
+}
+
+const PencilIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+)
+const TrashIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+  </svg>
+)
+
 // Set picker + Edit toggle (rides the search row). Create / rename / delete all happen
 // IN-WIDGET (inline inputs, 2-click delete confirm) — no browser prompt/confirm dialogs.
 function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, onDelete, editing, onToggleEdit }) {
@@ -342,10 +373,11 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, 
   const [renamingId, setRenamingId] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
+  const btnRef = useRef(null)
   const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null); setNewName('') }
   return (
     <div className={styles.setPicker}>
-      <button className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a theme set">
+      <button ref={btnRef} className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a theme set">
         {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
       </button>
       {activeSet && (
@@ -353,38 +385,36 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, 
           onClick={onToggleEdit} title="Edit this set's themes and stocks">{editing ? 'Done' : 'Edit'}</button>
       )}
       {open && (
-        <>
-          <div className={styles.setMenuBackdrop} onClick={close} />
-          <div className={styles.setMenu}>
-            <button className={`${styles.setMenuName} ${!themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(null); close() }}>UCT Default</button>
-            {sets.map(s => (
-              <div key={s.id} className={styles.setMenuRow}>
-                {renamingId === s.id ? (
-                  <input autoFocus className={styles.setInline} value={renameVal}
-                    onChange={e => setRenameVal(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
-                      if (e.key === 'Escape') setRenamingId(null)
-                    }}
-                    onBlur={() => setRenamingId(null)} />
-                ) : (
-                  <button className={`${styles.setMenuName} ${s.id === themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(s.id); close() }}>{s.name}</button>
-                )}
-                <button className={styles.setRowBtn} title="Rename" onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}>Rename</button>
-                <button className={`${styles.setRowBtn} ${confirmDel === s.id ? styles.setRowConfirm : ''}`} title="Delete this set"
-                  onClick={() => { if (confirmDel === s.id) { onDelete(s.id); close() } else setConfirmDel(s.id) }}
-                >{confirmDel === s.id ? 'Delete?' : 'Delete'}</button>
-              </div>
-            ))}
-            <div className={styles.setMenuSep} />
-            <div className={styles.setNewRow}>
-              <input className={styles.setInline} placeholder="New set name…" value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) { onCreate(newName.trim()); close() } }} />
-              <button className={styles.setNewGo} disabled={!newName.trim()} onClick={() => { if (newName.trim()) { onCreate(newName.trim()); close() } }}>＋ New</button>
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={230}>
+          <button className={`${styles.setMenuName} ${!themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(null); close() }}>UCT Default</button>
+          {sets.map(s => (
+            <div key={s.id} className={styles.setMenuRow}>
+              {renamingId === s.id ? (
+                <input autoFocus className={styles.setInline} value={renameVal}
+                  onChange={e => setRenameVal(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
+                    if (e.key === 'Escape') setRenamingId(null)
+                  }}
+                  onBlur={() => setRenamingId(null)} />
+              ) : (
+                <button className={`${styles.setMenuName} ${s.id === themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(s.id); close() }}>{s.name}</button>
+              )}
+              <button className={styles.setRowBtn} title="Rename" aria-label="Rename set"
+                onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}><PencilIcon /></button>
+              <button className={`${styles.setRowBtn} ${styles.setRowTrash} ${confirmDel === s.id ? styles.setRowConfirm : ''}`}
+                title={confirmDel === s.id ? 'Click again to delete' : 'Delete set'} aria-label="Delete set"
+                onClick={() => { if (confirmDel === s.id) { onDelete(s.id); close() } else setConfirmDel(s.id) }}><TrashIcon /></button>
             </div>
+          ))}
+          <div className={styles.setMenuSep} />
+          <div className={styles.setNewRow}>
+            <input className={styles.setInline} placeholder="New set name…" value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) { onCreate(newName.trim()); close() } }} />
+            <button className={styles.setNewGo} disabled={!newName.trim()} onClick={() => { if (newName.trim()) { onCreate(newName.trim()); close() } }}>＋ New</button>
           </div>
-        </>
+        </FloatingMenu>
       )}
     </div>
   )
@@ -396,39 +426,37 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [cname, setCname] = useState('')
+  const btnRef = useRef(null)
   const ql = q.trim().toLowerCase()
   const list = palette.filter(t => !ql || t.name.toLowerCase().includes(ql)).slice(0, 80)
   const close = () => { setOpen(false); setQ(''); setCname('') }
   return (
     <div className={styles.addThemeWrap}>
-      <button className={styles.editTool} onClick={() => setOpen(o => !o)}>＋ Add theme ▾</button>
+      <button ref={btnRef} className={styles.editTool} onClick={() => setOpen(o => !o)}>＋ Add theme ▾</button>
       {open && (
-        <>
-          <div className={styles.setMenuBackdrop} onClick={close} />
-          <div className={styles.addThemeMenu}>
-            <input autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
-            <div className={styles.addThemeList}>
-              {list.map(t => {
-                const has = inSet.has(t.slug)
-                return (
-                  <button key={t.slug} className={`${styles.addThemeItem} ${has ? styles.addThemeItemIn : ''}`}
-                    onClick={() => { if (!has) onAdd(t.slug) }}>
-                    <span className={styles.addThemeName}>{t.name}</span>
-                    <span className={styles.addThemeMark}>{has ? '✓' : '＋'}</span>
-                  </button>
-                )
-              })}
-              {list.length === 0 && <div className={styles.addThemeEmpty}>No themes match</div>}
-            </div>
-            <div className={styles.setMenuSep} />
-            <div className={styles.setNewRow}>
-              <input className={styles.setInline} placeholder="Create custom theme…" value={cname}
-                onChange={e => setCname(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }} />
-              <button className={styles.setNewGo} disabled={!cname.trim()} onClick={() => { if (cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }}>Create</button>
-            </div>
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={260}>
+          <input autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
+          <div className={styles.addThemeList}>
+            {list.map(t => {
+              const has = inSet.has(t.slug)
+              return (
+                <button key={t.slug} className={`${styles.addThemeItem} ${has ? styles.addThemeItemIn : ''}`}
+                  onClick={() => { if (!has) onAdd(t.slug) }}>
+                  <span className={styles.addThemeName}>{t.name}</span>
+                  <span className={styles.addThemeMark}>{has ? '✓' : '＋'}</span>
+                </button>
+              )
+            })}
+            {list.length === 0 && <div className={styles.addThemeEmpty}>No themes match</div>}
           </div>
-        </>
+          <div className={styles.setMenuSep} />
+          <div className={styles.setNewRow}>
+            <input className={styles.setInline} placeholder="Create custom theme…" value={cname}
+              onChange={e => setCname(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }} />
+            <button className={styles.setNewGo} disabled={!cname.trim()} onClick={() => { if (cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }}>Create</button>
+          </div>
+        </FloatingMenu>
       )}
     </div>
   )
@@ -555,7 +583,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const { data: allData } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
     dedupingInterval: 30_000, revalidateOnFocus: false,
   })
-  const editSource = (allData?.themes?.length ? allData : (themeSetId ? null : data)) || null
+  // Prefer the full default dataset (the palette); fall back to the current ?set= data so the
+  // editor is never blank in the moment before allData loads.
+  const editSource = (allData?.themes?.length ? allData : data) || null
   const _k = (s) => (s || '').toUpperCase().replace(/\./g, '-')
   const allIndex = useMemo(() => {
     const m = {}
@@ -571,14 +601,32 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const themePalette = useMemo(() =>
     (editSource?.themes || []).map(t => ({ slug: themeSlug(t.name), name: t.name })), [editSource])
 
-  // Debounced persist of the current editor state (the display is already updated optimistically).
+  // Persist edits: keep the latest body in a ref, PUT on a short debounce. flushPersist()
+  // fires the pending PUT immediately — used when the user clicks Done so the finished view
+  // shows the saved edits right away (no manual refresh).
   const persistRef = useRef(null)
+  const pendingBodyRef = useRef(null)
   const persist = useCallback((next) => {
     if (!themeSetId) return
-    clearTimeout(persistRef.current)
     const body = { themes: next.themeOrder, removed: next.removedMap, added: next.addedMap, custom: next.customThemes }
-    persistRef.current = setTimeout(() => { putSetDef(themeSetId, body) }, 350)
+    pendingBodyRef.current = body
+    clearTimeout(persistRef.current)
+    persistRef.current = setTimeout(() => { pendingBodyRef.current = null; putSetDef(themeSetId, body) }, 350)
   }, [themeSetId])
+  const flushPersist = useCallback(async () => {
+    clearTimeout(persistRef.current)
+    if (pendingBodyRef.current && themeSetId) {
+      const body = pendingBodyRef.current
+      pendingBodyRef.current = null
+      await putSetDef(themeSetId, body)
+    }
+  }, [themeSetId])
+  // Done: save any pending edit, then revalidate ?set= so the view updates instantly.
+  const stopEditing = useCallback(async () => {
+    setEditing(false)
+    await flushPersist()
+    mutate()
+  }, [flushPersist, mutate])
   const materializeOrder = useCallback(() =>
     themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)), [themeOrder, data])
   const applyEdit = useCallback((patch) => {
@@ -659,16 +707,19 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // ── Footer (embedded widget): "N stocks · Updated H:MM ET · ⟳" ──
   // Count = unique stocks tracked across every theme. Refresh re-pulls live-overlaid numbers
   // (server busts its 10s live cache via ?refresh=1) so the leaderboard re-ranks on demand.
+  // Count from the ACTUALLY-DISPLAYED themes so it updates live while editing (remove/add a
+  // stock or theme) and shows the fresh total the moment editing ends.
   const stockCount = useMemo(() => {
+    const src = (editing && editDisplayThemes) ? editDisplayThemes : (data?.themes || [])
     const s = new Set()
-    for (const t of (data?.themes || [])) {
+    for (const t of src) {
       for (const h of (t.holdings || [])) {
         const sym = typeof h === 'string' ? h : h?.sym
         if (sym) s.add(String(sym).toUpperCase())
       }
     }
     return s.size
-  }, [data])
+  }, [data, editing, editDisplayThemes])
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -1086,7 +1137,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               onCreate={async (name) => { const s = await createSet(name); if (s) selectSet(s.id) }}
               onRename={renameSet}
               onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
-              editing={editing} onToggleEdit={() => setEditing(e => !e)}
+              editing={editing} onToggleEdit={() => editing ? stopEditing() : setEditing(true)}
             />
             <ThemeSearchBox onDebounced={setDebouncedSearch} />
           </div>
@@ -1161,10 +1212,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
               : <SkeletonTileContent lines={6} />
           )}
-          {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
+          {!editing && !isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
-          {editing && activeSet && renderThemes.length === 0 && data?.themes?.length > 0 && (
+          {editing && activeSet && renderThemes.length === 0 && (
             <p className={styles.loading}>No themes yet — use ＋ Add theme to build your set.</p>
           )}
           {renderThemes.map(theme => {

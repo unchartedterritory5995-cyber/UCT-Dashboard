@@ -28,10 +28,20 @@
   min-height: 0;
 }
 
-/* Period bar (TODAY/1W/1M/3M/1Y/YTD) wraps when narrow. */
-@container (max-width: 320px) {
-  .pageEmbedded .periodBar { flex-wrap: wrap; gap: 2px; padding: 6px 8px; }
-  .pageEmbedded .periodTab { padding: 2px 6px; font-size: 9px; }
+/* Period bar keeps everything on ONE row — as the widget narrows, the tabs shrink (font +
+   padding + gap) instead of the gear dropping to a second row (wasted header height). */
+@container (max-width: 360px) {
+  .pageEmbedded .periodBar { gap: 3px; padding: 0 8px; }
+  .pageEmbedded .periodTab { padding: 3px 7px; font-size: calc(9.5px * var(--tt-font-scale, 1)); }
+}
+@container (max-width: 300px) {
+  .pageEmbedded .periodBar { gap: 2px; padding: 0 6px; }
+  .pageEmbedded .periodTab { padding: 2px 5px; font-size: calc(8.5px * var(--tt-font-scale, 1)); letter-spacing: 0.4px; }
+  .pageEmbedded .settingsBtn { margin-left: 3px; padding: 3px; }
+}
+@container (max-width: 260px) {
+  .pageEmbedded .periodTab { padding: 2px 4px; font-size: calc(7.5px * var(--tt-font-scale, 1)); letter-spacing: 0.2px; }
+  .pageEmbedded .settingsBtn { margin-left: 2px; }
 }
 
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
@@ -40,7 +50,7 @@
    the default look. */
 .periodBar {
   display: flex;
-  flex-wrap: wrap;   /* narrow widget → tabs that don't fit stack onto the next row */
+  flex-wrap: nowrap;   /* keep ONE row — tabs shrink via the container queries above */
   align-items: center;
   gap: 4px;
   padding: 0 12px;
@@ -741,8 +751,8 @@
 }
 @media (max-width: 640px) {
   .leftPanel { max-height: 40vh; }
-  .periodBar { flex-wrap: wrap; gap: 2px; padding: 6px 8px; }
-  .periodTab { font-size: 10px; padding: 6px 8px; }
+  .periodBar { flex-wrap: nowrap; gap: 3px; padding: 4px 8px; }
+  .periodTab { font-size: 10px; padding: 4px 7px; }
   .searchInput { font-size: 16px; }
   .chartPeriodTabs { position: static; transform: none; justify-content: center; margin-top: 4px; }
   .chartPeriodBtn { padding: 6px 8px; font-size: 10px; }
@@ -804,7 +814,9 @@
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
-.setPicker { position: relative; }
+/* inline-flex + gap gives the Edit button the SAME breathing room from the set-name button
+   as there is between the Edit button and the search bar (the .searchRow gap). */
+.setPicker { position: relative; display: inline-flex; align-items: center; gap: 8px; }
 .setPickerBtn {
   font-family: var(--font-sans);
   font-size: calc(11px * var(--tt-font-scale, 1));
@@ -1006,21 +1018,24 @@
   gap: 2px;
 }
 .setRowBtn {
-  font-family: var(--font-sans);
-  font-size: calc(9px * var(--tt-font-scale, 1));
-  padding: 3px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 5px;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
-  color: var(--tt-text, var(--text-muted));
+  color: var(--text-bright, #e4e6ea);   /* brighter than the old muted grey */
+  opacity: 0.7;
   cursor: pointer;
   flex-shrink: 0;
 }
-.setRowBtn:hover { color: var(--text-bright, #e4e6ea); background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setRowBtn:hover { opacity: 1; color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setRowTrash:hover { color: var(--color-danger, #f87171); background: rgba(248, 113, 113, 0.12); }
 .setRowConfirm {
   color: var(--color-danger, #f87171) !important;
-  background: rgba(248, 113, 113, 0.14);
-  font-weight: 700;
+  background: rgba(248, 113, 113, 0.18);
+  opacity: 1;
 }
 .setInline {
   flex: 1;
@@ -1093,7 +1108,7 @@
 .editHint {
   margin-left: auto;
   font-size: calc(9px * var(--tt-font-scale, 1));
-  color: var(--tt-text, var(--text-muted));
+  color: var(--text-secondary, #aab2bd);   /* brighter than muted so it reads on dark */
   font-style: italic;
 }
 
@@ -1153,3 +1168,30 @@
 .addThemeItemIn { opacity: 0.55; cursor: default; }
 .addThemeItemIn:hover { background: transparent; }
 .addThemeEmpty { padding: 10px; font-size: 11px; color: var(--tt-text, var(--text-muted)); text-align: center; }
+
+
+/* ── v3: floating (portal) dropdown + brighter placeholder text ────────────── */
+/* Rendered in a body portal so the widget's overflow:hidden can never clip it — it floats
+   on top and spills past the widget edge when the widget is thin. */
+.floatBackdrop { position: fixed; inset: 0; z-index: 9998; }
+.floatMenu {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+/* Brighter placeholders — the muted grey was hard to read on a dark canvas. */
+.setInline::placeholder,
+.addThemeSearch::placeholder,
+.addStockInput::placeholder {
+  color: var(--text-secondary, #a8b0bd);
+  opacity: 1;
+}
