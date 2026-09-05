@@ -12,6 +12,7 @@ needs reshaping later -- only the value inside `id` improves.
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 import uuid
 from typing import Any, Optional
@@ -57,7 +58,29 @@ def register_predicate(
 ) -> str:
     """Register a predicate. Raises PredicateRegistrationError (never a bare
     exception) on a named validation failure -- SPEC §5.2/§9's synchronous,
-    named-reason rejection requirement."""
+    named-reason rejection requirement.
+
+    Stage 3 duplicate guard (owner-scoped, document-arrival's first slice):
+    at most one ACTIVE predicate per (user_id, type_id, entity_scope.id).
+    `params` (form_type/keyword) is deliberately NOT part of the equivalence
+    key -- no member UI exposes those yet, so canonicalizing params now would
+    be dedup logic for a case that can't occur. A repeat registration of an
+    already-active equivalent returns that predicate's id (idempotent reuse,
+    A2); a repeat registration of a SUSPENDED equivalent reactivates it
+    rather than creating a second historical row (A3) -- and re-baselines it
+    (the caller's own update_last_seen_state call after this returns), which
+    is correct: a predicate that sat suspended for a while should not replay
+    every filing that arrived while it was off.
+
+    Race safety (A4): `idx_alert_predicates_active_dedup` (a partial unique
+    index over active rows, alert_taxonomy/db.py) is the actual guarantee --
+    two concurrent inserts for the same (user, type, entity) can both pass
+    the SELECT below, but only one INSERT wins; the loser resolves to the
+    winner's row instead of raising. A partial index can't protect the
+    suspended->reactivate path (it excludes suspended rows by design), so
+    that branch's own conditional UPDATE (`WHERE suspended_at IS NOT NULL`)
+    is what makes concurrent reactivation attempts converge on one winner.
+    """
     if not type_id or not isinstance(type_id, str):
         raise PredicateRegistrationError("type_id is required")
     if not _registry.is_registered(type_id, db_path=db_path):
@@ -69,22 +92,56 @@ def register_predicate(
     if not isinstance(params, dict):
         raise PredicateRegistrationError("params must be an object")
 
-    predicate_id = f"pred_{uuid.uuid4().hex[:16]}"
+    entity_id = entity_scope["id"]
     now = time.time()
     conn = _db.connect(db_path)
     try:
         _db.init_db(conn)
-        conn.execute(
-            "INSERT INTO alert_predicates "
-            "(id, type_id, user_id, entity_scope, params, channels, created_at, updated_at, "
-            "suspended_at, last_seen_state) VALUES (?,?,?,?,?,?,?,?,NULL,NULL)",
-            (predicate_id, type_id, user_id, json.dumps(entity_scope), json.dumps(params),
-             json.dumps(channels) if channels else None, now, now),
-        )
-        conn.commit()
+
+        existing = conn.execute(
+            "SELECT id, suspended_at FROM alert_predicates "
+            "WHERE user_id = ? AND type_id = ? AND json_extract(entity_scope, '$.id') = ? "
+            "ORDER BY suspended_at IS NULL DESC, created_at DESC LIMIT 1",
+            (user_id, type_id, entity_id),
+        ).fetchone()
+        if existing is not None:
+            if existing["suspended_at"] is None:
+                return existing["id"]
+            conn.execute(
+                "UPDATE alert_predicates SET suspended_at = NULL, updated_at = ? "
+                "WHERE id = ? AND suspended_at IS NOT NULL",
+                (now, existing["id"]),
+            )
+            conn.commit()
+            # A concurrent reactivation of the SAME suspended row may have already
+            # won (this UPDATE then affects 0 rows) -- either way the row is now
+            # active under `existing["id"]`, so re-reading and returning it is
+            # correct for both the winner and the loser of that race.
+            return existing["id"]
+
+        predicate_id = f"pred_{uuid.uuid4().hex[:16]}"
+        try:
+            conn.execute(
+                "INSERT INTO alert_predicates "
+                "(id, type_id, user_id, entity_scope, params, channels, created_at, updated_at, "
+                "suspended_at, last_seen_state) VALUES (?,?,?,?,?,?,?,?,NULL,NULL)",
+                (predicate_id, type_id, user_id, json.dumps(entity_scope), json.dumps(params),
+                 json.dumps(channels) if channels else None, now, now),
+            )
+            conn.commit()
+            return predicate_id
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            row = conn.execute(
+                "SELECT id FROM alert_predicates WHERE user_id = ? AND type_id = ? "
+                "AND json_extract(entity_scope, '$.id') = ? AND suspended_at IS NULL",
+                (user_id, type_id, entity_id),
+            ).fetchone()
+            if row is None:
+                raise  # an IntegrityError this lookup can't explain -- never swallow it
+            return row["id"]
     finally:
         conn.close()
-    return predicate_id
 
 
 def _row_to_dict(r) -> dict[str, Any]:

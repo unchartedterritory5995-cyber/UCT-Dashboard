@@ -610,6 +610,66 @@ class _MassiveRestClient:
 
         return result
 
+    def get_batch_open_map(self, tickers: list[str]) -> dict[str, float]:
+        """Return each ticker's REGULAR-SESSION move FROM TODAY'S OPEN — `(day.c - day.o)/day.o`
+        as a % — for the Theme Tracker's "From Open" mode (excludes the overnight gap).
+
+        Chunked + parallel + dual-class mapping, mirroring get_batch_snapshots (kept a SEPARATE
+        method so the money/1D snapshot path stays byte-for-byte untouched). A name with no
+        regular-session open yet (pre-market: day.o == 0) is OMITTED, not zeroed — the caller
+        keeps it out of the aggregate and the UI shows "—" until the open prints. Same endpoint,
+        same payload the 1D path already fetches: no new provider, no new budget line.
+        """
+        if not tickers:
+            return {}
+
+        def _f(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        _poly_to_canon = {to_polygon_symbol(t): t.upper() for t in tickers}
+        uniq = list(dict.fromkeys(_poly_to_canon.keys()))
+        chunks = [uniq[i:i + self._SNAPSHOT_BATCH]
+                  for i in range(0, len(uniq), self._SNAPSHOT_BATCH)]
+
+        def _fetch_chunk(chunk):
+            url = (
+                f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
+                f"?tickers={','.join(chunk)}&apiKey={self._api_key}"
+            )
+            for attempt in range(2):
+                try:
+                    return self._get(url).get("tickers", []) or []
+                except Exception:
+                    if attempt == 0:
+                        continue
+                    return []
+
+        rows: list = []
+        if len(chunks) <= 1:
+            rows = _fetch_chunk(chunks[0]) if chunks else []
+        else:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(6, len(chunks))) as ex:
+                for chunk_rows in ex.map(_fetch_chunk, chunks):
+                    rows.extend(chunk_rows)
+
+        result: dict[str, float] = {}
+        for t in rows:
+            ticker = t.get("ticker", "")
+            if not ticker:
+                continue
+            ticker = _poly_to_canon.get(ticker, ticker)
+            day = t.get("day") or {}
+            day_o = _f(day.get("o"))
+            day_c = _f(day.get("c"))
+            # day.o == 0 (pre-market, no regular print yet) OR no current price → OMIT.
+            if day_o and day_o > 0 and day_c and day_c > 0:
+                result[ticker] = round((day_c - day_o) / day_o * 100.0, 4)
+        return result
+
     def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:
         """Return price + prev-day volume + change_pct + day_open + prev_close
         for a batch of tickers.
@@ -1211,6 +1271,15 @@ def get_etf_snapshots(tickers: list[str], stale_to_zero: bool = False) -> dict[s
     """
     try:
         return _get_client().get_batch_snapshots(tickers, stale_to_zero=stale_to_zero)
+    except Exception:
+        return {}
+
+
+def get_etf_open_snapshots(tickers: list[str]) -> dict[str, float]:
+    """Return each ticker's move FROM TODAY'S OPEN (%) via batch snapshot — the Theme Tracker's
+    "From Open" overlay. Empty dict on client failure. See get_batch_open_map."""
+    try:
+        return _get_client().get_batch_open_map(tickers)
     except Exception:
         return {}
 

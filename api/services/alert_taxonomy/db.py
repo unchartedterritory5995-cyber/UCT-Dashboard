@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS alert_predicates (
 );
 CREATE INDEX IF NOT EXISTS idx_alert_predicates_type ON alert_predicates(type_id, suspended_at);
 CREATE INDEX IF NOT EXISTS idx_alert_predicates_user ON alert_predicates(user_id);
+-- Stage 3 duplicate-predicate guard: at most one ACTIVE predicate per
+-- (user, trigger type, canonical entity). Partial (suspended_at IS NULL) so a
+-- suspended row never blocks a fresh registration -- predicates.register_predicate
+-- reactivates a suspended equivalent instead of relying on this index for that
+-- case. Scoped to document-arrival's params today (form_type/keyword are not
+-- part of the key -- no member UI exposes them yet); widen the key only when a
+-- trigger type's params genuinely need to coexist as distinct active predicates.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alert_predicates_active_dedup
+    ON alert_predicates(user_id, type_id, json_extract(entity_scope, '$.id'))
+    WHERE suspended_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS alert_fires (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,7 +139,16 @@ CREATE TABLE IF NOT EXISTS _migrations (
 );
 """
 
-_MIGRATIONS: list[tuple[str, str]] = []
+_MIGRATIONS: list[tuple[str, str]] = [
+    # S7 durable in-app notification bridge (owner authorization): a fire is
+    # ALWAYS single-owner (never broadcast -- document_arrival's own router
+    # docstring), so one nullable column is the read-state design, not a
+    # separate per-user table -- there is only ever one relevant reader. This
+    # table already accepts post-fire mutation for delivery bookkeeping
+    # (delivered_at/delivery_attempts/delivery_channels), so read_at extends
+    # an existing pattern rather than breaking a true immutability guarantee.
+    ("add_alert_fires_read_at", "ALTER TABLE alert_fires ADD COLUMN read_at REAL"),
+]
 
 
 def connect(db_path: str | None = None) -> sqlite3.Connection:

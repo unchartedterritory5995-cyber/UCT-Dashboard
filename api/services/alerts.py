@@ -126,6 +126,83 @@ def _read_key(user_id: str) -> str:
     return f"alerts:read:{user_id}"
 
 
+# ── S7 durable in-app notification bridge (owner authorization) ────────────
+#
+# This ephemeral store (see module docstring) is fine for a 24h notification
+# bell but not for "watch this company for weeks and tell me when it files
+# something" -- a fire that survives to `alert_taxonomy.alert_fires` (already
+# durable) must still be visible after the TTLCache is gone (redeploy,
+# eviction, restart). These three helpers pull that durable source into the
+# SAME feed additively, scoped to S7's own trigger types -- legacy alert
+# types (indicator/catalyst/calendar/awareness/price) are completely
+# untouched and remain ephemeral-only for this slice.
+_S7_FIRE_PREFIX = "s7fire_"
+
+
+def _s7_durable_alerts(user_id: str, limit: int) -> list[dict]:
+    """The caller's own durable S7 fires, reconstructed into this module's
+    alert shape. Never raises -- a taxonomy-module import/query failure
+    degrades to "no durable rows this call", not a broken feed."""
+    try:
+        from api.services.alert_taxonomy import receipts as _at_receipts
+        from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+    except Exception:
+        return []
+    try:
+        fires = _at_receipts.list_fires_for_feed(user_id, limit=limit)
+    except Exception:
+        return []
+    out = []
+    for f in fires:
+        # Dispatch by trigger_type -- document-arrival is S7's only live
+        # trigger today; add a branch here when a second type ships rather
+        # than generalizing a reconstruction contract nothing else needs yet.
+        if f.get("trigger_type") == _at_doc_arrival.TYPE_ID:
+            try:
+                out.append(_at_doc_arrival.alert_shape_for_fire(f))
+            except Exception:
+                continue
+    return out
+
+
+def _dual_write_s7_read_if_applicable(alert: dict, user_id: str) -> None:
+    """Read-state parity fix (owner authorization). While an S7 fire's
+    ephemeral copy still exists, `get_alerts()`'s dedup (by accession)
+    means that's the ONLY copy the member ever sees/marks read -- the
+    durable reconstruction is filtered out until the ephemeral copy is
+    gone. Without this, marking the ephemeral copy read updates only
+    process memory: if the process dies before that copy's 24h TTL
+    naturally expires, the durable reconstruction can reappear as unread
+    once it becomes the only copy left. Scoped to document-arrival only
+    (the only S7 trigger type that reaches this store today) -- never
+    raises, matching this module's existing "a taxonomy failure degrades,
+    never breaks the feed" posture.
+    """
+    data = alert.get("data")
+    if not isinstance(data, dict) or data.get("source") != "document_arrival":
+        return
+    accession = data.get("accession")
+    if not accession:
+        return
+    try:
+        from api.services.alert_taxonomy import receipts as _at_receipts
+        _at_receipts.mark_fire_read_by_fire_key(f"occ:{accession}", user_id)
+    except Exception:
+        pass
+
+
+def _mark_s7_fire_read(alert_id: str, user_id: str) -> bool:
+    try:
+        fire_id = int(alert_id[len(_S7_FIRE_PREFIX):])
+    except ValueError:
+        return False
+    try:
+        from api.services.alert_taxonomy import receipts as _at_receipts
+    except Exception:
+        return False
+    return _at_receipts.mark_fire_read(fire_id, user_id)
+
+
 def get_alerts(limit: int = 50, user_id: str | None = None) -> list:
     """Return the alerts this caller is entitled to, newest first.
 
@@ -145,6 +222,22 @@ def get_alerts(limit: int = 50, user_id: str | None = None) -> list:
     mine = cache.get(_user_key(user_id)) or []
     merged = [dict(a, read=(a["id"] in read_ids)) for a in broadcast]
     merged += [dict(a) for a in mine]
+
+    # S7 durable merge: a fire freshly delivered within the ephemeral TTL
+    # exists in BOTH stores. Skip a durable row whose accession an ephemeral
+    # copy already carries, so the SAME fire never renders twice while both
+    # stores briefly hold it -- once the ephemeral copy expires/evicts, the
+    # durable reconstruction is the only copy left and takes over seamlessly.
+    seen_accessions = {
+        a["data"]["accession"] for a in mine
+        if isinstance(a.get("data"), dict) and a["data"].get("accession")
+    }
+    durable = _s7_durable_alerts(user_id, limit)
+    merged += [
+        d for d in durable
+        if not (isinstance(d.get("data"), dict) and d["data"].get("accession") in seen_accessions)
+    ]
+
     merged.sort(key=lambda a: a.get("timestamp") or "", reverse=True)
     return merged[:limit]
 
@@ -231,12 +324,16 @@ def mark_read(alert_id: str, user_id: str) -> bool:
     if not user_id:
         return False
 
+    if alert_id.startswith(_S7_FIRE_PREFIX):
+        return _mark_s7_fire_read(alert_id, user_id)
+
     mine = cache.get(_user_key(user_id)) or []
     for a in mine:
         if a["id"] == alert_id:
             if not a["read"]:
                 a["read"] = True
                 cache.set(_user_key(user_id), mine, ttl=_TTL)
+            _dual_write_s7_read_if_applicable(a, user_id)
             return True
 
     # A broadcast row is SHARED — record the read mark against the member, not
@@ -273,6 +370,13 @@ def mark_all_read(user_id: str) -> int:
             seen.add(a["id"])
             count += 1
     cache.set(_read_key(user_id), marks[-_MAX_READ_MARKS:], ttl=_TTL)
+
+    try:
+        from api.services.alert_taxonomy import receipts as _at_receipts
+        count += _at_receipts.mark_all_fires_read(user_id)
+    except Exception:
+        pass
+
     return count
 
 

@@ -152,6 +152,7 @@ def _fire_row_to_dict(r) -> dict[str, Any]:
         "delivery_attempts": r["delivery_attempts"], "delivery_failed_at": r["delivery_failed_at"],
         "delivery_channels": json.loads(r["delivery_channels"]) if r["delivery_channels"] else None,
         "channels_failed": r["channels_failed"],
+        "read_at": r["read_at"] if "read_at" in r.keys() else None,
     }
 
 
@@ -177,5 +178,95 @@ def fires_for_predicate(predicate_id: str, limit: int = 50, *, db_path: str | No
             (predicate_id, limit),
         ).fetchall()
         return [_fire_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+# ── S7 durable in-app notification bridge (owner authorization) ────────────
+#
+# GET /api/alerts's ephemeral TTLCache does not survive a process restart or
+# redeploy (api/services/alerts.py's own docstring). These three functions
+# let that endpoint additionally serve a caller's own S7 fires straight from
+# THIS already-durable table, so a fire a member was told about stays visible
+# after the ephemeral copy is gone -- no new database, no new table.
+#
+# Ownership is enforced by JOINING through the fire's own predicate
+# (alert_predicates.user_id), never by trusting the denormalized
+# alert_fires.user_id column alone, even though that column is set correctly
+# at fire time -- the predicate's own owner is the authoritative source.
+
+def list_fires_for_feed(user_id: str, limit: int = 50, *, db_path: str | None = None) -> list[dict[str, Any]]:
+    """A caller's own fires across every S7 trigger type, newest first."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        rows = conn.execute(
+            "SELECT af.* FROM alert_fires af "
+            "JOIN alert_predicates ap ON af.predicate_id = ap.id "
+            "WHERE ap.user_id = ? "
+            "ORDER BY af.fired_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [_fire_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def mark_fire_read(fire_id: int, user_id: str, *, read_at: Optional[float] = None, db_path: str | None = None) -> bool:
+    """Ownership-scoped, idempotent read-mark. True iff the caller owns a fire
+    with this id (whether or not this call is what marked it read) -- a
+    second mark-read is a no-op success, never an error or a double-state."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        cur = conn.execute(
+            "UPDATE alert_fires SET read_at = COALESCE(read_at, ?) "
+            "WHERE id = ? AND predicate_id IN (SELECT id FROM alert_predicates WHERE user_id = ?)",
+            (read_at if read_at is not None else time.time(), fire_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def mark_fire_read_by_fire_key(fire_key: str, user_id: str, *, read_at: Optional[float] = None, db_path: str | None = None) -> bool:
+    """Same ownership-scoped, idempotent read-mark as mark_fire_read, but
+    looked up by fire_key rather than durable row id -- the read-state
+    parity fix (owner authorization). An EPHEMERAL alert's own `data`
+    carries `accession`/`fire_key` info but never the durable row's own
+    `id` (the two stores use different id schemes by design, see
+    api/services/alerts.py's dedup comment), so the ephemeral mark-read
+    path needs this lookup to dual-write the durable row it corresponds
+    to. Scoped by user_id exactly like mark_fire_read -- fire_key alone is
+    only unique per predicate, not globally."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        cur = conn.execute(
+            "UPDATE alert_fires SET read_at = COALESCE(read_at, ?) "
+            "WHERE fire_key = ? AND predicate_id IN (SELECT id FROM alert_predicates WHERE user_id = ?)",
+            (read_at if read_at is not None else time.time(), fire_key, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def mark_all_fires_read(user_id: str, *, read_at: Optional[float] = None, db_path: str | None = None) -> int:
+    """Mark every one of the caller's own currently-unread fires read.
+    Returns the count newly marked (mirrors alerts.mark_all_read's contract)."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        cur = conn.execute(
+            "UPDATE alert_fires SET read_at = ? "
+            "WHERE read_at IS NULL "
+            "AND predicate_id IN (SELECT id FROM alert_predicates WHERE user_id = ?)",
+            (read_at if read_at is not None else time.time(), user_id),
+        )
+        conn.commit()
+        return cur.rowcount
     finally:
         conn.close()
