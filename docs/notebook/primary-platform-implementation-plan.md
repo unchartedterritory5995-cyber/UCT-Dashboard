@@ -122,8 +122,10 @@ Every wave below ships in vertical slices — schema/foundation → backend → 
 | E2E gate | A prose-only NVDA mention (no embed) appears in NVDA's reverse-index; `$BRK-B` resolves correctly; a captured widget can carry a destination choice and a comment |
 | Production gate | False-positive rate on fundamental-analyst vocabulary (ROIC/EBIT/FCF/WACC/CAGR) measured, not merely swing-trader vocabulary |
 | Rollback | Destination menu is additive UI, revertible independently of the entity-layer work |
-| Estimated complexity | Low (this whole wave was miscosted as larger before Phase One found most of it already shipped) |
+| Estimated complexity | ⚰️ SUPERSEDED — see below. Was: "Low (this whole wave was miscosted as larger before Phase One found most of it already shipped)" |
 | Expected user value | Closes the gap between "what Phase Zero described as needed" and "what's actually already built," at near-zero net-new engineering cost |
+
+⚰️ **CORRECTION (2026-09-05, implementation-time verification, Wave 1 Slice 2) — the entity-layer half of this wave was miscosted the OTHER direction: not "already mostly shipped" but "the ongoing detection pass doesn't exist yet."** `enrichment.scan_notes_for_tickers()` — the only code that detects a cashtag in note prose — has exactly one caller (the one-time import wizard); `create_note`/`update_note` never invoke it, so no ongoing mention detection happens for normal note-writing at all. Slice 1 (capture menu/comment/tradeRef, P1-1) shipped as scoped and is unaffected. The entity-layer remaining slice (P0-3) is now Slice 2 of this wave and is sized as the first ongoing note-lifecycle-integrated mention pass, not a small completion item — full evidence and corrected scope: `primary-platform-decision-log.md`, "P0-3 scope correction" (2026-09-05); corrected spec: `primary-platform-master-product-spec.md` §P0-3; corrected architecture: `primary-platform-master-architecture.md` §4.
 
 ### Wave 2 — AI Foundation: Ask Current Note [Stage A]
 

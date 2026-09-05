@@ -173,6 +173,17 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Benchmark task | "Find all notes on a theme," "screener → saved research" (partially) (§6) |
 | Failure conditions | False-positive rate rises for fundamental-analyst vocabulary (untested register — ROIC/EBIT/FCF/WACC/CAGR); the sector/earnings join makes an unbounded per-ticker external call |
 
+⚰️ **The "~75% already shipped" line above is SUPERSEDED — implementation-time code verification (2026-09-05, Wave 1 Slice 2) found it materially wrong, not just imprecise.** Preserved above as the historical research-time claim; do not delete it, and do not re-derive a "remaining gap" from it.
+
+**What is actually true, verified by reading the code, not by re-reading this doc:**
+- The reverse-index (`get_symbol_backlinks()` / `GET /notes/backlinks?symbol=`) reads **only** `j2_note_embeds` — accepted chart-embed rows. It has zero awareness of prose-only cashtag mentions today.
+- `enrichment.scan_notes_for_tickers()` is the only code that detects a cashtag in note prose, and it has **exactly one caller**: the one-time post-migration import wizard (spec §8.1). **`create_note`/`update_note` never call it.** There is no ongoing detection pass at all — not "detects but doesn't persist," but "does not run."
+- There is **no persisted SUGGESTED state anywhere** — no column, table, or row represents a suggested-but-undecided mention. The CONFIRMED/STORED/SUGGESTED model architecture.md §4 describes as "already converged on organically" has two real tiers (`j2_notes.ticker`, `j2_note_embeds.symbol`) and one theoretical one that produces no artifact.
+- The cashtag bug is real but narrower than stated: only the **hyphen** class-share form breaks (`$BRK-B` → wrongly extracts `BRK`); the **dot** form (`$BRK.B`) already parses correctly.
+- Sector/earnings/theme joins are confirmed absent, as stated. The reusable 24h ticker-metadata cache (`api/services/ticker_meta.py`) exists and is available to reuse, as stated.
+
+**Corrected framing: P0-3 is not a small completion slice on a mostly-built foundation. It is the FIRST ongoing entity/mention indexing pass for ordinary member-authored notes** — ordinary prose, no embed, no import, no manual command. The success metric below (unchanged) is the right target; the "Problem"/"Smallest valuable version" rows above understate what building it requires. See the decision log entry "P0-3 scope correction" (2026-09-05) for the full evidence trail and the corrected implementation scope.
+
 ### P0-4 — Universal snapshot semantics (remaining slice: analyst-estimates capture path)
 
 | Field | Value |

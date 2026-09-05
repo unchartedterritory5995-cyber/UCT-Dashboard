@@ -432,6 +432,30 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-05 — P0-3 scope correction: the entity/mention layer was not ~75% shipped
+
+**Decision:** Correct the durable record rather than implement P0-3 against a false premise. The master-product-spec/master-architecture claim that the entity/mention layer was "~75% already shipped" with only sector/earnings/theme joins, SUGGESTED-mention persistence, and a cashtag fix remaining is **materially wrong**, verified by reading the actual code before writing any implementation. Both documents are corrected in place (tombstoned, original text preserved, not deleted) rather than silently rewritten.
+
+**Evidence (read directly, not inferred):**
+- `get_symbol_backlinks()` (`api/services/journal_two/notes.py:972`) — the reverse-index — reads **only** `j2_note_embeds` (accepted chart-embed rows). Zero awareness of prose-only cashtag mentions.
+- `enrichment.scan_notes_for_tickers()` (`api/services/journal_two/enrichment.py:38`) — the only code that detects a cashtag in note prose — has **exactly one caller**: `api/routers/journal_two.py:1603`, the one-time post-migration import wizard (spec §8.1). Its own docstring frames it as a read-only, one-shot pass.
+- **Confirmed by direct grep: `create_note`/`update_note` never call the scanner.** A note written today mentioning `$NVDA` only in prose is never scanned — not "detected but not persisted," but never examined at all outside the import flow.
+- **No persisted SUGGESTED state exists anywhere** — no column, table, or row. The CONFIRMED/STORED/SUGGESTED model (architecture.md §4) has two real tiers (`j2_notes.ticker`; `j2_note_embeds.symbol`) and one that today produces no artifact under ordinary note-writing.
+- The cashtag bug is real but narrower than documented: `buzz_extract._CASHTAG` (`api/services/buzz_extract.py:30`) breaks only on the **hyphen** class-share form (`$BRK-B` → wrongly extracts `BRK`, since the optional suffix group accepts only a dot); `$BRK.B` already parses correctly.
+- Sector/earnings/theme joins are confirmed absent, as the original docs stated. The reusable 24h ticker-metadata cache (`api/services/ticker_meta.py`, `_TTL = 86400`) exists and returns `{name, sector, industry, exchange, market_cap_musd}` — no earnings-window data, which would need a second, not-yet-identified source.
+
+**Alternatives considered:** (a) implement only the spec's literal remaining-gap list (sector/earnings/theme joins + hyphen fix) on top of the existing embed-only reverse-index — rejected, because the P0-3 success metric ("a note mentioning NVDA only in prose appears in NVDA's reverse-index") would still not be met, which the user explicitly ruled out ("do NOT reduce P0-3 to the literal old checklist when doing so would knowingly fail the... success metric"); (b) pause and do nothing until the docs alone are fixed — rejected by the user in favor of proceeding through both steps without stopping between them.
+
+**Rationale:** A stale sizing assumption, if implemented against literally, would ship a P0-3 that provably fails its own stated success metric while the durable docs kept claiming the easy 75% was already done — exactly the kind of silent-assumption-compounding this program's evidence-integrity discipline exists to prevent. Correcting the record before implementing is cheaper than a future session re-discovering the same gap and re-deriving the same wrong plan from stale docs.
+
+**Consequences:** P0-3's actual implementation (this wave's Slice 2) is scoped as the first ongoing, note-lifecycle-integrated mention-detection pass (create/update/delete/restore), not a small completion item bolted onto an existing pass. Fast local detection only (reuse `buzz_extract`'s matcher + the local ticker-metadata cache), never synchronous on an external provider at note-save time. The persistence model (what table/columns represent a prose mention, and whether the reverse-index needs a source distinction or just deduplicated note ids) is decided at implementation time against actual reverse-index requirements, not assumed from the old "`source='mention'` row" suggestion.
+
+**Reversibility:** Fully reversible — this is a sizing/scope correction, not an architectural commitment. The corrected docs can be corrected again if implementation surfaces something this verification pass missed.
+
+**Reconsider if:** implementation uncovers evidence that an ongoing detection pass DOES exist somewhere not found by this verification (grep again before assuming the correction itself is wrong).
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
