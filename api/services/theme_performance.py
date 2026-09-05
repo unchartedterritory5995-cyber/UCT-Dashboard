@@ -838,3 +838,170 @@ def trigger_recompute() -> None:
             return  # Already running
         _computing = True
     threading.Thread(target=_run_computation, daemon=True, name="theme-perf-recompute").start()
+
+
+# -- Personal theme SETS overlay (per-user, read-time diff) --------------------
+# Applied ONLY here, on a COPY of the shared overlaid result, in the theme-sets
+# endpoint code path. Never mutates the shared base and never touches the owner
+# taxonomy, theme_db merge, groups.py sizing, or the chart-watermark path -- so a
+# user private edit can never move anyone else numbers. See api/services/theme_sets.py.
+
+import re as _ts_re
+
+# Today (1d) + the live-only "open" period + the historical periods the tracker shows.
+_TS_PERIODS = ("1d", _OPEN_PERIOD, "1w", "1m", "3m", "1y", "ytd")
+
+
+def _ts_key(sym) -> str:
+    """Match key for a ticker across taxonomy (hyphen) / user-typed (maybe dot) forms."""
+    return str(sym or "").strip().upper().replace(".", "-")
+
+
+def _ts_slug(name) -> str:
+    """Theme slug -- MUST match the frontend themeSlug() so per-theme edits line up."""
+    return _ts_re.sub(r"[^a-z0-9]+", "-", str(name or "").lower()).strip("-")
+
+
+def returns_index_from_result(themes: list) -> dict:
+    """{match-key: {sym,name,returns,ref_prices}} from the already-overlaid base result -- the
+    reusable per-holding return primitive (live 1d/open + historical) for ANY composition."""
+    idx: dict = {}
+    for t in (themes or []):
+        for h in (t.get("holdings") or []):
+            s = h.get("sym")
+            if not s:
+                continue
+            k = _ts_key(s)
+            if k not in idx:
+                idx[k] = {"sym": s, "name": h.get("name") or s,
+                          "returns": h.get("returns") or {}, "ref_prices": h.get("ref_prices") or {}}
+    return idx
+
+
+def live_returns_for_syms(syms: list) -> dict:
+    """Mini-compute live+historical returns for OFF-taxonomy syms a user added (not in the base
+    result). Reuses the base primitives (daily bars -> _compute_returns_with_refs, then the same
+    live 1d/open overlay math). Cached for the live window. {match-key: holding-dict}."""
+    syms = [str(s).strip().upper() for s in (syms or []) if s]
+    syms = list(dict.fromkeys(syms))
+    if not syms:
+        return {}
+    ck = "theme_ts_extra::" + ",".join(sorted(_ts_key(s) for s in syms))
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+
+    from api.services.massive import get_agg_bars
+    from datetime import date as _date, timedelta as _td
+    to_d = _date.today().isoformat()
+    from_d = (_date.today() - _td(days=560)).isoformat()   # ~1y+ of trading days for the 1y ref
+
+    live_map = _fetch_live_1d_map(syms) or {}
+    open_map = _fetch_live_open_map(syms) or {}
+    out: dict = {}
+    for s in syms:
+        try:
+            bars = get_agg_bars(s, from_d, to_d)
+        except Exception:
+            bars = []
+        r, refs = _compute_returns_with_refs(bars) if bars else ({}, {})
+        returns = dict(r)
+        live_pct = live_map.get(s)
+        prev_close = refs.get("1d")
+        if live_pct is not None:
+            returns["1d"] = round(float(live_pct), 2)
+            cur = float(prev_close) * (1 + float(live_pct) / 100) if prev_close else None
+            if cur is not None:
+                for p in ("1w", "1m", "3m", "1y", "ytd"):
+                    ref = refs.get(p)
+                    if ref:
+                        returns[p] = round((cur - float(ref)) / float(ref) * 100, 2)
+        ov = open_map.get(s)
+        if ov is not None:
+            returns[_OPEN_PERIOD] = round(float(ov), 2)
+        out[_ts_key(s)] = {"sym": s, "name": s, "returns": returns,
+                           "ref_prices": refs, "source": "user"}
+    cache.set(ck, out, ttl=_LIVE_1D_TTL)
+    return out
+
+
+def _ts_aggregate(holdings: list) -> dict:
+    """Per-period group return for a user-set theme -- same equal-weight upside-winsorized owner
+    mean as the shared tracker, over non-engine members (user-added stocks DO count; engine
+    suggestions do not)."""
+    basket = {h["sym"] for h in holdings if h.get("sym") and h.get("source", "owner") != "engine"}
+    gr = {}
+    for p in _TS_PERIODS:
+        per_sym = {h["sym"]: h.get("returns", {}).get(p)
+                   for h in holdings if h.get("returns", {}).get(p) is not None}
+        v = _owner_only_mean(per_sym, basket)
+        if v is not None:
+            gr[p] = v
+    return gr
+
+
+def apply_theme_set(result: dict, set_def: dict) -> dict:
+    """Overlay one user theme-set diff onto the shared (already-overlaid) result. Returns a NEW
+    dict -- the base result, its theme dicts and holding dicts are never mutated. set_def shape:
+    {id,name,hidden:[slug],removed:{slug:[sym]},added:{slug:[sym]},custom:[{key,name,members:[sym]}]}."""
+    if not isinstance(result, dict) or not set_def:
+        return result
+    themes = result.get("themes") or []
+    hidden = {str(s).strip().lower() for s in (set_def.get("hidden") or [])}
+    removed = {str(k).strip().lower(): {_ts_key(x) for x in (v or [])}
+               for k, v in (set_def.get("removed") or {}).items()}
+    added = {str(k).strip().lower(): [str(x).strip().upper() for x in (v or [])]
+             for k, v in (set_def.get("added") or {}).items()}
+    custom = set_def.get("custom") or []
+
+    index = returns_index_from_result(themes)
+    need = set()
+    for lst in added.values():
+        need.update(s for s in lst if _ts_key(s) not in index)
+    for c in custom:
+        need.update(str(s).strip().upper() for s in (c.get("members") or [])
+                    if _ts_key(s) not in index)
+    extra = live_returns_for_syms(sorted(need)) if need else {}
+
+    def _holding(sym):
+        k = _ts_key(sym)
+        src = index.get(k) or extra.get(k)
+        if src:
+            return {"sym": src.get("sym") or sym.upper(), "name": src.get("name") or sym.upper(),
+                    "returns": src.get("returns") or {}, "ref_prices": src.get("ref_prices") or {},
+                    "source": "user"}
+        return {"sym": sym.upper(), "name": sym.upper(), "returns": {}, "ref_prices": {},
+                "source": "user", "unresolved": True}
+
+    out = []
+    for theme in themes:
+        slug = _ts_slug(theme.get("name", ""))
+        if slug in hidden:
+            continue
+        rem = removed.get(slug)
+        add = added.get(slug)
+        if not rem and not add:
+            out.append(theme)                      # untouched -> reuse (not mutated)
+            continue
+        holdings = [h for h in (theme.get("holdings") or [])
+                    if _ts_key(h.get("sym", "")) not in (rem or set())]
+        have = {_ts_key(h.get("sym", "")) for h in holdings}
+        for s in (add or []):
+            if _ts_key(s) not in have:
+                holdings.append(_holding(s))
+                have.add(_ts_key(s))
+        out.append({**theme, "holdings": holdings,
+                    "group_return": _ts_aggregate(holdings), "user_edited": True})
+
+    for c in custom:
+        holdings = [_holding(str(s)) for s in (c.get("members") or [])]
+        out.append({
+            "ticker": "INDEX", "name": c.get("name") or "Custom Theme", "sector": "Custom",
+            "custom_key": c.get("key"), "is_custom": True,
+            "holdings": holdings, "group_return": _ts_aggregate(holdings),
+        })
+
+    new = {k: v for k, v in result.items() if k != "themes"}
+    new["themes"] = out
+    new["theme_set"] = {"id": set_def.get("id"), "name": set_def.get("name")}
+    return new

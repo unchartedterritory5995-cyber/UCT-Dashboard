@@ -7159,6 +7159,8 @@ app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
+from api.routers import theme_sets as theme_sets_router  # per-user custom theme sets
+app.include_router(theme_sets_router.router)
 app.include_router(groups_router.router)
 app.include_router(sector_strength_router.router)
 # Flow read-proxy (P5 cutover): registered BEFORE every local flow-family
