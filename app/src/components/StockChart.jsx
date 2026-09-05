@@ -1431,6 +1431,17 @@ function drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg) {
 const BOLD_UP = '#21c45c'
 const BOLD_DOWN = '#f23645'
 
+// A hollow candle's "body" must be invisible but still carry the direction's own
+// RGB (alpha zeroed), never a fixed 'rgba(0,0,0,0)' placeholder — lightweight-charts
+// reuses a series' per-bar `color` for the last-value axis label, and its internal
+// color parser strips alpha before contrasting, turning transparent BLACK into an
+// opaque black box over the price pill. Falls back to the old placeholder (same
+// on-chart behavior as before this fix) only if the color string doesn't parse.
+export const _hollowFill = (c) => {
+  const rgb = parseColor(c)
+  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)` : 'rgba(0,0,0,0)'
+}
+
 // Model Book "Throughout the Years" palette — tuned to pop like TC2000:
 // a brighter, bolder green that leaps off the chart, a deeper darker red that
 // recedes, all over a deep-navy canvas. Scoped to boldCandles instances ONLY
@@ -8728,7 +8739,7 @@ export default function StockChart({
           // One color: every bar the same body/border/wick (shape still hollow on up).
           if (NC.mode === 'onecolor') {
             const up = bar.open != null ? bar.close >= bar.open : true
-            const body = (NC.hollow && up) ? 'rgba(0,0,0,0)' : NC.one
+            const body = (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
             return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
           }
           // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
@@ -8745,7 +8756,7 @@ export default function StockChart({
             up = bar.open != null ? bar.close >= bar.open : true
           }
           const openUp = bar.open != null ? bar.close >= bar.open : up
-          const body = (NC.hollow && openUp) ? 'rgba(0,0,0,0)' : (up ? NC.up : NC.down)
+          const body = (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
           return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
@@ -8806,7 +8817,7 @@ export default function StockChart({
         // per-bar wrapper passes through) — so the transparent up body must be
         // kept for Sunrise here too, not just for the explicit 'hollow' type.
         candleSeriesRef.current.applyOptions({
-          upColor: (_ct === 'hollow' || canvasTheme === 'sunrise') ? 'rgba(0,0,0,0)' : NC.up,
+          upColor: (_ct === 'hollow' || canvasTheme === 'sunrise') ? _hollowFill(NC.up) : NC.up,
           downColor: NC.down,
           borderVisible: (_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors),
           borderUpColor: NC.borUp, borderDownColor: NC.borDown,
