@@ -13,7 +13,7 @@ than recomputing any of its gates.
 import datetime as _dt
 from zoneinfo import ZoneInfo
 
-from . import filters, ranking, scan_store, snapshot_db
+from . import filters, pattern_join, ranking, scan_store, snapshot_db
 
 _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
@@ -1238,7 +1238,7 @@ def preview_count(spec, user_id=None):
     }
 
 
-def run_scan(spec, user_id=None):
+def run_scan(spec, user_id=None, user=None):
     spec = spec or {}
     with snapshot_db.connect() as conn:
         # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
@@ -1287,6 +1287,11 @@ def run_scan(spec, user_id=None):
                 ranked=_count(plan["where"], plan["describe_params"][
                     len(plan["overlay"].join_params):]))
     out_rows = [dict(r) for r in rows]
+    # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
+    # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
+    # PILOT_ENABLED=1 AND the caller is an admin -- see pattern_join.py's
+    # own docstring on this function for the full fail-safe/scope contract.
+    out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
     # `snapshot` is already this response's provenance object and is already
