@@ -76,6 +76,35 @@ account restored to its exact pre-capture pixel state. RISK-018a, `PHASE_ONE_PLA
 RISK-018a for the full two-pass evidence trail. Not authorized by this capture: implementing the four
 functions, or Track E, or Review Packet #2.
 
+**2026-09-05 (same session, later still) — Track E COMPLETE: real live-credentialed evidence, a real
+defect found and fixed.** Owner provisioned a scoped, isolated-environment-only dev/test Anthropic
+credential per DEC-008 and ran `tools/track_e_run_golden_journey.py` twice. First run: 6 failed, 1
+passed — traced to a test-fixture defect (the Golden Journey test's `client` fixture never initialized
+`catalyst.store`/`user_definitions`, so the real `cost_guard` check 500'd before any model call; zero
+real model calls occurred for any failing case). Fixed, then re-run locally with a mocked model to
+verify before spending again — which surfaced two REAL, independent product semantic-safety defects
+that had never been reachable before: `definition_concierge.propose()` silently substituted EMA for an
+explicitly-named unsupported indicator ("McGinley Dynamic") and silently invented a formula for a fully
+ambiguous scan condition ("the vibe turns bullish"), both `ok:true`. Fixed with two general,
+non-blacklist mechanisms — a deterministic pre-model gate for named-but-unsupported concepts (pure
+code, the model is never even consulted, proven both by mock and live) and a new required `unresolved`
+tool-schema field forcing honest model self-report of ungrounded language (a materially stronger
+contract than free-text prompting, disclosed as still dependent on model honesty, not claimed
+bulletproof). A first design attempt at the second mechanism (a pre-model syntactic "any fully-unanchored
+clause refuses" check) was tried and reverted after this module's OWN pre-existing test suite proved it
+too broad — "a twenty bar average of it" and "stocks where that holds" are both legitimately
+fully-unanchored and required to succeed. 10 new non-live regression tests, all using prompts never
+seen in any fixture; full sweep across every file importing `definition_concierge` (498 tests) plus the
+Golden Journey file itself: 0 failed. **Second live run: 7 passed, 0 failed** — every case, including
+both previously-failing ones, now passing on real evidence (real `claude-opus-5` calls, real tokens/cost,
+real persistence round-trip, real vision candidates). Reviewed the evidence by hand (not the mechanical
+draft alone), removed the DRAFT banner from `GOLDEN_JOURNEY_04_05_LIVE_RESULTS.md`, and moved
+`VALIDATION_COVERAGE_MAP.md`'s plain-language and screenshot door rows to **4 — End-to-End**, scoped
+precisely to what was tested. Full detail in `RISK_REGISTER.md` RISK-026 and `PHASE_ONE_PLAN.md`'s
+Track E row. The credential was cleared from the local shell immediately after the second run; this
+session never had access to it. Not authorized by this track: broadening the fix further, or any content
+beyond what's recorded here — Review Packet #2 is a separate deliverable, produced next.
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
