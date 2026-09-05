@@ -245,6 +245,9 @@ def screener_scan(request: Request, spec: ScanSpec, user=Depends(require_paid)):
         result = scr_query.run_scan(spec.model_dump(),
                                     user_id=(user or {}).get("id"), user=user)
         _t_after_scan = _time.perf_counter()
+        # TEMPORARY: pop the per-thread stage timings run_scan just recorded
+        # via its contextvar -- never part of `result` (the real response).
+        request.state.run_scan_stages = scan_trace_temp.pop_stages()
         scan_trace_temp.record(request, _t_route_entry, _t_before_scan,
                                 _t_after_scan, len(result.get("rows", [])))
         return result
