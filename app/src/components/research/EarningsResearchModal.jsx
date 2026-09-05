@@ -8,6 +8,7 @@
 // is the one deliberate exception (controller amendment, P2 T6): it follows
 // the RAW un-debounced symbol so the header number never lags the header name.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import CompanyLogo from '../CompanyLogo'
 import TickerPopup from '../TickerPopup'
@@ -149,6 +150,14 @@ export default function EarningsResearchModal({
   const isPhone = useIsPhone()
   const panelRef = useRef(null)
   const sym = row?.sym || ''
+  const navigate = useNavigate()
+  // Entry-point convergence (owner authorization): a deliberate, member-clicked
+  // exit into canonical Research — NOT an auto-navigate. The modal's own AI
+  // panel deliberately lost its auto-route-out on 2026-08-09 because it
+  // dropped the reader onto a new page mid-read; this button is the opposite
+  // shape on purpose (explicit click, current reading context untouched until
+  // the member chooses to leave).
+  const goToFullResearch = () => navigate(`/research/${sym}`)
 
   const active = normalizeSection(section)
   const { settled: settledSym } = useSettledSym(sym)
@@ -339,6 +348,12 @@ export default function EarningsResearchModal({
             that closed on it, and the banner's single price cannot say which. */}
         <QuoteStrip sym={settledSym} />
         <TickerPopup sym={sym} as="button" className={styles.btnChart}>View chart</TickerPopup>
+        {/* Deliberate, member-clicked exit into canonical Research — see
+            goToFullResearch's own comment for why this is a click, not a
+            navigate-on-mount. */}
+        <button type="button" className={styles.btnChart} onClick={goToFullResearch}>
+          <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Full Research
+        </button>
       </div>
 
       <SectionTabs active={active} onSelect={onSectionChange} idPrefix="erm-rail" />

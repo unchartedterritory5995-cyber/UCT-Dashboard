@@ -27,6 +27,7 @@
 //     mistake already cost one design rework (2026-07-31).
 //
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
@@ -533,6 +534,13 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
 // — they aren't yours to write to.
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
+  // Entry-point convergence (owner authorization): the shared door into canonical
+  // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
+  // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
+  // alert/Remove) rather than the app-wide TickerActionsMenu, so these two
+  // actions are added directly into that existing menu below instead of
+  // introducing a second, competing context-menu system.
+  const navigate = useNavigate()
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -2618,6 +2626,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           // orphaning notes + alerts app-wide; owner decision 2026-08-01 restored
           // them HERE rather than re-cluttering the row.
           <>
+            <button
+              className={styles.ctxItem}
+              onClick={() => { navigate(`/research/${ctxMenu.sym}`); setCtxMenu(null) }}
+            ><UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research</button>
+            <button
+              className={styles.ctxItem}
+              onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
+            ><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {ctxMenu.sym}</button>
             {ctxMenu.id !== 'flagged' && (
               <button
                 className={styles.ctxItem}
