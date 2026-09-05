@@ -3135,7 +3135,35 @@ function declaredInputNames(node, out = new Set()) {
 
 function foldWindow(node) {
   const v = constantValueOf(node)
-  return (v !== null && Number.isInteger(v) && v >= 0) ? cNum(v) : node
+  if (v === null || !Number.isInteger(v) || v < 0) return node
+  const out = cNum(v)
+  // ⭐⭐ TRACK F (DEC-006) — CARRY A PARAMETER TAG THROUGH THE FOLD, WHEN THE
+  // NODE HANDED IN ALREADY WAS ONE. `foldWindow` exists to turn an expression
+  // that REDUCES to a whole number into a fresh literal node for the window
+  // guard below — and when `node` is ALREADY a bare `num` a `resolveInput`
+  // fold tagged (`sma(close, len)`, `len`'s value landing directly in the
+  // window slot with nothing else combined), `cNum(v)` above rebuilds an
+  // otherwise-identical node that drops the tag purely as a byproduct of
+  // being a NEW object — silently making every window-bound Pine input (a
+  // length, the single most common `input.int` use and RISK-013's own
+  // motivating case) ineligible for a reason invisible anywhere near
+  // `resolveInput` itself. Regression: `pine.paramManifest.test.js`'s first
+  // case, which failed exactly this way before this fix.
+  //
+  // ⛔ ONLY WHEN `node` ITSELF CARRIES THE TAG — never derived from a deeper
+  // sub-node. `len / 2` reaches here as an `op` node whose OWN
+  // `__uctParamId` is (correctly) undefined, even though `len`'s inner
+  // literal has one two levels down — and that is exactly right: the value
+  // landing in the window is a COMPUTED function of the input, not the
+  // input's own value, so it correctly stays ineligible (there is no way to
+  // reconstruct "what would `len` need to be" from a later edit to a folded
+  // `7`). This check cannot accidentally widen eligibility beyond a bare,
+  // direct pass-through.
+  if (node && typeof node === 'object' && node.__uctParamId !== undefined) {
+    Object.defineProperty(out, '__uctParamId',
+      { value: node.__uctParamId, enumerable: false, configurable: true })
+  }
+  return out
 }
 
 /** The extra half of a `pine:window` sentence, for the one case where the length
@@ -3485,6 +3513,24 @@ function foldLogicalIdentity(op, left, right, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
+/** ⭐ TRACK F (DEC-006) parameter-manifest eligibility — the exact 3 `input.*`
+ *  kinds `builderInputs.js`'s `FOLDED_INPUT_TYPES` already treats as numeric-
+ *  with-a-real-type-decision (`input.int`→'int', `input.float`→'float', bare
+ *  `input`→decide by the default's integrality). Declared independently here
+ *  rather than imported — `builderInputs.js` sits ABOVE this module and
+ *  injects `translate` rather than importing it for exactly the reason its
+ *  own header gives ("importing `pine.js` here would put a second edge into
+ *  the translator from a layer that only ever reads its output"); the
+ *  reverse import (this file reaching UP into `builder/`) would be the same
+ *  mistake the other way round. Pinned against drifting from
+ *  `FOLDED_INPUT_TYPES` by `pine.paramManifestEligibility.test.js`, which
+ *  asserts the two name the same three kinds, so a change to either without
+ *  the other fails loudly rather than silently. `bool`/`source`/`price`/
+ *  `string`/anything else is deliberately excluded — Track F's v1 scope is
+ *  int/float only (owner instruction), and `resolveInput`'s existing refusal
+ *  path already handles every kind this set does not name. */
+const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float']))
+
 class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
@@ -3526,6 +3572,22 @@ class Resolver {
     /** Bound input names that reached an `int` slot on this run — collected so a
      *  caller can refuse them rather than hand back a half-applied knob. */
     this.windowBoundInputs = new Set()
+    /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
+     *  per-Resolver) parameter-identity table: `{ counter, byNode: Map<node,
+     *  entry>, metadata: entry[] }`, or `null` for every existing caller —
+     *  the same "opt-in, off by default, byte-identical otherwise" contract
+     *  `declareInputs`/`inputValues` above already keep.
+     *
+     *  ⛔⛔ IT MUST BE SHARED ACROSS RESOLVERS, NOT OWNED BY ONE, which is why
+     *  it is threaded in via `opts` rather than initialized here the way
+     *  `usedInputs`/`windowBoundInputs` are. `translatePine` builds a FRESH
+     *  `Resolver` per output (see its own per-output loop) — a Resolver-
+     *  owned table would mint a SEPARATE id for the same original Pine input
+     *  every time a second plot referenced it, exactly the "two independent
+     *  bindings for one member decision" mistake `TRACK_F_PARAMETER_ADR_V2_2
+     *  .md` §1 corrects. See `resolveInput`'s own comment for why it is keyed
+     *  on the ORIGINAL CALL NODE'S IDENTITY rather than on `boundName`. */
+    this.paramMint = opts.paramMint || null
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -6118,6 +6180,70 @@ class Resolver {
       // folded expression is the honest answer, and `inputsFromFolded` already
       // refuses that entry by name ("the fold printed an EXPRESSION").
     }
+    // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID, THEN TAG
+    // THE LITERAL THAT SURVIVES INTO THE TREE. Opt-in (`this.paramMint`,
+    // threaded from `translatePine({ paramManifest: true })`), off by
+    // default, so every existing caller and every committed corpus digest is
+    // untouched — this runs AFTER the `declared` branch above and never for
+    // it (that branch already returned a `series` leaf, not `resolved`).
+    //
+    // ⛔ THIS RUNS REGARDLESS OF WINDOW-BOUNDEDNESS, unlike `declareInputs`
+    // above. That is the whole point: `declareInputs` puts an IDENTIFIER into
+    // the tree, which `windowLiteral` correctly refuses in a window/length
+    // slot (`builderInputs.js::windowRefusal`) — this mechanism never does
+    // that. `resolved` here is ALWAYS the plain literal fold, exactly as the
+    // non-`declareInputs` path has always produced, so a length argument
+    // stays a literal at every step, satisfying `_no_offset`/`windowLiteral`
+    // continuously. "Adjustable" means a LATER save writes a DIFFERENT
+    // literal at the same spot, never that this AST holds an identifier
+    // there — see `this.paramMint`'s own comment, and `param_manifest.py`'s
+    // module docstring, for the rest of this design.
+    if (this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
+        && resolved && resolved.type === 'num' && Number.isFinite(resolved.value)) {
+      // ⛔⛔ KEYED ON THE ORIGINAL CALL NODE'S IDENTITY, NEVER ON `boundName`.
+      // See `this.paramMint`'s own comment on the Resolver field for why —
+      // the short version: `translatePine` builds one fresh `Resolver` per
+      // output, so only object identity (shared via `env`, never recreated
+      // per output) survives across "the same input feeds two plots."
+      let entry = this.paramMint.byNode.get(node)
+      if (!entry) {
+        this.paramMint.counter += 1
+        const type = kind === 'input'
+          ? (Number.isInteger(resolved.value) ? 'int' : 'float')
+          : kind
+        entry = {
+          id: `__uct_param_${this.paramMint.counter}`,
+          sourceName: boundName,
+          title: title && title.type === 'string' ? title.value : boundName,
+          type,
+          default: resolved.value,
+          min: bound('minval'),
+          max: bound('maxval'),
+          // ⚠️ `options` (a numeric enum, e.g. `input.int(1, options=[1,2,5])`)
+          // is NOT populated. Verified, not assumed: this parser has no array-
+          // literal node type at all today (`options=[...]` is unparsed Pine
+          // grammar this translator does not yet support in ANY position, not
+          // a Track F gap specifically) — inventing one here would be new
+          // parser surface far outside "the smallest v1," so this is an
+          // honest `null`, not a silently-dropped feature. Logged as a known
+          // limitation rather than attempted.
+          options: null,
+          step: bound('step'),
+        }
+        this.paramMint.byNode.set(node, entry)
+        this.paramMint.metadata.push(entry)
+      }
+      // ⛔ NON-ENUMERABLE, EXACTLY THE `declared`-LEAF IDIOM ABOVE (this
+      // file's own words, a few lines up): `astHash` walks a node's OWN
+      // ENUMERABLE KEYS, so a plain key here would widen the canonical
+      // grammar by one byte and break `assertCanonical`'s "key set is byte-
+      // equal to CANONICAL_KEYS" check. This tag must be invisible to
+      // hashing, `JSON.stringify`, and every persisted copy, and visible only
+      // to the walker that looks for it BY NAME
+      // (`pineParamManifest.js::collectParamLocators`).
+      Object.defineProperty(resolved, '__uctParamId',
+        { value: entry.id, enumerable: false, configurable: true })
+    }
     return resolved
   }
 }
@@ -7080,6 +7206,7 @@ export function translatePine(source, opts = {}) {
   const blank = {
     ok: false, version: null, declaration: null, title: null,
     outputs: [], selected: -1, notes: [], refusal: null, refusals: [],
+    inputParams: [],
   }
 
   if (typeof source !== 'string' || source.trim() === '') {
@@ -7107,6 +7234,13 @@ export function translatePine(source, opts = {}) {
   let declaration = null
   let title = null
   const hardRefusals = []
+  // ⭐⭐ TRACK F (DEC-006) — created ONCE per `translatePine` call (never per
+  // output/per-Resolver, see `Resolver.paramMint`'s own comment for why),
+  // `null` unless `opts.paramManifest` asked for it — the same opt-in, off-
+  // by-default contract `declareInputs`/`inputValues` already keep.
+  const paramMint = opts.paramManifest
+    ? { counter: 0, byNode: new Map(), metadata: [] }
+    : null
 
   // ⭐ EVERY REASSIGNMENT FIRST, over raw tokens, before a single statement is
   // read. See `reassignedNames` — the walk folds what it can and this map is what
@@ -7617,7 +7751,7 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned, source })
+      { finalBindings, finalLocals, mutated: reassigned, source, paramMint })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -7734,6 +7868,7 @@ export function translatePine(source, opts = {}) {
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
+      inputParams: [],
     }
   }
 
@@ -7754,6 +7889,16 @@ export function translatePine(source, opts = {}) {
     notes: withExcerpts(notes, lines),
     refusal: (usable.length > 0 && !blocked) ? null : withExcerpt(refusals[0] || null, lines),
     refusals: withExcerpts(refusals, lines),
+    // ⭐⭐ TRACK F (DEC-006) — the per-declaration IMMUTABLE metadata this call
+    // minted (empty unless `opts.paramManifest` was set). Deliberately
+    // METADATA ONLY, no `{treeIndex, astPath}` locators: this function has no
+    // notion of "trees" or which outputs a caller will keep as saved plots —
+    // that is `pineParamManifest.js`'s job, walking `outputs[i].ast` (which
+    // this same return already carries) for the `__uctParamId`-tagged nodes
+    // `resolveInput` left behind. Same layering `usedInputs`/`inputsFolded`
+    // already use: this module records raw facts, the builder layer turns
+    // them into a shape a save can submit.
+    inputParams: paramMint ? paramMint.metadata : [],
   }
 }
 
