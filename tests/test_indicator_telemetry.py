@@ -148,10 +148,10 @@ class TestClientRouter:
         })
         assert resp.status_code in (401, 403)
 
-    def test_props_never_required_to_carry_source_text_and_a_caller_cannot_be_forced_to(self, app, db):
-        """Documents the contract rather than enforcing it server-side (the
-        discipline lives at each call site, per the module docstring) — this
-        proves a normal shape-only props payload round-trips correctly."""
+    def test_a_normal_shape_only_props_payload_round_trips(self, app, db):
+        """A real call site's props (dialect/stage/gate/booleans) is exactly
+        this small — proves the enforcement below costs legitimate traffic
+        nothing."""
         c = TestClient(app)
         resp = c.post("/api/indicator-telemetry/event", json={
             "event": "compile_finished", "import_id": "i2", "dialect": "pcf",
@@ -161,3 +161,31 @@ class TestClientRouter:
         rows = _rows(db, "u1", "compile_finished")
         assert rows[0]["success"] is False
         assert rows[0]["stage"] == "compile"
+
+    def test_a_props_value_shaped_like_pasted_source_is_REJECTED_not_silently_stored(self, app, db):
+        """⛔ ENFORCED, NOT JUST COMMENTED. `logIndicatorTelemetry`/`EventBody`'s
+        own docstrings say 'never the source text itself' but relied entirely on
+        caller discipline — nothing stopped a future call site from accidentally
+        passing a pasted script/prompt through `props`. This plants exactly that
+        mistake (a long string standing in for real Pine/thinkScript/PCF source)
+        and proves the door refuses it and writes nothing, rather than silently
+        accepting and persisting it forever."""
+        c = TestClient(app)
+        fake_pasted_source = "//@version=5\nindicator('x')\n" + ("plot(close)\n" * 20)
+        assert len(fake_pasted_source) > 200  # confirms this case actually exercises the bound
+        resp = c.post("/api/indicator-telemetry/event", json={
+            "event": "compile_finished", "import_id": "i3", "dialect": "pine",
+            "props": {"stage": "compile", "accidental_source": fake_pasted_source},
+        })
+        assert resp.status_code == 422
+        assert _rows(db, "u1", "compile_finished") == []
+
+    def test_a_props_value_right_at_the_boundary_is_still_accepted(self, app, db):
+        """The bound is generous to legitimate shape data — a control proving
+        this isn't just rejecting everything."""
+        c = TestClient(app)
+        resp = c.post("/api/indicator-telemetry/event", json={
+            "event": "compile_finished", "import_id": "i4", "dialect": "pine",
+            "props": {"gate": "x" * 200},
+        })
+        assert resp.status_code == 200

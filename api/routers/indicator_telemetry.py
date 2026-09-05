@@ -20,12 +20,22 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from api.middleware.auth_middleware import get_current_user
 from api.services import indicator_telemetry as telemetry
 
 router = APIRouter(prefix="/api/indicator-telemetry", tags=["indicator-telemetry"])
+
+#: A shape-only prop (a dialect name, a stage/gate string, a small count) never
+#: needs more than this many characters. Verified 2026-09-04: every real call
+#: site (`BuilderSheet.jsx`) sends only `{success: true}`-sized payloads, so
+#: this costs legitimate traffic nothing. Its job is catching the failure mode
+#: the module docstrings already name in prose but never enforced structurally
+#: — a future call site accidentally passing the pasted script/prompt text
+#: itself. A raw Pine/thinkScript/PCF script or a plain-language prompt will
+#: virtually always clear this bound; a dialect/stage/gate name never will.
+_MAX_PROP_VALUE_LEN = 200
 
 
 class EventBody(BaseModel):
@@ -34,8 +44,24 @@ class EventBody(BaseModel):
     dialect: Optional[str] = Field(default=None, max_length=32)
     # ⛔ NEVER the source text itself — see the module docstring on
     # indicator_telemetry.py. `props` here is for shape only: length,
-    # success/failure, error class.
+    # success/failure, error class. Enforced, not just commented: see
+    # `_check_props_are_shape_only` below.
     props: Optional[dict[str, Any]] = None
+
+    @field_validator("props")
+    @classmethod
+    def _check_props_are_shape_only(cls, v: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        if v is None:
+            return v
+        for key, value in v.items():
+            text = value if isinstance(value, str) else repr(value)
+            if len(text) > _MAX_PROP_VALUE_LEN:
+                raise ValueError(
+                    f"props.{key} exceeds {_MAX_PROP_VALUE_LEN} chars — telemetry "
+                    "props must be shape-only (dialect/stage/gate/counts), never "
+                    "pasted source or prompt text"
+                )
+        return v
 
 
 @router.post("/event")
