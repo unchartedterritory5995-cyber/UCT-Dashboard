@@ -4,6 +4,32 @@ Durable record of major decisions across Phase Zero, the Evidence-Integrity Audi
 
 ---
 
+## Pre-Wave-0 Test Baseline (captured 2026-09-05, before any Wave 0 code change)
+
+**Master reconciliation:** `origin/master`'s delta since the research baseline (`54d7de266`) is the same 8 files identified in Phase Two: this program's own account-deletion fix (`api/routers/auth.py`, `api/services/journal_two/account_purge.py`, `docs/account-deletion-manifest.md`, `tests/test_journal_two_account_purge.py` — **MATERIAL WAVE-0 IMPACT, positive: a Wave-0 security/privacy prerequisite is already satisfied**) and 4 unrelated Package-8G-B pattern-engine/screener performance files (**NO IMPACT** — zero overlap with Notebook/Journal 2.0/Compass/auth-lifecycle/search/AI/charts-widgets/Terminal/screener-scanner/company-pages/portfolio-watchlists, confirmed via `diff --stat`). Merged into `notebook-primary-platform` cleanly (no conflicts); `account_purge.py` confirmed present in the implementation tree post-merge. No Wave-0 assumption required re-verification.
+
+**Broad regression scan** (1147 tests matched by a keyword filter across `tests/` + `journal_two/`, ~39 min): 10 failed, 2 errors, 1 skipped (a flag-off skip, working as intended), rest passed.
+
+**Re-run in isolation (this session, before any Wave-0 change), to distinguish deterministic failures from order-dependent artifacts of the broad run:**
+
+| Test | Broad-run result | Isolated result | Classification |
+|---|---|---|---|
+| `test_scan_screener_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route` | FAILED | **FAILED** | Deterministic. `TypeError: stub_services.<locals>.<lambda>() got an unexpected keyword argument 'user'` — a test-fixture stub signature mismatch in the test file itself (not app code — confirmed `stub_services` doesn't exist in `api/routers/screener.py`). Screener-specific, zero relation to Notebook/Wave 0. |
+| `test_scan_screener_auth.py::test_an_ADMIN_gets_200_everywhere_including_the_refresh_route` | FAILED | **FAILED** | Same cause as above. |
+| `test_scan_screener_auth.py::test_a_TRIAL_member_is_treated_as_paid` | FAILED | **FAILED** | Same cause as above. |
+| `test_screener_api.py::test_saved_screens_delete_of_a_missing_or_foreign_screen_answers_404_not_found` | FAILED | **FAILED** | Deterministic. `sqlite3.OperationalError: no such table: screener_saved_screens` — a missing table in this test's own fixture setup. Screener-specific, zero relation to Notebook/Wave 0. |
+| `test_alert_ledger_admission.py::test_a_USER_AUTHORED_fire_lands_ZERO_receipts_beside_a_builtin_that_lands_ONE` | FAILED | **PASSED** | Order-dependent — a known class this repo's own `conftest.py` documents extensively (e.g. the `AUTH_DB_PATH`-reload split-store defect). Not a Wave-0 concern, not introduced by this session. |
+| `test_alert_user_admission.py::test_one_accounts_formula_cannot_answer_for_another` | FAILED | **PASSED** | Order-dependent, same class. |
+| `test_alert_user_router.py::test_one_accounts_formula_cannot_be_armed_by_another_over_HTTP` | FAILED | **PASSED** | Order-dependent, same class. |
+| `test_definition_record.py::test_BLIND_SPOT_4_a_USER_AUTHORED_fire_is_refused_FIRST_yet_the_record_has_it` | FAILED | **PASSED** | Order-dependent, same class. |
+| `test_user_definition_reproof.py::test_the_QUIET_STOPS_when_the_SUPPRESSION_IS_DELETED[forming/closed]` | FAILED (×2) | **PASSED** | Order-dependent, same class. |
+| `test_user_definitions_auth.py::test_the_owner_ruling_is_carried_as_a_TIER_and_the_ast_lane_is_premium` | ERROR | **PASSED** | Order-dependent, same class. |
+| `test_user_definitions_auth.py::test_the_free_tier_is_EXACTLY_the_sixteen_natives_and_that_is_the_OWNER_QUESTION` | ERROR | **PASSED** | Order-dependent, same class. |
+
+**Baseline verdict:** 4 deterministic pre-existing failures, both root-caused to test-fixture bugs in the `screener` test suite (not app code, not Notebook, not Wave 0). 8 order-dependent flakes, reproduced as passing in isolation, consistent with an already-known, already-documented test-isolation defect class in this repo — not new, not a regression, not touching any Wave-0 code path. **None of the 12 overlap, by import or reference, with `account_purge.py`, `auth.py`'s deletion endpoints, or any `journal_two`/Notebook file** (confirmed by grep before this baseline was recorded). This baseline — 4 deterministic screener failures, 8 known-flaky order-dependent tests — is what any post-Wave-0 comparison must be measured against, so a genuine Wave-0 regression is never confused with either of these two pre-existing classes, and neither is silently waved off as "pre-existing" without this record to point to.
+
+---
+
 ### 2026-09-05 — North star narrows from "primary notebook" to "financial research system of record"
 
 **Decision:** UCT Notebook's immediate ambition is to be the best financial research/knowledge system for active traders first, used *alongside* a member's general notebook — not a Notion/Evernote/Obsidian replacement.
