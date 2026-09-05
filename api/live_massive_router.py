@@ -294,9 +294,14 @@ DEFAULT_THRESHOLDS = {
     # all ask, ~133 DTE) that fell through every existing net: under the $1M
     # single-print Alpha floor, under 180 DTE for Alpha LEAPS, and the by-contract
     # accum push was disabled + floored at $3M. Grades the AGGREGATE, not the
-    # single print. require_unusual gates it to DORMANT names (see
-    # _is_unusual_classification) so it can't fire on daily megacap churn — the
-    # noise that got accum_enabled turned off 2026-07-21. Set
+    # single print. require_unusual gates it to DORMANT names via
+    # _is_dormant_ticker (NOT in the last-30-trading-day active set) — NOT
+    # _is_unusual_classification, whose hard V/OI>=5 gate would reject a build
+    # that accrues through moderate-V/OI prints (the PPTA shape). So a quiet name
+    # qualifies on the aggregate alone, while daily megacap churn — the noise
+    # that got accum_enabled turned off 2026-07-21 — can't (megacaps are always
+    # in the active set). Needs the dormant precompute populated
+    # (_maybe_refresh_dormant self-heals it). Set
     # ask_accum_enabled=False to disable (rows fall back to their single-print
     # tier). Auto-push rides the separate `ask_accum` toggle in _AUTO_PUSH_CFG.
     "ask_accum_enabled": True,
@@ -737,6 +742,53 @@ def _is_dormant_ticker(symbol: str) -> bool:
     if _dormant_active_set is None:
         return False
     return symbol not in _dormant_active_set
+
+
+_LAST_DORMANT_REFRESH = 0.0
+_DORMANT_MAX_AGE_SEC = 18 * 3600      # rebuild if the file is older than ~18h
+_DORMANT_REFRESH_COOLDOWN = 3600     # never spawn more than one rebuild / hour
+
+
+def _maybe_refresh_dormant():
+    """Lazy self-heal for the dormant-ticker precompute (mirrors the COT /
+    fundamentals self-heal idiom). Nothing SCHEDULES `_compute_active_tickers`
+    — it's only wired to an admin endpoint — so without this the file never
+    exists in prod and _is_unusual_classification / the Ask Accumulation
+    dormant gate silently run blind (legacy V/OI mode → dormant names never
+    qualify). If the file is missing or stale, rebuild it ONCE in a daemon
+    thread (a 1-5s FlowDB scan, off the request path), rate-limited by a
+    cooldown. Until it lands, _is_dormant_ticker returns False (conservative —
+    the tier stays quiet rather than spamming), then fires on the next scan."""
+    global _LAST_DORMANT_REFRESH
+    now = time.time()
+    try:
+        fresh = (os.path.exists(_DORMANT_PATH)
+                 and (now - os.path.getmtime(_DORMANT_PATH)) < _DORMANT_MAX_AGE_SEC)
+    except OSError:
+        fresh = False
+    if fresh or (now - _LAST_DORMANT_REFRESH) < _DORMANT_REFRESH_COOLDOWN:
+        return
+    _LAST_DORMANT_REFRESH = now
+
+    def _work():
+        global _dormant_cache, _dormant_active_set, _dormant_loaded_mtime
+        try:
+            data = _compute_active_tickers(lookback_days=30)
+            os.makedirs(os.path.dirname(_DORMANT_PATH), exist_ok=True)
+            tmp = _DORMANT_PATH + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f)
+            os.replace(tmp, _DORMANT_PATH)   # atomic swap
+            _dormant_cache = None
+            _dormant_active_set = None
+            _dormant_loaded_mtime = 0
+            _load_dormant_tickers()
+            print(f"[dormant] self-heal rebuilt active set "
+                  f"({data.get('active_count')} active)")
+        except Exception as e:
+            print(f"[dormant] self-heal failed: {e}")
+
+    threading.Thread(target=_work, daemon=True).start()
 
 
 def _trading_days_back(n: int, end_date: date = None) -> list:
@@ -1211,6 +1263,28 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 # Promote — fall through to MAGENTA branch below.
                 color = "MAGENTA"
 
+    # ─── Ask Accumulation aggregate promotion (2026-09-04) ─────────────────
+    # A quiet-name BUILD usually prints at MODERATE per-print V/OI (each print
+    # WHITE/YELLOW), so no single print is MAGENTA even though the SESSION ask
+    # total is large — the exact PPTA case. The single-print premium_override
+    # above can't catch it ($679.9K < $1M). Promote on the AGGREGATE so the row
+    # reaches the tier branch; the ask_accum check inside re-applies the gates.
+    # Scoped tightly (ask + near-money + over-floor + DORMANT) so it never
+    # promotes a row that wouldn't become ask_accum.
+    if color != "MAGENTA" and side_is_ask:
+        try:
+            _aa_pth = _load_thresholds()
+        except Exception:
+            _aa_pth = DEFAULT_THRESHOLDS
+        if (_aa_pth.get("ask_accum_enabled", True)
+                and agg_ask_premium >= _aa_pth.get(
+                    "ask_accum_min_aggregate_premium", 1_000_000)
+                and money_pct is not None
+                and abs(money_pct) <= _aa_pth.get("ask_accum_max_otm_pct", 50.0)
+                and (not _aa_pth.get("ask_accum_require_unusual", True)
+                     or _is_dormant_ticker(row["Symbol"]))):
+            color = "MAGENTA"
+
     if color == "MAGENTA":
         # ─── Alpha LEAPS — aggregate-conviction on a LEAP position ─────────
         # A LEAP (DTE>=180) is demoted out of Alpha Gold by design (Alpha Gold
@@ -1327,7 +1401,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 and money_pct is not None
                 and abs(money_pct) <= _aa_th.get("ask_accum_max_otm_pct", 50.0)
                 and (not _aa_th.get("ask_accum_require_unusual", True)
-                     or _is_unusual_classification(row["Symbol"], v_oi, premium))):
+                     or _is_dormant_ticker(row["Symbol"]))):
             return (f"UCT Ask Accumulation {direction}", "ask_accum",
                     TIER_PRIORITY["ask_accum"])
         # LEAPS
@@ -2532,6 +2606,11 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
+
+    # Ensure the dormant-ticker precompute exists + is fresh (backgrounded, rate-
+    # limited) so the Unusual + Ask Accumulation dormant gates have real data.
+    # Nothing else schedules it — see _maybe_refresh_dormant.
+    _maybe_refresh_dormant()
 
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
