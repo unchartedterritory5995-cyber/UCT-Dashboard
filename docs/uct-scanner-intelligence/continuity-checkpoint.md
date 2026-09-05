@@ -977,3 +977,88 @@ list: Railway-volume/page-cache behavior (would need production-side,
 owner-approved instrumentation), immutable/versioned snapshot serving,
 snapshot-copy-to-local-ephemeral serving — stopping here for owner review
 per instruction.
+
+## Railway persistent-volume vs local-ephemeral storage isolation (2026-09-05)
+
+Owner package: connection reuse rejected as current fix; authorized a
+same-container, read-only, stdlib-only diagnostic comparing `/data/
+screener.db` (persistent volume) against a SQLite-backup-API copy on the
+container's local `/tmp` (ephemeral). Pilot OFF, 8G-C HOLD throughout. No
+app code changed, no deploy, no PRAGMA/WAL change, no cache-drop, no
+service restart.
+
+**Method.** One stdlib-only script (`sqlite3`/`os`/`time`/`statistics`/
+`json`/`subprocess`/`sys`, no app imports), validated locally first against
+the earlier byte-faithful copy (dry run, clean), then executed on the real
+`web` container via `railway ssh` (base64-encoded, piped through
+`/opt/venv/bin/python` as a single argv string — the standing recipe for
+avoiding `sh`'s argv-joining). Phases, in the owner-specified order: (A)
+persistent-volume first-touch + 10 repeats on one connection + 5 fresh
+connections, BEFORE any backup; (B) SQLite online-backup-API copy
+`/data/screener.db` → `/tmp/uct_screener_ephemeral_bench.db` (never a raw
+file copy); (C) same query set against the ephemeral copy; (D)
+re-benchmark persistent volume AFTER the backup; (E) raw sequential
+file-read timing, both paths; (F) 3 single-query checks each in a brand
+new OS subprocess. Ephemeral copy deleted at the end (confirmed).
+
+**Result — the historically-observed tail did NOT reproduce, on either
+path, this run.** Persistent-volume first touch: table_info 0.61ms,
+full-table COUNT 1.39ms, matched LIKE query 3.01ms, total 5.01ms — nothing
+like the earlier 116.7ms. Repeated-same-connection matched query settled to
+~1.5ms median; 5 fresh connections after warm ~1.9ms median. Ephemeral copy:
+first-touch matched 2.2ms, repeated ~1.7ms median, fresh connections
+~2.15ms median — **statistically the same ballpark as the persistent
+volume**, not faster. Persistent volume re-measured after the backup: still
+~1.5–2.3ms. Raw sequential read of the full 13.7MB file: persistent volume
+1.99ms, ephemeral copy 2.09ms — indistinguishable. 3 fresh-OS-process
+single-query checks: ~3.2–3.5ms each, consistent, no penalty.
+
+**Confirmed genuinely different filesystems.** `os.stat().st_dev` differs
+between `/data` and `/tmp` (87090880 vs 6291639) — this is a real
+persistent-volume-vs-ephemeral-storage comparison, not two paths on the
+same mount.
+
+**One real anomaly, flagged but not overweighted.** The SQLite backup-API
+copy itself took 145.89ms — by far the slowest single operation in the
+whole run, ~30–70× any individual query. This is a different operation
+class from production's read-only SELECT hot path (page-by-page copy under
+the backup API's own locking/IO pattern, writing a brand-new file), so it
+is NOT claimed to explain the scanner's query-latency tail — but it is a
+genuine, measured, large number worth keeping on record.
+
+**Interpretation — why this does not resolve to a clean S1/S2/S3.** The
+DIRECT persistent-vs-ephemeral comparison, holding everything else equal,
+shows no meaningful difference (weighs against storage-medium-identity
+being the cause). But neither path reproduced the original 100–500ms tail
+AT ALL during this test — so the test cannot itself confirm that storage
+medium is innocent under the conditions that actually produced the
+historical slow numbers. Two structural facts likely explain the gap
+between "isolated diagnostic, clean result" and "production, sometimes
+100–500ms": (1) this diagnostic ran with ZERO concurrent load — no other
+request, no scheduled writer — while the original slow traces and the
+04:00–09:02 window's writers (snapshot_builder nightly build, scan_store's
+05:00 ET sweep, live_tier during market hours, screen_alerts) were not
+running today at time of test (market closed, off-schedule); (2) `/data`
+on Railway is very likely ONE physical volume backing MULTIPLE SQLite
+files (screener.db, bars.db, auth.db, cot.db, catalysts.db, tweets.db,
+modelbook.db, etc.) — so volume-level I/O contention from a DIFFERENT
+database's concurrent write activity could produce exactly the observed
+symptom (wildly variable `sql_execute_fetch_ms`, 87.7–509.7ms across only 4
+real captured traces) without screener.db's OWN storage path, read in
+isolation, ever showing it. Neither of these can be tested by a
+no-concurrent-load, single-process `railway ssh` script — by construction.
+
+**Classification: S3 — PERSISTENT AND EPHEMERAL PERFORMANCE SIMILAR —
+STORAGE PATH (medium identity) NOT ROOT CAUSE, with an explicit caveat:**
+this result does not explain the historical tail, because the tail did not
+reproduce on either path during this test. The two remaining, evidence-
+consistent candidates are (a) concurrent-load/contention on the live
+single web process (real request traffic + a scheduled writer sharing the
+event loop/threadpool/volume at the same moment) and (b) cross-database
+volume-level I/O contention from OTHER SQLite files sharing the same
+Railway volume. Neither is architecture (no immutable-snapshot case is
+made by this evidence); both would need either production-side
+instrumentation under real load (needs fresh owner authorization — the
+prior instrumentation was deliberately reverted) or a scheduled/timed
+capture that lands during an active writer window. Stopping for owner
+review per instruction. No implementation, no deploy, no app-code change.
