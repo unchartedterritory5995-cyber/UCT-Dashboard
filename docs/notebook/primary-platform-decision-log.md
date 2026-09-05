@@ -164,6 +164,33 @@ No legitimate path found. Per the user's own explicit fallback instruction, this
 - **Database schema: no rollback needed, and none is recommended.** The migration is purely additive (one nullable `TEXT` column + one index). Old code is schema-compatible with the new shape — it simply never references the extra column, which is inert to it. Dropping the column to make the rollback "symmetrical" would be strictly worse (a real, if small, destructive schema change) for zero safety benefit, exactly per the user's own instruction on this point.
 - **Purge scheduler:** disabled implicitly by an app-code rollback (the job is never registered by pre-Wave-0 code) — no separate action needed. If a code rollback were somehow undesirable while STILL wanting the purge off, `J2_TRASH_PURGE_ENABLED=0` in Railway is the standalone kill switch, no redeploy required beyond the variable's own restart.
 
+### 2026-09-05 — FINAL WAVE 0 STATUS (user-accepted)
+
+**WAVE 0 — COMPLETE, DEPLOYED, AND PRODUCTION-VERIFIED, WITH ONE PRE-LAUNCH AUTHENTICATED MEMBER E2E GATE OUTSTANDING.**
+
+The user reviewed the full evidence trail above and explicitly accepted this classification rather than the stronger "fully proven live" — the missing authenticated-production-member click-through is a real evidence limitation, caused by the intentional pre-launch `COMING_SOON_MODE` gate (not by any unresolved Wave-0 defect), and must never be relabeled as closed until it is actually observed. This entry is the durable, one-place record of that acceptance and its conditions.
+
+**Deployed revision:** `3e9142967` (Wave 0), bundled into build `2c9bed87` (SUCCESS) alongside one unrelated concurrent commit. **Production build:** healthy, `/api/health` uptime reset confirmed a fresh process. **Database preflight:** 25 users / 89 `j2_notes` rows (not ~20,640 — that figure was this dev box's own separate `C:\data`), WAL mode, pre-migration `integrity_check` ok. **Backup:** a fresh, verified R2 snapshot (`20260905T192748Z`) taken immediately pre-migration, alongside 14 pre-existing rolling backups. **Migration:** `deleted_at` column + `idx_j2_notes_user_deleted` index now present; all 89 pre-existing notes confirmed `deleted_at IS NULL` both before and after; post-migration `integrity_check` ok. **Schema/index verification:** confirmed directly against the live production DB, read-only. **Sandbox browser E2E:** real, unmocked clicks against the identical code/schema in an isolated environment — 2 real defects discovered and fixed (stale Trash badge cache invalidation; Restore-button double-click race), both committed with regression tests. **Test results:** backend `journal_two` 1906+/1932 (26 pre-existing, disk-space-driven, reproduced on baseline — not Wave-0 regressions); frontend `journal-2-0` 154 files/1420+ tests, 0 failures. **Performance:** read-only spot-check against real production data, real service functions — sub-4ms across the board at production's actual (89-note) scale. **Scheduler status:** SCHEDULER WIRED / PATH PROVEN (unconditional registration confirmed, `J2_TRASH_PURGE_ENABLED` unset → defaults on).
+
+**Evidence categories, kept distinct — do not blur these:**
+- **PROVEN IN ACTUAL PRODUCTION:** fresh deployment; application health; the schema migration (`deleted_at` column + index); all 89 pre-existing notes remained `deleted_at IS NULL`; backup/recovery readiness; database integrity; read-path health/performance; scheduler registration; the exact purge implementation deployed; no synthetic member data introduced; no production member data mutated during this verification.
+- **PROVEN THROUGH REAL BROWSER E2E AGAINST THE DEPLOYED CODE/SCHEMA CONTRACT, IN THE ISOLATED SANDBOX:** create/edit/delete note; Trash view; restore; exact content preservation; Trash badge live-update; folder-sidebar honest-count behavior; local draft recovery; Restore double-click protection; the stale-cache fix; the adversarial lifecycle cases (double-delete, restore-twice, folder-deletion-with-trashed-note, cross-user isolation).
+- **NOT YET DIRECTLY OBSERVED THROUGH AN AUTHENTICATED PRODUCTION MEMBER SESSION:** create→delete→Trash→restore through the production browser; production-browser local-draft recovery; production-browser multi-user isolation.
+
+**HARD PRE-LAUNCH GATE — "PRE-LAUNCH AUTHENTICATED NOTEBOOK SMOKE" (durable, must not be forgotten):** before `COMING_SOON_MODE` is disabled for general access, before Notebook becomes generally available, or before another legitimate production canary/member authentication path becomes available — whichever comes first — run, via an authorized production test/canary account: login → create synthetic note → edit → delete → verify Trash → restore → verify exact content → delete again → verify local draft recovery → verify sidebar → clean up synthetic data; plus a minimal second-account isolation check if a second authorized test identity exists at that time. Do not weaken authentication to satisfy this gate.
+
+**First natural purge fire — OPERATIONAL OBSERVATION PENDING, not a Wave-0 blocker.** 03:20 ET has not yet occurred since deploy. When it does, verify via normal operational evidence only (job started/completed, eligible count, purged count, failures, duration) — never inspect member note bodies. A zero-eligible run is a valid success.
+
+**Residual/backlog items (explicitly not fixed now, no speculative work performed against them):**
+A. The pre-launch authenticated-member smoke gate above.
+B. First natural Trash-purge observation (operational follow-up).
+C. A handful of lower-priority `note_connectors/engine.py` query sites not yet `deleted_at`-audited (documented in Slice 1).
+D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 notes; `idx_j2_notes_user_folder` already exists, so any future work here starts from re-profiling with `EXPLAIN QUERY PLAN`, not assuming a missing index).
+
+**Working tree/push/master state:** clean. `notebook-primary-platform` and `master` both pushed and reconciled; the deploy is live.
+
+**Wave 1 readiness:** cleared to proceed with Wave 1 *engineering* (rights-independent) once the authoritative Wave 1 scope is freshly re-read from the master spec/architecture/implementation-plan/decision-log documents (not inferred from conversation history) and a readiness statement is returned per the user's own required format. Wave 2 must not begin automatically at Wave 1's completion either.
+
 ---
 
 ### 2026-09-05 — North star narrows from "primary notebook" to "financial research system of record"
