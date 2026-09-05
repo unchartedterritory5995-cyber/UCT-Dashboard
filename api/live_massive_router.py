@@ -315,6 +315,9 @@ DEFAULT_THRESHOLDS = {
     "ask_accum_max_otm_pct": 50.0,
     "ask_accum_require_unusual": True,     # apply the contract-conviction guard
     "ask_accum_min_contract_voi": 1.0,     # session ask vol / contract OI floor (NEW-build test)
+    "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
+                                             # options (0/unknown mktcap); 0 disables. Replaced
+                                             # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -1230,15 +1233,22 @@ def _ask_accum_conviction(oi, agg_ask_volume: float, thresholds: dict) -> bool:
 
 
 def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
-                         agg_ask_volume: float, oi, thresholds: dict) -> bool:
+                         agg_ask_volume: float, oi, mktcap, thresholds: dict,
+                         apply_mktcap: bool = True) -> bool:
     """The SINGLE definition of "this row is a UCT Ask Accumulation build": an
-    ask-side row on a contract whose SESSION ask aggregate clears the floor, is
-    near-the-money, and shows contract-level NEW-build conviction. Used by BOTH the
-    classifier gates (_derive_alert_name promotion + tier) AND the deep-OTM lottery
-    EXEMPTION in _row_to_alert — a $1M+/high-V/OI build is conviction, not the
-    retail lottery the OTM noise filter is meant to drop, and without the exemption
-    the row is discarded before it can ever be classified (the deepest PPTA
-    blocker: the 35C is ~41% OTM vs spot, past the 30%-block lottery bar)."""
+    ask-side row on a NON-megacap contract whose SESSION ask aggregate clears the
+    floor, is near-the-money, and shows contract-level NEW-build conviction. Used by
+    BOTH the classifier gates (_derive_alert_name promotion + tier) AND the deep-OTM
+    lottery EXEMPTION in _row_to_alert.
+
+    ⚠️ The market-cap ceiling is the PRIMARY noise guard (replaced name-dormancy
+    2026-09-05). On a mega-cap or INDEX option, a whole session's ask prints on one
+    contract sum past its OI as ROUTINE churn, not conviction — measured on 9/4, the
+    aggregate-V/OI test alone classified 275 contracts of which 258 were mega/index
+    (SPX, NDX, AAPL, NVDA...). A $50B ceiling left 17, PPTA ($2.98B) among them.
+    Dormancy tried to encode the same "quiet name" idea but excluded PPTA (it alerts
+    almost daily); market cap is the criterion PPTA passes. Index options report
+    mktcap 0/unknown and are excluded. Set ask_accum_max_mktcap=0 to disable."""
     if not thresholds.get("ask_accum_enabled", True):
         return False
     if (side or "").strip().upper() not in ("A", "AA"):
@@ -1247,6 +1257,18 @@ def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
         return False
     if money_pct is None or abs(money_pct) > thresholds.get("ask_accum_max_otm_pct", 50.0):
         return False
+    # apply_mktcap=False for the deep-OTM lottery exemption: that filter is about
+    # "is this a retail lottery ticket," which a large aggregate ask build never is
+    # regardless of cap — so a mega-cap deep-OTM Alpha LEAPS build ($3M+) must still
+    # be exempted from the drop even though the ask_accum TIER itself excludes megacaps.
+    _cap_ceil = thresholds.get("ask_accum_max_mktcap", 50_000_000_000)
+    if apply_mktcap and _cap_ceil:
+        try:
+            _mc = float(mktcap or 0)
+        except (TypeError, ValueError):
+            _mc = 0.0
+        if not (0 < _mc < float(_cap_ceil)):   # 0/unknown (index) or >= ceiling → out
+            return False
     if (thresholds.get("ask_accum_require_unusual", True)
             and not _ask_accum_conviction(oi, agg_ask_volume, thresholds)):
         return False
@@ -1308,6 +1330,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     dte = _parse_int(row["Dte"])
     volume = _parse_int(row["Volume"])
     oi = _parse_int(row["OI"])
+    mktcap = _parse_int(row.get("MktCap"))   # Ask Accumulation mega-cap ceiling
     v_oi = (volume / oi) if oi > 0 else 0
 
     # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
@@ -1397,7 +1420,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_pth = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, _aa_pth):
+                                agg_ask_volume, oi, mktcap, _aa_pth):
             color = "MAGENTA"
 
     if color == "MAGENTA":
@@ -1512,7 +1535,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_th = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, _aa_th):
+                                agg_ask_volume, oi, mktcap, _aa_th):
             return (f"UCT Ask Accumulation {direction}", "ask_accum",
                     TIER_PRIORITY["ask_accum"])
         # LEAPS
@@ -1884,7 +1907,9 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     except Exception:
         _aa_otm_th = DEFAULT_THRESHOLDS
     _aa_otm_exempt = _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                          agg_ask_volume, oi, _aa_otm_th)
+                                          agg_ask_volume, oi,
+                                          _parse_int(row.get("MktCap")), _aa_otm_th,
+                                          apply_mktcap=False)
     if spot > 0 and dte < 365 and not _aa_otm_exempt:
         try:
             _t_otm = _aa_otm_th
@@ -5623,6 +5648,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "ask_accum_max_otm_pct",             # near-the-money bound (abs moneyness %)
         "ask_accum_require_unusual",         # apply the contract-conviction guard (_ask_accum_conviction)
         "ask_accum_min_contract_voi",        # session ask vol / contract OI floor (NEW-build test)
+        "ask_accum_max_mktcap",              # mega-cap/index ceiling (primary noise guard)
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
