@@ -55,7 +55,7 @@ function RotationBadge({ delta }) {
   return null
 }
 
-const PERIOD_LABELS = { '1d': '1D', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
+const PERIOD_LABELS = { '1d': '1D', 'open': 'Open', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
 const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
 const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
@@ -106,6 +106,17 @@ function liveReturn(h, periodKey, prices) {
   // recurring "goes to 0.00%" bug. Other periods derive from the live price + the
   // backend's per-period ref close (there is no per-period change_pct from the feed).
   if (periodKey === '1d' && px?.change_pct != null) return px.change_pct
+  // "From Open": measure from today's regular-session open (no overnight gap). Compute live
+  // from the streamed day-open when the feed carries it; otherwise use the server overlay's
+  // from-open value (refreshed ~every 10s). Pre-market (no open yet) → null → shows "—".
+  if (periodKey === 'open') {
+    const live = px?.price
+    const open = px?.day_open
+    if (live != null && Number.isFinite(live) && open != null && open > 0) {
+      return ((live - open) / open) * 100
+    }
+    return h.returns?.open ?? null
+  }
   const live = px?.price
   const ref = periodKey === '1d'
     ? (px?.prev_close ?? h.ref_prices?.['1d'])
@@ -318,6 +329,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [ttSettings.fontSize])
 
   const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
+  // Today basis: 'close' = vs previous close (includes the overnight gap, the classic "today");
+  // 'open' = vs today's regular-session open (gap excluded). Only affects the Today column.
+  const [todayBasis, setTodayBasis] = useState('close')
   // Instant paint: seed SWR from the LAST cached response so the tab renders
   // immediately on refresh (like the chart's IDB cache) instead of showing a ~1s
   // skeleton while the 632KB payload round-trips. SWR then revalidates in the
@@ -415,7 +429,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const indexTf = ['D', 'W', 'M'].includes(chartPeriod) ? chartPeriod : 'D'
 
   const rowRefs = useRef({})
-  const activeKey = RANK_TO_KEY[activeTab]
+  // 'open' is a Today-only basis (no historical meaning), so it maps in only when Today is active.
+  const activeKey = (activeTab === 'Today' && todayBasis === 'open') ? 'open' : RANK_TO_KEY[activeTab]
 
   function handleTabClick(tab) {
     if (tab === activeTab) {
@@ -742,6 +757,24 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
+          {/* Today basis toggle: vs previous Close (incl. overnight gap) or vs today's Open
+              (gap excluded). Only shown for Today, where it has meaning. */}
+          {activeTab === 'Today' && (
+            <span className={styles.basisToggle} role="group" aria-label="Today basis">
+              <button
+                type="button"
+                className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}
+                onClick={() => setTodayBasis('close')}
+                title="Measure today from the previous close (includes the overnight gap)"
+              >Close</button>
+              <button
+                type="button"
+                className={`${styles.basisBtn} ${todayBasis === 'open' ? styles.basisBtnActive : ''}`}
+                onClick={() => setTodayBasis('open')}
+                title="Measure today from the market open (excludes the overnight gap)"
+              >Open</button>
+            </span>
+          )}
           <span className={styles.periodBarSpacer} />
           {/* → Journal: freeze the visible ranking into a note (payload capture). */}
           {filteredThemes.length > 0 && (

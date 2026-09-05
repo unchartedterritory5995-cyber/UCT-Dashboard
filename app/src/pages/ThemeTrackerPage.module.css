@@ -80,6 +80,36 @@
    override it to the neutral text color (out-specifies .periodTabActive). */
 .periodTabActive:hover { color: var(--tt-accent, var(--ut-gold)); }
 
+/* Today basis toggle (Close | Open) — a compact segmented control that rides the period bar. */
+.basisToggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.basisBtn {
+  font-family: var(--font-sans);
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--tt-text, var(--text-muted));
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+.basisBtn:hover { color: var(--tt-text-strong, var(--text)); }
+.basisBtnActive {
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+}
+.basisBtnActive:hover { color: var(--tt-accent, var(--ut-gold)); }
+
 /* ⚙ Theme Tracker settings gear (right end of the search row — riding the period
    bar it wrapped onto its own row in narrow widgets and wasted a full strip). */
 .settingsBtn {

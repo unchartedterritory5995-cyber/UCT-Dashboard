@@ -59,6 +59,10 @@ _ROTATION_CACHE_KEY = "theme_rotation"
 _ROTATION_CACHE_TTL = 900  # 15 min rotation signals cache
 _LIVE_1D_KEY = "theme_live_1d_map"
 _LIVE_1D_TTL = 10         # 10s live intraday overlay (theme %s re-sort ~live)
+# "From Open" overlay: each holding's move from TODAY'S OPEN (%), same cadence as the 1D map.
+# A live-only period (no historical basis) — layered on top of _ALL_PERIODS in _apply_live_returns.
+_LIVE_OPEN_KEY = "theme_live_open_map"
+_OPEN_PERIOD = "open"
 # Fully overlaid + taxonomy-enriched response, memoized for the live-overlay
 # window. The live-1d map only refreshes every _LIVE_1D_TTL seconds, so the
 # enriched output is byte-identical within that window — caching it avoids
@@ -399,6 +403,19 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
     return live_map
 
 
+def _fetch_live_open_map(syms: list[str]) -> dict[str, float]:
+    """Return each holding's move from TODAY'S OPEN (%) via batch snapshot. Cached _LIVE_1D_TTL.
+    A holding with no regular-session open yet (pre-market) is simply absent → excluded from the
+    "From Open" aggregate and shown as "—"."""
+    cached = cache.get(_LIVE_OPEN_KEY)
+    if cached is not None:
+        return cached
+    from api.services.massive import get_etf_open_snapshots
+    open_map = get_etf_open_snapshots(syms)
+    cache.set(_LIVE_OPEN_KEY, open_map, ttl=_LIVE_1D_TTL)
+    return open_map
+
+
 _ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
 
 
@@ -467,15 +484,22 @@ def _apply_live_returns(result: dict) -> dict:
     live_map = _fetch_live_1d_map(all_syms)
     if not live_map:
         return result
+    # "From Open" overlay — each holding's move since today's regular-session open. Same batch
+    # endpoint + cadence; a name with no open yet (pre-market) is simply absent from the map.
+    open_map = _fetch_live_open_map(all_syms)
 
     themes_out = []
     for theme in themes:
         holdings_out = []
         live_by_period: dict[str, dict[str, float]] = {p: {} for p in _ALL_PERIODS}
+        open_by_sym: dict[str, float] = {}   # from-open %, live-only period
 
         for h in theme.get("holdings", []):
             # live is todaysChangePerc (a %, e.g. 1.5 means +1.5%) — NOT a dollar price
             live_pct = live_map.get(h["sym"])
+            open_val = open_map.get(h["sym"])
+            if open_val is not None:
+                open_by_sym[h["sym"]] = float(open_val)
             if live_pct is not None:
                 refs = h.get("ref_prices", {})
                 old_returns = h.get("returns", {})
@@ -497,9 +521,17 @@ def _apply_live_returns(result: dict) -> dict:
                     new_returns[period] = val
                     if val is not None:
                         live_by_period[period][h["sym"]] = float(val)
+                if open_val is not None:
+                    new_returns[_OPEN_PERIOD] = round(float(open_val), 2)
                 holdings_out.append({**h, "returns": new_returns})
             else:
-                holdings_out.append(h)
+                # No live 1d; keep the base row (but never mutate the cached base — copy if we
+                # need to stamp the from-open value onto it).
+                if open_val is not None:
+                    holdings_out.append({**h, "returns": {**h.get("returns", {}),
+                                                          _OPEN_PERIOD: round(float(open_val), 2)}})
+                else:
+                    holdings_out.append(h)
                 for period in _ALL_PERIODS:
                     v = h.get("returns", {}).get(period)
                     if v is not None:
@@ -523,6 +555,11 @@ def _apply_live_returns(result: dict) -> dict:
                 v = _owner_only_mean(per_sym, owner_syms)
                 if v is not None:
                     gr[period] = v
+        # From-open theme aggregate — owner-only, same as every other period. Intraday-live, so
+        # it's set for UCT20 too (unlike the NAV-backed historical periods).
+        ov = _owner_only_mean(open_by_sym, owner_syms)
+        if ov is not None:
+            gr[_OPEN_PERIOD] = ov
         if gr:
             new_theme["group_return"] = gr
 
