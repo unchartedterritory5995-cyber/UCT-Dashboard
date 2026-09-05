@@ -12,6 +12,18 @@ bbw) and the rest of this packet's design is unchanged from V3.
 **Time: ~5-15 minutes** if export works; ~15-20 minutes on the Data Window
 fallback.
 
+**2026-09-05 correction (documentation-only, no semantic change):** the `raw`
+ternary chain below is now given as one flattened line rather than a
+multi-line chain. A real capture the same day found that pasting the
+original multi-line form into TradingView's Pine Editor let Monaco's
+auto-indent turn each continuation line into a deeper staircase than the
+last, which Pine's parser then rejected outright ("end of line without line
+continuation") — a paste-reliability defect in this packet's own
+instructions, not a finding about the oracle's design. The flattened form is
+the exact expression that was proven to paste and compile cleanly in that
+capture, and it is semantically identical to the original. Tranche 1A's real
+findings from that capture are recorded in `RISK_REGISTER.md` RISK-018a.
+
 ---
 
 ## Why these four functions, first (unchanged)
@@ -52,13 +64,16 @@ indicator("uct-oracle-ambiguity-v3", overlay=false)
 // A 25-bar repeating pattern. `phase` (0..24, forever) is the row locator --
 // "find phase == 24" works identically regardless of how much history your
 // account loaded. No dependency on where history starts.
+// Flattened to one line deliberately -- Pine's parser requires a continued
+// line to be indented consistently deeper than the statement it continues,
+// and pasting a multi-line version into TradingView's Pine Editor lets
+// Monaco's auto-indent turn each continuation line into a deeper staircase
+// than the last, which the parser then rejects ("end of line without line
+// continuation"). This exact one-line form was proven to paste and compile
+// cleanly in a real capture (2026-09-05). Same expression, same semantics --
+// this is a paste-reliability fix, not a change to the oracle's design.
 phase = bar_index % 25
-raw = phase == 24 ? 6.0 :
-      phase == 23 ? 3.0 :
-      phase == 22 ? 5.0 :
-      phase == 21 ? 1.0 :
-      phase == 20 ? 9.0 :
-      10.0 + phase
+raw = phase == 24 ? 6.0 : phase == 23 ? 3.0 : phase == 22 ? 5.0 : phase == 21 ? 1.0 : phase == 20 ? 9.0 : 10.0 + phase
 
 // ==== ta.rising(raw,3): candidate A (running-maximum, v5/v6 RETURNS clause)
 // vs candidate B (strict monotone over length+1 samples, v3/v4 DESCRIPTION) ====
