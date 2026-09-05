@@ -99,7 +99,8 @@
   padding: 2px 7px;
   border: none;
   background: transparent;
-  color: var(--tt-text, var(--text-muted));
+  /* Same cool near-white as the 1W/1M/… period tabs (not the dim muted grey). */
+  color: var(--text-bright, #e4e6ea);
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
@@ -286,19 +287,16 @@
   transition: opacity 0.12s ease;
 }
 
-/* Today column header = the Close|Open basis switch + the sort caret. Sized to its content
-   and right-aligned; it overflows left into the empty header space so it needs NO extra
-   header height and stays aligned above the % values. */
+/* Today column header = the Close|Open basis switch + the clickable "1D" sort label. Sized
+   to its content and right-aligned; it overflows left into the empty header space so it needs
+   NO extra header height and stays aligned above the % values. The gap gives the pill a bit of
+   room from the 1D label. */
 .headerBasis {
   justify-self: end;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   white-space: nowrap;
-}
-.headerSortCaret {
-  padding: 0 1px;
-  min-width: 0;
 }
 
 /* Scrollable rows area */

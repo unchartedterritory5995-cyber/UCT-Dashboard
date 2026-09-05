@@ -785,8 +785,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <span className={styles.colLabel}>Theme</span>
           </span>
           {activeTab === 'Today' ? (
-            // Today column header doubles as the Close|Open basis switch (no extra header
-            // height). The sort caret stays as its own small button beside it.
+            // Today column header holds the Close|Open basis switch AND the clickable "1D"
+            // sort label (asc/desc) — no extra header height (it overflows left into the
+            // empty header space). The pill conveys the basis; the label stays "1D".
             <span className={styles.headerBasis}>
               <span className={styles.basisToggle} role="group" aria-label="Today basis">
                 <button
@@ -804,11 +805,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               </span>
               <button
                 type="button"
-                className={`${styles.sortBtn} ${styles.headerSortCaret}`}
+                className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
                 onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
                 title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
-                aria-label="Toggle sort direction"
               >
+                1D
                 <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
               </button>
             </span>
