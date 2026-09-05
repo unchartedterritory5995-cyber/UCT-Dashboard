@@ -156,6 +156,10 @@ const TIER_META = {
     label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14",
     desc: "Highest-conviction directional flow. Top-tier signal — primary trading candidate.",
   },
+  ask_accum: {
+    label: "Ask Accumulation", color: "#59C2A6", bg: "#59C2A614",
+    desc: "Aggregate ask-side build — sweeps + blocks stacking to size on one strike of a name that normally sees no flow. Conviction on a quiet ticker.",
+  },
   size: {
     label: "Size", color: "#c9a84c", bg: "#c9a84c14",
     desc: "Institutional-sized positioning with strong conviction. High-tier signal.",
@@ -181,7 +185,7 @@ const TIER_META = {
     desc: "Multi-leg / complex strategies. Non-directional — treat as background.",
   },
 };
-const TIER_ORDER = ["alpha_leaps", "alpha", "size", "bullish", "bearish", "leaps", "unusual"];  // "algo" removed 2026-07-21 (Bullflow-era; Massive has no tradeType) — algo rows auto-hide (no filter key)
+const TIER_ORDER = ["alpha_leaps", "alpha", "ask_accum", "size", "bullish", "bearish", "leaps", "unusual"];  // "algo" removed 2026-07-21 (Bullflow-era; Massive has no tradeType) — algo rows auto-hide (no filter key)
 
 // ─── localStorage keys ────────────────────────────────────────────────────
 const LS_KEY_FILTERS = "uct_liveflow_massive_filters_v1";
@@ -2284,6 +2288,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
               <input type="checkbox" checked={!!autoPushCfg.grade_a}
                 onChange={e => onAutoPush && onAutoPush({ grade_a: e.target.checked })} /> Grade A / A+
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                   title="Aggregate ask-side build (sweeps + blocks) ≥ $1M on one strike of a name that normally sees no flow. Catches conviction on quiet tickers that no single print surfaces.">
+              <input type="checkbox" checked={autoPushCfg.ask_accum !== false}
+                onChange={e => onAutoPush && onAutoPush({ ask_accum: e.target.checked })} /> Ask Accumulation
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
               <input type="checkbox" checked={!!autoPushCfg.size_sweep_enabled}

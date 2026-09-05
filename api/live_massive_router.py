@@ -84,6 +84,7 @@ def _in_market_hours(now_et: datetime = None) -> bool:
 TIER_PRIORITY = {
     "alpha_leaps": 1,   # aggregate-conviction LEAP position (see _derive_alert_name); shipped 2026-08-11
     "alpha":   1,
+    "ask_accum": 2,     # aggregate ask-build on a quiet name, any DTE (see _derive_alert_name); shipped 2026-09-04
     "size":    2,
     "bullish": 3,
     "bearish": 3,
@@ -284,6 +285,24 @@ DEFAULT_THRESHOLDS = {
     # 180C ~39% OTM, 13mo out) is a leveraged conviction bet, not a lottery; the
     # separate deep-OTM lottery filter still drops the truly-crazy before the tier.
     "alpha_leaps_max_otm_pct": 50.0,
+    # ── UCT Ask Accumulation — aggregate ask-build tier, ANY DTE (2026-09-04) ──
+    # Mirrors Alpha LEAPS' aggregate-ask machinery but WITHOUT the DTE>=180 cap
+    # and at a LOWER floor: a name that normally sees no flow suddenly accrues a
+    # large AGGREGATE ask-side premium across multiple prints (sweeps + blocks)
+    # on ONE (symbol,strike,expiry). On a quiet name that IS the conviction — the
+    # PPTA 35C 01/15/27 case (~$1.19M across a $484.5K block + a $679.9K sweep,
+    # all ask, ~133 DTE) that fell through every existing net: under the $1M
+    # single-print Alpha floor, under 180 DTE for Alpha LEAPS, and the by-contract
+    # accum push was disabled + floored at $3M. Grades the AGGREGATE, not the
+    # single print. require_unusual gates it to DORMANT names (see
+    # _is_unusual_classification) so it can't fire on daily megacap churn — the
+    # noise that got accum_enabled turned off 2026-07-21. Set
+    # ask_accum_enabled=False to disable (rows fall back to their single-print
+    # tier). Auto-push rides the separate `ask_accum` toggle in _AUTO_PUSH_CFG.
+    "ask_accum_enabled": True,
+    "ask_accum_min_aggregate_premium": 1_000_000,
+    "ask_accum_max_otm_pct": 50.0,
+    "ask_accum_require_unusual": True,
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -565,6 +584,17 @@ def _qualifies_curated(alert: dict, thresholds: dict,
              else thresholds.get("unusual", {})) or {}
         return (prem >= u.get("min_premium", 100_000) and
                 v_oi >= u.get("vOI", 5.0))
+
+    # Ask Accumulation: own path. The tier is assigned in _derive_alert_name ONLY
+    # after the contract's SESSION ask premium already crossed
+    # ask_accum_min_aggregate_premium AND passed the dormant-name + near-money
+    # gates — so trust that classification here and require only a real direction
+    # (never auto-fire a direction-unconfirmed aggregate). Its floor is an
+    # ASK-only session aggregate, which contract_totals (all-side, this scan's
+    # rows) can't reconstruct, so re-checking a premium floor here would use the
+    # wrong basis and wrongly reject it.
+    if tier == "ask_accum":
+        return not alert.get("_directionUnconfirmed")
 
     if tier not in ("alpha", "size", "leaps", "bullish", "bearish"):
         return False
@@ -1277,6 +1307,29 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                     and not block_disqualifies and not is_weekly):
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
             # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
+        # ─── UCT Ask Accumulation — aggregate ask-build on a quiet name ─────
+        # Same aggregate-ask basis as Alpha LEAPS (agg_ask_premium = the
+        # session's total A/AA premium on this contract) but WITHOUT the LEAP
+        # DTE cap and at a lower floor. Catches a large ask-side build on a name
+        # that normally sees no flow — conviction the single-print tiers miss
+        # because no ONE print clears the Alpha floor. Gated to DORMANT names
+        # (require_unusual) so daily megacap churn can't trip it. Runs only
+        # AFTER Alpha LEAPS / Alpha Gold decline the row, and before the row
+        # falls to LEAPS / Unusual / Size / Bullish-Bearish.
+        try:
+            _aa_th = _load_thresholds()
+        except Exception:
+            _aa_th = DEFAULT_THRESHOLDS
+        if (_aa_th.get("ask_accum_enabled", True)
+                and side_is_ask
+                and agg_ask_premium >= _aa_th.get(
+                    "ask_accum_min_aggregate_premium", 1_000_000)
+                and money_pct is not None
+                and abs(money_pct) <= _aa_th.get("ask_accum_max_otm_pct", 50.0)
+                and (not _aa_th.get("ask_accum_require_unusual", True)
+                     or _is_unusual_classification(row["Symbol"], v_oi, premium))):
+            return (f"UCT Ask Accumulation {direction}", "ask_accum",
+                    TIER_PRIORITY["ask_accum"])
         # LEAPS
         # V/OI gate (added 6/30 evening): LEAPS now requires fresh
         # positioning OR fresh-strike with volume. Long-dated contracts
@@ -1735,6 +1788,7 @@ def _row_to_alert(row: dict, require_direction: bool = True,
         "exp": row["ExpirationDate"],
         "dte": dte,
         "alertPremium": float(premium),
+        "aggAskPremium": float(agg_ask_premium or 0),  # session A/AA premium on this contract (Ask Accumulation / Alpha LEAPS aggregate)
         "averageFillPrice": price,
         "tradeSize": volume,
         "timestamp": ts,
@@ -2584,7 +2638,10 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         _close_th = _load_thresholds()
         _close_on = _close_th.get("close_detector_enabled", False)
         _alpha_leaps_on = _close_th.get("alpha_leaps_enabled", True)
-        if _close_on or _alpha_leaps_on:
+        # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
+        # Alpha LEAPS, so build it when either tier is on.
+        _ask_accum_on = _close_th.get("ask_accum_enabled", True)
+        if _close_on or _alpha_leaps_on or _ask_accum_on:
             # ONE full-session ask/bid projection feeds BOTH the clean-directional
             # ledger (ask VOLUME per contract) and the Alpha LEAPS ledger (ask
             # PREMIUM per contract). Premium is added to the projection for the
@@ -2598,7 +2655,7 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             _ledger_rows = _lc.fetchall()
             _gross_before = _build_session_long_ledger(_ledger_rows) if _close_on else {}
             _ask_prem_ledger = (_build_session_ask_premium_ledger(_ledger_rows)
-                                if _alpha_leaps_on else {})
+                                if (_alpha_leaps_on or _ask_accum_on) else {})
         else:
             _gross_before = {}
             _ask_prem_ledger = {}
@@ -4161,6 +4218,12 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
+        # Ask Accumulation fires on the print that pushes the contract's SESSION
+        # ask premium over the floor — a single print here can be well under $1M,
+        # so lead with the aggregate build or the card looks under-sized.
+        _agg = alert.get("aggAskPremium") or 0
+        if alert.get("_tierKey") == "ask_accum" and _agg > prem:
+            badges.insert(0, f"🧱 **ASK BUILD {_fmt_money_m(_agg)}**")
         lines.append(_row(
             f"💰 **{_fmt_money_m(prem)}**",
             (f"Fill ${fill:.2f}" if fill else None),
@@ -4392,7 +4455,8 @@ def _pushed_keys(alert_date: str = None) -> set:
 # a separate, opt-in step so we can't spam the channel before you sign off).
 _AUTO_PUSH_CFG = {
     "enabled": False,            # master switch — auto-fire is OFF until turned on
-    "alpha_gold": True,          # push Alpha Gold tier
+    "alpha_gold": True,          # push Alpha Gold tier (+ Alpha LEAPS)
+    "ask_accum": True,           # push UCT Ask Accumulation tier (aggregate ask build on a quiet name)
     "grade_a": True,             # push grade A / A+
     "size_sweep_enabled": False, # optional: high-premium Size B sweeps
     "size_min_premium": 3_000_000,
@@ -4578,6 +4642,11 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
         return True
     # Alpha LEAPS rides the same auto-push toggle as Alpha Gold (top conviction).
     if cfg.get("alpha_gold") and (tier == "alpha_leaps" or "alpha leaps" in name):
+        return True
+    # UCT Ask Accumulation — aggregate ask build on a quiet name. Its own toggle
+    # (default on); the _qualifies_curated ask_accum path + the min_directional_ratio
+    # net-flow gate + the dormant-name classification guard keep it from spamming.
+    if cfg.get("ask_accum", True) and (tier == "ask_accum" or "ask accumulation" in name):
         return True
     if cfg.get("grade_a") and grade in ("A+", "A"):
         return True
@@ -5265,7 +5334,7 @@ async def set_auto_push_config(request: Request, _auth: dict = Depends(require_f
         raise HTTPException(400, f"Invalid JSON: {e}")
     if not isinstance(body, dict):
         raise HTTPException(400, "expected a JSON object")
-    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
+    for k in ("enabled", "alpha_gold", "ask_accum", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
         if k in body:
             _AUTO_PUSH_CFG[k] = body[k]
     try:
@@ -5302,6 +5371,11 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "alpha_leaps_enabled",               # master gate for the Alpha LEAPS tier
         "alpha_leaps_min_aggregate_premium", # session ask-premium floor per contract ($3M)
         "alpha_leaps_max_otm_pct",           # near-the-money bound (abs moneyness %)
+        # UCT Ask Accumulation — aggregate ask-build tier, any DTE (2026-09-04)
+        "ask_accum_enabled",                 # master gate for the Ask Accumulation tier
+        "ask_accum_min_aggregate_premium",   # session ask-premium floor per contract ($1M)
+        "ask_accum_max_otm_pct",             # near-the-money bound (abs moneyness %)
+        "ask_accum_require_unusual",         # gate to dormant names (_is_unusual_classification)
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
