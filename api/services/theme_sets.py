@@ -118,8 +118,25 @@ def _name(v, fallback="Untitled") -> str:
 
 def sanitize_diff(diff: dict) -> dict:
     """Coerce an arbitrary client payload into a bounded, well-formed diff.
-    Shape: {hidden:[slug], removed:{slug:[sym]}, added:{slug:[sym]}, custom:[{key,name,members:[sym]}]}."""
+    Shape: {themes:[slug]|None, hidden:[slug], removed:{slug:[sym]}, added:{slug:[sym]},
+    custom:[{key,name,members:[sym]}]}.
+
+    `themes` is the ORDERED inclusion list (the additive model): present → show exactly these
+    owner themes in this order; absent/None → all defaults (back-compat, minus `hidden`). An
+    empty list means "cleared" (no owner themes — build from scratch)."""
     diff = diff if isinstance(diff, dict) else {}
+
+    # Ordered theme inclusion list (None = absent = all-defaults mode).
+    themes = None
+    if isinstance(diff.get("themes"), list):
+        themes, tseen = [], set()
+        for s in diff["themes"][:_MAX_EDITED_THEMES * 2]:
+            sl = str(s or "").strip().lower()
+            if sl and sl not in tseen:
+                tseen.add(sl)
+                themes.append(sl)
+            if len(themes) >= _MAX_EDITED_THEMES:
+                break
 
     hidden = []
     seen = set()
@@ -158,7 +175,7 @@ def sanitize_diff(diff: dict) -> dict:
             "members": _sym_list(c.get("members"), _MAX_CUSTOM_MEMBERS),
         })
 
-    return {"hidden": hidden, "removed": removed, "added": added, "custom": custom}
+    return {"themes": themes, "hidden": hidden, "removed": removed, "added": added, "custom": custom}
 
 
 def _row_to_set(row: sqlite3.Row) -> dict:
@@ -171,6 +188,7 @@ def _row_to_set(row: sqlite3.Row) -> dict:
         "id": row["id"],
         "name": row["name"],
         "sort_order": row["sort_order"],
+        "themes": diff["themes"],
         "hidden": diff["hidden"],
         "removed": diff["removed"],
         "added": diff["added"],

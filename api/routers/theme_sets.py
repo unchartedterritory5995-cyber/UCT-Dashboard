@@ -44,7 +44,7 @@ def list_theme_sets(user: dict = Depends(require_paid)):
 def create_theme_set(body: dict = Body(default={}), user: dict = Depends(require_paid)):
     _require_enabled()
     name = (body or {}).get("name") or "My Themes"
-    diff = {k: (body or {}).get(k) for k in ("hidden", "removed", "added", "custom")}
+    diff = {k: (body or {}).get(k) for k in ("themes", "hidden", "removed", "added", "custom")}
     created = svc.create_set(user["id"], name, diff)
     if not created:
         raise HTTPException(status_code=400, detail="Theme-set limit reached")
@@ -64,7 +64,7 @@ def get_theme_set(set_id: str, user: dict = Depends(require_paid)):
 def update_theme_set(set_id: str, body: dict = Body(default={}), user: dict = Depends(require_paid)):
     _require_enabled()
     name = (body or {}).get("name")
-    diff = {k: (body or {}).get(k) for k in ("hidden", "removed", "added", "custom")}
+    diff = {k: (body or {}).get(k) for k in ("themes", "hidden", "removed", "added", "custom")}
     updated = svc.replace_set(user["id"], set_id, name, diff)
     if not updated:
         raise HTTPException(status_code=404, detail="Theme set not found")

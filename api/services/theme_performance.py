@@ -953,6 +953,9 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
     added = {str(k).strip().lower(): [str(x).strip().upper() for x in (v or [])]
              for k, v in (set_def.get("added") or {}).items()}
     custom = set_def.get("custom") or []
+    # Ordered inclusion list (the additive model): a list → show exactly these owner themes in
+    # this order; None/absent → all defaults (minus `hidden`, back-compat).
+    inclusion = set_def.get("themes")
 
     index = returns_index_from_result(themes)
     need = set()
@@ -973,18 +976,19 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
         return {"sym": sym.upper(), "name": sym.upper(), "returns": {}, "ref_prices": {},
                 "source": "user", "unresolved": True}
 
-    out = []
-    hidden_themes = []      # {slug,name} of hidden owner themes -> the editor re-add list
+    # Slug -> base theme, and the full owner-theme PALETTE (for the editor's Add-theme picker).
+    by_slug, all_themes = {}, []
     for theme in themes:
-        slug = _ts_slug(theme.get("name", ""))
-        if slug in hidden:
-            hidden_themes.append({"slug": slug, "name": theme.get("name", "")})
-            continue
+        sl = _ts_slug(theme.get("name", ""))
+        if sl and sl not in by_slug:
+            by_slug[sl] = theme
+            all_themes.append({"slug": sl, "name": theme.get("name", "")})
+
+    def _edited(theme, slug):
         rem = removed.get(slug)
         add = added.get(slug)
         if not rem and not add:
-            out.append(theme)                      # untouched -> reuse (not mutated)
-            continue
+            return theme                           # untouched -> reuse (not mutated)
         holdings = [h for h in (theme.get("holdings") or [])
                     if _ts_key(h.get("sym", "")) not in (rem or set())]
         have = {_ts_key(h.get("sym", "")) for h in holdings}
@@ -992,8 +996,23 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
             if _ts_key(s) not in have:
                 holdings.append(_holding(s))
                 have.add(_ts_key(s))
-        out.append({**theme, "holdings": holdings,
-                    "group_return": _ts_aggregate(holdings), "user_edited": True})
+        return {**theme, "holdings": holdings,
+                "group_return": _ts_aggregate(holdings), "user_edited": True}
+
+    out = []
+    if isinstance(inclusion, list):
+        # Additive/inclusion mode: exactly these owner themes, in this order.
+        for sl in inclusion:
+            t = by_slug.get(str(sl).strip().lower())
+            if t is not None:
+                out.append(_edited(t, str(sl).strip().lower()))
+    else:
+        # All-defaults mode (back-compat): every owner theme minus `hidden`.
+        for theme in themes:
+            sl = _ts_slug(theme.get("name", ""))
+            if sl in hidden:
+                continue
+            out.append(_edited(theme, sl))
 
     for c in custom:
         holdings = [_holding(str(s)) for s in (c.get("members") or [])]
@@ -1006,5 +1025,5 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
     new = {k: v for k, v in result.items() if k != "themes"}
     new["themes"] = out
     new["theme_set"] = {"id": set_def.get("id"), "name": set_def.get("name")}
-    new["hidden_themes"] = hidden_themes
+    new["all_themes"] = all_themes      # the palette for the editor's Add-theme search
     return new

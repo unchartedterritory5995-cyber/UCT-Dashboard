@@ -233,3 +233,46 @@ def test_router_disabled_refuses_writes(tmp_path, monkeypatch):
     c = TestClient(app)
     assert c.get("/api/theme-sets").json() == {"enabled": False, "sets": []}
     assert c.post("/api/theme-sets", json={"name": "x"}).status_code == 404   # writes refused
+
+
+# -- additive/inclusion model (v2) ---------------------------------------------
+
+def test_inclusion_mode_orders_and_filters(monkeypatch):
+    import api.services.theme_performance as tp
+    # Only these two owner themes, in THIS order (base order is Cyber, then Memory).
+    out = tp.apply_theme_set(_base(), {"themes": ["memory-hbm", "cybersecurity"]})
+    assert [t["name"] for t in out["themes"]] == ["Memory & HBM", "Cybersecurity"]
+
+
+def test_clear_all_shows_no_owner_themes(monkeypatch):
+    import api.services.theme_performance as tp
+    monkeypatch.setattr(tp, "live_returns_for_syms",
+                        lambda syms: {"GME": {"sym": "GME", "name": "GME",
+                                              "returns": {"1d": 5.0}, "ref_prices": {}, "source": "user"}})
+    out = tp.apply_theme_set(_base(), {"themes": [], "custom": [
+        {"key": "k", "name": "Mine", "members": ["GME"]}]})
+    # empty inclusion -> only the custom theme survives
+    assert [t.get("name") for t in out["themes"]] == ["Mine"]
+
+
+def test_all_themes_palette_returned(monkeypatch):
+    import api.services.theme_performance as tp
+    out = tp.apply_theme_set(_base(), {"themes": ["cybersecurity"]})
+    slugs = {t["slug"] for t in out["all_themes"]}
+    assert slugs == {"cybersecurity", "memory-hbm"}          # full palette regardless of inclusion
+
+
+def test_inclusion_still_never_mutates_base(monkeypatch):
+    import api.services.theme_performance as tp
+    import copy
+    base = _base(); snap = copy.deepcopy(base)
+    tp.apply_theme_set(base, {"themes": ["memory-hbm"], "removed": {"memory-hbm": ["AVGO"]}})
+    assert base == snap
+
+
+def test_sanitize_themes_list(ts):
+    s = ts.create_set("u", "S", {"themes": ["Cyber", "cyber", "", "memory-hbm"]})
+    assert s["themes"] == ["cyber", "memory-hbm"]            # lowercased + deduped, order kept
+    # absent themes -> None (all-defaults mode)
+    s2 = ts.create_set("u", "S2", {})
+    assert s2["themes"] is None
