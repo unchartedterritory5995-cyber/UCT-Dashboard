@@ -25,6 +25,11 @@ function Opener() {
   return <button onClick={() => openTicker('AAPL')}>open AAPL</button>
 }
 
+function OpenBrk() {
+  const { openTicker } = useTickerHub()
+  return <button onClick={() => openTicker('BRK-B')}>open BRK-B</button>
+}
+
 function Harness() {
   return (
     <MemoryRouter>
@@ -49,6 +54,8 @@ test('opens with header, action buttons, TF chips and Compass', async () => {
   expect(screen.getByText('Alert')).toBeInTheDocument()
   expect(screen.getByText('Flag')).toBeInTheDocument()
   expect(screen.getByText('Journal')).toBeInTheDocument()
+  expect(screen.getByText('Research')).toBeInTheDocument()
+  expect(screen.getByText('Ask AI')).toBeInTheDocument()
   // ChartPane (the TF row's new home) is a lazy chunk, heavier than bare
   // StockChart was — under full-suite parallel load the Suspense fallback can
   // still be up when the default 1000ms findBy timeout fires, so give it real
@@ -71,4 +78,32 @@ test('Alert action reveals an inline alert form', () => {
   fireEvent.click(screen.getByText('Alert'))
   expect(screen.getByPlaceholderText('$ price')).toBeInTheDocument()
   expect(screen.getByText('Set')).toBeInTheDocument()
+})
+
+test('Research action navigates to the canonical /research/:sym route', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Research'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
+})
+
+test('Ask AI action navigates to the same route with ?section=ai, never a second AI surface', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Ask AI'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+})
+
+test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form, unconverted', () => {
+  render(
+    <MemoryRouter>
+      <TickerHubProvider>
+        <OpenBrk />
+        <TickerHubSheet />
+      </TickerHubProvider>
+    </MemoryRouter>,
+  )
+  fireEvent.click(screen.getByText('open BRK-B'))
+  fireEvent.click(screen.getByText('Research'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/BRK-B')
 })

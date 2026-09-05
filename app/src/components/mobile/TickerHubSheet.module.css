@@ -30,9 +30,11 @@
   font-size: var(--text-sm);
 }
 
-.actions { display: flex; gap: var(--space-sm); }
+/* Grid, not a single flex row: 7 actions at flex:1 on a phone-width sheet
+   compressed each button below a readable label width. Wrapping to 4-per-row
+   keeps every button's width (and tap target) the same as it was at 5. */
+.actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-sm); }
 .action {
-  flex: 1;
   min-height: var(--tap-min);
   display: flex;
   flex-direction: column;

@@ -119,15 +119,22 @@ def research_company_news(sym: str):
 @router.post("/api/research/explain/{sym}")
 def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get_current_user)):
     """AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2
-    (I1, owner-authorized, 2026-09-04) -- the "Ask AI" tab's endpoint.
-    Auth-required: unlike the plain GET research routes, this one makes a
-    real LLM call with real cost (see ticker_explain.py's own
+    + Slice 3 (I1, owner-authorized, 2026-09-04) -- the "Ask AI" tab's
+    endpoint. Auth-required: unlike the plain GET research routes, this one
+    makes a real LLM call with real cost (see ticker_explain.py's own
     narrative_cost_guard use), so an anonymous caller must not be able to
     reach it.
+
+    Slice 3: `history` is the CLIENT's own rolling array of prior-turn
+    structured state (never server-persisted -- see `ticker_explain.
+    _clean_history`'s docstring for the full entity-isolation/size-cap
+    contract this endpoint delegates to). Passed through as-is; malformed or
+    missing history degrades to plain single-turn behavior, never an error.
     """
     question = str((body or {}).get("question") or "")[:500]
+    history = body.get("history") if isinstance((body or {}).get("history"), list) else None
     try:
-        return explain_recent_activity(sym, question)
+        return explain_recent_activity(sym, question, history=history)
     except Exception as exc:
         _logger.warning("ticker explain failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "entity": None, "response_state": "refuse",
@@ -135,7 +142,9 @@ def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get
                 "clarification_question": "", "citations": [],
                 "insufficient_evidence": True,
                 "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
-                "model": None, "error": "internal error"}
+                "model": None, "error": "internal error",
+                "turn_state": {"sym": (sym or "").upper(), "question": question,
+                              "response_state": "refuse", "domains": [], "summary": ""}}
 
 
 @router.get("/api/research/quote/{sym}")

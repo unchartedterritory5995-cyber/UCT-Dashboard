@@ -179,6 +179,21 @@
   border-color: rgba(242, 85, 90, 0.4);
   background: rgba(242, 85, 90, 0.1);
 }
+/* ── Research / Ask AI buttons (icon-only, square; same chrome as Flag/Close) ── */
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  padding: 5px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.6;
+}
+.actionBtn:hover { opacity: 1; color: var(--ut-gold); border-color: rgba(212, 170, 80, 0.4); background: var(--bg-hover); }
 /* ── Flag button (icon-only, square; gold when flagged) ── */
 .flagBtn {
   display: flex;

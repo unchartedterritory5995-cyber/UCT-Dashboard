@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import AskAiTab from './AskAiTab'
 
 // AI-Native Research Assistant Slice 1 (I1, owner-authorized narrow slice,
@@ -11,6 +11,20 @@ function mockFetchOnce(status, body) {
     status,
     json: () => Promise.resolve(body),
   })
+}
+
+// Each call in `bodies` order returns the next {status, body} pair -- for
+// multi-turn tests where turn 2's request/response differs from turn 1's.
+function mockFetchSequence(bodies) {
+  const impl = vi.fn()
+  bodies.forEach(({ status, body }) => {
+    impl.mockImplementationOnce(() => Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      json: () => Promise.resolve(body),
+    }))
+  })
+  global.fetch = impl
 }
 
 describe('AskAiTab', () => {
@@ -41,7 +55,7 @@ describe('AskAiTab', () => {
       '/api/research/explain/AAPL',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ question: 'What changed?' }),
+        body: JSON.stringify({ question: 'What changed?', history: [] }),
       }),
     )
     await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
@@ -215,5 +229,118 @@ describe('AskAiTab', () => {
     await waitFor(() => expect(screen.getByTestId('ask-ai-answer')).toBeInTheDocument())
     expect(screen.getByText('Analysts turned more positive.')).toBeInTheDocument()
     expect(screen.queryByTestId('ask-ai-caveat')).not.toBeInTheDocument()
+  })
+
+  // ── Security Research Q&A Slice 3: bounded multi-turn conversation ───────
+
+  it('renders a second turn as its own thread entry, alongside the first', async () => {
+    mockFetchSequence([
+      { status: 200, body: {
+        sym: 'AAPL', entity: null, response_state: 'answer',
+        summary: 'Apple beat earnings estimates.',
+        key_facts: [{ statement: 'EPS came in at $1.64 vs $1.52 expected.', evidence_id: 'E1' }],
+        interpretation: '', caveat: '', clarification_question: '',
+        citations: [], insufficient_evidence: false, insufficient_evidence_reason: '',
+        model: 'claude-sonnet-5', error: null,
+        turn_state: { sym: 'AAPL', question: 'What changed?', response_state: 'answer',
+                      domains: ['financials'], summary: 'Apple beat earnings estimates.' },
+      } },
+      { status: 200, body: {
+        sym: 'AAPL', entity: null, response_state: 'answer',
+        summary: 'The beat was driven by Mac and Services growth.',
+        key_facts: [{ statement: 'Services revenue grew 14% year over year.', evidence_id: 'E2' }],
+        interpretation: '', caveat: '', clarification_question: '',
+        citations: [], insufficient_evidence: false, insufficient_evidence_reason: '',
+        model: 'claude-sonnet-5', error: null,
+        turn_state: { sym: 'AAPL', question: 'Why does that matter?', response_state: 'answer',
+                      domains: ['financials'], summary: 'The beat was driven by Mac and Services growth.' },
+      } },
+    ])
+    render(<AskAiTab sym="AAPL" />)
+
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getAllByTestId('ask-ai-turn')).toHaveLength(1))
+    await waitFor(() => expect(screen.getByText('Apple beat earnings estimates.')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'Why does that matter?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getAllByTestId('ask-ai-turn')).toHaveLength(2))
+
+    const turns = screen.getAllByTestId('ask-ai-turn')
+    expect(within(turns[0]).getByTestId('ask-ai-turn-question')).toHaveTextContent('What changed?')
+    expect(within(turns[0]).getByText('Apple beat earnings estimates.')).toBeInTheDocument()
+    expect(within(turns[1]).getByTestId('ask-ai-turn-question')).toHaveTextContent('Why does that matter?')
+    expect(within(turns[1]).getByText('The beat was driven by Mac and Services growth.')).toBeInTheDocument()
+
+    // the second request carries the first turn's server-returned turn_state
+    // as history -- never the client's own guess at what happened
+    const secondCallBody = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(secondCallBody.history).toEqual([
+      { sym: 'AAPL', question: 'What changed?', response_state: 'answer',
+        domains: ['financials'], summary: 'Apple beat earnings estimates.' },
+    ])
+  })
+
+  it('the New Conversation button appears only after the first turn, and resets the thread', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'answer', summary: 'x', key_facts: [],
+      interpretation: '', caveat: '', clarification_question: '', citations: [],
+      insufficient_evidence: false, insufficient_evidence_reason: '',
+      model: 'claude-sonnet-5', error: null,
+      turn_state: { sym: 'AAPL', question: 'What changed?', response_state: 'answer',
+                    domains: ['news'], summary: 'x' },
+    })
+    render(<AskAiTab sym="AAPL" />)
+    expect(screen.queryByTestId('ask-ai-new-conversation')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getByTestId('ask-ai-new-conversation')).toBeInTheDocument())
+    expect(screen.getAllByTestId('ask-ai-turn')).toHaveLength(1)
+
+    fireEvent.click(screen.getByTestId('ask-ai-new-conversation'))
+    expect(screen.queryByTestId('ask-ai-turn')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ask-ai-new-conversation')).not.toBeInTheDocument()
+  })
+
+  it('changing the security resets the thread and clears in-flight state (entity isolation)', async () => {
+    mockFetchOnce(200, {
+      sym: 'AAPL', entity: null, response_state: 'answer', summary: "Apple's context.",
+      key_facts: [], interpretation: '', caveat: '', clarification_question: '', citations: [],
+      insufficient_evidence: false, insufficient_evidence_reason: '',
+      model: 'claude-sonnet-5', error: null,
+      turn_state: { sym: 'AAPL', question: 'What changed?', response_state: 'answer',
+                    domains: ['news'], summary: "Apple's context." },
+    })
+    const { rerender } = render(<AskAiTab sym="AAPL" />)
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getAllByTestId('ask-ai-turn')).toHaveLength(1))
+
+    mockFetchOnce(200, {
+      sym: 'NVDA', entity: null, response_state: 'answer', summary: "NVDA's context.",
+      key_facts: [], interpretation: '', caveat: '', clarification_question: '', citations: [],
+      insufficient_evidence: false, insufficient_evidence_reason: '',
+      model: 'claude-sonnet-5', error: null,
+      turn_state: { sym: 'NVDA', question: 'What changed?', response_state: 'answer',
+                    domains: ['news'], summary: "NVDA's context." },
+    })
+    rerender(<AskAiTab sym="NVDA" />)
+
+    // the prior security's thread is gone -- switching routes/securities is
+    // a hard reset, not a carried-forward conversation
+    expect(screen.queryByTestId('ask-ai-turn')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ask-ai-new-conversation')).not.toBeInTheDocument()
+    expect(screen.getByTestId('ask-ai-input').value).toBe('')
+
+    fireEvent.change(screen.getByTestId('ask-ai-input'), { target: { value: 'What changed?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    await waitFor(() => expect(screen.getAllByTestId('ask-ai-turn')).toHaveLength(1))
+
+    // NVDA's request never carries AAPL's history -- client-side half of
+    // entity isolation (the server independently enforces this too)
+    const lastCallBody = JSON.parse(global.fetch.mock.calls[global.fetch.mock.calls.length - 1][1].body)
+    expect(lastCallBody.history).toEqual([])
   })
 })
