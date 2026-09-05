@@ -524,7 +524,7 @@ async def oauth_callback(
 
     if error:
         return RedirectResponse(
-            f"{dashboard}/settings?connector={provider}&connected=0&reason={quote(error)}",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(error)}",
             status_code=302,
         )
     if not code or not state:
@@ -615,7 +615,7 @@ async def oauth_callback(
             remote_id = None
     except errors.NoteConnError as e:
         return RedirectResponse(
-            f"{dashboard}/settings?connector={provider}&connected=0&reason={quote(str(e))}",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(str(e))}",
             status_code=302,
         )
 
@@ -636,7 +636,7 @@ async def oauth_callback(
         # (`ConnectedAppsCard.jsx`: `params.get('connected') !== '1'` is a
         # no-op) — inert on arrival, not a false "connected" signal.
         return RedirectResponse(
-            f"{dashboard}/settings?connector={provider}&connected=0",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0",
             status_code=302,
         )
     if remote_id:
@@ -652,7 +652,7 @@ async def oauth_callback(
     # this file's module docstring / ConnectBody's contract note. `status=`
     # was this task's own first guess before that contract was found;
     # `connected=1` is the real one.
-    return RedirectResponse(f"{dashboard}/settings?connector={provider}&connected=1", status_code=302)
+    return RedirectResponse(f"{dashboard}/settings?section=connections&connector={provider}&connected=1", status_code=302)
 
 
 # ── Folder picker (spec §7: "OWN folder picker") ──────────────────────────────

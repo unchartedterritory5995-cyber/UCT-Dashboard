@@ -261,6 +261,40 @@ def test_the_oauth_callback_starts_the_first_sync_for_the_source_it_creates(clie
     )
 
 
+def test_every_oauth_return_lands_on_the_connections_section(client, monkeypatch):
+    """⛔ The member finishes the provider's consent screen and is redirected
+    back. Without `section=connections` that redirect opened Settings on
+    whichever section renders first (Account), so the member had to find
+    their way back to Connections to see the thing they had just connected --
+    measured by walking the real Notion flow, not theorised.
+
+    Pins EVERY return path, success and failure alike: a member who hit an
+    error needs the connector card even more than one who succeeded.
+    """
+    import api.routers.note_sync as ns
+
+    monkeypatch.setattr(ns, "_start_initial_sync", lambda *_a, **_k: None)
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+
+    async def ok_exchange(provider, code, **kw):
+        return {"accessToken": "t", "workspaceId": "ws-1", "workspaceName": "Acme"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", ok_exchange)
+    state = ns._sign_state("u1", "notion")
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "c", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "section=connections" in r.headers["location"], r.headers["location"]
+    assert "connected=1" in r.headers["location"]
+
+    # The provider-denied path returns through a different branch.
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"error": "access_denied", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "section=connections" in r.headers["location"], r.headers["location"]
+
+
 def test_start_initial_sync_never_raises_into_a_successful_connect():
     """A failed kick-off must never turn a SUCCESSFUL connect into an error
     the member sees; with no running loop it degrades to the scheduled tick."""
@@ -891,7 +925,7 @@ def test_callback_redirects_to_settings_connected_0_when_encryption_key_unset(cl
                     params={"code": "authcode", "state": state}, follow_redirects=False)
     assert r.status_code == 302
     location = r.headers["location"]
-    assert location.endswith("/settings?connector=notion&connected=0")
+    assert location.endswith("/settings?section=connections&connector=notion&connected=0")
     # `connected=0` (never `1`) matters concretely, not just as a string:
     # the shipped frontend self-heal effect (ConnectedAppsCard.jsx) is a
     # no-op unless `connected == '1'` -- this redirect must never trip it
