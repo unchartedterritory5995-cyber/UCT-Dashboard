@@ -96,7 +96,18 @@ export function useUserDefinitions() {
  *          — never null, on any branch. Callers read `.ok` unconditionally, and
  *          `error` is a NON-BLANK string whenever `ok` is false.
  */
-export async function saveUserDefinition(definition, defId = null) {
+/**
+ * @param {object} definition
+ * @param {string|null} [defId]
+ * @param {{importId: string, dialect?: string}|null} [telemetry] Phase One
+ *   Track C — TELEMETRY-ONLY, never merged into `definition`. Lets the
+ *   server's `import_accepted` event join back to whichever client-observed
+ *   `import_submitted`/`compile_finished` pair produced this save. `null`
+ *   (the default, and what every pre-existing caller sends) omits both
+ *   fields from the request body — the server treats their absence as
+ *   "no journey to join", not an error.
+ */
+export async function saveUserDefinition(definition, defId = null, telemetry = null) {
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -104,7 +115,13 @@ export async function saveUserDefinition(definition, defId = null) {
       method: defId ? 'PUT' : 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ definition }),
+      body: JSON.stringify({
+        definition,
+        ...(telemetry && telemetry.importId ? {
+          import_id: telemetry.importId,
+          source_dialect: telemetry.dialect || null,
+        } : {}),
+      }),
     })
   } catch {
     // ⛔ A TRANSPORT FAILURE AND A REFUSAL NEED DIFFERENT WORDS. One is "try

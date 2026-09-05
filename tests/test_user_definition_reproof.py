@@ -761,7 +761,10 @@ def test_the_PUT_route_is_the_ONE_the_builder_calls():
 
     builder = (ROOT / "app" / "src" / "components" / "chart" / "builder"
                / "BuilderSheet.jsx").read_text(encoding="utf-8")
-    assert "saveUserDefinition(doc, editing ? editing.defId : null)" in builder, (
+    # ⭐ Phase One Track C added a THIRD, optional telemetry-passthrough
+    # argument (`importTelemetryRef.current`) — additive, never changing the
+    # create-vs-edit id logic this assertion exists to pin.
+    assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)" in builder, (
         "the builder stopped passing an id to `saveUserDefinition`, which is the "
         "whole difference between a create and an edit")
 

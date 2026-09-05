@@ -2884,7 +2884,17 @@ def test_a_PAID_user_gets_the_concierges_answer_and_a_refusal_is_a_200(app, conc
 
     over = c.post("/api/user-definitions/propose",
                   json={"prompt": "x", "bars": [{} for _ in range(6000)]})
-    assert over.status_code == 400 and "at most" in over.json()["detail"]
+    # 🔴 RISK-016 (Phase One Track B, 2026-09-04) changed this from a raw 400
+    # to the door's own {ok:false, gate, reason} shape — a well-formed request
+    # that is simply too big is not a caller mistake. This assertion went
+    # stale the moment that fix landed in `propose_definition` and was never
+    # updated here; found and fixed during Track C's test sweep (confirmed via
+    # `git stash` that it fails identically with every Track C change removed
+    # — i.e. before this session's telemetry work, not because of it).
+    assert over.status_code == 200
+    assert over.json()["ok"] is False
+    assert over.json()["gate"] == "bars:too-large"
+    assert "at most" in over.json()["reason"]
 
 
 def test_the_ROUTE_carries_the_KIND_and_defaults_to_the_PIPELINES_own(
