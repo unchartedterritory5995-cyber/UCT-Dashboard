@@ -1292,3 +1292,67 @@ not evidence of anything.
   passed quietly; a quiet window is itself reportable evidence (see the
   owner's C5/insufficient-evidence classifications), not a reason to
   extend indefinitely without saying so.
+
+## MATERIAL DIAGNOSTIC BLIND SPOT — found during between-window review (2026-09-05, ~19:5x ET)
+
+**The deployed instrumentation can see APScheduler jobs ONLY. It cannot
+see raw background `threading.Thread(...)` loops — and `api/main.py`'s
+lifespan starts approximately 35 of them.** `contention_trace_temp.
+instrument_scheduler` wraps `scheduler.add_job`; it has no visibility into
+anything started via a bare `threading.Thread(target=..., daemon=True).
+start()`. Grepped every such call site in `api/main.py` (~35 total) —
+most are one-shot startup warmers, but several are genuinely continuous,
+always-on loops:
+
+- **`_s3_pull_loop`** (main.py:3891) — CONFIRMED CONTINUOUS: an infinite
+  `while True: sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS); ...` loop,
+  interval = **1200s (20 minutes)**, unconditional (no market-hours gate),
+  calling `data_sync.sync_if_newer_merge()` — **this is bars.db's own
+  web-side writer**, per this file's existing "Bars Freshness" section
+  ("Web ingests worker freshness via a newer-wins MERGE"). Runs on `web`,
+  writes to `/data/bars.db` (the 4.8GB file), every 20 minutes, all day,
+  every day — and is COMPLETELY INVISIBLE to the deployed diagnostic.
+- **`run_prewarmer_forever`** (`api/services/bars_prewarm.py:503`) — name
+  alone confirms a forever-loop; not yet deep-traced (queued for the
+  between-window research below), but a strong second bars.db-touching
+  candidate.
+- **`_hotset_push_loop`** (main.py:3921) — continuous, 120s cadence, reads
+  hot tickers + calls `data_sync.put_hotset(hs)` (an R2 PUT, not a local
+  SQLite write per its own comment — lower-priority than the two above,
+  but noted for completeness).
+- Several one-shot `_darkpool_db_seed_background`, `_flow_db_seed_
+  background`, `_cot_seed_background`, etc. threads exist too (seed-once
+  patterns, lower recurring risk, but still invisible to the diagnostic
+  during their run window).
+
+**Why this matters, precisely.** This does NOT invalidate the deployed
+experiment — it still correctly observes every APScheduler-registered job
+(the confirmed screener.db writers, the darkpool Cron jobs, etc.), which
+remains real, valid evidence for C1 and the scheduler-based half of C2/C4.
+**But it means a clean "active_jobs=none" reading on a slow trace must be
+read as "no SCHEDULER-JOB overlap," never as "no application activity
+overlap."** In particular: **a C5 ("no application-job correlation")
+conclusion is NOT safe to draw from this instrumentation alone**, because
+the single strongest C2 candidate identified so far (`_s3_pull_loop`
+writing to bars.db every 20 minutes) would show as invisible even if it
+were the actual cause of every slow trace this window produces. This is a
+disclosed, carried-forward limitation, not a fatal flaw — per the owner's
+instruction, NOT stopping/modifying the live diagnostic over it (that
+would itself change the experimental variable mid-run); flagging it now so
+a future C5-leaning read gets the correct caveat, and a genuine C5
+conclusion (if it comes to that) explicitly recommends a FOLLOW-UP package
+extending visibility to these threads, rather than jumping to a
+platform/runtime explanation prematurely.
+
+**Between-window safe (read-only, no production/code change) research now
+in progress**, dispatched to parallel research agents per owner
+authorization: (1) a complete job+thread → database inventory (all
+scheduler jobs AND all ~35 raw threads, cadence, gating, DB touched); (2) a
+deep trace of screener.db's own writers (transaction boundaries, batch
+size, commit frequency); (3) a deep trace of bars.db/patterns.db/
+darkpool.db writers (both scheduled and thread-loop); (4) the long-running-
+scan and snapshot-completeness contracts (what exists vs. what's missing,
+documentation only); (5) an extended repo-precedent catalog. Findings to
+follow in a BETWEEN-WINDOW SCANNER CONTENTION PREPARATION REPORT once
+back. Observation cadence (hourly Railway log/deploy checks) continues
+unchanged and takes priority over this research whenever it's due.
