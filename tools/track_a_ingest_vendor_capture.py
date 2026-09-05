@@ -83,8 +83,14 @@ EXPECTED_CONTROL_VALUES = {
     "median_candMean": (4.0, "float", 1e-6),
     "percentrank_candA_overL": (75.0, "float", 1e-6),
     "percentrank_candB_overLplus1": (80.0, "float", 1e-6),
-    "bbw_candRatio": (1.908367198512619, "float", 1e-4),
-    "bbw_candPercent": (190.8367198512619, "float", 1e-2),
+    # Tolerance for these two derived from realistic vendor display precision
+    # (TradingView's Table view rounds bbw-scale columns to 2 decimals) --
+    # 0.5 * 10**-2, matching tools/vendor_truth.py's own
+    # "the vendor's own display precision, and NOTHING else" tolerance
+    # philosophy, rather than the infinite-precision value this program's
+    # own local self-check computed.
+    "bbw_candRatio": (1.908367198512619, "float", 5e-3),
+    "bbw_candPercent": (190.8367198512619, "float", 5e-3),
 }
 
 #: One entry per Tranche 1A ambiguity. ``field`` names match the packet

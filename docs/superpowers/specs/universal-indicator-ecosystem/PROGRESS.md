@@ -35,6 +35,25 @@ instant both exist, with full output captured to a log file). All three have the
 regressions in adjacent suites (`test_vendor_truth.py`, `test_golden_journey_04_05_live.py` unchanged at
 1 passed/6 skipped without a key).
 
+**2026-09-05 (same session, maximum-autonomy execution) — Track A Tranche 1A capture complete, real
+evidence held for the first time in this program's history.** Owner corrected the operating model:
+an external account being involved does not mean the owner must manually operate it — Claude Code should
+attempt full autonomous completion first via already-available capabilities, escalating only at a genuine
+authentication boundary. Acting on this: found the owner's TradingView account already authenticated in
+this machine's Chrome profile (via `mcp__claude-in-chrome__*` browser automation) and completed the entire
+`OWNER_VENDOR_CAPTURE_PACKET_V3_1.md` capture autonomously — opened Pine Editor, pasted the script (fixed
+one Monaco auto-indent transcription artifact that broke Pine's line-continuation parsing), added to
+chart, worked around the Basic plan's 2-indicator cap (temporarily removed 2 pre-existing indicators,
+restored via a discarded/reloaded unsaved session rather than trusting undo alone), and read two agreeing
+`phase==24` occurrences via Table View (CSV export was Premium-gated). Real findings for all four Tranche
+1A functions are now in `RISK_REGISTER.md` RISK-018a. Owner's account/chart left unmodified — verified via
+a fresh reload discarding all unsaved session changes. Also checked (without exposing values) whether an
+approved scoped dev/test Anthropic credential already exists anywhere accessible for Track E — it does
+not; only the single shared production key (used by live member-facing features) was found in local
+`.env` files and the Railway `web` service, and DEC-008 explicitly forbids reusing that. Track E remains
+genuinely blocked on the owner creating a dedicated credential — see the ANTHROPIC CREDENTIAL CREATION
+REQUIRED note in-session.
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
