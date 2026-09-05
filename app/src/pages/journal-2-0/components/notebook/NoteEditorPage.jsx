@@ -35,6 +35,17 @@ const AUTOSAVE_MS = 800
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 
+// Wave 0 (P1-10) local draft safety net: the network autosave is debounced
+// 800ms behind the last keystroke, so a tab closed WHILE still typing (or
+// mid-backoff, offline) can lose everything after the last successful PUT —
+// a page refresh, a crashed tab, or the OS closing the browser never runs
+// React's unmount cleanup. This mirrors the in-progress edit to
+// localStorage on every keystroke (synchronous, local-only, no network),
+// so reopening the SAME note can recover it. Cleared the moment a real
+// network save actually lands — the local copy is a safety net, never a
+// second source of truth for content the server already has.
+const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
+
 // Toolbar Font dropdown — a broad set of common web-safe families (each option
 // previews in its own face). Value is a full CSS font-family stack; '' clears.
 const FONT_OPTIONS = [
@@ -289,23 +300,96 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
+  // Wave 0 (P1-10): mirrored synchronously in the onChange handlers below
+  // (never via a `useEffect` on `title`/`subtitle`) so the local-draft write
+  // always sees the value from THIS event, not a stale one from before
+  // React's setState batching commits — the same staleness `scheduleAutosave`
+  // solves for the network path via the ref-reassignment pattern, one layer
+  // earlier (a draft written from stale state would recover the SECOND-to-
+  // last keystroke, not the last one).
+  const titleRef = useRef('')
+  const subtitleRef = useRef('')
+  // A locally-drafted, never-successfully-saved version of THIS note,
+  // detected on load — offered via the banner below, never auto-applied
+  // (silently preferring a local draft over the server's copy could just as
+  // easily clobber real, already-synced work from another tab/device).
+  const [pendingDraft, setPendingDraft] = useState(null)
 
   useEffect(() => {
     if (note) {
       setTitle(note.title || '')
+      titleRef.current = note.title || ''
       setSubtitle(note.subtitle || '')
+      subtitleRef.current = note.subtitle || ''
       lastSavedRef.current = {
         title: note.title || '',
         subtitle: note.subtitle || '',
         bodyJson: note.bodyJson,
         updatedAt: note.updatedAt || null,
       }
+
+      // Wave 0 (P1-10): a draft this note's own last session never
+      // successfully saved. Only offered when it actually differs from
+      // what the server has — a match means it saved fine (or was never
+      // touched) and is pure noise to surface.
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY(note.id))
+        const draft = raw ? JSON.parse(raw) : null
+        const draftDiffers = draft && (
+          draft.title !== (note.title || '') ||
+          draft.subtitle !== (note.subtitle || '') ||
+          JSON.stringify(draft.bodyJson) !== JSON.stringify(note.bodyJson)
+        )
+        if (draftDiffers) {
+          setPendingDraft(draft)
+        } else {
+          if (raw) localStorage.removeItem(DRAFT_KEY(note.id))
+          setPendingDraft(null)
+        }
+      } catch {
+        setPendingDraft(null)
+      }
     }
   }, [note?.id])
+
+  const saveDraftLocally = () => {
+    if (!noteId || !editorRef.current) return
+    try {
+      localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
+        title: titleRef.current, subtitle: subtitleRef.current,
+        bodyJson: editorRef.current.getJSON(), savedAt: Date.now(),
+      }))
+    } catch { /* private mode / storage full — the network autosave is still the primary path */ }
+  }
+  const clearDraftLocally = () => {
+    try { localStorage.removeItem(DRAFT_KEY(noteId)) } catch { /* private mode */ }
+  }
+
+  const restoreDraft = () => {
+    if (!pendingDraft || !editorRef.current) return
+    setTitle(pendingDraft.title || '')
+    titleRef.current = pendingDraft.title || ''
+    setSubtitle(pendingDraft.subtitle || '')
+    subtitleRef.current = pendingDraft.subtitle || ''
+    if (pendingDraft.bodyJson) editorRef.current.commands.setContent(pendingDraft.bodyJson)
+    setPendingDraft(null)
+    // The restored content is now dirty, unsaved work — persist it for real.
+    scheduleAutosaveRef.current()
+  }
+  const discardDraft = () => {
+    clearDraftLocally()
+    setPendingDraft(null)
+  }
 
   const scheduleAutosave = () => {
     setSaveStatus('dirty')
     setSaveErrorMsg('')
+    // Wave 0 (P1-10): mirror to localStorage on EVERY edit, synchronously —
+    // not on the 800ms debounce below. A tab closed mid-keystroke (before
+    // the debounce ever fires) must still have a local copy of what was
+    // just typed; gating this on the same timer would leave exactly that
+    // window unprotected, which is the gap this safety net exists to close.
+    saveDraftLocally()
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -524,6 +608,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       retryAttemptsRef.current = 0
       // The embeds this save just persisted are safe — consume their inbox rows.
       consumePlacedCaptures()
+      // Wave 0 (P1-10): the server now has this content — the local safety
+      // net for it is no longer needed.
+      clearDraftLocally()
     } catch (e) {
       const status = e?.status
       if (status === 409 && !conflictRetriedRef.current) {
@@ -686,6 +773,30 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </button>
         </div>
       </header>
+
+      {/* Wave 0 (P1-10): a locally-drafted version of this note from a
+          session that never actually saved it to the server (tab closed,
+          crashed, or offline mid-edit). Offered, never auto-applied — the
+          member decides whether it's worth more than what's on screen. */}
+      {pendingDraft && (
+        <div className={styles.draftBanner} data-export-exclude role="status">
+          <span>
+            Unsaved changes from a previous session were found for this note.
+          </span>
+          <div className={styles.draftBannerActions}>
+            <button
+              type="button"
+              className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
+              onClick={restoreDraft}
+            >
+              Restore
+            </button>
+            <button type="button" className={styles.draftBannerBtn} onClick={discardDraft}>
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* The editor toolbar ROW (owner ask, chart-parity round): the font/
           formatting cluster and the PNG/Print exports grouped as ONE
@@ -852,13 +963,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         <input
           className={styles.titleInput}
           value={title}
-          onChange={(e) => { setTitle(e.target.value); scheduleAutosave(); onTitleChange?.(noteId, e.target.value) }}
+          onChange={(e) => {
+            const v = e.target.value
+            setTitle(v)
+            titleRef.current = v
+            scheduleAutosave()
+            onTitleChange?.(noteId, v)
+          }}
           placeholder="Title"
         />
         <input
           className={styles.subtitleInput}
           value={subtitle}
-          onChange={(e) => { setSubtitle(e.target.value); scheduleAutosave() }}
+          onChange={(e) => {
+            const v = e.target.value
+            setSubtitle(v)
+            subtitleRef.current = v
+            scheduleAutosave()
+          }}
           placeholder="Subtitle (optional)"
         />
 
