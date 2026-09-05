@@ -13,7 +13,9 @@
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../engine/ast/pine.js'
 import { buildParamManifest } from './pineParamManifest.js'
-import { applyParamEdit } from './paramEdit.js'
+import {
+  applyParamEdit, reconcileParams, ATTACHED, DETACHED, PARTIALLY_DETACHED, CONFLICTED, NON_LITERAL,
+} from './paramEdit.js'
 import { treesHash } from '../engine/ast/trees.js'
 
 function realSingleTreeDefinition(src) {
@@ -165,5 +167,91 @@ describe('one parameter feeding two trees updates both, atomically', () => {
     const result = applyParamEdit(def, '__uct_param_1', 21)
     expect(result.ok, result.error).toBe(true)
     expect(result.definition.compute.trees.scan.args[1].value).toBe(21)
+  })
+})
+
+// --------------------------------------------------------------------------- //
+// reconcileParams — a JS mirror of param_manifest.py::reconcile(), for
+// display BEFORE a definition has ever been saved (no server compute.
+// paramState to read yet). Five states, matching the Python side's own
+// vocabulary and the same scenarios tests/test_param_manifest.py proves
+// server-side — kept in lockstep by shared vocabulary, not a generated
+// fixture (this module is display-only; the SERVER remains the one
+// authority actually enforced at save time).
+// --------------------------------------------------------------------------- //
+
+describe('reconcileParams mirrors the server-side five states', () => {
+  it('⭐ a single resolving locator is ATTACHED', () => {
+    const def = realSingleTreeDefinition(`//@version=5
+indicator("t")
+length = input.int(14, "Length")
+plot(rsi(close, length))
+`)
+    const state = reconcileParams(def)
+    expect(state.__uct_param_1).toEqual({ state: ATTACHED, value: 14, reason: null })
+  })
+
+  it('⛔ zero locators is DETACHED', () => {
+    const def = {
+      compute: {
+        ast: { type: 'num', value: 1 },
+        paramManifest: {
+          __uct_param_1: { sourceName: 'x', title: 'X', type: 'int', default: 1, locators: [] },
+        },
+      },
+    }
+    expect(reconcileParams(def).__uct_param_1.state).toBe(DETACHED)
+  })
+
+  it('⛔ a locator whose path does not resolve is DETACHED (removed binding)', () => {
+    const def = {
+      compute: {
+        ast: { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }] },
+        paramManifest: {
+          __uct_param_1: {
+            sourceName: 'x', title: 'X', type: 'int', default: 14,
+            locators: [{ treeIndex: null, astPath: ['args', 1] }],
+          },
+        },
+      },
+    }
+    const s = reconcileParams(def).__uct_param_1
+    expect(s.state).toBe(DETACHED)
+    expect(s.value).toBeNull()
+  })
+
+  it('⛔⛔ one of two locators resolving is PARTIALLY_DETACHED, never a half-shown value', () => {
+    const def = multiTreeDefinition(14)
+    def.compute.paramManifest.__uct_param_1.locators[1] = { treeIndex: 'nonexistent', astPath: ['args', 1] }
+    const s = reconcileParams(def).__uct_param_1
+    expect(s.state).toBe(PARTIALLY_DETACHED)
+    expect(s.value).toBeNull()
+  })
+
+  it('⛔⛔ two locators disagreeing is CONFLICTED, never a silently-picked value', () => {
+    const def = multiTreeDefinition(14)
+    def.compute.trees.plot2.args[1].value = 21 // manually diverged from scan's 14
+    const s = reconcileParams(def).__uct_param_1
+    expect(s.state).toBe(CONFLICTED)
+    expect(s.value).toBeNull()
+  })
+
+  it('⛔ a binding rewritten to a non-literal is NON_LITERAL', () => {
+    const def = {
+      compute: {
+        ast: { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'series', name: 'len' }] },
+        paramManifest: {
+          __uct_param_1: {
+            sourceName: 'len', title: 'Length', type: 'int', default: 14,
+            locators: [{ treeIndex: null, astPath: ['args', 1] }],
+          },
+        },
+      },
+    }
+    expect(reconcileParams(def).__uct_param_1.state).toBe(NON_LITERAL)
+  })
+
+  it('⭐ a definition with no paramManifest reconciles to an empty object', () => {
+    expect(reconcileParams({ compute: { ast: { type: 'num', value: 1 } } })).toEqual({})
   })
 })

@@ -59,6 +59,105 @@ function getTree(definition, treeIndex) {
   return treeIndex === null ? compute.ast : (compute.trees || {})[treeIndex]
 }
 
+/** Pure JSON read (never a parser) at an astPath — mirrors `param_manifest
+ *  .py::_walk` exactly, key for key, so the two independently-written
+ *  readers agree on what "args, then index 1" means by construction.
+ *  Returns `undefined` if the path does not resolve. */
+function readAt(node, path) {
+  let cur = node
+  for (const step of path) {
+    if (typeof step === 'number') {
+      if (!Array.isArray(cur) || step < 0 || step >= cur.length) return undefined
+      cur = cur[step]
+    } else {
+      if (!isPlainObject(cur)) return undefined
+      cur = cur[step]
+    }
+  }
+  return cur
+}
+
+/** A resolved node's value IFF it is a plain numeric literal — mirrors
+ *  `param_manifest.py::_literal_value` exactly (both shapes: a wrapped
+ *  `{type:'num', value}` node, or the offset-node bare-number shape, kept
+ *  here for parity even though `pineParamManifest.js` never emits a locator
+ *  ending there today — see `paramEdit.js`'s own header on that gap). */
+function literalValueOf(node) {
+  let v
+  if (isPlainObject(node) && node.type === 'num') v = node.value
+  else if (typeof node === 'number') v = node
+  else return null
+  if (typeof v !== 'number' || !Number.isFinite(v)) return null
+  return v
+}
+
+export const ATTACHED = 'attached'
+export const DETACHED = 'detached'
+export const PARTIALLY_DETACHED = 'partially_detached'
+export const CONFLICTED = 'conflicted'
+export const NON_LITERAL = 'non_literal'
+
+/**
+ * The read-only, always-fresh-derived state for every parameter in
+ * `definition.compute.paramManifest` — a JS mirror of `param_manifest.py::
+ * reconcile()`, kept in lockstep by `paramEdit.reconcile.test.js`'s
+ * parity fixtures. Used for DISPLAY ONLY: `save()` computes and stores the
+ * authoritative `compute.paramState` server-side (ADR V2.2 S3(B) — current
+ * value has exactly one authority, `compute.ast`/`compute.trees`, and is
+ * never trusted from a client-cached copy for anything that matters). This
+ * lets a definition BEFORE its first save (no `compute.paramState` from the
+ * server yet) still render correctly.
+ *
+ * @returns {object} `{ [paramId]: { state, value, reason } }`
+ */
+export function reconcileParams(definition) {
+  const manifest = (definition.compute && definition.compute.paramManifest) || {}
+  const state = {}
+  for (const [id, entry] of Object.entries(manifest)) {
+    const locators = Array.isArray(entry.locators) ? entry.locators : []
+    const values = []
+    let anyDetached = false
+    let anyNonLiteral = false
+    for (const loc of locators) {
+      const tree = getTree(definition, loc.treeIndex)
+      const node = tree === undefined ? undefined : readAt(tree, loc.astPath || [])
+      if (node === undefined) { anyDetached = true; continue }
+      const v = literalValueOf(node)
+      if (v === null) { anyNonLiteral = true; continue }
+      values.push(v)
+    }
+    const n = locators.length
+    if (n === 0) {
+      state[id] = { state: DETACHED, value: null, reason: 'this parameter declares no binding locations' }
+    } else if (anyNonLiteral) {
+      state[id] = {
+        state: NON_LITERAL, value: null,
+        reason: "this input's binding is no longer a plain number and can't be shown as a slider",
+      }
+    } else if (values.length === 0) {
+      state[id] = {
+        state: DETACHED, value: null,
+        reason: "this control's underlying binding was removed or renamed",
+      }
+    } else if (anyDetached) {
+      state[id] = {
+        state: PARTIALLY_DETACHED, value: null,
+        reason: `only ${values.length} of ${n} of this control's bindings still exist — `
+          + 'it has been disabled rather than shown partially working',
+      }
+    } else if (new Set(values).size > 1) {
+      state[id] = {
+        state: CONFLICTED, value: null,
+        reason: `this control's bindings disagree (${[...new Set(values)].sort((a, b) => a - b).join(', ')}) `
+          + 'across the trees it appears in — edit each tree directly, or use the control once it\'s reconciled',
+      }
+    } else {
+      state[id] = { state: ATTACHED, value: values[0], reason: null }
+    }
+  }
+  return state
+}
+
 /** Structural, copy-on-write replace of the LEAF the astPath's last step
  *  names — the whole node at that position becomes `{ ...oldNode, value }`,
  *  never a bare value swapped into an arbitrary spot. Every ancestor along

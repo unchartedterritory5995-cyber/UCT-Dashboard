@@ -1,0 +1,82 @@
+/* ParamControls — Track F (DEC-006) parameter panel. Own file, matching
+   PineBox.module.css's own reasoning: cheapest way to stay disjoint from
+   files under concurrent edit. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+.row:first-of-type { border-top: none; }
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+.resetBtn {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.resetBtn:hover { color: var(--text-bright); }
+
+.input, .select {
+  width: 100%;
+  max-width: 160px;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 6px);
+}
+
+.meta {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.disabledReason {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-style: italic;
+}

@@ -103,6 +103,8 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+import ParamControls from './ParamControls'
+import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
 // forgets it the moment the draft stops evaluating or the sheet closes.
@@ -1990,6 +1992,34 @@ export default function BuilderSheet({
           />
           {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
           <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+
+          {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
+              `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
+              directly (never on Pine, never on a second parser — see
+              `paramEdit.js`'s own header) and hands back a new `compute.source`,
+              which then flows through EXACTLY the same `setSource` →
+              `FormulaField`'s own debounced re-translate → `result` pipeline a
+              hand-typed edit already uses. No new save path, no new state beyond
+              `paramManifest` itself. Single-tree only (v1 scope) — `result.ast`
+              is the Formula tab's own `compute.ast`; the separate multi-plot
+              editor is untouched. */}
+          {paramManifest && Object.keys(paramManifest).length > 0 && result && result.ast && (
+            <ParamControls
+              definition={{ compute: { ast: result.ast, paramManifest } }}
+              onChange={(paramId, value) => {
+                const applied = applyParamEdit({ compute: { ast: result.ast, paramManifest } }, paramId, value)
+                if (!applied.ok) {
+                  // ⛔ REJECT-NOT-CLAMP, SURFACED. A bounds/round-trip failure
+                  // here is the client-side courtesy check catching something —
+                  // the value is simply not applied; the field's own draft
+                  // already reverted itself (`ParamControls`'s own commit()).
+                  setStoreError(applied.error)
+                  return
+                }
+                setSource(applied.definition.compute.source)
+              }}
+            />
+          )}
 
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
