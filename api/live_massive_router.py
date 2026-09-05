@@ -3930,6 +3930,36 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         finally:
             conn.close()
 
+    # Per-(contract, session) ask ledgers so the AGGREGATE tiers (Ask Accumulation /
+    # Alpha LEAPS) classify in the By-Contract view too — mirrors _compute_recent_core.
+    # Built from a SEPARATE full-session query (every sided print incl. blank-side
+    # sweeps) per source+date, keyed by the globally-unique row id, so a contract's
+    # aggregate is per-DAY (not summed across the whole lookback window). Without this
+    # the rollup classified each print in isolation and those tiers — whose signal IS
+    # the aggregate, not any single print — could never appear here (2026-09-05).
+    _ask_prem_led, _ask_vol_led = {}, {}
+    if sources and (thresholds.get("alpha_leaps_enabled", True)
+                    or thresholds.get("ask_accum_enabled", True)):
+        _presume = bool(thresholds.get("sweep_empty_side_as_ask", True))
+        _lconn = sqlite3.connect(DB_PATH, timeout=10)
+        _lconn.row_factory = sqlite3.Row
+        try:
+            for _src in sources:
+                for _dt in target_dates:
+                    _lq = ("SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, "
+                           "Volume, Premium, Type FROM flow WHERE source=? AND CreatedDate=? "
+                           "AND (Side IN ('A','AA','B','BB') OR (COALESCE(Side,'')='' "
+                           "AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))")
+                    _lp = [_src, _dt]
+                    if only_ticker:
+                        _lq += " AND Symbol=?"
+                        _lp.append(only_ticker.strip().upper())
+                    _lrows = _lconn.execute(_lq, _lp).fetchall()
+                    _ask_prem_led.update(_build_session_ask_premium_ledger(_lrows, presume_sweep_ask=_presume))
+                    _ask_vol_led.update(_build_session_ask_volume_ledger(_lrows, presume_sweep_ask=_presume))
+        finally:
+            _lconn.close()
+
     # Group by contract
     contracts: dict = {}
     for r in rows:
@@ -3937,7 +3967,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # accumulation, even ones the tape drops for unclassifiable side. The
         # rollup's thesis is repetition; direction is derived from the sided
         # subset and shown as bull/bear/mixed with a sided-% for honesty.
-        a = _row_to_alert(dict(r), require_direction=False)
+        a = _row_to_alert(dict(r), require_direction=False,
+                          agg_ask_premium=_ask_prem_led.get(r["id"], 0.0),
+                          agg_ask_volume=_ask_vol_led.get(r["id"], 0.0))
         if a is None:
             continue
         if exclude_algo and a.get("_tierKey") == "algo":
