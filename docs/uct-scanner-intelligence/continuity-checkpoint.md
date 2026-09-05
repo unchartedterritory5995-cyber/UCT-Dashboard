@@ -381,6 +381,62 @@ shape, expected legacy on all):**
 Current interpretation is a **hypothesis** (post-deploy/process contention),
 not a proven root cause, pending this matched experiment.
 
+## Matched true-HTTP result (2026-09-05, same day) — PERFORMANCE FAILED, PILOT ROLLED BACK
+
+Clean, matched comparison achieved using the pre-registered
+`pattern_engine_id contains ",power_earnings_gap,"` request (page_size=10),
+identical shape both sides, only the pilot flag differing. Both series
+confirmed to run on a single unchanged deployment throughout (no redeploy
+mid-series either side).
+
+- **Legacy (pilot OFF), deployment `5ff4ff29`/`23a73339a`:** cold 447ms; warm
+  700/471/533/454/441ms (median ≈471, min 441, max 700). All 200, all
+  correct, no canonical field.
+- **Canonical (pilot ON), deployment `2b594b55`/`c71c6bae2` — a *different*
+  deployment than the legacy series, because an unrelated concurrent session
+  pushed again during the activation redeploy; residual fix + 8G-B code
+  confirmed still intact on it):** cold 1454ms; warm
+  550/514/1245/898/650ms (median ≈650, min 514, max 1245). All 200. CRM,
+  AMLX, EL, RZLV correctly received `pattern_canonical_pilot.pattern_id =
+  power_earnings_gap`; the other 6 rows in the identical response (ARKG,
+  ANF, HTFL, WEAV, HTHT, +1) never did — fail-closed scoping held within the
+  matched request itself.
+- **500ms gate: FAILED.** Every one of the 5 warm canonical samples exceeded
+  500ms (514–1245ms). Legacy itself runs close to budget on this filter
+  shape (a `contains`/`LIKE` scan is inherently costlier than the earlier
+  unfiltered page_size=50 baseline — a real, separate, previously-unmeasured
+  cost of the `pattern_engine_id` filter itself, not attributable to 8G-B),
+  but canonical is consistently higher on top of that across every sample.
+- **Pilot rolled back to OFF and verified structurally**: post-rollback
+  request on a fresh settled deployment (`ab974f9a`, same commit
+  `c71c6bae2`) returned `anyCanonical:false`, CRM present, 86ms.
+
+### Scope decisions taken, disclosed rather than hidden
+- **HTF/other-family isolation under pilot-ON was not independently
+  re-verified with a dedicated HTF-filtered request** this round — the
+  matched PEG-family response itself already showed only PEG-identity rows
+  got canonical treatment (fail-closed scoping held), and re-enabling the
+  pilot a further time solely to re-check isolation already demonstrated
+  clean all day (across every sample, all day, with zero exceptions) was
+  judged not worth a fifth production redeploy given the run already ended
+  in a clear performance rollback.
+- **Ordinary-user isolation over live HTTP remains unverified this session**
+  — no second real non-admin account was available. Code-level guarantee
+  (`_pilot_authorized` on `user.get("role")=="admin"`) reviewed, not
+  exercised live.
+
+### Classification: **B — 8G-B FUNCTIONAL VALIDATED, MATCHED TRUE-HTTP PERFORMANCE FAILED, PILOT ROLLED BACK**
+
+**8G-B is not ready for closure.** The canonical overlay is functionally
+correct (identity, scoping, fail-closed behavior all held under clean,
+matched conditions) but adds real, reproducible latency that pushes an
+already-near-budget legacy request over the 500ms gate. The residual
+`INDEXED BY` fix remains merged and deployed (that part stands); the
+`pattern_engine_id`/`contains` filter's own baseline cost is a newly
+surfaced, previously-unmeasured factor worth its own investigation
+independent of 8G-B. Do not reactivate the pilot without further
+performance work on the canonical overlay itself.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
