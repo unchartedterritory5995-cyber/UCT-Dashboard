@@ -218,3 +218,179 @@ def test_compare_output_is_bounded_never_an_unbounded_dump(monkeypatch, tmp_path
     result = pj.compare_pattern_shadow([f"SYM{i}" for i in range(60)], legacy_map=fake_legacy)
     assert result["direction_mismatch"] == 60
     assert len(result["direction_mismatch_sample"]) == pj._SHADOW_LOG_CAP
+
+
+# ─── Phase 8 Package 8G-B Performance Closure — structural, not wall-clock ──
+#
+# Root cause (measured live, 2026-09-05): read_pattern_fields_canonical_shadow
+# carried NO ticker filter in its SQL -- it fetched and Python-filtered the
+# ENTIRE active-detections table on every call (56,239 rows measured live),
+# regardless of target count (instrumented: 1-ticker call 754.90ms, 9-ticker
+# call 727.79ms -- statistically identical, proving row-fetch volume, not
+# candidate count, was the driver). These test the ARCHITECTURE stays bounded
+# rather than re-asserting a brittle wall-clock number; live/end-to-end timing
+# is a separate acceptance measurement (see the performance-closure report).
+
+def test_query_is_scoped_by_sym_not_a_full_table_scan():
+    """The SQL text itself must carry a sym-scoping clause -- the structural
+    fact that makes this a bounded query instead of the full-table fetch
+    that caused the live regression."""
+    import inspect
+    from api.services.screener import pattern_join as pj
+
+    source = inspect.getsource(pj.read_pattern_fields_canonical_shadow)
+    assert "sym IN" in source
+
+
+def test_unrelated_tickers_data_is_never_fetched(monkeypatch, tmp_path):
+    """Populate many tickers; request only one. The result must be exactly
+    that one ticker's data -- proving the query didn't need to touch (and
+    per the structural test above, did not fetch) the other tickers' rows
+    to answer the request."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    for i in range(30):
+        memory.store_detection(_detection(id=f"unrelated-{i}", sym=f"UNREL{i}"))
+    memory.store_detection(_detection(id="d-target", sym="CRM"))
+
+    out = pj.read_pattern_fields_canonical_shadow(["CRM"])
+    assert set(out.keys()) == {"CRM"}
+
+
+def test_empty_targets_returns_empty_without_querying(monkeypatch, tmp_path):
+    """An empty target list is a real caller shape (a legacy-matched
+    candidate list can be empty) and must short-circuit before building a
+    zero-placeholder `sym IN ()` -- which would be invalid SQL -- rather
+    than reaching the database at all."""
+    _fresh(monkeypatch, tmp_path)
+    import api.services.screener.pattern_join as pj
+
+    def _boom(*a, **k):
+        raise AssertionError("must not open a connection for empty targets")
+
+    monkeypatch.setattr("api.services.pattern_engine.pattern_db.get_connection", _boom)
+    assert pj.read_pattern_fields_canonical_shadow([]) == {}
+
+
+def test_duplicate_and_mixed_case_targets_still_resolve_correctly(monkeypatch, tmp_path):
+    """The SQL-level scoping dedupes/uppercases into `target_syms` for the
+    query, but the per-target output loop still iterates the CALLER's
+    original `targets` list -- this must not change behavior for a caller
+    passing duplicates or mixed case."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    memory.store_detection(_detection(id="d-crm", sym="CRM"))
+
+    out = pj.read_pattern_fields_canonical_shadow(["crm", "CRM", "Crm"])
+    assert set(out.keys()) == {"CRM"}
+    assert out["CRM"]["pattern_id"] == "high_tight_flag"
+
+
+def test_query_param_count_scales_with_targets_not_table_size(monkeypatch, tmp_path):
+    """Structural proxy for the fixed cost: the TOTAL bound-param count must
+    grow by exactly one per additional DISTINCT target -- proving the extra
+    params are the sym filter (scoped to what was asked for), never a
+    function of the 50-row table this test populates. A regression back to
+    an unfiltered fetch would keep the param count constant instead."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    for i in range(50):
+        memory.store_detection(_detection(id=f"d{i}", sym=f"SYM{i}"))
+
+    captured = []
+    import api.services.pattern_engine.pattern_db as pattern_db
+
+    real_get_connection = pattern_db.get_connection
+
+    class _SpyConn:
+        """`sqlite3.Connection.execute` is a read-only C attribute and can't
+        be monkeypatched on the instance -- wrap the connection instead."""
+        def __init__(self, real_conn):
+            self._real = real_conn
+
+        def execute(self, sql, params=()):
+            if "sym IN" in sql:
+                captured.append(len(params))
+            return self._real.execute(sql, params)
+
+        def close(self):
+            return self._real.close()
+
+    def _spy():
+        return _SpyConn(real_get_connection())
+
+    monkeypatch.setattr("api.services.pattern_engine.pattern_db.get_connection", _spy)
+
+    pj.read_pattern_fields_canonical_shadow(["SYM0"])
+    pj.read_pattern_fields_canonical_shadow(["SYM0", "SYM1", "SYM2"])
+
+    assert len(captured) == 2
+    assert captured[1] - captured[0] == 2  # +2 targets -> +2 bound params, never +49
+
+
+def test_shadow_query_forces_the_sym_tf_index_in_source():
+    """The SQL text itself must force idx_pd_sym_tf -- the structural fact
+    that prevents SQLite's planner from silently choosing a worse index
+    (idx_pd_status) for this exact WHERE shape. Measured live on real
+    production data (Phase 8 Package 8G-B Residual Performance Closure,
+    2026-09-05): the unforced planner chose idx_pd_status and visited
+    ~57,000 status-matching rows table-wide, 350x slower than forcing
+    idx_pd_sym_tf for an identical 4-ticker result (~400ms vs ~1.2ms)."""
+    import inspect
+    from api.services.screener import pattern_join as pj
+
+    source = inspect.getsource(pj.read_pattern_fields_canonical_shadow)
+    assert "INDEXED BY idx_pd_sym_tf" in source
+
+
+def test_shadow_query_plan_actually_uses_the_sym_tf_index(monkeypatch, tmp_path):
+    """Not just the SQL text -- the REAL SQLite query planner, against a
+    real populated table, must report idx_pd_sym_tf in EXPLAIN QUERY PLAN.
+    Captures the ACTUAL SQL `read_pattern_fields_canonical_shadow` executes
+    (via this file's own SpyConn idiom, never a hand-retyped copy) so a
+    regression that renamed or dropped the hint goes red here even if it
+    slipped past a looser source-text match."""
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+    import api.services.pattern_engine.pattern_db as pattern_db
+
+    memory.store_detection(_detection(id="d1", sym="AAPL"))
+
+    real_get_connection = pattern_db.get_connection
+    captured = {}
+
+    class _SpyConn:
+        def __init__(self, real_conn):
+            self._real = real_conn
+
+        def execute(self, sql, params=()):
+            if "sym IN" in sql:
+                captured["sql"], captured["params"] = sql, params
+            return self._real.execute(sql, params)
+
+        def close(self):
+            return self._real.close()
+
+    monkeypatch.setattr(
+        "api.services.pattern_engine.pattern_db.get_connection",
+        lambda: _SpyConn(real_get_connection()))
+
+    pj.read_pattern_fields_canonical_shadow(["AAPL"])
+    assert "sql" in captured
+
+    conn = real_get_connection()
+    try:
+        plan = [dict(r) for r in conn.execute(
+            "EXPLAIN QUERY PLAN " + captured["sql"], captured["params"]).fetchall()]
+    finally:
+        conn.close()
+    detail = " ".join(str(p.get("detail", "")) for p in plan)
+    assert "idx_pd_sym_tf" in detail
+    assert "idx_pd_status" not in detail
