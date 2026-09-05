@@ -342,6 +342,45 @@ substitute for "CRM-only" (narrow, real, existing, targets exactly the
 criterion this package cares about) but is not literally ticker-scoped — flagged
 for owner decision rather than assumed acceptable.
 
+## Owner-authorized matched request (2026-09-05, pre-registered before any new HTTP call)
+
+**Filter decision:** no ticker-equality filter exists; owner approved the
+existing `pattern_engine_id` enum filter (`op: "contains"`) as the matched
+substitute. Exact wrapped value confirmed by reading
+`filters._distinct_list_options` (`MATCH_SEP = ","` in `pattern_join.py`):
+presets are emitted as `{"op": "contains", "value": f",{tok},"}` — i.e. the
+real UI sends the comma-wrapped token, never the bare string (bare tokens
+can collide as substrings, e.g. `head_shoulders` inside
+`inverse_head_shoulders`; `power_earnings_gap`/`high_tight_flag` have no
+known collision but the wrapped form is used regardless, to match the real
+served request exactly).
+
+**Pre-registered exact request (same for pilot OFF and pilot ON, only the
+env var differs):**
+```json
+POST /api/screener/scan
+{
+  "filters": [{"key": "pattern_engine_id", "op": "contains", "value": ",power_earnings_gap,"}],
+  "sort": null,
+  "view": "overview",
+  "page": 1,
+  "page_size": 10
+}
+```
+Expected: exactly the same 4 rows already surveyed (ARKG, ANF, HTFL, CRM),
+`page_size=10` comfortably covers all 4 without approaching the confounded
+page_size=500 shape.
+
+**Isolation-check requests (admin context, same endpoint, same minimal
+shape, expected legacy on all):**
+- HTF: `{"key":"pattern_engine_id","op":"contains","value":",high_tight_flag,"}`
+- Other family: `{"key":"pattern_engine_id","op":"contains","value":",bull_flag,"}`
+
+**Finnhub causality claim withdrawn per owner decision** — recorded above as
+"unverified, likely wrong," not carried forward as an established finding.
+Current interpretation is a **hypothesis** (post-deploy/process contention),
+not a proven root cause, pending this matched experiment.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
