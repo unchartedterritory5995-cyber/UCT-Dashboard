@@ -716,6 +716,23 @@ def _detect_session() -> str:
 _TODAY_DAILY_BAR_TTL = 8.0
 
 
+def _today_et_is_a_trading_day() -> bool:
+    """Is the CURRENT NY calendar date an actual NYSE session?
+
+    Extracted as its own seam (rather than inlined) so a test can force the
+    weekend/holiday branch without depending on which real day it happens to
+    run on. Deferred import: `bars_fetch` imports FROM this module at module
+    level, so importing it back at module level here would be circular.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services.bars_fetch import _is_nyse_holiday
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    if now_et.weekday() >= 5:
+        return False
+    return not _is_nyse_holiday(int(now_et.strftime("%Y%m%d")))
+
+
 def todays_daily_bar(ticker: str) -> dict | None:
     """Today's developing daily bar as a chart-ready dict
     ``{"t": "YYYY-MM-DD", "o", "h", "l", "c", "v"}`` (t = today's ET date), or
@@ -723,12 +740,24 @@ def todays_daily_bar(ticker: str) -> dict | None:
 
     Per-ticker TTL-cached (~8s). A negative result is cached as ``{}`` so a
     pre-market / weekend miss doesn't re-hit Massive on every request either.
+
+    ⛔ 2026-09-04: `get_todays_daily_ohlcv`'s `day.o > 0` gate is NOT enough on
+    its own. Right after a Friday close (or ahead of a holiday) the provider's
+    snapshot `day` object can stay nonzero for a while into the next
+    NON-trading calendar day rather than resetting to zero — confirmed live:
+    every symbol served a phantom Saturday bar that was byte-for-byte Friday's
+    OHLC. This function is what STAMPS the date, so the trading-day check
+    belongs here: a stale-but-nonzero snapshot must never be dated onto a day
+    the market wasn't even open.
     """
     tk = ticker.upper()
     ck = f"today_daily_bar_{tk}"
     hit = cache.get(ck)
     if hit is not None:
         return hit or None
+    if not _today_et_is_a_trading_day():
+        cache.set(ck, {}, ttl=_TODAY_DAILY_BAR_TTL)
+        return None
     try:
         raw = _get_client().get_todays_daily_ohlcv(tk)
     except Exception:

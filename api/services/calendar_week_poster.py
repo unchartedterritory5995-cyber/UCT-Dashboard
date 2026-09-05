@@ -175,11 +175,23 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     earnings_days: list[dict] = []
     econ_days: list[dict] = []
 
+    from api.services.bars_fetch import _is_nyse_holiday
+
     for i in range(5):
         d = monday + timedelta(days=i)
         ds = d.isoformat()
         day = days.get(ds) or {}
         label = f"{d.strftime('%a').upper()} {d.day}"
+
+        # A company "reporting" on a day the market is fully closed is almost
+        # always a stale/misdated schedule entry, never a real release --
+        # confirmed 2026-09-04: FCEL (which had ALREADY reported on 2026-09-02)
+        # showed as a Monday-2026-09-07 BMO reporter, and 2026-09-07 is Labor
+        # Day. The card still shows the day (label above is unaffected); it
+        # just carries nothing under it, exactly like any other quiet day --
+        # never invent a "market closed" row, just don't trust the roster.
+        if _is_nyse_holiday(int(ds.replace("-", ""))):
+            day = {}
 
         metrics = {}
         try:

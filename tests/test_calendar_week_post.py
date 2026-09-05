@@ -6,7 +6,7 @@ don't post a hollow card, don't post twice, and never let `live` fall back into
 the admin channel.
 """
 import pathlib
-from datetime import date
+from datetime import date, timedelta
 from unittest import mock
 
 import pytest
@@ -484,6 +484,49 @@ def _run_build(entries, metrics=None):
          mock.patch("api.services.ticker_logos.get_logo_path", return_value=None):
         earn, _ = poster.build_payloads(mon)
     return {e["sym"]: e for e in earn[0]["bmo"]}
+
+
+# ── a stale entry on a market holiday must never draw a tile (2026-09-04) ────
+# 🔴 THE REGRESSION THIS EXISTS FOR: FCEL -- which had ALREADY REPORTED on
+# 2026-09-02 -- showed up as a Monday 2026-09-07 BMO reporter on the live
+# card. 2026-09-07 is Labor Day (a full NYSE closure); the underlying
+# schedule feed had simply not rolled the stale entry off its list. A company
+# never genuinely reports on a day the market is fully closed, so the day's
+# whole roster is untrustworthy and must draw NOTHING for that day, even
+# though the raw calendar payload carried entries for it.
+
+def _run_build_for_monday(mon, entries):
+    """Same shape as `_run_build`, but for an arbitrary Monday (so a holiday
+    Monday can be exercised) rather than the fixed 2026-08-03."""
+    days = {mon.isoformat(): {"bmo": entries, "amc": [], "tbd": []}}
+    for i in range(1, 5):
+        days[(mon + timedelta(days=i)).isoformat()] = {
+            "bmo": [], "amc": [], "tbd": []}
+    with mock.patch("api.routers.calendar.get_calendar",
+                    return_value={"days": days}), \
+         mock.patch("api.routers.calendar.get_day_metrics", return_value={}), \
+         mock.patch("api.routers.calendar._week_dates", return_value=[mon]), \
+         mock.patch("api.services.ticker_logos.get_logo_path", return_value=None):
+        earn, _ = poster.build_payloads(mon)
+    return earn[0]
+
+
+def test_a_holiday_mondays_roster_is_emptied_not_trusted():
+    labor_day = date(2026, 9, 7)
+    assert labor_day.weekday() == 0  # it really is a Monday
+    day = _run_build_for_monday(labor_day, [{"sym": "FCEL", "mc_b": 1.0, "ew": 0}])
+    assert day["bmo"] == [] and day["bmo_n"] == 0
+    assert day["total"] is None, "an emptied holiday day must not still claim a count"
+
+
+def test_an_ordinary_monday_is_unaffected():
+    """Non-vacuity: the same fixture, on a Monday that is NOT a holiday, must
+    still draw the entry -- otherwise the guard above proves nothing."""
+    ordinary = date(2026, 8, 3)
+    assert ordinary.weekday() == 0
+    day = _run_build_for_monday(ordinary, [{"sym": "FCEL", "mc_b": 1.0, "ew": 0}])
+    assert day["bmo_n"] == 1
+    assert any(r["sym"] == "FCEL" for r in day["bmo"])
 
 
 def test_build_payloads_rings_a_watched_small_cap():
