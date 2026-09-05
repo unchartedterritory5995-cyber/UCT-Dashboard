@@ -13,6 +13,11 @@ flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
 flow module (reached via live_massive_router's /confluence-flow, imports weekly_flow)
 but is NOT yet watched, so a lone edit to it won't deploy until then (touch a watched
 file meanwhile, as this note does).
+⚠️ TODO (2026-09-04): SAME for `oi_massive_snapshots.py` and `oi_morning.py` — both are
+flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is watched,
+so an edit to them alone won't deploy. This header edit is the trigger for the
+2026-09-04 oi_massive full-chain baseline fix (store the whole fetched chain + prune +
+per-contract prior ΔOI, so the card stops reading total OI as an overnight build).
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

@@ -10,9 +10,17 @@ OI into its OWN table/DB so only the OI Update card uses the OCC-accurate value.
 - Source: Massive options **chain** snapshot `/v3/snapshot/options/{underlying}` (one
   paginated call per symbol → every contract's `open_interest`), NOT per-contract (the
   flow universe is ~100k contracts). stdlib **urllib** (httpx MIA on flow-worker).
-- Universe: contracts with single-name ('stocks') flow in the last `OI_MASSIVE_DAYS_BACK`
-  days (the card's universe). Store only those contracts (bounded).
-- ΔOI(D) = OI(D) − OI(D−1) over adjacent daily rows (this table is written daily).
+- Universe: symbols with single-name ('stocks') flow in the last `OI_MASSIVE_DAYS_BACK`
+  days. For each such symbol we **store the FULL fetched chain (OI>0)**, not just the
+  strikes that had flow. Why: a contract's big-flow day is usually its FIRST day in the
+  flow universe, so filtering to flow strikes discarded the very prior-day OCC baseline
+  the card needs the next morning → ΔOI came out as the full current OI ("NEW" for
+  everything, ranked by total OI — 5-10x UnusualWhales). We already fetch the whole
+  chain, so keeping it is free; OI==0 strikes are dropped (their absence correctly
+  yields prior=0 = genuinely new). Bounded by KEEP_DAYS retention (see prune()).
+- ΔOI(D) = OI(D) − OI(prior snapshot the contract appears in). get_deltas resolves the
+  prior PER CONTRACT (nearest earlier snapshot within _DELTA_LOOKBACK), so a contract
+  that skipped a capture day still reads a real baseline instead of 0.
 - DARK / additive: nothing else reads this table; gated `OI_MASSIVE_ENABLED` for the cron.
 
 Env (flow-worker):
@@ -52,6 +60,12 @@ _UA = {"User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)"}
 ENABLED = os.environ.get("OI_MASSIVE_ENABLED", "0") == "1"
 DAYS_BACK = int(os.environ.get("OI_MASSIVE_DAYS_BACK", "5"))
 _PAGE_CAP = int(os.environ.get("OI_MASSIVE_PAGE_CAP", "20"))   # chain pages per symbol
+# Retention: the card needs only the two most recent snapshots (+ a small lookback
+# for per-contract priors), so keep a short rolling window. Full-chain storage grows
+# ~3-4x the old flow-only footprint, so a prune is REQUIRED, not optional.
+KEEP_DAYS = int(os.environ.get("OI_MASSIVE_KEEP_DAYS", "10"))
+# How far back get_deltas will reach for a contract's own prior snapshot (days).
+_DELTA_LOOKBACK = int(os.environ.get("OI_MASSIVE_DELTA_LOOKBACK", "8"))
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS oi_massive_snapshots (
@@ -197,23 +211,30 @@ def record_batch(rows, snap_date: str) -> int:
     return len(data)
 
 
-def get_deltas(keys):
-    """Return (deltas, d_last, d_prior). deltas = {contract_key: (prior_oi, last_oi)}
-    over the two most recent snap_dates present. prior_oi=0 when the contract has no
-    earlier snapshot. Absent from the latest snapshot → omitted."""
+def get_deltas(keys, lookback: int = None):
+    """Return (deltas, d_last, d_prior). deltas = {contract_key: (prior_oi, last_oi)},
+    where prior_oi is the contract's OWN most-recent snapshot BEFORE the latest date
+    (within `lookback` days), NOT the globally-second date. Absent from the latest
+    snapshot → omitted. prior_oi=0 only when the contract has no earlier snapshot at
+    all (a genuinely new position).
+
+    Per-contract prior (vs the global 2nd date) is what keeps ΔOI honest: a contract
+    that skipped a capture day would otherwise read prior=0 and report its ENTIRE
+    current OI as an overnight build. d_last/d_prior are still the global dates (used
+    by the card for the volume window + the 'OI as of' label)."""
+    lookback = _DELTA_LOOKBACK if lookback is None else lookback
     keys = list(dict.fromkeys(k for k in keys if k))
     if not keys:
         return {}, None, None
     with closing(sqlite3.connect(DB_PATH, timeout=15)) as c:
         dates = [r[0] for r in c.execute(
             "SELECT DISTINCT snap_date FROM oi_massive_snapshots "
-            "ORDER BY snap_date DESC LIMIT 2").fetchall()]
+            "ORDER BY snap_date DESC LIMIT ?", (max(2, lookback),)).fetchall()]
         if not dates:
             return {}, None, None
         d_last = dates[0]
         d_prior = dates[1] if len(dates) > 1 else None
-        want = [d for d in (d_last, d_prior) if d]
-        dph = ",".join("?" * len(want))
+        dph = ",".join("?" * len(dates))
         by_ck: dict = {}
         for i in range(0, len(keys), 400):
             chunk = keys[i:i + 400]
@@ -221,7 +242,7 @@ def get_deltas(keys):
             for ck, sd, oi in c.execute(
                 f"SELECT contract_key, snap_date, oi FROM oi_massive_snapshots "
                 f"WHERE contract_key IN ({kph}) AND snap_date IN ({dph})",
-                (*chunk, *want),
+                (*chunk, *dates),
             ):
                 by_ck.setdefault(ck, {})[sd] = oi
     out = {}
@@ -229,8 +250,32 @@ def get_deltas(keys):
         last = m.get(d_last)
         if last is None:
             continue
-        out[ck] = (m.get(d_prior, 0) if d_prior else 0, last)
+        prior = 0
+        for d in dates[1:]:          # dates DESC → first hit is the nearest prior snap
+            if d in m:
+                prior = m[d]
+                break
+        out[ck] = (prior, last)
     return out, d_last, d_prior
+
+
+def prune(keep_days: int = None) -> int:
+    """Drop snapshot dates older than the most recent `keep_days`. Full-chain storage
+    makes retention mandatory. Returns rows deleted. No-op when fewer dates exist."""
+    keep_days = KEEP_DAYS if keep_days is None else keep_days
+    if keep_days <= 0:
+        return 0
+    with closing(sqlite3.connect(DB_PATH, timeout=30)) as c:
+        c.execute("PRAGMA journal_mode=WAL")
+        dates = [r[0] for r in c.execute(
+            "SELECT DISTINCT snap_date FROM oi_massive_snapshots "
+            "ORDER BY snap_date DESC LIMIT ?", (keep_days,)).fetchall()]
+        if len(dates) < keep_days:
+            return 0
+        cutoff = dates[-1]           # oldest date we KEEP
+        cur = c.execute("DELETE FROM oi_massive_snapshots WHERE snap_date < ?", (cutoff,))
+        c.commit()
+        return cur.rowcount
 
 
 def get_history(contract_key: str, days: int = 30):
@@ -264,23 +309,31 @@ def capture_job(*, force: bool = False) -> dict:
             return {"ok": True, "symbols": 0, "rows": 0, "note": "empty flow universe"}
         snap = _today_iso()
         rows = []
+        flow_hits = 0
         done = failed = 0
         for sym, cks in uni.items():
             try:
                 oi_by_ck = _fetch_chain_oi(sym)
-                for ck in cks:
-                    if ck in oi_by_ck:
-                        rows.append((ck, oi_by_ck[ck]))
+                # Store the FULL fetched chain (OI>0), not just the flow strikes `cks`
+                # — that's what gives newly-flowed contracts a prior-day baseline the
+                # next morning (see module docstring). OI==0 strikes dropped.
+                for ck, oi in oi_by_ck.items():
+                    if oi and int(oi) > 0:
+                        rows.append((ck, oi))
+                flow_hits += sum(1 for ck in cks if ck in oi_by_ck)
                 done += 1
             except Exception as e:  # noqa: BLE001
                 failed += 1
                 log.warning("[oi-massive] %s chain failed: %s", sym, e)
         n = record_batch(rows, snap)
+        pruned = prune()
         out = {"ok": True, "snap_date": snap, "symbols": len(uni), "symbols_done": done,
-               "symbols_failed": failed, "contracts": len(rows), "inserted": n,
+               "symbols_failed": failed, "contracts": len(rows), "flow_contracts": flow_hits,
+               "inserted": n, "pruned": pruned, "keep_days": KEEP_DAYS,
                "elapsed_sec": round(time.time() - started, 1)}
-        log.info("[oi-massive] captured %s: %d contracts / %d symbols (%d failed) in %.0fs",
-                 snap, n, done, failed, out["elapsed_sec"])
+        log.info("[oi-massive] captured %s: %d contracts (%d flow) / %d symbols "
+                 "(%d failed), pruned %d in %.0fs",
+                 snap, n, flow_hits, done, failed, pruned, out["elapsed_sec"])
         return out
     except Exception as e:  # noqa: BLE001
         log.exception("[oi-massive] capture failed")
