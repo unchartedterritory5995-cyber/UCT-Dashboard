@@ -314,6 +314,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // (silently preferring a local draft over the server's copy could just as
   // easily clobber real, already-synced work from another tab/device).
   const [pendingDraft, setPendingDraft] = useState(null)
+  // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
+  // not state, since it must be checked synchronously before any render.
+  const restoringDraftRef = useRef(false)
 
   useEffect(() => {
     if (note) {
@@ -365,16 +368,57 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try { localStorage.removeItem(DRAFT_KEY(noteId)) } catch { /* private mode */ }
   }
 
-  const restoreDraft = () => {
+  const restoreDraft = async () => {
+    // Re-entrancy guard: found via real browser E2E that a single click can
+    // fire this handler twice in quick succession (both invocations reading
+    // the SAME still-non-null `pendingDraft` before React commits the first
+    // call's `setPendingDraft(null)`) — two concurrent PUTs to the same note
+    // racing over the network, with the loser's stale patch sometimes
+    // landing last. A restore is a deliberate, one-shot action; the second
+    // invocation is never useful, so it's dropped outright rather than
+    // trusting click de-duplication anywhere upstream.
+    if (restoringDraftRef.current) return
     if (!pendingDraft || !editorRef.current) return
-    setTitle(pendingDraft.title || '')
-    titleRef.current = pendingDraft.title || ''
-    setSubtitle(pendingDraft.subtitle || '')
-    subtitleRef.current = pendingDraft.subtitle || ''
-    if (pendingDraft.bodyJson) editorRef.current.commands.setContent(pendingDraft.bodyJson)
+    restoringDraftRef.current = true
+    const draftTitle = pendingDraft.title || ''
+    const draftSubtitle = pendingDraft.subtitle || ''
+    const draftBodyJson = pendingDraft.bodyJson
+    setTitle(draftTitle)
+    titleRef.current = draftTitle
+    setSubtitle(draftSubtitle)
+    subtitleRef.current = draftSubtitle
+    // `false` (emitUpdate) suppresses onUpdate — same convention as the
+    // note-load sync effect below.
+    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, false)
     setPendingDraft(null)
-    // The restored content is now dirty, unsaved work — persist it for real.
-    scheduleAutosaveRef.current()
+
+    // Persist directly and immediately, from the local `draft*` values
+    // captured above — NOT via the debounced scheduleAutosave path (a
+    // setTimeout deref'd 800ms later through whichever render's `commitSave`
+    // closure happens to be current then). A restore is a rare, deliberate
+    // action, not a per-keystroke autosave — it doesn't need debouncing, and
+    // going straight to the network keeps this one-shot action off that
+    // shared, timing-sensitive machinery entirely.
+    setSaveStatus('saving')
+    try {
+      const patch = { title: draftTitle, subtitle: draftSubtitle || null }
+      if (draftBodyJson) patch.bodyJson = draftBodyJson
+      if (lastSavedRef.current.updatedAt) patch.baseUpdatedAt = lastSavedRef.current.updatedAt
+      const saved = await update(patch)
+      lastSavedRef.current = {
+        title: draftTitle, subtitle: draftSubtitle,
+        bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
+        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+      }
+      setSaveStatus('saved')
+      setSaveErrorMsg('')
+      clearDraftLocally()
+    } catch (e) {
+      setSaveStatus('error')
+      setSaveErrorMsg(e?.message || 'restore failed')
+    } finally {
+      restoringDraftRef.current = false
+    }
   }
   const discardDraft = () => {
     clearDraftLocally()

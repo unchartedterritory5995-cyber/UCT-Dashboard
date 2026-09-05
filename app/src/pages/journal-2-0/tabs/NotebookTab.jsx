@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import NoteCard from '../components/notebook/NoteCard'
 import FolderSidebar from '../components/notebook/FolderSidebar'
@@ -184,6 +185,22 @@ export default function NotebookTab() {
   }, [mutateAllNotes])
   const hasActiveFilters = Boolean(folderId || tag)
 
+  // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
+  // per-folder counts, per-expanded-folder note lists) with no handle exposed
+  // up here — `refresh()`/`refreshAll()` above only cover the two lists THIS
+  // component fetches directly. A delete/restore (or any edit that could
+  // change a note's folder) must still invalidate those, or the sidebar's
+  // Trash badge and folder counts go stale until an unrelated revalidation
+  // (e.g. a window focus change) happens to catch them — found via real
+  // browser E2E (Wave 0 verification): the Trash badge stayed "0" after a
+  // delete even though the Trash view itself correctly showed the note.
+  // A key-predicate SWR revalidation (not a FolderSidebar remount, which
+  // would also blow away its expanded-folder/search UI state) targets
+  // exactly those hooks without disturbing anything else.
+  const refreshSidebarCounts = () => {
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+  }
+
   const openNote = (note) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -204,6 +221,7 @@ export default function NotebookTab() {
     }, { replace: false })
     refresh()
     refreshAll()
+    refreshSidebarCounts()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -229,6 +247,7 @@ export default function NotebookTab() {
       addNoteToTree(body.note)
       refresh()
       refreshAll()
+      refreshSidebarCounts()
     } catch (e) {
       alert(`Could not restore note: ${e.message || e}`)
     }

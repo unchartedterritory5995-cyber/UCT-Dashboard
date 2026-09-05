@@ -107,6 +107,30 @@ describe('NoteEditorPage — local draft safety net (P1-10)', () => {
     ))
   })
 
+  it('a duplicate Restore click (e.g. a double-fired handler) is a no-op — the draft data is never lost to a race', async () => {
+    // Found via real browser E2E: a single click sometimes fires this
+    // handler twice in quick succession, both invocations reading the SAME
+    // still-non-null `pendingDraft` before React commits the first call's
+    // setPendingDraft(null) — two concurrent PUTs racing over the network,
+    // with the loser's stale patch sometimes landing last and silently
+    // reverting the restore. Two raw, synchronous `.click()` calls (not
+    // RTL's `fireEvent`, which act()-flushes between calls) reproduce that
+    // same-tick double-invocation shape.
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      title: 'Recovered Title', subtitle: '', bodyJson: NOTE.bodyJson, savedAt: Date.now(),
+    }))
+    await renderEditor()
+    const restoreBtn = screen.getByRole('button', { name: 'Restore' })
+    act(() => {
+      restoreBtn.click()
+      restoreBtn.click()
+    })
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Recovered Title' }))
+    expect(screen.getByPlaceholderText('Title')).toHaveValue('Recovered Title')
+  })
+
   it('clicking Discard clears the draft and leaves the server content untouched', async () => {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       title: 'Recovered Title', subtitle: '', bodyJson: NOTE.bodyJson, savedAt: Date.now(),
