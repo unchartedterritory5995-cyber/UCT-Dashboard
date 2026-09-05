@@ -283,6 +283,65 @@ nothing to do with this package. The one clean canonical@500 sample obtained
   conditions. Do not re-enable the pilot flag without repeating the sequence
   above under calmer conditions.
 
+## Stabilization pass (2026-09-05, same day, read-only) — environment settled, retest authorized
+
+Re-checked after the confounded attempt above: `origin/master` unchanged at
+`dd66bbb59` (no further pushes), all 5 Railway services idle
+(`canRedeploy:true`), all peer sessions idle (none busy), production healthy
+at ~55min uptime. Residual fix (`7233239c7`) confirmed an ancestor of
+`origin/master`; deployed source confirmed to contain `INDEXED BY
+idx_pd_sym_tf` + both new regression tests. **FIX DEPLOYED, confirmed
+separately from PILOT VALIDATED (still open).**
+
+Full reconstructed timeline of the confounded attempt (15 rows: legacy
+baseline → pilot activation → cold canonical 36.2s → 16.8s → 502 →
+concurrent-session redeploy discovered → recovery → rollback attempt that
+silently didn't take (`variable delete` alone didn't redeploy) → explicit
+`railway redeploy` → confirmed-off legacy@500 still 18.2s) written up in full
+in-session; owner-reviewed. **Attribution: E — multiple confounding causes**
+(concurrent redeploy correlated with the 502; a page_size mismatch in my own
+methodology; and a still-unattributed latency source correlated with, but
+not proven caused by, Finnhub activity — see correction below). Every
+canonical response, however slow overall, was functionally correct.
+
+**Owner-authorized next experiment:** a single matched request shape (only
+the pilot flag differs) targeting CRM's real PEG row directly, avoiding
+page_size=500 entirely, rather than fixing the upstream slowness first.
+
+### Correction to the "Finnhub/large-page-size" attribution — read the code before re-testing
+Traced `query.run_scan` (`api/services/screener/query.py`): the scan endpoint
+reads `screener_rows` — a **nightly-precomputed SQLite snapshot** — via one
+`conn.execute(plan["sql"], plan["params"]).fetchall()`. **No external HTTP
+call (Finnhub or otherwise) exists anywhere in this request path.** The
+`Finnhub 429 / shared cooldown` log lines that coincided with the slow
+requests come from `earnings_estimates.get_year_earnings` (Model Book), an
+**unrelated background subsystem** logging at the same wall-clock time —
+correlation, not a traced causal link. **The earlier "Finnhub/page-size"
+attribution should be treated as unverified, likely wrong as stated.** The
+more likely explanation, consistent with every observed data point (elevated
+latency correlates with *recency after a deploy/restart*, not with
+page_size — e.g. 2.1s was seen at page_size=50 too, shortly after a boot,
+while 482ms was seen at page_size=500 later): **general single-process
+resource contention** (the documented ONE-event-loop/ONE-anyio-threadpool/
+shared-SQLite-writer architecture, already known to cause exactly this
+latency-spike shape per the 2026-07-01 524-outage class) during and shortly
+after a deploy, not a request-size-driven or Finnhub-driven cost. This is
+still "confound C/general contention," not "confound D/Finnhub" — carry the
+corrected version forward, not the original.
+
+### Ticker-filter capability trace (read-only, `api/services/screener/filters.py`)
+No raw ticker/symbol-equality filter exists in the production `FILTERS`
+catalog (confirmed by enumerating every registered filter key — all are
+criteria: sector, market_cap, technicals, fundamentals, pattern types, etc.,
+never a bare ticker). The closest real, existing, narrow filter is
+**`pattern_engine_id` (enum, `op: "in"`)** — filtering to
+`power_earnings_gap` returns exactly the same 4 real rows already surveyed
+(ARKG, ANF, HTFL, CRM) via the actual served `/api/screener/scan` path, with
+no invented route and no direct `run_scan()` call. This is a legitimate
+substitute for "CRM-only" (narrow, real, existing, targets exactly the
+criterion this package cares about) but is not literally ticker-scoped — flagged
+for owner decision rather than assumed acceptable.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
