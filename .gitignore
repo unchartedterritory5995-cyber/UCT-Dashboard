@@ -58,6 +58,11 @@ tools/.snaptrade_captures/
 # Desk video taxonomy dump/apply working files (local only)
 tools/taxonomy_out/
 
+# Track E live-run logs + mechanically-extracted evidence (tools/track_e_run_golden_journey.py).
+# Never contains the key itself (only its length is ever logged) but does carry real model
+# outputs from real runs -- kept local, not committed.
+tools/_track_e_runs/
+
 # Local Python virtual environment (local dev only)
 .venv/
 

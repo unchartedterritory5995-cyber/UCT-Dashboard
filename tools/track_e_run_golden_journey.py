@@ -29,19 +29,32 @@ pytest's own subprocess environment carry the real value. The log file it
 writes is pytest's stdout/stderr, which the test file itself never prints the
 key into (confirmed by reading it in full).
 
-What this script deliberately does NOT do: interpret the results. Per DEC-008
-and this program's own discipline against silent-wrong-answer classification,
-judging whether an ambiguous-prompt response was handled correctly, or which
-of sma/ema the model picked, is exactly the kind of semantic judgment that
-belongs to whoever reviews the run (today: the agent that invoked this
-script, reasoning over the captured log), not to a script pattern-matching
-pytest output.
+What this script does NOT do, even in the automated evidence-capture path
+below: pass semantic judgment on an ambiguous result. Per DEC-008 and this
+program's own discipline against silent-wrong-answer classification, deciding
+whether an ambiguous-prompt response was handled correctly, or which of
+sma/ema the model picked, is a judgment call for whoever reviews the run --
+this script only ever MECHANICALLY EXTRACTS what the test file itself already
+printed (the `[CGJ4 evidence]`/`[CGJ5 evidence]` lines each case emits for
+exactly this purpose) and per-test pass/fail/skip outcomes. It never invents
+prose, never infers "why", and never touches this program's AUTHORITATIVE
+status docs (VALIDATION_COVERAGE_MAP.md, RISK_REGISTER.md, PHASE_ONE_PLAN.md)
+-- those still require a reviewer to actually read the extracted evidence and
+judge whether the run genuinely clears the bar, the same discipline
+CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md's hand-verified, scope-limited
+prose demonstrates a script cannot replicate. On a full pass (pytest exit
+code 0 -- every non-skipped case passed) this script writes a DRAFT
+GOLDEN_JOURNEY_04_05_LIVE_RESULTS.md from that extraction, clearly labeled
+DRAFT, so the reviewer edits/confirms it rather than starting from a blank
+page and re-transcribing printed evidence by hand.
 """
 
 from __future__ import annotations
 
 import datetime
+import json
 import os
+import re
 import subprocess
 import sys
 
@@ -49,6 +62,126 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 LOG_DIR = os.path.join(_HERE, "_track_e_runs")
 TEST_PATH = os.path.join("tests", "test_golden_journey_04_05_live.py")
+RESULTS_DOC = os.path.join(
+    _ROOT, "docs", "superpowers", "specs", "universal-indicator-ecosystem",
+    "GOLDEN_JOURNEY_04_05_LIVE_RESULTS.md")
+
+#: ⚠️ TWO SEPARATE PATTERNS, PAIRED BY ORDER, NOT ONE LINE-ANCHORED PATTERN.
+#: `pytest -v -s` prints "tests/....py::name" the MOMENT a test starts, then
+#: whatever the test/fixtures print to stdout interleaves, and the bare
+#: PASSED/FAILED/SKIPPED/ERROR word lands on its OWN line only once the test
+#: finishes (confirmed against a real captured run, e.g.
+#: golden_journey_04_05_20260905-145122.log's own layout: the node-id line
+#: ends with print() output, not the verdict). A single-line-anchored regex
+#: silently matches ZERO tests against real pytest output while still passing
+#: against a hand-typed same-line sample -- this file has no `-n` (xdist), so
+#: tests run strictly sequentially and pairing by encounter ORDER is sound.
+_TEST_START_RE = re.compile(
+    r"^tests/test_golden_journey_04_05_live\.py::(\S+)", re.MULTILINE)
+_OUTCOME_WORD_RE = re.compile(r"^(PASSED|FAILED|SKIPPED|ERROR)\s*$", re.MULTILINE)
+_EVIDENCE_RE = re.compile(r"^\[(CGJ4|CGJ5) evidence\].*$", re.MULTILINE)
+_SUMMARY_RE = re.compile(
+    r"^=+ (.+?) in [\d.]+s(?: \(\d+:\d+:\d+\))? =+\s*$", re.MULTILINE)
+#: The verbose per-test PASSED/FAILED/SKIPPED section always precedes BOTH of
+#: these (pytest's fixed output order). Cutting the search to before whichever
+#: comes first matters concretely: pytest's own "warnings summary" section
+#: reprints bare `tests/....py::test_name` lines (attributing a warning to the
+#: test that raised it) with NO outcome word to pair with -- confirmed against
+#: a real captured run, where it silently added an 8th test_starts match a
+#: length-blind version of this function would have mis-paired against.
+_FAILURES_OR_WARNINGS_HEADER_RE = re.compile(
+    r"^=+ (FAILURES|warnings summary) =+\s*$", re.MULTILINE)
+
+
+def extract_evidence(output: str) -> dict:
+    """MECHANICAL extraction only -- no judgment, no invented prose.
+
+    Every field here is either a regex pull of something pytest/the test file
+    already printed verbatim, or a plain count. Nothing here decides whether a
+    result is GOOD; that stays for whoever reads `evidence["lines"]`.
+    """
+    header_match = _FAILURES_OR_WARNINGS_HEADER_RE.search(output)
+    verbose_section = output[:header_match.start()] if header_match else output
+    test_names = [m.group(1) for m in _TEST_START_RE.finditer(verbose_section)]
+    outcome_words = [m.group(1) for m in _OUTCOME_WORD_RE.finditer(verbose_section)]
+    # ⛔ ZIP, NEVER ASSUME EQUAL LENGTH. A crashed collection or an unexpected
+    # pytest output shape must show up as a SHORTER list here, not a
+    # mis-paired test<->outcome that reports the wrong verdict for a name.
+    outcomes = [{"test": name, "outcome": outcome}
+                for name, outcome in zip(test_names, outcome_words)]
+    lines = [m.group(0) for m in _EVIDENCE_RE.finditer(output)]
+    summary_match = _SUMMARY_RE.search(output)
+    return {
+        "outcomes": outcomes,
+        "lines": lines,
+        "summary": summary_match.group(1) if summary_match else None,
+        "counts": {
+            outcome: sum(1 for o in outcomes if o["outcome"] == outcome)
+            for outcome in ("PASSED", "FAILED", "SKIPPED", "ERROR")
+        },
+        # ⛔ VISIBLE, NEVER SILENT. `zip()` truncates to the shorter list with
+        # no signal of its own -- a mismatch here means the pairing above is
+        # NOT trustworthy (a crash mid-collection, an unrecognized pytest
+        # output shape) and `outcomes` must not be read as complete.
+        "raw_counts": {"test_starts": len(test_names), "outcome_words": len(outcome_words)},
+    }
+
+
+def _draft_results_doc(evidence: dict, *, log_path: str, stamp: str) -> str:
+    """A DRAFT, not a finished evidence document. Every judgment-call field
+    (scope limits, hand-verification, "why this matters") that
+    CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md carries is left as an explicit
+    placeholder for the reviewer -- this function only ever transcribes what
+    was mechanically extracted above.
+    """
+    lines = ["# Golden Journey #4/#5 -- Live Results (DRAFT)", "",
+             "> ⚠️ **DRAFT — MECHANICALLY GENERATED, NOT YET REVIEWED.** Every "
+             "pass/fail outcome and evidence line below is copied verbatim "
+             "from the pytest run; nothing here has been read or judged by a "
+             "reviewer yet. Do not cite this file, and do not update "
+             "`VALIDATION_COVERAGE_MAP.md` or any other authoritative doc "
+             "from it, until a reviewer has confirmed each finding below and "
+             "removed this banner.", "",
+             f"**Run:** `{stamp}` -- full log: `{os.path.relpath(log_path, _ROOT)}`",
+             f"**Summary:** {evidence['summary'] or '(not found)'}", ""]
+    lines.append("## Per-test outcome (mechanical)")
+    lines.append("")
+    lines.append("| Test | Outcome |")
+    lines.append("|---|---|")
+    for o in evidence["outcomes"]:
+        lines.append(f"| `{o['test']}` | **{o['outcome']}** |")
+    lines.append("")
+    lines.append("## Evidence lines printed by the test file (verbatim)")
+    lines.append("")
+    if evidence["lines"]:
+        lines.append("```")
+        lines.extend(evidence["lines"])
+        lines.append("```")
+    else:
+        lines.append("(none captured -- check the full log)")
+    lines.append("")
+    lines.append("## Reviewer judgment (TODO -- not filled in by this script)")
+    lines.append("")
+    lines.append(
+        "- [ ] For the ambiguous-prompt case: did the model correctly refuse/"
+        "clarify rather than silently guess? Quote the actual response.")
+    lines.append(
+        "- [ ] For the positive case: which of sma/ema (or other reading) did "
+        "the model pick? Is it defensible?")
+    lines.append(
+        "- [ ] For the screenshot case: which function(s) did the model name? "
+        "Is the confidence/labeling honest about it being a guess?")
+    lines.append(
+        "- [ ] Any scope limits, gaps, or things this run did NOT cover "
+        "(mirror CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md's own \"What this "
+        "journey did NOT cover\" section)?")
+    lines.append(
+        "- [ ] Does this run genuinely clear the evidence bar required before "
+        "VALIDATION_COVERAGE_MAP.md's plain-language/screenshot rows may move "
+        "to '4 -- End-to-End'? (Only a reviewer answers this -- see the "
+        "banner above.)")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _has_real_key() -> bool:
@@ -103,17 +236,40 @@ def run() -> int:
     with open(log_path, "w", encoding="utf-8") as fh:
         fh.write(output)
 
+    evidence = extract_evidence(output)
+    evidence_path = log_path.replace(".log", ".evidence.json")
+    with open(evidence_path, "w", encoding="utf-8") as fh:
+        json.dump(evidence, fh, indent=2)
+
     print(output)
     print(f"\nFull output also saved to: {log_path}")
+    print(f"Mechanically-extracted evidence saved to: {evidence_path}")
     print(f"pytest exit code: {proc.returncode}")
-    print(
-        "\nNEXT (manual, deliberately not automated by this script): review the "
-        "captured evidence above, classify each case's outcome, write "
-        "GOLDEN_JOURNEY_04_05_LIVE_RESULTS.md (mirroring "
-        "CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md's structure), and update "
-        "VALIDATION_COVERAGE_MAP.md's plain-language/screenshot rows to '4 -- "
-        "End-to-End' ONLY if every check actually passed live."
-    )
+
+    # ⛔ A FULL PASS MEANS EVERY NON-SKIPPED CASE PASSED -- pytest's own exit
+    # code, never re-derived here. This is a MECHANICAL gate on whether to draft
+    # the doc at all, not a judgment that the evidence is GOOD; see the
+    # docstring and the draft's own banner.
+    if proc.returncode == 0 and evidence["counts"]["FAILED"] == 0 and evidence["counts"]["ERROR"] == 0:
+        doc = _draft_results_doc(evidence, log_path=log_path, stamp=stamp)
+        os.makedirs(os.path.dirname(RESULTS_DOC), exist_ok=True)
+        with open(RESULTS_DOC, "w", encoding="utf-8") as fh:
+            fh.write(doc)
+        print(f"\nDraft evidence doc written to: {RESULTS_DOC}")
+        print(
+            "NEXT (manual, deliberately not automated -- see this script's own "
+            "docstring for why): read the draft above, fill in the reviewer "
+            "judgment checklist, remove the DRAFT banner once confirmed, and "
+            "ONLY THEN update VALIDATION_COVERAGE_MAP.md's plain-language/"
+            "screenshot rows to '4 -- End-to-End'."
+        )
+    else:
+        print(
+            "\nNo draft doc written -- the run did not fully pass "
+            f"(exit {proc.returncode}, {evidence['counts']}). Diagnose and "
+            "fix before re-running; a draft would misrepresent a failing run "
+            "as evidence."
+        )
     return proc.returncode
 
 

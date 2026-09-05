@@ -57,7 +57,26 @@ def _vision_on() -> bool:
 
 @pytest.fixture
 def client():
+    """⚠️ `TestClient(app)` here is never used as a context manager, so the
+    app's own `lifespan` startup (which normally calls every store's
+    `_init_db()` in `main.py`) never runs. `auth_init_db()` covers auth.db by
+    hand for that reason -- but until this fix, nothing did the same for the
+    two OTHER real stores this file's own code paths touch for real (not
+    mocked, per this file's whole purpose): `cost_guard.may_member_spend()`
+    (called from BOTH `definition_concierge.propose()` and
+    `indicator_from_image`'s vision door) reads `catalyst_cost_log`, and
+    save/reload read/write `user_definitions`. Both `_init_db()`s are
+    `CREATE TABLE IF NOT EXISTS`, so calling them every test is cheap and
+    idempotent. `CATALYST_DB_PATH`/`USER_DEFINITIONS_DB_PATH` are already
+    redirected to an isolated per-session sandbox by the repo-root
+    `conftest.py` (never `/data`) -- this only creates the schema there; it
+    does not move where either store writes.
+    """
     auth_init_db()
+    from api.services.catalyst import store as _cat_store
+    _cat_store._init_db()
+    from api.services import user_definitions as _ud_store
+    _ud_store._init_db()
     return TestClient(app)
 
 
@@ -161,11 +180,17 @@ class TestGoldenJourney04Live:
             json={"prompt": case["prompt"], "kind": case["kind"]}).json()
         assert proposed["ok"] is True, f"cannot test persistence: {proposed}"
 
+        # ⚠️ compute.kind/compute.ast, NOT a bare top-level "ast" -- the store's
+        # own validate_v2()/save() require `definition.compute == {"kind": "ast",
+        # "ast": <tree>, ...}` (see tests/test_definition_sharing.py's
+        # `_definition()` for the proven-working shape). This test previously
+        # sent a bare top-level "ast" key and was never caught because every
+        # case in this class 500'd earlier on the catalyst_cost_log bug (see the
+        # `client` fixture's docstring) before reaching this assertion.
         saved = client.post("/api/user-definitions", json={
             "definition": {
-                "meta": {"name": f"cgj4-{uuid.uuid4().hex[:8]}",
-                        "kind": case["kind"]},
-                "ast": proposed["ast"],
+                "meta": {"name": f"cgj4-{uuid.uuid4().hex[:8]}"},
+                "compute": {"kind": "ast", "ast": proposed["ast"]},
             }
         })
         assert saved.status_code == 200, saved.text
@@ -174,7 +199,7 @@ class TestGoldenJourney04Live:
 
         reloaded = client.get(f"/api/user-definitions/{def_id}")
         assert reloaded.status_code == 200
-        reloaded_ast = reloaded.json()["definition"]["ast"]
+        reloaded_ast = reloaded.json()["definition"]["compute"]["ast"]
         assert reloaded_ast == proposed["ast"], (
             "the reloaded AST differs from what was proposed and saved -- "
             "the save/load path is not round-tripping the compiled tree")
@@ -190,10 +215,12 @@ class TestGoldenJourney04Live:
             "/api/user-definitions/propose",
             json={"prompt": case["prompt"], "kind": "scan"}).json()
         assert proposed["ok"] is True, f"cannot test scan delivery: {proposed}"
+        # See the identical note in test_persistence_survives_a_reload_with_the_
+        # same_astHash: compute.kind/compute.ast, not a bare top-level "ast".
         saved = client.post("/api/user-definitions", json={
             "definition": {
-                "meta": {"name": f"cgj4-scan-{uuid.uuid4().hex[:8]}", "kind": "scan"},
-                "ast": proposed["ast"],
+                "meta": {"name": f"cgj4-scan-{uuid.uuid4().hex[:8]}"},
+                "compute": {"kind": "ast", "ast": proposed["ast"]},
             }
         })
         assert saved.status_code == 200, (
