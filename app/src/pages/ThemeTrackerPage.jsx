@@ -486,6 +486,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Seeded from + persisted to per-widget opts.
   const [todayBasis, setTodayBasisRaw] = useState(opts?.todayBasis === 'open' ? 'open' : 'close')
   const setTodayBasis = useCallback((b) => { setTodayBasisRaw(b); patchOpts({ todayBasis: b }) }, [patchOpts])
+  // 'open' is a Today-only basis (no historical meaning), so it maps in only when Today is active.
+  // Defined here (before the set-editor memos that depend on it) to avoid a TDZ reference.
+  const activeKey = (activeTab === 'Today' && todayBasis === 'open') ? 'open' : RANK_TO_KEY[activeTab]
 
   // ── Personal theme SETS (flag-gated) — additive, optimistic editor ─────────
   const { enabled: themeSetsEnabled, sets, createSet, deleteSet, renameSet } = useThemeSets()
@@ -725,8 +728,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const indexTf = ['D', 'W', 'M'].includes(chartPeriod) ? chartPeriod : 'D'
 
   const rowRefs = useRef({})
-  // 'open' is a Today-only basis (no historical meaning), so it maps in only when Today is active.
-  const activeKey = (activeTab === 'Today' && todayBasis === 'open') ? 'open' : RANK_TO_KEY[activeTab]
 
   function handleTabClick(tab) {
     if (tab === activeTab) {
@@ -1162,6 +1163,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           )}
           {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
+          )}
+          {editing && activeSet && renderThemes.length === 0 && data?.themes?.length > 0 && (
+            <p className={styles.loading}>No themes yet — use ＋ Add theme to build your set.</p>
           )}
           {renderThemes.map(theme => {
             const tk = theme.custom_key || theme.ticker   // custom themes share ticker "INDEX"
