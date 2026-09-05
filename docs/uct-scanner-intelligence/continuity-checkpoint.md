@@ -856,3 +856,124 @@ options requiring owner authorization.
   `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED` absent.
 - `git show 7233239c7`: confirmed diff scope (2 files, `INDEXED BY` change
   + tests only).
+
+## Screener.db reader connection-lifecycle validation (2026-09-05)
+
+Owner package: "SCREENER.DB READER CONNECTION-LIFECYCLE VALIDATION + NARROW
+REUSE DESIGN." Pilot OFF/unset, 8G-C HOLD, 500ms gate unchanged throughout.
+New worktree `uct-dashboard-8gb-conn-lifecycle` (branch
+`fix/8g-b-screener-conn-lifecycle`, off `origin/master@119d12c71`) — read-only
+forensic work only, no code changed there.
+
+**Production-shaped local test DB obtained.** `railway ssh --service web --
+"base64 /data/screener.db"` succeeded, but the local `base64 -d` failed
+("invalid input") on the raw captured text — root cause: stray CR/LF noise
+introduced by the SSH/Bash round-trip on Windows, not a transport truncation.
+Fix: `tr -d '\r\n'` on the captured text before decoding. Resulting file
+verified BYTE-FAITHFUL to production: `PRAGMA integrity_check` = ok,
+page_count 3353, page_size 4096, `screener_rows` count 3745, 206 columns,
+`pattern_engine_ids LIKE '%power_earnings_gap%'` = 14 — all match the prior
+read-only production probe exactly. Windows-Python-vs-Git-Bash `/tmp` path
+gotcha recurred (Windows Python can't resolve Git Bash's `/tmp/...`); fixed by
+`cygpath -w` to the real Windows path before opening with `sqlite3`. Copy +
+throwaway benchmark script live at
+`%LOCALAPPDATA%\Temp\claude\...\scratchpad\dbcopy\` (session scratchpad, not
+in the repo) — `screener_prod_copy.db` + `bench_conn_lifecycle.py` +
+`bench_results.json`. Not cleaned up; harmless (screener rows only, no
+secrets/user data), owner can retain or delete.
+
+**Existing repo precedent found (Model C = Model A already, twice).**
+`api/services/bars_sqlite.py::_conn()` and
+`api/services/entity_master/store.py::_conn()` BOTH already implement
+thread-local reader-connection reuse (`threading.local()`, one connection
+cached per thread, `check_same_thread=False`) — entity_master's docstring
+says explicitly it "mirrors bars_sqlite.py's `_conn()`." bars_sqlite.py adds a
+generation/epoch counter (`_db_epoch`, bumped when `/data/bars.db` is
+wholesale-replaced via `shutil.move` from an R2 pull) compared against each
+thread's cached `(conn, epoch)` pair, and `_drop_local_conn()` for hard
+teardown after a corruption error. **This is the mature, proven pattern to
+copy, not a new abstraction** — but its invalidation trigger (whole-file
+replace) does NOT map onto screener.db, whose writers (`snapshot_builder`,
+`scan_store`, `live_tier`, `screen_alerts`) all mutate the SAME file IN
+PLACE. A screener reuse design needs a different (or no) invalidation
+signal — see below.
+
+**Transaction-safety trace.** `snapshot_db.connect()` sets no
+`isolation_level` override (Python default: implicit BEGIN before DML only,
+autocommit for SELECT). `run_scan`/`preview_count` both wrap their connection
+in `with snapshot_db.connect() as conn:` (commit-or-rollback-on-block-exit,
+not a resource close) and always fully drain cursors via `.fetchall()` —
+never leave a statement/cursor half-read. **Found one call site with an
+EXPLICIT transaction on a `snapshot_db.connect()`-sourced connection**:
+`scan_store.py:737`, `conn.execute("BEGIN IMMEDIATE")` inside a
+`@contextmanager`, its own docstring warning "EXPLICIT, NEVER THE DRIVER'S
+IMPLICIT BEGIN... SQLite refuses a BEGIN inside a BEGIN." ⛔ **This means any
+future reuse layer must NOT wrap `snapshot_db.connect()` itself** (shared by
+readers and this writer) — it must be scoped to genuinely read-only call
+sites only (e.g. a new `get_reader_conn()`), or a reused connection could
+collide with this writer's manual transaction discipline.
+
+**Scenario E (writer-commit visibility) — PASSED**, safe throwaway test DB
+only (never the copy, never production): a persistent reader connection,
+opened once, correctly saw a row committed by a SEPARATE writer connection on
+its NEXT query, with no reconnect and no stale read. Confirms: under the
+current fetchall()-drained, no-explicit-BEGIN read pattern, a reused
+WAL-mode reader connection does NOT pin a stale snapshot.
+
+**Scenarios A–D (local benchmark, N=30 each unless noted) — the central
+finding: connection reuse does NOT reproduce the production cold/warm gap.**
+- A (same connection, reused): main query (the real matched-request LIKE
+  shape) median 4.99ms, p90 5.6ms. `PRAGMA table_info(screener_rows)`
+  (`_known_columns`'s query) costs 0.173ms — negligible.
+- B (fresh connection every call, today's real pattern): connect() itself
+  0.1ms median (cheap); the two PRAGMAs (`journal_mode=WAL` +
+  `busy_timeout=5000`) together 4.3ms median; main query 5.95ms; total
+  10.34ms.
+- C (CRITICAL isolation test — warmed the OS/file cache with 100 reads via a
+  throwaway connection, then closed it and opened 30 BRAND-NEW connections):
+  first query on a fresh connection, AFTER the file is provably OS-warm, is
+  5.81ms median — statistically indistinguishable from B's fresh-connection
+  number and from A's steady-state reused number. **A brand-new connection is
+  NOT slow once the underlying storage is warm.** This directly weighs
+  against "every new sqlite3.connect() necessarily re-pays the entire cold
+  cache" as the explanation for the production 116.7ms/3.59ms (32×) gap.
+- D (reused connection, idle 1/5/15s): no idle penalty locally (5.5–6.0ms
+  throughout) — expected on local NVMe with no memory pressure; this
+  scenario cannot observe Railway-volume idle-eviction behavior and is
+  explicitly not claimed to.
+- Follow-up isolation: `PRAGMA journal_mode=WAL` ALONE costs ~5ms median (of
+  the ~4.3ms pragma-pair figure above, `busy_timeout` is ~0.01ms — the WAL
+  pragma is ALL of it), even though the DB is already in WAL mode and the
+  connection is read-only. **This is the one real, mechanistically-explained,
+  repeatable saving connection reuse buys**: setting it once per connection
+  instead of once per call. It does not touch PRAGMA policy/content — only
+  how often the existing PRAGMA statement runs.
+
+**Honest limitation, stated plainly:** this benchmark ran against a COPY on
+local SSD, not against Railway's actual persistent-volume storage. Local SSD
+first-touch reads are already sub-millisecond, so scenario C's "brand-new
+connection is fast once storage is warm" result cannot rule out that
+Railway's real volume has a much larger first-touch page-fetch cost that a
+reused connection would still have to pay on ITS first query too (reuse only
+amortizes cost across MULTIPLE calls on one connection — it does not make a
+single cold page-fetch faster). Reproducing the actual 116.7ms number would
+require production-side instrumentation, which remains out of scope per the
+owner's "no new production instrumentation yet" boundary.
+
+**Classification: CONNECTION REUSE PROVIDES ONLY PARTIAL BENEFIT — SNAPSHOT/
+STORAGE ARCHITECTURE REVIEW REQUIRED.** The demonstrated benefit (~5ms/call,
+eliminating the redundant per-call `journal_mode=WAL` pragma + trivial
+connect() overhead) is real, repeatable, and would help all 15+ existing
+reader call sites — but it is small relative to the actual observed
+production tail (100–500ms range on `build_plan`/`sql_execute_fetch`), and
+Section 14's "large repeatable measured benefit" condition (relative to the
+actual problem) is not met. Per the owner's own conditional framing, this
+means: do NOT implement a reuse patch this package. `_known_columns` stays
+uncached (unchanged — its own cost is already negligible, so there was never
+a performance case for caching it, only a correctness risk). Full report
+delivered in-conversation; no code changed in `uct-dashboard-8gb-conn-
+lifecycle` or anywhere else. Next-direction candidates per the owner's own
+list: Railway-volume/page-cache behavior (would need production-side,
+owner-approved instrumentation), immutable/versioned snapshot serving,
+snapshot-copy-to-local-ephemeral serving — stopping here for owner review
+per instruction.
