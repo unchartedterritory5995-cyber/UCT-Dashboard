@@ -368,11 +368,36 @@ def _read_overlay():
         return {}
 
 
+def _is_synthetic_ticker(t) -> bool:
+    """True for a UCT SYNTHETIC pseudo-ticker that Massive grouped-daily will never
+    list: the thematic-index symbols ($IDX:<slug>) and the breadth pseudo-tickers
+    (UCTA50, UCTHS, …).
+
+    These MUST be exempt from delisted-pruning. The monthly refresh
+    (watchlist_prebuilt_refresh) derives its 'delisted' set as (committed − alive)
+    over REAL traded symbols, so a synthetic ticker is "never traded" by construction
+    and was being written into the overlay's delisted list. _apply_overlay then
+    stripped every synthetic from its list → the list went empty → the seeder deleted
+    it. That is why the 'UCT Thematic Indexes' list and the MA/Momentum/Highs breadth
+    lists kept silently vanishing."""
+    s = str(t or "").strip().upper()
+    if not s:
+        return False
+    if s.startswith("$") or ":" in s:          # $IDX:<slug> and any future prefixed pseudo-ticker
+        return True
+    try:
+        from api.services import breadth_symbols as bs
+        return bs.is_breadth_symbol(s)          # UCTA50, UCTHS, … (plain, un-prefixed)
+    except Exception:
+        return False
+
+
 def _apply_overlay(lists):
     """Overlay the durable auto-refresh onto the committed baseline:
       - replace 'Liquid Major ETFs' tickers with the fresh liquidity ranking (if present)
       - replace each UCT Index Components list with its fresh FMP constituent set (if present)
-      - subtract the known-delisted set from EVERY list (curated names, minus the dead ones).
+      - subtract the known-delisted set from EVERY list (curated names, minus the dead ones),
+        but NEVER a synthetic pseudo-ticker — see _is_synthetic_ticker.
     Name/desc always stay from the committed config, so a curated edit is never lost — the
     overlay only re-ranks the liquid list, refreshes index membership, and removes tickers
     that stopped trading."""
@@ -388,7 +413,11 @@ def _apply_overlay(lists):
         elif nm in index_ov and index_ov[nm]:
             l["tickers"] = [str(t).upper() for t in index_ov[nm] if t]
         if delisted:
-            l["tickers"] = [t for t in l["tickers"] if t not in delisted]
+            # A synthetic pseudo-ticker is never in grouped-daily, so a stale/poisoned
+            # overlay may list it as 'delisted' — keep it regardless (recovers the
+            # breadth + Thematic Indexes lists on the next boot without a fresh refresh).
+            l["tickers"] = [t for t in l["tickers"]
+                            if t not in delisted or _is_synthetic_ticker(t)]
     return [l for l in lists if l["tickers"]]
 
 
