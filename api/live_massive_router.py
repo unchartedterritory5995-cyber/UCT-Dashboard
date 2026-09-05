@@ -773,7 +773,10 @@ def _maybe_refresh_dormant():
     def _work():
         global _dormant_cache, _dormant_active_set, _dormant_loaded_mtime
         try:
-            data = _compute_active_tickers(lookback_days=30)
+            # Window ends at the PRIOR trading day so today's own flow can't mark
+            # a dormant name "active" (which would defeat the wake-up signal).
+            _prior = _trading_days_back(2)[-1]
+            data = _compute_active_tickers(lookback_days=30, end_date=_prior)
             os.makedirs(os.path.dirname(_DORMANT_PATH), exist_ok=True)
             tmp = _DORMANT_PATH + ".tmp"
             with open(tmp, "w") as f:
@@ -806,11 +809,17 @@ def _trading_days_back(n: int, end_date: date = None) -> list:
     return dates
 
 
-def _compute_active_tickers(lookback_days: int = 30) -> dict:
+def _compute_active_tickers(lookback_days: int = 30, end_date: date = None) -> dict:
     """Scan FlowDB for distinct tickers with at least one classifiable
     MAGENTA/YELLOW alert in the past N trading days. Returns dict matching
-    the JSON file schema. Heavy operation — full DB scan, can take 1-5s."""
-    trading_dates = _trading_days_back(lookback_days)
+    the JSON file schema. Heavy operation — full DB scan, can take 1-5s.
+
+    end_date (2026-09-04): the last trading day the window INCLUDES. Defaults to
+    today (the admin endpoint's behavior). The self-heal passes the PRIOR trading
+    day so "dormant" means "quiet THROUGH YESTERDAY" — otherwise a name's own
+    first prints TODAY put it in the active set and the dormancy gate self-defeats
+    (today's build is exactly what should wake a dormant name)."""
+    trading_dates = _trading_days_back(lookback_days, end_date)
     earliest = trading_dates[-1]
     today = trading_dates[0]
     date_strs = [f"{d.month}/{d.day}/{d.year}" for d in trading_dates]
