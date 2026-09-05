@@ -4398,6 +4398,19 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] scheduler memory instrumentation failed (non-fatal): {e}")
 
+        # TEMPORARY (2026-09-05) -- natural-load contention attribution for
+        # the screener scan endpoint. Same wrap-add_job technique as the
+        # memory probe above, tracking which job IDs are actually executing
+        # when a slow scan request is logged. See
+        # api/services/screener/contention_trace_temp.py. Remove this block
+        # + its two other call sites once the observation window is done.
+        if os.environ.get("CONTENTION_TRACE_ENABLED", "1") == "1":
+            try:
+                from api.services.screener import contention_trace_temp as _ctrace
+                _ctrace.instrument_scheduler(_scheduler)
+            except Exception as e:
+                print(f"[startup] contention trace instrumentation failed (non-fatal): {e}")
+
         # -- Compass automation master switch ------------------------------
         # Pauses ALL automated (scheduled) Compass + voice LLM interactions
         # to prevent accidental token burn. Manual / on-demand Compass

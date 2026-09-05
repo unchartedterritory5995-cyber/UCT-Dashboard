@@ -13,7 +13,7 @@ than recomputing any of its gates.
 import datetime as _dt
 from zoneinfo import ZoneInfo
 
-from . import filters, pattern_join, ranking, scan_store, snapshot_db
+from . import contention_trace_temp, filters, pattern_join, ranking, scan_store, snapshot_db
 
 _ET = ZoneInfo("America/New_York")
 _SORTABLE = set(snapshot_db.COLUMNS)
@@ -1240,52 +1240,61 @@ def preview_count(spec, user_id=None):
 
 def run_scan(spec, user_id=None, user=None):
     spec = spec or {}
-    with snapshot_db.connect() as conn:
-        # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
-        # through the SELECT, the WHERE, the ORDER BY and the description, so
-        # they cannot disagree about which values are being served.
-        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
-        rows = conn.execute(plan["sql"], plan["params"]).fetchall()
-        # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
-        # the SAME params AND THE SAME `FROM` that selected them select the
-        # description.
-        #
-        # This used to be `SELECT MAX(snapshot_date) FROM screener_rows` --
-        # unfiltered, and the MAX. On the live snapshot that printed
-        # *"snapshot 2026-08-08"* over 3,583 rows built 2026-07-11, because ONE
-        # row had been rebuilt. The member screened on month-old fundamentals
-        # under today's date. See `snapshot_db.describe_rows` for the argument;
-        # the short version is that a rank statistic has no threshold to get
-        # wrong, and one number cannot honestly describe three dates.
-        #
-        # ⛔ THE FROM CLAUSE IS HANDED OVER, NEVER REBUILT. Once the overlay is
-        # serving, the where clause can name `l.` — described against
-        # `screener_rows` alone this statement would not disagree, it would
-        # RAISE, and a second join composed there would be a second authority
-        # over which rows `total` counts.
-        #
-        # ⛔ THE RESULT SET IS NOT TOUCHED. Filtering the rows down to the
-        # representative date would silently drop symbols -- a fixed label at
-        # the price of a missing-data bug -- and a screen that quietly returns
-        # fewer names looks like a quiet market.
-        snap = snapshot_db.describe_rows(
-            conn, plan["where"], plan["describe_params"],
-            from_sql=plan["from_sql"], date_expr=plan["date_expr"])
-        rank_receipt = None
-        if plan["rank"]:
-            # ⭐ TWO COUNTS, because a ranked screen returns FEWER rows than the
-            # same filters unranked and the difference is missing data, not a
-            # quiet market. `matched` is the filters alone; `ranked` is what
-            # survived the completeness requirement.
-            def _count(where, params):
-                return conn.execute(
-                    f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
-                    [*plan["overlay"].join_params, *params]).fetchone()[0]
-            rank_receipt = ranking.receipt(
-                plan["rank"],
-                matched=_count(plan["base_where"], plan["base_params"]),
-                ranked=_count(plan["where"], plan["describe_params"][
-                    len(plan["overlay"].join_params):]))
+    # TEMPORARY (2026-09-05) -- natural-load contention attribution. See
+    # api/services/screener/contention_trace_temp.py. `reset_stages()` is a
+    # no-op if the router never pops them; `stage()` is a no-op if
+    # reset_stages() was never called on this context. Remove both stage()
+    # blocks + this reset_stages() call once the observation window is done.
+    contention_trace_temp.reset_stages()
+    with contention_trace_temp.stage("run_scan_total"):
+        with snapshot_db.connect() as conn:
+            # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
+            # through the SELECT, the WHERE, the ORDER BY and the description, so
+            # they cannot disagree about which values are being served.
+            with contention_trace_temp.stage("build_dynamic_plan"):
+                plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
+            with contention_trace_temp.stage("sql_execute_fetch"):
+                rows = conn.execute(plan["sql"], plan["params"]).fetchall()
+            # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
+            # the SAME params AND THE SAME `FROM` that selected them select the
+            # description.
+            #
+            # This used to be `SELECT MAX(snapshot_date) FROM screener_rows` --
+            # unfiltered, and the MAX. On the live snapshot that printed
+            # *"snapshot 2026-08-08"* over 3,583 rows built 2026-07-11, because ONE
+            # row had been rebuilt. The member screened on month-old fundamentals
+            # under today's date. See `snapshot_db.describe_rows` for the argument;
+            # the short version is that a rank statistic has no threshold to get
+            # wrong, and one number cannot honestly describe three dates.
+            #
+            # ⛔ THE FROM CLAUSE IS HANDED OVER, NEVER REBUILT. Once the overlay is
+            # serving, the where clause can name `l.` — described against
+            # `screener_rows` alone this statement would not disagree, it would
+            # RAISE, and a second join composed there would be a second authority
+            # over which rows `total` counts.
+            #
+            # ⛔ THE RESULT SET IS NOT TOUCHED. Filtering the rows down to the
+            # representative date would silently drop symbols -- a fixed label at
+            # the price of a missing-data bug -- and a screen that quietly returns
+            # fewer names looks like a quiet market.
+            snap = snapshot_db.describe_rows(
+                conn, plan["where"], plan["describe_params"],
+                from_sql=plan["from_sql"], date_expr=plan["date_expr"])
+            rank_receipt = None
+            if plan["rank"]:
+                # ⭐ TWO COUNTS, because a ranked screen returns FEWER rows than the
+                # same filters unranked and the difference is missing data, not a
+                # quiet market. `matched` is the filters alone; `ranked` is what
+                # survived the completeness requirement.
+                def _count(where, params):
+                    return conn.execute(
+                        f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
+                        [*plan["overlay"].join_params, *params]).fetchone()[0]
+                rank_receipt = ranking.receipt(
+                    plan["rank"],
+                    matched=_count(plan["base_where"], plan["base_params"]),
+                    ranked=_count(plan["where"], plan["describe_params"][
+                        len(plan["overlay"].join_params):]))
     out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
