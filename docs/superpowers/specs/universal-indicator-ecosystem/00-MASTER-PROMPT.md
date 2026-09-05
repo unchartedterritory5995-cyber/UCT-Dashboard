@@ -17,6 +17,12 @@ Everything downstream (requirements ledger, constraint ledger, decision records,
 progress tracking) derives from this file. If this file and a summary elsewhere disagree,
 this file wins.
 
+**Standing anti-drift context:** `GOVERNING_INTENT.md` (recorded 2026-09-05, DEC-011)
+restates the owner's product/engineering intent in durable form — read it alongside this
+file before scoping any new phase or resuming after a session interruption. It does not
+supersede this file; it exists so the *why* behind these decisions survives independently
+of any one session's transcript.
+
 ---
 
 ## 1. MASTER PROJECT PROMPT

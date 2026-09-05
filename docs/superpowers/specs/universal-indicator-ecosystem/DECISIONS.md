@@ -427,4 +427,53 @@ currently-supported request.
 **Tests needed:** A test proving the on-demand path refuses a non-default `tf`, mirroring live-mode's
 existing test.
 
+---
+
+## DEC-011 — Record the owner's governing intent as a durable, standalone document
+
+**Decision:** Capture the owner's 2026-09-05 post-recovery "governing intent / anti-drift
+reminder" verbatim (reformatted only) in `GOVERNING_INTENT.md`, cross-linked from this file
+and from `00-MASTER-PROMPT.md`, rather than letting it live only in one session's transcript.
+
+**Context:** This session performed a full read-only recovery of Phase One state after a
+prior session closed unexpectedly (worktree lock left stale at pid 19716 — see the
+recovery report in this session's transcript). Immediately after confirming recovery, the
+owner sent a governing-intent reminder explicitly asking that it be "kept attached to the
+project's persistent documentation so another session crash does not reduce the program
+into a collection of local tasks." A reconstruction that recovers *what was done* (commits,
+docs, test counts) but not *why the program exists and what it must not trade away* is
+exactly the failure the owner was naming.
+
+**Evidence:** Owner message, this session, 2026-09-05, immediately following the delivered
+SESSION RECOVERY STATE REPORT for Phase One Tracks A-F.
+
+**Alternatives considered:** Leave it in the session transcript only (rejected — transcripts
+are not guaranteed to survive a crash or be read by the next session, which is the precise
+scenario the owner was guarding against); fold it directly into `00-MASTER-PROMPT.md`
+(rejected — that file is explicitly "a verbatim capture" of three specific historical
+documents per its own header; appending unrelated content there would blur its role as a
+frozen source record); fold it into `PHASE_ONE_PLAN.md` (rejected — that document is scoped
+to Phase One's track plan and already has a known staleness problem; the governing intent
+is meant to outlive any single phase).
+
+**Why chosen:** A dedicated file makes the intent independently discoverable and citable
+(`[[GOVERNING_INTENT.md]]`-style reference) without conflating it with the historical
+master-prompt record or a single phase's plan, and matches this program's own standing
+practice of correcting/recording rather than silently rewriting when something needs to be
+durable.
+
+**Risks:** A second document that can drift out of sync with future owner direction if not
+updated. Mitigated by treating it as the standing default that a *new* explicit decision
+must override, not by editing its substance in place — the same append-only discipline this
+file already uses.
+
+**Migration impact:** None — pure documentation addition, no code/schema/API effect.
+
+**Reversibility:** Fully reversible — remove or supersede the file and this entry's pointer
+if the owner ever wants it consolidated elsewhere.
+
+**Tests needed:** None (documentation only).
+
+**Date:** 2026-09-05
+
 **Date:** 2026-09-04
