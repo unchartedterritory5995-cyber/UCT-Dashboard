@@ -57,15 +57,23 @@ a historical record per this program's append-only-correction convention rather 
 | Track | Scope | Status |
 |---|---|---|
 | A — Vendor Parity / Semantic Truth | Populate vendor-observation store; initial priority list; real vendor-runtime captures; resolve known Pine ambiguities; vendor-parity as a distinct coverage dimension; CI fixtures; reword benchmark language everywhere | **Not started** |
-| B — Known Correctness/Reliability Defects | RISK-016, RISK-012, RISK-022, RISK-024, RISK-025, RISK-017, targeted RISK-015 | **In progress** — see below |
+| B — Known Correctness/Reliability Defects | RISK-016, RISK-012, RISK-022, RISK-024, RISK-025, RISK-017, targeted RISK-015 | **DONE, 2026-09-04.** All seven items fixed and regression-tested (RISK-022's RISK-013 half deliberately deferred to Track F per DEC-006 — see its own row). See `RISK_REGISTER.md` for each fix's detail and test evidence. |
 | C — Product Telemetry | 5-event minimum, correlation IDs, using `landing_events`/`signature/ledger.py` | **Not started** |
 | D — Production Scan Truth | Resolve RISK-003 to VERIFIED HEALTHY / VERIFIED BROKEN / STILL PRODUCTION-UNVERIFIED | **Not started** |
-| E — Complete AI-Door Golden Journeys | Real model-call round-trips for #4/#5 | **Blocked on Track B's RISK-016 + DEC-008's key provisioning** |
+| E — Complete AI-Door Golden Journeys | Real model-call round-trips for #4/#5 | **Unblocked on the code side** (RISK-016 fixed) — **still blocked on DEC-008's scoped-API-key provisioning**, an owner action this program cannot perform itself |
 | F — Imported Parameter Contract ADR | Design doc for Pine input → adjustable UCT input mapping | **Not started** |
 
-**Sequencing note**: Track E is explicitly gated behind Track B (RISK-016) per DEC-008. Track A is called
-the "highest strategic correctness priority" by the owner but requires careful, evidence-quality-conscious
-manual work (real vendor-platform observation), not bulk automation — paced accordingly, not rushed.
+**Sequencing note**: Track B is complete. Track E's code-side blocker (RISK-016) is resolved; it now waits
+only on the owner provisioning the scoped, isolated-environment-only Anthropic API key DEC-008 approved.
+Track A is called the "highest strategic correctness priority" by the owner but requires careful, evidence-
+quality-conscious manual work (real vendor-platform observation), not bulk automation — paced accordingly,
+not rushed.
+
+**A pre-existing, unrelated flake noticed while running Track B's regression suites** (not a Track B
+finding, not investigated further, recorded so a future session doesn't rediscover it from scratch):
+`ImportBox.thinkscript.test.jsx`'s `'import-suggest-apply'` case fails intermittently on a whitespace/line-
+ending mismatch in a pasted-text comparison. Confirmed via `git log`/`git diff` that no commit in this
+Track B tranche touches `ImportBox.jsx` or its test file — pre-existing, out of this track's scope.
 
 ## Pattern-engine scope boundary (owner-flagged)
 

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import ConciergeBox, { readBackFor } from './ConciergeBox.jsx'
 import { sentenceFor } from '../engine/ast/sentence.js'
 import { TABLE } from '../engine/ast/parse.js'
+import { PROPOSE_BARS_LIMIT } from './proposeBars.js'
 
 // ─── THE CLAIM THIS FILE EXISTS TO PROVE ────────────────────────────────────
 //
@@ -116,6 +117,38 @@ describe('ConciergeBox', () => {
     const sent = JSON.parse(init.body)
     expect(sent.prompt).toBe('average the close')
     expect(sent.bars).toEqual(bars)
+  })
+
+  it('RISK-016: truncates to the most recent bars before ever sending', async () => {
+    // 🔴 A long-listed symbol's full cached history (SPY: 8,000 daily bars back
+    // to 1994, observed live during Phase Zero) exceeds the server's
+    // MAX_PROPOSE_BARS (5,000) and used to produce a raw 400 that
+    // misrepresented the cause as "the assistant could not be reached". The
+    // fix is HERE, at the one shared chokepoint before either AI door
+    // serializes onto the wire — see `proposeBars.js`.
+    const fetchImpl = vi.fn(async () => jsonResponse(proposal()))
+    const bars = Array.from({ length: PROPOSE_BARS_LIMIT + 500 },
+      (_, i) => ({ t: i, o: i, h: i, l: i, c: i, v: i }))
+    await draft(fetchImpl, { bars })
+    await screen.findByTestId('concierge-proposal')
+
+    const sent = JSON.parse(fetchImpl.mock.calls[0][1].body)
+    expect(sent.bars).toHaveLength(PROPOSE_BARS_LIMIT)
+    // ⭐ THE NEWEST ONES, NOT THE OLDEST — bars arrive oldest-first, and the
+    // concierge's compute stage runs on "the window the user is looking at",
+    // not three decades of history.
+    expect(sent.bars[0].t).toBe(500)
+    expect(sent.bars[sent.bars.length - 1].t).toBe(PROPOSE_BARS_LIMIT + 499)
+  })
+
+  it('sends a short bars array UNTOUCHED — the truncation never rewrites a normal request', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(proposal()))
+    const bars = [{ t: 1, o: 1, h: 2, l: 0, c: 1.5, v: 10 },
+                  { t: 2, o: 1.5, h: 2, l: 1, c: 1.8, v: 12 }]
+    await draft(fetchImpl, { bars })
+    await screen.findByTestId('concierge-proposal')
+
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).bars).toEqual(bars)
   })
 
   it('sends the KIND it was mounted for, and defaults to an indicator', async () => {

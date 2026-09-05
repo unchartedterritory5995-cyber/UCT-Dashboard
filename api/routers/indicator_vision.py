@@ -104,6 +104,14 @@ def _bars_from(raw: str) -> list:
     ⚠️ A MULTIPART FIELD CARRIES TEXT, so the bars arrive as a JSON string. A
     malformed one is the CALLER'S mistake and answers 400 — unlike a picture this
     door cannot read, which is a legitimate 200 refusal.
+
+    🔴 RISK-016 (Phase One Track B, 2026-09-04). "Too many bars" used to raise
+    the SAME 400 as genuinely malformed input — but a long-listed symbol's full
+    cached history is a well-formed request that is simply too big, not a
+    caller mistake, and deserves the graceful `{ok:false, gate, reason}` answer
+    this door already gives a picture it cannot read. That check now lives in
+    the route handler, which can return a dict; this function stays a plain
+    `list`-or-raise for the cases that really are malformed input.
     """
     if not raw or not raw.strip():
         return []
@@ -113,10 +121,6 @@ def _bars_from(raw: str) -> list:
         raise HTTPException(status_code=400, detail="bars: not valid JSON") from exc
     if not isinstance(parsed, list):
         raise HTTPException(status_code=400, detail="bars: expected a list")
-    if len(parsed) > MAX_PROPOSE_BARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got {len(parsed)}")
     return parsed
 
 
@@ -144,6 +148,14 @@ def candidates_from_screenshot(
         return svc.disabled_refusal()
 
     parsed_bars = _bars_from(bars)
+    # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
+    # `_bars_from`, specifically so this ONE case — well-formed input that is
+    # simply too big — can answer the graceful `{ok:false, gate, reason}` shape
+    # instead of `_bars_from`'s 400s, which stay reserved for genuinely
+    # malformed input. Before the fix on Save, before charging the member's
+    # hourly allowance for a request that was always going to be refused.
+    if len(parsed_bars) > MAX_PROPOSE_BARS:
+        return svc.bars_too_large_refusal(len(parsed_bars))
     _charge(str(user["id"]))
 
     # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;

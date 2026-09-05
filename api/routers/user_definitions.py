@@ -278,11 +278,21 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     """
     _charge_propose(str(user["id"]))
     bars = body.bars or []
+    # 🔴 RISK-016 (Phase One Track B, 2026-09-04). This USED to raise a raw
+    # HTTPException(400) here — the one place on this route that broke its own
+    # docstring's "a refusal is a 200 with ok: False, not a 4xx" promise. A
+    # member with a long-listed symbol on the chart (SPY: 8,000 cached daily
+    # bars, unaffected by the visible zoom) got a generic "the assistant could
+    # not be reached" message that actively misrepresented the cause — a client
+    # payload-size issue, not a transport failure. The frontend now truncates to
+    # the most recent bars before ever sending (`proposeBars.js`), so this
+    # branch should be effectively unreachable in practice; it stays as the
+    # honest, in-contract answer for whatever reaches it anyway — a second
+    # caller, a future surface, a test — rather than a crash.
     if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
-                   f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
+        got = len(bars) if isinstance(bars, list) else type(bars).__name__
+        return {"ok": False, "gate": "bars:too-large",
+                "reason": f"bars: at most {MAX_PROPOSE_BARS} bars, got {got}"}
     from api.services import definition_concierge
     #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
     #: is every caller that shipped before scans existed, and spelling

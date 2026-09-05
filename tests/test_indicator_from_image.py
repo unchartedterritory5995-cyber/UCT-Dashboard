@@ -617,13 +617,25 @@ def test_a_malformed_bars_field_is_the_CALLERS_mistake_and_answers_400(client, m
 
 def test_the_bars_ceiling_is_the_CONCIERGE_ROUTES_own(client, monkeypatch):
     """⛔ ONE ANSWER TO 'how big may one request be'. Both doors feed the same
-    compute stage; a second number here would drift the day one moved."""
+    compute stage; a second number here would drift the day one moved.
+
+    🔴 RISK-016 (Phase One Track B, 2026-09-04). This USED to assert a raw 400
+    here — the exact contract violation the risk is about. Too many bars is a
+    well-formed request that is simply too big, not a caller mistake, so it now
+    answers the SAME graceful `{ok:false, gate, reason}` shape a picture this
+    door cannot read already gets — never a status code, and never a model
+    call for a request already known to be refused."""
     from api.routers.user_definitions import MAX_PROPOSE_BARS
     monkeypatch.setenv("INDICATOR_VISION_ENABLED", "1")
+    monkeypatch.setattr(svc, "_default_client",
+                        lambda: pytest.fail("the model must not be called"))
     _login(client)
     res = _post(client, data={"bars": json.dumps([{} for _ in range(MAX_PROPOSE_BARS + 1)])})
-    assert res.status_code == 400
-    assert str(MAX_PROPOSE_BARS) in res.json()["detail"]
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is False
+    assert body["gate"] == "bars:too-large"
+    assert str(MAX_PROPOSE_BARS + 1) in body["reason"]
 
 
 def test_the_door_BOUNDS_how_many_pictures_one_member_may_send():
