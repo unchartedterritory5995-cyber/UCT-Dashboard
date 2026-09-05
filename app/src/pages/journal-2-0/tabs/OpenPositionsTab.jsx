@@ -18,6 +18,7 @@ import useJ2OptionMarks from '../hooks/useJ2OptionMarks'
 import useJ2SelectedAccount from '../hooks/useJ2SelectedAccount'
 import useJ2Nudges from '../hooks/useJ2Nudges'
 import NudgesBanner from '../components/NudgesBanner'
+import PortfolioAttentionBanner from '../components/PortfolioAttentionBanner'
 import useJ2ColumnPrefs from '../hooks/useJ2ColumnPrefs'
 import { buildStrategyLabel, classifyDebitCredit } from '../lib/optionCalcs'
 import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal'
@@ -340,6 +341,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       {/* ONE broker-sync surface — SyncTrustCenter absorbed the slim
           BrokerSyncStatus bar's Sync-now (no stacked chrome bands). */}
       <SyncTrustCenter onSynced={() => { refreshPositions(); refreshOptions() }} />
+      <PortfolioAttentionBanner />
       <BrokerAccountHero
         preferBrokerMarks={preferBrokerMarks}
         account={selectedAccount}

@@ -194,6 +194,9 @@
   opacity: 0.6;
 }
 .actionBtn:hover { opacity: 1; color: var(--ut-gold); border-color: rgba(212, 170, 80, 0.4); background: var(--bg-hover); }
+/* ── Compare entry (closes the Compare dead end) — same SymbolSearch "+ Compare"
+   picker as /research's header, just sized to sit among the icon-only actions. ── */
+.compareEntry { font-size: 11px; display: flex; align-items: center; }
 /* ── Flag button (icon-only, square; gold when flagged) ── */
 .flagBtn {
   display: flex;

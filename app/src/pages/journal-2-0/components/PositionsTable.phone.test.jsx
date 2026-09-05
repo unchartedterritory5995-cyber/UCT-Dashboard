@@ -1,11 +1,21 @@
 // Phone card view: ≤640px renders cards (not the dense table).
+import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import PositionsTable, { POSITIONS_COLUMNS } from './PositionsTable'
 
 vi.mock('../../../hooks/useBreakpoint', () => ({ useIsPhone: () => true }))
+// Same open-tracking stub as PositionsTable.test.jsx (Part A2 card click-through).
 vi.mock('../../../components/TickerPopup', () => ({
-  default: ({ children }) => <span>{children}</span>,
+  default: ({ sym, as: Tag = 'span', children }) => {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <Tag data-testid={`ticker-popup-${sym}`} onClick={() => setOpen(true)}>{children}</Tag>
+        {open && <div data-testid={`chart-modal-${sym}`}>chart modal for {sym}</div>}
+      </>
+    )
+  },
 }))
 
 const positions = [
@@ -62,5 +72,26 @@ describe('PositionsTable phone cards', () => {
     expect(screen.getByText('CRWV Oct 16 $110C')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Close CRWV/ }))
     expect(onOptionClose).toHaveBeenCalledWith(strategy)
+  })
+
+  it('clicking anywhere on the card opens the same TickerPopup as the chart-icon button (Part A2)', () => {
+    render(
+      <PositionsTable positions={positions} prices={prices} accountSize={10000}
+                      visibleColumns={POSITIONS_COLUMNS} />,
+    )
+    expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('AAPL'))
+    expect(screen.getByTestId('chart-modal-AAPL')).toBeInTheDocument()
+  })
+
+  it('clicking Edit on the card does not also open the chart popup', () => {
+    const onEdit = vi.fn()
+    render(
+      <PositionsTable positions={positions} prices={prices} accountSize={10000}
+                      visibleColumns={POSITIONS_COLUMNS} onEdit={onEdit} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Edit AAPL' }))
+    expect(onEdit).toHaveBeenCalled()
+    expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
   })
 })
