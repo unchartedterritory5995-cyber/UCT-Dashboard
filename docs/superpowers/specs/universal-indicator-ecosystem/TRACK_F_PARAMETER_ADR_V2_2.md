@@ -313,12 +313,17 @@ against real `save()`/`alert_user_series` code, no simulation:
               own fresh parameter (pt 15 doesn't over-refuse creation)
 ```
 
-Regression: `tests/test_user_definitions.py` (68 tests, the full existing
-save/validate/alert suite) re-run after the hook landed — **68 passed, 0
+Regression: `tests/test_user_definitions.py` (the full existing
+save/validate/alert suite) re-run after the hook landed — **46 passed, 0
 broken** — confirming the hook is inert for every definition shape that
 predates this spike. `tests/test_vendor_truth.py` (Track A, unrelated code
 touched earlier in this review cycle) re-confirmed at 22/22, unaffected by
-this spike's changes.
+this spike's changes. ⚠️ **Correction (2026-09-05):** this section originally
+said "68 passed" for `test_user_definitions.py` alone — that number was the
+COMBINED count of both files run together in one `pytest` invocation
+(46 + 22 = 68), mis-attributed to one file. Caught on the next re-run rather
+than left standing, precisely the "a hand-typed count beside the artifact it
+describes" defect this program's own CLAUDE.md names repeatedly.
 
 **test_12's own first draft had a bug** (found during the spike, not before
 it): its fixture changed the value at a locator's path rather than removing

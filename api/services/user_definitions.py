@@ -866,26 +866,27 @@ def save(user_id: Any, def_id: str, definition: dict,
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
 
-    # ⛔⛔ TRACK F SPIKE HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md) — INERT for
-    # every definition without a `compute.paramManifest` key (see that module's
-    # own `apply()` docstring). Runs BEFORE `new_hash`/`blob` below are computed
-    # from `definition`, because canonicalizing a forged manifest field AFTER
-    # hashing/serializing would hash the forged value — the whole point is that
-    # the STORED bytes reflect the server's trusted manifest, never the client's
-    # submitted one, for any parameter identity this user's OWN prior save
-    # already established. This is a deliberately EARLY, deliberately SEPARATE
-    # read of the prior row from the one `prev = _newest(...)` below performs
-    # for its own, unrelated purposes (rev/version bookkeeping) — a spike-scoped
-    # choice (a second cheap read, not a reordering of this function's existing,
-    # heavily-reasoned-about lock structure) rather than production-final
-    # architecture; a narrow v1 implementation may fold these into one read.
-    from api.services import param_manifest_spike
+    # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
+    # — INERT for every definition without a `compute.paramManifest` key (see
+    # that module's own `apply()` docstring). Runs BEFORE `new_hash`/`blob`
+    # below are computed from `definition`, because canonicalizing a forged
+    # manifest field AFTER hashing/serializing would hash the forged value —
+    # the whole point is that the STORED bytes reflect the server's trusted
+    # manifest, never the client's submitted one, for any parameter identity
+    # this user's OWN prior save already established. This is a deliberately
+    # EARLY, deliberately SEPARATE read of the prior row from the one `prev =
+    # _newest(...)` below performs for its own, unrelated purposes (rev/version
+    # bookkeeping) — a second cheap read chosen for isolation from this
+    # function's existing, heavily-reasoned-about lock structure, not a
+    # reordering of it; a future pass MAY fold these into one read if the two
+    # purposes are ever unified, but nothing about correctness requires it.
+    from api.services import param_manifest
     if isinstance(compute.get("paramManifest"), dict):
         with contextlib.closing(_connect()) as _c:
             _ensure(_c)
             _prev_row = _newest(_c, user_id, def_id)
         _prev_definition = json.loads(_prev_row["definition"]) if _prev_row is not None else None
-        definition = param_manifest_spike.apply(definition, _prev_definition)
+        definition = param_manifest.apply(definition, _prev_definition)
         compute = definition["compute"]
 
     # The hash comes off the tree BEFORE anything is written, so a tree this

@@ -1,16 +1,17 @@
-"""Track F pre-implementation SPIKE — the 15-point proof gate.
+"""Track F server-side parameter-manifest enforcement — permanent regressions.
 
-Per DEC-006 and `TRACK_F_PARAMETER_ADR_V2*.md`: no broad Track F implementation
-proceeds until these 15 properties are proven against REAL, RUNNING CODE, not
-this ADR's prose. Each test below is named after the spike point(s) it proves.
-This file does not touch `pine.js` (the Pine translator) — per instruction,
-that stays untouched until a narrow v1 implementation is separately
-authorized. Every test here exercises the REAL `api.services.user_definitions
+Originally written as a 15-point pre-implementation spike gate (DEC-006,
+`TRACK_F_PARAMETER_ADR_V2*.md`) before broad Track F implementation was
+authorized; PROMOTED, unchanged, to the permanent regression suite for
+`api.services.param_manifest` once that authorization was granted (see
+`TRACK_F_SPIKE_REPORT_V1.md`). Each test is named after the property it
+proves. Every test here exercises the REAL `api.services.user_definitions
 .save()` and, where relevant, the REAL `api.services.alert_user_series`
-registry — hand-constructed fixtures stand in for what the (untouched)
-translator would eventually produce, exactly as a spike is meant to isolate
-"does the save/validation/reconciliation architecture hold" from "does the
-translator emit the right shape yet."
+registry. The fixtures below are hand-constructed multi-tree/single-tree
+documents rather than real Pine-translator output — this file proves the
+save/validation/reconciliation architecture in isolation from the
+translator's own tests (`app/src/components/chart/engine/ast/pine.
+paramManifest.test.js` and neighbors), exactly as it did before promotion.
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ import pytest
 from api.services import alert_rev_migration as rev
 from api.services import alert_user_series as aus
 from api.services import indicator_alert_service as ias
-from api.services import param_manifest_spike as pms
+from api.services import param_manifest as pms
 from api.services import user_definitions as svc
 
 USER = "spike-user"

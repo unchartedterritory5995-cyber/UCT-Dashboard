@@ -43,13 +43,18 @@ tests/test_param_manifest_spike.py :: 21 passed, 0 failed
 Regression confirmation (existing suites, unaffected):
 
 ```
-tests/test_user_definitions.py :: 68 passed, 0 failed   (full save/validate/alert suite)
+tests/test_user_definitions.py :: 46 passed, 0 failed   (full save/validate/alert suite)
 tests/test_vendor_truth.py     :: 22 passed, 0 failed   (Track A infra, unrelated code)
 ```
 
+⚠️ **Correction (2026-09-05):** this originally read "68 passed" for
+`test_user_definitions.py` — that was the COMBINED count of both files run
+in one invocation (46 + 22 = 68), mis-attributed to one file. Corrected on
+the next re-run rather than left standing.
+
 `test_user_definitions.py` passing unchanged is the direct proof of the
 inertness claim below — none of its fixtures carry `compute.paramManifest`,
-so the new hook's early-return path is what every one of those 68 tests
+so the new hook's early-return path is what every one of those 46 tests
 actually exercises.
 
 ## 2. Design assumptions falsified
@@ -108,9 +113,11 @@ number, not a wrapped `{"type":"num"}` node, and both shapes must resolve).
   call `param_manifest_spike.apply()` → replace `definition`/`compute`
   with its return. **Inert (no-op, byte-for-byte) for every definition
   without a `paramManifest` key** — proven by `test_user_definitions.py`'s
-  68/68 unaffected.
+  46/46 unaffected.
 - **New file:** `tests/test_param_manifest_spike.py` — the 21-test proof
-  suite above.
+  suite above. **Promoted 2026-09-05** to `api/services/param_manifest.py` /
+  `tests/test_param_manifest.py` once the owner authorized narrow v1
+  implementation — same logic, same 21 assertions, name only.
 - **Not touched:** `pine.js` (translator), any router, any frontend file,
   `alert_rev_migration.py`, `ast_interpret.py`, `closedTable.json`. The
   spike deliberately proves the *server-side enforcement* half of Track F

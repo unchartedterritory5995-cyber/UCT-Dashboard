@@ -1,14 +1,24 @@
-"""Track F pre-implementation SPIKE — parameter-manifest save-time enforcement.
+"""Parameter-manifest save-time enforcement (Track F v1, DEC-006).
 
-⛔⛔ THIS IS A SPIKE, NOT V1. Scoped narrowly to prove the 15 properties
-`TRACK_F_PARAMETER_ADR_V2.md` / `_V2_1.md` / `_V2_2.md` require before broad
-implementation may begin (DEC-006). It does not touch the Pine translator
-(`pine.js`) — that remains untouched, per instruction, until a narrow v1
-implementation is separately authorized. This module is deliberately
-additive and INERT for every definition that does not carry a
-`compute.paramManifest` key: ordinary saves are byte-for-byte unaffected.
+Promoted from a 15-point pre-implementation spike (all 15 conditions proven
+against real `save()`/`alert_user_series` code — see
+`TRACK_F_PARAMETER_ADR_V2_2.md` §6 and `TRACK_F_SPIKE_REPORT_V1.md` for the
+evidence) with NO logic changes at promotion — the owner's own instruction
+was "do not rewrite proven logic merely for aesthetics." Only the module's
+name, its docstring's framing, and `user_definitions.py`'s import were
+updated. `tests/test_param_manifest.py` (renamed from
+`test_param_manifest_spike.py`, same 21 assertions, unchanged) is the
+permanent regression suite for this module — not a spike fixture to retire.
 
-⛔⛔ ARCHITECTURE CORRECTION FOUND DURING THIS SPIKE, NOT ASSUMED IN THE ADR.
+This module is additive and INERT for every definition that does not carry
+a `compute.paramManifest` key: ordinary saves are byte-for-byte unaffected.
+It implements ONLY the server-side enforcement half of Track F — the Pine
+translator (`app/src/components/chart/engine/ast/pine.js`) is what DECIDES
+which Pine `input.int`/`input.float` declarations become eligible
+parameters and builds the manifest a save submits; this module's job is to
+verify and protect a submitted manifest, never to invent one.
+
+⛔⛔ ARCHITECTURE CORRECTION FOUND DURING THE SPIKE, NOT ASSUMED IN THE ADR.
 V2.1/V2.2 assumed server-side reconciliation would re-parse `compute.source`
 to find `let` bindings. Verified directly against this module's own file
 (the comment block above `_PLOT_KEY_RE`, 2026-09 vintage): "there is exactly
@@ -21,14 +31,28 @@ a second side re-derive it"), a parameter's live value is read by walking
 the ALREADY-PARSED, ALREADY-SUBMITTED `compute.ast` (or `compute.trees[k]`
 for a multi-tree document) at a stored structural path (`astPath`) — pure
 JSON traversal, not parsing, of data this service already receives and
-already interprets via `ast_interpret.py`. Keeping `compute.source`'s `let`
-line human-consistent with the tree's literal at that path is the CLIENT's
-job (the one lane with a parser), exactly mirroring the already-disclosed,
-already-accepted `sources[k]`/`treesHash` asymmetry this same file names for
-an unrelated reason — this spike does not attempt to close that pre-existing
-gap and was never asked to.
+already interprets via `ast_interpret.py`.
 
-Schema this spike expects, additively, inside an existing `compute` dict::
+⛔ NO SPECIAL `let __uct_param_1 = 14` SYNTAX EXISTS ANYWHERE. `compute.
+source`/`compute.sources[k]` for a parameterized definition is ORDINARY
+printed UCT-DSL text — `rsi(close, 14)`, nothing more — byte-identical in
+shape to a definition with no adjustable parameters at all. This was ADR V2's
+original idea and it does not survive contact with how the frontend actually
+edits a parameter (`pine.js`'s own comment on `Resolver.inputValues`: "the
+tree still holds a literal... the knob does not live IN the tree; it lives on
+the DOCUMENT, and moving it RE-TRANSLATES"). A parameter edit mutates the
+literal at each locator's `astPath` directly, re-derives `compute.source[k]`
+via the existing `printFormula(ast)` compiler, and re-parses that regenerated
+text through the SAME ordinary formula door every hand-typed edit already
+goes through — never a second parser, and never a bespoke `let`-substitution
+convention this file or any other would have to keep in sync. Keeping
+`compute.source` consistent with `compute.ast` after such an edit is the
+CLIENT's job (the one lane with a parser), exactly mirroring the already-
+disclosed, already-accepted `sources[k]`/`treesHash` asymmetry this same file
+names for an unrelated reason — this module does not attempt to close that
+pre-existing gap and was never asked to.
+
+Schema this module expects, additively, inside an existing `compute` dict::
 
     "compute": {
       "kind": "ast", "ast": {...}, "source": "...",   # all pre-existing
