@@ -93,6 +93,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional, Sequence
 
+from api.services import indicator_telemetry as telemetry
 from api.services import scan_definition, user_definitions
 from api.services.screener import list_universe, scan_evaluator, scan_store
 
@@ -597,6 +598,7 @@ def _run_job(job_id: str) -> None:
         definition = job["definition"]
         tf_code, session, limits = job["tf"], job["as_of"], job["limits"]
         syms = list(job["symbols"])
+        user_id, def_id = job["user_id"], job["def_id"]
     outcome: Optional[dict] = None
     try:
         _note_demand(syms)
@@ -631,3 +633,25 @@ def _run_job(job_id: str) -> None:
                     "state": "refused", "gate": None, "error": True,
                     "detail": "the worker was interrupted before it recorded an outcome"})
                 job["finished_at"] = _clock()
+    # ⭐ Phase One Track C. `execution_finished` for the ON-DEMAND path — the
+    # one execution mode with NO persisted receipt today (`scan_evaluator`'s
+    # own `record_coverage` deliberately WRITES NOTHING for `mode="on-demand"`;
+    # see RISK-017/the module header's "WRITES NOTHING" note). This is a
+    # lightweight, OBSERVATIONAL row, not a state write — it does not touch
+    # `scan_store`/`scan_coverage` and therefore does not reintroduce the
+    # thing that invariant forbids. Fires exactly once per job: `_run_job`
+    # itself only ever runs once per `job_id` (the `state != "queued"` guard
+    # above refuses a second run), so no separate de-dup is needed here.
+    #
+    # For NIGHTLY/LIVE sweep executions, `execution_finished` is NOT
+    # duplicated into `landing_events` — the already-existing `scan_coverage`
+    # row IS that receipt for those modes (written by `evaluate_one` itself),
+    # and it is joinable to its owning member via `user_definitions` on
+    # `def_hash`/`ast_hash`. See TRACK_C_TELEMETRY.md for the worked
+    # reconstruction query.
+    telemetry.log_event(
+        user_id, "execution_finished", def_id=def_id,
+        mode="on-demand", tf=tf_code, as_of=session,
+        state=(outcome or {}).get("state"),
+        gate=(outcome or {}).get("gate"),
+    )

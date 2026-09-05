@@ -113,6 +113,7 @@ import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import ImageBox from './ImageBox'
+import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
@@ -931,6 +932,14 @@ export default function BuilderSheet({
   // closure of `save` regardless of render, so it is checked-and-set as the
   // very first thing inside `save()`, before the state-derived guard even runs.
   const savingRef = useRef(false)
+  // ⭐ Phase One Track C. The correlation id + dialect from the MOST RECENT
+  // client-observed import attempt (a paste-door "Apply"), read by `save()`
+  // so `import_accepted` can join back to the `import_submitted`/
+  // `compile_finished` pair already logged for it. `null` means "no import
+  // attempt informed this save" (a manual edit, a StarterLibrary pick, a
+  // concierge/screenshot save whose door already minted its own server-side
+  // id) — `save()` simply omits the fields rather than inventing one.
+  const importTelemetryRef = useRef(null)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1441,10 +1450,22 @@ export default function BuilderSheet({
     // `saveUserDefinition` POSTs without it and PUTs with it — one function, one
     // set of error words, one SWR invalidation. The route it reaches then bumps
     // `compute.rev` if the maths moved and force-migrates every bound alert.
-    const res = await saveUserDefinition(doc, editing ? editing.defId : null)
+    //
+    // ⭐ Phase One Track C. The THIRD argument is telemetry-only (never part of
+    // `doc`, never persisted — see `DefinitionIn` server-side): whichever
+    // paste-door import most recently informed this draft, if any. NOT
+    // cleared on a store refusal below — a member who fixes a validation
+    // error and re-clicks Save is still finishing the SAME import attempt,
+    // and `import_accepted` should still join back to it.
+    const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current)
     savingRef.current = false
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }
+    // ⭐ Phase One Track C. Cleared only on SUCCESS: `import_accepted` has now
+    // fired server-side for this attempt, so a LATER, unrelated save (a
+    // manual tweak with no new paste) must not carry a stale `import_id`
+    // forward and misattribute itself to an import that already landed.
+    importTelemetryRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
     if (editing && row.def_id) setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1 })
@@ -1615,7 +1636,18 @@ export default function BuilderSheet({
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
             replacedAt={replacedAt}
-            onAccept={(proposal) => setSource(proposal?.source || '')}
+            onAccept={(proposal) => {
+              setSource(proposal?.source || '')
+              // ⭐ Phase One Track C. `propose_definition` (the plain-language
+              // door) mints `import_id` SERVER-SIDE and already fired
+              // `import_submitted`/`compile_finished` for it — `proposal`
+              // here IS that same response object, passed through unchanged
+              // by `ConciergeBox`, so its `import_id` is captured for
+              // `import_accepted` to join back to on Save.
+              if (proposal?.import_id) {
+                importTelemetryRef.current = { importId: proposal.import_id, dialect: 'plain-language' }
+              }
+            }}
           />
 
           {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
@@ -1811,6 +1843,21 @@ export default function BuilderSheet({
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
+              }}
+              onImportTelemetry={(dialect) => {
+                // ⭐ Phase One Track C. Fires ONLY on the same "Apply" action
+                // `onPick` above fires from (see PineBox.jsx's `use()`) — a
+                // deliberate member action, never a keystroke. Because that
+                // action only runs on a USABLE translation, this is always
+                // logged as a success; a genuine parse failure never reaches
+                // here (the Apply control isn't usable against a refusal),
+                // so the failure half of `compile_finished` for THIS event
+                // is covered by the plain-language/screenshot doors instead,
+                // where the backend observes the full request/response cycle.
+                const importId = newImportId()
+                importTelemetryRef.current = { importId, dialect }
+                logIndicatorTelemetry('import_submitted', { importId, dialect })
+                logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}
             />
           )}

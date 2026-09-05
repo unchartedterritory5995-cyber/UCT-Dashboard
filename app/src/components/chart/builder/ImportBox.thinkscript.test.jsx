@@ -227,7 +227,12 @@ describe('paste a real thinkScript study and get a working scan', () => {
     // ⛔ THE PAYLOAD THAT WAS ACTUALLY WRITTEN, not a document rebuilt here. A
     // test that compares two locally-built documents proves the builder is
     // deterministic; this proves the SHEET wrote the same thing.
-    const post = H.requests.find((r) => r.method === 'POST')
+    //
+    // ⭐ Phase One Track C fires telemetry POSTs (`/api/indicator-telemetry/
+    // event`) on the SAME "Use this formula" click this flow exercises, so a
+    // bare `method === 'POST'` now matches the FIRST of several POSTs rather
+    // than the one save this test cares about — scoped to the save endpoint.
+    const post = H.requests.find((r) => r.method === 'POST' && r.url.includes('/api/user-definitions'))
     expect(post, 'nothing was written').toBeTruthy()
     const sent = JSON.parse(post.body).definition
 

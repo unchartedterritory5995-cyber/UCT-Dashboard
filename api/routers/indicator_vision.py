@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from api.routers.user_definitions import MAX_PROPOSE_BARS, require_paid
 from api.services import indicator_from_image as svc
+from api.services import indicator_telemetry as telemetry
 
 router = APIRouter(prefix="/api/indicator-vision", tags=["indicator-vision"])
 
@@ -147,6 +148,14 @@ def candidates_from_screenshot(
     if not svc.vision_enabled():
         return svc.disabled_refusal()
 
+    # ⭐ Phase One Track C. `import_id` minted server-side, same reasoning as
+    # the plain-language door: submission and compile happen in one call here,
+    # so there is no earlier client-side moment to correlate with.
+    import uuid
+    import_id = str(uuid.uuid4())
+    telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                        dialect="screenshot")
+
     parsed_bars = _bars_from(bars)
     # RISK-016 (Phase One Track B, 2026-09-04). Checked here, not inside
     # `_bars_from`, specifically so this ONE case — well-formed input that is
@@ -155,17 +164,32 @@ def candidates_from_screenshot(
     # malformed input. Before the fix on Save, before charging the member's
     # hourly allowance for a request that was always going to be refused.
     if len(parsed_bars) > MAX_PROPOSE_BARS:
-        return svc.bars_too_large_refusal(len(parsed_bars))
+        telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                            dialect="screenshot", success=False, stage="gate",
+                            gate="bars:too-large")
+        refusal = dict(svc.bars_too_large_refusal(len(parsed_bars)))
+        refusal["import_id"] = import_id
+        return refusal
     _charge(str(user["id"]))
 
     # ⛔ A BOUNDED READ. One byte past the ceiling is enough to know it is over it;
     # reading the whole of an oversized upload into memory to then reject it is the
     # DoS the ceiling exists to prevent. The service owns the refusal sentence.
     data = file.file.read(svc.MAX_IMAGE_BYTES + 1)
-    return svc.candidates_from_image(
+    result = svc.candidates_from_image(
         image_bytes=data,
         media_type=(file.content_type or "").split(";")[0].strip().lower(),
         user_id=user["id"],
         bars=parsed_bars,
         note=note,
     )
+    # ⭐ Phase One Track C. Never logs the image bytes or `note` — see
+    # indicator_telemetry.py's module docstring. `success` reads `ok` the same
+    # way the plain-language door does, so the two doors' `compile_finished`
+    # rows are comparable without a per-door reading of the field.
+    telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                        dialect="screenshot", success=bool(result.get("ok")),
+                        stage="compile", gate=result.get("gate"))
+    result = dict(result)
+    result["import_id"] = import_id
+    return result

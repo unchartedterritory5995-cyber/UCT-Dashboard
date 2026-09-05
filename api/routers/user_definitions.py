@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import indicator_telemetry as telemetry
 from api.services import scan_definition
 from api.services import user_definitions as svc
 from api.services.entitlements import Limits, limits_dependency
@@ -55,6 +56,16 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 class DefinitionIn(BaseModel):
     definition: dict
+    # ⭐ Phase One Track C. TELEMETRY-ONLY — never merged into `definition`,
+    # never persisted by `svc.save`. Their sole purpose is letting
+    # `import_accepted` (fired below, after a successful save) carry the SAME
+    # `import_id` the client stamped at `import_submitted`/`compile_finished`
+    # time, so a full member journey is joinable across the client-observed
+    # and server-observed halves of one import attempt. `None` (the default,
+    # and what every pre-existing caller sends) means "no journey to join" —
+    # `import_accepted` still fires, just without a linkable `import_id`.
+    import_id: Optional[str] = None
+    source_dialect: Optional[str] = None
 
 
 class ProposeIn(BaseModel):
@@ -144,7 +155,9 @@ def _charge_propose(user_id: str, *, now: float | None = None) -> None:
 
 
 def _save_or_400(user_id, def_id: str, definition: dict,
-                 limits: Limits | None = None) -> dict:
+                 limits: Limits | None = None, *,
+                 import_id: Optional[str] = None,
+                 source_dialect: Optional[str] = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -155,11 +168,23 @@ def _save_or_400(user_id, def_id: str, definition: dict,
 
     ⛔ `limits` IS PASSED THROUGH, NEVER RE-DERIVED HERE. Re-deriving it would be
     a second authority over one member's plan, on the write path.
+
+    ⭐ Phase One Track C. `import_accepted` fires HERE, once, only on the
+    success path — a refusal (the `except` branch) never reaches it, matching
+    the event's own name: an accepted definition is one that passed
+    validation, not merely one that was attempted. `import_id`/`source_dialect`
+    are optional telemetry passthroughs (see `DefinitionIn`) — absent for any
+    caller that predates this track, present for BuilderSheet's own save path.
     """
     try:
-        return svc.save(user_id, def_id, definition, limits=limits)
+        row = svc.save(user_id, def_id, definition, limits=limits)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    telemetry.log_event(
+        user_id, "import_accepted", import_id=import_id, dialect=source_dialect,
+        def_id=def_id, def_hash=row.get("ast_hash"),
+    )
+    return row
 
 
 def _stamped(row: dict) -> dict:
@@ -248,7 +273,8 @@ def create_definition(body: DefinitionIn,
     def_id = svc.new_def_id()
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition, limits)
+    return _save_or_400(user["id"], def_id, definition, limits,
+                        import_id=body.import_id, source_dialect=body.source_dialect)
 
 
 @router.post("/propose")
@@ -277,6 +303,18 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     rate limit here and not a fifth `entitlements.Limits` axis.
     """
     _charge_propose(str(user["id"]))
+    # ⭐ Phase One Track C. This door is the one place `import_submitted` and
+    # `compile_finished` both belong to the BACKEND: unlike the three paste
+    # dialects (parsed client-side), the plain-language compile happens right
+    # here in one call, so there is no separate client-observable "submit"
+    # moment to instrument. A fresh `import_id` is minted per call (this door
+    # has no earlier client-side submission to correlate with) and handed
+    # back in the response so a subsequent Save can carry it forward into
+    # `import_accepted`.
+    import uuid
+    import_id = str(uuid.uuid4())
+    telemetry.log_event(user["id"], "import_submitted", import_id=import_id,
+                        dialect="plain-language")
     bars = body.bars or []
     # 🔴 RISK-016 (Phase One Track B, 2026-09-04). This USED to raise a raw
     # HTTPException(400) here — the one place on this route that broke its own
@@ -291,15 +329,28 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     # caller, a future surface, a test — rather than a crash.
     if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
         got = len(bars) if isinstance(bars, list) else type(bars).__name__
-        return {"ok": False, "gate": "bars:too-large",
+        telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                            dialect="plain-language", success=False, stage="gate",
+                            gate="bars:too-large")
+        return {"ok": False, "gate": "bars:too-large", "import_id": import_id,
                 "reason": f"bars: at most {MAX_PROPOSE_BARS} bars, got {got}"}
     from api.services import definition_concierge
     #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
     #: is every caller that shipped before scans existed, and spelling
     #: `"indicator"` here would be a second declaration of the default.
     kind = body.kind if body.kind is not None else definition_concierge.INDICATOR_KIND
-    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
-                                        kind=kind)
+    result = definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
+                                          kind=kind)
+    # ⭐ Phase One Track C. `compile_finished` fires on BOTH branches — success
+    # and refusal — because "the translator finished attempting to produce a
+    # tree" is true either way; only `success` distinguishes them. Never logs
+    # `body.prompt` itself (see indicator_telemetry.py's module docstring).
+    telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
+                        dialect="plain-language", success=bool(result.get("ok")),
+                        stage="compile", gate=result.get("gate"))
+    result = dict(result)
+    result["import_id"] = import_id
+    return result
 
 
 @router.get("/library")
@@ -365,7 +416,8 @@ def save_definition(def_id: str, body: DefinitionIn,
         raise HTTPException(status_code=404, detail="Not found")
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition, limits)
+    return _save_or_400(user["id"], def_id, definition, limits,
+                        import_id=body.import_id, source_dialect=body.source_dialect)
 
 
 @router.delete("/{def_id}")

@@ -1459,3 +1459,97 @@ def test_the_alert_lane_and_this_store_agree_on_the_FIRST_revision():
     than imported from it: importing would make a divergence invisible, and the
     two numbers mean the same thing to two different files."""
     assert svc.FIRST_REV == rev.DEFAULT_REV == 1
+
+
+# ─── Phase One Track C — `import_accepted` fires on this router's save door ──
+
+
+@pytest.fixture
+def telemetry_store(store, monkeypatch):
+    """`store` already points `ias`/`rev` at `tmp_path/auth.db`; in production
+    that IS the same physical file `auth_db`/`landing_events` uses (`store`'s
+    own docstring: "the shared C:\\data\\auth.db"). This fixture makes that
+    true in the test too, so `import_accepted` (which writes through
+    `auth_db.get_connection()`) and the definitions save (which writes
+    through `svc`/`ias`) land in ONE isolated file, matching reality.
+    """
+    from api.services import auth_db
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(store / "auth.db"))
+    auth_db.init_db()
+    return store
+
+
+def _telemetry_rows(event: str, user_id: str = USER) -> list[dict]:
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        return [
+            json.loads(r[0]) if r[0] else {}
+            for r in conn.execute(
+                "SELECT props FROM landing_events WHERE visitor_id = ? AND event = ?"
+                " ORDER BY id", (user_id, event))
+        ]
+    finally:
+        conn.close()
+
+
+def test_import_accepted_fires_once_on_a_successful_create(telemetry_store, app):
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": USER, "role": "user", "plan": "premium"}
+    c = TestClient(app)
+    resp = c.post("/api/user-definitions", json={
+        "definition": defn(20), "import_id": "journey-1", "source_dialect": "pine",
+    })
+    assert resp.status_code == 200, resp.text
+    rows = _telemetry_rows("import_accepted")
+    assert len(rows) == 1
+    assert rows[0]["import_id"] == "journey-1"
+    assert rows[0]["dialect"] == "pine"
+    assert rows[0]["def_hash"], "import_accepted must carry the def_hash the save produced"
+
+
+def test_import_accepted_does_not_fire_on_a_store_refusal(telemetry_store, app):
+    """A definition too large for `MAX_DEFINITION_BYTES` is refused with a 400
+    — `import_accepted` must not fire for an attempt that was never accepted."""
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": USER, "role": "user", "plan": "premium"}
+    c = TestClient(app)
+    huge = defn(20, pad=svc.MAX_DEFINITION_BYTES + 1)
+    resp = c.post("/api/user-definitions", json={
+        "definition": huge, "import_id": "journey-2", "source_dialect": "pine",
+    })
+    assert resp.status_code == 400
+    assert _telemetry_rows("import_accepted") == []
+
+
+def test_import_accepted_omits_the_journey_fields_when_the_caller_sends_none(telemetry_store, app):
+    """Every pre-existing caller of this route sends no `import_id`/
+    `source_dialect` — the event must still fire (a definition WAS accepted),
+    just without a joinable import_id."""
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": USER, "role": "user", "plan": "premium"}
+    c = TestClient(app)
+    resp = c.post("/api/user-definitions", json={"definition": defn(20)})
+    assert resp.status_code == 200, resp.text
+    rows = _telemetry_rows("import_accepted")
+    assert len(rows) == 1
+    assert "import_id" not in rows[0]
+    assert "dialect" not in rows[0]
+
+
+def test_import_accepted_fires_again_on_a_subsequent_edit(telemetry_store, app):
+    """PUT (an edit) is a second acceptance event, not a duplicate of the
+    create — each successful save of a NEW version is its own accepted act."""
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": USER, "role": "user", "plan": "premium"}
+    c = TestClient(app)
+    created = c.post("/api/user-definitions", json={"definition": defn(20)})
+    def_id = created.json()["def_id"]
+    edited = c.put(f"/api/user-definitions/{def_id}", json={
+        "definition": defn(30, def_id=def_id), "import_id": "journey-3",
+    })
+    assert edited.status_code == 200, edited.text
+    rows = _telemetry_rows("import_accepted")
+    assert len(rows) == 2
+    assert "import_id" not in rows[0]
+    assert rows[1]["import_id"] == "journey-3"

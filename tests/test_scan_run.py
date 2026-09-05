@@ -27,6 +27,7 @@ from __future__ import annotations
 import ast as pyast
 import contextlib
 import datetime
+import json
 import pathlib
 import re
 import sqlite3
@@ -1420,3 +1421,94 @@ def test_the_CLIENT_pins_are_NOT_VACUOUS__a_planted_disagreement_is_CAUGHT(
     planted.write_text("export const NOTHING = 1" + crlf, encoding="utf-8", newline="")
     with pytest.raises(AssertionError, match="no longer exports"):
         _js_const("RUN_SYMBOL_CAP", r"\d+")
+
+
+# ═══ Phase One Track C — `execution_finished` on the on-demand path ═════════
+#
+# The ONE execution mode with no persisted `scan_coverage` receipt today (see
+# `evaluate_one`'s own "WRITES NOTHING" behaviour, RISK-017's test above) —
+# so this is the one mode this track adds a NEW, lightweight, OBSERVATIONAL
+# `landing_events` row for, fired from `_run_job` after a job reaches its
+# terminal state.
+
+
+@pytest.fixture
+def telemetry_db(tmp_path, monkeypatch):
+    """Isolates `auth_db`/`landing_events` — see `test_user_definitions.py`'s
+    `telemetry_store` fixture for the same pattern and why the ATTRIBUTE, not
+    just the env var, has to move."""
+    from api.services import auth_db
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth_test.db"))
+    auth_db.init_db()
+    return tmp_path
+
+
+def _execution_finished_rows_raw(user_id: str) -> list[dict]:
+    from api.services import auth_db
+    conn = auth_db.get_connection()
+    try:
+        return [
+            json.loads(r[0]) if r[0] else {}
+            for r in conn.execute(
+                "SELECT props FROM landing_events WHERE visitor_id = ? AND event = 'execution_finished'"
+                " ORDER BY id", (user_id,))
+        ]
+    finally:
+        conn.close()
+
+
+def _execution_finished_rows(user_id: str, timeout: float = 2.0) -> list[dict]:
+    """⚠️ `_wait()` returns the instant `job["state"]` turns terminal, which is
+    set INSIDE `_run_job`'s lock — the telemetry write happens on the SAME
+    worker thread but AFTER that lock releases, deliberately (a slow disk
+    write must never sit inside the lock `submit_run` also takes for every
+    new submission). So a caller can observe "done" a hair before the
+    telemetry row lands — real, harmless eventual-consistency in production,
+    and exactly why this poll exists rather than a single immediate read."""
+    deadline = time.monotonic() + timeout
+    while True:
+        rows = _execution_finished_rows_raw(user_id)
+        if rows or time.monotonic() >= deadline:
+            return rows
+        time.sleep(0.005)
+
+
+def test_execution_finished_fires_once_for_a_successful_on_demand_run(
+        store, bars, defs, telemetry_db):
+    out = _run(ALICE, DEF_ID, symbols=["NVDA", "INTC"], tf=TF, as_of=SESSION)
+    assert out["state"] == "done", out
+    rows = _execution_finished_rows(ALICE)
+    assert len(rows) == 1
+    assert rows[0]["mode"] == "on-demand"
+    assert rows[0]["state"] == "done"
+    assert rows[0]["def_id"] == DEF_ID
+    assert rows[0]["tf"] == TF
+
+
+def test_execution_finished_reports_a_REFUSED_run_too_with_its_gate(
+        store, bars, defs, telemetry_db):
+    """A refused on-demand run (bad tf) still reaches a terminal state and
+    still fires `execution_finished` — the event records that execution
+    CONCLUDED, whatever the outcome, matching `compile_finished`'s own
+    both-branches design."""
+    from api.services.screener import scan_run
+    out = _wait(scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA"], tf="5"), ALICE)
+    assert out["state"] == "refused", out
+    rows = _execution_finished_rows(ALICE)
+    assert len(rows) == 1
+    assert rows[0]["state"] == "refused"
+    assert rows[0]["gate"] == "gate:tf"
+
+
+def test_execution_finished_does_not_fire_twice_for_one_job(store, bars, defs, telemetry_db):
+    """`_run_job` only ever runs once per `job_id` (the `state != "queued"`
+    guard refuses a second run of an already-terminal job) — this is the
+    control proving that guarantee also bounds the telemetry fire, without
+    this test needing to fabricate a second `_run_job` call directly."""
+    from api.services.screener import scan_run
+    job = scan_run.submit_run(ALICE, DEF_ID, symbols=["NVDA", "INTC"], tf=TF, as_of=SESSION)
+    _wait(job, ALICE)
+    # A second, direct call against the now-terminal job — exactly what the
+    # top-of-function guard exists to refuse.
+    scan_run._run_job(job)
+    assert len(_execution_finished_rows(ALICE)) == 1

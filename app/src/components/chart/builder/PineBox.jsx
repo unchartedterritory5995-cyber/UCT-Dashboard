@@ -376,7 +376,7 @@ function loadEditor() {
   return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
 }
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -517,7 +517,24 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // and travel unchanged. A member who left the threshold blank gets the column.
     const picked = condition && condition.ok ? condition.formula : active.formula
     onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
-  }, [active, onPick, condition])
+    // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
+    // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
+    // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —
+    // see the STRING FORM note two lines up — and every existing caller
+    // (`StarterLibrary`, today's `ImportBox`) only understands it as
+    // documented today. `onImportTelemetry` is orthogonal: it reports THAT a
+    // pick happened and under which dialect, for a caller (`BuilderSheet`)
+    // that wants to correlate this moment with the eventual save, without
+    // touching what `onPick` itself carries. Fires only here — the same
+    // guarded, deliberate "Apply" action `onPick` fires from — never on a
+    // keystroke, so pasting and revising text repeatedly before applying
+    // logs nothing until the member actually commits to a translation.
+    //
+    // ⛔ READS `report.dialect` DIRECTLY, NOT THE LATER `seen` CONST — `seen`
+    // is declared further down this component's body, and closing over it
+    // here would be a temporal-dead-zone reference at first render.
+    onImportTelemetry?.((report && report.dialect) || 'pine')
+  }, [active, onPick, onImportTelemetry, condition, report])
 
   // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
   //
@@ -1051,6 +1068,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
+  onImportTelemetry = null,
 }) {
   return (
     <PasteBox
@@ -1059,19 +1077,24 @@ export function ImportBox({
       initialSource={initialSource}
       dialect={dialect}
       onSourceChange={onSourceChange}
+      onImportTelemetry={onImportTelemetry}
     />
   )
 }
 
 /** The Pine-only box, byte-identical in behaviour to what it was: no `dialect`
  *  prop means `inspectPine`, the Pine heading and the Pine aria-label. */
-export default function PineBox({ onPick, disabled = false, initialSource = '', onSourceChange = null }) {
+export default function PineBox({
+  onPick, disabled = false, initialSource = '', onSourceChange = null,
+  onImportTelemetry = null,
+}) {
   return (
     <PasteBox
       onPick={onPick}
       disabled={disabled}
       initialSource={initialSource}
       onSourceChange={onSourceChange}
+      onImportTelemetry={onImportTelemetry}
     />
   )
 }
