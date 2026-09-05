@@ -196,6 +196,47 @@ Golden Journeys, data/execution audit) plus every other track (P2/P5/P6) all lan
 one document, section-exact to the required structure. Awaiting owner/ChatGPT review (§21 lists 10 open
 questions).
 
+## Phase One — Track F: DONE (Pine input-parameter fidelity, narrow v1, ACCEPTED)
+
+DEC-006 authorized this track contract-first (an ADR before any mapping work). The full arc, across several
+owner/ChatGPT review cycles:
+
+- **ADR chain**: `TRACK_F_PARAMETER_ADR_V2.md` (raw-source-persistence question resolved: `compute.source`
+  reuse, never a second persisted representation) → `_V2_1.md` (single authority, `__uct_param_<n>` identity,
+  server-side validation chokepoint) → `_V2_2.md` (the owner's correction that ONE Pine input feeding
+  multiple trees is ONE logical parameter, not two; immutable/derived state split; server-side
+  canonicalize-from-`prev` bypass closure) — each revised against direct owner/ChatGPT review, not
+  self-approved.
+- **15-point pre-implementation spike**: `TRACK_F_SPIKE_REPORT_V1.md` — 21/21 tests passing against real
+  `save()`/`alert_user_series` code, not simulated. Found and recorded a real design-assumption failure
+  along the way: the ADR chain's original locator scheme (`{treeIndex, bindingId}`, assuming server-side
+  re-parsing of `compute.source`) does not match this codebase's own "exactly one parser, and it is
+  client-side JS" architecture — corrected to `{treeIndex, astPath}`, a structural path into the
+  already-parsed AST.
+- **Narrow v1 implementation, ACCEPTED (2026-09-05)**: `TRACK_F_V1_IMPLEMENTATION_COMPLETION_REPORT.md`.
+  `input.int`/`input.float` — including the window/length-bound case RISK-013's own motivating fixture
+  needed — now survive as adjustable, server-protected, persisted parameters. A real bug was found and
+  fixed during implementation (`pine.js`'s `foldWindow` silently dropping the parameter tag on every
+  window-bound input, which would have made RISK-013's own motivating case silently ineligible). Verified
+  live in a real browser (isolated sandbox) against the real `07-rsi.pine` fixture: adjusted 14→21, saved,
+  reloaded, reject-not-clamp confirmed on an out-of-range value. Corpus-wide: all 14 translating scripts in
+  the real Pine fixture corpus (100%) gain at least one adjustable parameter, zero change to translation
+  success. 60 new/promoted tests, zero regressions (2323 pre-existing tests re-run, 3 confirmed pre-existing
+  unrelated failures).
+- **Same-day follow-up, ACCEPTED**: reopening an already-saved parameterized definition to keep tuning it,
+  through the existing `PUT /{def_id}`/`BuilderSheet.jsx::openForEdit` door — no new architecture. The door
+  was already wired from the v1 commit; what was missing was proof and a permanent regression. Both landed:
+  a live browser pass (stable `def_id`, version 1→2, immutable `default` preserved across the edit,
+  confirmed via direct database read) and `BuilderSheet.paramReopen.test.jsx` (a real-UI wire-cut test,
+  nothing mocked but `fetch`, driving the full import→save→close→reopen→re-tune→save→reload cycle).
+- **RISK-013 now PARTIALLY CLOSED** (was fully open): closed for `input.int`/`input.float`; open for
+  `input.bool`/`input.string`/`input.source`/`input.timeframe`/`input.symbol`/`input.time`/`input.color`,
+  switch/branch-driving inputs, numeric `options` enums, and bar-displacement (`close[n]`) inputs — each a
+  disclosed, deliberate scope boundary, not a silent gap. **Track F is stopped here** pending a separate
+  future authorization for any further input-type expansion.
+- `VALIDATION_COVERAGE_MAP.md` updated: Save/persistence (edit) raised from 0 to 4 — End-to-End; two new
+  rows added for Pine input-parameter fidelity and reopen/re-tune, both 4 — End-to-End.
+
 ## Not yet started
 
 1. Everything logged in `RISK_REGISTER.md` as "not fixed in Phase Zero" remains exactly that — 25 entries,
@@ -222,6 +263,15 @@ questions).
 - `SCREENER_PRESERVATION_BASELINE.md`, `DATA_EXECUTION_FINDINGS.md`, `TEST_CREDIBILITY_FINDINGS.md`,
   `TELEMETRY_OBSERVABILITY_FINDINGS.md` — the four Track B/C/E synthesis documents, done.
 - `CHATGPT_REVIEW_PACKET_01.md` — the full 21-section synthesis deliverable, done.
+- `TRACK_F_PARAMETER_ADR_V2.md` / `_V2_1.md` / `_V2_2.md` — the Pine input-parameter fidelity ADR chain,
+  each superseded-in-part by the next, ACCEPTED at `_V2_2.md`.
+- `TRACK_F_SPIKE_REPORT_V1.md` — the 15-point pre-implementation spike, 21/21 passing, ACCEPTED.
+- `TRACK_F_V1_IMPLEMENTATION_COMPLETION_REPORT.md` — narrow v1 implementation + the reopen/re-tune
+  follow-up, both ACCEPTED. Done; Track F is stopped pending future authorization.
+- `OWNER_VENDOR_CAPTURE_PACKET_V2.md` / `_V3.md` / `_V3_1.md` — Track A's ambiguity-first vendor capture
+  packet chain, each superseded-in-part by the next, ACCEPTED for owner execution at `_V3_1.md`.
+- `VENDOR_OBSERVATION_SCHEMA_EXTENSION.md` — Track A's observation-schema proposal + the vendor-parity/
+  vendor-observation conflation fix (RISK-018-shaped), done.
 
 ## Benchmark reproduction — DONE (`BENCHMARK_REPRODUCTION.md`)
 

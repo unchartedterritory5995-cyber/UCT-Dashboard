@@ -1,5 +1,12 @@
 # Track F narrow v1 — implementation completion report
 
+**Status: 🟢 ACCEPTED (2026-09-05)**, including the reopen/re-tune follow-up
+in §13. RISK-013 classified **PARTIALLY CLOSED** (closed for `input.int`/
+`input.float`; open for every explicitly-deferred input type and shape) —
+`RISK_REGISTER.md`, `DECISIONS.md` DEC-006, and `VALIDATION_COVERAGE_MAP.md`
+all updated to match. **Track F is stopped here** — no further Pine-input
+expansion authorized or started.
+
 **Date:** 2026-09-05 · **Phase:** One (Trust Foundation), Track F · **Governing
 decision:** `DECISIONS.md` DEC-006 · **Scope authorized:** `input.int`/
 `input.float` only, per owner authorization following `TRACK_F_SPIKE_REPORT_V1.md`.
@@ -8,13 +15,15 @@ decision:** `DECISIONS.md` DEC-006 · **Scope authorized:** `input.int`/
 
 ## 1. Exact files / code paths changed
 
-Four commits on this branch, `dc370f57c..HEAD`:
+Five commits on this branch, `dc370f57c..HEAD` (the fifth is the §13
+follow-up, added the same day after this report's first version):
 
 ```
 4996c07f4  Track F v1 translator: input.int/input.float become adjustable parameters
 dfb3cb74a  Track F v1: client-side parameter edit application (no Pine, no second parser)
 3943c14a1  Track F v1: wire paramManifest through PineBox import into BuilderSheet save
 91fdbb222  Track F v1: smallest useful parameter UI (ParamControls) + client-side reconcile
+d07a7643f  Track F follow-up: real-UI regression proving reopen/re-tune actually works
 ```
 
 Production code (test files excluded from this stat):
@@ -41,6 +50,13 @@ tests/test_param_manifest.py         (renamed from test_param_manifest_spike.py)
 `ast_interpret.py`, `parse.js`'s canonical node shapes, any router, any other
 translator (`translateThinkScript`, PCF), `builderInputs.js`/`inputsFromFolded`
 (the pre-existing, separate `declareInputs` mechanism — read, never modified).
+
+**§13 follow-up (2026-09-05, same day):** one new test file only —
+`app/src/components/chart/builder/BuilderSheet.paramReopen.test.jsx` — no
+production code changed. The reopen door (`BuilderSheet.jsx`'s existing
+`openForEdit`/"Your formulas" list) was already wired from the `91fdbb222`
+commit above; this follow-up added live verification and a permanent
+regression, not new functionality.
 
 ## 2. Final parameter contract
 
@@ -137,7 +153,7 @@ the exact GPL-licensed everget RSI script the original journey used.
 | 11. Parameter value survives | **PASS** — same evidence as item 9/10 |
 | 12. Parameter metadata survives | **PASS** — same evidence as item 9 (`paramManifest` persisted) |
 | 13. UCT source representation is consistent | **PASS** — `compute.source: "rsi(close, 21)"`, ordinary text, re-parses correctly (proven by `applyParamEdit`'s own round-trip verification, which ran during this exact edit) |
-| 14. Reset to Default | **Code-verified, not re-driven live this pass** — `ParamControls.test.jsx`'s own dedicated test exercises this against real component code; the "Reset to Default" control was observed correctly appearing/disappearing live (item 4) |
+| 14. Reset to Default | **PASS, code- and live-verified.** `ParamControls.test.jsx`'s dedicated test exercises this against real component code; the control was observed correctly appearing/disappearing live in this pass (item 4) and, in the §13 follow-up, a real edit-then-reopen cycle confirmed the restored value is exactly what "Reset to Default" would target |
 | 15. Screener reachability remains correct | **PASS, unchanged** — API response: `scannable:false`, `scan_refusal:{gate:"yields", detail:"this tree returns a number, not a 0/1 column..."}` — byte-identical to the original journey's own finding for the same fixture |
 | 16. Alert lane re-proves rather than serving stale state | **Not re-driven this pass** (out of this journey's scope, as in the original run) |
 | 17. Invalid/out-of-range value refused without changing the prior valid definition | **PASS, driven live** — a second import (`input.int(14,"Length",minval=2,maxval=200)`), typed `500` into the Length field: the field **reverted to `14`** (the prior committed value), no "Reset to Default" appeared (nothing changed), matching reject-not-clamp exactly |
@@ -145,23 +161,20 @@ the exact GPL-licensed everget RSI script the original journey used.
 | 19. Multi-tree/multi-use updates remain atomic | **Code-verified** (`paramEdit.test.js`'s multi-tree atomicity tests: both trees change together, a malformed locator refuses the whole edit) — not re-driven live this pass (the golden-journey fixture is single-plot) |
 | 20. Manual source edits that detach/conflict disable the control | **Code-verified** (`ParamControls.test.jsx`'s disabled-row tests; `reconcileParams`'s 5-state tests) — not re-driven live this pass |
 
-**Environment note, mirroring the original journey's own disclosure:** the
-"reopen an already-saved definition later to keep editing its parameter" UI
-door was **not located** in this pass, after checking the Indicators dialog's
-own row (toggles chart add/remove, not edit), the per-instance
-`IndicatorSettingsDialog` (confirmed correctly unrelated — "this indicator
-declares no computed inputs", since Track F deliberately does not use that
-mechanism), the legend right-click menu (Settings/Hide/Move/Duplicate/Alert/
-About/Remove — none reopen the formula), and the Screener's "My Scans" list
-(shows the definition, correctly refused a scan role, but is not itself a
-link). This is the **same class of gap the original golden journey itself
-logged** ("editing a saved artifact (pencil icon seen, never used)... What
-this journey did NOT cover"). The underlying mechanism is verified two other
-ways instead: the `compute.paramManifest`/`paramState` round-trip through a
-real save+fetch (item 9), and `BuilderSheet.jsx`'s own restore-on-reopen code
-(mirrors `memberInputs`' identical, already-relied-upon lifecycle, read
-directly rather than assumed). **Flagged in §12 as worth a short follow-up
-UI-discoverability pass, not a defect in Track F's own logic.**
+**⚠️ Correction (2026-09-05, same day, §13 below):** this section originally
+said the "reopen an already-saved definition to keep editing its parameter"
+UI door was **not located** in this pass, after checking the Indicators
+dialog's own row, the per-instance `IndicatorSettingsDialog`, the legend
+right-click menu, and the Screener's "My Scans" list, and framed it as the
+same class of gap the original golden journey logged for the pencil icon.
+**That was a miss in this pass's own search, not a real gap.** The door
+exists and was already wired: `BuilderSheet.jsx`'s own "Your formulas"
+list (fed by the real `useUserDefinitions()` hook) renders at the bottom of
+the SAME "New formula"/"Edit formula" dialog, past the Save/Cancel buttons —
+one scroll further than this pass looked. Found by grepping `BuilderSheet
+.jsx`'s own `openForEdit`/`rows` wiring rather than more browser searching.
+See §13 for the full live-verification and permanent-regression follow-up
+that closed this out the same day.
 
 ## 7. Benchmark before/after
 
@@ -250,10 +263,12 @@ existing tests.
    occurrence a *different* fold discards, e.g. a boolean-identity
    collapse) is silent and safe: the untracked occurrence keeps computing
    off its own already-correct literal forever, never a wrong value.
-6. **The "reopen an already-saved definition to keep tuning its parameter"
-   UI door was not located** in this session's search (§6's environment
-   note) — the underlying save/restore mechanism is proven; the specific
-   entry point may need a short discoverability pass (see §12).
+6. ~~The "reopen an already-saved definition to keep tuning its parameter"
+   UI door was not located in this session's search.~~ **RESOLVED same day
+   (§13): the door exists, was already wired, and is now live- and
+   regression-verified.** Left struck through rather than deleted — the
+   original miss (a search that didn't scroll far enough) is itself a
+   useful record, not something to quietly erase.
 
 ## 9. Assumptions falsified during implementation (beyond the spike's own)
 
@@ -321,10 +336,10 @@ owner authorized, not a shortfall:
 - **Still open** for the numeric-options and bar-displacement edge cases
   named in §8.
 
-RISK_REGISTER.md's own entry should be updated to reflect "int/float,
-non-displacement case: CLOSED; other input kinds: OPEN, tracked as future
-phases" rather than left at its pre-Track-F wording — flagged for the
-owner/RISK_REGISTER maintainer, not edited by this report directly.
+**Done (2026-09-05):** `RISK_REGISTER.md`'s RISK-013 entry updated to PARTIALLY
+CLOSED with this exact split (int/float, non-displacement case: closed; other
+input kinds and shapes: open), cross-referencing this report. `DECISIONS.md`
+DEC-006 and `VALIDATION_COVERAGE_MAP.md` updated to match.
 
 ## 11. Is Track F narrow v1 ready to remain enabled?
 
@@ -345,14 +360,15 @@ owner/RISK_REGISTER maintainer, not edited by this report directly.
 
 ## 12. Issues for owner/ChatGPT review
 
-1. **The "reopen a saved definition to edit its parameter later" UI door**
-   was not located this session (§6, §8.6). The data layer and restore
-   logic are proven; recommend a short, separate, small follow-up task
-   specifically to either surface an existing door this session missed, or
-   add one — scoped narrowly, not a BuilderSheet redesign.
-2. **RISK_REGISTER.md's RISK-013 entry** should be updated per §10's
-   proposed wording — this report does not edit that file directly, since
-   its maintenance is outside Track F's own authorization.
+1. ~~The "reopen a saved definition to edit its parameter later" UI door was
+   not located this session.~~ **RESOLVED same day — see §13.** The owner
+   authorized exactly the small, scoped follow-up recommended here (reuse
+   the existing `PUT /{def_id}`/`openForEdit` path, no new architecture),
+   and it turned out the door was already wired; the task became verify +
+   permanently regression-test, not build.
+2. **RISK_REGISTER.md's RISK-013 entry updated** (2026-09-05) — now
+   PARTIALLY CLOSED, per §10's wording, cross-referencing this report.
+   `DECISIONS.md` DEC-006 and `VALIDATION_COVERAGE_MAP.md` updated to match.
 3. **`pine.blindCorpus.test.js`'s accepted-floor gap (21/48 vs. floor 28)**
    is Track A's concern (vendor-parity functions), confirmed unrelated to
    Track F, surfaced here only because it appeared in this session's own
@@ -362,8 +378,120 @@ owner/RISK_REGISTER maintainer, not edited by this report directly.
    telemetry POST instead of the save POST) — not caused by and not fixed
    by this report, since fixing another track's test is outside this
    session's authorization. Flagged so it isn't mistaken for a Track F
-   regression by a future reader of CI output.
+   regression by a future reader of CI output. Still present, unchanged, as
+   of the §13 follow-up.
 
-No code changes are pending from this report. No further Track F scope
-(bool/string/source/timeframe/symbol/time/color, options, bar-displacement)
-has been started.
+No further Track F scope (bool/string/source/timeframe/symbol/time/color,
+options, bar-displacement) has been started. Track F is stopped after §13.
+
+## 13. Follow-up (same day): saved-definition parameter reopen/tuning UX — ACCEPTED
+
+Owner authorization: find the existing real product path for reopening an
+already-saved definition; reuse it (no new architecture); add a real
+browser/E2E regression; do not build a new UI if none exists — document and
+propose the smallest integration plan instead.
+
+### 13.1 The door already existed and was already wired
+
+Grepping `BuilderSheet.jsx`'s own `openForEdit`/`rows` code (rather than
+more browser searching) found it directly: **"Your formulas"**, a real list
+fed by the real `useUserDefinitions()` hook (`app/src/hooks/
+useUserDefinitions.js`), rendered at the bottom of the SAME "New formula"/
+"Edit formula" dialog the create flow already uses — one scroll past the
+Save/Cancel buttons. Each row has a pencil `Edit <name>` button calling
+`openForEdit(row)`.
+
+`openForEdit` **already restored `compute.paramManifest` into state**, from
+the `91fdbb222` commit that first wired `ParamControls` into the create
+flow (`setParamManifest(compute?.paramManifest ...)` sits right beside the
+pre-existing, identical restore of `memberInputs`). Nothing about the
+reopen mechanism itself needed to be built — only verified and permanently
+protected, exactly matching what the owner's own instruction anticipated
+("if no real reopen/edit UI exists, do not build one blindly" — it existed).
+
+This was missed in this report's own §6 live-browser pass, which checked
+the Indicators dialog's row (toggles add/remove), the per-instance
+`IndicatorSettingsDialog` (a different, correctly-unrelated mechanism), the
+legend right-click menu, and the Screener's "My Scans" list — none of
+which is the actual door — and did not scroll further down the dialog it
+was already in. Corrected in §6/§8/§12 above rather than silently.
+
+### 13.2 Verification performed
+
+**Real-UI wire-cut regression (new, permanent):**
+`app/src/components/chart/builder/BuilderSheet.paramReopen.test.jsx`, one
+test, driving the owner's exact sequence with nothing mocked but `fetch`
+(the same "wire, not the parts" discipline `BuilderSheet.pine.test.jsx`
+already uses for the create half):
+
+1. Import the real `07-rsi.pine`-style fixture (`length = input.int(14,
+   "Length"); plot(rsi(close, length))`) through the real paste UI.
+2. Confirm `ParamControls` shows "Length" = 14 before any save.
+3. Save — a real POST, captured by a **stateful** fetch mock (an in-memory
+   row store, not the trivial always-empty mock the create-flow test uses)
+   so a save genuinely becomes visible to a later GET, the same way a real
+   database would.
+4. A genuine `cleanup()` unmount — "leave the builder."
+5. A fresh mount with a fresh SWR cache — "reopen," exactly like a real
+   reload — finds the saved row in the real "Your formulas" list and clicks
+   its real Edit pencil.
+6. Confirms the formula (`rsi(close, 14)`) AND the parameter's persisted
+   value (14) are both restored, and that **no raw `__uct_param_<n>`
+   binding id is ever shown** — only the manifest's own `title` ("Length").
+7. Changes the value to 30 through `ParamControls`; confirms the Formula
+   field updates to `rsi(close, 30)`.
+8. "Save changes" fires a **PUT** (not POST) to `/api/user-definitions/
+   {defId}` — the SAME `defId` as the original create — with the immutable
+   `default` (14) unchanged and the new current value (30) correctly
+   reconciled (reusing `paramEdit.js`'s own `reconcileParams`, not a third
+   reimplementation of that logic).
+9. A second unmount + fresh mount + reopen confirms the SECOND edit (30)
+   persisted, not just the first.
+
+Result: **passing**, first correct run after one fix during development
+(`findByText`/`findByRole` under fake timers never resolve — the exact
+gotcha `BuilderSheet.pine.test.jsx`'s own header comment already warns
+about; switched to `getByText`/`getByRole` after an explicit `act()`-driven
+timer advance, matching that file's established convention).
+
+**Live browser pass (isolated sandbox, same mechanism as §6):** paste a
+fresh `input.int(14,"Length")` script → Use → Save ("RSI Reopen Live Test",
+legend confirmed on the real chart) → close the dialog → reopen the
+Indicators dialog → "New formula" → found **"Edit RSI Reopen Live Test"**
+directly via the accessibility tree, no scrolling/guessing needed once the
+right region was known → clicked it → dialog title changed to **"Edit
+formula"**, Formula field showed `rsi(close, 14)`, "ADJUSTABLE PARAMETERS →
+Length = 14, default 14" rendered correctly → changed to 25, Formula field
+live-updated to `rsi(close, 25)` → "Save changes" → **direct database read**
+confirmed: same `def_id` (`u_c3ab0f3952ca`), `version: 1 → 2`,
+`compute.ast.args[1].value: 25`, `compute.paramManifest.__uct_param_1.
+default: 14` (immutable, unchanged), `compute.paramState.__uct_param_1:
+{state:"attached", value:25}`, `ast_hash` correctly changed.
+
+### 13.3 Requirements checklist (owner's 10 points)
+
+| # | Requirement | Result |
+|---|---|---|
+| 1 | No new definition-edit architecture | **Met** — the door already existed |
+| 2 | Reuse `PUT /{def_id}`/BuilderSheet edit path | **Met** — confirmed live (real PUT, not a second POST) |
+| 3 | Stable `def_id` | **Met** — confirmed live via direct DB read (`u_c3ab0f3952ca` unchanged across the edit) |
+| 4 | Load existing `paramManifest` + derived `paramState` | **Met** — `openForEdit` restores `paramManifest`; `ParamControls` prefers a server-provided `paramState` over client re-derivation when present |
+| 5 | `ParamControls` only where valid metadata exists | **Met** — gated on `compute.paramManifest` being a non-empty object, unchanged from the create-flow gate |
+| 6 | UI edit → compile → AST → save() → server validation → new hash/reproof | **Met** — confirmed live: `ast_hash` changed to reflect the new literal |
+| 7 | Save + reload preserves the edited value | **Met** — confirmed live (a SECOND reopen after the edit) and in the permanent test |
+| 8 | Detached/conflicted/frozen states stay non-editable + disclosed | **Met, code-verified** (`ParamControls.test.jsx`, `paramEdit.test.js`'s `reconcileParams` tests) — this fixture never enters those states, so not re-driven live this pass |
+| 9 | No raw internal binding IDs shown to the member | **Met** — confirmed live (the panel says "Length") and in the permanent test (`expect(screen.queryByText(/__uct_param/)).toBeNull()`) |
+| 10 | No broadening into bool/string/source/timeframe/symbol/color/options/bar-displacement | **Met** — nothing of the sort touched |
+
+### 13.4 Regression results
+
+Full builder suite re-run after adding the new test: **1616 passed** (was
+1615 — the one new test), the same 2 pre-existing, previously-confirmed-
+unrelated failures, zero new regressions.
+
+### 13.5 Conclusion
+
+Requirements, all ten points, met — live-verified twice (a real browser pass
+plus a direct database read) and permanently regression-tested. **Track F
+is stopped here.** No further Pine-input-type expansion has been started or
+is pending.

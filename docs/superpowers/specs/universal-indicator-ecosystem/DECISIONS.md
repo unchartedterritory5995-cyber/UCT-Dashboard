@@ -264,7 +264,21 @@ the ADR-first requirement and the explicit "re-run static/execution-requirement 
 **Tests needed:** Defined in the ADR; at minimum, per-type-safety-tier fixtures and a regression proving an
 unsupported case discloses rather than fabricates.
 
-**Date:** 2026-09-04
+**Status update (2026-09-05):** The ADR chain landed and was accepted (`TRACK_F_PARAMETER_ADR_V2.md` →
+`_V2_1.md` → `_V2_2.md`), a 15-point pre-implementation spike passed 21/21 and was accepted
+(`TRACK_F_SPIKE_REPORT_V1.md`), and the owner then authorized narrow v1 implementation. **v1 is now
+implemented, live-verified, and ACCEPTED**: `input.int`/`input.float` — including the window/length-bound
+case (`length`) that RISK-013's own motivating fixture needed — are adjustable, server-protected
+(canonicalize-from-`prev`, reject-not-clamp), and persisted, verified via a live browser rerun of
+`07-rsi.pine` plus a direct database read. A same-day follow-up additionally verified and permanently
+regression-tested reopening an already-saved definition to keep tuning its parameter, through the existing
+`PUT /{def_id}`/`openForEdit` door (no new architecture). Full evidence:
+`TRACK_F_V1_IMPLEMENTATION_COMPLETION_REPORT.md`. **Still not started, by deliberate scope**: `input.bool`/
+`input.string`/`input.source`/`input.timeframe`/`input.symbol`/`input.time`/`input.color`, switch/branch-
+driving inputs, numeric `options` enums, bar-displacement (`close[n]`) inputs. Track F is stopped here
+pending a separate future authorization for any of those.
+
+**Date:** 2026-09-04 (v1 implementation accepted 2026-09-05)
 
 ---
 
