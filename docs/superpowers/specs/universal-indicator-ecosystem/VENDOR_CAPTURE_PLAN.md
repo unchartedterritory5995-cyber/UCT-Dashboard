@@ -191,6 +191,109 @@ README's own three-way rule (explained / unexplained-bug-until-proven-otherwise 
 transcription error) before anything is changed — never an immediate semantics
 edit, per the owner's explicit instruction.
 
+## Tooling & CI verification (2026-09-04)
+
+Verified end-to-end against the current, still-empty observation store, so the
+plumbing is proven sound BEFORE it carries any real evidence — proving the pipe
+works is different from having anything to pour through it:
+
+- `python tools/vendor_truth.py --check` → **exit 2**, correctly refuses on the
+  empty store with the exact "this is NOT a pass" message the README promises.
+- `python tools/vendor_truth.py --coverage` → **exit 2**, reports 0 held in all
+  three shapes (`stateless`/`seeded`/`stateful`).
+- `python tools/vendor_truth.py --selfcheck` → **exit 0**, and it genuinely
+  discriminates: an agreeing planted value reports `MATCH`, a value deliberately
+  offset by +1.0 reports `DELTA`. This is the positive control the README
+  requires ("a harness that cannot fail on a planted defect cannot pass on a
+  real one") and it is not decorative — confirmed by reading its actual output,
+  not just its exit code.
+- `python -m pytest tests/test_vendor_truth.py -v` → **15/15 passed**, including
+  the harness-discriminates test and the ATR-accepted-ruling test.
+- `load_observations()` (`tools/vendor_truth.py:104-106`) returns `[]` when
+  `tests/fixtures/vendor/observations/` doesn't exist on disk — **the directory
+  is not required to exist for the tool to behave correctly**, so no placeholder
+  `.gitkeep` was added; doing so would be a cosmetic no-op, not a fix for
+  anything actually broken.
+- **CI wiring: none exists.** Searched `.github/workflows/` (the only file is
+  `optionsflow-guard.yml`, an unrelated partner-file guard) and every YAML/TOML/
+  JSON config in the repo — nothing invokes `vendor_truth.py`, and there is no
+  general pytest CI workflow in this repository at all today for `vendor_truth`
+  to be missing FROM. Adding vendor-truth-specific CI where no general test CI
+  exists would be an odd, isolated addition outside this track's judgment to
+  make well — reported as a finding, not fixed, per the owner's own instruction
+  to report rather than guess when authority is unclear.
+
+## Full prioritized vendor-parity function list (all 64, beyond Tranche 1)
+
+Extracted programmatically from `closedTable.json`'s `functions` section (64
+entries, verified by `len()`, not retyped). Ranked by the owner's own stated
+criteria — known ambiguities first, then core/high-use indicators with no
+vendor observation, then internally-cross-checked-but-never-vendor-observed
+entries, then everything else — with `seeded` weighted above `stateless`
+because a seeding error decays and hides exactly where a careless read would
+land (the vendor README's own reasoning, not an assumption added here).
+
+**A structural finding that reshapes the `stateful` row of `--coverage`:**
+none of the 64 functions is actually `stateful`-shaped in the README's sense (a
+non-decaying LATCHED decision, its own named example is `supertrend`).
+`closedTable.json::_functions_excluded.supertrend` states this is a **deliberate
+grammar limitation** — Pine's own reference implementations agree it needs
+unbounded self-reference (a ratcheting band + a flip against its own prior
+value) that this AST cannot express; every declared function with internal
+state (`ema`, `rma`, `atr`, `adx`, `vwap`, `obvN`, `cumFrom`) is a *decaying
+seed*, not a *latching decision*. **So the `stateful` shape's 0-coverage is not
+"uncaptured," it's "inapplicable until a new sealed stateful primitive is
+declared" — an engine-design decision outside Track A's authority, not a
+vendor-observation gap this track can close.** Reported here so nobody spends a
+future tranche looking for a stateful vendor capture that cannot exist yet.
+
+### Tier 1 — known ambiguities (`divergences.json`), unresolved or under-evidenced
+
+| Function | Shape | Row | Why it leads |
+|---|---|---|---|
+| `ema` / `rma` | seeded | `nan-restarts-the-smoother` (suspected, no observation ever), `smoother-seeds-with-sma-of-first-window` (only spec-probe-refuted) | The manifest's own words: "the highest-leverage unmeasured decision in the engine." Feeds `rsi`, `atr`, `adx`, `macd` — an error here propagates into every one of them. Tranche 1. |
+| `atr` | seeded | `atr-tr-starts-at-bar-1` (status `accepted` but evidenced only by a spec probe, not an observation — see the retention-style finding at the top of this doc) | A genuine prior member-facing incident; feeds position sizing. Tranche 1. |
+| `mod` | stateless | `mod-takes-the-sign-of-the-dividend` (suspected) | Cheap (one constant-literal plot), closes an open suspicion outright. Tranche 1. |
+| `hma` | stateless | `hull-half-window-floors` (confirmed only against Hull's *published formula*, never a live plot) | Already the subject of one near-miss (`fractionalWindowAdvice` shipped wrong guidance until `ba78a1e27`). Tranche 1. |
+
+### Tier 2 — core/high-use indicators, self-consistent or definition-tested only, zero vendor observation
+
+| Function | Shape | Why |
+|---|---|---|
+| `rsi` | seeded (own Wilder recurrence, own seed — NOT literally the shared `rma` binding, so it is an independent seed question, not merely inherited from Tier 1) | The owner's own named example; the single most recognizable oscillator in the product. Tranche 1. |
+| `adx` / `plusDI` / `minusDI` | seeded, double-smoothed | ADX has a genuine, well-known industry history of cross-platform disagreement (DM calculation and smoothing conventions vary by vendor) — this is a real-world risk class, not a hypothetical one, and it has never been vendor-observed here. Recommend for Tranche 2. |
+| `macd` | seeded (two EMAs + a signal EMA) | The single most recognized indicator after RSI; inherits the Tier-1 EMA seed question a second, compounded way (EMA of an EMA difference). Recommend Tranche 2. |
+| `stoch` | stateless (raw %K only in this engine — no mid-pipeline rounding at the AST layer, confirmed by reading `ast_interpret.py::_fn_stoch` directly) | Textbook formula, low live risk, but zero observation exists — cheap to add. Tranche 1 (bundled). |
+| `cci`, `mfi`, `williamsR` | stateless per-window | All three have known industry-wide convention variants (CCI's mean-deviation choice, MFI's tie-handling on unchanged typical price, Williams %R's sign/range display convention). Stateless means no decay-hiding risk, but also zero observation exists. Recommend Tranche 2. |
+
+### Tier 3 — bar-reading / session / channel functions, medium priority
+
+| Function | Shape | Why |
+|---|---|---|
+| `aroonUp` / `aroonDown` | stateless, bar-index-derived | `_aroon_col`'s own docstring asserts an unverified algebraic identity against Pine's `ta.highestbars` convention — never checked against a live `ta.aroon` plot. Tranche 1 (bundled). |
+| `vwap` / `avwap` / `cumFrom` | live, session-anchored accumulation | Session-boundary conventions (regular vs. extended hours) are a classic real-world VWAP gotcha. **Harder to capture than the rest of this tranche** — needs a live session straddling a real market open, not an after-hours-friendly synthetic read. Defer to a dedicated, market-hours-timed capture rather than force it into Tranche 1/2. |
+| `donchianUpper` / `Middle` / `Lower` | stateless | A rolling max/min channel is about as unambiguous as arithmetic gets. Low priority. |
+| `pivothigh` / `pivotlow` | forward-declaring, extensively self-tested (tie-plateau corpus counts) | The manifest explicitly claims to match "what TradingView draws" for a strict-extreme pivot, but this has never been checked against a live chart. Medium — nice-to-have confirmation of an existing strong internal claim, not an open suspicion. |
+| `obvN` | stateless-per-window bar reader | Flat-day (zero price change) contribution convention is a real, if narrow, cross-vendor OBV gotcha. Medium-low. |
+| `ichimoku*` (5 functions) | mixed, one forward-reaching (`ichimokuChikou`) | Genuinely complex; Pine has no single `ta.ichimoku` built-in (members typically paste a hand-composed script), so capture needs a full custom script, not a one-liner — more expensive per observation than anything above. Defer to a later, dedicated tranche. |
+| `barssince` / `valuewhen` | bounded-state | The `n`-vs-`-1` sentinel difference from TC2000's `SinceTrue` is already a DECLARED, deliberate divergence, not a suspicion — a TC2000 read is a nice cross-reference for that specific document, not an open question needing resolution. Low priority for TradingView; noted for the TC2000 tranche. |
+| `highest` / `lowest` / `highestbars` / `lowestbars` | stateless / tie-break convention | Already unusually well self-tested (a real 579-bar corpus with a counted tie rate, per `_functions_arg_extreme`) — a live read would be confirmatory, not urgent. Low priority. |
+
+### Tier 4 — near-zero vendor-parity risk (standard-library math / already-settled by design)
+
+`abs`, `sign`, `sin`, `cos`, `tan`, `atan`, `sinh`, `exp`, `ln`, `log10`,
+`sqrt`, `pow`, `min`, `max`, `idiv`, `na`, `nz`, `change`, `crossOver`,
+`crossUnder`, `sma`, `wma`, `sum`, `dev`, `stdev`, `round`. These are either
+literal IEEE math-library calls with no platform-specific convention to
+diverge on, or textbook rolling-window formulas already serving as the
+*calibration* functions `vendor_spec_probes.py`'s own docstring cites as
+agreeing to ~1e-13 precision (i.e., they are the control group, not a
+suspect). `round`'s cross-language half-rounding difference is already an
+explicit, tested design decision (matches Pine's away-from-zero convention),
+not an open question. `accum` is an engine-internal composition primitive with
+no directly-callable Pine equivalent to observe against. Not worth a capture
+slot ahead of anything in Tiers 1-3.
+
 ## thinkorswim / TC2000 — prepared now, captured later
 
 Per the owner's ruling: no placeholder files under `tests/fixtures/vendor/
