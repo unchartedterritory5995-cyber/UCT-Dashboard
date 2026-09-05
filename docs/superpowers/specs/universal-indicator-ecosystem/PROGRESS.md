@@ -4,7 +4,9 @@
 This file tracks live status only — it will go stale; trust it less than the two files above, and less
 than the repo itself.
 
-**Current phase:** Phase Zero — Deep Discovery, Baseline & Validation (reconciled scope per DEC-001).
+**Current phase:** Phase One — Trust Foundation (authorized 2026-09-04 by external owner/ChatGPT review of
+`CHATGPT_REVIEW_PACKET_01.md`; see DEC-003 and `PHASE_ONE_PLAN.md`). Phase Zero (below) is complete and
+preserved as history — read `PHASE_ONE_PLAN.md` first for what's active now.
 **Workspace:** worktree `C:\Users\Patrick\uct-dashboard\.claude\worktrees\indicator-ecosystem`, branch
 `worktree-indicator-ecosystem`, based on `origin/master` @ `12cf5c8d3` (2026-09-04). Created via the
 harness's native `EnterWorktree` tool — do not also `git worktree add` a second one for this program;
