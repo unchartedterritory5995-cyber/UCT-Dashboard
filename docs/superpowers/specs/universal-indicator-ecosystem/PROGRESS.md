@@ -54,6 +54,28 @@ not; only the single shared production key (used by live member-facing features)
 genuinely blocked on the owner creating a dedicated credential — see the ANTHROPIC CREDENTIAL CREATION
 REQUIRED note in-session.
 
+**2026-09-05 (same session, later) — adversarial evidence audit, then Track A raw-artifact upgrade.**
+The owner ordered a full adversarial re-verification of the above (`PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`),
+which correctly downgraded the Track A block above from "capture complete" to "SEMANTIC RULINGS CAPTURED,
+RAW VENDOR ARTIFACT INCOMPLETE" — the two `phase==24` rows agreed with each other, but rested on a Table-view
+transcription (`get_page_text`), not an independently-inspectable file, and needed a loosened 5e-3 tolerance
+because Table view rounds to 2 decimals. Six bounded corrections were then applied (false 28/48 benchmark
+figure corrected everywhere current without rewriting frozen history; Track F's "29 parameters" claim made
+reproducible via a new test rather than re-asserted; Track A downgraded as above; DEC-008 reframed from
+"credential doesn't exist" to "exists, Track E wants a separate one" — DEC-012; the AI-door production drift
+documented; all committed and pushed). Later the same day, the owner reported TradingView Premium had gone
+live, removing the CSV-export paywall that caused the original gap. Re-ran the identical packet script
+against the same authenticated session, exported the real chart-data CSV via the browser's own "Download
+data" (the Blob was intercepted client-side and moved out of the page into `Get-Clipboard` via a real
+trusted-gesture click, after a script-only `fetch`/`window.open` attempt was correctly blocked by
+TradingView's CSP and abandoned rather than probed further), and re-derived all four rulings from this fresh,
+full-precision, 12-row artifact as unbiased evidence per explicit instruction — all four matched the original
+findings exactly. Ingested via `--force`, raw CSV preserved verbatim under `tests/fixtures/vendor/raw_captures/`,
+account restored to its exact pre-capture pixel state. RISK-018a, `PHASE_ONE_PLAN.md`, and
+`VALIDATION_COVERAGE_MAP.md` updated to reflect RAW VENDOR ARTIFACT COMPLETE. See `RISK_REGISTER.md`
+RISK-018a for the full two-pass evidence trail. Not authorized by this capture: implementing the four
+functions, or Track E, or Review Packet #2.
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
