@@ -974,9 +974,11 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
                 "source": "user", "unresolved": True}
 
     out = []
+    hidden_themes = []      # {slug,name} of hidden owner themes -> the editor re-add list
     for theme in themes:
         slug = _ts_slug(theme.get("name", ""))
         if slug in hidden:
+            hidden_themes.append({"slug": slug, "name": theme.get("name", "")})
             continue
         rem = removed.get(slug)
         add = added.get(slug)
@@ -1004,4 +1006,5 @@ def apply_theme_set(result: dict, set_def: dict) -> dict:
     new = {k: v for k, v in result.items() if k != "themes"}
     new["themes"] = out
     new["theme_set"] = {"id": set_def.get("id"), "name": set_def.get("name")}
+    new["hidden_themes"] = hidden_themes
     return new

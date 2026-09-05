@@ -792,3 +792,150 @@
     align-items: center;
   }
 }
+
+
+/* ── Personal theme SETS UI (flag-gated; absent for default users) ──────────── */
+.setBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+.setPicker { position: relative; }
+.setPickerBtn {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setCaret { opacity: 0.7; font-size: 9px; margin-left: 2px; }
+.setMenuBackdrop { position: fixed; inset: 0; z-index: 40; }
+.setMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 41;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+}
+.setMenu button {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.setMenu button:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuActive { color: var(--tt-accent, var(--ut-gold)) !important; font-weight: 700; }
+.setMenuSep { height: 1px; background: var(--tt-divider, var(--border)); margin: 4px 2px; }
+.setMenuDanger { color: var(--color-danger, #f87171) !important; }
+.setEditBtn, .setAddBtn {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setEditBtn:hover, .setAddBtn:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setEditBtnActive {
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: var(--accent);
+}
+.hiddenBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+.hiddenLabel { font-size: calc(9px * var(--tt-font-scale, 1)); color: var(--tt-text, var(--text-muted)); text-transform: uppercase; letter-spacing: 0.6px; }
+.hiddenChip {
+  font-family: var(--font-sans);
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  padding: 2px 7px;
+  border: 1px dashed var(--tt-divider, var(--border));
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.hiddenChip:hover { border-style: solid; color: var(--tt-accent, var(--ut-gold)); }
+
+/* Custom-theme badge + edit affordances on rows */
+.customBadge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 1px 4px;
+  margin-left: 6px;
+  border-radius: 3px;
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.14));
+}
+.editRemove {
+  border: none;
+  background: transparent;
+  color: var(--color-danger, #f87171);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+.editRemove:hover { opacity: 1; background: rgba(248, 113, 113, 0.14); }
+.addStockRow { cursor: default; }
+.addStockInput {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 3px 8px;
+  border: 1px dashed var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+}
+.addStockInput:focus { border-style: solid; border-color: var(--tt-accent, var(--ut-gold)); }
+.addStockGo {
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 3px 9px;
+  margin-left: 6px;
+  border: none;
+  border-radius: 4px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+}

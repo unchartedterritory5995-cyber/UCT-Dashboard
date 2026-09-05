@@ -3,7 +3,7 @@ import ThemeTrackerPage from '../../ThemeTrackerPage'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 
-export default function ThemesWidget({ color, opts }) {
+export default function ThemesWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
   // Scoped context: routes the wrapped ThemeTrackerPage's useChartsSym calls
   // into THIS widget's color group, not Group A.
@@ -20,7 +20,8 @@ export default function ThemesWidget({ color, opts }) {
 
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
-      <ThemeTrackerPage embedded activeRef={activeWatchlistRef} widgetKey={widgetIdRef.current} />
+      <ThemeTrackerPage embedded activeRef={activeWatchlistRef} widgetKey={widgetIdRef.current}
+        opts={opts} onOptsChange={onOptsChange} />
     </ChartsSymContext.Provider>
   )
 }
