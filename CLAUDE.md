@@ -76,6 +76,14 @@ Settings + Admin (admin only) pinned to bottom of sidebar.
 
 ## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below
 
+**Standing precedence rule, general to this whole file, not just this table:
+current executable code, runtime behavior, and passing tests outrank any prose
+claim here, including this one, whenever the two disagree.** This file goes
+stale between edits — the Screener door-chain correction elsewhere in this file
+(RISK-015, Phase One, 2026-09-04) and everything in this table are both
+instances of the same lesson: verify against the running code before trusting
+a sentence, even the repo's own onboarding doc.
+
 **This file described these as live features. They are not.** Source: the
 2026-08-09 reachability audit (`.superpowers/sdd/audit/reachability-report.md`),
 which resolved every import form — static, `import type`, bare side-effect,
@@ -110,11 +118,15 @@ the second-authority-over-one-value defect that has caused three separate outage
 **Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
 them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
 `add_job` in `api/main.py` **both** assert *"E-4 has not wired a surface to these
-results."* **It is wired** — `/screener` → `SavedScreensPanel` → `ScanResults` →
+results."* **It is wired** — `Screener.jsx` → `ScannerShell.jsx` →
+`pages/screener/ScreensManager.jsx` → `components/screener/ScanResults.jsx` →
 `CoverageLine`, reading `GET /api/scans/definition-results`, with
 `components/screener/reachable.test.js` + `Screener.scanmount.test.jsx` as the
 standing rails. The same false sentence in two places is why it survived: each
-looked like corroboration of the other.
+looked like corroboration of the other. ⚰️ This itself said `SavedScreensPanel`
+— that component was deleted 2026-08-22 (screener wave 4) and replaced by
+`ScreensManager.jsx`; verified live against current code 2026-09-04 (Phase One,
+RISK-015) rather than re-typed from memory.
 
 ✅ **THE FILES ARE GONE NOW** — this said *"the files are still there"*, and a
 separate pass deleted them the same day (`d26cee0c` · `ed53f9b6` · `24ee463b`,
@@ -1424,9 +1436,13 @@ timezone=_ET)` — **05:00 ET**, `max_instances=1`. Read the two constants from
 
 ### The door a member actually walks through
 
-`/screener` → `pages/Screener.jsx` → `components/screener/SavedScreensPanel.jsx` →
-`ScanResults.jsx` → `CoverageLine.jsx`, reading **`GET /api/scans/definition-results`**
-(`api/routers/scan_results.py`, mounted in `main.py`).
+`/screener` → `pages/Screener.jsx` → `pages/screener/shell/ScannerShell.jsx` →
+`pages/screener/ScreensManager.jsx` → `components/screener/ScanResults.jsx` →
+`CoverageLine.jsx`, reading **`GET /api/scans/definition-results`**
+(`api/routers/scan_results.py`, mounted in `main.py`). ⚰️ This said
+`SavedScreensPanel.jsx` — deleted 2026-08-22, replaced by `ScreensManager.jsx`;
+same stale-name incident as the "E-4 has not wired a surface" false claim two
+sections up, corrected the same day for the same reason (RISK-015, Phase One).
 
 ⭐ **`CoverageLine` is the idiom worth copying anywhere a result set can be short:**
 FOUR counts — *evaluated · answered · dropped · not computable* — because *"we could
