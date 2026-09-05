@@ -96,6 +96,8 @@ def test_brand_new_position_uses_zero_baseline(tmp_path, monkeypatch):
     rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert len(rows) == 1
     assert rows[0]["firstOI"] == 0 and rows[0]["delta"] == 27800 and rows[0]["state"] == "NEW"
+    # carry populates on NEW rows too: 27800 / 30000 = 93% (% of volume that became OI)
+    assert rows[0]["carry"] == 93
 
 
 def test_etf_and_index_sources_excluded(tmp_path, monkeypatch):

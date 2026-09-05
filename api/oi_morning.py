@@ -380,8 +380,10 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
         e["volTotal"] = vt
         if vt > 0 and _OI_VS_VOL > 0 and e["delta"] > vt * _OI_VS_VOL:
             continue                          # ΔOI > volume ⇒ impossible (prior=0 artifact)
-        # carry only meaningful with a real prior-day baseline (not NEW) + known volume
-        c = round(e["delta"] / vt * 100) if (vt > 0 and e["firstOI"] > 0) else None
+        # carry = ΔOI / session volume = "what % of the session's volume became open
+        # interest" — meaningful for a NEW row too (its whole ΔOI is the build), not
+        # only BUILDING rows. The ΔOI≤volume gate above already bounds it ≤100%.
+        c = round(e["delta"] / vt * 100) if vt > 0 else None
         if c is not None and c > 100:         # rounding/timing edge → clamp to 100
             c = 100
         e["carry"] = c
