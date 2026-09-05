@@ -80,11 +80,11 @@
    override it to the neutral text color (out-specifies .periodTabActive). */
 .periodTabActive:hover { color: var(--tt-accent, var(--ut-gold)); }
 
-/* Today basis toggle (Close | Open) — a compact segmented control that rides the period bar. */
+/* Today basis switch (Close | Open) — a compact segmented control that lives in the Today
+   column header (doubles the returns-header row, so it adds no header height). */
 .basisToggle {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 4px;
   overflow: hidden;
@@ -96,7 +96,7 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border: none;
   background: transparent;
   color: var(--tt-text, var(--text-muted));
@@ -284,6 +284,21 @@
   line-height: 1;
   opacity: 0.75;
   transition: opacity 0.12s ease;
+}
+
+/* Today column header = the Close|Open basis switch + the sort caret. Sized to its content
+   and right-aligned; it overflows left into the empty header space so it needs NO extra
+   header height and stays aligned above the % values. */
+.headerBasis {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.headerSortCaret {
+  padding: 0 1px;
+  min-width: 0;
 }
 
 /* Scrollable rows area */

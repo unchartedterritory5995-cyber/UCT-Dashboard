@@ -757,24 +757,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
-          {/* Today basis toggle: vs previous Close (incl. overnight gap) or vs today's Open
-              (gap excluded). Only shown for Today, where it has meaning. */}
-          {activeTab === 'Today' && (
-            <span className={styles.basisToggle} role="group" aria-label="Today basis">
-              <button
-                type="button"
-                className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}
-                onClick={() => setTodayBasis('close')}
-                title="Measure today from the previous close (includes the overnight gap)"
-              >Close</button>
-              <button
-                type="button"
-                className={`${styles.basisBtn} ${todayBasis === 'open' ? styles.basisBtnActive : ''}`}
-                onClick={() => setTodayBasis('open')}
-                title="Measure today from the market open (excludes the overnight gap)"
-              >Open</button>
-            </span>
-          )}
           <span className={styles.periodBarSpacer} />
           {/* → Journal: freeze the visible ranking into a note (payload capture). */}
           {filteredThemes.length > 0 && (
@@ -802,15 +784,45 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <span className={styles.thMark} aria-hidden="true">◆</span>
             <span className={styles.colLabel}>Theme</span>
           </span>
-          <button
-            type="button"
-            className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
-            onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-            title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
-          >
-            {PERIOD_LABELS[activeKey]}
-            <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
-          </button>
+          {activeTab === 'Today' ? (
+            // Today column header doubles as the Close|Open basis switch (no extra header
+            // height). The sort caret stays as its own small button beside it.
+            <span className={styles.headerBasis}>
+              <span className={styles.basisToggle} role="group" aria-label="Today basis">
+                <button
+                  type="button"
+                  className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}
+                  onClick={() => setTodayBasis('close')}
+                  title="Measure today from the previous close (includes the overnight gap)"
+                >Close</button>
+                <button
+                  type="button"
+                  className={`${styles.basisBtn} ${todayBasis === 'open' ? styles.basisBtnActive : ''}`}
+                  onClick={() => setTodayBasis('open')}
+                  title="Measure today from the market open (excludes the overnight gap)"
+                >Open</button>
+              </span>
+              <button
+                type="button"
+                className={`${styles.sortBtn} ${styles.headerSortCaret}`}
+                onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
+                aria-label="Toggle sort direction"
+              >
+                <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
+              onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+              title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
+            >
+              {PERIOD_LABELS[activeKey]}
+              <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
+            </button>
+          )}
         </div>
 
         <div className={styles.tableBody}>
