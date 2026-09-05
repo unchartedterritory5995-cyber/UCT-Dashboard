@@ -187,6 +187,68 @@ unrelated flake elsewhere in the same file (a whitespace/timing issue, still pre
 unaffected either way — see `PHASE_ONE_PLAN.md`). Fixed by scoping the test's selector to
 the actual endpoint (`r.url.includes('/api/user-definitions')`).
 
+## Content-safety hardening (2026-09-04, owner review) — EVENT_SCHEMAS is the primary defense
+
+The first pass of this track shipped a 200-character length ceiling on `props` values as its
+only structural guard beyond caller discipline. Owner review correctly rejected that as
+insufficient: **a pasted script, a plain-language prompt, or a sensitive fragment is routinely
+under 200 characters**, so a length-only gate would wave through exactly the content it exists
+to stop.
+
+`api/services/indicator_telemetry.py::EVENT_SCHEMAS` is now the primary defense — an explicit,
+named `(property → allowed types)` allowlist for **each of the five events separately**:
+
+| Event | Allowed properties (beyond the shared correlation set) |
+|---|---|
+| `import_submitted` | *(correlation fields only — see below)* |
+| `compile_finished` | `success` (bool), `stage` (str), `gate` (str), `source_length`/`node_count`/`latency_ms` (int/float) |
+| `import_accepted` | `source_length`/`node_count` (int/float) |
+| `delivery_configured` | `surface`, `destination`, `indicator`, `sym`, `tf` (str) |
+| `execution_finished` | `mode`, `tf`, `as_of`, `session`, `state`, `gate` (str), `universe` (str/int), `latency_ms` (int/float) |
+
+Every event additionally allows the shared correlation set — `import_id`, `def_id`, `def_hash`,
+`dialect`, `door` (all `str`) — the "which journey, which formula, which door" axis, never
+content.
+
+**`_prop_violation(event, key, value)` is the one function both enforcement paths ask** —
+this repo's own most-repeated defect is a second authority over one value, so there is exactly
+one place that decides what a property may be:
+
+- **`sanitize_props()`** (used by `log_event()`, i.e. every server-side call site) is
+  *lenient*: anything `_prop_violation` flags is silently **dropped**, matching `log_event`'s
+  pre-existing "a telemetry failure must never break the product action it observes" contract.
+  The event still writes, with only its allowed fields.
+- **`EventBody._props_must_be_allowed_for_this_event`** (the client-facing HTTP door,
+  `api/routers/indicator_telemetry.py`) is *strict*: the same violation **rejects the whole
+  request** (422), appropriate for untrusted network input where surfacing a bug early beats
+  silently losing data.
+
+**Three independent rules, not just one**, closing the specific bypasses named in review:
+
+1. **Name allowlist** — a key not in the event's schema is refused regardless of its value's
+   length, type, or shape. An 11-character `{"prompt": "buy signal"}` is refused exactly as a
+   2,000-character one would be, because `prompt` is not a name either schema declares.
+2. **Scalar-only** — a list or dict value is *never* allowed, under any key, on any event. This
+   closes the "wrap the real content in a container under an otherwise-allowed key" bypass
+   (`{"gate": {"note": "<the actual prompt>"}}`, or a list) that a flat per-key check alone
+   would miss.
+3. **Type fidelity** — a value must match its schema's declared Python type(s) exactly; `bool`
+   is treated as distinct from `int`/`float` despite Python's own subclassing (`_type_ok`),
+   so a numeric-only field cannot silently accept `True`/`False`.
+
+**The 200-character cap survives as defense-in-depth only** (`_MAX_PROP_STRING_LEN`), for an
+*allowed* field that somehow arrives implausibly long — it is deliberately no longer the first
+or only line of defense, per the owner's explicit requirement.
+
+**Tests** (`tests/test_indicator_telemetry.py::TestEventSchemas` + new `TestClientRouter`
+cases): every documented field for every event round-trips; an unlisted name is dropped
+regardless of length (both a short and a long planted value); list/dict-wrapped content under
+an allowed key is refused at four different nesting shapes; a bool cannot pass as a numeric
+field; `log_event()` and `sanitize_props()` agree end-to-end; and the client router's strict
+(422) path is exercised for the same short-unlisted-name and nested-container cases. The
+allowlist's load-bearing-ness was verified non-vacuous by monkeypatching `_prop_violation` to
+always allow and confirming a previously-refused short unlisted field then survives.
+
 ## Reconstructing a full member journey
 
 **Case 1 — a paste door, end to end** (the fully-joined case):

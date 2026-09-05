@@ -23,15 +23,32 @@ already trusts.
 the owner-approved five-event minimum. See `TRACK_C_TELEMETRY.md` for exactly
 where each one fires and why.
 
-## What this module will NOT log
+## What this module will NOT log — ENFORCED, not just documented
 
 ⛔ NEVER the raw pasted script/thinkScript/PCF text, and NEVER uploaded
-screenshot bytes. `props` carries shape (dialect, success/failure, error
+screenshot bytes, plain-language prompts, formula source, or a free-form
+frontend state blob. `props` carries shape (dialect, success/failure, error
 class, source length) — enough to reconstruct a journey and diagnose a
 failure class, never enough to reconstruct WHAT a member typed. This mirrors
 `CURRENT_ARCHITECTURE.md`'s own standing decision that raw source text is
 transient and never persisted for the definitions store itself; telemetry
 must not quietly become the place that persists it instead.
+
+⛔⛔ 2026-09-04 HARDENING: a length ceiling alone is NOT this guarantee — a
+pasted script, prompt, or sensitive fragment is routinely under 200
+characters, so a length-only gate would wave through exactly the content it
+exists to stop. **`EVENT_SCHEMAS` below is the PRIMARY defense**: each of the
+five events has an explicit, named allowlist of (property, type). Anything
+not on that list — under any name, of any length — is dropped or rejected
+before it ever reaches storage. The 200-char cap survives as defense-in-depth
+ONLY (`_MAX_PROP_STRING_LEN`), for an allowed field that somehow arrives
+absurdly long; it is deliberately not the first or only line of defense.
+
+⛔⛔ A LIST OR DICT VALUE IS NEVER ALLOWED, REGARDLESS OF KEY. Free-form
+content wrapped in a container (`{"gate": {"note": "<the actual prompt>"}}`,
+or a list) is exactly the bypass a flat per-key check would miss — `_prop_
+violation` refuses any non-scalar value outright, on every event, with no
+per-field opt-in.
 
 ## De-duplication
 
@@ -78,6 +95,112 @@ EVENTS = frozenset({
 #: unvalidated definition masquerade as a real one in the journey data.
 CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished"})
 
+#: Correlation/identity fields every event may carry — the "which journey,
+#: which formula, which door" axis. Never content: an import_id is a
+#: client-minted UUID, a def_id/def_hash a stored definition's own id/hash,
+#: dialect/door short enum-like strings ("pine", "plain-language", ...).
+_CORRELATION_FIELDS: dict = {
+    "import_id": (str,),
+    "def_id": (str,),
+    "def_hash": (str,),
+    "dialect": (str,),
+    "door": (str,),
+}
+
+#: ⭐⭐ THE PRIMARY DEFENSE. One explicit allowlist per event — name -> the
+#: Python type(s) a value must be. Anything not listed here for an event is
+#: refused (dropped server-side, rejected at the client door), no matter how
+#: short the value or how it's nested. Extending an event's shape means
+#: adding a name here, in the open, next to its type — never widening a
+#: generic passthrough.
+EVENT_SCHEMAS: dict = {
+    "import_submitted": {
+        **_CORRELATION_FIELDS,
+    },
+    "compile_finished": {
+        **_CORRELATION_FIELDS,
+        "success": (bool,),
+        "stage": (str,),
+        "gate": (str,),  # the unsupported-construct / refusal code, e.g. "bars:too-large"
+        "source_length": (int, float),
+        "node_count": (int, float),
+        "latency_ms": (int, float),
+    },
+    "import_accepted": {
+        **_CORRELATION_FIELDS,
+        "source_length": (int, float),
+        "node_count": (int, float),
+    },
+    "delivery_configured": {
+        **_CORRELATION_FIELDS,
+        "surface": (str,),        # e.g. "alert", "chart-widget" (future)
+        "destination": (str,),
+        "indicator": (str,),      # a user-address like "u_abc123.value" — never a formula
+        "sym": (str,),
+        "tf": (str,),
+    },
+    "execution_finished": {
+        **_CORRELATION_FIELDS,
+        "mode": (str,),
+        "tf": (str,),
+        "as_of": (str,),
+        "session": (str,),
+        "universe": (str, int),
+        "state": (str,),
+        "gate": (str,),
+        "latency_ms": (int, float),
+    },
+}
+
+#: Defense-in-depth ONLY — see the module docstring's 2026-09-04 hardening
+#: note. The allowlist above is what actually keeps content out; this just
+#: bounds an allowed field that arrives implausibly long.
+_MAX_PROP_STRING_LEN = 200
+
+
+def _type_ok(value: Any, allowed: tuple) -> bool:
+    """`bool` is a subclass of `int` in Python — without this, a field typed
+    `(int, float)` would silently accept `True`/`False`, and the reverse
+    (a `(bool,)` field accepting a bare `0`/`1`) would be just as wrong. This
+    treats the two as never interchangeable."""
+    if isinstance(value, bool):
+        return bool in allowed
+    return isinstance(value, allowed)
+
+
+def _prop_violation(event: str, key: str, value: Any) -> Optional[str]:
+    """The ONE place both the lenient (server-side, drop) and strict
+    (client-facing, reject) enforcement ask the same question, so the two
+    can never disagree about what is allowed. Returns None iff `(key,
+    value)` is a legal property of `event`; otherwise a short reason.
+    """
+    types = EVENT_SCHEMAS.get(event, {}).get(key)
+    if types is None:
+        return f"{key!r} is not an allowed property for event {event!r}"
+    if isinstance(value, (list, dict)):
+        return f"{key!r} must be a scalar, not a {type(value).__name__}"
+    if not _type_ok(value, types):
+        allowed_names = "/".join(t.__name__ for t in types)
+        return f"{key!r} must be {allowed_names}, got {type(value).__name__}"
+    if isinstance(value, str) and len(value) > _MAX_PROP_STRING_LEN:
+        return f"{key!r} exceeds {_MAX_PROP_STRING_LEN} chars"
+    return None
+
+
+def sanitize_props(event: str, props: Optional[dict]) -> dict:
+    """Lenient enforcement: drop anything `_prop_violation` flags, keep the
+    rest. Never raises — matches `log_event`'s own "a telemetry failure must
+    never break the product action it observes" contract. Returns a NEW
+    dict; never mutates the input.
+    """
+    out: dict[str, Any] = {}
+    for key, value in (props or {}).items():
+        if value is None:
+            continue
+        if _prop_violation(event, key, value) is None:
+            out[key] = value
+    return out
+
 
 def _already_logged(conn, user_id: str, event: str, import_id: str) -> bool:
     """Best-effort de-dup lookup. Never raises — a lookup failure must not
@@ -109,15 +232,25 @@ def log_event(user_id: Any, event: str, *, import_id: Optional[str] = None,
         log.warning("[indicator-telemetry] refused unknown event %r", event)
         return False
     uid = str(user_id)
-    props: dict[str, Any] = dict(extra)
+    raw_props: dict[str, Any] = dict(extra)
     if import_id is not None:
-        props["import_id"] = import_id
+        raw_props["import_id"] = import_id
     if dialect is not None:
-        props["dialect"] = dialect
+        raw_props["dialect"] = dialect
     if def_id is not None:
-        props["def_id"] = def_id
+        raw_props["def_id"] = def_id
     if def_hash is not None:
-        props["def_hash"] = def_hash
+        raw_props["def_hash"] = def_hash
+    # ⭐ Every field — named kwarg or **extra alike — passes through the SAME
+    # allowlist as the client-facing door. A caller cannot smuggle content
+    # through `dialect=`/`def_id=` any more than through props: sanitize_props
+    # sees the fully-merged dict and knows nothing about which arguments were
+    # named vs. free-form.
+    props = sanitize_props(event, raw_props)
+    dropped = set(k for k, v in raw_props.items() if v is not None) - set(props.keys())
+    if dropped:
+        log.warning("[indicator-telemetry] dropped disallowed propert%s for %s: %s",
+                    "y" if len(dropped) == 1 else "ies", event, sorted(dropped))
     try:
         conn = get_connection()
     except Exception:  # noqa: BLE001
