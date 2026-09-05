@@ -106,6 +106,66 @@ def test_the_report_leads_with_its_DENOMINATOR(tmp_path, monkeypatch):
     assert "ran     : 1 observations, 1 compared values" in out.getvalue()
 
 
+def test_a_SYNTHETIC_INPUT_field_is_forward_compatible_and_does_not_break_check(tmp_path, monkeypatch):
+    """⭐ Track A schema-extension PROPOSAL, tested rather than merely asserted.
+
+    An observation whose computation runs over a bar_index-derived synthetic
+    series (e.g. the 2026-09 Pine-ambiguity oracle: ta.rising/ta.bbw/
+    ta.percentrank/ta.median, none of which read real price for their
+    disputed-semantics check) still needs `market.bars` populated with
+    whatever REAL chart was actually open, per the README's own "an
+    observation carries the vendor's own bars" rule -- but the values that
+    actually drove the compared result are NOT those bars. Overloading
+    `market.bars` with fabricated numbers pretending to be OHLCV would be
+    exactly the "plausible number is worse than no number" failure this
+    directory exists to prevent, applied to the bars field itself.
+
+    Proposed (NOT implemented — `vendor_truth.py` reads observations via
+    plain `.get()`, so this is additive by construction, verified here
+    rather than assumed): an optional sibling `input` object —
+    `{"kind": "synthetic" | "market", "formula": "<generating expression>",
+    "valuesAtProbe": {...}}` — that makes synthetic-vs-market unambiguous
+    without touching `market.bars`'s existing meaning at all. This test
+    proves an observation carrying that extra field loads and checks
+    exactly as one without it — `load_observations`/`check()` read only the
+    keys they already know about, so a future consumer of `input` can be
+    added without a migration and a store that doesn't have it yet keeps
+    working."""
+    obs_dir = tmp_path / "observations"
+    obs_dir.mkdir()
+    bars = [{"t": 20260100 + i, "o": 10.0 + i, "h": 10.0 + i, "l": 10.0 + i,
+             "c": 10.0 + i, "v": 100} for i in range(1, 31)]
+    ast = {"type": "call", "name": "sma",
+           "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 5}]}
+    truth = vt.evaluate({"engine": {"ast": ast},
+                         "market": {"bars": bars, "timeframe": "1D"}})[9]
+    obs = {
+        "id": "synthetic-input-field-probe", "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.sma(close, 5))", "plot": "plot0"},
+        "engine": {"formula": "sma(close, 5)", "ast": ast},
+        # `market.bars` stays the REAL chart's bars — untouched, never fabricated —
+        # exactly per the README's rule, even though this observation's own
+        # computed value doesn't depend on them (it does here, but the point of
+        # this test is that the PRESENCE of the new field changes nothing).
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        # PROPOSED new field, additive only:
+        "input": {
+            "kind": "synthetic",
+            "formula": "phase = bar_index % 25; raw = phase==24 ? 6.0 : ...",
+            "valuesAtProbe": {"phase": 24, "raw": 6.0, "raw[1]": 3.0,
+                               "raw[2]": 5.0, "raw[3]": 1.0, "raw[4]": 9.0},
+        },
+        "vendor": {"readDecimals": 6, "values": {str(bars[9]["t"]): round(truth, 6)}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py",
+                       "when": "2026-09-05"},
+    }
+    (obs_dir / "synthetic.json").write_text(json.dumps(obs), encoding="utf-8")
+    monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+    out = io.StringIO()
+    assert vt.check(out=out) == 0, out.getvalue()
+    assert "ran     : 1 observations, 1 compared values" in out.getvalue()
+
+
 def test_an_observation_WITHOUT_PROVENANCE_is_refused(tmp_path, monkeypatch):
     """A vendor number with no 'who read this, off what, when' is indistinguishable
     from one somebody invented — and the whole value of the directory is that the

@@ -1,5 +1,17 @@
 # Owner Vendor Capture Packet V2 — TradingView, ambiguity-first
 
+**🔴 SUPERSEDED 2026-09-05 — use `OWNER_VENDOR_CAPTURE_PACKET_V3.md`. Do not run
+this V2 script.** External review found the candidate formulas below did not
+give the owner enough to verify locally: `ta.median`'s candidates leaned on
+another disputed vendor built-in (`ta.percentile_nearest_rank`) as a reference
+instead of plain arithmetic, and `ta.percentrank`'s second candidate was only
+described in prose, never plotted as its own line, leaving the exact expected
+number implicit. V3 plots both candidates explicitly for all four ambiguities,
+computed by arithmetic alone, and ships with a companion local self-check
+(`verify_oracle_ambiguity_v3.py`) proving every candidate pair actually differs
+— run and its output committed — before being sent to the owner. Kept below,
+unedited, as the historical record V1→V2's own convention already established.
+
 **Supersedes `OWNER_VENDOR_CAPTURE_PACKET.md` (V1). Do not use V1 — its steps
 depended on "the 5th bar from the start of history," which is not reproducible
 across accounts/history lengths. Do not perform V1's steps.**

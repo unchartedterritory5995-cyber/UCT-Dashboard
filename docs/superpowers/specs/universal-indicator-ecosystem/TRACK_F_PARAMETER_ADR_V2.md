@@ -1,10 +1,15 @@
 # ADR v2: Pine input-parameter fidelity — the raw-source conflict resolved
 
-**Status:** 🟡 **PROPOSED — design only, for owner review. No implementation in this
-ADR or alongside it.** Supersedes `2026-09-04-pine-input-parameter-fidelity-adr.md`
-(kept verbatim as a historical record, now marked superseded at its top). Per
-DEC-006, this is still the contract that must be accepted or revised before Track F
-does any broad implementation work.
+**Status:** 🟡 **APPROVED IN PRINCIPLE, PARTIALLY SUPERSEDED 2026-09-05 by
+owner/ChatGPT review — see `TRACK_F_PARAMETER_ADR_V2_1.md`.** The core direction
+below (no raw source persisted, `compute.source` reused, closed/literal AST,
+input.int/input.float only, reject-not-clamp, §6's traced reference-model safety)
+is APPROVED. **One design gap remained: §3.1 below still described a separate
+"override blob" as a second place a parameter's current value could live,
+alongside the `let`-bound value inside `compute.source`.** V2.1 closes that gap —
+`compute.source` alone is authoritative for current value; there is no override
+blob. Read V2.1 alongside this document; it is a delta, not a rewrite, and does
+not repeat what's still correct here.
 
 **Date:** 2026-09-05 · **Phase:** One (Trust Foundation), Track F · **Governing
 decision:** `DECISIONS.md` DEC-006 · **Originating defect:** RISK-013.
