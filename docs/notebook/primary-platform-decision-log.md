@@ -125,6 +125,8 @@ Full `api/services/journal_two/` suite re-run after this slice: clean (0 new fai
 
 **Not yet done:** deploy; production verification; the final Wave 0 certification report.
 
+**Pre-certification reconciliation:** `origin/master` had moved 18 commits since the Pre-Wave-0 reconciliation (scanner-trace instrumentation add+revert, Live Massive Ask Accumulation, theme-tracker "From Open" toggle, S7 durable-notifications/read-state/duplicate-predicate-guard, delisted-ticker pruning fix) — confirmed zero file overlap with `journal_two`/`journal-2-0`/Notebook via `diff --stat` before merging. Merged cleanly, no conflicts. Re-ran the notebook-scoped backend subset post-merge: 1824 passed, 0 failures (the known 26 disk-space-driven failures excluded by file, not by outcome). No Wave-0 assumption required re-verification.
+
 ---
 
 ### 2026-09-05 — North star narrows from "primary notebook" to "financial research system of record"
