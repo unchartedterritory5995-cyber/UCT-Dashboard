@@ -278,6 +278,14 @@ def prune(keep_days: int = None) -> int:
         return cur.rowcount
 
 
+def latest_snap_date():
+    """Most recent snapshot date (YYYY-MM-DD) or None. The OI Update card uses it to
+    pin its flow window to the session the ΔOI measures (OCC OI lags one session)."""
+    with closing(sqlite3.connect(DB_PATH, timeout=15)) as c:
+        r = c.execute("SELECT MAX(snap_date) FROM oi_massive_snapshots").fetchone()
+        return r[0] if r and r[0] else None
+
+
 def get_history(contract_key: str, days: int = 30):
     with closing(sqlite3.connect(DB_PATH, timeout=15)) as c:
         return [{"date": r[0], "oi": r[1]} for r in c.execute(

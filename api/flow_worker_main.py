@@ -18,6 +18,9 @@ flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is wa
 so an edit to them alone won't deploy. This header edit is the trigger for the
 2026-09-04 oi_massive full-chain baseline fix (store the whole fetched chain + prune +
 per-contract prior ΔOI, so the card stops reading total OI as an overnight build).
+(2026-09-04 follow-up, same trigger:) pin the card's flow window to the session the ΔOI
+measures + fetch CARRY% volume for that session, so premium/volume/ΔOI align at any run
+hour and carry lands ≤100% instead of 3292%.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

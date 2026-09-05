@@ -221,6 +221,24 @@ def _oi_deltas(keys):
     return _oms.get_deltas(keys)
 
 
+def _latest_oi_snap():
+    """Latest OI snapshot date (YYYY-MM-DD) or None. Used to pin the flow window to
+    the session the ΔOI measures. Never raises (the card must render regardless)."""
+    try:
+        from api import oi_massive_snapshots as _oms
+        return _oms.latest_snap_date()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _iso_to_date(s):
+    try:
+        y, m, d = [int(x) for x in str(s).split("-")[:3]]
+        return date(y, m, d)
+    except (ValueError, TypeError):
+        return None
+
+
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
 def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                min_premium: float = 0.0, sources: tuple = ("stocks",)):
@@ -240,6 +258,19 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
             list(sources)).fetchall()
         dated = sorted((r[0] for r in drows if r[0]),
                        key=lambda s: _parse_mdy(s) or date.min)
+        # Pin the flow window to the session the ΔOI actually measures. OCC OI is a
+        # next-morning figure, so the latest snapshot (date S) holds session-(S-1)'s
+        # EOD OI, and ΔOI = the build during the flow session STRICTLY BEFORE S. Keep
+        # only flow dates before S so the premium/volume shown belong to that same
+        # session — otherwise a preview run intraday/after-hours pairs today's flow
+        # with yesterday's OI build (premium looks tiny, carry blows past 100%). The
+        # scheduled 08:00 ET pre-open run already lands here; this makes every run-time
+        # align. No snapshot yet → fall back to the raw last-N sessions.
+        _snap = _iso_to_date(_latest_oi_snap())
+        if _snap:
+            _aligned = [d for d in dated if (_parse_mdy(d) or date.min) < _snap]
+            if _aligned:
+                dated = _aligned
         window = dated[-days:] if days > 0 else dated
         if not window:
             return [], []
@@ -326,15 +357,24 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
     out.sort(key=lambda x: x["delta"], reverse=True)
     out = out[:top_n]
 
-    # Total VOLUME over the ΔOI window (Massive daily agg) for the displayed top-N
-    # only → CARRY% = ΔOI / volume ("how much of the volume stuck as open interest").
-    # Volume is summed over the SAME days the ΔOI spans (d_prior→d_last) so carry is
-    # period-matched — dividing a multi-day ΔOI by one day's volume gave carry >100%.
+    # CARRY% = ΔOI / the flow SESSION's total contract volume ("how much of the
+    # session's volume stuck as open interest"). The volume is the Massive daily agg
+    # for the pinned flow session (window[-1]) — NOT the snapshot-date range: the ΔOI
+    # measures that session's OI build (OCC lags a day), so dividing by the snapshot
+    # day's volume gave carry >100% (e.g. NOK 3292%). Period-matched here, carry lands
+    # ≤100% and the VOLUME column matches UW's "Prev Vol".
+    _sess = _mdy_to_iso(window[-1]) if window else ""
     for e in out:
-        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], d_prior, d_last)
+        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], None, _sess) if _sess else 0
         e["volTotal"] = vt
         # carry only meaningful with a real prior-day baseline (not NEW) + known volume
-        e["carry"] = round(e["delta"] / vt * 100) if (vt > 0 and e["firstOI"] > 0) else None
+        c = round(e["delta"] / vt * 100) if (vt > 0 and e["firstOI"] > 0) else None
+        # OI cannot grow more than the session traded: >100% is a period-mismatch (a
+        # gap-day contract whose ΔOI spans several sessions) or thin agg — clamp the
+        # near-100 rounding edge, suppress the clearly-bad rather than show nonsense.
+        if c is not None and c > 100:
+            c = 100 if c <= 110 else None
+        e["carry"] = c
     return out, window
 
 

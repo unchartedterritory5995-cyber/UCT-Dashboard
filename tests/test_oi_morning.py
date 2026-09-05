@@ -1,8 +1,17 @@
 """Tests for the Morning OI Update card (api/oi_morning.py)."""
 import sqlite3
 
+import pytest
+
 import api.oi_morning as oim
 from api import oi_snapshots
+
+
+@pytest.fixture(autouse=True)
+def _no_snap_pin(monkeypatch):
+    """Default: no OI snapshot present → flow-window pinning is a no-op, and nothing
+    touches the real /data/oi_massive.db. Tests that exercise pinning override it."""
+    monkeypatch.setattr(oim, "_latest_oi_snap", lambda: None)
 
 
 def _seed_flow(path, rows):
@@ -134,3 +143,49 @@ def test_render_returns_png(tmp_path, monkeypatch):
     rows, window = oim.build_rows(days=1, top_n=10, min_delta=500)
     assert oim.render_card(rows, window)[:8] == b"\x89PNG\r\n\x1a\n"
     assert oim.render_card([], ["8/21/2026"])[:8] == b"\x89PNG\r\n\x1a\n"   # empty renders too
+
+
+def test_flow_window_pinned_to_session_before_snapshot(tmp_path, monkeypatch):
+    """The flow window drops any session on/after the latest snapshot date, because
+    the ΔOI measures the build during the session BEFORE it (OCC lags a day). A
+    preview run after the flow session must still pair that session's flow with its
+    own OI build, not the next day's."""
+    db = tmp_path / "flow.db"
+    _seed_flow(str(db), [
+        _row("AAA", "SWEEP", "CALL", 100, _FUT, 500000, 1000, 1000, dt="9/3/2026"),
+        _row("BBB", "SWEEP", "CALL", 50, _FUT, 500000, 1000, 1000, dt="9/4/2026"),  # excluded
+    ])
+    monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
+    monkeypatch.setattr(oim, "_latest_oi_snap", lambda: "2026-09-04")   # snapshot = 9/4
+    kA = oi_snapshots.make_key("AAA", "C", 100, _FUT)
+    kB = oi_snapshots.make_key("BBB", "C", 50, _FUT)
+    seen = {}
+    def _deltas(keys):
+        seen["keys"] = list(keys)
+        return ({kA: (1000, 11000)}, "2026-09-04", "2026-09-03")
+    monkeypatch.setattr(oim, "_oi_deltas", _deltas)
+    monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 20000)
+    rows, window = oim.build_rows(days=1, top_n=10, min_delta=500)
+    assert window == ["9/3/2026"]                 # 9/4 dropped (== snapshot date)
+    assert kB not in seen["keys"]                 # the 9/4 contract never enters the join
+    assert [r["sym"] for r in rows] == ["AAA"]
+
+
+def test_carry_over_100_is_clamped_then_suppressed(tmp_path, monkeypatch):
+    """Carry can't exceed 100% (OI can't grow more than the session traded). A small
+    rounding overshoot clamps to 100; a clearly-impossible value is suppressed."""
+    db = tmp_path / "flow.db"
+    _seed_flow(str(db), [
+        _row("CLMP", "SWEEP", "CALL", 100, _FUT, 500000, 1000, 1000),   # ΔOI 10500 / vol 10000 = 105% → 100
+        _row("BADX", "SWEEP", "CALL", 20, _FUT, 500000, 1000, 1000),    # ΔOI 90000 / vol 10000 = 900% → None
+    ])
+    monkeypatch.setattr(oim, "_flow_db_path", lambda: str(db))
+    kC = oi_snapshots.make_key("CLMP", "C", 100, _FUT)
+    kX = oi_snapshots.make_key("BADX", "C", 20, _FUT)
+    monkeypatch.setattr(oim, "_oi_deltas",
+                        lambda keys: ({kC: (1000, 11500), kX: (1000, 91000)}, "2026-08-22", "2026-08-21"))
+    monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 10000)
+    rows, _ = oim.build_rows(days=1, top_n=10, min_delta=500)
+    by = {r["sym"]: r for r in rows}
+    assert by["CLMP"]["carry"] == 100      # 105% clamped
+    assert by["BADX"]["carry"] is None     # 900% suppressed
