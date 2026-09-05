@@ -2698,18 +2698,28 @@ def _incr_prepare(today: str):
             _alert_cache_day = today
 
 
-def _incr_classify(r):
+def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
     """Cached _row_to_alert. Reuse the classification only when the row is
     byte-unchanged since last seen (hash of its column values); re-classify on any
     change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
-    pollute the cache. `r` is a sqlite3.Row."""
+    pollute the cache. `r` is a sqlite3.Row.
+
+    ⚠️ The per-contract SESSION aggregates (agg_ask_premium/agg_ask_volume, from the
+    ask ledgers) are NOT columns on the row — they accrue across the day as more
+    prints land — so they MUST be part of the cache fingerprint. Without them the
+    Alpha LEAPS / Ask Accumulation tiers (which grade the aggregate, not the print)
+    could never fire in the incremental path, and a row cached as "not a build" early
+    in the session would never reclassify once the aggregate crossed the floor. This
+    was the live-feed blocker that kept the PPTA build off /live-massive even after
+    the ledger fix (incremental_scan is ON in prod)."""
     rid = r["id"]
-    h = hash(tuple(r))
+    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2)))
     ent = _alert_cache.get(rid)
     if ent is not None and ent[0] == h:
         cached = ent[1]
         return dict(cached) if cached is not None else None
-    fresh = _row_to_alert(dict(r))
+    fresh = _row_to_alert(dict(r), agg_ask_premium=agg_ask_premium,
+                          agg_ask_volume=agg_ask_volume)
     _alert_cache[rid] = (h, fresh)
     return dict(fresh) if fresh is not None else None
 
@@ -2899,10 +2909,11 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     for _i, r in enumerate(rows):
         if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
-        a = (_incr_classify(r) if _incremental
-             else _row_to_alert(dict(r),
-                                agg_ask_premium=_ask_prem_ledger.get(r["id"], 0.0),
-                                agg_ask_volume=_ask_vol_ledger.get(r["id"], 0.0)))
+        _r_ap = _ask_prem_ledger.get(r["id"], 0.0)
+        _r_av = _ask_vol_ledger.get(r["id"], 0.0)
+        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av)
+             if _incremental
+             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av))
         if a is None:
             skipped_unclassified += 1
             continue

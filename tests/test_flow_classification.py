@@ -523,6 +523,33 @@ def test_row_to_alert_still_drops_deep_otm_lottery(monkeypatch):
     assert a is None
 
 
+# ── Incremental path threads the aggregate (the LIVE-feed blocker) ──────────
+# incremental_scan is ON in prod: the tape routes through _incr_classify, which
+# cached _row_to_alert WITHOUT the ledgers AND keyed the cache on row bytes only.
+# So ask_accum/alpha_leaps could never fire live, and a row cached as "not a build"
+# early would never reclassify as its contract aggregate accrued. Both are fixed.
+
+def test_incr_classify_threads_aggregate(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    m._incr_alert_cache_clear()
+    a = m._incr_classify(_ppta_full_row(id=701),
+                         agg_ask_premium=1_210_952, agg_ask_volume=7277)
+    assert a is not None and a["_tierKey"] == "ask_accum"
+    assert a["aggAskPremium"] == 1_210_952
+
+
+def test_incr_classify_reclassifies_when_aggregate_crosses_floor(monkeypatch):
+    # Same row bytes, aggregate accrues across the session: must NOT serve the
+    # stale "under floor" classification once the build clears $1M.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    m._incr_alert_cache_clear()
+    row = _ppta_full_row(id=702)
+    early = m._incr_classify(row, agg_ask_premium=500_000, agg_ask_volume=7277)
+    assert early is None or early.get("_tierKey") != "ask_accum"   # under floor → dropped
+    later = m._incr_classify(row, agg_ask_premium=1_210_952, agg_ask_volume=7277)
+    assert later is not None and later["_tierKey"] == "ask_accum"  # cache reclassified
+
+
 def test_alpha_gold_beats_ask_accum(monkeypatch):
     # A $1M+ single ASK print (<180 DTE) is still Alpha Gold — Ask Accumulation
     # runs only AFTER Alpha declines the row.
