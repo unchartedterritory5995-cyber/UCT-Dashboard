@@ -1,7 +1,12 @@
 # ChatGPT Review Packet #2 — Phase One Trust Foundation, Checkpoint
 
 **Worktree:** `C:\Users\Patrick\uct-dashboard\.claude\worktrees\indicator-ecosystem`, branch
-`worktree-indicator-ecosystem`, HEAD `cb68bb367`, 2026-09-05.
+`worktree-indicator-ecosystem`, HEAD `cb68bb367` **at packet-generation time** — this file was
+itself then committed as `9973fe5bc`, one commit later than the HEAD it names, since a commit
+cannot name its own future hash. This note added 2026-09-05 per owner/ChatGPT review (Decision
+8 of the Phase Two authorization) so the discrepancy reads as expected provenance, not a
+recovery inconsistency; git history is unedited — `cb68bb367` remains the true parent of
+`9973fe5bc`.
 **Scope:** This packet covers **Phase One** (authorized by `CHATGPT_REVIEW_PACKET_01.md`'s
 review and `DECISIONS.md` DEC-003) — Tracks A through F, run to their current checkpoint. It
 does not re-derive Packet #1's architecture excavation; that packet's findings stand except

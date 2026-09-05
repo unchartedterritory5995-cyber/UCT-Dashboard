@@ -550,3 +550,144 @@ relies on is already recorded, with its own evidence trail, in
 `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §10.
 
 **Date:** 2026-09-05
+
+---
+
+## DEC-013 — Phase One accepted; Phase Two authorized as "Standing Validation + Vendor Parity + Limited Human QA," not feature expansion
+
+**Decision:** Owner/ChatGPT review of `CHATGPT_REVIEW_PACKET_02.md` **accepts Phase One** —
+Tracks B, C, D, E, and narrow-v1 F as complete at their stated scope; Track A Tranche 1A as
+complete for vendor-SEMANTIC truth, with the standing distinction preserved verbatim: **VENDOR
+SEMANTICS CAPTURED != UCT VENDOR PARITY VERIFIED** (still 0 parity-comparable observations).
+The program now enters **Phase Two — Standing Validation + Vendor Parity + Limited Human QA**,
+explicitly NOT a feature-expansion phase. Full sequencing and per-item detail live in the new
+`PHASE_TWO_PLAN.md`; this entry records the AUTHORIZATION and its boundaries, which is what
+must survive a future session crash even if the plan doc's own prose drifts.
+
+**The nine numbered sub-decisions, verbatim intent (full text in the owner's review message,
+quoted in `PHASE_TWO_PLAN.md`'s own preamble rather than duplicated twice):**
+
+1. **Human QA:** modified Path (a) — automate Golden Journeys #1–3 FIRST (a short, bounded
+   tranche, not a research project), then begin **LIMITED, ADVERSARIAL** human QA immediately
+   after. NOT broad human acceptance testing. Readiness classification:
+   **READY FOR LIMITED, ADVERSARIAL HUMAN QA**, not READY FOR BROAD HUMAN ACCEPTANCE TESTING.
+2. **Automate Journeys #1–3** (Pine, thinkScript, TC2000/PCF) into durable, deterministic,
+   isolated-environment automated regressions, preserving their real product paths (no shallow
+   unit-test substitution for a green badge). Then produce
+   `HUMAN_TESTING_READINESS_REPORT.md` from real evidence.
+3. **Vendor parity is the next trust priority, not parser-acceptance growth.** A Vendor Parity
+   Tranche 2 with TWO lanes: **Lane A** — real TradingView-vs-UCT parity-comparable
+   observations for ALREADY-SHIPPED core functions, ranked by actual corpus frequency, product
+   importance, historical semantic-risk, statefulness/smoothing complexity, and
+   chart/screen/alert exposure (list derived from repo/corpus evidence, not asserted). **Lane
+   B** — implementation of the four Track A semantics-resolved functions
+   (`ta.rising`/`ta.median`/`ta.percentrank`/`ta.bbw`) is now AUTHORIZED, provided each lands
+   with its captured TradingView raw artifact as the golden oracle (parity-comparable from
+   day one, not merely another self-consistency test). No other previously-excluded functions
+   are authorized merely because these four are.
+4. **RISK-004 (21/48, zero assisted-edit uplift) stays OPEN, not the first target.** After
+   Journey automation + the initial vendor-parity tranche begin, perform a bounded diagnostic
+   DECOMPOSITION of the 27 failing blind-corpus scripts by failure category (unsupported
+   function/syntax, parser limitation, parameter limitation, execution-policy limitation, data
+   limitation, translator semantic uncertainty, assisted-edit mechanism defect, or correctly
+   refused) BEFORE deciding what to build. Do not optimize a headline percentage blind to the
+   failure distribution.
+5. **Track E residual (RISK-026) gets ONE narrow hardening slice, not a giant AI-safety
+   project.** Objective: an unknown SINGLE-WORD named concept/indicator UCT cannot ground must
+   refuse, not silently substitute. Research before coding (grammar/context around named
+   references, existing aliases, false-positive risk against ordinary English, whether
+   grounding can be checked deterministically) is REQUIRED. No second-model verification
+   architecture is authorized. The `unresolved` self-report field remains defense-in-depth,
+   never proof of semantic correctness.
+6. **Track F stays frozen** at `input.int`/`input.float`. No broadening to
+   bool/string/source/timeframe/symbol/color/etc. until human-QA + telemetry + corpus evidence
+   says which type matters most.
+7. **Screener-coverage clarification required before Phase Two coding begins** — resolve
+   whether `VALIDATION_COVERAGE_MAP.md`'s "Screener execution — 0 Exists (unverified)" row
+   genuinely contradicts Track D's VERIFIED HEALTHY, or measures a different dimension
+   (scheduler/coverage health vs. semantic correctness of a specific AST's live-universe
+   result). Document the real answer; do not paper over a real contradiction if one exists.
+   (Resolved same day — see the row's own updated text in `VALIDATION_COVERAGE_MAP.md` and
+   `PHASE_TWO_PLAN.md`'s record of the investigation.)
+8. **Packet-HEAD provenance clarified**, not rewritten: `CHATGPT_REVIEW_PACKET_02.md`'s
+   `HEAD cb68bb367` line now states explicitly this was HEAD **at packet-generation time**,
+   one commit before the packet's own commit (`9973fe5bc`) — git history unedited.
+9. **Credential hygiene pattern — no objection, standing procedure confirmed**: owner-
+   provisioned scoped test credential, isolated environment, no production-member data, no
+   production-key fallback, secret never printed/persisted/logged, independently
+   revocable/removable. Applies to all future credential-bearing verification work, not only
+   Track E.
+
+**Sequencing (`PHASE_TWO_PLAN.md` owns the live tracking; this is the frozen intent):**
+(A) automate Golden Journeys #1–3 → (B) produce `HUMAN_TESTING_READINESS_REPORT.md` →
+(C) begin limited/adversarial human QA → (D) start Vendor Parity Tranche 2 Lane A →
+(E) implement the four resolved functions against vendor goldens (Lane B) →
+(F) run the narrow RISK-026 grounding-hardening slice → (G) diagnose RISK-004's failure
+distribution → (H) use human QA + telemetry + parity evidence to decide the next capability
+tranche. C/D/E/F may proceed in parallel where file/risk boundaries permit, but evidence
+ownership must stay unambiguous per finding (never two authorities over one claim).
+
+**Explicit no-go, this phase:** broad Pine-language expansion; Track F v2 input expansion;
+broad human acceptance testing; uncontrolled AI semantic guessing; a true full-universe
+intraday pipeline; `SCAN_LIVE_SWEEP_ENABLED` rollout; a new user-facing scripting language;
+a canonical-AST rewrite; execution-kernel replacement; tech-stack modernization for its own
+sake.
+
+**Context:** `CHATGPT_REVIEW_PACKET_02.md` (the evidence this decision reviews) and the
+owner's own review message (verbatim decision text, this same session, 2026-09-05) — the
+owner explicitly reasoned that Phase One materially raised trust ("a much higher level of
+trust than it had at the start"), that the real bottleneck has shifted from "does the
+infrastructure basically work?" to "can we continuously prove that what UCT claims to
+understand is semantically correct?", and that Track E's own history this session (a real
+credentialed run surfacing a genuine semantic-safety defect, not merely turning green) is
+direct evidence FOR prioritizing vendor-truth work over parser-acceptance growth.
+
+**Evidence:** `CHATGPT_REVIEW_PACKET_02.md` (all sections); `RISK_REGISTER.md` RISK-003/
+RISK-004/RISK-013/RISK-018/RISK-018a/RISK-026; `VALIDATION_COVERAGE_MAP.md`;
+`GOLDEN_JOURNEY_04_05_LIVE_RESULTS.md`; `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`.
+
+**Alternatives considered:** (A) accept the packet's own Path-(a)/Path-(b) framing verbatim
+and let a future session pick — rejected; the owner picked a MODIFIED Path (a) explicitly,
+narrower and time-bounded ("a short infrastructure close-out, not another research
+project") rather than the packet's more open framing. (B) prioritize RISK-004 (parser
+acceptance) as the next engineering target, since it has a concrete, headline-friendly
+number — rejected; the owner's own reasoning is that 0-parity-comparable is the bigger trust
+gap, and the project's own history (thousands of tests, two shipped semantic mistakes caught
+only by dedicated audits) argues for verifying what is ALREADY claimed before growing what is
+accepted. (C) authorize full implementation of the four Track A functions immediately,
+independent of the Lane A parity-infrastructure tranche — rejected; the owner requires the
+parity tranche to BEGIN first so Lane B's four implementations land as parity-comparable from
+day one rather than as isolated self-consistency tests repeating Track E's own history lesson.
+
+**Why chosen:** The owner's own words, preserved rather than paraphrased into something
+softer: "the bottleneck should shift from 'does the infrastructure basically work?' to 'can
+we continuously prove that what UCT claims to understand is semantically correct?' That is a
+much better place to be than where we started." Every numbered sub-decision above is in
+service of that one shift — standing automated regression before human QA, vendor-truth
+capture before parser-acceptance growth, deterministic grounding before a second AI
+verification layer, diagnosis before optimization on RISK-004.
+
+**Risks:** A "modified Path (a)" that scope-creeps into another multi-week research project
+would violate the owner's own explicit bound ("This should be a short infrastructure
+close-out, not another research project") — the Journey #1–3 automation plan
+(`PHASE_TWO_PLAN.md`) must stay bounded to what Journeys #1–3 already established as their
+own behavior specification, not grow into a new test-architecture project. Parallel work in
+C/D/E/F (sequencing above) risks the same "second authority over one value" defect this
+program has repeatedly found and fixed elsewhere if evidence ownership isn't kept explicit
+per finding — flagged here so it isn't rediscovered as a fresh incident.
+
+**Migration impact:** None to shipped product yet — this decision authorizes work, it does
+not itself ship anything. `PHASE_ONE_PLAN.md` is retired as the active tracking doc in favor
+of `PHASE_TWO_PLAN.md`, mirroring the Phase Zero → Phase One transition's own precedent
+(Phase Zero preserved as history, not deleted).
+
+**Reversibility:** Fully reversible at the level of individual sub-decisions (e.g., a future
+review could authorize Track F v2 early if human-QA findings argued for it) — this entry
+records the CURRENT authorization boundary, not a permanent constraint. Any future expansion
+past an explicit no-go item needs its own owner/ChatGPT review, matching this program's
+standing pattern.
+
+**Tests needed:** None for this entry itself (decision/authorization only). Each sequencing
+item (A–H above) carries its own test/evidence requirements, tracked in `PHASE_TWO_PLAN.md`.
+
+**Date:** 2026-09-05

@@ -4,9 +4,11 @@
 This file tracks live status only — it will go stale; trust it less than the two files above, and less
 than the repo itself.
 
-**Current phase:** Phase One — Trust Foundation (authorized 2026-09-04 by external owner/ChatGPT review of
-`CHATGPT_REVIEW_PACKET_01.md`; see DEC-003 and `PHASE_ONE_PLAN.md`). Phase Zero (below) is complete and
-preserved as history — read `PHASE_ONE_PLAN.md` first for what's active now.
+**Current phase:** Phase Two — Standing Validation + Vendor Parity + Limited Human QA (authorized
+2026-09-05 by external owner/ChatGPT review of `CHATGPT_REVIEW_PACKET_02.md`; see DEC-013 and
+`PHASE_TWO_PLAN.md`). Phase One (below, and `PHASE_ONE_PLAN.md`) is accepted, closed, and preserved
+as history — read `PHASE_TWO_PLAN.md` first for what's active now. Explicitly NOT a feature-expansion
+phase; see `PHASE_TWO_PLAN.md` §9 for the no-go list.
 **Workspace:** worktree `C:\Users\Patrick\uct-dashboard\.claude\worktrees\indicator-ecosystem`, branch
 `worktree-indicator-ecosystem`, based on `origin/master` @ `12cf5c8d3` (2026-09-04). Created via the
 harness's native `EnterWorktree` tool — do not also `git worktree add` a second one for this program;
@@ -104,6 +106,29 @@ precisely to what was tested. Full detail in `RISK_REGISTER.md` RISK-026 and `PH
 Track E row. The credential was cleared from the local shell immediately after the second run; this
 session never had access to it. Not authorized by this track: broadening the fix further, or any content
 beyond what's recorded here — Review Packet #2 is a separate deliverable, produced next.
+
+**2026-09-05 (same session, later still) — CHATGPT_REVIEW_PACKET_02.md produced; Phase One ACCEPTED;
+Phase Two AUTHORIZED.** Published `CHATGPT_REVIEW_PACKET_02.md` covering final Track A-F state, the
+corrected 21/48 benchmark figure, the reproducible 29-parameter Track F count, and a Human Testing
+Readiness evaluation (READY FOR LIMITED HUMAN QA, one gate item unmet: Journeys #1-3 have no CI
+automation). Owner/ChatGPT review accepted Phase One in full and authorized **Phase Two — Standing
+Validation + Vendor Parity + Limited Human QA**, explicitly not a feature-expansion phase — full
+9-decision authorization recorded durably as DEC-013, with per-item detail and sequencing in the new
+`PHASE_TWO_PLAN.md`. Completed the "First Return" items required before any Phase Two coding begins:
+(1) DEC-013 recorded; (2) the screener-execution/Track-D apparent contradiction investigated and
+resolved — not a contradiction, `VALIDATION_COVERAGE_MAP.md`'s row was incomplete (Track D proves
+sweep completion/liveness, not matched-ticker semantic correctness; the row now says both explicitly);
+(3) `CHATGPT_REVIEW_PACKET_02.md`'s HEAD-provenance line clarified (HEAD at generation time, one
+commit before the packet's own commit — git history unedited); (4) a bounded Journey #1-3 automation
+implementation plan written (`PHASE_TWO_PLAN.md` §1), reusing `tools/mobile_audit.py`'s proven local-
+backend-Playwright pattern rather than inventing new infrastructure, with each journey's own "chain"
+table as the behavior specification and Journey #3's date-dependent "1.00" assertion flagged as
+needing a point-in-time-aware rewrite; (5) a real, evidence-derived Vendor Parity Tranche 2 Lane-A
+priority list produced (rsi > atr > sma > ema > rma > hma > macd > stoch > adx-family > wma, each
+justified by actual corpus-frequency counts, `RISK_REGISTER.md` incident history, or
+`divergences.json`'s already-flagged-but-unverified convention disputes — not asserted from memory).
+`PHASE_ONE_PLAN.md` marked accepted/closed and preserved as history, mirroring the Phase Zero → Phase
+One precedent. Next: begin Journey #1-3 automation implementation per `PHASE_TWO_PLAN.md` §1.
 
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
