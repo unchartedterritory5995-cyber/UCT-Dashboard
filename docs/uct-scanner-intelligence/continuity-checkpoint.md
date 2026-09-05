@@ -707,6 +707,74 @@ RECOMMENDED. Not implemented — owner authorization required.**
 4-file diff) whenever the owner is done observing — held pending that
 decision rather than causing another redeploy unprompted.
 
+## run_scan() internal-stage trace — R2 confirmed (2026-09-05, final diagnostic pass)
+
+Second instrumentation pass merged (`9ee14cc71`, same worktree/branch) wraps
+EXISTING `query.run_scan()` statements (unchanged logic) with per-stage
+timers: `conn_acquire`, `build_plan`, `sql_execute_fetch`, `describe_rows`,
+`rank_receipt` (conditional), `row_convert`, `canonical_overlay`,
+`live_screen_state`. Thread-safe via a contextvar popped by the router into
+`request.state` (never added to `run_scan`'s return dict — that stays the
+real HTTP response contract). Regression: 2979 passed (+7 new tests for the
+first pass, +0 additional structural tests needed for this pass beyond
+fixing one order-dependent test), 3 pre-existing unrelated failures, 2
+skipped, 9 xfailed. Deployed, verified (fresh process, pilot OFF/adapt ON).
+
+**Four real production stage-level traces captured (pilot OFF):**
+
+| | total | pre_route | run_scan | build_plan | sql_execute_fetch | describe_rows | row_convert | canonical_overlay | live_screen_state |
+|---|---|---|---|---|---|---|---|---|---|
+| #1 | 649.7 | 13.8 | 635.8 | 118.0 | **509.7** | 4.3 | 2.0 | 0.0 | 0.2 |
+| #2 | 346.4 | 16.6 | 329.8 | **234.6** | 87.7 | 3.4 | 2.2 | 0.0 | 0.2 |
+| #3 | 560.4 | 12.2 | 548.1 | **399.9** | 140.1 | 4.4 | 1.9 | 0.0 | 0.2 |
+| #4 | 425.0 | 144.4 | 280.6 | 148.2 | 120.7 | 3.1 | 1.7 | 0.0 | 0.2 |
+
+**Decisive pattern:** the two stages that vary wildly (5.8x range on
+`sql_execute_fetch` alone: 87.7–509.7ms; `build_plan`: 118–399.9ms) are
+BOTH real `sqlite3.Connection.execute()` calls against `screener.db`
+(`build_plan` runs `PRAGMA table_info(screener_rows)` inside
+`_known_columns(conn)`, deliberately uncached per its own docstring, plus
+`build_where`'s own schema checks; `sql_execute_fetch` is the main scan
+query). Every PURE-Python stage (`row_convert`, `canonical_overlay`,
+`live_screen_state`) stays flat at ~0–2ms in every sample regardless of how
+slow the request is overall. `conn_acquire` (connection open + WAL/
+busy_timeout PRAGMAs) also stays small (1.3–6.7ms) — so it isn't
+connection-setup either. `describe_rows` (a THIRD SQL execute call) stays
+fast and stable (~3–4ms) across all four samples — a real puzzle, but
+consistent with its query being a much simpler aggregate over already-
+matched rows than the other two.
+
+**This selectively-SQL-only variance pattern is not explained by generic
+GIL/CPU contention** (which would slow every Python-executing stage
+roughly proportionally, including row_convert/canonical_overlay) — it
+points specifically at SQLite execute()-level contention (lock wait, WAL
+checkpoint stall, or disk I/O contention) on `screener.db` specifically.
+
+**Classification: R2 — SQLITE/DB/STORAGE CONTENTION DOMINATES.**
+Dedicated-scanner-service (Option C) is NOT assumed to solve this — a
+separate process would still read the SAME `screener.db` file, so
+process-level isolation doesn't obviously reduce file-level contention
+unless the contention source is also addressed or moved. Contended file:
+`screener.db` (`SCREENER_DB_PATH`, default `/data/screener.db`). Likely
+readers/writers not fully pinned: today's observation window was Saturday/
+market-closed, so `screener-live`'s writes to the same file's live_tier
+tables were inactive — the contention may include concurrent READERS
+(multiple simultaneous scanner requests, including this session's own
+rapid-fire test bursts) rather than only background-job writers; not
+conclusively isolated to one exact writer. Smallest safe candidate worth
+owner review (NOT implemented, NOT authorized): caching `_known_columns`'s
+`PRAGMA table_info` result would remove one of the two variable SQL calls,
+but that function is deliberately uncached today for a documented
+schema-lag-safety reason (its own docstring) — a real tradeoff, not a
+free win, and squarely an owner decision.
+
+**Instrumentation cleanup recommendation: A — revert all temporary
+scanner-trace instrumentation now.** The evidence is decisive and
+consistent across every sample; continuing to run it doesn't add more
+diagnostic value proportional to keeping temporary code in the request
+path. Not yet reverted — held pending explicit owner go-ahead per the
+stop condition.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
