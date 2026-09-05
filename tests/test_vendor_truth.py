@@ -103,7 +103,8 @@ def test_the_report_leads_with_its_DENOMINATOR(tmp_path, monkeypatch):
     monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
     out = io.StringIO()
     assert vt.check(out=out) == 0, out.getvalue()
-    assert "ran     : 1 observations, 1 compared values" in out.getvalue()
+    assert "ran     : 1 observations held, 1 parity-comparable, 0 vendor-semantics-only" in out.getvalue()
+    assert "1 compared values" in out.getvalue()
 
 
 def test_a_SYNTHETIC_INPUT_field_is_forward_compatible_and_does_not_break_check(tmp_path, monkeypatch):
@@ -163,7 +164,145 @@ def test_a_SYNTHETIC_INPUT_field_is_forward_compatible_and_does_not_break_check(
     monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
     out = io.StringIO()
     assert vt.check(out=out) == 0, out.getvalue()
-    assert "ran     : 1 observations, 1 compared values" in out.getvalue()
+    assert "ran     : 1 observations held, 1 parity-comparable, 0 vendor-semantics-only" in out.getvalue()
+    assert "1 compared values" in out.getvalue()
+
+
+def _real_sma_obs(id_, bars):
+    ast = {"type": "call", "name": "sma",
+           "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 5}]}
+    truth = vt.evaluate({"engine": {"ast": ast}, "market": {"bars": bars, "timeframe": "1D"}})[9]
+    return {
+        "id": id_, "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.sma(close, 5))", "plot": "plot0"},
+        "engine": {"formula": "sma(close, 5)", "ast": ast},
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        "vendor": {"readDecimals": 6, "values": {str(bars[9]["t"]): round(truth, 6)}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py", "when": "2026-09-05"},
+    }
+
+
+def _vendor_semantics_only_obs(id_, bars):
+    """A pre-implementation research capture — engine.formula/engine.ast are
+    BOTH null because no UCT implementation exists yet (exactly the shape
+    OWNER_VENDOR_CAPTURE_PACKET_V3's ta.rising/ta.bbw/ta.percentrank/
+    ta.median observations will have). market.bars is still the real
+    chart's real bars, per the schema's own rule — untouched either way."""
+    return {
+        "id": id_, "shape": "stateless",
+        "script": {"dialect": "pine", "source": "plot(ta.rising(close, 3))", "plot": "plot0"},
+        "engine": {"formula": None, "ast": None},
+        "market": {"symbol": "AAPL", "timeframe": "1D", "bars": bars},
+        "input": {"kind": "synthetic", "formula": "phase = bar_index % 25; ...",
+                   "valuesAtProbe": {"phase": 24, "raw": 6.0}},
+        "vendor": {"readDecimals": 0, "values": {str(bars[0]["t"]): 1}},
+        "provenance": {"platform": "_test", "who": "test_vendor_truth.py", "when": "2026-09-05"},
+    }
+
+
+class TestVendorSemanticsOnlyIsNeverParity:
+    """⛔⛔ 2026-09-05, owner-flagged: 'vendor observed' and 'UCT parity
+    verified' are DIFFERENT CLAIMS. Before this class existed, an
+    observation recorded for a not-yet-implemented function (engine.ast is
+    None — exactly what a pre-implementation Pine-ambiguity capture needs)
+    CRASHED the entire check() run (`TableRefusal: not a canonical node got
+    None`), which is loud but would make the harness unusable the moment a
+    real pre-implementation observation was added. These tests prove the fix:
+    such an observation is skipped from comparison, named separately, and
+    can never inflate a parity count — derived from engine.ast's presence,
+    never from a second, driftable status field."""
+
+    def _bars(self):
+        return [{"t": 20260100 + i, "o": 10.0 + i, "h": 10.0 + i, "l": 10.0 + i,
+                  "c": 10.0 + i, "v": 100} for i in range(1, 31)]
+
+    def test_a_null_ast_observation_no_longer_crashes_check(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        # Must not raise. Before the fix this line raised TableRefusal.
+        code = vt.check(out=out)
+        assert code == 0, out.getvalue()
+
+    def test_the_semantics_only_observation_is_named_but_not_compared(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        vt.check(out=out)
+        text = out.getvalue()
+        # The denominator line must show the split, not a single merged count.
+        assert "2 observations held, 1 parity-comparable, 1 vendor-semantics-only" in text
+        assert "1 compared values" in text
+        # The pre-implementation observation is named as excluded, not silently dropped.
+        assert "pre-impl-1" in text
+
+    def test_ALL_semantics_only_REFUSES_rather_than_a_quiet_pass(self, tmp_path, monkeypatch):
+        """The exact vacuous-pass shape this file's empty-store branch already
+        refuses, reached through a different door: every held observation
+        being vendor-semantics-only must not print '0 deltas, exit 0' —
+        that would read as verified parity when nothing was compared."""
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.check(out=out)
+        assert code == 2, out.getvalue()
+        assert "0 OF THE HELD OBSERVATIONS ARE PARITY-COMPARABLE" in out.getvalue()
+
+    def test_a_real_delta_among_comparable_observations_still_fails_even_with_semantics_only_present(
+            self, tmp_path, monkeypatch):
+        """A vendor_semantics_only observation must not dilute or hide a real
+        failure among the comparable ones — the two populations are scored
+        completely independently."""
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        bad = _real_sma_obs("bad-1", bars)
+        bad["vendor"]["values"][str(bars[9]["t"])] = 99999.0  # plant a real delta
+        (obs_dir / "bad.json").write_text(json.dumps(bad), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.check(out=out)
+        assert code == 1, out.getvalue()
+
+    def test_coverage_separates_parity_comparable_from_vendor_semantics_only(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "real.json").write_text(json.dumps(_real_sma_obs("real-1", bars)), encoding="utf-8")
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        code = vt.coverage(out=out)
+        text = out.getvalue()
+        assert code == 0
+        assert "1 parity-comparable observations (1 additional vendor-semantics-only, not counted above)" in text
+
+    def test_coverage_REFUSES_when_only_semantics_only_observations_are_held(self, tmp_path, monkeypatch):
+        obs_dir = tmp_path / "observations"
+        obs_dir.mkdir()
+        bars = self._bars()
+        (obs_dir / "pre_impl.json").write_text(
+            json.dumps(_vendor_semantics_only_obs("pre-impl-1", bars)), encoding="utf-8")
+        monkeypatch.setattr(vt, "OBS_DIR", str(obs_dir))
+        out = io.StringIO()
+        assert vt.coverage(out=out) == 2
 
 
 def test_an_observation_WITHOUT_PROVENANCE_is_refused(tmp_path, monkeypatch):

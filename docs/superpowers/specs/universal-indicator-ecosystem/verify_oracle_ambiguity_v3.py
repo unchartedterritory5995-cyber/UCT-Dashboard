@@ -1,5 +1,15 @@
 """Local self-check for OWNER_VENDOR_CAPTURE_PACKET_V3.md's oracle script.
 
+⛔⛔⛔ SUPERSEDED 2026-09-05 — see verify_oracle_ambiguity_v3_1.py. This
+script's `candLower_formula = max(min(w0,w1), min(w2,w3))` is WRONG in
+general: checked only against the one planted ordering below, where it gives
+the right answer (3.0) by coincidence of which pairing was chosen. A real
+permutation/duplicate/random property test — the kind external review asked
+for and this script did not run — finds it wrong on 8/24 distinct
+permutations, all 14 tested duplicate cases, and 626/2000 random trials
+(~31%). Kept verbatim as the historical record of the mistake, per this
+program's own append-only-correction convention; do not copy this formula.
+
 ⛔⛔ THIS SCRIPT PROVES NOTHING ABOUT TRADINGVIEW. It reimplements, in plain
 Python, the exact candidate-A/candidate-B arithmetic the Pine oracle plots for
 each of the four disputed functions, over the exact same planted 25-bar

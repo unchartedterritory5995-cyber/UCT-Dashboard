@@ -1,14 +1,25 @@
 # ADR v2.1: Pine input-parameter fidelity — single authority, binding identity, reconciliation, validation, spike gate
 
-**Status:** 🟡 **PROPOSED — design only, for owner review. No implementation in
-this ADR or alongside it.** This is a DELTA on `TRACK_F_PARAMETER_ADR_V2.md`,
-which is APPROVED IN PRINCIPLE — read it first. This document does not repeat
-what V2 already got right (§1 unchanged: closed/literal AST, `compute.source`
-reused instead of raw vendor source, input.int/input.float-only v1 scope,
-reject-not-clamp, the traced def_id/alert/scan safety in V2's §6). It replaces
-ONE part of V2 (§3.1's "override blob") and adds four new sections V2 did not
-have: parameter binding identity, manual-edit reconciliation policy,
-server-side validation enforcement point, and a pre-implementation spike gate.
+**Status:** 🟡 **PARTIALLY SUPERSEDED 2026-09-05 — see
+`TRACK_F_PARAMETER_ADR_V2_2.md`.** §3's binding-identity scheme assumed one
+Pine input maps to one binding at one locator; V2.2 corrects this to one
+LOGICAL parameter potentially spanning multiple binding locators (the
+multi-tree case), and separates §2's "immutable manifest" from the derived
+reconciliation state more strictly. Read V2.2 alongside this document and V2;
+it is a further delta, not a rewrite of either.
+
+---
+
+**Status (as originally written):** 🟡 **PROPOSED — design only, for owner
+review. No implementation in this ADR or alongside it.** This is a DELTA on
+`TRACK_F_PARAMETER_ADR_V2.md`, which is APPROVED IN PRINCIPLE — read it first.
+This document does not repeat what V2 already got right (§1 unchanged:
+closed/literal AST, `compute.source` reused instead of raw vendor source,
+input.int/input.float-only v1 scope, reject-not-clamp, the traced def_id/
+alert/scan safety in V2's §6). It replaces ONE part of V2 (§3.1's "override
+blob") and adds four new sections V2 did not have: parameter binding identity,
+manual-edit reconciliation policy, server-side validation enforcement point,
+and a pre-implementation spike gate.
 
 **Date:** 2026-09-05 · **Phase:** One (Trust Foundation), Track F · **Governing
 decision:** `DECISIONS.md` DEC-006.

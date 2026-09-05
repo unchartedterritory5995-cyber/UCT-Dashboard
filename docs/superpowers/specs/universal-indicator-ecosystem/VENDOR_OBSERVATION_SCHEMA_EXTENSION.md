@@ -1,10 +1,12 @@
 # Vendor-observation schema extension proposal — synthetic-input provenance
 
-**Status:** 🟡 PROPOSED, minimal, additive-only, tested for forward-compatibility
-in this session. Not yet used by any real observation (none exist in
-`tests/fixtures/vendor/observations/` today). Does not modify
-`tools/vendor_truth.py`'s code — proposes a field the current lenient `.get()`-
-based reading already tolerates, verified rather than assumed.
+**Status:** 🟡 PROPOSED (the `input` field, below), minimal, additive-only,
+tested for forward-compatibility. **PLUS a second ruling, ALREADY IMPLEMENTED
+AND TESTED as of 2026-09-05 (see "Addendum" at the end): vendor-observed and
+UCT-parity-verified are different claims, and `tools/vendor_truth.py` is now
+patched so a pre-implementation observation (`engine.ast: null`) can never
+inflate a parity count.** Not yet used by any real observation (none exist in
+`tests/fixtures/vendor/observations/` today).
 
 ## The gap
 
@@ -99,6 +101,82 @@ without the field. Run directly for this proposal:
 ```
 python -m pytest tests/test_vendor_truth.py -v
 → 16 passed (was 15 before this test was added)
+```
+
+## Addendum, 2026-09-05 — the RISK-018-shaped conflation risk, found and closed
+
+Owner review asked a sharper question than "is this schema addition safe": **can
+an observation whose `engine.formula`/`engine.ast` are `null` (exactly what
+every `ta.rising`/`ta.bbw`/`ta.percentrank`/`ta.median` observation will be,
+since none of the four are implemented yet) be silently counted as if it were
+UCT vendor-parity evidence, simply because the observation FILE is structurally
+complete?**
+
+**Tested directly rather than reasoned about**: before this addendum, calling
+`vendor_truth.compare()` on such an observation raised `TableRefusal: not a
+canonical node got None` — `evaluate()` calls `interpret(obs["engine"]["ast"],
+...)` unconditionally, with no null guard. This is LOUD (the harness's own
+stated philosophy: silence is never success), but it is the wrong kind of loud
+— it would crash `check()`'s entire run, for every OTHER real observation too,
+the moment a single pre-implementation observation existed in the store.
+Neither the crash nor a hypothetical silent-pass would have been acceptable.
+
+**The distinction implemented, named explicitly rather than left implicit:**
+
+- **`vendor_observed` / "vendor semantics captured"** — a real screen value
+  exists; `engine.ast` is `null` because no UCT implementation exists yet.
+  This is real, valuable, pre-implementation research evidence.
+- **`parity_comparable`** — `engine.ast` is present; `vendor_truth.check()`
+  actually runs the comparison and reports MATCH or DELTA for it this run.
+- **There is no third, separately-stored `parity_verified` flag.** Per this
+  proposal's own "don't invent a second authority" reasoning above, whether a
+  `parity_comparable` observation currently PASSES is `check()`'s own live
+  output each run — baking a `parity_verified: true` boolean into the
+  observation file would create exactly the drift risk (a stored claim that
+  can silently stop matching a re-derivable truth) this whole directory's
+  philosophy exists to prevent. "Verified" is a fact about the LATEST run,
+  not a property an observation file gets to assert about itself.
+
+**Derived from `engine.ast`'s presence, not a fourth stored status field** —
+deliberately, for the identical reason: a separately-written `status:
+"vendor_semantics_only"` string could drift from whether `engine.ast` is
+actually null (someone adds an AST later and forgets to flip the flag, or vice
+versa). `engine.ast is None` already IS the fact these labels describe: there
+is nothing to derive it FROM except itself.
+
+**What changed in `tools/vendor_truth.py`** (small, targeted, this is Track A
+vendor-harness infrastructure, not Track F implementation):
+- `check()` now partitions observations into `comparable` (`engine.ast` is
+  not `None`) and `semantics_only` (`engine.ast is None`) before doing
+  anything else. Only `comparable` observations are ever passed to
+  `compare()`/`evaluate()`. The denominator line names both counts explicitly
+  (`"N observations held, M parity-comparable, K vendor-semantics-only... T
+  compared values"`), and every semantics-only observation is listed by id so
+  it is never silently absent from the report either.
+- **If ZERO observations are parity-comparable — even though some are held —
+  `check()` now REFUSES (exit 2) rather than printing a vacuous "0 deltas,
+  pass."** This is the same shape as the file's own pre-existing empty-store
+  refusal, reached through a different door: holding only vendor-semantics-
+  only evidence is a real and useful state, but it must never read as "parity
+  verified, nothing wrong."
+- `coverage()` similarly reports `parity-comparable` and `vendor-semantics-
+  only` counts separately, per shape, rather than one merged "N observations"
+  figure — and also refuses (exit 2) if only semantics-only observations are
+  held.
+
+**Tested, not just argued** — `tests/test_vendor_truth.py::
+TestVendorSemanticsOnlyIsNeverParity` (6 new tests): a null-ast observation no
+longer crashes `check()`; it's named in the report but excluded from the
+compared-values count; a store holding ONLY semantics-only observations
+refuses rather than passing; a REAL delta among comparable observations still
+fails even with semantics-only observations present (proving the two
+populations are scored independently, neither diluting the other);
+`coverage()` separates the two counts; `coverage()` also refuses when nothing
+held is comparable. Full suite re-run:
+
+```
+python -m pytest tests/test_vendor_truth.py -v
+→ 22 passed (was 16 before this addendum; +6 new, 0 broken)
 ```
 
 ## What this proposal does NOT do
