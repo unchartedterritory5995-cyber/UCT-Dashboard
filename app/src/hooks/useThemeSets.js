@@ -28,7 +28,19 @@ export function useThemeSets() {
     return r.ok
   }, [mutate])
 
-  return { enabled, sets, createSet, deleteSet, refreshSets: mutate }
+  // Rename preserves the existing diff (fetch it, PUT with the new name).
+  const renameSet = useCallback(async (id, name) => {
+    const cur = await getSetDef(id)
+    if (!cur) return null
+    const r = await fetch(`/api/theme-sets/${id}`, {
+      method: 'PUT', headers: jsonHeaders,
+      body: JSON.stringify({ name, themes: cur.themes, hidden: cur.hidden, removed: cur.removed, added: cur.added, custom: cur.custom }),
+    })
+    await mutate()
+    return r.ok
+  }, [mutate])
+
+  return { enabled, sets, createSet, deleteSet, renameSet, refreshSets: mutate }
 }
 
 // One-shot helpers for the editor (not reactive — the editor holds its own diff state).

@@ -231,12 +231,13 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
   const momentumDelta = rotationRanking?.momentum_delta
 
   const sortedHoldings = useMemo(() => {
+    if (editing) return theme.holdings   // fixed order while editing (adding a stock never reorders)
     return [...theme.holdings].sort((a, b) => {
       const av = a.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
       const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
       return sortDir === 'desc' ? bv - av : av - bv
     })
-  }, [theme.holdings, activeKey, sortDir])
+  }, [theme.holdings, activeKey, sortDir, editing])
 
 
   return (
@@ -333,6 +334,106 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
   )
 }
 
+// Set picker + Edit toggle (rides the search row). Create / rename / delete all happen
+// IN-WIDGET (inline inputs, 2-click delete confirm) — no browser prompt/confirm dialogs.
+function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, onDelete, editing, onToggleEdit }) {
+  const [open, setOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameVal, setRenameVal] = useState('')
+  const [confirmDel, setConfirmDel] = useState(null)
+  const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null); setNewName('') }
+  return (
+    <div className={styles.setPicker}>
+      <button className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a theme set">
+        {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
+      </button>
+      {activeSet && (
+        <button className={`${styles.setEditBtn} ${editing ? styles.setEditBtnActive : ''}`}
+          onClick={onToggleEdit} title="Edit this set's themes and stocks">{editing ? 'Done' : 'Edit'}</button>
+      )}
+      {open && (
+        <>
+          <div className={styles.setMenuBackdrop} onClick={close} />
+          <div className={styles.setMenu}>
+            <button className={`${styles.setMenuName} ${!themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(null); close() }}>UCT Default</button>
+            {sets.map(s => (
+              <div key={s.id} className={styles.setMenuRow}>
+                {renamingId === s.id ? (
+                  <input autoFocus className={styles.setInline} value={renameVal}
+                    onChange={e => setRenameVal(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
+                      if (e.key === 'Escape') setRenamingId(null)
+                    }}
+                    onBlur={() => setRenamingId(null)} />
+                ) : (
+                  <button className={`${styles.setMenuName} ${s.id === themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(s.id); close() }}>{s.name}</button>
+                )}
+                <button className={styles.setRowBtn} title="Rename" onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}>Rename</button>
+                <button className={`${styles.setRowBtn} ${confirmDel === s.id ? styles.setRowConfirm : ''}`} title="Delete this set"
+                  onClick={() => { if (confirmDel === s.id) { onDelete(s.id); close() } else setConfirmDel(s.id) }}
+                >{confirmDel === s.id ? 'Delete?' : 'Delete'}</button>
+              </div>
+            ))}
+            <div className={styles.setMenuSep} />
+            <div className={styles.setNewRow}>
+              <input className={styles.setInline} placeholder="New set name…" value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) { onCreate(newName.trim()); close() } }} />
+              <button className={styles.setNewGo} disabled={!newName.trim()} onClick={() => { if (newName.trim()) { onCreate(newName.trim()); close() } }}>＋ New</button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Add-theme picker (edit mode): search the full theme list + click to add (watchlist-style),
+// or type a name to create a custom theme. One "Add" affordance.
+function AddThemePicker({ palette, inSet, onAdd, onCreateCustom }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [cname, setCname] = useState('')
+  const ql = q.trim().toLowerCase()
+  const list = palette.filter(t => !ql || t.name.toLowerCase().includes(ql)).slice(0, 80)
+  const close = () => { setOpen(false); setQ(''); setCname('') }
+  return (
+    <div className={styles.addThemeWrap}>
+      <button className={styles.editTool} onClick={() => setOpen(o => !o)}>＋ Add theme ▾</button>
+      {open && (
+        <>
+          <div className={styles.setMenuBackdrop} onClick={close} />
+          <div className={styles.addThemeMenu}>
+            <input autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
+            <div className={styles.addThemeList}>
+              {list.map(t => {
+                const has = inSet.has(t.slug)
+                return (
+                  <button key={t.slug} className={`${styles.addThemeItem} ${has ? styles.addThemeItemIn : ''}`}
+                    onClick={() => { if (!has) onAdd(t.slug) }}>
+                    <span className={styles.addThemeName}>{t.name}</span>
+                    <span className={styles.addThemeMark}>{has ? '✓' : '＋'}</span>
+                  </button>
+                )
+              })}
+              {list.length === 0 && <div className={styles.addThemeEmpty}>No themes match</div>}
+            </div>
+            <div className={styles.setMenuSep} />
+            <div className={styles.setNewRow}>
+              <input className={styles.setInline} placeholder="Create custom theme…" value={cname}
+                onChange={e => setCname(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }} />
+              <button className={styles.setNewGo} disabled={!cname.trim()} onClick={() => { if (cname.trim()) { onCreateCustom(cname.trim()); setCname('') } }}>Create</button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null }) {
   // Per-widget persistence (opts) — the Close/Open basis and the chosen theme set stick
   // per widget instance via the workspace's debounced layout save.
@@ -386,13 +487,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const [todayBasis, setTodayBasisRaw] = useState(opts?.todayBasis === 'open' ? 'open' : 'close')
   const setTodayBasis = useCallback((b) => { setTodayBasisRaw(b); patchOpts({ todayBasis: b }) }, [patchOpts])
 
-  // ── Personal theme SETS (flag-gated) ──────────────────────────────────────
-  const { enabled: themeSetsEnabled, sets, createSet, deleteSet } = useThemeSets()
+  // ── Personal theme SETS (flag-gated) — additive, optimistic editor ─────────
+  const { enabled: themeSetsEnabled, sets, createSet, deleteSet, renameSet } = useThemeSets()
   const [themeSetId, setThemeSetId] = useState(opts?.themeSetId || null)
   const [editing, setEditing] = useState(false)
-  const [setMenuOpen, setSetMenuOpen] = useState(false)
-  const [diff, setDiff] = useState(null)   // the active custom set's diff (editor state)
-  // If the persisted set was deleted, fall back to Default.
+  // Editor state, materialized so every edit is INSTANT (optimistic) with no reflow:
+  const [themeOrder, setThemeOrder] = useState(null)   // ordered owner slugs (null = all-defaults, not yet materialized)
+  const [removedMap, setRemovedMap] = useState({})     // {slug:[sym]} per-theme stock removes
+  const [addedMap, setAddedMap] = useState({})         // {slug:[sym]} per-theme stock adds
+  const [customThemes, setCustomThemes] = useState([]) // [{key,name,members}]
+  // If the persisted set was deleted elsewhere, fall back to Default.
   useEffect(() => {
     if (themeSetId && themeSetsEnabled && sets.length && !sets.some(s => s.id === themeSetId)) {
       setThemeSetId(null); patchOpts({ themeSetId: null })
@@ -400,16 +504,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [themeSetId, themeSetsEnabled, sets, patchOpts])
   const activeSet = themeSetId ? sets.find(s => s.id === themeSetId) : null
   const selectSet = useCallback((id) => {
-    setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false); setSetMenuOpen(false)
+    setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false)
   }, [patchOpts])
-  // Load the active set's diff for the editor.
+  // Load the active set's diff into editor state.
   useEffect(() => {
     let cancel = false
     if (themeSetId) {
       getSetDef(themeSetId).then(d => {
-        if (!cancel) setDiff(d ? { hidden: d.hidden || [], removed: d.removed || {}, added: d.added || {}, custom: d.custom || [] } : null)
+        if (cancel || !d) return
+        setThemeOrder(Array.isArray(d.themes) ? d.themes : null)
+        setRemovedMap(d.removed || {}); setAddedMap(d.added || {}); setCustomThemes(d.custom || [])
       })
-    } else { setDiff(null); setEditing(false) }
+    } else {
+      setThemeOrder(null); setRemovedMap({}); setAddedMap({}); setCustomThemes([]); setEditing(false)
+    }
     return () => { cancel = true }
   }, [themeSetId])
   // Instant paint: seed SWR from the LAST cached response so the tab renders
@@ -439,55 +547,111 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   })
   const isComputing = data?.status === 'computing'
 
-  // ── Theme-set editing: mutate the local diff, persist (PUT), revalidate ?set= ──
-  const saveDiff = useCallback(async (next) => {
-    setDiff(next)
+  // Full default dataset — fetched ONLY while editing, as the palette + data source so
+  // add/remove/reorder edits render instantly from local state (no server round-trip, no reflow).
+  const { data: allData } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
+    dedupingInterval: 30_000, revalidateOnFocus: false,
+  })
+  const editSource = (allData?.themes?.length ? allData : (themeSetId ? null : data)) || null
+  const _k = (s) => (s || '').toUpperCase().replace(/\./g, '-')
+  const allIndex = useMemo(() => {
+    const m = {}
+    for (const t of (editSource?.themes || [])) { const s = themeSlug(t.name); if (s && !(s in m)) m[s] = t }
+    return m
+  }, [editSource])
+  const symIndex = useMemo(() => {
+    const m = {}
+    for (const t of (editSource?.themes || [])) for (const h of (t.holdings || [])) { const k = _k(h.sym); if (k && !(k in m)) m[k] = h }
+    return m
+  }, [editSource])
+  // The Add-theme palette — every owner theme, searchable.
+  const themePalette = useMemo(() =>
+    (editSource?.themes || []).map(t => ({ slug: themeSlug(t.name), name: t.name })), [editSource])
+
+  // Debounced persist of the current editor state (the display is already updated optimistically).
+  const persistRef = useRef(null)
+  const persist = useCallback((next) => {
     if (!themeSetId) return
-    await putSetDef(themeSetId, { hidden: next.hidden, removed: next.removed, added: next.added, custom: next.custom })
-    mutate()
-  }, [themeSetId, mutate])
-  const hideOrDeleteTheme = useCallback((theme) => {
-    if (!diff) return
-    if (theme.is_custom) saveDiff({ ...diff, custom: (diff.custom || []).filter(c => c.key !== theme.custom_key) })
-    else saveDiff({ ...diff, hidden: Array.from(new Set([...(diff.hidden || []), themeSlug(theme.name)])) })
-  }, [diff, saveDiff])
-  const unhideTheme = useCallback((slug) => {
-    if (diff) saveDiff({ ...diff, hidden: (diff.hidden || []).filter(s => s !== slug) })
-  }, [diff, saveDiff])
+    clearTimeout(persistRef.current)
+    const body = { themes: next.themeOrder, removed: next.removedMap, added: next.addedMap, custom: next.customThemes }
+    persistRef.current = setTimeout(() => { putSetDef(themeSetId, body) }, 350)
+  }, [themeSetId])
+  const materializeOrder = useCallback(() =>
+    themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)), [themeOrder, data])
+  const applyEdit = useCallback((patch) => {
+    const next = {
+      themeOrder: 'themeOrder' in patch ? patch.themeOrder : themeOrder,
+      removedMap: patch.removedMap || removedMap,
+      addedMap: patch.addedMap || addedMap,
+      customThemes: patch.customThemes || customThemes,
+    }
+    if ('themeOrder' in patch) setThemeOrder(patch.themeOrder)
+    if (patch.removedMap) setRemovedMap(patch.removedMap)
+    if (patch.addedMap) setAddedMap(patch.addedMap)
+    if (patch.customThemes) setCustomThemes(patch.customThemes)
+    persist(next)
+  }, [themeOrder, removedMap, addedMap, customThemes, persist])
+
+  const addThemeToSet = useCallback((slug) => {
+    const order = materializeOrder()
+    if (!order.includes(slug)) applyEdit({ themeOrder: [...order, slug] })
+  }, [materializeOrder, applyEdit])
+  const removeTheme = useCallback((theme) => {
+    if (theme.is_custom) applyEdit({ customThemes: customThemes.filter(c => c.key !== theme.custom_key) })
+    else applyEdit({ themeOrder: materializeOrder().filter(s => s !== themeSlug(theme.name)) })
+  }, [customThemes, materializeOrder, applyEdit])
+  const clearAllThemes = useCallback(() => applyEdit({ themeOrder: [], customThemes: [] }), [applyEdit])
   const removeSym = useCallback((theme, sym) => {
-    if (!diff) return
     const S = sym.toUpperCase()
     if (theme.is_custom) {
-      saveDiff({ ...diff, custom: (diff.custom || []).map(c => c.key === theme.custom_key
+      applyEdit({ customThemes: customThemes.map(c => c.key === theme.custom_key
         ? { ...c, members: (c.members || []).filter(m => m.toUpperCase() !== S) } : c) })
     } else {
       const slug = themeSlug(theme.name)
-      const removed = { ...(diff.removed || {}), [slug]: Array.from(new Set([...((diff.removed || {})[slug] || []), S])) }
-      const added = { ...(diff.added || {}) }
-      if (added[slug]) added[slug] = added[slug].filter(x => x.toUpperCase() !== S)
-      saveDiff({ ...diff, removed, added })
+      const nextRemoved = { ...removedMap, [slug]: Array.from(new Set([...(removedMap[slug] || []), S])) }
+      const nextAdded = { ...addedMap }
+      if (nextAdded[slug]) nextAdded[slug] = nextAdded[slug].filter(x => x.toUpperCase() !== S)
+      applyEdit({ removedMap: nextRemoved, addedMap: nextAdded })
     }
-  }, [diff, saveDiff])
+  }, [customThemes, removedMap, addedMap, applyEdit])
   const addSym = useCallback((theme, sym) => {
-    if (!diff) return
     const S = sym.toUpperCase()
     if (theme.is_custom) {
-      saveDiff({ ...diff, custom: (diff.custom || []).map(c => c.key === theme.custom_key
+      applyEdit({ customThemes: customThemes.map(c => c.key === theme.custom_key
         ? { ...c, members: Array.from(new Set([...(c.members || []), S])) } : c) })
     } else {
       const slug = themeSlug(theme.name)
-      const added = { ...(diff.added || {}), [slug]: Array.from(new Set([...((diff.added || {})[slug] || []), S])) }
-      const removed = { ...(diff.removed || {}) }
-      if (removed[slug]) removed[slug] = removed[slug].filter(x => x.toUpperCase() !== S)
-      saveDiff({ ...diff, added, removed })
+      const nextAdded = { ...addedMap, [slug]: Array.from(new Set([...(addedMap[slug] || []), S])) }
+      const nextRemoved = { ...removedMap }
+      if (nextRemoved[slug]) nextRemoved[slug] = nextRemoved[slug].filter(x => x.toUpperCase() !== S)
+      applyEdit({ addedMap: nextAdded, removedMap: nextRemoved })
     }
-  }, [diff, saveDiff])
-  const addCustomTheme = useCallback((name) => {
-    if (!diff) return
+  }, [customThemes, removedMap, addedMap, applyEdit])
+  const createCustomTheme = useCallback((name) => {
     const key = 'custom:' + Date.now().toString(36)
-    saveDiff({ ...diff, custom: [...(diff.custom || []), { key, name: name || 'My Theme', members: [] }] })
-  }, [diff, saveDiff])
-  const hiddenThemes = data?.hidden_themes || []
+    applyEdit({ customThemes: [...customThemes, { key, name: (name || '').trim() || 'My Theme', members: [] }] })
+  }, [customThemes, applyEdit])
+
+  // Locally-built, fixed-order display for edit mode (owner themes in set order, then customs).
+  const editDisplayThemes = useMemo(() => {
+    if (!editing) return null
+    const order = themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name))
+    const mk = (sym) => symIndex[_k(sym)] || { sym: (sym || '').toUpperCase(), name: (sym || '').toUpperCase(), returns: {}, ref_prices: {}, source: 'user', unresolved: true }
+    const owner = order.map(slug => {
+      const base = allIndex[slug]
+      if (!base) return null
+      const rem = new Set((removedMap[slug] || []).map(_k))
+      let holdings = (base.holdings || []).filter(h => !rem.has(_k(h.sym)))
+      const have = new Set(holdings.map(h => _k(h.sym)))
+      for (const sym of (addedMap[slug] || [])) { const k = _k(sym); if (!have.has(k)) { holdings = [...holdings, mk(sym)]; have.add(k) } }
+      return { ...base, holdings, group_return: { [activeKey]: avgReturn(holdings, activeKey) } }
+    }).filter(Boolean)
+    const customs = customThemes.map(c => {
+      const holdings = (c.members || []).map(mk)
+      return { ticker: 'INDEX', name: c.name, sector: 'Custom', is_custom: true, custom_key: c.key, holdings, group_return: { [activeKey]: avgReturn(holdings, activeKey) } }
+    })
+    return [...owner, ...customs]
+  }, [editing, themeOrder, data, allIndex, symIndex, removedMap, addedMap, customThemes, activeKey])
 
   // ── Footer (embedded widget): "N stocks · Updated H:MM ET · ⟳" ──
   // Count = unique stocks tracked across every theme. Refresh re-pulls live-overlaid numbers
@@ -652,6 +816,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     return sortedThemes.filter(theme => themeMatches(theme, q))
   }, [sortedThemes, debouncedSearch, themeMatches])
 
+  // What actually renders: edit mode uses the locally-built, FIXED-ORDER list (no re-sort on
+  // edit, so adding a stock never reorders the tracker); view mode uses the sorted leaderboard.
+  const renderThemes = useMemo(() => {
+    if (!editing || !editDisplayThemes) return filteredThemes
+    const q = debouncedSearch.trim().toLowerCase()
+    return q ? editDisplayThemes.filter(theme => themeMatches(theme, q)) : editDisplayThemes
+  }, [editing, editDisplayThemes, filteredThemes, debouncedSearch, themeMatches])
+
   // ── Send the ranking to the Journal (page-seam capture door — panel batch
   // 3). The widget has no chrome of its own (it IS this page), so the door
   // rides the search row beside the gear. Payload freeze (owner-approved):
@@ -689,20 +861,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (match) setOpenTheme(match.ticker)
   }, [debouncedSearch, sortedThemes, themeMatches])
 
-  // First theme open BY DEFAULT — on initial load and whenever the period
-  // changes (each period sorts differently, so its "first" theme differs). Does
-  // NOT re-open if the user deliberately collapses it (only fires on period flip
-  // / first data arrival), so manual collapse still works.
-  const firstThemeTicker = filteredThemes[0]?.ticker
-  const lastOpenPeriodRef = useRef(null)
+  // All themes CLOSED by default — reset on load, timeframe switch, and set switch.
+  // The accordion stays single-open; the user opens a theme by clicking it.
+  const lastCloseKeyRef = useRef(null)
   useEffect(() => {
-    if (!firstThemeTicker) return
-    if (lastOpenPeriodRef.current !== activeKey) {
-      setOpenTheme(firstThemeTicker)
-      lastOpenPeriodRef.current = activeKey
+    const key = `${activeKey}|${themeSetId || 'default'}`
+    if (lastCloseKeyRef.current !== key) {
+      setOpenTheme(null)
+      lastCloseKeyRef.current = key
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstThemeTicker, activeKey])
+  }, [activeKey, themeSetId])
 
   // Flat list for keyboard navigation — must match visual sort order
   const allStocks = useMemo(() =>
@@ -877,62 +1045,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
-        {/* Personal theme SETS bar — only present when the feature is enabled, so default
-            users see the tracker exactly as before. Pick a set, edit it, add custom themes. */}
-        {themeSetsEnabled && (
-          <div className={styles.setBar}>
-            <div className={styles.setPicker}>
-              <button className={styles.setPickerBtn} onClick={() => setSetMenuOpen(o => !o)}>
-                {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
-              </button>
-              {setMenuOpen && (
-                <>
-                  <div className={styles.setMenuBackdrop} onClick={() => setSetMenuOpen(false)} />
-                  <div className={styles.setMenu}>
-                    <button className={!themeSetId ? styles.setMenuActive : ''} onClick={() => selectSet(null)}>UCT Default</button>
-                    {sets.map(s => (
-                      <button key={s.id} className={s.id === themeSetId ? styles.setMenuActive : ''} onClick={() => selectSet(s.id)}>{s.name}</button>
-                    ))}
-                    <div className={styles.setMenuSep} />
-                    <button onClick={async () => {
-                      const name = window.prompt('Name your theme set')
-                      if (name && name.trim()) { const s = await createSet(name.trim()); if (s) selectSet(s.id) }
-                      else setSetMenuOpen(false)
-                    }}>＋ New set…</button>
-                    {activeSet && (
-                      <button className={styles.setMenuDanger} onClick={async () => {
-                        if (window.confirm(`Delete "${activeSet.name}"? This only affects your view.`)) { await deleteSet(themeSetId); selectSet(null) }
-                        else setSetMenuOpen(false)
-                      }}>Delete “{activeSet.name}”</button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            {activeSet && (
-              <button
-                className={`${styles.setEditBtn} ${editing ? styles.setEditBtnActive : ''}`}
-                onClick={() => setEditing(e => !e)}
-                title="Edit which themes and stocks are in this set"
-              >{editing ? 'Done' : 'Edit'}</button>
-            )}
-            {editing && activeSet && (
-              <button className={styles.setAddBtn} onClick={() => {
-                const name = window.prompt('Custom theme name')
-                if (name && name.trim()) addCustomTheme(name.trim())
-              }}>＋ Theme</button>
-            )}
-          </div>
-        )}
-        {editing && activeSet && hiddenThemes.length > 0 && (
-          <div className={styles.hiddenBar}>
-            <span className={styles.hiddenLabel}>Hidden — click to add back:</span>
-            {hiddenThemes.map(h => (
-              <button key={h.slug} className={styles.hiddenChip} onClick={() => unhideTheme(h.slug)} title="Add this theme back to my set">{h.name} ＋</button>
-            ))}
-          </div>
-        )}
-
         {/* Period tabs + the Journal / ⚙ cluster on the right (same layout as the
             Watchlist / Scanner pickers — buttons ride the tab row, not the search). */}
         <div className={styles.periodBar}>
@@ -964,8 +1076,34 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           ><UIcon name="gear" size={14} /></button>
         </div>
 
-        {/* Search — isolated component; typing here doesn't re-render the list. */}
-        <ThemeSearchBox onDebounced={setDebouncedSearch} />
+        {/* Search row — the set picker rides alongside the search (no dedicated header row). */}
+        {themeSetsEnabled ? (
+          <div className={styles.searchRow}>
+            <SetPicker
+              sets={sets} themeSetId={themeSetId} activeSet={activeSet}
+              onSelect={selectSet}
+              onCreate={async (name) => { const s = await createSet(name); if (s) selectSet(s.id) }}
+              onRename={renameSet}
+              onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
+              editing={editing} onToggleEdit={() => setEditing(e => !e)}
+            />
+            <ThemeSearchBox onDebounced={setDebouncedSearch} />
+          </div>
+        ) : (
+          <ThemeSearchBox onDebounced={setDebouncedSearch} />
+        )}
+        {/* Edit toolbar — contextual, ONLY visible while editing (no permanent extra row). */}
+        {editing && activeSet && (
+          <div className={styles.editToolbar}>
+            <AddThemePicker
+              palette={themePalette}
+              inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
+              onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
+            />
+            <button className={styles.editToolDanger} onClick={clearAllThemes}>Clear all</button>
+            <span className={styles.editHint}>saved automatically</span>
+          </div>
+        )}
 
         <div className={styles.tableHeader}>
           <span className={styles.themeCol}>
@@ -1025,7 +1163,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {!isLoading && !isComputing && (!data || data.themes?.length === 0) && (
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
-          {filteredThemes.map(theme => {
+          {renderThemes.map(theme => {
             const tk = theme.custom_key || theme.ticker   // custom themes share ticker "INDEX"
             return (
             <ThemeGroup key={tk} themeKey={tk} theme={theme} selectedSym={selectedSym} selectedNavKey={selectedNavKey} onSelectSym={handleSelect}
@@ -1034,7 +1172,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               tickerActions={tickerActions} onHoverSym={handleHoverSym}
               prices={openTheme === tk ? tickPrices : null}
               tintEnabled={ttSettings.tintEnabled} showLogos={ttSettings.showLogos} logoSize={rowLogoSize}
-              editing={editing && !!activeSet} onHideTheme={hideOrDeleteTheme} onRemoveSym={removeSym} onAddSym={addSym} />
+              editing={editing && !!activeSet} onHideTheme={removeTheme} onRemoveSym={removeSym} onAddSym={addSym} />
             )
           })}
         </div>

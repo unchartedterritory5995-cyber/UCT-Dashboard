@@ -939,3 +939,217 @@
   color: var(--tt-accent, var(--ut-gold));
   cursor: pointer;
 }
+
+
+/* ── Theme SETS v2: search-row picker + in-widget create/rename/delete + edit toolbar ── */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  min-height: 32px;
+  box-sizing: border-box;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+/* The search box (ThemeSearchBox) sheds its own row chrome when it rides the search row. */
+.searchRow .searchBar {
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  min-height: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.setPickerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 4px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setCaret { opacity: 0.7; font-size: 9px; }
+
+.setMenuName {
+  flex: 1;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setMenuName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.setRowBtn {
+  font-family: var(--font-sans);
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  padding: 3px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tt-text, var(--text-muted));
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.setRowBtn:hover { color: var(--text-bright, #e4e6ea); background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setRowConfirm {
+  color: var(--color-danger, #f87171) !important;
+  background: rgba(248, 113, 113, 0.14);
+  font-weight: 700;
+}
+.setInline {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 5px 8px;
+  border: 1px solid var(--tt-accent, var(--ut-gold));
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+}
+.setNewRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+.setNewGo {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 5px 9px;
+  border: none;
+  border-radius: 4px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setNewGo:disabled { opacity: 0.4; cursor: default; }
+
+/* Edit toolbar — contextual, only in edit mode */
+.editToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.08));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+.editTool {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.editTool:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.editToolDanger {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-danger, #f87171);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.editToolDanger:hover { background: rgba(248, 113, 113, 0.12); }
+.editHint {
+  margin-left: auto;
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  color: var(--tt-text, var(--text-muted));
+  font-style: italic;
+}
+
+/* Add-theme search picker */
+.addThemeWrap { position: relative; }
+.addThemeMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 41;
+  width: 260px;
+  max-width: 80vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+}
+.addThemeSearch {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+  margin-bottom: 4px;
+}
+.addThemeSearch:focus { border-color: var(--tt-accent, var(--ut-gold)); }
+.addThemeList {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.addThemeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.addThemeItem:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.addThemeName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.addThemeMark { color: var(--tt-accent, var(--ut-gold)); flex-shrink: 0; }
+.addThemeItemIn { opacity: 0.55; cursor: default; }
+.addThemeItemIn:hover { background: transparent; }
+.addThemeEmpty { padding: 10px; font-size: 11px; color: var(--tt-text, var(--text-muted)); text-align: center; }
