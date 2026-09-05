@@ -665,6 +665,34 @@ CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_sym
 CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_widget
     ON j2_note_embeds(user_id, widget_id);
 
+-- ── Notebook prose-mention sidecar (P0-3, Wave 1 Slice 2) ───────────────────
+-- One row per (note, symbol) CASHTAG mention in a note's plain-text body —
+-- kept in sync on every note write by notes._sync_note_mentions
+-- (create/update/append), mirroring j2_note_embeds' own "rebuildable
+-- projection, never edited directly" contract exactly.
+--
+-- Cashtag-tier ONLY (buzz_extract.extract()'s "cashtag" tier, never
+-- alias/exact/contextual): a member typing `$NVDA` is an explicit, unambiguous
+-- signal fit for silent automatic persistence. The OTHER three tiers are
+-- recall-biased free-word matching (real symbols like RS/EMA/GAP collide with
+-- ordinary vocabulary) — correct for a human-reviewed one-time import offer
+-- (enrichment.scan_notes_for_tickers, unchanged by this table), wrong for an
+-- automatic pass with no review step: a wrong auto-committed association is a
+-- real, if small, annoyance the member never asked for.
+--
+-- PK (note_id, symbol): a note mentioning the same ticker three times is one
+-- row, not three — the reverse-index question is "does this note mention it,"
+-- never "how many times."
+CREATE TABLE IF NOT EXISTS j2_note_mentions (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    symbol      TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (note_id, symbol)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_mentions_user_sym
+    ON j2_note_mentions(user_id, symbol);
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note

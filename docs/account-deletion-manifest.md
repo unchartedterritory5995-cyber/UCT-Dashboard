@@ -59,6 +59,7 @@ own internal fleet-check digest, not per-user member data.
 | `j2_notes_fts` / `j2_notes_fts_map` | derived from `j2_notes` | — | N/A (trigger-mirrored) | Cleaned automatically by the existing trigger when `j2_notes` rows are deleted | " |
 | `j2_note_folders` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_note_embeds` | `user_id` | Direct | Not purged | Purged | " |
+| `j2_note_mentions` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_capture_inbox` | `user_id` | Direct | Not purged | Purged | " |
 | `j2_public_profiles` | `user_id` (PK) | Direct | Not purged | Purged | " |
 | `j2_note_shares` | `user_id` | Direct | Not purged | Purged | " |

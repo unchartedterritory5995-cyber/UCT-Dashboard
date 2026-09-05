@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services import buzz_extract
 
 MAX_TITLE_CHARS = 300
 MAX_SUBTITLE_CHARS = 500
@@ -199,6 +200,32 @@ def _sync_note_embeds(
             [(note_id, user_id, i, r["widget_id"], r["symbol"], r["timeframe"],
               r["trade_ref"], r["mode"], r["captured_at"])
              for i, r in enumerate(rows)])
+
+
+# ── Prose-mention sidecar (j2_note_mentions, P0-3) ───────────────────────────
+
+def _sync_note_mentions(
+    conn: sqlite3.Connection, user_id: str, note_id: str, body_plain: str | None,
+) -> None:
+    """Rebuild the note's j2_note_mentions projection inside the caller's
+    transaction (no commit here) — same delete+insert idiom as
+    _sync_note_embeds. Cashtag-tier ONLY (see the schema comment in db.py for
+    why): scans body_plain, which every caller has already computed via
+    extract_plain_text — this never re-derives note text or re-walks
+    body_json. Fast and local: buzz_extract is a pure regex/set-membership
+    matcher, no network call, so this never makes a note save depend on an
+    external provider."""
+    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+    symbols = sorted({
+        sym for sym, tier in buzz_extract.extract(body_plain or "")
+        if tier == "cashtag"
+    })
+    if symbols:
+        now = _now_iso()
+        conn.executemany(
+            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, sym, now) for sym in symbols])
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -533,6 +560,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                              first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
                              updated_at, row["id"], user_id))
                         _sync_note_embeds(conn, user_id, row["id"], body_json)
+                        _sync_note_mentions(conn, user_id, row["id"], body_plain)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
                     else:
@@ -546,6 +574,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
                              source, key, h, media_pending, now, created_at, updated_at))
                         _sync_note_embeds(conn, user_id, new_id, body_json)
+                        _sync_note_mentions(conn, user_id, new_id, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         created.append(item)
@@ -699,12 +728,22 @@ def _notes_filter_sql(
     if ticker:
         sql += " AND ticker = ?"
         params.append(ticker.strip().upper())
-    # Widget-embed filters ("every entry where I traded AMD" / "every entry
-    # with a breadth widget") — answered from the j2_note_embeds sidecar.
+    # "Every entry where I traded/mentioned AMD" — the name `embed_symbol`
+    # predates P0-3 (Wave 1 Slice 2) and is kept for every existing caller's
+    # sake, but it now answers from BOTH sidecars: accepted chart embeds
+    # (j2_note_embeds) AND cashtag prose mentions (j2_note_mentions) — an OR
+    # of two EXISTS checks, so a note matching either (or both) counts once.
+    # Must stay pinned to get_symbol_backlinks' own UNION
+    # (test_backlinks_and_the_list_filter_agree) — same membership question,
+    # asked two different ways for two different callers' query shapes.
     if embed_symbol:
-        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+        sql += (" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
                 " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                " AND e.symbol = ?)")
+                " AND e.symbol = ?)"
+                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
+                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
+                " AND m.symbol = ?))")
+        params.append(embed_symbol.strip().upper())
         params.append(embed_symbol.strip().upper())
     if embed_widget:
         sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
@@ -975,13 +1014,17 @@ def get_symbol_backlinks(
     limit: int = 5,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """"Which of my entries reference this ticker?" — answered from the
-    j2_note_embeds sidecar (indexed on (user_id, symbol)).
+    """"Which of my entries reference this ticker?" — answered from TWO
+    sidecars, UNIONed and deduplicated by note id: `j2_note_embeds` (accepted
+    chart embeds — the STORED tier) and `j2_note_mentions` (cashtag prose
+    mentions — P0-3, Wave 1 Slice 2). A note carrying BOTH for the same
+    symbol counts once, never twice — the caller does not need to know which
+    source(s) produced the match.
 
-    The sidecar has been written on every note save since v1 and read by
-    exactly ONE consumer: the notes-list `embed_symbol` filter. This is the
-    read that lets the REST of the app see the journal — a ticker surface
-    anywhere can say "4 entries reference AMD" and link straight to them.
+    Written on every note save since v1 (embeds) / since P0-3 (mentions),
+    read by the notes-list `embed_symbol` filter (same two-source UNION) and
+    every ticker surface that shows "4 entries reference AMD" and links
+    straight to them.
 
     ⚠️ Same membership question as that list filter, so
     `test_backlinks_and_the_list_filter_agree` pins the two together: if one
@@ -1001,25 +1044,44 @@ def get_symbol_backlinks(
         # this, a trashed note's embed would still count here while the
         # list filter it's pinned against had already stopped counting it.
         row = conn.execute(
-            "SELECT COUNT(DISTINCT e.note_id) AS c FROM j2_note_embeds e"
-            " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            " WHERE e.user_id = ? AND e.symbol = ? AND n.deleted_at IS NULL",
-            (user_id, sym),
+            "SELECT COUNT(DISTINCT x.note_id) AS c FROM ("
+            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
+            "  UNION"
+            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
+            ") x"
+            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
+            " WHERE n.deleted_at IS NULL",
+            (user_id, sym, user_id, sym, user_id),
         ).fetchone()
         out["count"] = int(row["c"] or 0) if row else 0
         if not out["count"]:
             return out
+        # `refs`/`widgetIds` stay embed-only (unchanged meaning: "how many
+        # accepted chart embeds, of which kinds") — a prose-only match simply
+        # gets refs=0, widgetIds=[], which the one known UI consumer
+        # (JournalBacklinks.jsx) already renders as blank, not as a bug (its
+        # own `n.refs > 1 ? ... : ''` only ever shows a badge above 1). The
+        # membership question (does this note match at all) is answered by
+        # the UNION in the outer join; this LEFT JOIN only adds embed detail
+        # where it exists.
         rows = conn.execute(
             "SELECT n.id, n.title, n.updated_at,"
-            "       COUNT(*) AS refs,"
-            "       GROUP_CONCAT(DISTINCT e.widget_id) AS widgets"
-            " FROM j2_note_embeds e"
-            " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
-            " WHERE e.user_id = ? AND e.symbol = ? AND n.deleted_at IS NULL"
-            " GROUP BY n.id"
+            "       COALESCE(e.refs, 0) AS refs,"
+            "       e.widgets AS widgets"
+            " FROM ("
+            "  SELECT note_id FROM j2_note_embeds WHERE user_id = ? AND symbol = ?"
+            "  UNION"
+            "  SELECT note_id FROM j2_note_mentions WHERE user_id = ? AND symbol = ?"
+            " ) x"
+            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = ?"
+            " LEFT JOIN ("
+            "  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets"
+            "  FROM j2_note_embeds WHERE user_id = ? AND symbol = ? GROUP BY note_id"
+            " ) e ON e.note_id = n.id"
+            " WHERE n.deleted_at IS NULL"
             " ORDER BY n.updated_at DESC"
             " LIMIT ?",
-            (user_id, sym, max(1, min(limit, 25))),
+            (user_id, sym, user_id, sym, user_id, user_id, sym, max(1, min(limit, 25))),
         ).fetchall()
         out["notes"] = [{
             "id": r["id"],
@@ -1028,6 +1090,28 @@ def get_symbol_backlinks(
             "refs": int(r["refs"] or 0),
             "widgetIds": sorted((r["widgets"] or "").split(",")) if r["widgets"] else [],
         } for r in rows]
+        # P0-3 sector/industry/theme join — read-time only, off the ONE
+        # existing 24h ticker-metadata cache (never a fresh call per NOTE;
+        # at most one call per distinct SYMBOL LOOKED UP, already the exact
+        # pattern every chart header/TickerPopup in this app relies on — no
+        # new provider dependency). Only reached when there is at least one
+        # matching note, so an unknown/mistyped symbol never pays this cost.
+        # Earnings-window is deliberately NOT joined here yet: the awareness
+        # engine's `_collect_earnings_window` answers it but is shaped for a
+        # multi-symbol scan cycle, not a single-symbol point lookup, and it
+        # is not required for the core P0-3 success metric (reverse-index
+        # discoverability) — documented follow-up, not silently dropped.
+        try:
+            from api.services.ticker_meta import get_ticker_meta
+            meta = get_ticker_meta(sym)
+            out["sector"] = meta.get("sector")
+            out["industry"] = meta.get("industry")
+            out["theme"] = meta.get("theme")
+        except Exception:
+            # Never let an enrichment failure break the reverse-index read
+            # itself — the notes list above is the part of this response
+            # that must never be sacrificed to a metadata-provider hiccup.
+            out["sector"] = out["industry"] = out["theme"] = None
         return out
     finally:
         if owned:
@@ -1126,6 +1210,7 @@ def create_note(
             ),
         )
         _sync_note_embeds(conn, user_id, new_id, body_json)
+        _sync_note_mentions(conn, user_id, new_id, body_plain)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -1231,6 +1316,7 @@ def update_note(
         )
         if "bodyJson" in patch:
             _sync_note_embeds(conn, user_id, note_id, bj)
+            _sync_note_mentions(conn, user_id, note_id, bp)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -1285,6 +1371,7 @@ def append_widget_embed(
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
         _sync_note_embeds(conn, user_id, note_id, body_json)
+        _sync_note_mentions(conn, user_id, note_id, body_plain)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -1498,6 +1585,7 @@ def purge_expired_deleted_notes(
         for note_id in ids:
             conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
+            conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
         conn.commit()
         return len(ids)
     finally:

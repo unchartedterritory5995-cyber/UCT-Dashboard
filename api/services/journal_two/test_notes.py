@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from api.services import buzz_extract
 from api.services.journal_two import notes as svc
 from api.services.journal_two import notes_quota
 from api.services.journal_two.notes import (
@@ -23,6 +24,11 @@ def conn():
     ensure_schema(c)
     yield c
     c.close()
+
+
+# _no_real_ticker_metadata_calls (autouse) now lives in this directory's
+# conftest.py — moved there so EVERY test file in api/services/journal_two/
+# gets the same protection, not just this one.
 
 
 def test_extract_plain_text_walks_nested_nodes():
@@ -360,6 +366,243 @@ def test_backlinks_deleting_the_embed_drops_the_backlink(conn):
     assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 1
     svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}}, conn=conn)
     assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 0
+
+
+# ── Prose-mention sidecar (j2_note_mentions, P0-3, Wave 1 Slice 2) ───────────
+# The ongoing detection pass this program's own verification found did NOT
+# exist before this slice — see primary-platform-decision-log.md, "P0-3 scope
+# correction" (2026-09-05). These tests prove the member outcome the old spec
+# always wanted: a note mentioning a ticker ONLY in prose (no embed, no
+# import, no manual command) is discoverable from that ticker's reverse-index,
+# and stays correct across every part of the note lifecycle.
+
+def _note_with_text(conn, title, text, user="u1"):
+    content = [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]
+    return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+
+
+def test_a_prose_only_cashtag_mention_is_discoverable_from_the_reverse_index(conn):
+    """The exact P0-3 success metric: no embed, no import — just typing
+    `$NVDA` in an ordinary paragraph must make the note show up."""
+    n = _note_with_text(conn, "Earnings watch", "Researching $NVDA ahead of earnings.")
+    back = svc.get_symbol_backlinks("u1", "NVDA", conn=conn)
+    assert back["count"] == 1
+    assert back["notes"][0]["id"] == n["id"]
+    # No embed exists for this note — refs/widgetIds must degrade honestly,
+    # not fabricate embed detail that was never there.
+    assert back["notes"][0]["refs"] == 0
+    assert back["notes"][0]["widgetIds"] == []
+
+
+def test_a_bare_word_ticker_with_no_dollar_sign_is_NOT_persisted(conn):
+    """Precision matters for SILENT, automatic persistence (unlike the
+    human-reviewed one-time import offer, which does use the wider tiers).
+    'RS' is a real, actively-traded symbol and an ordinary abbreviation —
+    without the $ it must never become an automatic mention."""
+    _note_with_text(conn, "Notes", "RS looked weak into the close today.")
+    assert svc.get_symbol_backlinks("u1", "RS", conn=conn)["count"] == 0
+
+
+def test_editing_the_mention_out_removes_the_stale_relationship(conn):
+    """UPDATE NOTE lifecycle: rescan on every save, remove what's no longer
+    there. Changing $NVDA to $AMD must drop NVDA and add AMD — no stale
+    relationship left behind."""
+    n = _note_with_text(conn, "Swing idea", "Watching $NVDA for a breakout.")
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 1
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Watching $AMD instead."}]},
+    ]}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 0
+    assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 1
+
+
+def test_removing_all_cashtags_removes_the_mention_but_not_the_note(conn):
+    n = _note_with_text(conn, "Cooled off", "Watching $NVDA closely.")
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "No longer interested."}]},
+    ]}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 0
+    assert svc.get_note("u1", n["id"], conn=conn) is not None
+
+
+def test_embed_and_prose_mention_coexist_the_note_counts_once(conn):
+    """The important non-destructive-overwrite case: a chart embed AND a
+    prose mention for the SAME symbol in the SAME note must not double-count,
+    and removing one source must not remove the relationship the other
+    source still legitimately provides."""
+    content = [
+        {"type": "widgetEmbed", "attrs": {
+            "v": 1, "widgetId": "chart", "mode": "snapshot",
+            "params": {"symbol": "NVDA", "tf": "D"},
+            "capturedAt": "2026-08-13T12:00:00Z", "searchText": "[chart: NVDA D]",
+        }},
+        {"type": "paragraph", "content": [{"type": "text", "text": "Also discussed $NVDA here."}]},
+    ]
+    n = svc.create_note("u1", {"title": "Mixed", "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+    back = svc.get_symbol_backlinks("u1", "NVDA", conn=conn)
+    assert back["count"] == 1                      # ONE note, not two rows
+    assert back["notes"][0]["refs"] == 1            # embed detail still surfaces
+    assert back["notes"][0]["widgetIds"] == ["chart"]
+
+    # Remove the PROSE mention only — the embed relationship must survive.
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": [content[0]]}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 1
+
+    # Now remove the EMBED too (prose already gone) — the note must finally drop out.
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 0
+
+
+def test_embed_removed_while_prose_mention_remains_keeps_the_relationship(conn):
+    """The other half of the non-destructive-overwrite case: dropping the
+    embed while the prose mention is untouched must NOT remove the note from
+    the reverse-index."""
+    content = [
+        {"type": "widgetEmbed", "attrs": {
+            "v": 1, "widgetId": "chart", "mode": "snapshot",
+            "params": {"symbol": "NVDA", "tf": "D"},
+            "capturedAt": "2026-08-13T12:00:00Z", "searchText": "[chart: NVDA D]",
+        }},
+        {"type": "paragraph", "content": [{"type": "text", "text": "Also discussed $NVDA here."}]},
+    ]
+    n = svc.create_note("u1", {"title": "Mixed", "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": [content[1]]}}, conn=conn)
+    back = svc.get_symbol_backlinks("u1", "NVDA", conn=conn)
+    assert back["count"] == 1
+    assert back["notes"][0]["refs"] == 0
+    assert back["notes"][0]["widgetIds"] == []
+
+
+def test_mentions_are_isolated_per_user(conn):
+    _note_with_text(conn, "u1 note", "Watching $NVDA.", user="u1")
+    assert svc.get_symbol_backlinks("u2", "NVDA", conn=conn)["count"] == 0
+
+
+def test_saving_an_unchanged_note_repeatedly_does_not_duplicate_mention_rows(conn):
+    """Idempotency: the sync is delete+insert inside one transaction, never
+    additive — re-saving identical body_plain must never grow the row set."""
+    n = _note_with_text(conn, "Steady", "Watching $NVDA.")
+    for _ in range(3):
+        svc.update_note("u1", n["id"], {"title": "Steady (edited)"}, conn=conn)  # bodyJson NOT in patch
+    rows = conn.execute("SELECT COUNT(*) AS c FROM j2_note_mentions WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 1
+    for _ in range(3):
+        svc.update_note("u1", n["id"], {"bodyJson": n["bodyJson"]}, conn=conn)  # bodyJson unchanged, re-synced
+    rows = conn.execute("SELECT COUNT(*) AS c FROM j2_note_mentions WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 1
+
+
+def test_a_trashed_note_s_mention_drops_out_of_the_reverse_index_and_restore_brings_it_back(conn):
+    """Wave 0 trash lifecycle: the mentions ROW is left physically intact on
+    soft-delete (mirroring j2_note_embeds) — the `deleted_at IS NULL` join
+    filter is what actually excludes it, so restoring must not need to
+    re-detect anything."""
+    n = _note_with_text(conn, "Trashed idea", "Watching $NVDA.")
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 1
+    svc.delete_note("u1", n["id"], conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 0
+    svc.restore_note("u1", n["id"], conn=conn)
+    assert svc.get_symbol_backlinks("u1", "NVDA", conn=conn)["count"] == 1
+
+
+def test_purging_a_trashed_note_removes_its_mention_rows(conn):
+    n = _note_with_text(conn, "Expired", "Watching $NVDA.")
+    svc.delete_note("u1", n["id"], conn=conn)
+    conn.execute("UPDATE j2_notes SET deleted_at = '2000-01-01T00:00:00+00:00' WHERE id = ?", (n["id"],))
+    conn.commit()
+    purged = svc.purge_expired_deleted_notes(retention_days=30, conn=conn)
+    assert purged == 1
+    rows = conn.execute("SELECT COUNT(*) AS c FROM j2_note_mentions WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 0
+
+
+def test_hyphen_class_share_mention_is_discoverable_under_its_full_symbol(conn):
+    """The class-share fix, exercised end-to-end through the real note
+    lifecycle (not just the extractor in isolation) — $BRK-B must resolve to
+    BRK-B, matching cap_universe.json's own hyphenated convention, never the
+    truncated 'BRK'."""
+    _note_with_text(conn, "Berkshire", "Long $BRK-B here.")
+    assert svc.get_symbol_backlinks("u1", "BRK-B", conn=conn)["count"] == 1
+    assert svc.get_symbol_backlinks("u1", "BRK", conn=conn)["count"] == 0
+
+
+def test_the_embed_symbol_list_filter_also_matches_prose_mentions(conn):
+    """`_notes_filter_sql`'s `embed_symbol=` predicate — the OTHER reader
+    pinned to get_symbol_backlinks — must widen the same way."""
+    n = _note_with_text(conn, "Prose only", "Watching $NVDA.")
+    assert [r["id"] for r in svc.list_notes("u1", embed_symbol="NVDA", conn=conn)] == [n["id"]]
+    assert svc.count_notes("u1", embed_symbol="NVDA", conn=conn) == 1
+
+
+def test_backlinks_enriches_with_sector_industry_theme_from_the_local_cache(conn, monkeypatch):
+    """Read-time join, off the EXISTING 24h ticker-metadata cache (never a
+    fresh per-note external call) — mocked here so the test itself never
+    makes a real network call either."""
+    import api.services.ticker_meta as ticker_meta_mod
+    monkeypatch.setattr(ticker_meta_mod, "get_ticker_meta", lambda sym: {
+        "name": "NVIDIA Corporation", "sector": "Technology", "industry": "Semiconductors",
+        "exchange": "NASDAQ", "theme": "AI Infrastructure",
+    })
+    _note_with_text(conn, "Chips", "Watching $NVDA.")
+    back = svc.get_symbol_backlinks("u1", "NVDA", conn=conn)
+    assert back["sector"] == "Technology"
+    assert back["industry"] == "Semiconductors"
+    assert back["theme"] == "AI Infrastructure"
+
+
+def test_backlinks_enrichment_failure_never_breaks_the_notes_list(conn, monkeypatch):
+    """NOTE SAVE IS AUTHORITATIVE, ENTITY ENRICHMENT IS ADDITIVE — a metadata
+    provider hiccup must degrade to null fields, never take the reverse-index
+    read down with it."""
+    import api.services.ticker_meta as ticker_meta_mod
+    def _boom(sym):
+        raise RuntimeError("provider unavailable")
+    monkeypatch.setattr(ticker_meta_mod, "get_ticker_meta", _boom)
+    n = _note_with_text(conn, "Chips", "Watching $NVDA.")
+    back = svc.get_symbol_backlinks("u1", "NVDA", conn=conn)
+    assert back["count"] == 1
+    assert back["notes"][0]["id"] == n["id"]
+    assert back["sector"] is None and back["industry"] is None and back["theme"] is None
+
+
+def test_saving_one_note_never_rescans_the_rest_of_the_corpus(conn, monkeypatch):
+    """Performance contract: a note create/update processes the CHANGED note
+    only — never a full-library rescan. Proven deterministically (a spy call
+    count), not by a flaky wall-clock timing assertion: seed a real corpus,
+    then assert the extractor ran EXACTLY ONCE for the one note actually
+    saved, regardless of how many sibling notes already exist."""
+    for i in range(50):
+        _note_with_text(conn, f"Sibling {i}", f"Watching $SYM{i % 10}.")
+
+    calls = []
+    real_extract = buzz_extract.extract
+    def _spy(text):
+        calls.append(text)
+        return real_extract(text)
+    monkeypatch.setattr(svc.buzz_extract, "extract", _spy)
+
+    svc.create_note("u1", {"title": "New", "bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Watching $NVDA."}]},
+    ]}}, conn=conn)
+    assert len(calls) == 1, (
+        f"expected exactly 1 extractor call for the one note saved, got {len(calls)} "
+        f"-- a note save must never rescan sibling notes"
+    )
+    assert "$NVDA" in calls[0]
+
+
+def test_backlinks_and_the_list_filter_agree_including_prose_mentions(conn):
+    """Extends the existing embed-only agreement rail to cover the new
+    source too — both readers must still answer the SAME membership
+    question now that there are two sidecars behind it."""
+    _note_with_embeds(conn, "Embed only", "AMD")
+    _note_with_text(conn, "Prose only", "Watching $AMD here.")
+    _note_with_text(conn, "Neither", "No tickers mentioned.")
+    for sym in ("AMD", "NVDA"):
+        via_list = {r["id"] for r in svc.list_notes("u1", embed_symbol=sym, conn=conn)}
+        back = svc.get_symbol_backlinks("u1", sym, limit=25, conn=conn)
+        assert {n["id"] for n in back["notes"]} == via_list, sym
+        assert back["count"] == len(via_list), sym
 
 
 def test_list_rows_project_out_the_document_body(conn):
@@ -1037,3 +1280,15 @@ def test_route_trash_and_folder_counts_never_leak_across_members(two_user_route_
     # u2's folder-counts total is scoped to u2's own library only.
     u2_counts = c2.get("/api/j2/notes/folder-counts").json()
     assert u2_counts["total"] == 1  # just "u2 note" — u1's note never counted
+
+
+def test_route_backlinks_never_leak_a_prose_mention_across_members(two_user_route_clients):
+    """P0-3, Wave 1 Slice 2 — HTTP-layer isolation for the NEW sidecar, driven
+    through the real /api/j2/notes/backlinks route a browser session hits
+    (not just the service-layer test above)."""
+    c1, c2 = two_user_route_clients
+    c1.post("/api/j2/notes", json={"title": "u1 idea", "bodyJson": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Watching $NVDA."}]},
+    ]}})
+    assert c1.get("/api/j2/notes/backlinks?symbol=NVDA").json()["count"] == 1
+    assert c2.get("/api/j2/notes/backlinks?symbol=NVDA").json()["count"] == 0

@@ -53,6 +53,7 @@ _DIRECT_USER_TABLES = (
     "j2_notes",
     "j2_note_folders",
     "j2_note_embeds",
+    "j2_note_mentions",
     "j2_capture_inbox",
     "j2_public_profiles",
     "j2_note_shares",
