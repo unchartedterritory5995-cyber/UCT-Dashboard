@@ -1,7 +1,7 @@
 import { renderWithProviders, screen, fireEvent } from '../test-utils'
 import { useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
-import { vi } from 'vitest'
+import { vi, describe, beforeEach, afterEach } from 'vitest'
 
 function RouteSpy() {
   const location = useLocation()
@@ -43,6 +43,16 @@ vi.mock('./chart/SymbolSearch', () => ({
     </button>
   ),
 }))
+// S7 filing-watch — controlled mock so these tests can drive state
+// deterministically (renderWithProviders' real AuthProvider has no logged-in
+// user by default, so the real hook would never fetch anyway).
+const filingWatchMock = vi.hoisted(() => ({
+  watchState: vi.fn(() => 'NOT_WATCHING'),
+  getWatch: vi.fn(() => null),
+  createOrReactivate: vi.fn(),
+  suspend: vi.fn(),
+}))
+vi.mock('../hooks/useFilingWatch', () => ({ default: () => filingWatchMock }))
 
 import TickerPopup from './TickerPopup'
 
@@ -221,5 +231,54 @@ describe('Compare action (Portfolio/Position Intelligence Convergence V1 Part A1
     await user.click(screen.getByTestId('ticker-NVDA'))
     await user.click(screen.getByRole('button', { name: 'Open full research for NVDA' }))
     expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA')
+  })
+})
+
+describe('S7 filing-watch action (Stage 4, owner authorization)', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+    filingWatchMock.watchState.mockReset().mockReturnValue('NOT_WATCHING')
+    filingWatchMock.getWatch.mockReset().mockReturnValue(null)
+    filingWatchMock.createOrReactivate.mockReset()
+    filingWatchMock.suspend.mockReset()
+  })
+  afterEach(() => { vi.restoreAllMocks() })
+
+  test('NOT_WATCHING: click creates a watch for the active symbol', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.click(screen.getByRole('button', { name: /Notify me about new SEC filings for NVDA/ }))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('NVDA')
+  })
+
+  test('ACTIVE: click suspends the existing watch (renders gold/pressed)', async () => {
+    filingWatchMock.watchState.mockReturnValue('ACTIVE')
+    filingWatchMock.getWatch.mockReturnValue({ id: 'p1' })
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    const btn = screen.getByRole('button', { name: /Watching SEC filings/ })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    await user.click(btn)
+    expect(filingWatchMock.suspend).toHaveBeenCalledWith('p1', 'NVDA')
+  })
+
+  test('activeSym after switching ticker via header search — the watch action follows the newly-searched symbol', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.type(screen.getByPlaceholderText('Switch ticker…'), 'MSFT{enter}')
+    await user.click(screen.getByRole('button', { name: /Notify me about new SEC filings for MSFT/ }))
+    expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('MSFT')
+  })
+
+  test('CREATING: the action is disabled and does not fire a duplicate request', async () => {
+    filingWatchMock.watchState.mockReturnValue('CREATING')
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    const btn = screen.getByRole('button', { name: /Setting up filing watch/ })
+    expect(btn).toBeDisabled()
   })
 })
