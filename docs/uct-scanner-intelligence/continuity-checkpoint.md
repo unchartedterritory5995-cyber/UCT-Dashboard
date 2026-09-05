@@ -437,6 +437,79 @@ surfaced, previously-unmeasured factor worth its own investigation
 independent of 8G-B. Do not reactivate the pilot without further
 performance work on the canonical overlay itself.
 
+## Canonical-overlay performance isolation (2026-09-05, same day, internal profiling — no production HTTP)
+
+Owner authorized in-process profiling (labeled INTERNAL PERFORMANCE
+PROFILING, not true-HTTP acceptance evidence) to split baseline
+scanner/filter cost from incremental canonical-overlay cost, after the
+matched true-HTTP result showed both legacy (441-700ms) and canonical
+(514-1245ms) elevated on the real `pattern_engine_id contains
+power_earnings_gap` request.
+
+**New isolated worktree:** `C:\Users\Patrick\uct-dashboard-8gb-overlay-perf`,
+branch `fix/8g-b-overlay-performance`, off `origin/master` @ `c71c6bae2`.
+Two throwaway, uncommitted profiling scripts
+(`_profile_8gb_overlay.py`, `_profile_8gb_concurrency.py`) — not permanent
+tests, not pushed, safe to discard or keep for reference.
+
+### Experiment 1 — same-process, uncontended, real served `query.run_scan` path
+Seeded a realistic-scale (3,710-row) `screener_rows` snapshot + 10 real PEG
+detections (via `adapt_power_earnings_gap`), called the ACTUAL
+`query.run_scan` with the exact matched spec, 8 samples each state:
+- Legacy (ordinary user, pilot OFF): median **3.69ms**
+- Legacy (admin, pilot OFF, control): median **3.66ms**
+- Overlay authz-check only (ordinary user, pilot ON — short-circuits before
+  any DB work): median **3.72ms**
+- **Full canonical (admin, pilot ON): median 4.84ms**
+- **Incremental canonical cost: ~1.18ms.** `read_pattern_fields_canonical_shadow`
+  confirmed called **exactly once per request** (not per-row — no N+1),
+  averaging ~1.2ms itself (matching the earlier production-measured "~1.2ms
+  forced" figure exactly), of which `pattern_db.get_connection()` (a fresh
+  SQLite connection opened per call, not pooled) is ~0.64ms.
+
+**This rules out the canonical overlay's own logic as the source of the
+150-650ms production delta.** The code is fast; call-count is correct
+(batched, not repeated); the index fix remains valid and sufficient.
+
+### Experiment 2 — same files, 24-way concurrent contention (simulating the single-process/shared-threadpool architecture)
+Interleaved legacy and canonical calls, 24 concurrent threads/round × 6
+rounds, against the SAME on-disk SQLite files:
+- Legacy under contention: median **189.86ms** (min 9.69, max 226.59)
+- Canonical under contention: median **198.39ms** (min 107.88, max 262.60)
+- **Delta (median): ~8.5ms; delta (max): ~36ms** — both paths spike from
+  ~3.7ms (uncontended) to ~170-225ms under contention, TOGETHER, and the
+  canonical path's marginal extra cost stays small (single-digit-to-tens of
+  ms) relative to the ~150-250ms contention cost itself.
+
+**Strong (not absolute) evidence that shared SQLite/threadpool contention —
+the same architecture class as the documented 2026-07-01 524-outage root
+cause — dominates the observed production latency for BOTH legacy and
+canonical requests, and the canonical overlay's marginal contribution under
+load is real but small.** Caveat: this synthetic concurrency test
+(ThreadPoolExecutor + local tmp SQLite files) is a reasonable proxy, not an
+exact replica, of production's full request stack (network, ASGI/Starlette
+middleware, GZip, Pydantic validation, many *other* concurrent background
+jobs/DBs) — reported as strong supporting evidence, not proof of the exact
+production mechanism.
+
+### Classification: **CANONICAL OVERLAY COST IS ALREADY SMALL — LEGACY/PROCESS BASELINE IS THE PRIMARY BLOCKER — OWNER DECISION REQUIRED**
+
+No code-only, request-local fix is justified by this evidence — the
+dominant cost is shared-infrastructure contention, not overlay logic, so
+optimizing the overlay further would not resolve the 500ms gate failure.
+**No code change implemented.** A legitimate but genuinely minor optional
+hygiene improvement exists (reuse/pool the one SQLite connection
+`read_pattern_fields_canonical_shadow` opens instead of opening+closing it
+per call) — evidence shows it would save only ~0.6ms uncontended and is not
+being implemented now since it would not address the actual observed
+bottleneck; flagged for the owner's discretion, not treated as required.
+
+Resolving the real bottleneck (shared single-process/threadpool/SQLite
+contention) is a broader architectural matter — explicitly out of scope for
+this package per the owner's own boundary — and should be evaluated
+alongside the already-open scan/redeploy-reliability issue as a combined
+future production-reliability workstream, not patched inside 8G-B.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
