@@ -1,6 +1,12 @@
 import { renderWithProviders, screen, fireEvent } from '../test-utils'
+import { useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
+
+function RouteSpy() {
+  const location = useLocation()
+  return <div data-testid="route-spy">{location.pathname}{location.search}</div>
+}
 
 // Suppress prefetchBars side effects — the click handler kicks off SWR
 // preloads against /api/bars/* that resolve to relative URLs jsdom can't fetch.
@@ -77,4 +83,72 @@ test('modal renders stock chart for the active timeframe', async () => {
   // the popup's tab state and the pane stay in lockstep.
   await user.click(await screen.findByRole('button', { name: '5m' }))
   expect(await screen.findByTestId('stock-chart-NVDA-5')).toBeInTheDocument()
+})
+
+describe('Research / Ask AI deep-link actions (2026-09-04 slice)', () => {
+  beforeEach(() => {
+    // SwitchTickerBox debounces a real fetch to /api/ticker-search; only the
+    // "switch ticker" test below types into it, but stub unconditionally so a
+    // stray in-flight timer from that test can never hit a real network call.
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false }))
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('Full Research navigates to /research/:sym and closes the modal', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Open full research for NVDA' }))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA')
+    expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+  })
+
+  test('Ask AI navigates to /research/:sym?section=ai', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.click(screen.getByRole('button', { name: 'Ask AI about NVDA' }))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA?section=ai')
+  })
+
+  test('actions follow activeSym after switching ticker via the header search', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    await user.type(screen.getByPlaceholderText('Switch ticker…'), 'MSFT{enter}')
+    await user.click(screen.getByRole('button', { name: 'Open full research for MSFT' }))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT')
+  })
+
+  test('Full Research action is keyboard-activatable', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    screen.getByRole('button', { name: 'Open full research for NVDA' }).focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA')
+  })
+
+  test('a class-share symbol (BRK-B) reaches Full Research and Ask AI in its canonical hyphen form, unconverted', async () => {
+    // No frontend provider-symbol conversion is introduced by this slice —
+    // whatever canonical hyphen-form symbol the caller passes in (the same
+    // form every backend-driven surface — Screener, watchlists, etc. — already
+    // supplies) must reach /research/:sym byte-identical.
+    const user = userEvent.setup()
+    renderWithProviders(<><TickerPopup sym="BRK-B" /><RouteSpy /></>)
+    await user.click(screen.getByTestId('ticker-BRK-B'))
+    await user.click(screen.getByRole('button', { name: 'Open full research for BRK-B' }))
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/BRK-B')
+  })
+
+  test('existing Flag and Close actions still render alongside the new research actions', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.getByRole('button', { name: 'Add to flagged list' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close chart' })).toBeInTheDocument()
+  })
 })

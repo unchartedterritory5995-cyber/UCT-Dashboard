@@ -103,7 +103,16 @@
 .newsSummary { margin: 3px 0 0; font-size: var(--text-base); line-height: 1.5; color: var(--text-muted); }
 
 /* Ask AI tab (I1 Intelligence Layer Slice 1, 2026-09-04 -- the "Explain"
-   assistant; not a general chat product, so no message-list/thread chrome). */
+   assistant; Slice 3, 2026-09-04, adds a bounded multi-turn thread -- still
+   deliberately NOT a general chat product: no streaming, no rich-chat
+   framework, no message editing). */
+.explainHeaderRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.explainNewConvoBtn { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: var(--text-xs); text-transform: none; letter-spacing: normal; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+.explainNewConvoBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.explainThread { display: flex; flex-direction: column; }
+.explainTurn { padding: 10px 0; border-top: 1px solid var(--border); }
+.explainTurn:first-child { border-top: none; padding-top: 0; }
+.explainTurnQuestion { font-size: var(--text-xs); letter-spacing: 0.3px; color: var(--text-muted); margin-bottom: 6px; }
 .explainSuggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .explainChip { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 14px); padding: 5px 10px; font-size: var(--text-xs); color: var(--text-muted); cursor: pointer; }
 .explainChip:hover { border-color: var(--ut-gold); color: var(--ut-gold); }

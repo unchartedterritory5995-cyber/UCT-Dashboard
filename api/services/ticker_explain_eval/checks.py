@@ -216,7 +216,12 @@ DIMENSION_CHECKS = {
 
 # Dimensions this module cannot score -- genuinely qualitative, need a judge
 # (see judge.py) or a human read during the live-validation checkpoint.
-JUDGE_ONLY_DIMENSIONS = ("source_selection", "answer_relevance", "terminal_usefulness")
+# Slice 3 adds reference_resolution -- whether a follow-up's pronoun/
+# reference ("that", "why", "which one") was correctly resolved given the
+# conversation so far. Mechanically unscoreable (it's a semantic judgment
+# about what a follow-up MEANT), so it joins the judge-only set.
+JUDGE_ONLY_DIMENSIONS = ("source_selection", "answer_relevance", "terminal_usefulness",
+                         "reference_resolution")
 # factual_correctness is a hybrid: the mechanical checks above (citation +
 # numerical grounding) catch a WRONG stated fact whenever it involves a
 # number or a bad citation; a purely qualitative factual error (right

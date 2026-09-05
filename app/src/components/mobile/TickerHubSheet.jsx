@@ -132,6 +132,14 @@ function TickerHubBody({ sym, onClose }) {
           >
             <span className={styles.aicon} aria-hidden="true"><UIcon name="breadth" size={14} /></span>Funds
           </button>
+          {/* Full Research / Ask AI — same canonical /research/:sym door as
+              TickerPopup's desktop header actions, never a second AI surface. */}
+          <button type="button" className={styles.action} onClick={() => go(`/research/${sym}`)}>
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="book" size={14} /></span>Research
+          </button>
+          <button type="button" className={styles.action} onClick={() => go(`/research/${sym}?section=ai`)}>
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="sparkle" size={14} /></span>Ask AI
+          </button>
         </div>
 
         {/* Fundamentals snapshot — lazy + fetch-gated on open */}

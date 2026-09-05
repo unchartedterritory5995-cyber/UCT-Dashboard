@@ -1,5 +1,6 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
@@ -73,6 +74,14 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const tickerActions = useTickerActions()
   const { openTicker } = useTickerHub()
   const isTouch = useIsTouch()
+  const navigate = useNavigate()
+
+  // Full Research / Ask AI — the shared door into the canonical /research/:sym
+  // Ask AI surface (ticker_explain.py), never the separate ai_search.py
+  // assistant. Close first so the destination page mounts clean, matching
+  // TickerHubSheet's own go() helper.
+  const goToResearch = () => { closeModal(); navigate(`/research/${activeSym}`) }
+  const goToAskAi = () => { closeModal(); navigate(`/research/${activeSym}?section=ai`) }
 
   // Fetch live price only when modal is open
   const { prices } = useRealtimePrices(modalOpen && activeSym ? [activeSym] : [])
@@ -211,6 +220,22 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                     place. A real <input>, not a click-to-open dropdown, so it's
                     directly typeable inside the modal. */}
                 <SwitchTickerBox onPick={setSearchSym} />
+                <button
+                  className={styles.actionBtn}
+                  onClick={goToResearch}
+                  title="Open full research"
+                  aria-label={`Open full research for ${activeSym}`}
+                >
+                  <UIcon name="book" size={14} />
+                </button>
+                <button
+                  className={styles.actionBtn}
+                  onClick={goToAskAi}
+                  title="Ask AI about this security"
+                  aria-label={`Ask AI about ${activeSym}`}
+                >
+                  <UIcon name="sparkle" size={14} />
+                </button>
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
