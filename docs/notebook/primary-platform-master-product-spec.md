@@ -23,7 +23,7 @@
 **Three product stages**, each with its own entry/exit criteria (§4):
 - **Stage A — Primary Notebook Beta:** smallest coherent release, real member testing, one genuine financial-native advantage.
 - **Stage B — Financial Research System of Record:** the beachhead persona increasingly treats UCT as the authoritative home for research, theses, and decision history, integrating rather than duplicating other UCT surfaces.
-- **Stage C — Primary Notebook Ready:** measurable evidence a target member no longer needs an incumbent notebook for their important daily workflow — and, separately, evidence of whether broader incumbent replacement is warranted at all.
+- **Stage C — Primary Notebook Ready:** measurable evidence a target financial member does not *need* an incumbent notebook for their important daily/research workflows — optional continued use for unrelated, out-of-scope workflows is fine; *required* use because of a UCT capability gap on an in-scope workflow means that workflow has not reached Stage C.
 
 ---
 
@@ -43,7 +43,7 @@
 12. **What we will exceed:** temporal correctness for financial data (no competitor has this at all) — currently proven for one narrow slice (intraday chart embeds) and the target, not yet the universal current state; integration of live market data into research notes.
 13. **What we will not build:** a general web clipper, a full third-party plugin marketplace, enterprise collaboration depth, one-click full-migration rollback, a Notion-style external developer Agents platform. **Narrower carve-outs inside these categories are not blanket-rejected:** a bookmarklet-first financial-research capture extension, and a scoped single-import-batch undo, are Experiment-worthy — see §8.
 14. **Our strategic moat:** the frozen-at-insert pattern, extended universally (target state, not current — see architecture spec §7), plus the accumulated, accurately time-stamped personal research history it produces. This is a **compounding/retention** moat, not an acquisition one — it is invisible to a member in their first 30 minutes, and the roadmap must not conflate "we will have the strongest long-run moat" with "we have the strongest reason to switch today." The acquisition case rests on trust/parity items (search, trash, export) instead.
-15. **Definition of "Primary Notebook Ready":** see Stage C (§4.3). Explicitly acknowledges that a hybrid outcome — UCT as the home for financial captures and decisions, an incumbent tool retained for everything else — is a plausible **success** state under this constitution, not a failure to fix later.
+15. **Definition of "Primary Notebook Ready":** see Stage C (§4.3). A member's *optional, chosen* continued use of an incumbent notebook for workflows outside this program's target scope (general note-taking, unrelated projects) is a legitimate success state, not a failure to fix. A member's *required* return to an incumbent because UCT cannot do an in-scope target-persona workflow is not — that specific gap has not reached Stage C, and the ultimate ambition remains that a serious trader/investor/researcher eventually has no important reason to leave UCT for a generic notebook.
 
 ---
 
@@ -89,9 +89,16 @@
 
 **Governing rule:** every Stage-B capability obeys the UCT Surface Ownership Principle (architecture spec §9) — Notebook links or snapshots; it never re-implements another surface's authoritative write path. This is the rule that rejected the original "Trading Journal object model" proposal outright.
 
-### 4.3 Stage C — Primary Notebook Ready
+### 4.3 Stage C — Primary Notebook Ready (for the target financial user)
 
-**Definition:** measurable evidence that a representative target member no longer needs to return to an incumbent notebook for their important daily/research workflow — measured against real usage, not roadmap completion. Explicitly **not** full displacement of a general-purpose notebook for non-financial use — a hybrid "UCT for financial captures, old tool for everything else" outcome counts as success under this constitution (§2 item 15).
+**Definition:** for a representative member of the target financial personas (§3), UCT is sufficiently capable that they do **not need** Notion, Evernote, or Obsidian to complete their important everyday notebook/research/knowledge workflows — measured against real usage, not roadmap completion.
+
+**The governing distinction — read this before scoping any Stage-C work:**
+- **OPTIONAL continued incumbent use is fine, and is not a failure to fix.** A member may still *choose* to keep a general-purpose notebook for meeting notes, personal journaling, or unrelated projects that were never this program's target workflows. That kind of coexistence is a legitimate, permanent outcome — it is what Stage B's "alongside" positioning describes, and it does not need to be eliminated.
+- **REQUIRED incumbent use because of a UCT capability gap is not Stage C.** If a target member must keep returning to Notion/Evernote/Obsidian to complete an *important workflow this program's own personas and benchmark suite name as in scope* — because UCT genuinely cannot do it — that specific workflow has not reached Stage C, regardless of how much other work has shipped. Do not count that gap as "acceptable coexistence."
+- **This is not generic productivity parity.** Stage C is scoped specifically to the target financial personas (§3) and the workflows this program has actually researched and named (the Master Benchmark Suite, §9) — not a claim about matching Notion/Evernote/Obsidian for every possible use case a human might have.
+
+This corrects and sharpens, without reversing, the Phase One/Two finding that "financial research system of record" (Stage B) is the correct *initial* strategic beachhead — Stage B remains the right place to earn adoption first. Stage C is the separate, later, higher bar: once earned, an incumbent notebook becomes optional for this audience's important workflows, not merely tolerated as a permanent dependency.
 
 **Preconditions before claiming Stage C:**
 - Stage B complete and in real production use for a meaningful period.

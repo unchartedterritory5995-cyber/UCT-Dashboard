@@ -16,6 +16,18 @@ Durable record of major decisions across Phase Zero, the Evidence-Integrity Audi
 
 ---
 
+### 2026-09-05 — Stage C sharpened: optional continued incumbent use ≠ required incumbent use due to a capability gap
+
+**Decision:** Refine (not reverse) the Stage C definition set by the entry above. Stage C — "Primary Notebook Ready" — means a target financial member does not *need* Notion/Evernote/Obsidian for their important, in-scope daily/research workflows. A member's optional, chosen continued use of an incumbent for out-of-scope workflows (general note-taking, unrelated projects) remains a legitimate permanent outcome. A member's *required* return to an incumbent because UCT genuinely cannot do an in-scope, named target-persona workflow is **not** Stage C for that workflow, regardless of how much other work has shipped.
+**Alternatives:** Leave the original entry's "hybrid outcome... as success" language unqualified, which risked being read as license to treat any and all continued incumbent dependence — including on workflows this program explicitly researched and named as in scope — as an acceptable permanent end state.
+**Evidence:** No new research evidence — this is a strategic-intent clarification, requested explicitly to prevent the roadmap from optimizing around permanent coexistence rather than treating coexistence as the *initial* adoption strategy on the way to a higher bar.
+**Rationale:** The original entry's narrowing (system-of-record over full-replacement as the *initial* strategy) remains correct and is not reversed here — Stage B is still the right place to earn adoption first. What was underspecified is the ultimate Stage-C quality bar: "used alongside" must not quietly become "permanently dependent on the incumbent for something we should have built." Distinguishing optional-out-of-scope-use from required-in-scope-gap-use closes that ambiguity without reopening the beachhead or Stage-B decisions.
+**Consequences:** `primary-platform-master-product-spec.md` §1, §2 (Constitution item 15), and §4.3 updated with this distinction. No change to Stage A or Stage B scope, build lists, or sequencing — this affects only how Stage C's exit evidence is judged, later.
+**Reversibility:** Fully reversible — a definitional sharpening, not an architectural or roadmap change.
+**Reconsider if:** never expected to reverse; could be further refined if real Stage-C evidence surfaces a target workflow this program never researched and therefore never scoped as "in scope" in the first place — that would be a scoping question, not a reason to relax the optional/required distinction itself.
+
+---
+
 ### 2026-09-05 — Beachhead persona: active/swing trader, not four co-equal personas
 
 **Decision:** The active/swing trader already inside Journal 2.0 + Compass + broker sync is the primary beachhead. Fundamental investor and PM-of-own-capital are secondary (alongside model). Professional analyst/institutional PM are deferred.
