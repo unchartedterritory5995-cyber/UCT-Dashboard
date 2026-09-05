@@ -1,0 +1,29 @@
+{
+  "_": "Golden Journey #4 (plain-language door) cases, prepared Phase One Track E. Each case names the EXACT prompt to send to POST /api/user-definitions/propose and what a correct response must satisfy. The `expected` block states a SHAPE the AST must have, not a byte-exact tree -- the model may phrase its tool call differently across runs, and pinning exact wording would make this fixture fail on a semantically-correct response. See GOLDEN_JOURNEY_04_05_READY_TO_RUN.md for how each case is used.",
+  "positive": {
+    "prompt": "close above the 50 day moving average",
+    "kind": "scan",
+    "expected_shape": {
+      "root_op": "gt",
+      "left_series": "close",
+      "right_function": "sma",
+      "right_function_arg1_options": [50],
+      "note": "the exact question Phase Zero's CGJ4 asked and never got to observe an answer for: does the model pick sma() or ema() for the underspecified phrase 'moving average'? Either is a semantically defensible reading -- this case exists to OBSERVE the choice, not to fail on one of the two answers. Record which one it picked in the evidence doc regardless of outcome."
+    }
+  },
+  "ambiguous_should_clarify_or_partially_refuse": {
+    "prompt": "flag it when the vibe turns bullish",
+    "kind": "scan",
+    "expected": "gate a `not_understood` entry (per definition_concierge.plan()'s per-clause refusal design) OR an overall ok:false with gate naming the unresolvable clause -- 'vibe' and 'turns bullish' are not in conceptVocabulary.json's firm vocabulary and do not match any closedTable.json function or series name, so this MUST NOT silently resolve to some plausible-looking formula (e.g. defaulting to an RSI-crossed-50 guess). If the response is ok:true, that is a finding to report, not a fixture to quietly relax."
+  },
+  "out_of_vocabulary_function_should_refuse_by_name": {
+    "prompt": "plot the McGinley Dynamic of the close over 14 bars",
+    "kind": "indicator",
+    "expected": "ok:false; the refusal must name the reason the McGinley Dynamic specifically cannot be expressed (it is not one of closedTable.json's 64 functions) rather than a generic 'could not understand' -- matching definition_concierge.plan()'s per-clause not_understood design, the concierge's own analogue to pine.js's PINE_INEXPRESSIBLE refusal-by-name discipline for the paste door. A response that silently substitutes a different, similarly-shaped indicator (e.g. a plain EMA) without saying so would be the exact silent-wrong-answer failure mode this whole program exists to catch."
+  },
+  "empty_prompt_should_refuse_before_spending_a_token": {
+    "prompt": "",
+    "kind": "indicator",
+    "expected": "ok:false, gate:'prompt:empty' -- this one needs NO api key at all (definition_concierge.propose's own first check, before plan() or any model call) so it is runnable today, right now, with no key present. Include it in the automated test regardless of whether ANTHROPIC_API_KEY is set, as the one assertion in this file that is NOT blocked."
+  }
+}
