@@ -619,6 +619,36 @@ explicitly scoped command (`grep`/`grep -oE` on a name pattern, or
 `--json` parsed for key-presence only) — never `tail`, `head`, or any
 command that can pass through unfiltered table/value output.
 
+## Owner decisions accepted, architecture review opened (2026-09-05)
+
+**OWNER ACCEPTED RESIDUAL CREDENTIAL-EXPOSURE RISK — NO FURTHER ROTATION
+REQUIRED FOR THIS PROGRAM.** (No values recorded. Affected names on record
+above: `YT_OAUTH_CLIENT_SECRET`, `YT_OAUTH_REFRESH_TOKEN`,
+`ZOOM_S2S_CLIENT_SECRET`, `ZOOM_WEBHOOK_SECRET_TOKEN`.) Not to be re-raised
+absent genuinely new exposure.
+
+**Package 8G-B state, owner-confirmed:** canonical overlay FROZEN (no
+further changes without contradictory evidence); functional correctness +
+incremental performance (~1.2ms) VALIDATED; final HTTP acceptance BLOCKED
+by general serving/runtime variance (external to this package). 8G-C: HOLD.
+Pilot OFF, adapt ON — unchanged.
+
+**New workstream opened:** Scanner Serving + Background-Job Architecture
+Reliability Review (research/tracing only, no implementation). See the
+full report delivered in-session for the topology trace, request-lifecycle
+mapping, and option comparison. Headline finding: `web`'s own
+`bars_api_main.py` docstring documents a **first-party precedent for the
+exact same failure class** — "The install ran in a lifespan THREAD → its
+GIL-heavy extract starved `/api/health` → Railway silently restart-looped
+it" — plus an already-shipped fix pattern (`bars_api_main.py`, `BARS_API_
+ENABLED=1`: a narrow serving-only entrypoint sharing the same route code,
+no schedulers, own narrow deploy-watch paths) built for the identical
+"deploy interrupts serving" problem in the chart/bars subsystem. `web`
+registers 135+ APScheduler `BackgroundScheduler` jobs (own thread pool,
+same GIL/CPU/SQLite-files as the anyio threadpool serving sync HTTP
+routes like `/api/screener/scan`). No production topology change made
+yet — pending owner authorization.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
