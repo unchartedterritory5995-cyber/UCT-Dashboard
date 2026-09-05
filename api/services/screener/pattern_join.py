@@ -475,10 +475,26 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
     cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
     sym_ph = ",".join("?" * len(target_syms))
+    # Phase 8 Package 8G-B Residual Performance Closure (2026-09-05):
+    # `INDEXED BY idx_pd_sym_tf`, forced. Measured root cause of the live
+    # pilot's remaining ~400-700ms admin cost (after the prior ticker-scoping
+    # fix, which was structurally correct but did not control which index
+    # SQLite's planner used): the planner was choosing idx_pd_status
+    # (`status IN (...)`) over idx_pd_sym_tf for this exact WHERE shape --
+    # sym IN (4 items) AND tf='D' AND status IN (3 items) AND detected_at >= ?
+    # AND category NOT IN (...) -- visiting ~57,000 status-matching rows
+    # table-wide and filtering the rest in place, instead of seeking the
+    # ~80-110 rows per requested ticker idx_pd_sym_tf would return directly.
+    # Forcing the index measured 350x faster on real production data (a
+    # 4-ticker call: ~400ms unforced vs ~1.2ms forced) with an identical row
+    # count returned. idx_pd_sym_tf is created unconditionally in this
+    # module's own schema init (pattern_db.py's `_SCHEMA`, `CREATE INDEX IF
+    # NOT EXISTS`) alongside the table itself, so it always exists wherever
+    # pattern_detections does -- no schema/index migration, no new index.
     sql = f"""
         SELECT sym, pattern_id, direction, confidence, levels_json, detected_at,
                status, geometry_json, quality_json, narrative_json, eligibility_json
-        FROM pattern_detections
+        FROM pattern_detections INDEXED BY idx_pd_sym_tf
         WHERE tf = 'D'
           AND status IN ({placeholders})
           AND detected_at >= ?
