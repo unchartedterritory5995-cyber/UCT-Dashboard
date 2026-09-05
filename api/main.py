@@ -9402,7 +9402,14 @@ if os.path.exists(DIST):
             headers={"Cache-Control": "no-store"},
         )
 
-    @app.get("/{full_path:path}")
+    # HEAD as well as GET: a server that answers GET on a resource is supposed
+    # to answer HEAD on it too, and registering only GET made EVERY page URL --
+    # including the site root -- reply 405 to a HEAD probe. That is what link
+    # checkers, uptime monitors and Obsidian's plugin-directory reachability
+    # check all use, so `authorUrl: https://uctintelligence.com` was reported
+    # as "not reachable" while the same URL served 200 to every GET. Starlette
+    # runs the same handler for both; h11 drops the body on a HEAD response.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def spa_fallback(full_path: str):
         return FileResponse(
             os.path.join(DIST, "index.html"),
