@@ -1,5 +1,19 @@
 # ADR: Pine input-parameter fidelity — the contract, before any implementation
 
+**Status:** 🔴 **SUPERSEDED 2026-09-04 by owner/ChatGPT review — see
+`TRACK_F_PARAMETER_ADR_V2.md`.** Kept verbatim rather than edited, per this program's
+append-only-correction convention: §3.10 below proposed persisting the original Pine
+source text to enable re-translation, which directly reopens the Phase Zero
+architectural boundary "raw source is transient, never persisted" without
+acknowledging it as a new decision. V2 resolves this — the recommended design
+persists NEITHER raw Pine source NOR a novel provenance format; it reuses the
+already-existing, already-persisted UCT-DSL `compute.source` round-trip. Everything
+else below (§1's baseline, §2's translation-time-override direction, the closed-tree
+guarantee, the half-applied-control preservation) was affirmed, not overturned — V2
+sharpens and grounds it rather than replacing it.
+
+---
+
 **Status:** 🟡 **PROPOSED — design only, for owner review. No implementation in this
 ADR or alongside it.** Per DEC-006 ("Pine input fidelity: pursue, contract-first"),
 this document is the contract that must be reviewed and accepted (or revised) before
