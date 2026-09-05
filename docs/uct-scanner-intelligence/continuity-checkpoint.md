@@ -775,6 +775,73 @@ diagnostic value proportional to keeping temporary code in the request
 path. Not yet reverted — held pending explicit owner go-ahead per the
 stop condition.
 
+## Instrumentation reverted; screener.db contention investigation (2026-09-05, read-only)
+
+**Cleanup:** temporary scanner-trace instrumentation (both passes) reverted
+in one commit (`697cc3e8d`, deployed and verified — no `scan-trace` log
+lines, `git grep scan_trace_temp` returns nothing, regression back to the
+original 2972-passed baseline). Pilot OFF, adapt ON confirmed on the
+running process.
+
+**Read-only screener.db investigation (code + live, read-only probe via
+`railway ssh` + `sqlite3.connect(..., mode=ro)` — no PRAGMA changed, no
+write, no checkpoint, no vacuum):**
+
+- **Readers:** ~15+ distinct call sites across `scan_results.py`,
+  `scatter.py`, `analyst_pass.py`, `distribution.py`, `filters.py`,
+  `live_tier.py`, `query.py` (×2), `scan_evaluator.py`, `scan_store.py`
+  (×6), `screen_alerts.py` (×7) — all via `snapshot_db.connect()`, a
+  **fresh `sqlite3.connect()` per call, no pooling anywhere in the
+  codebase.**
+- **Writers:** `snapshot_builder.py` (nightly snapshot build, `upsert_rows`
+  batches — last ran 2026-09-05 09:02, matches file mtime), `scan_store.py`
+  (scan_hits/scan_coverage, nightly 05:00 ET sweep + others), `live_tier.py`
+  (market-hours-gated live overlay writes), `screen_alerts.py` (writes
+  `screen_alert_subs`/`screen_alerts_fired`, scheduled job
+  `screener_screen_alerts`, described as "nightly" in its own scheduler
+  call). All `snapshot_db`-internal writes serialize via one in-process
+  `threading.Lock` (`_WRITE_LOCK`) — but **reads never acquire this lock**,
+  relying entirely on SQLite's own WAL reader/writer concurrency.
+- **Query design fact:** the `contains` filter (used by the matched PEG
+  request) compiles to `LIKE '%value%'` — a **leading wildcard, which
+  cannot use any index** regardless of what indexes exist. Every such
+  request is a full table scan by construction.
+- **Live file state (read-only, checked once):** `/data/screener.db` =
+  13,733,888 bytes (3353 × 4096-byte pages), mtime 2026-09-05 09:02 (the
+  nightly build). **No `-wal`/`-shm` files present** at check time — fully
+  checkpointed, no lingering WAL growth observed (doesn't rule out
+  transient WAL activity between observations).
+- **Live PRAGMAs (read-only query, not a change):** `journal_mode=wal`,
+  `synchronous=2 (FULL)`, `busy_timeout=5000`, `cache_size=-2000` (~2MB —
+  **far smaller than the 13MB file**), `mmap_size=0` (disabled),
+  `page_size=4096`, `page_count=3353`, `auto_vacuum=0`,
+  `wal_autocheckpoint=1000`.
+- **Decisive cold/warm demonstration:** on a fresh read-only connection,
+  `SELECT COUNT(*) FROM screener_rows` (3745 rows) took **116.7ms**;
+  immediately after, on the SAME connection, the real matched-request LIKE
+  query took **3.59ms** — a **32x difference for two full-table-touching
+  queries back to back.** This is a genuine, measured cold-vs-warm effect.
+  Combined with the small per-connection `cache_size` and zero connection
+  pooling in production, **every single production HTTP request pays a
+  fresh "first-touch" cost that a warm/pooled connection would not.**
+
+**Classification: D6 — MIXED DATABASE/STORAGE MECHANISMS.** At least two
+distinct, evidenced factors contribute: (1) the `contains`/LIKE query
+design forces a full table scan on every call (no index can help, ever),
+and (2) a real cold/warm cache-state effect compounded by zero connection
+pooling (every request opens a fresh connection with an empty per-
+connection cache against a file bigger than that cache). Writer/lock
+contention (D1) and WAL/checkpoint effects (D2) remain plausible
+contributors but are not confirmed as dominant — no `-wal` file was
+observed lingering, and the app-level `_WRITE_LOCK` only serializes
+writers against each other, not against readers. Not conclusively
+isolated to one single mechanism — hence D6, not a forced D1–D5 pick.
+
+**Not implemented, per hard boundary:** no PRAGMA changed, no index added,
+no `_known_columns` caching, no connection pooling, no snapshot
+architecture change, no scanner service. All of these remain candidate
+options requiring owner authorization.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
