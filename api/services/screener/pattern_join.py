@@ -134,6 +134,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import time
 
 _ACTIVE_STATUSES = ("forming", "ready", "triggered")
@@ -515,6 +516,87 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
 
         out[tu] = build_scanner_summary(reconstructed)
     return out
+
+
+# ─── Phase 8 Package 8G-B — PEG-only admin/pilot canonical scanner authority ──
+#
+# The ONLY family this pilot may ever touch. A hardcoded constant, not an env
+# var: an env var can be fat-fingered ("power_earnings_gap,high_tight_flag")
+# without a code review; widening this set is a deliberate code change for a
+# future package. HTF has no real live canonical write observed yet (Package
+# 8G-A) and stays on the legacy path unconditionally regardless of any other
+# input to this function.
+_PILOT_SUPPORTED_FAMILIES = frozenset({"power_earnings_gap"})
+
+
+def _pilot_authorized(user) -> bool:
+    """Same admin-role convention `require_admin` already enforces
+    (`user.get("role") == "admin"`) — no parallel auth system."""
+    return bool(user) and user.get("role") == "admin"
+
+
+def apply_canonical_pilot_overlay(rows: list, user: dict) -> list:
+    """Phase 8 Package 8G-B. Additive-only, admin/pilot + PEG-only overlay on
+    top of the REAL served `/api/screener/scan` rows (`query.run_scan`'s
+    `out_rows`, sourced from `screener_rows` — the legacy, universe-wide,
+    unconditional snapshot `read_pattern_fields` builds).
+
+    This function NEVER mutates an existing key on any row — it only ever
+    ADDS a new `pattern_canonical_pilot` key to a row that (a) the caller is
+    authorized for (admin/pilot), (b) already legacy-matched
+    `power_earnings_gap` in its `pattern_engine_ids`, and (c) has a real,
+    reconstructible canonical summary whose OWN `pattern_id` is genuinely
+    `power_earnings_gap` (never inferred from the legacy match alone — a
+    ticker's canonical "best" detection can differ from what tagged it in
+    the legacy list). No existing column (`pattern_engine_conf` included —
+    that field's legacy meaning, `max confidence across all active
+    detectors`, is NOT comparable to a single detection's canonical
+    `confidence`; see the frozen note above `compare_pattern_shadow`) is
+    ever touched, so ordinary users and HTF rows are structurally unaffected
+    by construction, not merely by convention.
+
+    Fail-safe: the master flag, the authorization check, and the whole
+    canonical lookup are wrapped so that ANY failure (flag off, unauthorized
+    caller, empty match set, or an exception reconstructing a summary)
+    returns `rows` completely unchanged — mirroring the write-side adapter's
+    own fail-safe design (Package 8F).
+    """
+    if os.environ.get("PATTERN_CANONICAL_SCANNER_PILOT_ENABLED") != "1":
+        return rows
+    if not _pilot_authorized(user):
+        return rows
+    if not rows:
+        return rows
+
+    peg_token = f"{MATCH_SEP}power_earnings_gap{MATCH_SEP}"
+    candidates = [
+        r for r in rows
+        if peg_token in (r.get("pattern_engine_ids") or "")
+    ]
+    if not candidates:
+        return rows
+
+    try:
+        tickers = [r["ticker"] for r in candidates if r.get("ticker")]
+        canonical_by_ticker = read_pattern_fields_canonical_shadow(tickers)
+    except Exception:
+        # Canonical read failure -> safe fallback: every row stays exactly
+        # as the legacy snapshot served it.
+        return rows
+
+    for r in candidates:
+        tu = str(r.get("ticker") or "").upper()
+        summary = canonical_by_ticker.get(tu)
+        if summary is None:
+            continue
+        if summary.get("pattern_id") not in _PILOT_SUPPORTED_FAMILIES:
+            # The ticker's canonical "best" detection isn't PEG (e.g. a
+            # higher-confidence HTF/other detection won the "best" rule) --
+            # this pilot only ever attaches a PEG summary, never any other
+            # family's, so leave the row untouched.
+            continue
+        r["pattern_canonical_pilot"] = summary
+    return rows
 
 
 # ─── Phase 8 Package 8F — bounded shadow-observation comparison ────────────
