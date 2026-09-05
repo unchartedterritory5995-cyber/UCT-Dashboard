@@ -1361,6 +1361,21 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
 
+    # 🔴 RISK-017 (Phase One Track B, 2026-09-04): THE SAME TF GATE LIVE MODE HAS,
+    # NOW HERE TOO — because this is `on-demand`'s actual entry point and it had
+    # no gate of its own. `_run_live_cycle` refuses a bad `tf` before it ever
+    # calls `evaluate_one`, so `mode='live'` never reaches this line with a bad
+    # `tf` today; `mode='on-demand'` (`scan_run.py::_run_job`) calls straight in
+    # with whatever `tf` the job was queued with, and nothing upstream of this
+    # function has ever checked it — safe today only because the frontend's
+    # `RUN_TFS` picker doesn't offer an intraday choice, which is a UI boundary,
+    # not an architectural one. Scoped to both non-nightly modes on purpose: a
+    # nightly caller never passes a non-`DEFAULT_TF` value in practice, so this
+    # costs nightly nothing, and putting the check at the shared entry point
+    # means a future direct call in either mode is covered with no new edit.
+    if mode in (LIVE, ON_DEMAND) and tf_code != DEFAULT_TF:
+        raise ScanRunRefused("tf", _wrong_tf_reason(tf_code))
+
     # ⭐ THE HONEST RE-RUN CADENCE, OFF THE TREE, COMPUTED ONCE. See
     # `cadence_ceiling`: a scan naming any declared scalar is capped by that
     # scalar's own declared cadence, because re-reading the nightly snapshot an
