@@ -128,6 +128,47 @@ describe('ImportWizard wire', () => {
     await waitFor(() => expect(screen.getByText(/imported/i)).toBeInTheDocument())
   })
 
+  it('yields to the browser between EVERY note it converts, not every tenth', async () => {
+    // ⛔ MEASURED (2026-09-05): `htmlToNote` is a synchronous main-thread
+    // block -- ~3.5s for a 534 KB note, because both `sanitizeHtml`
+    // (DOMParser) and TipTap's `generateJSON` need the DOM. The loop used to
+    // yield only every 10 notes, so a notebook whose last five notes were
+    // large ran ~17s with no repaint and no counter movement: the
+    // certification observed the progress line frozen at "70/75" on an
+    // unresponsive tab, which a member reasonably reads as a crash.
+    //
+    // Counting yields is the discriminating check: batching by 10 is
+    // invisible to a count of converted notes, and invisible to any
+    // assertion about the final result, but it is exactly what made the
+    // import LOOK dead. 12 notes with a batch of 10 yields twice; yielding
+    // per note yields at least 12 times.
+    const files = Array.from({ length: 12 }, (_, i) =>
+      new File([`# Note ${i}`], `note-${i}.md`, { type: 'text/markdown' }))
+
+    const realSetTimeout = globalThis.setTimeout
+    let zeroDelayYields = 0
+    vi.stubGlobal('setTimeout', (fn, delay, ...rest) => {
+      if (delay === undefined || delay === 0) zeroDelayYields += 1
+      return realSetTimeout(fn, delay, ...rest)
+    })
+
+    try {
+      render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+      fireEvent.change(screen.getByTestId('import-file-input'), { target: { files } })
+      await waitFor(() => expect(screen.getByText(/12 notes/i)).toBeInTheDocument())
+      const before = zeroDelayYields
+      fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+      await waitFor(() =>
+        expect(vi.mocked(fetch).mock.calls.map((c) => c[0]))
+          .toContain('/api/j2/notes/import/confirm'))
+
+      const during = zeroDelayYields - before
+      expect(during).toBeGreaterThanOrEqual(12)
+    } finally {
+      vi.stubGlobal('setTimeout', realSetTimeout)
+    }
+  })
+
   it('snapshots a LIVE FileList before clearing input.value (real-browser file-picker regression)', async () => {
     // Real Chromium: choosing a file, then clearing input.value (done so
     // re-picking the same file still fires onChange), truncates the live

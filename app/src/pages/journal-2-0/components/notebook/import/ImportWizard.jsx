@@ -109,6 +109,11 @@ function readableError(err) {
   return `Something went wrong while reading your files: ${err?.message || String(err)}`
 }
 
+// Above this converted-HTML size a single note costs seconds on the main
+// thread (measured: ~3.5s for 534 KB). Notes this big get named in the
+// progress line so the pause is attributed rather than mistaken for a hang.
+const LARGE_NOTE_HTML_CHARS = 150_000
+
 function phaseLabel(phase) {
   if (phase === 'convert') return 'Converting notes'
   if (phase === 'confirm') return 'Saving notes'
@@ -648,16 +653,42 @@ export default function ImportWizard({ open, onClose, onImported }) {
         if (cancelled()) return
         let done = 0
         for (const doc of needsBody) {
+          // ⛔ Paint BEFORE converting, and yield EVERY note -- not every 10.
+          //
+          // MEASURED (2026-09-05, 534 KB Evernote note): `htmlToNote` is a
+          // single synchronous 3.5s main-thread block, because both
+          // `sanitizeHtml` (DOMParser) and TipTap's `generateJSON` parse HTML
+          // through the DOM. Batching the yield every 10 notes meant a
+          // notebook whose last five notes were large ran ~17s with no
+          // repaint and no counter movement -- the certification saw the
+          // counter sit at "70/75" while the tab was unresponsive, which a
+          // member reasonably reads as a crash.
+          //
+          // Yielding per note cannot make one large note faster (the DOM is
+          // required, so this cannot move to a Worker without replacing the
+          // HTML parser), but it does two things that matter: the counter
+          // advances for every note, and the browser regains the main thread
+          // between notes instead of only every tenth one. `isLarge` names
+          // the one case where a single note still costs seconds, so the
+          // pause is explained instead of looking like a freeze.
+          const isLarge = (doc.html || '').length > LARGE_NOTE_HTML_CHARS
+          setProgress({
+            phase: 'convert',
+            done,
+            total: needsBody.length,
+            note: doc.title || '',
+            large: isLarge,
+          })
+          await new Promise((r) => setTimeout(r))
+          if (cancelled()) return
+
           const { bodyJson, bodyPlain } = htmlToNote(doc.html)
           doc.bodyJson = bodyJson
           doc.bodyPlain = bodyPlain
           done += 1
-          if (done % 10 === 0 || done === needsBody.length) {
-            setProgress({ phase: 'convert', done, total: needsBody.length })
-            await new Promise((r) => setTimeout(r))
-            if (cancelled()) return
-          }
         }
+        setProgress({ phase: 'convert', done, total: needsBody.length })
+        await new Promise((r) => setTimeout(r))
         setProgress(null)
       }
 
@@ -1041,6 +1072,22 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   ? `${phaseLabel(progress.phase)} — ${progress.done}/${progress.total}…`
                   : 'Starting import…'}
               </p>
+              {/* Honest, non-fabricated detail: the note actually being
+                  converted, and -- only when it is genuinely large -- why
+                  this one is taking a moment. Never a fake percentage. */}
+              {progress?.phase === 'convert' && progress.note && (
+                <p className={styles.progressDetail}>
+                  {progress.large
+                    ? `“${progress.note}” is a large note — this one can take a moment.`
+                    : `“${progress.note}”`}
+                </p>
+              )}
+              {progress?.phase === 'convert' && progress.large && (
+                <p className={styles.progressDetail}>
+                  Large notes can take a few minutes. You can leave this window
+                  open while UCT finishes.
+                </p>
+              )}
               {progress && progress.total > 0 && (
                 <div className={styles.progressTrack}>
                   <div
