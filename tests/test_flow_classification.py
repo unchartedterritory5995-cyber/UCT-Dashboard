@@ -281,6 +281,185 @@ def test_alpha_leaps_ask_premium_ledger_sums_only_ask(monkeypatch):
     assert led[3] == 5_690_000  # bid row still maps to the contract's ask total
 
 
+# ── UCT Ask Accumulation — aggregate ask-build tier, any DTE (2026-09-04) ──
+# Same aggregate-ask machinery as Alpha LEAPS but WITHOUT the 180-DTE cap and at
+# a $1M floor, gated to DORMANT names via _is_dormant_ticker (NOT in the last-30-
+# day active set) — NOT _is_unusual_classification, whose hard V/OI>=5 gate would
+# reject a build that accrues through moderate-V/OI prints (the PPTA shape). A
+# quiet-name build usually prints YELLOW/WHITE per-print, so the tier ALSO
+# promotes to MAGENTA on the aggregate to reach the branch. Catches the PPTA 35C
+# 01/15/27 case (~$1.19M across a $484.5K block + a $679.9K sweep, all ask, ~133
+# DTE) that fell under the $1M single-print Alpha floor, under 180 DTE for Alpha
+# LEAPS, and the $3M by-contract accum push. Precedence: Alpha LEAPS > Alpha Gold
+# > Ask Accumulation > LEAPS / Unusual / Size / Bullish.
+
+_AATH = {"ask_accum_enabled": True,
+         "ask_accum_min_aggregate_premium": 1_000_000,
+         "ask_accum_max_otm_pct": 50.0,
+         "ask_accum_require_unusual": True}
+
+
+def _accrow(**over):
+    # MAGENTA so it reaches the tier branch; DTE 133 (NOT a LEAP, and a sub-$1M
+    # single print so NOT Alpha Gold); ask side; V/OI>1. The PPTA 35C shape.
+    r = {"Color": "MAGENTA", "Type": "SWEEP", "Premium": "679900", "Side": "A",
+         "Dte": "133", "Volume": "4000", "OI": "1500", "Symbol": "PPTA"}
+    r.update(over)
+    return r
+
+
+def test_ask_accum_fires_on_dormant_name_aggregate(monkeypatch):
+    # Dormant name, sub-$1M single prints, ~$1.19M session ask aggregate → the
+    # tier the single-print gates all miss.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier == "ask_accum"
+    assert name == "UCT Ask Accumulation Bull"
+
+
+def test_ask_accum_counts_blocks(monkeypatch):
+    # BLOCK is excluded from Alpha Gold, but Ask Accumulation grades the whole
+    # position — the block premium is already in agg_ask_premium.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    r = _accrow(Type="BLOCK", Premium="484500")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier == "ask_accum"
+
+
+def test_ask_accum_yellow_print_promotes_and_fires(monkeypatch):
+    # THE PPTA FIX: a moderate-V/OI print is YELLOW (not MAGENTA), so it never
+    # reached the tier branch. The aggregate promotion pulls it in when the
+    # SESSION ask total clears the floor on a dormant name.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    r = _accrow(Color="YELLOW")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier == "ask_accum"
+
+
+def test_ask_accum_yellow_not_promoted_when_not_dormant(monkeypatch):
+    # A YELLOW print on a LIQUID name with a big aggregate is NOT promoted — the
+    # promotion is scoped to dormant names so megacap churn can't trip it.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
+    r = _accrow(Color="YELLOW")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier != "ask_accum"
+
+
+def test_ask_accum_requires_dormant_name(monkeypatch):
+    # A LIQUID name (in the active set) with the same aggregate does NOT fire —
+    # this is what keeps daily megacap churn out (the noise that disabled
+    # accum_enabled). Even MAGENTA, the dormant gate blocks it.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier != "ask_accum"
+
+
+def test_ask_accum_require_unusual_off_fires_on_any_name(monkeypatch):
+    # With the guard relaxed, the aggregate alone qualifies (even a liquid name).
+    th = dict(_AATH, ask_accum_require_unusual=False)
+    monkeypatch.setattr(m, "_load_thresholds", lambda: th)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier == "ask_accum"
+
+
+def test_ask_accum_under_floor_does_not_fire(monkeypatch):
+    # Aggregate below $1M → not a build → falls through to its single-print tier.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=900_000)
+    assert tier != "ask_accum"
+
+
+def test_ask_accum_deep_otm_excluded(monkeypatch):
+    # Huge aggregate but beyond the near-money bound → not a conviction build.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-60.0, agg_ask_premium=1_164_400)
+    assert tier != "ask_accum"
+
+
+def test_ask_accum_bid_side_not_fired(monkeypatch):
+    # Bid-side flow is not an ASK build — the ledger sums ask only, but guard the
+    # side explicitly too.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    r = _accrow(Side="BB")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bear", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier != "ask_accum"
+
+
+def test_ask_accum_kill_switch(monkeypatch):
+    # Disabled → the same row reverts to its single-print tier.
+    th = dict(_AATH, ask_accum_enabled=False)
+    monkeypatch.setattr(m, "_load_thresholds", lambda: th)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    name, tier, _ = m._derive_alert_name(
+        _accrow(), "Bull", money_pct=-28.6, agg_ask_premium=1_164_400)
+    assert tier != "ask_accum"
+
+
+def test_alpha_gold_beats_ask_accum(monkeypatch):
+    # A $1M+ single ASK print (<180 DTE) is still Alpha Gold — Ask Accumulation
+    # runs only AFTER Alpha declines the row.
+    th = dict(_AATH, alpha_max_itm_pct=25.0, alpha_min_vol_oi_ratio=1.0,
+              alpha_exclude_block_type=True, alpha_max_weekly_dte=7)
+    monkeypatch.setattr(m, "_load_thresholds", lambda: th)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    r = _accrow(Premium="1200000", Volume="4000", OI="1500")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=2.0, agg_ask_premium=1_500_000)
+    assert tier == "alpha"
+
+
+def test_alpha_leaps_beats_ask_accum(monkeypatch):
+    # A near-money LEAP over the $3M aggregate floor is still Alpha LEAPS even on
+    # a dormant name — Alpha LEAPS is checked first.
+    th = dict(_AATH, alpha_leaps_enabled=True,
+              alpha_leaps_min_aggregate_premium=3_000_000,
+              alpha_leaps_max_otm_pct=15.0)
+    monkeypatch.setattr(m, "_load_thresholds", lambda: th)
+    monkeypatch.setattr(m, "_is_dormant_ticker", lambda *a, **k: True)
+    r = _accrow(Dte="493")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=-5.2, agg_ask_premium=12_010_000)
+    assert tier == "alpha_leaps"
+
+
+def test_qualifies_curated_ask_accum_path():
+    # The curated gate (a second gate on every auto-pushed single print) trusts
+    # the tier and passes a directional aggregate, rejects a direction-unconfirmed
+    # one. Uses defaults so it doesn't depend on the file thresholds.
+    base = m.DEFAULT_THRESHOLDS
+    ok = {"_tierKey": "ask_accum", "alertPremium": 679900,
+          "volumeOIRatio": 2.6, "grade": "B"}
+    assert m._qualifies_curated(ok, base) is True
+    bad = dict(ok, _directionUnconfirmed=True)
+    assert m._qualifies_curated(bad, base) is False
+
+
+def test_should_auto_push_ask_accum():
+    cfg = dict(m._AUTO_PUSH_CFG, ask_accum=True)
+    a = {"_tierKey": "ask_accum", "alertName": "UCT Ask Accumulation Bull",
+         "source": "stocks", "grade": "B"}
+    assert m.should_auto_push(a, cfg) is True
+    assert m.should_auto_push(a, dict(cfg, ask_accum=False)) is False
+
+
 # ── Clean-directional gate — drop contaminated bid-sells (2026-07-31) ────
 # Session long-build ledger = cumulative ASK-side volume per contract. A
 # bid-side SELL on a contract with meaningful prior ask-buying is a mix of

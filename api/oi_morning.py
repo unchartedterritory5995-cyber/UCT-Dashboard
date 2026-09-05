@@ -49,6 +49,13 @@ _MASSIVE_BASE = os.environ.get("MASSIVE_REST_BASE", "https://api.massive.com")
 _MASSIVE_KEY = os.environ.get("MASSIVE_API_KEY", "")
 _UA_HDR = {"User-Agent": "UCT-Massive/1.0 (+https://uctintelligence.com)"}
 
+# Sanity gate: OI cannot grow more than the session's contract volume, so a row whose
+# ΔOI exceeds (session volume × this factor) is a prior=0 artifact (no captured
+# baseline → ΔOI = the whole standing OI), NOT an overnight build — it's dropped.
+# Set OI_MORNING_MAX_OI_VS_VOL=0 to disable the gate. Small headroom (1.10) covers
+# agg-volume timing without letting the 100×-impossible rows through.
+_OI_VS_VOL = float(os.environ.get("OI_MORNING_MAX_OI_VS_VOL", "1.10"))
+
 _ASSETS = os.path.join(os.path.dirname(__file__), "services", "desk_assets")
 
 # ── palette (shared brand look with the flow cards) ────────────────────────
@@ -221,6 +228,24 @@ def _oi_deltas(keys):
     return _oms.get_deltas(keys)
 
 
+def _latest_oi_snap():
+    """Latest OI snapshot date (YYYY-MM-DD) or None. Used to pin the flow window to
+    the session the ΔOI measures. Never raises (the card must render regardless)."""
+    try:
+        from api import oi_massive_snapshots as _oms
+        return _oms.latest_snap_date()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _iso_to_date(s):
+    try:
+        y, m, d = [int(x) for x in str(s).split("-")[:3]]
+        return date(y, m, d)
+    except (ValueError, TypeError):
+        return None
+
+
 # ── data: rank flow contracts by overnight ΔOI ─────────────────────────────
 def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                min_premium: float = 0.0, sources: tuple = ("stocks",)):
@@ -240,6 +265,19 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
             list(sources)).fetchall()
         dated = sorted((r[0] for r in drows if r[0]),
                        key=lambda s: _parse_mdy(s) or date.min)
+        # Pin the flow window to the session the ΔOI actually measures. OCC OI is a
+        # next-morning figure, so the latest snapshot (date S) holds session-(S-1)'s
+        # EOD OI, and ΔOI = the build during the flow session STRICTLY BEFORE S. Keep
+        # only flow dates before S so the premium/volume shown belong to that same
+        # session — otherwise a preview run intraday/after-hours pairs today's flow
+        # with yesterday's OI build (premium looks tiny, carry blows past 100%). The
+        # scheduled 08:00 ET pre-open run already lands here; this makes every run-time
+        # align. No snapshot yet → fall back to the raw last-N sessions.
+        _snap = _iso_to_date(_latest_oi_snap())
+        if _snap:
+            _aligned = [d for d in dated if (_parse_mdy(d) or date.min) < _snap]
+            if _aligned:
+                dated = _aligned
         window = dated[-days:] if days > 0 else dated
         if not window:
             return [], []
@@ -324,18 +362,33 @@ def build_rows(days: int = 1, top_n: int = 20, min_delta: int = 500,
                               else "BUILDING" if last_oi > first_oi else "")})
 
     out.sort(key=lambda x: x["delta"], reverse=True)
-    out = out[:top_n]
 
-    # Total VOLUME over the ΔOI window (Massive daily agg) for the displayed top-N
-    # only → CARRY% = ΔOI / volume ("how much of the volume stuck as open interest").
-    # Volume is summed over the SAME days the ΔOI spans (d_prior→d_last) so carry is
-    # period-matched — dividing a multi-day ΔOI by one day's volume gave carry >100%.
+    # Walk the ΔOI-ranked list, fetch each row's flow-SESSION volume, and keep only
+    # PHYSICALLY POSSIBLE builds up to top_n. The volume is the Massive daily agg for
+    # the pinned flow session (window[-1]) — NOT the snapshot-date range: the ΔOI
+    # measures that session's OI build (OCC lags a day), so this period-matches carry
+    # (was NOK 3292%) AND makes the VOLUME column match UW's "Prev Vol". A row whose
+    # ΔOI exceeds that session's volume can't be a real build — it's a prior=0 artifact
+    # (no captured baseline) — so skip it and continue down the list. CARRY% = ΔOI /
+    # session volume, "how much of the session's volume stuck as open interest".
+    _sess = _mdy_to_iso(window[-1]) if window else ""
+    kept = []
     for e in out:
-        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], d_prior, d_last)
+        if len(kept) >= top_n:
+            break
+        vt = _contract_window_volume(e["sym"], e["cp"], e["K"], e["E"], None, _sess) if _sess else 0
         e["volTotal"] = vt
-        # carry only meaningful with a real prior-day baseline (not NEW) + known volume
-        e["carry"] = round(e["delta"] / vt * 100) if (vt > 0 and e["firstOI"] > 0) else None
-    return out, window
+        if vt > 0 and _OI_VS_VOL > 0 and e["delta"] > vt * _OI_VS_VOL:
+            continue                          # ΔOI > volume ⇒ impossible (prior=0 artifact)
+        # carry = ΔOI / session volume = "what % of the session's volume became open
+        # interest" — meaningful for a NEW row too (its whole ΔOI is the build), not
+        # only BUILDING rows. The ΔOI≤volume gate above already bounds it ≤100%.
+        c = round(e["delta"] / vt * 100) if vt > 0 else None
+        if c is not None and c > 100:         # rounding/timing edge → clamp to 100
+            c = 100
+        e["carry"] = c
+        kept.append(e)
+    return kept, window
 
 
 # ── render ───────────────────────────────────────────────────────────────

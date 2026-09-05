@@ -464,6 +464,17 @@ export default function ChartRender() {
   // are (sym, tf) tuples, and widening that plumbing to carry presentation data
   // would put newsletter-formatting concerns inside the renderer's call
   // signature. The page already knows how to ask for its own facts.
+  //
+  // ⚠️ MUST fetch the PAGE'S OWN `tf` — this used to be hardcoded `tf=D`
+  // regardless of what was actually being rendered, so a Weekly or Hourly
+  // render showed the DAILY last price/change in its header while the chart
+  // below it plotted a different timeframe entirely. Harmless when nothing
+  // moved between fetches; on a live/extended-hours render (price still
+  // ticking) it produced a header that agreed with neither its own chart nor
+  // the OTHER timeframes in the same batch (QQQ D/W/60 one Friday: header read
+  // $717.95 / $718.96 / $718.96 while each chart's own last-price line read
+  // 717.95 / 717.71 / 719.06). D/W share the historical daily bar count either
+  // way; only W/60 actually changed behavior.
   const [meta, setMeta] = useState({ company: '', price: null, chg: null })
   useEffect(() => {
     if (!sym) return undefined
@@ -490,7 +501,7 @@ export default function ChartRender() {
       want.company ? Promise.resolve(null) : fetch(`/api/ticker-meta/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)),
       (want.price != null && want.chg != null)
         ? Promise.resolve(null)
-        : fetch(`/api/bars/${encodeURIComponent(sym)}?tf=D&bars=2`).then((r) => (r.ok ? r.json() : null)),
+        : fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&bars=2`).then((r) => (r.ok ? r.json() : null)),
     ]).then(([m, b]) => {
       if (!alive) return
       const bars = b?.value?.bars || b?.value || []
@@ -506,7 +517,7 @@ export default function ChartRender() {
       })
     })
     return () => { alive = false }
-  }, [sym, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
+  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
 
   // ── Signal readiness — PIXEL STABILITY, not a stopwatch ────────────────────
   //

@@ -18,6 +18,13 @@ flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is wa
 so an edit to them alone won't deploy. This header edit is the trigger for the
 2026-09-04 oi_massive full-chain baseline fix (store the whole fetched chain + prune +
 per-contract prior ΔOI, so the card stops reading total OI as an overnight build).
+(2026-09-04 follow-up, same trigger:) pin the card's flow window to the session the ΔOI
+measures + fetch CARRY% volume for that session, so premium/volume/ΔOI align at any run
+hour and carry lands ≤100% instead of 3292%.
+(2026-09-04 follow-up #2:) sanity-gate ΔOI ≤ session volume — a build can't exceed what
+traded, so a prior=0 artifact (no captured baseline) is dropped from the board.
+(2026-09-04 follow-up #3:) CARRY% now fills for NEW rows too (was blanked when no
+prior-day baseline) — carry = ΔOI/volume is meaningful for a new position, gate bounds it.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

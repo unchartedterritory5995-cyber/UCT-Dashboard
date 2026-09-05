@@ -66,6 +66,16 @@ def test_capture_job_stores_full_chain(tmp_path, monkeypatch):
     assert oms.get_history(kZ) == []               # zero-OI strike not stored
 
 
+def test_latest_snap_date(tmp_path, monkeypatch):
+    monkeypatch.setattr(oms, "DB_PATH", str(tmp_path / "oim.db"))
+    oms.init_db()
+    assert oms.latest_snap_date() is None
+    k = oms.make_key("AAA", "C", 10, "1/15/2027")
+    oms.record_batch([(k, 100)], "2026-09-03")
+    oms.record_batch([(k, 200)], "2026-09-04")
+    assert oms.latest_snap_date() == "2026-09-04"
+
+
 def test_prune_keeps_only_recent_dates(tmp_path, monkeypatch):
     monkeypatch.setattr(oms, "DB_PATH", str(tmp_path / "oim.db"))
     oms.init_db()
