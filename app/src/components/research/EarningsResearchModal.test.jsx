@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
 import EarningsResearchModal, { resolveTrapTargets, PANELS } from './EarningsResearchModal'
@@ -644,18 +644,22 @@ describe('resolveTrapTargets (pure)', () => {
 
 // ── footer + trust posture ───────────────────────────────────────────────────
 describe('footer + §12', () => {
-  it('offers View chart beside the session line, and no way OUT of the modal', () => {
-    // "Open full report" closed the modal and pushed /research. Owner: that
-    // dropped the reader onto a new page mid-read. Every section it led to is
-    // in the tab row now, so the control has nothing left to open.
+  it('offers View chart AND a deliberate Full Research exit beside the session line', () => {
+    // "Open full report" closed the modal and pushed /research automatically on
+    // click from deep inside the old rail. Owner: that dropped the reader onto a
+    // new page mid-read. Every section it led to is in the tab row now, so that
+    // specific control has nothing left to open.
     //
-    // View chart moved OUT of the footer and into the sub-head: it is an action
-    // on the identity, not on whichever section is open, and the 44px pinned
-    // row it used to occupy alone was a whole band of chrome for one button.
+    // Entry-point convergence (owner authorization, separate decision): a
+    // DIFFERENT, deliberate "Full Research" exit now lives here instead — same
+    // sub-head band as View chart, same shape (an explicit click, never
+    // triggered by opening the modal or switching sections). See the
+    // "never hands the reader off" describe block below for the auto-navigate
+    // guarantee this preserves.
     renderModal()
     const subhead = screen.getByTestId('erm-subhead')
     expect(within(subhead).getByText(/View chart/i)).toBeTruthy()
-    expect(screen.queryByText(/full (report|research)/i)).toBeNull()
+    expect(within(subhead).getByRole('button', { name: /full research/i })).toBeTruthy()
   })
 
   it('the standing line is the only thing left in the footer', () => {
@@ -880,18 +884,64 @@ describe('the whole report is reachable without leaving the modal', () => {
   })
 })
 
-describe('the modal never hands the reader off', () => {
-  it('has NO control anywhere that navigates to /research', () => {
-    // Owner: the divert dropped people onto a new page mid-read and lost them.
-    // Asserted across the WHOLE modal, not just the rail, because the escape
-    // that prompted this lived in the footer, not the navigator.
+describe('the modal never hands the reader off WITHOUT their say-so', () => {
+  // Entry-point convergence (owner authorization) revised this invariant from
+  // "no control anywhere navigates to /research" to "no control navigates
+  // there WITHOUT a deliberate click" — the historical "Open full report" /
+  // "Unlock full research" controls that auto-diverted mid-read stay banned;
+  // the new "Full Research" button (sub-head, see the footer describe block
+  // above) is the sanctioned replacement shape: explicit, member-initiated,
+  // never triggered by mounting the modal or switching sections.
+  it('mounting the modal, or switching sections, never itself navigates to /research', () => {
     const { container } = renderModal()
     const escapes = [...container.querySelectorAll('a[href]')]
       .map(a => a.getAttribute('href'))
       .filter(h => (h || '').includes('/research'))
     expect(escapes, `still links out to: ${escapes.join(', ')}`).toEqual([])
+  })
+
+  it('the historical auto-diverting controls are still gone', () => {
+    renderModal()
     expect(screen.queryByRole('button', { name: /open full report/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /unlock full research/i })).toBeNull()
+  })
+
+  it('the sanctioned Full Research button only navigates when the member actually clicks it', () => {
+    const { container } = renderModal()
+    // Before any click: still no live link out, matching the mount-time guarantee above.
+    const preClickEscapes = [...container.querySelectorAll('a[href]')]
+      .map(a => a.getAttribute('href')).filter(h => (h || '').includes('/research'))
+    expect(preClickEscapes).toEqual([])
+
+    const btn = screen.getByRole('button', { name: /full research/i })
+    expect(btn).toBeTruthy() // present, but inert until clicked — no navigate() call above this line
+  })
+
+  it('clicking Full Research actually navigates to canonical /research/:sym', () => {
+    // A real MemoryRouter + a location probe (not a mocked useNavigate) so this
+    // proves the real click->route wiring, matching the rest of this suite's
+    // real-router convention (TickerPopup's own navigation is exercised the
+    // same way elsewhere in this file).
+    function LocationProbe() {
+      const loc = useLocation()
+      return <div data-testid="loc-probe">{loc.pathname}{loc.search}</div>
+    }
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/calendar']}>
+          <EarningsResearchModal
+            row={row} label="AFTER MARKET CLOSE" reportDate="2026-08-06" timing="amc"
+            section={null} onSectionChange={() => {}} onClose={() => {}}
+            onStepPrev={null} onStepNext={null} stepping={false}
+            onPollActuals={null} isTodayReporter nowMs={NOW}
+          />
+          <LocationProbe />
+        </MemoryRouter>
+      </AuthProvider>,
+    )
+    expect(screen.getByTestId('loc-probe').textContent).toBe('/calendar')
+    fireEvent.click(screen.getByRole('button', { name: /full research/i }))
+    expect(screen.getByTestId('loc-probe').textContent).toBe('/research/NVDA')
   })
 
   it('every section /research offered is reachable IN the modal', () => {
