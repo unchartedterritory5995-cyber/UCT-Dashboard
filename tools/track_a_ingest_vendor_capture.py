@@ -47,6 +47,18 @@ null}`` -- it is VENDOR SEMANTICS CAPTURED, never UCT VENDOR-PARITY VERIFIED,
 because no UCT engine implementation of these four functions exists. This
 tool does not create one; see ``--help`` and the module docstring end for
 what happens next and who authorizes it.
+
+⛔ VENDOR SEMANTICS CAPTURED IS NOT THE SAME CLAIM AS RAW VENDOR ARTIFACT
+COMPLETE. Everything above proves the CAPTURE is internally trustworthy
+(repeated rows agree, control arithmetic checks out) -- it does not by
+itself prove a third party could independently verify the browser really
+reached TradingView and read these exact numbers. Pass ``--raw-artifact``
+(a TradingView CSV export or a saved screenshot image) whenever one exists,
+and this tool preserves it verbatim under
+``tests/fixtures/vendor/raw_captures/`` and records its path in every
+observation's ``provenance.rawArtifact``, closing that gap for future
+captures. See ``PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`` §3 for the
+capture this gap was found in (no raw artifact exists for it).
 """
 
 from __future__ import annotations
@@ -56,6 +68,7 @@ import csv
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -67,10 +80,21 @@ _ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from tools.vendor_truth import OBS_DIR  # noqa: E402  (single authority for the path)
+from tools.vendor_truth import OBS_DIR, VENDOR_DIR  # noqa: E402  (single authority for the path)
 
 PACKET_DOC = "docs/superpowers/specs/universal-indicator-ecosystem/OWNER_VENDOR_CAPTURE_PACKET_V3_1.md"
 PACKET_SCRIPT_ID = "uct-oracle-ambiguity-v3"
+
+#: Where a preserved raw CSV/screenshot artifact lives, beside (never inside)
+#: the observation records themselves -- vendor_truth.py's load_observations()
+#: only reads *.json directly under OBS_DIR and would choke on a binary file
+#: there; this directory is a sibling, not a subdirectory of OBS_DIR, and is
+#: never scanned by vendor_truth.py at all.
+RAW_ARTIFACT_DIR = os.path.join(VENDOR_DIR, "raw_captures")
+
+#: Extensions accepted as a raw artifact -- a real CSV export, or a saved
+#: screenshot image (per the packet's own two capture paths).
+RAW_ARTIFACT_EXTENSIONS = {".csv", ".png", ".jpg", ".jpeg"}
 
 #: The packet's own "What exactly to expect at the probe row" table -- these
 #: are OUR arithmetic, not TradingView's, and are checked BEFORE any builtin
@@ -375,6 +399,31 @@ def classify_builtin(func: dict, row: dict) -> dict:
     }
 
 
+def preserve_raw_artifact(path: str, *, when: str, artifact_dir: str = RAW_ARTIFACT_DIR) -> str:
+    """Copy a real CSV export or screenshot into the golden-artifact store
+    verbatim (byte-for-byte, never re-encoded) and return its path relative
+    to the repo root, for embedding in every observation's provenance.
+
+    ⛔ Refuses an unrecognized extension rather than silently accepting
+    anything -- a golden artifact whose format nobody checked is a golden
+    artifact nobody can trust later.
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in RAW_ARTIFACT_EXTENSIONS:
+        raise CaptureError(
+            f"--raw-artifact {path!r} has extension {ext!r}, not one of "
+            f"{sorted(RAW_ARTIFACT_EXTENSIONS)}. Pass the real TradingView CSV "
+            f"export or a saved screenshot image, not a transcription."
+        )
+    if not os.path.isfile(path):
+        raise CaptureError(f"--raw-artifact {path!r} does not exist or is not a file.")
+    os.makedirs(artifact_dir, exist_ok=True)
+    dest_name = f"{when}-{os.path.basename(path)}"
+    dest_path = os.path.join(artifact_dir, dest_name)
+    shutil.copyfile(path, dest_path)
+    return os.path.relpath(dest_path, _ROOT).replace(os.sep, "/")
+
+
 def _packet_script_source() -> str:
     path = os.path.join(_ROOT, PACKET_DOC)
     with io.open(path, encoding="utf-8") as fh:
@@ -385,7 +434,8 @@ def _packet_script_source() -> str:
 
 
 def build_observation(func: dict, row: dict, *, when: str, who: str, symbol: str,
-                       timeframe: str, platform_version: str, capture_source: str) -> dict:
+                       timeframe: str, platform_version: str, capture_source: str,
+                       raw_artifact_path: str | None = None) -> dict:
     real_ohlcv = all(row.get(f"_{k}") is not None for k in ("open", "high", "low", "close"))
     bar_t = row["_time"] if row.get("_time") is not None else 0
     if real_ohlcv:
@@ -438,12 +488,21 @@ def build_observation(func: dict, row: dict, *, when: str, who: str, symbol: str
             "who": who,
             "when": when,
             "chartUrl": None,
+            "rawArtifact": raw_artifact_path,
             "note": (
                 f"Captured via {capture_source} against {PACKET_DOC} "
                 f"(script id {PACKET_SCRIPT_ID!r}). {ohlcv_note} "
                 f"CLASSIFICATION: VENDOR SEMANTICS CAPTURED, NOT UCT VENDOR-PARITY "
                 f"VERIFIED -- no UCT engine implementation of {func['vendor_function']} "
-                f"exists yet. Finding: {classification['finding']}"
+                f"exists yet. Finding: {classification['finding']} "
+                + (
+                    f"RAW ARTIFACT PRESERVED at {raw_artifact_path} -- independently "
+                    f"inspectable, not just this session's own transcription."
+                    if raw_artifact_path else
+                    "RAW ARTIFACT: NONE -- this observation rests on a hand-transcribed "
+                    "capture with no independently-inspectable screenshot/CSV/HAR. See "
+                    "PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md §3."
+                )
             ),
         },
         "_classification": classification,  # stripped before writing; see write_observation
@@ -471,7 +530,8 @@ def run_vendor_truth(flag: str) -> tuple[int, str]:
 
 
 def ingest(capture_path: str, *, when: str, who: str, symbol: str, timeframe: str,
-           platform_version: str, obs_dir: str, force: bool, dry_run: bool) -> dict:
+           platform_version: str, obs_dir: str, force: bool, dry_run: bool,
+           raw_artifact: str | None = None, raw_artifact_dir: str = RAW_ARTIFACT_DIR) -> dict:
     capture_source = f"CSV export ({os.path.basename(capture_path)})" \
         if capture_path.lower().endswith(".csv") else f"Data Window transcription ({os.path.basename(capture_path)})"
     rows = parse_capture(capture_path)
@@ -480,10 +540,25 @@ def ingest(capture_path: str, *, when: str, who: str, symbol: str, timeframe: st
     probe = probe_rows[0]
     validate_control_values(probe)
 
+    raw_artifact_path = None
+    if raw_artifact and not dry_run:
+        raw_artifact_path = preserve_raw_artifact(raw_artifact, when=when, artifact_dir=raw_artifact_dir)
+    elif raw_artifact and dry_run:
+        # Validate the file is real/acceptable without actually copying it,
+        # so a dry run still catches a bad --raw-artifact path early.
+        ext = os.path.splitext(raw_artifact)[1].lower()
+        if ext not in RAW_ARTIFACT_EXTENSIONS or not os.path.isfile(raw_artifact):
+            raise CaptureError(
+                f"--raw-artifact {raw_artifact!r} is not an existing file with one of "
+                f"{sorted(RAW_ARTIFACT_EXTENSIONS)}."
+            )
+        raw_artifact_path = f"(dry-run: would preserve under {raw_artifact_dir} as {when}-{os.path.basename(raw_artifact)})"
+
     observations = [
         build_observation(
             func, probe, when=when, who=who, symbol=symbol, timeframe=timeframe,
             platform_version=platform_version, capture_source=capture_source,
+            raw_artifact_path=raw_artifact_path,
         )
         for func in FUNCTIONS
     ]
@@ -493,6 +568,7 @@ def ingest(capture_path: str, *, when: str, who: str, symbol: str, timeframe: st
         "phase24_rows_found": len(probe_rows),
         "consistency": "AGREE" if len(probe_rows) > 1 else "single row, nothing to cross-check",
         "control_values": "MATCH expected (capture trusted)",
+        "raw_artifact": raw_artifact_path or "NONE -- capture rests on transcription only, see PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md §3",
         "classifications": [obs["_classification"] for obs in observations],
         "written": [],
         "vendor_truth": {},
@@ -532,6 +608,7 @@ def _print_report(report: dict) -> None:
     print(f"Capture source     : {report['capture_source']}")
     print(f"phase==24 rows     : {report['phase24_rows_found']} ({report['consistency']})")
     print(f"Control values     : {report['control_values']}")
+    print(f"Raw artifact       : {report['raw_artifact']}")
     print("-" * 70)
     for c in report["classifications"]:
         print(f"[{c['function']}] {c['finding']}")
@@ -574,6 +651,12 @@ def main(argv=None) -> int:
     ap.add_argument("--obs-dir", default=OBS_DIR, help="observation directory (default: tests/fixtures/vendor/observations)")
     ap.add_argument("--force", action="store_true", help="overwrite existing observation files for this --when")
     ap.add_argument("--dry-run", action="store_true", help="validate + classify only; write nothing, run nothing")
+    ap.add_argument("--raw-artifact", default=None,
+                     help="a real TradingView CSV export or a saved screenshot (.csv/.png/.jpg) to preserve "
+                          "verbatim under tests/fixtures/vendor/raw_captures/ as independently-inspectable "
+                          "evidence, referenced from every observation's provenance.rawArtifact")
+    ap.add_argument("--raw-artifact-dir", default=RAW_ARTIFACT_DIR,
+                     help="where to preserve --raw-artifact (default: tests/fixtures/vendor/raw_captures/)")
     args = ap.parse_args(argv)
 
     capture_path = args.csv or args.json
@@ -582,6 +665,7 @@ def main(argv=None) -> int:
             capture_path, when=args.when, who=args.who, symbol=args.symbol,
             timeframe=args.timeframe, platform_version=args.platform_version,
             obs_dir=args.obs_dir, force=args.force, dry_run=args.dry_run,
+            raw_artifact=args.raw_artifact, raw_artifact_dir=args.raw_artifact_dir,
         )
     except CaptureError as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)

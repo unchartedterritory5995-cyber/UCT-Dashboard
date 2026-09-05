@@ -197,6 +197,22 @@ scripts gaining >=1        14  (100% of everything that translates)
 total parameters unlocked: 29  (avg. ~2.07 per benefiting script)
 ```
 
+> **⚰️ Correction, 2026-09-05 (`PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §4):** at the
+> time this was written, the figures above were a one-time manual comparison with no
+> committed script or test reproducing them — evidentially weaker than every other
+> benchmark in this program, all of which reproduce automatically. **This has been fixed,
+> not just flagged**: `app/src/components/chart/engine/ast/pine.paramCorpusCount.test.js`
+> now reproduces this exact claim as a standing regression test, run against the same
+> committed 21-script corpus, `translatePine(src, {paramManifest:true})`, and
+> `buildParamManifest`. Result, reproduced fresh: **14 of 14 translating scripts gain
+> ≥1 adjustable parameter; 29 total distinct parameter ids** — the original figures were
+> correct, they were simply unverifiable before this test existed. (A second, much larger
+> number — 1204 AST locator occurrences — is also pinned by that test; it measures a
+> different thing, how many places those 29 parameters expand to across kept output
+> trees, and must never be quoted as a second form of "29".)
+
+
+
 Per-script detail (name → the Pine variable(s) now adjustable):
 
 ```

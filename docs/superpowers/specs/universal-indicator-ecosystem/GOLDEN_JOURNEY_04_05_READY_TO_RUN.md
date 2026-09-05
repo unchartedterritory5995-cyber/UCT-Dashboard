@@ -5,6 +5,20 @@ acquired, requested, or used to produce this document or its fixtures.** Everyth
 below is either already-existing evidence (re-read fresh, not from memory) or new
 fixtures/test code that fails loudly rather than silently when the key is absent.
 
+> **⚰️ Correction, 2026-09-05 (`PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §5/§7):**
+> the doors these two Golden Journeys validate are **already live in production**
+> for real paying members — `INDICATOR_VISION_ENABLED=1` has been armed on the
+> `web` service since 2026-09-02 (paid-gated, rate-limited, cost-guarded, stores
+> nothing until saved — `docs/feature_flags.json`), and the plain-language door
+> (`/api/user-definitions/propose`) is mounted unconditionally with no feature
+> flag at all, gated only by `require_paid`. **Track E is validating already-shipped
+> member-facing AI doors under controlled, fixture-based E2E evidence — it is not
+> bringing those doors into existence.** The correct question this document answers
+> is "how trustworthy are these already-shipped doors under controlled evidence?",
+> not "do these doors exist?". This does not change anything below (the fixtures,
+> tests, and no-key-used claim all stand); it corrects only the framing of what
+> running them will accomplish.
+
 ## What already existed vs. what this pass added
 
 **Already existed (Phase Zero), re-read fresh for this doc:**

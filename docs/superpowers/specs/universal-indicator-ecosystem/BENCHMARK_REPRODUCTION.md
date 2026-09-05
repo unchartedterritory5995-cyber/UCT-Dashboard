@@ -35,6 +35,27 @@ could not be re-confirmed to the literal digit in this run but nothing contradic
 master-prompt §7, none of these get quoted in any future report without a fresh line to this file or a
 fresh re-run — this file itself will go stale the next time the corpus or the translator changes.**
 
+### Durable correction entry — the 28/48 figure, re-confirmed false 2026-09-05
+
+Per this file's own rule above ("a fresh line to this file"), and per the owner's explicit
+correction directive following `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`:
+
+- **Old claim:** "28/48 after assisted edits" (master prompt §7, and by extension anywhere
+  that quoted it without the 2026-09-04 correction above).
+- **Reproduced result, independently, twice, in this session (2026-09-05):** **21/48** —
+  identical to the pre-assisted-edit base rate. The assisted-edit/"offer" mechanism recovers
+  **zero** additional blind-corpus scripts.
+- **Exact reproduction command (unchanged from 2026-09-04):**
+  `npx vitest run src/components/chart/engine/ast/pine.blindCorpus.test.js` — the file's own
+  `⏳ the accepted floor moves one way too` test asserts `ACCEPTED.length >= 28` and fails
+  (`ACCEPTED.length` is 21); the base floor test (`PASSING.length >= 21`) passes separately.
+- **Corpus denominator:** **unchanged** — still 48. This is not a corpus-size drift; the
+  translation rate genuinely has not improved via the assisted-edit path since 2026-09-04.
+- **Status:** **28/48 must never be reported as current truth.** The correct, current,
+  reproducible figure for "blind corpus after assisted edits" is **21/48** (i.e., the
+  assisted-edit uplift is currently zero). Tracked as the open gap in RISK-004; not a new
+  finding, a re-confirmation that the gap has not silently closed.
+
 ## The full scorecard, as measured today (`doorScorecard.test.js`)
 
 ```

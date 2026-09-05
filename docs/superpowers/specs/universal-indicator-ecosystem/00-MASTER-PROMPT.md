@@ -141,6 +141,16 @@ Therefore: **All significant capability claims are provisional until reproduced 
 
 Current reported measurements include: 38/38 authored/product-goal examples; 43/58 curated regression corpus; 21/48 blind first pass; 28/48 after assisted edits.
 
+> **⚰️ Editorial annotation, 2026-09-04/2026-09-05 (this line is verbatim owner text and is
+> intentionally left unedited — see this file's header): "28/48 after assisted edits" is
+> FALSE and has been since first reproduced. This is exactly what this section itself asked
+> for ("Reproduce them") — the reproduction found this one figure wrong. Reproduced twice
+> independently (2026-09-04 in `BENCHMARK_REPRODUCTION.md`; re-confirmed 2026-09-05 in
+> `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`): the current, correct, reproducible figure is
+> **21/48** — the assisted-edit mechanism currently recovers zero additional scripts. See
+> `BENCHMARK_REPRODUCTION.md`'s "Durable correction entry" for the exact reproduction
+> command. Do not quote 28/48 as current truth in any future report.**
+
 These numbers provide context. They are NOT unquestionable truth. Reproduce them. Audit their denominators. Audit classification. Audit the test fixtures. Audit what each benchmark actually measures.
 
 ---

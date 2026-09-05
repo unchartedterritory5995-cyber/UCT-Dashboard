@@ -477,3 +477,76 @@ if the owner ever wants it consolidated elsewhere.
 **Date:** 2026-09-05
 
 **Date:** 2026-09-04
+
+---
+
+## DEC-012 — Correct DEC-008's framing; preserve credential separation as intentional hygiene, not a technical blocker
+
+**Decision:** DEC-008's own language is corrected going forward (DEC-008's original text is left
+unedited per this file's append-only rule — this entry supersedes its *framing*, not its
+substance). The corrected framing:
+
+> WRONG: "Anthropic access/key does not exist."
+> CORRECT: "Anthropic access exists, including a production credential already used by the live
+> product. Track E intentionally requires a separate scoped development/test credential for
+> isolation, revocation, spend accounting, and auditability."
+
+**Do NOT use the existing production Anthropic credential for Track E.** Credential separation
+is preserved as a deliberate, standing security/operations hygiene decision. DEC-008 is
+reclassified: **JUSTIFIED BUT CONSERVATIVE** (not a technical blocker imposed by the
+architecture).
+
+**Context:** `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §10 found that DEC-008's own stated
+reasoning is narrow (sequence RISK-016's fix ahead of spending model calls on noisy results) and
+that its separate "never use a production key" clause is asserted with no technical justification
+tied to Anthropic's account architecture, a specific incident, or a named risk anywhere in
+`DECISIONS.md`/`RISK_REGISTER.md`. The audit further found — by reading
+`tests/test_golden_journey_04_05_live.py` in full and independently tracing its execution path —
+that a bounded local run of that test (synthetic fixtures, in-process `TestClient`, the
+repo-root `conftest.py`'s DB-path redirect into an isolated sandbox, exactly 6 model calls,
+existing rate/cost caps, key never logged) would introduce **no concrete technical risk** if run
+with the existing production credential. Separately, this session's own Track E credential search
+(prior to the audit) had already found the same shared production key and correctly did not
+attempt to use it — but the way that finding was reported repeatedly used language shaped like
+"no credential exists," which is imprecise: a credential exists; an *approved-for-this-policy*
+credential does not.
+
+**Evidence:** `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §10 (full DEC-008 deep-dive, including the
+five risk axes checked: member-data exposure, production-mutation path, uncontrolled spend,
+key-leak risk, and Anthropic's own key-vs-workspace cost/security separation); `DECISIONS.md`
+DEC-008 (original, unedited); `tests/test_golden_journey_04_05_live.py`.
+
+**Alternatives considered:** (A) create a separate scoped key (DEC-008's original path,
+unchanged) — cleanest cost/spend-accounting separation, standard "never reuse prod creds for
+tests" hygiene, costs one console visit; (B) amend DEC-008 to permit the bounded local test with
+the existing credential — technically defensible per the audit's own risk analysis, since every
+axis DEC-008 could plausibly have been guarding against came back clean. **Owner selected (A)** —
+preserve credential separation — explicitly *not* because (B) was shown to be unsafe, but as a
+deliberate hygiene/operations choice independent of the (clean) technical risk finding.
+
+**Why chosen:** The owner's own reasoning, verbatim from the correction request: credential
+separation buys isolation, revocation, spend accounting, and auditability — properties worth
+having independent of whether this one specific bounded test run would technically need them.
+Treating DEC-008 as "conservative but justified" rather than "technically required" keeps that
+distinction visible for future decisions, rather than letting a hygiene practice calcify into a
+misremembered technical fact (exactly the drift class `PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md`
+was commissioned to catch).
+
+**Risks:** None from preserving separation. The risk this entry guards against is the *narrative*
+one: a future session re-reading DEC-008 without this correction could report "Anthropic access
+does not exist" as fact, which is false and was the exact trigger for the audit that produced
+this entry.
+
+**Migration impact:** None to shipped product. Track E still requires a newly-provisioned scoped
+credential before it can run; nothing about how the production credential is used elsewhere
+changes.
+
+**Reversibility:** Fully reversible — a future decision may still choose option (B) if
+circumstances change; this entry does not foreclose that, it only states plainly that (B) was
+evaluated, found technically clean, and not chosen for non-technical reasons.
+
+**Tests needed:** None (decision/narrative correction only). The technical analysis this entry
+relies on is already recorded, with its own evidence trail, in
+`PROJECT_EVIDENCE_ASSUMPTION_AUDIT_01.md` §10.
+
+**Date:** 2026-09-05

@@ -297,6 +297,92 @@ class TestEndToEndIngest:
         assert not os.path.isdir(obs_dir)
 
 
+class TestRawArtifactPreservation:
+    def test_a_real_csv_is_preserved_verbatim_and_referenced(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        obs_dir = str(tmp_path / "observations")
+        artifact_dir = str(tmp_path / "raw_captures")
+        report = ingest_mod.ingest(
+            csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+            platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=False,
+            raw_artifact=csv_path, raw_artifact_dir=artifact_dir,
+        )
+        assert report["raw_artifact"] is not None
+        loaded = load_observations(obs_dir=obs_dir)
+        assert len(loaded) == 4
+        for obs in loaded:
+            assert obs["provenance"]["rawArtifact"] is not None
+            preserved_path = os.path.join(ingest_mod._ROOT, obs["provenance"]["rawArtifact"])
+            assert os.path.isfile(preserved_path)
+            with open(preserved_path, "rb") as fh:
+                preserved_bytes = fh.read()
+            with open(csv_path, "rb") as fh:
+                original_bytes = fh.read()
+            assert preserved_bytes == original_bytes
+
+    def test_no_raw_artifact_is_honestly_recorded_as_none(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        obs_dir = str(tmp_path / "observations")
+        report = ingest_mod.ingest(
+            csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+            platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=False,
+        )
+        loaded = load_observations(obs_dir=obs_dir)
+        for obs in loaded:
+            assert obs["provenance"]["rawArtifact"] is None
+            assert "RAW ARTIFACT: NONE" in obs["provenance"]["note"]
+
+    def test_an_unrecognized_extension_is_refused(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        bad_artifact = tmp_path / "capture.txt"
+        bad_artifact.write_text("not a real capture", encoding="utf-8")
+        obs_dir = str(tmp_path / "observations")
+        with pytest.raises(ingest_mod.CaptureError, match="extension"):
+            ingest_mod.ingest(
+                csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+                platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=False,
+                raw_artifact=str(bad_artifact),
+            )
+
+    def test_a_missing_raw_artifact_path_is_refused(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        obs_dir = str(tmp_path / "observations")
+        with pytest.raises(ingest_mod.CaptureError, match="does not exist"):
+            ingest_mod.ingest(
+                csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+                platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=False,
+                raw_artifact=str(tmp_path / "nope.csv"),
+            )
+
+    def test_dry_run_validates_the_artifact_but_copies_nothing(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        obs_dir = str(tmp_path / "observations")
+        artifact_dir = tmp_path / "raw_captures"
+        report = ingest_mod.ingest(
+            csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+            platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=True,
+            raw_artifact=csv_path, raw_artifact_dir=str(artifact_dir),
+        )
+        assert "dry-run" in report["raw_artifact"]
+        assert not artifact_dir.exists()
+
+    def test_a_screenshot_image_extension_is_accepted(self, tmp_path):
+        csv_path = _write_csv(tmp_path, [GOOD_ROW])
+        screenshot = tmp_path / "capture.png"
+        screenshot.write_bytes(b"\x89PNG\r\n\x1a\nnot a real png but has the right extension")
+        obs_dir = str(tmp_path / "observations")
+        artifact_dir = str(tmp_path / "raw_captures")
+        report = ingest_mod.ingest(
+            csv_path, when="2026-09-10", who="owner", symbol="AAPL", timeframe="1D",
+            platform_version="Pine v5, web", obs_dir=obs_dir, force=False, dry_run=False,
+            raw_artifact=str(screenshot), raw_artifact_dir=artifact_dir,
+        )
+        assert report["raw_artifact"].endswith("capture.png")
+        # Confirms this test preserved the file under the TMP artifact_dir, not
+        # the real repo's tests/fixtures/vendor/raw_captures/.
+        assert os.path.isfile(os.path.join(artifact_dir, "2026-09-10-capture.png"))
+
+
 class TestCLI:
     def test_main_dry_run_exits_zero(self, tmp_path, capsys):
         csv_path = _write_csv(tmp_path, [GOOD_ROW])
