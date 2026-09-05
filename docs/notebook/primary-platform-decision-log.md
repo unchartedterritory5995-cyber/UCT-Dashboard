@@ -109,7 +109,21 @@ Ran against a SANDBOXED local dev server (isolated `DATA_DIR`/`AUTH_DB_PATH`, co
 
 **Both fixes committed together** with the E2E session that found them; full `journal-2-0` suite re-confirmed green after each (154 files / 1420 tests, +1 from the new regression test).
 
-**Not yet done:** the full adversarial matrix from the directive (double-delete via direct API replay, folder-deletion interaction with trashed notes, multi-user isolation) — the delete/restore/draft-recovery lifecycle itself is now proven correct through the real UI, but these specific adversarial variants weren't separately exercised this session; discoverability verification (two-rail: route/AST reachability + unmocked mount) for the new Trash entry and restore actions; deploy; production verification; the final Wave 0 certification report.
+**Independently re-verified (not just trusting the E2E session's self-report):** re-read both diffs by hand; re-ran the full `journal-2-0` suite fresh (154/1420, matching); did a live mutation check on the re-entrancy guard itself (commented out `if (restoringDraftRef.current) return`, confirmed the new regression test goes genuinely RED, restored the guard, confirmed GREEN again) — the "mutation-checked" claim is real, not asserted.
+
+**Discoverability rail 1 (static/AST reachability), confirmed separately this session:** `App.jsx` statically imports and routes `path="notebook"` → `NotebookSurface` → `NotebookTab` (`grep` of the real import chain, not a claim) → `FolderSidebar`/`NoteCard`/`NoteEditorPage` — a real, non-orphaned door. A second real path exists via `JournalTwoRoot.jsx`'s nested "Journal 2.0 beta" tab, which also statically imports `NotebookTab` directly. Rail 2 (unmocked real mount) is the browser E2E session above. Both rails now covered for every Wave-0 surface.
+
+### Slice 6 — Adversarial matrix completion (double-delete via HTTP, folder-deletion × trash interaction, multi-user isolation at the router layer)
+
+Closes the specific gaps Slice 5 left open. All added to `test_notes.py`/`test_notes_trash.py`, all passing.
+
+- **Double-delete via HTTP** (`test_route_double_delete_404s_on_the_second_call`): deleting an already-trashed note through the real router 404s on the second call — nothing left to soft-delete.
+- **Folder-deletion × trash interaction** (`test_deleting_a_folder_reparents_a_trashed_notes_folder_id_too`, `test_deleting_a_child_folder_reparents_a_trashed_notes_folder_id_to_the_grandparent`): `delete_folder`'s reparenting `UPDATE j2_notes SET folder_id = ...` is deliberately NOT filtered on `deleted_at` — a trashed note's `folder_id` reparents right alongside its active siblings when its folder is deleted. Proven the safe way: delete a folder holding a trashed note, then restore that note — it lands in Unfiled (root-folder case) or climbs to the grandparent (nested-folder case), never left pointing at a folder id that no longer exists. This is correct-by-construction, not a fix; the test makes it a proven, pinned fact instead of an unverified assumption.
+- **Multi-user isolation at the router (HTTP) layer** — previously only proven at the service-call layer (`test_notes_trash.py`'s `test_delete_and_restore_cannot_cross_users`, `test_purge_is_cross_user...`, `test_folder_note_counts_is_scoped_per_user`, etc.). New `two_user_route_clients` fixture (two real `TestClient`s over the same real router + same real DB) proves it through actual HTTP requests: a member can't delete, read, or restore another member's note (404, not "200 read-only"); a second member's trash view and folder-counts total never include the first member's notes, deleted or active.
+
+Full `api/services/journal_two/` suite re-run after this slice: clean (0 new failures beyond the already-documented 26 pre-existing disk-space-driven failures from the Slice 1 addendum).
+
+**Not yet done:** deploy; production verification; the final Wave 0 certification report.
 
 ---
 

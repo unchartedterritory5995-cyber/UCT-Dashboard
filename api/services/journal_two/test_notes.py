@@ -930,6 +930,14 @@ def test_route_delete_of_missing_note_404s(route_client):
     assert route_client.delete("/api/j2/notes/does-not-exist").status_code == 404
 
 
+def test_route_double_delete_404s_on_the_second_call(route_client):
+    r = route_client.get("/api/j2/notes?limit=1")
+    note_id = r.json()["notes"][0]["id"]
+    assert route_client.delete(f"/api/j2/notes/{note_id}").status_code == 200
+    # Already trashed — nothing left to soft-delete a second time.
+    assert route_client.delete(f"/api/j2/notes/{note_id}").status_code == 404
+
+
 def test_route_folder_counts_reflects_the_whole_library(route_client):
     r = route_client.get("/api/j2/notes/folder-counts")
     assert r.status_code == 200
@@ -950,3 +958,61 @@ def test_route_by_folders_with_no_ids_is_a_harmless_no_op(route_client):
     r = route_client.get("/api/j2/notes/by-folders?ids=")
     assert r.status_code == 200
     assert r.json()["byFolder"] == {}
+
+
+@pytest.fixture
+def two_user_route_clients(monkeypatch, tmp_path):
+    """Two TestClients (u1, u2) over the SAME real router + SAME real DB, one
+    per member, for router-level (HTTP) multi-user isolation checks on the
+    Wave 0 trash endpoints — the existing cross-user coverage in this file
+    and test_notes_trash.py is all service-layer (`svc.*` calls directly);
+    nothing yet drove the isolation question through the actual HTTP routes
+    a browser session hits."""
+    from api.services import auth_db
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+
+    db_path = str(tmp_path / "j2_notes_multiuser.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ensure_schema(conn)
+    conn.close()
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+
+    def _client_for(user_id):
+        app = FastAPI()
+        app.include_router(journal_two.router)
+        app.dependency_overrides[get_current_user] = lambda uid=user_id: {"id": uid}
+        return TestClient(app)
+
+    return _client_for("u1"), _client_for("u2")
+
+
+def test_route_a_member_cannot_delete_or_restore_another_members_note(two_user_route_clients):
+    c1, c2 = two_user_route_clients
+    note = c1.post("/api/j2/notes", json={"title": "u1's private note"}).json()["note"]
+
+    # A note lookup by id is user-scoped everywhere in this codebase — u2
+    # gets 404, not "200 but read-only", for a note that isn't theirs at all.
+    assert c2.delete(f"/api/j2/notes/{note['id']}").status_code == 404
+    assert c2.get(f"/api/j2/notes/{note['id']}").status_code == 404
+    assert c1.get(f"/api/j2/notes/{note['id']}").status_code == 200  # untouched, still u1's
+
+    assert c1.delete(f"/api/j2/notes/{note['id']}").status_code == 200
+    assert c2.post(f"/api/j2/notes/{note['id']}/restore").status_code == 404
+
+
+def test_route_trash_and_folder_counts_never_leak_across_members(two_user_route_clients):
+    c1, c2 = two_user_route_clients
+    n1 = c1.post("/api/j2/notes", json={"title": "u1 note"}).json()["note"]
+    c2.post("/api/j2/notes", json={"title": "u2 note"})
+    c1.delete(f"/api/j2/notes/{n1['id']}")
+
+    # u2's trash view never shows u1's deleted note.
+    u2_trash = c2.get("/api/j2/notes?deleted=true").json()
+    assert u2_trash["total"] == 0
+    assert u2_trash["notes"] == []
+
+    # u2's folder-counts total is scoped to u2's own library only.
+    u2_counts = c2.get("/api/j2/notes/folder-counts").json()
+    assert u2_counts["total"] == 1  # just "u2 note" — u1's note never counted

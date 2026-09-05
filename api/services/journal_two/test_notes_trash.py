@@ -275,3 +275,35 @@ def test_tag_counts_excludes_a_trashed_notes_tags(conn):
     assert svc.tag_counts("u1", conn=conn) == []
     svc.restore_note("u1", n["id"], conn=conn)
     assert svc.tag_counts("u1", conn=conn) == [{"tag": "earnings", "count": 1}]
+
+
+# ── adversarial: deleting a FOLDER that holds a currently-trashed note ──────
+
+def test_deleting_a_folder_reparents_a_trashed_notes_folder_id_too(conn):
+    """delete_folder's reparenting UPDATE is NOT filtered on deleted_at — a
+    trashed note's folder_id must still be kept valid, or restoring it later
+    would leave it pointing at a folder id that no longer exists. This proves
+    the interaction the directive names explicitly ("folder-deletion
+    interaction with trashed notes") lands the SAFE way: the trashed note
+    reparents right alongside its active siblings, and restoring it afterward
+    produces a note in Unfiled (never a dangling folder reference)."""
+    root = svc.create_folder("u1", "Root", conn=conn)
+    n = svc.create_note("u1", {"title": "T", "folderId": root["id"]}, conn=conn)
+    svc.delete_note("u1", n["id"], conn=conn)
+
+    assert svc.delete_folder("u1", root["id"], conn=conn) is True  # root folder -> Unfiled
+
+    restored = svc.restore_note("u1", n["id"], conn=conn)
+    assert restored["folderId"] is None  # Unfiled, not a dangling reference to the deleted folder
+
+
+def test_deleting_a_child_folder_reparents_a_trashed_notes_folder_id_to_the_grandparent(conn):
+    grandparent = svc.create_folder("u1", "Grandparent", conn=conn)
+    child = svc.create_folder("u1", "Child", parent_id=grandparent["id"], conn=conn)
+    n = svc.create_note("u1", {"title": "T", "folderId": child["id"]}, conn=conn)
+    svc.delete_note("u1", n["id"], conn=conn)
+
+    assert svc.delete_folder("u1", child["id"], conn=conn) is True
+
+    restored = svc.restore_note("u1", n["id"], conn=conn)
+    assert restored["folderId"] == grandparent["id"]  # climbed up, never left dangling
