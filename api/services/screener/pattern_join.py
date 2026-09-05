@@ -429,11 +429,16 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     touching that function or anything it feeds (snapshot_builder.py,
     screener_rows, the live nightly cron, or any member-facing output).
 
-    NOT called by snapshot_builder.py or any scheduled job. Its only caller
-    is the Package-8C shadow-parity test, which compares this function's
-    output against read_pattern_fields()'s real output for the same
-    targets to prove the canonical read adds evidence without changing
-    detector-level facts (identity, direction, best-detection selection).
+    NOT called by snapshot_builder.py or any scheduled job — the shared,
+    universe-wide `screener_rows` snapshot every user's scan reads is still
+    built exclusively from `read_pattern_fields`, unconditionally, for
+    everyone. It IS called from live application code now, gated
+    (`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED=1` + admin + PEG match): see
+    `apply_canonical_pilot_overlay` below. Its own shadow-parity test still
+    compares this function's output against `read_pattern_fields()`'s real
+    output for the same targets to prove the canonical read adds evidence
+    without changing detector-level facts (identity, direction,
+    best-detection selection).
 
     Additive over read_pattern_fields's own SELECT: eligibility_json (the
     one new column this package added), plus geometry_json/quality_json/
@@ -447,9 +452,29 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
         build_scanner_summary, reconstruct_persisted_evidence,
     )
 
+    # Phase 8 Package 8G-B Performance Closure (2026-09-05): scoped to
+    # `targets` in SQL, not just in the final Python loop. Measured root
+    # cause of the live pilot's ~2.1s admin request (vs ~0.1s legacy):
+    # this query previously carried NO ticker filter at all -- it fetched
+    # and Python-filtered the ENTIRE active-detections table (56,239 rows
+    # measured live) on every call, regardless of whether 1 or 9 targets
+    # were requested (instrumented: 1-ticker call 754.90ms, 9-ticker call
+    # 727.79ms -- statistically identical, proving candidate count was
+    # never the driver). That was tolerable for this function's original
+    # design as an occasional Package-8C shadow-parity comparison tool,
+    # but wrong once Package 8G-B started calling it on the live,
+    # per-request admin scanner path. Filtering by `sym` here changes
+    # nothing about WHICH of the matched rows get selected for a given
+    # target below -- it only stops fetching rows for tickers nobody asked
+    # about.
+    target_syms = sorted({str(t).upper() for t in targets if t})
+    if not target_syms:
+        return {}
+
     cutoff = int(time.time()) - _WINDOW_SECS
     placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
     cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
+    sym_ph = ",".join("?" * len(target_syms))
     sql = f"""
         SELECT sym, pattern_id, direction, confidence, levels_json, detected_at,
                status, geometry_json, quality_json, narrative_json, eligibility_json
@@ -458,10 +483,12 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
           AND status IN ({placeholders})
           AND detected_at >= ?
           AND (category IS NULL OR category NOT IN ({cat_ph}))
+          AND sym IN ({sym_ph})
     """
     with contextlib.closing(pattern_db.get_connection()) as conn:
         rows = conn.execute(
-            sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES)).fetchall()
+            sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES,
+                  *target_syms)).fetchall()
 
     by_ticker: dict = {}
     for r in rows:
