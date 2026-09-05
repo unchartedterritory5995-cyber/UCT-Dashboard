@@ -139,7 +139,16 @@ CREATE TABLE IF NOT EXISTS _migrations (
 );
 """
 
-_MIGRATIONS: list[tuple[str, str]] = []
+_MIGRATIONS: list[tuple[str, str]] = [
+    # S7 durable in-app notification bridge (owner authorization): a fire is
+    # ALWAYS single-owner (never broadcast -- document_arrival's own router
+    # docstring), so one nullable column is the read-state design, not a
+    # separate per-user table -- there is only ever one relevant reader. This
+    # table already accepts post-fire mutation for delivery bookkeeping
+    # (delivered_at/delivery_attempts/delivery_channels), so read_at extends
+    # an existing pattern rather than breaking a true immutability guarantee.
+    ("add_alert_fires_read_at", "ALTER TABLE alert_fires ADD COLUMN read_at REAL"),
+]
 
 
 def connect(db_path: str | None = None) -> sqlite3.Connection:
