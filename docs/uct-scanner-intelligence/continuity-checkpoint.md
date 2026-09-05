@@ -510,6 +510,68 @@ this package per the owner's own boundary — and should be evaluated
 alongside the already-open scan/redeploy-reliability issue as a combined
 future production-reliability workstream, not patched inside 8G-B.
 
+## Scanner HTTP baseline stabilization — root-cause pass (2026-09-05, same day, internal profiling only)
+
+Extended the overlay-isolation profiling to find the gap between ~4ms
+in-process `query.run_scan()` and ~400-700ms real production HTTP. Same
+worktree (`fix/8g-b-overlay-performance`), one additional throwaway pytest
+file (`tests/test_zzz_8gb_http_gap_profile.py`, deleted after use, not
+committed) driving the REAL `api.main.app` (full middleware/Starlette/
+Pydantic/JSON stack, `slowapi` rate limiter, no lifespan/scheduler running)
+via `httpx.AsyncClient(transport=ASGITransport(app=app))` — real routing,
+real serialization, auth dependency overridden (same convention as
+`test_scan_screener_auth.py`).
+
+**Result: full ASGI/middleware stack adds only ~10ms on top of core logic.**
+- Bare `query.run_scan()`: ~3.7-4.8ms (prior experiment)
+- Through the REAL app, full middleware, no scheduler running, pilot OFF:
+  median **14.64ms** (10.20-22.73ms)
+- Same, pilot ON: median **15.52ms** (13.50-36.22ms)
+
+**This rules out HTTP/ASGI/middleware/Pydantic/JSON overhead as the source
+of the 400-700ms gap too.** Combined with the earlier overlay-isolation
+result (canonical adds ~1ms) and the concurrency experiment (both legacy
+and canonical spike to ~170-225ms together under 24-way contention against
+shared SQLite files), the best-supported remaining explanation is
+**threadpool-queueing / shared-resource contention from the many OTHER
+background jobs this single web process runs concurrently** (bars
+reconciliation, breadth/ticker/chart prewarmers, catalyst/awareness
+engines, etc., all sharing the one anyio threadpool + shared SQLite
+files) — structurally the same class as the documented 2026-07-01
+524-outage. **Not proven via direct production instrumentation** (no
+profiler was attached to the live process this session) — this is strong,
+convergent, controlled-experiment evidence, not a certainty. Two
+independent measured components (core query ~4ms; full HTTP stack
+~10-15ms) leave ~385-685ms unaccounted for that production shows and
+neither in-process experiment reproduces without deliberately saturating
+shared resources.
+
+**Auth-DB-lookup cost remains a disclosed, unmeasured gap** — `require_paid`
+was dependency-overridden (bypassing the real session/subscription lookup
+against `auth.db`) in both experiments, matching this repo's own existing
+test convention, but this means the real per-request auth-DB cost is not
+included in the ~15ms figure and could be a further contributor not yet
+isolated.
+
+**Fifth unrelated concurrent-session push observed today**
+(`0fc6a4cff`, "S7 durable in-app notification bridge") — reinforces the
+open scan/redeploy-reliability finding with another concrete instance.
+
+**Classification: BROADER WEB/SCHEDULER ARCHITECTURE CHANGE APPEARS
+REQUIRED — OWNER DECISION NEEDED.** No narrow, low-risk, code-only serving
+fix was identified; the evidence points at the shared single-process
+architecture itself, which is explicitly out of scope to change without
+separate owner authorization.
+
+**Incident, unrelated to 8G-B:** a `railway variables --service web | tail
+-40` command (author error, not a tool/classifier failure) printed the
+full unfiltered variable table into this session's transcript, exposing
+several real secrets by name: `YT_OAUTH_CLIENT_SECRET`,
+`ZOOM_S2S_CLIENT_SECRET`, `ZOOM_WEBHOOK_SECRET_TOKEN` (values were shown in
+the session output, not reproduced again here). **Recommend rotating these
+three credentials** out of caution since they now sit in session history.
+No other action taken; not a Package 8G-B issue.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
