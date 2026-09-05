@@ -1239,25 +1239,13 @@ def preview_count(spec, user_id=None):
 
 
 def run_scan(spec, user_id=None, user=None):
-    # TEMPORARY (Package 8G-B run_scan internal-stage trace, 2026-09-05):
-    # `scan_trace_temp.stage(...)` wraps EXISTING statements below, unchanged,
-    # to answer R1 (Python/GIL) vs R2 (SQLite/storage) -- see that module's
-    # docstring. reset_stages()/stage() are no-ops for every OTHER caller of
-    # run_scan (nothing reads the contextvar unless the router pops it), so
-    # this has zero effect outside the instrumented screener_scan route.
-    from api.services.screener import scan_trace_temp
-    scan_trace_temp.reset_stages()
     spec = spec or {}
-    with scan_trace_temp.stage("conn_acquire"):
-        conn = snapshot_db.connect()
-    with conn:
+    with snapshot_db.connect() as conn:
         # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
         # through the SELECT, the WHERE, the ORDER BY and the description, so
         # they cannot disagree about which values are being served.
-        with scan_trace_temp.stage("build_plan"):
-            plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
-        with scan_trace_temp.stage("sql_execute_fetch"):
-            rows = conn.execute(plan["sql"], plan["params"]).fetchall()
+        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
+        rows = conn.execute(plan["sql"], plan["params"]).fetchall()
         # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
         # the SAME params AND THE SAME `FROM` that selected them select the
         # description.
@@ -1280,34 +1268,30 @@ def run_scan(spec, user_id=None, user=None):
         # representative date would silently drop symbols -- a fixed label at
         # the price of a missing-data bug -- and a screen that quietly returns
         # fewer names looks like a quiet market.
-        with scan_trace_temp.stage("describe_rows"):
-            snap = snapshot_db.describe_rows(
-                conn, plan["where"], plan["describe_params"],
-                from_sql=plan["from_sql"], date_expr=plan["date_expr"])
+        snap = snapshot_db.describe_rows(
+            conn, plan["where"], plan["describe_params"],
+            from_sql=plan["from_sql"], date_expr=plan["date_expr"])
         rank_receipt = None
         if plan["rank"]:
-            with scan_trace_temp.stage("rank_receipt"):
-                # ⭐ TWO COUNTS, because a ranked screen returns FEWER rows than the
-                # same filters unranked and the difference is missing data, not a
-                # quiet market. `matched` is the filters alone; `ranked` is what
-                # survived the completeness requirement.
-                def _count(where, params):
-                    return conn.execute(
-                        f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
-                        [*plan["overlay"].join_params, *params]).fetchone()[0]
-                rank_receipt = ranking.receipt(
-                    plan["rank"],
-                    matched=_count(plan["base_where"], plan["base_params"]),
-                    ranked=_count(plan["where"], plan["describe_params"][
-                        len(plan["overlay"].join_params):]))
-    with scan_trace_temp.stage("row_convert"):
-        out_rows = [dict(r) for r in rows]
+            # ⭐ TWO COUNTS, because a ranked screen returns FEWER rows than the
+            # same filters unranked and the difference is missing data, not a
+            # quiet market. `matched` is the filters alone; `ranked` is what
+            # survived the completeness requirement.
+            def _count(where, params):
+                return conn.execute(
+                    f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
+                    [*plan["overlay"].join_params, *params]).fetchone()[0]
+            rank_receipt = ranking.receipt(
+                plan["rank"],
+                matched=_count(plan["base_where"], plan["base_params"]),
+                ranked=_count(plan["where"], plan["describe_params"][
+                    len(plan["overlay"].join_params):]))
+    out_rows = [dict(r) for r in rows]
     # Phase 8 Package 8G-B: additive-only, admin/pilot + PEG-only overlay.
     # No-ops (returns out_rows unchanged) unless PATTERN_CANONICAL_SCANNER_
     # PILOT_ENABLED=1 AND the caller is an admin -- see pattern_join.py's
     # own docstring on this function for the full fail-safe/scope contract.
-    with scan_trace_temp.stage("canonical_overlay"):
-        out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
+    out_rows = pattern_join.apply_canonical_pilot_overlay(out_rows, user)
     # 🔑 THE LIVE DISCLOSURE RIDES THE PROVENANCE BLOCK, AT ONE ADDRESS.
     #
     # `snapshot` is already this response's provenance object and is already
@@ -1318,14 +1302,10 @@ def run_scan(spec, user_id=None, user=None):
     # and a later edit can drift -- or a disclosure wired to a prop nobody
     # passes, which is the built-tested-green-and-unreachable failure this repo
     # has already paid for twice. One block, one address, reachable today.
-    with scan_trace_temp.stage("live_screen_state"):
-        snap["live"] = live_screen_state(out_rows)
+    snap["live"] = live_screen_state(out_rows)
     # `total` IS the described row count. One `GROUP BY` already counted every
     # matching row, so re-running `COUNT(*)` would be a second authority over
     # one value -- exactly the drift that lets a label and a total disagree.
-    # (TEMPORARY: stage timings stay in the per-thread contextvar for the
-    # caller to pop via scan_trace_temp.pop_stages() -- never added to this
-    # dict, which is the real HTTP response contract.)
     return {"total": snap["rows"], "rows": out_rows,
             "view": plan["view"], "view_columns": plan["view_columns"],
             "snapshot_date": snap["snapshot_date"], "snapshot": snap,

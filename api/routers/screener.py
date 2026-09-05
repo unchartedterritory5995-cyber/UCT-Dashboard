@@ -44,7 +44,7 @@ Gating it would break every share link already in the wild. It is named in
 `tests/test_scan_screener_auth.py::PUBLIC_BY_DESIGN`, whose size is asserted, so
 a SECOND open route cannot join it quietly.
 """
-from fastapi import APIRouter, HTTPException, Body, Depends, Request
+from fastapi import APIRouter, HTTPException, Body, Depends
 from pydantic import BaseModel
 from api.services.engine import get_screener, get_candidates
 from api.services import breadth_monitor as bm_svc
@@ -53,7 +53,6 @@ from api.services.screener import (
     filters as scr_filters,
     snapshot_db as scr_db,
     saved_screens as scr_saved,
-    scan_trace_temp,
 )
 from api.middleware.auth_middleware import (
     get_current_user_with_plan,
@@ -229,28 +228,14 @@ def screener_count(spec: ScanSpec, user=Depends(require_paid)):
 
 
 @router.post("/api/screener/scan")
-def screener_scan(request: Request, spec: ScanSpec, user=Depends(require_paid)):
-    # TEMPORARY (Package 8G-B scanner-serving instrumentation, 2026-09-05):
-    # t_route_entry marks "auth + Pydantic validation + dispatch already
-    # happened" -- see scan_trace_temp.py for exactly what this can and
-    # cannot distinguish. Remove alongside that file once evidence is collected.
-    import time as _time
-    _t_route_entry = _time.perf_counter()
+def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
     try:
         # ⛔ THE USER ID COMES FROM THE DEPENDENCY, NOT THE BODY. `{key:"list"}`
         # resolves a member's own watchlists, flags and colour tags; reading the
         # id off the client-supplied spec would let any member screen any other
         # member's lists.
-        _t_before_scan = _time.perf_counter()
-        result = scr_query.run_scan(spec.model_dump(),
-                                    user_id=(user or {}).get("id"), user=user)
-        _t_after_scan = _time.perf_counter()
-        # TEMPORARY: pop the per-thread stage timings run_scan just recorded
-        # via its contextvar -- never part of `result` (the real response).
-        request.state.run_scan_stages = scan_trace_temp.pop_stages()
-        scan_trace_temp.record(request, _t_route_entry, _t_before_scan,
-                                _t_after_scan, len(result.get("rows", [])))
-        return result
+        return scr_query.run_scan(spec.model_dump(),
+                                  user_id=(user or {}).get("id"), user=user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

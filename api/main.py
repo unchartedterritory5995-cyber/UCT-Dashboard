@@ -156,21 +156,6 @@ _SENTRY_DSN = os.environ.get("SENTRY_DSN")
 _MAINTENANCE_MODE = False
 
 
-class _ScanTraceIngressMiddleware(BaseHTTPMiddleware):
-    """TEMPORARY (Package 8G-B scanner-serving instrumentation, 2026-09-05).
-    Stamps request-ingress time for POST /api/screener/scan ONLY -- a no-op
-    for every other path. The route itself (screener.py::screener_scan)
-    computes and logs the stage breakdown via scan_trace_temp.record().
-    Remove this class + its app.add_middleware() call, screener.py's two
-    call sites, and api/services/screener/scan_trace_temp.py in one revert
-    commit once production trace evidence has been collected."""
-    async def dispatch(self, request, call_next):
-        if request.url.path == "/api/screener/scan":
-            import time as _time
-            request.state.t_ingress = _time.perf_counter()
-        return await call_next(request)
-
-
 class MaintenanceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         global _MAINTENANCE_MODE
@@ -6822,7 +6807,6 @@ async def lifespan(app: FastAPI):
         pass
 
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
-app.add_middleware(_ScanTraceIngressMiddleware)  # TEMPORARY, see class docstring
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
 # 🔴 THE FAIL-CLOSED ADMIN GATE. `api/middleware/admin_guard.py` shipped
