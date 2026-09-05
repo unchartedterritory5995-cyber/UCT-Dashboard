@@ -21,8 +21,18 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({
 // SQL-truncated page). Mocked so every test controls exactly what "the
 // server" returns and can inspect what FolderSidebar actually asked for.
 const useJ2NotesMock = vi.fn(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
+// P0-2 fix: the honest per-folder counts. Default mimics "still loading"
+// (`counts: undefined`) so most tests exercise the page-derived fallback,
+// same convention as the other hooks below — tests proving the fix itself
+// override this explicitly with real (loaded) counts.
+const useJ2NoteFolderCountsMock = vi.fn(() => ({
+  counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
+}))
+const useJ2NotesByFoldersMock = vi.fn(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
 vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
+  useJ2NoteFolderCounts: (...args) => useJ2NoteFolderCountsMock(...args),
+  useJ2NotesByFolders: (...args) => useJ2NotesByFoldersMock(...args),
 }))
 
 // The tag cloud's honest, whole-library counts (final-review C5). Default
@@ -39,6 +49,12 @@ beforeEach(() => {
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
   useJ2NoteTagsMock.mockReset()
   useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
+  useJ2NoteFolderCountsMock.mockReset()
+  useJ2NoteFolderCountsMock.mockImplementation(() => ({
+    counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
+  }))
+  useJ2NotesByFoldersMock.mockReset()
+  useJ2NotesByFoldersMock.mockImplementation(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
 })
 
 describe('folder tree', () => {
@@ -500,5 +516,117 @@ describe('tag counts read the whole library, not the loaded page (final-review C
     const betaRow = screen.getByText('#beta').closest('button')
     expect(within(alphaRow).getByText('2')).toBeInTheDocument()
     expect(within(betaRow).getByText('1')).toBeInTheDocument()
+  })
+})
+
+describe('P0-2: honest per-folder counts, not derived from one capped page', () => {
+  // The bug: a folder's disclosure arrow used to come from grouping `notes`
+  // (one page, sorted by title across the WHOLE library) by folderId. A
+  // folder whose notes all sorted past that page's cutoff rendered with NO
+  // arrow — independent of that folder's own real size. 'c' (Journal) here
+  // stands in for exactly that: the loaded page carries ZERO notes for it,
+  // but the honest server count says it holds 150.
+  it('shows a disclosure arrow for a folder with real notes even when none of them are on the loaded page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { c: 150 }, unfiled: 0, total: 150, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    // Would NOT be in the document against the old page-derived logic — the
+    // loaded page (`notes={[]}`) has nothing for folder 'c'.
+    expect(screen.getByLabelText('Expand Journal')).toBeInTheDocument()
+  })
+
+  it('a folder truly empty per the honest server count gets no arrow, even if it once appeared on a stale loaded page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: {}, unfiled: 0, total: 0, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    // A stale page still lists a note under 'c' (e.g. it was just deleted
+    // and the page hasn't refetched yet) — the honest, loaded count (absent
+    // key = 0) must win once it has actually arrived.
+    render(<FolderSidebar notes={[{ id: 'n1', title: 'Stale', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.queryByLabelText('Expand Journal')).not.toBeInTheDocument()
+  })
+
+  it('while the honest counts are still loading, falls back to the page-derived guess (no arrow flicker to "wrong" first)', () => {
+    // Default mock (beforeEach): counts: undefined, isLoading: true.
+    render(<FolderSidebar notes={[{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByLabelText('Expand Journal')).toBeInTheDocument()
+  })
+
+  it('expanding a folder renders its real per-folder note list, not the one capped page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { c: 2 }, unfiled: 0, total: 2, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    useJ2NotesByFoldersMock.mockImplementation(() => ({
+      byFolder: { c: [
+        { id: 'real1', title: 'Real Note One' },
+        { id: 'real2', title: 'Real Note Two' },
+      ] },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    // The loaded page carries a DIFFERENT note for 'c' — proves the honest
+    // per-folder fetch wins over it once expanded, not merely alongside it.
+    render(<FolderSidebar notes={[{ id: 'stale1', title: 'Stale Page Note', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    expect(screen.getByText('Real Note One')).toBeInTheDocument()
+    expect(screen.getByText('Real Note Two')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Page Note')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Real Note One'))
+    expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'real1' }))
+  })
+
+  it('asks for exactly the expanded folder ids, sorted (stable cache key regardless of click order)', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { a: 1, c: 1 }, unfiled: 0, total: 2, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal')) // 'c'
+    fireEvent.click(screen.getByLabelText('Expand Trading'))  // 'a'
+    const lastCall = useJ2NotesByFoldersMock.mock.calls.at(-1)
+    expect(lastCall[0]).toEqual(['a', 'c'])
+  })
+})
+
+describe('Wave 0 trash: a "Trash" entry in the sidebar', () => {
+  it('renders a Trash row with the honest server count and routes selection through the __trash__ sentinel', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.deleted) return { notes: [], isLoading: false, isValidating: false, error: null, total: 7 }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    const onSelectFolder = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={onSelectFolder}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(within(trashRow).getByText('7')).toBeInTheDocument()
+    fireEvent.click(trashRow)
+    expect(onSelectFolder).toHaveBeenCalledWith('__trash__')
+  })
+
+  it('shows no count badge while the trash total is still unknown, rather than a false zero', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.deleted) return { notes: [], isLoading: true, isValidating: true, error: null, total: undefined }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(within(trashRow).queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('highlights the Trash row as active when it is the selected view', () => {
+    render(<FolderSidebar notes={[]} activeFolderId="__trash__" onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(trashRow.className).toMatch(/rowActive/)
   })
 })

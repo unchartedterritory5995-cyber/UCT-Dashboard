@@ -19,10 +19,26 @@ vi.mock('../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
-  default: () => <div data-testid="folder-sidebar" />,
+  // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
+  // trigger the same way ImportWizard's mock exposes "fire onImported",
+  // so trash-view wiring can be driven through the real prop instead of
+  // reaching into NotebookTab's internal state.
+  default: ({ onSelectFolder }) => (
+    <div data-testid="folder-sidebar">
+      <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
+      <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+    </div>
+  ),
 }))
 vi.mock('../components/notebook/NoteCard', () => ({
-  default: () => <div data-testid="note-card" />,
+  default: ({ note, onRestore }) => (
+    <div data-testid="note-card">
+      {note?.title}
+      {onRestore && (
+        <button type="button" onClick={() => onRestore(note)}>Restore</button>
+      )}
+    </div>
+  ),
 }))
 vi.mock('../components/notebook/NoteEditorPage', () => ({
   default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
@@ -242,5 +258,90 @@ describe('NotebookTab — pagination (Task 11: the browse path must survive a mi
     renderTab()
     const btn = screen.getByRole('button', { name: /loading/i })
     expect(btn).toBeDisabled()
+  })
+})
+
+describe('NotebookTab — Wave 0 trash view', () => {
+  it('selecting Trash from the sidebar fetches the deleted view, not the active folder/tag filters', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({
+      deleted: true, folderId: undefined, tag: undefined, sort: 'deleted',
+    }))
+  })
+
+  it('shows a "Trash is empty" message, not the create-a-note pitch, when the trash view has nothing', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Trash is empty.')).toBeInTheDocument()
+    expect(screen.queryByText('Your notebook is empty.')).not.toBeInTheDocument()
+  })
+
+  it('a trashed note renders with a Restore action; clicking it POSTs to the restore endpoint and refreshes', async () => {
+    const trashedNote = { id: 'trashed1', title: 'Old Setup Notes' }
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [trashedNote], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 1, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    // The default global.fetch (beforeEach) assumes every POST carries a
+    // JSON body (it always does `JSON.parse(opts.body)`) — true for note
+    // creation, not for this bodyless restore POST. Override just for this
+    // test so the mock's own shape doesn't masquerade as a production bug.
+    global.fetch = vi.fn((url, opts) => {
+      if (String(url).includes('/restore')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'trashed1', title: 'Old Setup Notes' } }) })
+      }
+      if (opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Old Setup Notes')).toBeInTheDocument()
+
+    mockRefresh.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+
+    await waitFor(() => {
+      const restoreCall = global.fetch.mock.calls.find(([url]) => String(url).includes('/restore'))
+      expect(restoreCall).toBeTruthy()
+      expect(restoreCall[0]).toBe('/api/j2/notes/trashed1/restore')
+      expect(restoreCall[1].method).toBe('POST')
+    })
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled())
+  })
+
+  it('leaving the trash view (Clear filter) returns to the normal active-notes fetch', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Trash is empty.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }))
+    expect(screen.queryByText('Trash is empty.')).not.toBeInTheDocument()
   })
 })

@@ -125,6 +125,12 @@
   cursor: pointer;
   font-size: 12px;
 }
+.trashLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 6px 2px;
+}
 .newWrap {
   margin-left: auto;
   display: flex;

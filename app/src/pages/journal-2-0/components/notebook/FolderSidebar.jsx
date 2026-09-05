@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
-import useJ2Notes from '../../hooks/useJ2Notes'
+import useJ2Notes, { useJ2NoteFolderCounts, useJ2NotesByFolders } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './FolderSidebar.module.css'
@@ -140,14 +140,31 @@ function FolderNode({
   onStartAddChild,
   addForm,
   notesByFolder,
+  folderCounts,
+  expandedFolderNotes,
   onOpenNote,
   activeNoteId,
 }) {
-  const folderNotes = notesByFolder.get(node.id) || []
+  const pageNotes = notesByFolder.get(node.id) || []
+  // P0-2 fix: `folderCounts` is the TRUE whole-library per-folder count
+  // (`undefined` while still loading — see useJ2NoteFolderCounts's own
+  // comment). Once it has genuinely loaded, a folder ABSENT from it really
+  // has 0 active notes, so this is authoritative and must win over the
+  // page-derived guess below (which only ever reflects the ONE capped,
+  // alphabetically-sorted page handed down as `notes` — the root cause of a
+  // folder whose notes all sorted past that page's cutoff rendering with no
+  // arrow at all, independent of the folder's own real size).
+  const honestCount = folderCounts ? (folderCounts[node.id] ?? 0) : null
+  // Once a folder is expanded, prefer its real per-folder fetch
+  // (`expandedFolderNotes`, honestly complete up to the server's own cap);
+  // fall back to the page-derived guess only for the brief window between
+  // expanding and that fetch resolving.
+  const folderNotes = expandedFolderNotes[node.id] ?? pageNotes
   // A folder is expandable when it holds subfolders OR notes — so a subfolder
   // that contains only notes still gets a disclosure arrow (matches the folder
   // tree the user asked for).
-  const hasChildren = node.children.length > 0 || folderNotes.length > 0
+  const hasChildren = node.children.length > 0 ||
+    (honestCount !== null ? honestCount > 0 : pageNotes.length > 0)
   const isExpanded = expandedIds.has(node.id)
   const isEditing = editingId === node.id
   const isAddingHere = addForm.parentId === node.id && addForm.active
@@ -225,6 +242,8 @@ function FolderNode({
               onStartAddChild={onStartAddChild}
               addForm={addForm}
               notesByFolder={notesByFolder}
+              folderCounts={folderCounts}
+              expandedFolderNotes={expandedFolderNotes}
               onOpenNote={onOpenNote}
               activeNoteId={activeNoteId}
             />
@@ -313,6 +332,16 @@ export default function FolderSidebar({
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
 
+  // P0-2 fix: the TRUE whole-library per-folder count, never derived from
+  // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
+  // comment and FolderNode's `honestCount`.
+  const { counts: folderCountsFromServer } = useJ2NoteFolderCounts()
+  // The actual note rows for the tree's leaf rows, scoped to only the
+  // CURRENTLY-EXPANDED folders (never the whole library in one page) —
+  // sorted so re-render order never changes the SWR cache key.
+  const expandedIdsArray = useMemo(() => [...expandedIds].sort(), [expandedIds])
+  const { byFolder: expandedFolderNotes } = useJ2NotesByFolders(expandedIdsArray)
+
   // Group notes under their folder so the tree can render them as leaf rows.
   // Sorted by title for a stable, scannable order.
   const notesByFolder = useMemo(() => {
@@ -336,6 +365,10 @@ export default function FolderSidebar({
   // the server for the TRUE count instead (cheap: `limit: 1` means only
   // `total` is read, the single row is discarded).
   const { total: unfiledTotalFromServer } = useJ2Notes({ folderId: '__unfiled__', limit: 1 })
+
+  // Wave 0 trash: same honest-count idiom as Unfiled above, over the
+  // deleted=true view.
+  const { total: trashTotalFromServer } = useJ2Notes({ deleted: true, limit: 1 })
 
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
@@ -643,6 +676,23 @@ export default function FolderSidebar({
                 <span className={styles.count}>{unfiledCount}</span>
               </button>
             </div>
+            <div className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.row} ${activeFolderId === '__trash__' ? styles.rowActive : ''}`}
+                onClick={() => { onSelectFolder('__trash__'); onSelectTag(null) }}
+              >
+                <span>Trash</span>
+                {/* No page-derived fallback here (unlike Unfiled) — the
+                    `notes` prop never contains trashed notes at all, so a
+                    client-side count would always read a false 0 while
+                    loading. Show nothing rather than a wrong number. */}
+                {trashTotalFromServer !== undefined && (
+                  <span className={styles.count}>{trashTotalFromServer}</span>
+                )}
+              </button>
+            </div>
             {tree.map((node) => (
               <FolderNode
                 key={node.id}
@@ -662,6 +712,8 @@ export default function FolderSidebar({
                 onStartAddChild={startAddChild}
                 addForm={addForm}
                 notesByFolder={notesByFolder}
+                folderCounts={folderCountsFromServer}
+                expandedFolderNotes={expandedFolderNotes}
                 onOpenNote={onOpenNote}
                 activeNoteId={activeNoteId}
               />

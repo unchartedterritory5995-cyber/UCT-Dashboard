@@ -127,14 +127,31 @@ export default function NotebookTab() {
     return () => { window.removeEventListener('resize', fit); cancelAnimationFrame(raf) }
   }, [])
 
+  // Wave 0 trash: the sidebar's "Trash" row selects this sentinel exactly
+  // like '__unfiled__' already does for Unfiled — no new selection channel.
+  const isTrashView = folderId === '__trash__'
+
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
   // its real count. `hasMore`/`loadMore` back the "Load more" control below:
   // page size stays 100, and a click fetches+appends the next page rather
   // than re-fetching everything already on screen.
+  //
+  // In the trash view, folder/tag filters don't apply (a trashed note keeps
+  // no meaningful folder/tag scoping for this list) and sort forces the
+  // trash-view default (`deleted_at DESC`, i.e. "most recently deleted
+  // first") — `list_notes` only defaults to that when `sort` is unset/
+  // unrecognized, and the toolbar's own sort state ('updated' by default)
+  // IS a recognized key, so it would otherwise silently win over the trash
+  // default.
   const {
     notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
-  } = useJ2Notes({ folderId, tag, sort })
+  } = useJ2Notes({
+    folderId: isTrashView ? undefined : folderId,
+    tag: isTrashView ? undefined : tag,
+    sort: isTrashView ? 'deleted' : sort,
+    deleted: isTrashView,
+  })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
   // filtered view above (which only holds the selected folder's notes).
@@ -199,6 +216,24 @@ export default function NotebookTab() {
   const handleSelectFolder = (id) => { setFolderId(id); if (noteId) clearNoteParam() }
   const handleSelectTag = (t) => { setTag(t); if (noteId) clearNoteParam() }
 
+  // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
+  // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
+  const restoreNote = async (note) => {
+    try {
+      const res = await fetch(`/api/j2/notes/${note.id}/restore`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const body = await res.json()
+      addNoteToTree(body.note)
+      refresh()
+      refreshAll()
+    } catch (e) {
+      alert(`Could not restore note: ${e.message || e}`)
+    }
+  }
+
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker).
   const createNote = async ({ title = '', bodyJson, tags, ticker } = {}) => {
@@ -218,7 +253,7 @@ export default function NotebookTab() {
           ...(bodyJson ? { bodyJson } : {}),
           ...(tags && tags.length ? { tags } : {}),
           ...(seededTicker ? { ticker: seededTicker } : {}),
-          ...(folderId && folderId !== '__unfiled__' ? { folderId } : {}),
+          ...(folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? { folderId } : {}),
         }),
       })
       if (!res.ok) throw new Error(`${res.status}`)
@@ -339,15 +374,22 @@ export default function NotebookTab() {
         ) : (
           <>
         <div className={styles.toolbar}>
-          <select
-            className={styles.sortSelect}
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            <option value="updated">Recently updated</option>
-            <option value="created">Recently created</option>
-            <option value="title">Title</option>
-          </select>
+          {isTrashView ? (
+            // Trash view sort is fixed (most recently deleted first) — the
+            // toolbar's Recently-updated/Recently-created/Title options are
+            // for the active library, not a meaningful choice here.
+            <span className={styles.trashLabel}>Trash</span>
+          ) : (
+            <select
+              className={styles.sortSelect}
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="updated">Recently updated</option>
+              <option value="created">Recently created</option>
+              <option value="title">Title</option>
+            </select>
+          )}
           {(folderId || tag) && (
             <button
               type="button"
@@ -427,6 +469,13 @@ export default function NotebookTab() {
 
         {isLoading && notes.length === 0 ? (
           <div className={styles.empty}>Loading…</div>
+        ) : notes.length === 0 && isTrashView ? (
+          <div className={styles.empty}>
+            <p>Trash is empty.</p>
+            <p className={styles.emptyHint}>
+              Deleted notes stay here for 30 days before they're gone for good.
+            </p>
+          </div>
         ) : notes.length === 0 ? (
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
@@ -457,7 +506,12 @@ export default function NotebookTab() {
           <>
             <div className={styles.grid}>
               {notes.map((n) => (
-                <NoteCard key={n.id} note={n} onOpen={openNote} />
+                <NoteCard
+                  key={n.id}
+                  note={n}
+                  onOpen={openNote}
+                  onRestore={isTrashView ? restoreNote : undefined}
+                />
               ))}
             </div>
             {/* Incremental loading over infinite scroll: simpler, testable,

@@ -23,9 +23,41 @@ function cardThumb(note) {
   return null
 }
 
-export default function NoteCard({ note, onOpen }) {
+// `onRestore`, when passed, renders a trashed note: opening it would 404
+// (a soft-deleted note must be restored before it can be edited — see
+// notes_service.get_note's default filter), so the card is inert rather
+// than a click-to-open button, with an explicit Restore action instead.
+export default function NoteCard({ note, onOpen, onRestore }) {
   const title = note.title?.trim() || 'Untitled'
   const thumb = cardThumb(note)
+
+  if (onRestore) {
+    return (
+      <div className={styles.card} data-trashed="true">
+        <div className={styles.body}>
+          <div className={styles.title}>{title}</div>
+          {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
+          <div className={styles.metaRow}>
+            <span className={styles.date}>{relativeDate(note.updatedAt)}</span>
+            {note.ticker && <span className={styles.ticker}>${note.ticker}</span>}
+          </div>
+          <button
+            type="button"
+            className={styles.restoreBtn}
+            onClick={() => onRestore(note)}
+          >
+            Restore
+          </button>
+        </div>
+        {thumb && (
+          <div className={styles.thumb} aria-hidden="true">
+            <img src={thumb} alt="" loading="lazy" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <button type="button" className={styles.card} onClick={() => onOpen(note)}>
       <div className={styles.body}>

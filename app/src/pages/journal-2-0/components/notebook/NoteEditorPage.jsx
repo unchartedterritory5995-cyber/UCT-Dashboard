@@ -603,7 +603,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
 
   const onDelete = async () => {
-    if (!confirm('Delete this note?')) return
+    // Wave 0 trash: a soft delete — restorable from the sidebar's Trash
+    // entry for 30 days before it's permanently purged.
+    if (!confirm('Delete this note? You can restore it from Trash for 30 days.')) return
     const res = await fetch(`/api/j2/notes/${noteId}`, {
       method: 'DELETE', credentials: 'include',
     })
