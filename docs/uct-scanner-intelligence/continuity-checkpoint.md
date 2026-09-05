@@ -572,6 +572,53 @@ the session output, not reproduced again here). **Recommend rotating these
 three credentials** out of caution since they now sit in session history.
 No other action taken; not a Package 8G-B issue.
 
+## Security incident record — accidental unfiltered Railway-variable output (2026-09-05)
+
+**What happened:** an author command (`railway variables --service web | tail -40`,
+intended as `grep`) printed the full unfiltered production variable table
+into this session's transcript. No values are repeated in this record.
+
+**Credentials exposed (values shown in session output):**
+- `YT_OAUTH_CLIENT_SECRET`
+- `ZOOM_S2S_CLIENT_SECRET`
+- `ZOOM_WEBHOOK_SECRET_TOKEN`
+- **`YT_OAUTH_REFRESH_TOKEN`** — a fourth genuine secret, exposed in the
+  same accidental output, initially missed by both the owner and the
+  agent's first incident report. **Flagged for the owner to confirm
+  whether this one has also been rotated** — it grants ongoing YouTube API
+  access and is at least as sensitive as the client secret.
+
+**Also visible in the same output, lower sensitivity (identifiers, not
+secrets — not typically rotated):** `YT_OAUTH_CLIENT_ID`,
+`ZOOM_S2S_ACCOUNT_ID`, `ZOOM_S2S_CLIENT_ID`, `WORKER_INTERNAL_URL`
+(internal Railway network address). No other credential-shaped values were
+in the exposed slice (the output was alphabetically truncated to
+`VITE_*`-`ZOOM_*`; nothing earlier in the alphabet was shown).
+
+**Owner action:** rotated `YT_OAUTH_CLIENT_SECRET`, `ZOOM_S2S_CLIENT_SECRET`,
+`ZOOM_WEBHOOK_SECRET_TOKEN` at their source providers and updated the
+corresponding Railway variables directly (outside this session — values
+never seen by or shared with Claude).
+
+**Agent-side verification performed (names/presence only, values never
+read or printed):** all three rotated keys plus `YT_OAUTH_REFRESH_TOKEN`
+confirmed still present in Railway (`railway variable list --json`, parsed
+via `grep -oE` on the key pattern only — value never reaches output).
+`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED` confirmed still absent (pilot
+still off). No hardcoded copies of these four variable names found in the
+codebase (`git grep` for the names — all references are either
+`os.environ`/`os.getenv` lookups or test fixtures using an obviously fake
+placeholder value, e.g. `SECRET = "shh"`). Functional Zoom/YouTube
+integration checks were **not performed** — doing so would require
+triggering a real Zoom recording or YouTube upload, which is too invasive
+for a security verification; production `/api/health` returns ok, which is
+a weak signal at best (secret values aren't validated at process boot).
+
+**Process correction:** production-secret inspection must always use an
+explicitly scoped command (`grep`/`grep -oE` on a name pattern, or
+`--json` parsed for key-presence only) — never `tail`, `head`, or any
+command that can pass through unfiltered table/value output.
+
 ## Verification performed for this checkpoint (2026-09-05)
 
 - `git status` in `uct-dashboard-phase3c`: clean, 1 commit ahead of
