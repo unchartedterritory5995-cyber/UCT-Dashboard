@@ -29,6 +29,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from api.services import sec_filings
 from api.services.alert_taxonomy import delivery as _delivery
@@ -45,6 +46,9 @@ PARAMS_SCHEMA = {
 }
 _FETCH_COUNT = 5  # newest N filings per (ticker, form_type) -- only [0] is used as the
                   # watermark comparison, the rest give the sweep context for logging/debug
+
+_ET = ZoneInfo("America/New_York")  # matches api/services/alerts.py's _now_et() exactly,
+                                     # so a reconstructed row sorts correctly beside ephemeral ones
 
 
 def register() -> None:
@@ -164,6 +168,38 @@ def _evaluate_one(predicate: dict[str, Any], fetch_cache: dict[tuple, dict]) -> 
         severity="info",
     )
     return {"predicate_id": predicate["id"], "outcome": "fired", "fire_id": fire_id, "delivery": report}
+
+
+def alert_shape_for_fire(fire: dict[str, Any]) -> dict[str, Any]:
+    """Reconstruct the same shape add_alert()/get_alerts() produce, from a
+    durable alert_fires row -- the S7 durable in-app bridge (owner
+    authorization). Uses ONLY the fire's own immutable `detail` JSON (frozen
+    at fire time) -- never a fresh provider/entity lookup, so a historical
+    notification always describes the event that actually fired, not
+    whatever the ticker/company looks like today."""
+    detail = fire.get("detail") or {}
+    ticker = detail.get("ticker") or fire.get("entity_ref") or ""
+    form = detail.get("form") or "filing"
+    filed = detail.get("filed") or "an unknown date"
+    company = detail.get("company") or ticker
+    fired_at = fire.get("fired_at")
+    timestamp = datetime.fromtimestamp(fired_at, tz=_ET).isoformat() if fired_at else ""
+    return {
+        "id": f"s7fire_{fire['id']}",
+        "type": TYPE_ID.replace("-", "_"),
+        "severity": "info",
+        "title": f"New {form} — {ticker}",
+        "message": f"{company} filed a {form} on {filed}.",
+        "timestamp": timestamp,
+        "read": fire.get("read_at") is not None,
+        "user_id": fire.get("user_id"),
+        "data": {
+            "symbol": ticker, "source": "document_arrival", "sym": ticker,
+            "research_url": f"/research/{ticker}",
+            "filing_url": detail.get("url"), "accession": detail.get("accession"),
+            "form": form,
+        },
+    }
 
 
 def run_document_arrival_sweep() -> dict[str, Any]:
