@@ -6,10 +6,9 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Journal <-> Research Return-Context + Notes Draft-Loss Fix (Seam 12) merge/
-deploy/production-verification -- a continuous-execution program under the
-owner's 2026-09-06 CONTINUOUS EXECUTION DIRECTIVE, not a separately-
-authorized program stop).
+Awareness Scan-Abort Hardening V1 (Seam 10) merge/deploy/production-
+verification -- a continuous-execution program under the owner's 2026-09-06
+CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -80,11 +79,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `1199086855f6746e9aa0155035581a4b14510054`
-  (Journal <-> Research Return-Context + Notes Draft-Loss Fix (Seam 12)
-  merge — this file's own update is a docs-only blob-swap on top of this
-  SHA; drift since then is unrelated concurrent work — re-check overlap
-  before trusting this SHA is still current).
+- **origin/master (last verified):** `a8c246022d24c2b50322aa7231c4d1cdc9d82fc2`
+  (a concurrent session's unrelated Discord chart-channel-restriction commit,
+  landed on top of Awareness Scan-Abort Hardening V1's merge `7e2dec405` —
+  this file's own update is a docs-only blob-swap on top of this SHA; drift
+  since then is unrelated concurrent work — re-check overlap before trusting
+  this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -841,6 +841,129 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     architecture/product decision, not a bounded fix) and Seam 13 (Position
     → Notes continuity via `j2_notes.ticker` — a different, additive UI gap
     with its own fix shape). Neither is Seam 12's concern.
+- **Awareness Scan-Abort Hardening V1 (Seam 10)** — IMPLEMENTED + ACCEPTED +
+  LIVE, merge `b48200739` (code) / `7e2dec405727c5a1f625e9465b92afb3bd981d40`
+  (merge-to-master), deployed + production-verified 2026-09-06. Selected via
+  a BOUNDED reconvergence review against 4 already-ledgered candidates
+  (Awareness scan-abort / dot-hyphen ticker-search identity / AlertBell
+  keyboard accessibility / Seam 27 breadth warm-cache) rather than a fresh
+  multi-agent Phase A, per owner instruction ("do not launch another broad
+  multi-agent discovery program for already-audited seams unless the
+  recorded evidence is stale or contradictory") — the evidence was neither,
+  confirmed by direct re-verification against CURRENT code (not blind trust
+  in the ledger) before selecting: **Seam 10 ranked #1** (member trust/
+  correctness + silent loss of intelligence — the two top-weighted criteria
+  this round), confirmed both LIVE in production (`AWARENESS_ENGINE_ENABLED=1`
+  and `COMPASS_AUTOMATION_ENABLED=1` read live via `railway variables`, not
+  assumed from a past decision) and structurally unchanged from the recorded
+  audit. Dot-hyphen search identity and AlertBell keyboard accessibility were
+  also re-confirmed current and real but ranked #2/#3 (real but lower-
+  severity than a live silent-intelligence-loss risk) — left open for a
+  future cycle, not touched this round.
+  - **Re-verification found the recorded framing understated the blast
+    radius slightly, in a way that didn't change the fix.** The seam named
+    "the regime-classifier read" as the culprit; direct code read confirmed
+    `voice_regime_classifier._fetch_signals()`/`_classify()` are in fact
+    ALREADY well-guarded (every external fetch individually try/excepted,
+    `_classify()` is pure arithmetic over None-guarded inputs that cannot
+    raise or return an out-of-vocabulary regime string) — so the classifier
+    call itself is a narrower risk than recorded. The REAL structural gap is
+    one level up: `awareness/regime_snapshots.py`'s two raw SQLite calls
+    (`get_last_label()`/`record_snapshot()`, no try/except of their own,
+    real SQLite-lock contention is a documented risk class elsewhere in this
+    codebase) sit inside the SAME unprotected `_build_market_scan_ctx()` call
+    site, so the SAME fix (isolate that whole call site) closes both risks
+    at once — the recorded fix shape was already correctly scoped even
+    though its stated cause was incomplete.
+  - **Fix:** new `_compute_regime_component()` in `api/services/awareness/
+    engine.py` wraps the classifier call + both `regime_snapshots` calls in
+    ONE try/except. On any failure it returns `{label: None, confidence:
+    0.5, prev_label: None, degraded: True}` — confirmed by direct code read
+    of `rules.rule_regime_flip` to be the EXACT shape that rule already
+    treats as "nothing to report" (`if not label or not prev_label: return
+    []`), so degrading to it on failure is not a new code path. Confirmed
+    (also by direct code read of `rules.py`) that `rule_stop_watch` (R1/R2)
+    and `rule_earnings_proximity` (R5) key off `live_prices`/
+    `earnings_by_symbol` ONLY — neither reads `scan_ctx["regime"]` at all —
+    so isolating the regime component is a real, not cosmetic, fix: a
+    regime-classifier/ledger failure now degrades ONLY the regime-flip rule
+    for that cycle, while stop-watch and earnings-proximity insights for
+    every user still fire normally. A new `regime_degraded` flag threads
+    into `run_awareness_scan()`'s summary dict (logged every cycle via the
+    existing scheduler print) so a degraded cycle is honestly distinguishable
+    from a genuinely quiet one, without inventing new alerting
+    infrastructure.
+  - **Deliberately UNCHANGED (per the "preserve the invariant, expose
+    failure honestly" instruction when a component IS genuinely required):**
+    `_bulk_load_user_contexts()` still aborts the whole cycle on failure —
+    correct, since every rule genuinely needs it and there is nothing to
+    isolate; a test pins this as a deliberate control, not an oversight.
+    `voice_regime_classifier.py` itself was NOT touched — it has many other
+    callers (`grade_ticker.py`'s regime GATE, `portfolio_heat.py`,
+    Compass voice/chat) that depend on its current raise-through contract;
+    changing its OWN error-handling would be a materially broader, riskier
+    change than this bounded program authorizes. No S7 changes, no Pattern
+    Vision changes, no provider-policy changes.
+  - **Tests:** 10 new tests in `tests/test_awareness_engine.py` (classifier-
+    exception / ledger-read-exception / ledger-write-exception / no-result-
+    is-not-a-failure / the core isolation property proven twice — once at
+    `_build_market_scan_ctx` level and once fully end-to-end through
+    `run_awareness_scan()` with stop-watch confirmed to still fire and
+    `regime_degraded=True` confirmed present — plus a control proving the
+    bulk-load-failure invariant is unchanged). All 82 awareness/regime-
+    adjacent tests green (72 pre-existing + 10 new), `api.main` app-boot
+    sanity clean.
+  - **Production verification:** exact-ancestor commit match (a concurrent
+    session's push landed on top of this merge between push and check;
+    `git merge-base --is-ancestor` confirmed this merge is included), the
+    deployed pod's own `engine.py` grep-confirmed to contain
+    `_compute_regime_component` (2 occurrences — definition + call site),
+    clean startup log.
+  - **Disk hygiene (housekeeping, not a Terminal program, performed before
+    this program per owner instruction):** free disk was ~1.5GB (had
+    dropped further from the ~2.2GB reported at the end of the prior
+    checkpoint, likely from `npm install` in reused worktrees). Audited
+    every worktree under `C:\Users\Patrick\uct-worktrees\` for merge-
+    ancestry against `origin/master`; removed exactly the ones whose branch
+    tip was a confirmed ancestor of master AND had no uncommitted changes
+    (git's own `worktree remove` — no `--force` — refused every dirty one on
+    its own, which is the safety net this relied on, not a separate check).
+    109 worktrees removed total (90 cleanly + 19 more whose git-metadata
+    `worktree remove` had already unregistered but whose on-disk files a
+    Windows file-lock blocked from deleting until a PowerShell retry).
+    Reclaimed **~36GB** (1.5GB → 37.6GB free). Left untouched, exactly per
+    instruction: both of THIS session's own active worktrees, `entity-master`
+    (sits on branch `master` itself), 8 worktrees with real uncommitted
+    changes (`desk-sharpen-card`, `discord-chart`, `flow-sticky-guard`,
+    `patterns-retire`, `phase-a-signature`, `s8-attention-freshness`,
+    `single-stock-etfs`, `temporal-freshness-truth`), and every genuinely
+    unmerged branch including the explicitly protected ones (`s7-stage4-5-
+    ui`, `terminal-research`, `terminal-technical-convergence`) plus other
+    live concurrent work (`media-evidence-foundation`,
+    `media-evidence-foundation-integrated`, `notebook-primary-platform`,
+    `options-desk`, `fcb-ship`, `desk-workshop-card`). Two directories
+    (`breadth-lenses`, `pattern-audit`) were left as-is after a file inside
+    each was reported actively locked by another process — genuinely
+    ambiguous ownership, correctly not forced. Did not touch `uct-dashboard`
+    itself, its `.claude/worktrees/agent-*` ephemeral agent worktrees, the
+    `uct-dashboard-8gb-*`/`uct-dashboard-8gc-*`/canonical-pattern-library
+    worktrees (8G-B scanner work, explicitly out of scope), or
+    `uct-wt-chartrender`.
+  - **Seam 27 triage (per owner instruction, classified without fixing):**
+    re-read `api/main.py:962-964`'s `_breadth()` warm-task call site and
+    `api/routers/breadth_monitor.py:439`'s `get_breadth_history` signature —
+    confirmed the bug is SPECIFIC to this one direct, bypass-FastAPI warm
+    call (`anchor`'s `Query(...)` default is never resolved outside a real
+    request). A genuine HTTP request to this endpoint goes through FastAPI's
+    own dependency injection, which resolves `anchor` correctly regardless —
+    real member requests are unaffected; only the boot-time pre-warm
+    convenience fails, non-fatally (already wrapped in try/except in
+    `_warm`). Classification: **DEGRADED PERFORMANCE** (the first real
+    request after each deploy pays a one-time cold-compute penalty the warm
+    pass exists to avoid) — NOT a data-availability, freshness, or member-
+    trust defect; data is eventually correct and complete either way. Stays
+    ranked below Seam 10/16/5, unchanged from the pre-review hypothesis;
+    not selected, not fixed this round.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -971,8 +1094,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **No program mid-flight — a lightweight (ledger-driven, not fresh-Phase-A)
-  Strategic Re-Anchor is the immediate next step.** Owner-issued
+- **No program mid-flight — the next program is selected from the debt
+  ledger below (dot-hyphen ticker-search identity, Seam 16, is next in
+  rank) unless fresh evidence changes the picture.** Owner-issued
   **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing authorization:
   routine, bounded, independently-safe Terminal programs no longer require a
   stop-and-wait between each one (see Section II of that directive; the 10
@@ -980,40 +1104,42 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Sequence so far under this directive: Technical Ask AI Phase A →
   **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT PARKED" — zero code
   written, per Section XXII's explicit "if blocked, zero changes"
-  instruction) → per the directive's own priority interrupt (Section V), AI
-  Search Raw-Pattern Trust Adjudication V1 was adjudicated FIRST (Seam 23, a
-  live material production-trust defect the Technical Ask AI audit
-  surfaced) — ACCEPTED + LIVE, merge `897e53cc5` → per the directive's
-  Section XIV, proceeded directly into **#7 Shared Multi-Security Grounding
-  Architecture V1** — ACCEPTED + LIVE, merge `271f79664`/`4c8b24c74` → per
-  the directive's Section XXIII ("after Shared Multi-Security Grounding is
-  accepted or cleanly blocked: DO NOT STOP. Run a fresh Whole-Product
-  Strategic Re-Anchor..."), a re-anchor was run **against the existing debt
-  ledger** (below) rather than a fresh multi-agent Phase A sweep — every
-  candidate the re-anchor needed was already itemized and Phase-A-audited by
-  prior programs' own investigations, so re-deriving them from scratch would
-  have violated the session-recovery checklist's own "do not re-run Phase A"
-  rule. Ranked against Section XXIII's 7 criteria (member trust/correctness
-  first), **Seam 12 was the clear #1** — the only CONFIRMED (not merely
-  theoretical) trust/correctness defect left unfixed in the ledger, already
-  fully audited AND already fully fix-shape-specified by Journal / Trade
-  Lifecycle Convergence V1's own Phase A. Implemented directly from that
-  recorded spec: **Journal ↔ Research Return-Context + Notes Draft-Loss Fix
-  (Seam 12)** — now ACCEPTED + LIVE, merge `d6a99c708`/`119908685` (see
-  "CURRENT ACCEPTED" above). **A genuine fresh Whole-Product Strategic
-  Re-Anchor (a new multi-agent Phase-A-style sweep of current code, not a
-  re-ranking of the existing ledger) is still owed** the next time no
-  ledger-recorded, already-specified candidate remains eligible — do not
-  treat this lighter-weight re-anchor as having discharged that obligation
-  permanently; it discharged it for THIS one next-program selection only.
-  **If you are resuming this session: pick the next program from the
-  ledger below (NEWLY IDENTIFIED DEBT ranked by Section XXIII's 7 criteria:
-  member trust/correctness → broken core workflows → professional-terminal
-  capability → member frequency → interconnected leverage → UX friction →
-  implementation cost/risk); if nothing eligible remains pre-audited, THEN
-  run the fuller fresh Whole-Product Strategic Re-Anchor** — do not treat
-  "no program is currently active" as a stop condition; it is not one of
-  the 10 in Section III. **Technical Ask AI and Technical Research (#1) are
+  instruction) → AI Search Raw-Pattern Trust Adjudication V1 (Seam 23) —
+  ACCEPTED + LIVE, merge `897e53cc5` → **#7 Shared Multi-Security Grounding
+  Architecture V1** — ACCEPTED + LIVE, merge `271f79664`/`4c8b24c74` → a
+  ledger-driven (not fresh-Phase-A) re-anchor selected **Journal ↔ Research
+  Return-Context + Notes Draft-Loss Fix (Seam 12)** — ACCEPTED + LIVE, merge
+  `d6a99c708`/`119908685` → a SECOND bounded reconvergence review (owner
+  instruction, 2026-09-06) re-verified 4 ledgered candidates against CURRENT
+  code (Awareness scan-abort/Seam 10, dot-hyphen search/Seam 16, AlertBell
+  keyboard access/Seam 5, Seam 27 breadth warm-cache) rather than re-auditing
+  from scratch, confirmed all 4 still real and current, ranked Seam 10 #1
+  (member trust/correctness + silent loss of intelligence, confirmed LIVE in
+  production via `railway variables`), and implemented **Awareness
+  Scan-Abort Hardening V1 (Seam 10)** — now ACCEPTED + LIVE, merge
+  `b48200739`/`7e2dec405` (see "CURRENT ACCEPTED" above). A bounded
+  disk-hygiene pass (owner instruction) also ran ahead of that program,
+  reclaiming ~36GB by removing every fully-merged, clean worktree under
+  `uct-worktrees/` (109 total) — see the CURRENT ACCEPTED entry for the full
+  accounting of what was and was NOT touched. **Ranked-but-not-yet-selected
+  from that same review: Seam 16 (dot-hyphen ticker-search identity, #2) and
+  Seam 5 (AlertBell keyboard accessibility, #3); Seam 27 was triaged as
+  DEGRADED PERFORMANCE (a one-time post-deploy cold-cache penalty, real
+  requests unaffected) and correctly stays lowest-ranked, not elevated.**
+  **A genuine fresh Whole-Product Strategic Re-Anchor (a new multi-agent
+  Phase-A-style sweep of current code, not a re-ranking of the existing
+  ledger) is still owed** the next time no ledger-recorded, already-audited
+  candidate remains eligible — neither this nor the prior lighter-weight
+  re-anchor discharges that obligation permanently, only for their own single
+  next-program selection. **If you are resuming this session: implement Seam
+  16 next (dot/hyphen BRK.B/BRK-B identity gap in `ticker_search_index.py`/
+  `SymbolSearch.jsx` — a real, single-file precedent already exists in
+  `scripts/entity_master_seed.py`'s dot-to-hyphen re-keying step), or Seam 5
+  (AlertBell keyboard accessibility) if Seam 16 turns out to need a larger
+  diff than a bounded V1 warrants; re-verify both against current code before
+  implementing, do not trust this pointer blindly.** Do not treat "no program
+  is currently active" as a stop condition; it is not one of the 10 in
+  Section III. **Technical Ask AI and Technical Research (#1) are
   UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
   waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
   from its recorded spec under "CURRENT PARKED", never from scratch.** Do
@@ -1051,7 +1177,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Grounding Architecture V1's own deferred items (N-ary comparison,
   Watchlist multi-security AI, Portfolio AI/LLM-computed P&L, entitlement-
   based ticker-count gating, multi-turn comparison history — see "DEFERRED"
-  below) — those are candidate lists, not authorizations.
+  below), nor from Awareness Scan-Abort Hardening V1's own bounded
+  reconvergence review (Seam 16 dot-hyphen search identity and Seam 5
+  AlertBell keyboard accessibility — ranked #2/#3, real, but not this
+  round's pick; Seam 27 breadth warm-cache — triaged DEGRADED PERFORMANCE,
+  deliberately not fixed) — those are candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1174,30 +1304,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   via a new opt-in `outage_out` out-param on `get_analyst_grades()`/
   `get_analyst_ratings()`. Kept as a record; do not re-open unless a
   concrete regression is found.
-- **Seam 10 — Awareness's regime-classifier read can silently abort the
-  ENTIRE scan cycle for every user (surfaced by Awareness Source-Integrity
-  Audit + Hardening V1's Phase A, 2026-09-06, correctly classified OUT OF
-  SCOPE for that program's narrow V1).** `voice_regime_classifier.
-  get_current_regime()` has no try/except of its own around
-  `_fetch_signals()`/`_classify()` (only the final `cache.set()` call is
-  defensively wrapped); `awareness/engine.py::_build_market_scan_ctx()` —
-  which calls it — is itself called from `run_awareness_scan()` with NO
-  try/except at that call site either (only the PER-USER rule loop and the
-  per-candidate `_fire_candidate` call are exception-isolated). A single
-  regime-classifier hiccup therefore propagates uncaught all the way up to
-  the scheduler's own bare `try/except Exception: print(...)` in `api/main.
-  py::_awareness_engine_scan()`, silently dropping stop-watch + earnings-
-  proximity + regime-flip awareness for EVERY user that 20-minute cycle with
-  only an unstructured `print` as evidence. This is a DIFFERENT defect
-  mechanism from the earnings-swallow bug fixed above (whole-cycle-abort-on-
-  uncaught-exception vs a permanently-dead-input flag) and a materially
-  different fix shape (new exception-isolation structure around a scan-cycle
-  boundary, not a `_with_status` sibling) — correctly kept out of this V1 per
-  its "narrowest fix, no broad Awareness redesign" authorization. Not
-  confirmed to have fired in production; a real but undemonstrated risk.
-  Fix shape: wrap `_build_market_scan_ctx()`'s call (or just the regime read
-  inside it) in its own try/except with a structured log, mirroring the
-  per-user isolation pattern already used one line below it.
+- **Seam 10 — RESOLVED by Awareness Scan-Abort Hardening V1, merge
+  `b48200739`/`7e2dec405`, 2026-09-06.** The fix described here (isolate the
+  regime component's own try/except so its failure degrades ONLY R4, never
+  aborts stop-watch/earnings-proximity too) is exactly what shipped — see
+  "CURRENT ACCEPTED" above. Kept as a record; do not re-open unless a
+  concrete regression is found.
 - **Seam 11 — broker-synced closed trades carry an inert `position_id`
   sentinel, so "Position → Related (closing) Trades" cannot be built safely
   (surfaced by Journal / Trade Lifecycle Convergence V1's Phase A,
@@ -1556,11 +1668,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    V1 (merge `d46f35a68`), Identity Normalization Hardening V1 (merge
    `9c1bff81f`), AI Search Raw-Pattern Trust Adjudication V1 (merge
    `897e53cc5`), Shared Multi-Security Grounding Architecture V1 (merge
-   `271f79664`/`4c8b24c74`), and Journal ↔ Research Return-Context + Notes
-   Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`) are all ACCEPTED
-   + LIVE as of this checkpoint — do not re-implement any of them or treat
-   them as pending; confirm via `git log` only if something here looks
-   stale.
+   `271f79664`/`4c8b24c74`), Journal ↔ Research Return-Context + Notes
+   Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`), and Awareness
+   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`) are all
+   ACCEPTED + LIVE as of this checkpoint — do not re-implement any of them
+   or treat them as pending; confirm via `git log` only if something here
+   looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
@@ -1571,8 +1684,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Research Convergence, Identity Normalization Hardening, Technical Ask AI,
    AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
    Architecture (Comparison leg), Journal ↔ Research Return-Context + Notes
-   Draft-Loss Fix (Seam 12), or the Whole-Product Convergence Review from
-   scratch — their findings above are current as of this checkpoint
+   Draft-Loss Fix (Seam 12), Awareness Scan-Abort Hardening (Seam 10), or the
+   Whole-Product Convergence Review from scratch — their findings above are
+   current as of this checkpoint
    (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
    from it once unblocked, do not re-audit); verify against live code only
    where something here looks stale.
