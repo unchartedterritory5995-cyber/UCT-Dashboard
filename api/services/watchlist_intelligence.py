@@ -48,16 +48,30 @@ def _price_move_fact(sym: str, change_pct: Optional[float]) -> Optional[dict]:
     if abs(change_pct) < _PRICE_MOVE_THRESHOLD_PCT:
         return None
     sign = "+" if change_pct >= 0 else ""
+    # No evidence timestamp accompanies `change_pct` anywhere in the current
+    # pipeline (S9 Phase A, 2026-09-06) -- `changes` is a bare {SYM: pct}
+    # dict end-to-end, so a stamped date here would be wall-clock, not
+    # evidence-derived (the prior `date.today()` misrepresented a Saturday
+    # call on a Friday closed-market carryover move as "today"). Honest
+    # `None` (consumers already null-guard `as_of`) until a real per-symbol
+    # timestamp is threaded through -- deferred, see Seam 8.
     return _fact(
         "price_move", f"Moving {sign}{change_pct:.1f}% today",
-        as_of=datetime.date.today().isoformat(),  # the live quote IS today's evidence
+        as_of=None,
         source="live price", freshness="fresh",
     )
 
 
 def _analyst_fact(sym: str) -> Optional[dict]:
     from api.services.research.analyst_ratings import get_analyst_ratings
-    data = get_analyst_ratings(sym) or {}
+    # S9 (2026-09-06): `outage` distinguishes "the analyst-data provider
+    # genuinely failed this round" from "this ticker has no analyst
+    # coverage" -- both used to collapse to the same falsy shape here,
+    # silently masking a real source outage as "ok, nothing notable."
+    outage: dict = {}
+    data = get_analyst_ratings(sym, outage_out=outage) or {}
+    if outage.get("outage"):
+        raise RuntimeError("analyst ratings source outage")
     actions = ((data.get("recent_actions") or {}).get("items")) or []
     if not actions:
         return None
@@ -99,27 +113,41 @@ def _filing_fact(sym: str) -> Optional[dict]:
     )
 
 
-def _earnings_facts(symbols: list[str]) -> dict[str, dict]:
-    """{SYM: fact} for symbols reporting within _EARNINGS_PROXIMITY_DAYS.
+def _earnings_facts(symbols: list[str]) -> tuple[dict[str, dict], bool]:
+    """{SYM: fact} for symbols reporting within _EARNINGS_PROXIMITY_DAYS, plus
+    whether every day in the window was answered by a leg that actually ran
+    cleanly (see calendar_alerts._get_reporters_for_date_with_status's own
+    docstring for exactly what counts as clean).
 
     Mirrors api/services/awareness/engine.py::_collect_earnings_window's own
     algorithm (walk the window day-by-day via calendar_alerts' per-date
     reporter lookup) rather than importing that module's private, engine-owned
     memoization -- this is a one-shot on-demand batch, not a recurring scan.
+
+    This is a SHARED, batch-level source: one lookup answers for every
+    requested symbol, so the caller applies a single day's genuine failure to
+    every symbol in the batch (S9, 2026-09-06) -- `_get_reporters_for_date`'s
+    own 3-leg fallback chain (cache -> Finnhub -> FMP) never raises by
+    design, so without the `_with_status` variant a total outage was
+    indistinguishable from a genuinely quiet week and never degraded status.
     """
-    from api.services.calendar_alerts import _get_reporters_for_date
+    from api.services.calendar_alerts import _get_reporters_for_date_with_status
 
     wanted = {s.upper() for s in symbols}
     out: dict[str, dict] = {}
+    any_day_failed = False
     today = datetime.date.today()
     for offset in range(0, _EARNINGS_PROXIMITY_DAYS + 1):
         d = today + datetime.timedelta(days=offset)
         d_str = d.isoformat()
         try:
-            reporters = _get_reporters_for_date(d_str)
-        except Exception as e:  # noqa: BLE001
+            reporters, ok = _get_reporters_for_date_with_status(d_str)
+        except Exception as e:  # noqa: BLE001 -- defensive backstop; the callee's own contract is "never raises"
             log.warning("[watchlist_intelligence] earnings lookup failed for %s: %s", d_str, e)
+            any_day_failed = True
             continue
+        if not ok:
+            any_day_failed = True
         for sym in reporters & wanted:
             if sym in out:
                 continue  # earliest offset wins
@@ -128,7 +156,7 @@ def _earnings_facts(symbols: list[str]) -> dict[str, dict]:
                 "earnings_proximity", f"Reports earnings {when}",
                 as_of=d_str, source="earnings calendar", freshness="fresh",
             )
-    return out
+    return out, any_day_failed
 
 
 def _rating_context(sym: str) -> dict:
@@ -167,7 +195,7 @@ def get_intelligence_for_symbols(tickers: list[str], changes: Optional[dict[str,
     if not symbols:
         return {}
 
-    earnings_by_sym = _earnings_facts(symbols)
+    earnings_by_sym, earnings_batch_failed = _earnings_facts(symbols)
 
     out: dict[str, dict] = {}
     for sym in symbols:
@@ -198,10 +226,12 @@ def get_intelligence_for_symbols(tickers: list[str], changes: Optional[dict[str,
         ef = earnings_by_sym.get(sym)
         if ef:
             facts.append(ef)
-        # Note: a global earnings-window failure already logged inside
-        # _earnings_facts; it degrades every symbol's earnings fact together
-        # rather than per-symbol, so it isn't separately counted per-symbol here
-        # to avoid double-penalizing status for one shared failure.
+        if earnings_batch_failed:
+            # Earnings is a shared, batch-level source (one lookup answers
+            # for every requested symbol) -- a day the batch could not trust
+            # degrades every symbol's status uniformly (S9, 2026-09-06), not
+            # just the ones that happened to have an earnings fact fire.
+            sources_failed += 1
 
         status = "ok" if sources_failed == 0 else ("partial" if sources_failed < sources_total else "unavailable")
 

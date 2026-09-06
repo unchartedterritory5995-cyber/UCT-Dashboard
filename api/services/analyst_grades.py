@@ -34,6 +34,7 @@ from typing import Optional
 
 from api.services import fmp_client
 from api.services.cache import cache as _cache_singleton
+from api.services.provider_errors import ProviderNotFound
 from api.services.research.entity_resolution import resolve_entity
 
 _log = logging.getLogger(__name__)
@@ -63,15 +64,18 @@ def _first(data):
 
 
 def _fmp_row(fn, ticker: str, **kwargs) -> Optional[dict]:
-    """The first row from a `fmp_client` typed function, or None on ANY
-    outcome that isn't a genuine row (not configured, network error,
-    rate-limited, degraded, or genuinely no data) — mirrors the retired
-    `ee._fmp_get`'s "None on any failure, never raises" contract exactly,
-    so `get_analyst_grades`'s per-leg `all_answered` accounting (which was
-    written assuming the FMP call itself never raises) stays unchanged."""
+    """The first row from a `fmp_client` typed function, or None on
+    genuinely no data (not configured, or a `ProviderNotFound` — FMP's own
+    "no such request" signal). A real provider failure (rate-limited,
+    auth error, transient network/5xx) now PROPAGATES instead of being
+    swallowed here (S9, 2026-09-06) — `get_analyst_grades`'s own
+    `ThreadPoolExecutor` loop is the piece of machinery already built to
+    catch a leg raising and flip `all_answered`; this helper used to
+    intercept the exception one frame too early, making that mechanism
+    permanently dead against a real FMP outage."""
     try:
         result = fn(ticker, **kwargs)
-    except Exception:
+    except ProviderNotFound:
         return None
     if result.degraded is not None:
         return None
@@ -82,7 +86,7 @@ def _fmp_rows(fn, ticker: str, **kwargs) -> list:
     """Same contract as `_fmp_row`, for a leg that wants the whole list."""
     try:
         result = fn(ticker, **kwargs)
-    except Exception:
+    except ProviderNotFound:
         return []
     if result.degraded is not None:
         return []
@@ -105,10 +109,14 @@ def _fmp_row_with_meta(fn, ticker: str, **kwargs) -> tuple[Optional[dict], Optio
     `availabilityContract.js`'s existing `ENTITLEMENT_DENIED` state rather
     than losing the card entirely. A `degraded` result with NO row (e.g.
     `circuit_open`) still returns `(None, None)`, same as any other miss.
+    S9 (2026-09-06): only `ProviderNotFound` is treated as a clean miss here
+    now — a real provider failure propagates to `get_analyst_grades`'s own
+    `ThreadPoolExecutor` loop, which flips `all_answered` (previously dead
+    against a real outage because this helper caught the exception first).
     """
     try:
         result = fn(ticker, **kwargs)
-    except Exception:
+    except ProviderNotFound:
         return None, None
     row = _first(result.value) if result.value else None
     if row is None:
@@ -132,10 +140,13 @@ def _fmp_rows_with_meta(fn, ticker: str, **kwargs) -> tuple[list, Optional[dict]
     never per-row metadata (matches the calendar page's identical A5
     precedent: an envelope over a merged/multi-row leg, not per-entry S8
     badges, which would clutter a dense list). `(< >, None)` on any miss —
-    empty list, failure, or a degraded result with nothing usable."""
+    empty list, failure, or a degraded result with nothing usable. S9
+    (2026-09-06): only `ProviderNotFound` is caught here — a real provider
+    failure propagates to `get_analyst_grades`'s own `ThreadPoolExecutor`
+    loop, which is what flips `all_answered`."""
     try:
         result = fn(ticker, **kwargs)
-    except Exception:
+    except ProviderNotFound:
         return [], None
     rows = result.value if isinstance(result.value, list) else []
     if not rows:
@@ -247,15 +258,31 @@ def _trend(ticker: str) -> list[dict]:
     return out[:_MAX_TREND]
 
 
-def get_analyst_grades(ticker: str) -> Optional[dict]:
-    """Composed analyst picture for `ticker`, or None when nothing resolves."""
+def get_analyst_grades(ticker: str, *, outage_out: Optional[dict] = None) -> Optional[dict]:
+    """Composed analyst picture for `ticker`, or None when nothing resolves.
+
+    `outage_out`, when given a dict, is populated with {"outage": bool} --
+    True when the answer (fresh or served from cache) reflects at least one
+    leg whose underlying provider call actually failed this round, as
+    opposed to a leg that ran cleanly and genuinely found nothing (S9,
+    2026-09-06). This never changes the function's own return shape (still
+    Optional[dict], never raises) for any of its other callers -- it is a
+    strictly opt-in side channel for a caller that needs to distinguish "no
+    analyst coverage" from "the analyst-data provider is currently
+    unavailable."""
+    def _report(outage: bool) -> None:
+        if outage_out is not None:
+            outage_out["outage"] = outage
+
     ticker = (ticker or "").upper().strip()
     if not ticker:
+        _report(False)
         return None
 
     cache_key = f"analyst_grades_{ticker}"       # keyed on the CANONICAL ticker, never the vendor symbol
     cached = cache.get(cache_key)
     if cached is not None:
+        _report(bool(cached.get("_outage")))
         return None if cached.get("_miss") else cached
 
     # S3: resolve canonical identity before any FMP call. `fmp_symbol` (falls
@@ -322,8 +349,9 @@ def get_analyst_grades(ticker: str) -> Optional[dict]:
         # and would bypass the module-level seam the existing tests patch. The
         # policy is identical — the completeness decision is what matters, not
         # which helper applies it.
-        cache.set(cache_key, {"_miss": True},
+        cache.set(cache_key, {"_miss": True, "_outage": not all_answered},
                   ttl=_TTL if all_answered else _FAIL_TTL)
+        _report(not all_answered)
         return None
 
     payload = {
@@ -333,9 +361,11 @@ def get_analyst_grades(ticker: str) -> Optional[dict]:
         "price_target":   price_target,
         "recent_actions": actions,
         "trend":          trend,
+        "_outage":        not all_answered,
     }
     # A payload assembled while a leg was down is missing a section it would
     # otherwise have; hold it briefly so the gap fills rather than persisting
     # a partial picture for 6h.
     cache.set(cache_key, payload, ttl=_TTL if all_answered else _FAIL_TTL)
+    _report(not all_answered)
     return payload

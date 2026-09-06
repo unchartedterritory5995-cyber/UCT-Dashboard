@@ -66,7 +66,7 @@ class TestMissTtl:
         Refetching it every 5 min would be pure waste."""
         _legs(monkeypatch)
         assert ag.get_analyst_grades("TEST") is None
-        assert spy["value"] == {"_miss": True}
+        assert spy["value"] == {"_miss": True, "_outage": False}
         assert spy["ttl"] == ag._TTL == 6 * 3600
 
     def test_an_outage_miss_self_heals_in_five_minutes(self, monkeypatch, spy):

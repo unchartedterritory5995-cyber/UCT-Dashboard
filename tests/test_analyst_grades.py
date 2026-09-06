@@ -109,7 +109,41 @@ def test_all_empty_returns_none_and_caches_miss(monkeypatch):
         monkeypatch.setattr(ag.fmp_client, attr, _empty)
     monkeypatch.setattr(ag, "cache", cache)
     assert ag.get_analyst_grades("NADA") is None
-    assert cache.get("analyst_grades_NADA") == {"_miss": True}
+    assert cache.get("analyst_grades_NADA") == {"_miss": True, "_outage": False}
+
+
+def test_a_real_provider_failure_propagates_and_marks_outage(monkeypatch):
+    """S9 (2026-09-06): a real ProviderError from an `fmp_client` typed
+    function must reach `get_analyst_grades`'s own ThreadPoolExecutor loop
+    (which flips `all_answered`) rather than being swallowed inside
+    `_fmp_row`/`_fmp_rows`/etc. — that swallow is what let a total outage
+    read identically to genuine no-coverage."""
+    def _boom(ticker, **kw):
+        raise pe.ProviderTransient("FMP down", vendor="fmp")
+
+    for attr in _FRAG_TO_ATTR.values():
+        monkeypatch.setattr(ag.fmp_client, attr, _boom)
+    monkeypatch.setattr(ag, "cache", _FakeCache())
+
+    outage: dict = {}
+    assert ag.get_analyst_grades("BOOM", outage_out=outage) is None
+    assert outage == {"outage": True}
+
+
+def test_a_provider_not_found_is_still_a_clean_miss_not_an_outage(monkeypatch):
+    """A `ProviderNotFound` (the vendor answered but has nothing for this
+    ticker) must stay a genuine, non-outage miss — only a real failure
+    (rate-limited/auth/transient/not-configured) counts as an outage."""
+    def _not_found(ticker, **kw):
+        raise pe.ProviderNotFound("no data", vendor="fmp")
+
+    for attr in _FRAG_TO_ATTR.values():
+        monkeypatch.setattr(ag.fmp_client, attr, _not_found)
+    monkeypatch.setattr(ag, "cache", _FakeCache())
+
+    outage: dict = {}
+    assert ag.get_analyst_grades("NONE", outage_out=outage) is None
+    assert outage == {"outage": False}
 
 
 def test_zero_count_consensus_is_dropped(monkeypatch):
