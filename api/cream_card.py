@@ -59,7 +59,8 @@ def run_cream_eod(*, target_date=None, force: bool = False, post: bool = True) -
         date_text = _date_text(today)
         png = render_watchlist_card(bull, bear, date_text, mobile=False,
                                     title="Top Flow", section="FLOW",
-                                    net=data.get("net"), show_dte=True)
+                                    net=data.get("net"), show_dte=True,
+                                    sec_labels=("Bulls", "Bears"))
         posted, detail = False, ""
         if post:
             wh = _webhook()
