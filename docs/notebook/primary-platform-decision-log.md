@@ -729,6 +729,31 @@ Root cause of exposure, specifically: the repo-root `conftest.py` already isolat
 
 ---
 
+### 2026-09-06 — OPERATING POSTURE CHANGE: Stage A gate no longer blocks pre-launch construction (explicit owner decision)
+
+**DECISION:** Patrick explicitly changed the operating posture governing the entire Notebook program. This is recorded verbatim because it revises the 2026-09-06 "Stage A→B gate NOT waived" entry immediately above — that entry is **not erased or falsified**; it remains the accurate historical record of what was decided and why, at the time it was decided.
+
+**PREVIOUS posture (as of the entry above, same day):** Stage A behavioral validation (the Early Signal Gate) blocked Stage B member-facing implementation — specifically, Wave 4's production search work was authorized only for non-shipping prep (verification, benchmarking, design) until real-member evidence satisfied the gate.
+
+**NEW posture, effective this entry:** UCT Notebook is confirmed to still be in **pre-launch product construction**, not post-launch iteration on a shipped product with an active user base whose behavior needs protecting from churn. Real-user behavioral evidence from the Stage A instrumentation remains valuable and continues to be collected — it should **inform, refine, reorder, and challenge** the roadmap when it says something useful. It should **not** function as a blanket engineering stop that holds the entire product below a competitive pre-launch bar while the team waits for a beachhead cohort that, per the most recent recorded snapshot (`stage-a-member-validation.md` §7, 2026-09-06), is currently 2 people.
+
+**RATIONALE:** The gate was built for a real and correct concern — do not build Wave 4's search sophistication on an unmeasured foundation. That concern is preserved: Stage A instrumentation keeps running, and the Early Signal Gate / Full Stage A Validation definitions (§695 entry above) are **unchanged** and still govern when real usage evidence would authorize claims like "members are actually adopting this." What changes is the SCOPE that evidence is allowed to block. It was never meant to block foundational parity, UX, trust, organization, retrieval, financial-intelligence, platform, and mobile work that any serious pre-launch product needs regardless of what a 2-person cohort's early clicks look like. Waiting for that cohort to grow before doing known-necessary pre-launch work would mean shipping a product members can validate but that is not actually competitive when they do.
+
+**WHAT THIS DOES NOT CHANGE:**
+- The Stage A instrumentation, cohort definition, and gate *definitions* in `stage-a-member-validation.md` are untouched.
+- The Bucket A experience-integrity fixes shipped earlier today (thesis-link creation, note-load error state, error sanitization, LinkedNotesPanel) remain in force and are not being redone.
+- Rights-dependent vendor work (permanent storage, redistribution, export, sharing, AI retrieval, snapshots of FMP/Massive data) remains untouched — this posture change is rights-independent, architecture-and-product-only.
+- Tenant isolation, security, and destructive-lifecycle discipline remain permanent hard requirements, unaffected by pacing.
+- Nothing here retroactively claims the earlier gate decision was wrong. It was the correct decision given what was known and shipped that same day (Waves 0–3 landing same-day as the gate). This entry documents a **new, later, explicit owner decision** made with a different frame — "this is still pre-launch construction" — not a correction of the earlier one.
+
+**CONSEQUENCE:** The broader pre-launch construction program (editor, organization, search, linking/backlinks, structured research, version history, financial temporal correctness, thesis intelligence, per-ticker research, capture, documents/OCR, AI, mobile, offline, security/encryption, design system, accessibility, and the rest — per the governing "Complete Pre-Launch Primary Notebook Construction Program" directive) may now proceed without waiting on the Early Signal Gate. Each wave still gets its own design-before-build pass, full test ladder, real-browser certification, and a stop-and-report checkpoint before the next wave begins (per that directive's own §129-130) — the posture change removes the *global stop*, not the *per-wave discipline*.
+
+**REVERSIBILITY:** Fully reversible by owner instruction at any time — this is a pacing/sequencing decision, not an architectural or data commitment.
+
+**WHAT WOULD CAUSE RECONSIDERATION:** Real Stage A evidence surfacing a trust/data-loss defect, a fundamental misunderstanding of the Stage A model by real members, or the owner explicitly re-imposing the gate.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
