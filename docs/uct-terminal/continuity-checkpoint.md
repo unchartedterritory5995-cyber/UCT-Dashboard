@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-Attention
-Signal Propagation V1 merge/deploy/production-verification).
+**Last verified:** 2026-09-05/06, against live git + Railway state (post-Alert
+Return-to-Research Consistency V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -32,8 +32,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `5e07b81500471649792a79bf19cc691f4764e304`
-  (Attention Signal Propagation V1 merge — this file's own update is a
+- **origin/master (last verified):** `c27c95c50be1ad56396013b4fa4a24d5f92d8745`
+  (Alert Return-to-Research Consistency V1 merge — this file's own update is a
   docs-only branch cut fresh from this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -126,6 +126,53 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `require_plan` added to those endpoints first (a Phase A bounded
   condition, resolved as an implementation constraint, not a blocker: no new
   endpoint/hook was invented, and no free-reachable surface was touched).
+- **Alert Return-to-Research Consistency V1** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `c27c95c50`, deployed + production-verified 2026-09-05/06. Phase A
+  found the notification-center click-through mechanism already existed
+  generically (`AlertBell.jsx::handleItemClick` reads `a.data?.research_url`
+  for ANY alert type — shipped earlier for S7's document-arrival slice); the
+  real gap was entirely upstream — most security-scoped alert producers never
+  populated that field even though they already hold a trustworthy symbol.
+  V1 is exactly 2 additive lines in `api/services/watchlist_alert_service.py`,
+  zero frontend changes, zero changes to `alerts.py`/`routers/alerts.py`: (1)
+  `deliver_alert_payload` (the shared seam for indicator_alert,
+  indicator_alert_migration, catalyst_alert, catalyst_mustknow,
+  catalyst_digest, calendar_alert, awareness_engine, and document_arrival)
+  now does `data.setdefault("research_url", f"/research/{sym.upper()}")` when
+  `sym` is present and not the literal `"MARKET"` (catalyst_digest's
+  no-single-ticker fallback); (2) `_deliver_alert` (the independent
+  price-alert lane that bypasses `deliver_alert_payload`) got the same field
+  added to its inline `data` literal. `setdefault` (never assignment) means
+  S7's own already-set `research_url` survives unchanged. Converged families:
+  price_alert, indicator_alert, indicator_alert_migration, catalyst_alert,
+  catalyst_mustknow, calendar_alert, awareness_engine (all now stamp
+  `research_url`); catalyst_digest converges PARTIALLY (real single-ticker
+  digests get it, the `"MARKET"` multi-name fallback correctly does not).
+  Confirmed non-security and correctly untouched: `regime_change`,
+  `exposure_shift`, `wire_missed` (no symbol ever). Confirmed dead code, out
+  of scope: `stop_hit`, `scanner_match` (zero live callers, test-fixture-only)
+  and `ep_resolved` (no implementation anywhere — docstring + severity-map
+  entry + frontend icon only, cannot fire in production). Deliberately
+  deferred, see DEFERRED below: `ai_deep_report`/`ai_briefing` (ticker-collision
+  risk with the literal placeholder "AI"/real ticker C3.ai) and
+  `exposure_gate` (macro gate-level alert, not a personal-security signal,
+  also feature-flag OFF). Cross-cutting safety independently re-verified by
+  direct code read (not trusted from a summary): the S7 dual-write read-state
+  guard (`alerts.py:181-186`) is a strict `data["source"] == "document_arrival"`
+  equality check a `research_url` key cannot trip; the S7 durable-alert dedup
+  keys exclusively on `data["accession"]`, a field only `document_arrival.py`
+  ever sets (confirmed by exhaustively grepping all 12 `add_alert` call sites
+  in the repo). 11 new focused tests
+  (`tests/test_alert_research_url_routing.py`), all passing; full adjacent
+  regression (384 backend + 13 frontend `AlertBell` tests) green after fixing
+  an environmental `npm install` gap in the fresh worktree (not a code
+  regression — see Attention Signal Propagation V1's identical gap, above).
+  Also newly confirmed (not fixed, not new — pre-existing and out of scope
+  per this program's own authorization): `AlertBell.jsx`'s per-item row is a
+  bare `<div onClick>` with no `role`/`tabIndex`/`onKeyDown`/`aria-label` —
+  keyboard-inaccessible today for every alert type including the already-live
+  S7 rows, unchanged by this V1 since zero frontend files were touched. See
+  the new debt entry below.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -177,16 +224,19 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None.** Attention Signal Propagation V1 (the prior active program) is now
-  ACCEPTED + LIVE — see "CURRENT ACCEPTED" above. Per the owner's explicit
-  closing instruction on that program's authorization ("Then STOP. Do not
-  automatically begin the next candidate."), no next Terminal program has been
+- **None — requires new explicit authorization.** Alert Return-to-Research
+  Consistency V1 (the prior active program) is now ACCEPTED + LIVE — see
+  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
+  that program's authorization ("Then STOP. Do not automatically begin
+  another Terminal program."), no next Terminal program has been
   automatically begun. The next Terminal program requires a new, explicit
   owner authorization. Do not infer one from the "NEWLY IDENTIFIED DEBT" or
   "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
   explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
-  TickerPopup/TickerHubSheet Attention, Research Attention) — those are
-  candidate lists, not authorizations.
+  TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
+  Return-to-Research Consistency V1's own deferred families
+  (`ai_deep_report`/`ai_briefing`/`exposure_gate`) — those are candidate
+  lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -212,6 +262,17 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   literals (`_EARNINGS_PROXIMITY_DAYS` vs `EARNINGS_PROXIMITY_DEFAULT_DAYS`).
   Fix shape: extract the shared walk+earliest-date logic into one function both
   modules call; not urgent (both currently correct, just duplicated).
+- **Seam 5 — AlertBell notification rows are keyboard-inaccessible (surfaced
+  by Alert Return-to-Research Consistency V1's Phase A, 2026-09-05/06).**
+  `app/src/components/AlertBell.jsx`'s per-item row is a bare
+  `<div onClick={...}>` with no `role`, no `tabIndex`, no `onKeyDown` handler,
+  and no `aria-label` — a keyboard-only member cannot open any notification,
+  including the already-live S7 document-arrival rows. Pre-existing (predates
+  this program), not worsened by it (this V1 touched zero frontend files),
+  and explicitly out of scope per that authorization's own "do not redesign
+  Notification Center" framing — recorded here because Phase A newly
+  confirmed and documented it. Fix shape: `role="button"` + `tabIndex={0}` +
+  an `onKeyDown` handling Enter/Space, mirroring `handleItemClick`.
 
 - **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT).**
   Manual J2 entry (`positions.py`/`options.py`) does bare `.strip().upper()`;
@@ -248,8 +309,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
 - Watchlist filing-watch creation action
-- Alert Return-to-Research Consistency (capability S — only S7 document-arrival alerts populate `research_url`; every other alert family is a click dead end) — real gap, ranked #3 candidate, not chosen for this program
 - S8 Freshness Presentation Consistency (several freshness values in `watchlist_intelligence.py` are hardcoded `"fresh"` rather than S8-derived) — ranked #4 candidate, not chosen
+- `research_url` for `ai_deep_report`/`ai_briefing` (Alert Return-to-Research Consistency V1 Phase A) — both hardcode/fall back to the literal placeholder symbol `"AI"`, which collides with the real NYSE ticker for C3.ai, Inc.; wiring a route here would silently misroute to a wrong real company. `ai_briefing` additionally has split identity (`r['sym'] or 'AI'`) with no field to distinguish a real per-ticker briefing from the placeholder after the fact.
+- `research_url` for `exposure_gate` (Alert Return-to-Research Consistency V1 Phase A) — `exposure_gate_watch.py` bypasses `deliver_alert_payload` entirely via a direct `add_alert` call; feature-flag OFF by default (`EXPOSURE_GATE_WATCH_ENABLED='0'`); syntactically a real tradable ETF ticker but semantically a macro gate-level alert, not a personal-security signal — a product-scope decision, not a technical blocker.
+- Reactivating `stop_hit`/`scanner_match` or implementing `ep_resolved` (Alert Return-to-Research Consistency V1 Phase A) — all three are dead/nonexistent code (zero live callers, or no implementation at all); out of scope regardless of research-routing.
 - Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
 - Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
 - Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
@@ -277,16 +340,17 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 4. Check whether a genuinely newer NVDA filing has landed (S7 Stage 2) —
    `GET /api/alerts/taxonomy/fires` for the production predicate, or the
    `alert_fires` table directly.
-5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`) and Attention
-   Signal Propagation V1 (merge `5e07b8150`) are both ACCEPTED + LIVE as of
-   this checkpoint — do not re-implement either or treat them as pending;
+5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`), Attention
+   Signal Propagation V1 (merge `5e07b8150`), and Alert Return-to-Research
+   Consistency V1 (merge `c27c95c50`) are all ACCEPTED + LIVE as of this
+   checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
-   Convergence, Attention Signal Propagation, or the Whole-Product
-   Convergence Review from scratch — their findings above are current as of
-   this checkpoint; verify against live code only where something here looks
-   stale.
+   Convergence, Attention Signal Propagation, Alert Return-to-Research
+   Consistency, or the Whole-Product Convergence Review from scratch — their
+   findings above are current as of this checkpoint; verify against live
+   code only where something here looks stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
