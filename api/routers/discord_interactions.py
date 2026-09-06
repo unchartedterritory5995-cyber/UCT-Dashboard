@@ -232,23 +232,24 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
         return
     net = data.get("net") or {}
-    header = (f"**{ticker} Flow** · {win} · net {net.get('dir', '')} "
-              f"({_flow_fmt_m(net.get('bull'))} bull / {_flow_fmt_m(net.get('bear'))} bear)")
+    _nd = (net.get("bull") or 0) - (net.get("bear") or 0)
     try:
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
         ack(app_id, token, content="Couldn't render the card — try again in a moment.")
         return
+    # IMAGE-ONLY post — the card already carries the ticker, window and net read, so a
+    # message-text line above it is redundant (owner 2026-09-06; same call as the EOD
+    # Top Flow card). The requester still gets a private net summary in the ack below.
     webhook = (os.environ.get("FLOW_CMD_WEBHOOK_URL") or "").strip()
     if not webhook:
-        # No channel webhook configured → fall back to a bot post (works only where
-        # the bot itself can attach files). Better than nothing in a dev server.
-        di.edit_original(app_id, token, content=header, png=png, filename=f"{ticker}_flow.png")
+        di.edit_original(app_id, token, content="", png=png, filename=f"{ticker}_flow.png")   # dev fallback
         return
-    ok, detail = post(webhook, png, header, f"{ticker}_flow.png")
+    ok, detail = post(webhook, png, "", f"{ticker}_flow.png")
     if ok:
-        ack(app_id, token, content=f"✓ Posted **{ticker}** flow to the channel.")
+        ack(app_id, token, content=(f"✓ Posted **{ticker}** flow — net **{net.get('dir', '')}** "
+                                    f"{'+' if _nd >= 0 else '−'}{_flow_fmt_m(abs(_nd))} · {win}"))
     else:
         log.warning("[flow] webhook post failed %s: %s", ticker, detail)
         ack(app_id, token, content=f"Couldn't post the card right now ({detail}). Try again in a moment.")
