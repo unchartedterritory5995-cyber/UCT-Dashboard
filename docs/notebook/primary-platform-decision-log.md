@@ -534,6 +534,42 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-05 — Correction: the dev-disk `data_sync_*` event was NOT proven to be a Windows file-lock-race leak
+
+**Decision:** Downgrade the Wave 1 disk-remediation conversation's stated root cause from an asserted mechanism to what the evidence actually supports. The prior framing — "orphaned `data_sync_*` directories leaked via Windows file-lock races" — was stated with more confidence than the investigation proved. Correcting the durable record here, since that framing was never written into this file in the first place (it existed only in conversation, which is exactly the kind of important project fact that must not live only there).
+
+**FINAL CLASSIFICATION: TEMPORARY DATA-SYNC DISK-PRESSURE / DELAYED-CLEANUP EVENT.**
+
+**Verified:**
+- ~168–187 GB of `data_sync_*` temporary snapshot-workspace directories (created by `api/services/data_sync.py`'s R2 bars-snapshot pull, `tempfile.mkdtemp(prefix="data_sync_")`) accumulated in `AppData\Local\Temp` on this dev machine.
+- Their contents (directly inspected in 2 of the 8) were redundant/recreatable R2 snapshot working copies (`bars.db`/`.db-wal`/`.db-shm`, in one case a not-yet-deleted `_snapshot.tar.gz`) — never the sole copy of anything.
+- The authoritative remote R2 snapshot state (bucket `uct-bars-snapshots`, 5 retained objects) was confirmed intact via a read-only HEAD/list check.
+- `C:\data` (auth.db, flow.db, darkpool.db, bars.db) was confirmed intact via metadata checks + a read-only integrity check on bars.db.
+- Production (a physically separate Railway volume, unreachable from this local event by construction) was confirmed healthy throughout.
+- Git state and all 178 registered worktrees were confirmed unchanged.
+- **No manual deletion occurred** — I deleted none of the 8 original directories.
+- All 8 original directories subsequently disappeared on their own, between two observations roughly 15–20 minutes apart, coinciding with free space rising from ~1.6GB to ~188GB.
+- Future sync cycles were observed creating new `data_sync_*` directories normally during this same session, proving the mechanism is ephemeral-by-design and self-recreating, not dependent on any of the original 8.
+
+**NOT proven:**
+- That the 8 directories were permanently orphaned (as opposed to mid-cycle scratch space that was still in active use at the time they were first observed).
+- That a Windows file-lock race was the specific mechanism that prevented those 8 directories' cleanup — this was a plausible, code-consistent hypothesis (the bare `data_sync_` prefix traces to `download_snapshot()`, called either at one-time process boot or, if `R2_PERIODIC_PULL_LEGACY_REPLACE=1` were set, on every periodic cycle — which I could not confirm was actually set in the running process's environment, since I had no way to read another process's environment variables directly), never independently confirmed against an actual captured exception or lock event.
+- Which exact process or system action removed all 8 directories at once — no cleanup-sweep function exists anywhere in `data_sync.py` that would explain a batched removal; the simultaneous disappearance during my own investigation is unexplained by anything in that file's code.
+
+**Plausible, separate, unverified defect (not this event's proven cause):** `data_sync.py`'s `shutil.rmtree(tmpdir, ignore_errors=True)` calls can theoretically swallow a Windows cleanup failure silently (no log line, no raised error) if a file handle is held at the moment of cleanup. This remains worth a separate operational follow-up, independent of and not proven responsible for the 8-directory event above. Filed as a residual, not as this event's established root cause.
+
+**Alternatives considered:** Leave the original, more confident framing as-is (rejected — the user's own explicit evidence-integrity discipline, applied consistently across this entire program, requires the durable record say only what was actually proven); delete the disk-event narrative entirely rather than correct it (rejected — the verified facts above are real, useful safety evidence and should stand; only the unproven causal mechanism needed downgrading).
+
+**Rationale:** This program has now twice found a documented claim stated more strongly than its evidence — matching the pattern of the P0-3 scope correction earlier in this log. The same discipline applies here: a plausible, code-consistent hypothesis is not a proven mechanism, and the durable record should not blur that line.
+
+**Consequences:** None to the shipped Wave 1 code or production state — this is a pure evidence-classification correction. Any future investigation into `data_sync_*` disk pressure should treat the file-lock-race theory as a lead to verify, not an established fact.
+
+**Reversibility:** N/A — a factual correction to the record, not a reversible decision.
+
+**Reconsider if:** a future occurrence of this same pattern is caught with direct evidence (an actual captured Windows sharing-violation exception, or confirmation of `R2_PERIODIC_PULL_LEGACY_REPLACE`'s actual value in a running process's environment) — at that point the mechanism could be upgraded from plausible to proven.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
