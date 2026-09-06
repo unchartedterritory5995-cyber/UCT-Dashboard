@@ -2717,3 +2717,62 @@ Verified without manufacturing any load:
 
 Next family authorized: **Bearish Engulfing**, new isolated worktree, own
 package. Bullish/bearish semantic diff required BEFORE any code is copied.
+
+---
+
+## BEARISH ENGULFING CANONICAL ADAPTER — PACKAGE 8G (2026-09-06)
+
+**Worktree:** `uct-dashboard-bearish-engulfing`, branch `feat/canonical-bearish-engulfing`,
+off `origin/master@dc5dbe0c9`, HEAD now `15d992f29`. Isolated from the still-
+unmerged `uct-dashboard-bullish-engulfing` branch — this worktree's baseline
+`canonical_adapter.py`/`explanation_builder.py` are pre-Package-8F (HTF+PEG only).
+
+**Required semantic diff performed FIRST** (owner instruction — do not assume
+symmetry). Read both `bullish_engulfing.py` and `bearish_engulfing.py` in full.
+Result: a faithful mirror on anchor count/order (2: prior-bar-close,
+engulfing-bar-close), geometry shape (`candle_mark`), levels/confidence/quality
+structure, single-detection-per-symbol lifecycle, absence of a per-family
+freshness gate, and the reversal-context-gate concept. Two real, non-cosmetic
+differences found and handled explicitly:
+1. 3 of 12 `geometry.extras` keys are DIRECTIONALLY RENAMED, not merely
+   re-signed: `at_swing_high`/`above_50sma`/`recent_advance_pct` (bearish) vs
+   `at_swing_low`/`below_50sma`/`recent_decline_pct` (bullish).
+2. DCR confirmation direction is INVERTED — a LOW `curr_bar_dcr` is bearish's
+   confirming signal (opposite of bullish's high-DCR signal). `dcr_strength()`
+   is direction-unaware, so its "weak" label would misdescribe the pattern if
+   reused naively.
+
+**Implementation:** `adapt_bearish_engulfing()` — same minimal shape as
+`adapt_high_tight_flag`/`adapt_bullish_engulfing` (eligibility +
+anchor_roles=`["prior_bar_close","engulfing_bar_close"]` +
+semantic_subtype=`"engulfing_pair"`; event/criteria/gate_trace absent).
+`explanation_builder.py` gained bearish_engulfing as a third in-scope family
+with its OWN why_it_matched reader (correct renamed keys, DCR-inversion stated
+explicitly rather than copy-pasted). strengths/weaknesses honestly omitted
+(monolithic `_score_context`, same as bullish). Zero persistence/schema/
+scanner-wiring change. Zero production authority activated.
+
+**Tests:** mirrors Bullish Engulfing's own shape PLUS explicit cross-wire
+guards (owner Section 10): proves the bullish-shaped keys are genuinely absent
+from real bearish extras and the reversal-context fact only fires against the
+correctly-read bearish keys; proves the DCR fact states the inversion
+explicitly; proves every real bearish fixture carries the correct pattern_id;
+proves the bullish pattern_id is NOT accidentally in scope in this isolated
+branch. Reused the existing 15-fixture `bearish_engulfing` battery.
+
+**Regression:** `test_canonical_adapter.py` 131 passed, `test_explanation_builder.py`
+238 passed. Full `tests/pattern_engine/` suite: 2754 passed, 9 xfailed — same
+pre-existing xfails as every prior pass, nothing new broken.
+
+**Verdict: BEARISH ENGULFING CANONICAL ADAPTATION COMPLETE LOCALLY — READY FOR
+OWNER REVIEW.** Bearish Engulfing IS a true semantic mirror of Bullish
+Engulfing (confirmed by evidence, not assumed).
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package.
+
+Seven packages now frozen on identical hold discipline (scan-completeness,
+PEG-geometry, pattern-join docs, 8G-C admin-proof, VCP adjudication, Bullish
+Engulfing, Bearish Engulfing canonical adapters), zero cross-contamination,
+8G-B observation cadence uninterrupted throughout. Tuesday 2026-09-08 RTH
+remains the key `screener_live_tier` live-acceptance window (Monday 9/7 is
+Labor Day).
