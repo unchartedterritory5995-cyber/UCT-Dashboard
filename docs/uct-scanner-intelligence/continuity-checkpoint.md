@@ -1627,3 +1627,66 @@ C1-C6 remain fully open. No implementation, no fix, no schedule change, no
 instrumentation change. Continuing natural observation toward tonight's
 nightly window (other writers, cross-DB darkpool/patterns candidates) and
 Monday's market open (the `screener_live_tier` correlation itself).
+
+## Deployment boundary — another session edited the deployed diagnostic file; verified narrowly (2026-09-06 ~02:43 UTC / ~22:43 ET)
+
+**Event.** A concurrent, unrelated session's work (an "E2E sandbox" test-
+isolation initiative, `tools/e2e_sandbox_launcher.py`) pushed a commit that
+touches `api/services/screener/contention_trace_temp.py` — the deployed
+temporary diagnostic itself. Per standing instruction, this required a
+narrow verification pass before treating the new deploy as a valid
+continuation, rather than silently accepting or silently rebuilding.
+
+**Deployment boundary, recorded:**
+- Previous verified-clean deployment: `28100a6d-3423-4b7a-843c-182049ac4856` (01:54 UTC).
+- New deployment: **`4be37e9a-a935-40b5-9b6e-2a79edd5f5d2`** — status **SUCCESS**.
+- `/api/health`: fresh `uptime_seconds=168` — genuine process restart, new epoch.
+- Samples from before `4be37e9a` and after it belong to different process
+  epochs; not mixed without this label.
+
+**Exact diff review (narrow — only this one file, not the sandbox
+initiative broadly).** `git diff` confirms **exactly one hunk, 10
+insertions/4 deletions, nothing else in the file touched**: only
+`_WATCHED_DB_PATHS` changed, from hardcoded literals to
+`os.environ.get(VARNAME, "<same literal>")` for all four entries
+(`screener`→`SCREENER_DB_PATH` — the SAME variable `snapshot_db.py`
+already reads elsewhere, not a new invention; `bars`/`patterns`/`darkpool`
+→ new but file-scoped `CONTENTION_TRACE_*_DB_PATH` names). **Confirmed
+unchanged**: `SLOW_THRESHOLD_MS`/`FAST_SAMPLE_MAX_MS`/
+`FAST_SAMPLE_MIN_INTERVAL_S`, the `stage`/`reset_stages`/`pop_stages`
+contextvar mechanism, `instrument_scheduler` (the active-job tracking),
+`_active_jobs_snapshot`, `_process_context`, `record()`'s log format/
+fields, cleanup/thread-safety behavior — none of these were touched.
+
+**Production effective configuration (targeted name/presence checks only,
+no value dump).** `SCREENER_DB_PATH`, `CONTENTION_TRACE_BARS_DB_PATH`,
+`CONTENTION_TRACE_PATTERNS_DB_PATH`, `CONTENTION_TRACE_DARKPOOL_DB_PATH` —
+**zero matches, all four unset in production.** Effective runtime paths
+therefore remain the original `/data/screener.db`, `/data/bars.db`,
+`/data/patterns.db`, `/data/darkpool.db` — byte-identical to before this
+commit. Which database/device is being observed has NOT changed.
+
+**Diagnostic function verified post-deploy.** No "contention trace
+instrumentation failed" line, no traceback/exception. 28 wrapped-job log
+lines present (scheduler instrumentation active). `[screener-live]` still
+ticking its expected ~60s skip cycles. `PATTERN_CANONICAL_ADAPT_ENABLED=1`
+confirmed; `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED` absent from the
+targeted grep (pilot OFF/unset, as required) — both name-presence checks
+only, no value dump beyond these two already-known-safe flags.
+
+**Unrelated `api/main.py` change in the same window** (a gzip-exemption
+for a Notebook "Ask Current Note" streaming route) — does not touch
+`/api/screener/scan`, global middleware behavior relevant to scanner
+timing, scheduler startup, or the diagnostic. Recorded simply as:
+**UNRELATED DEPLOYED CHANGE / PROCESS BOUNDARY.** Not investigated
+further (out of scope per instruction).
+
+**Classification: DEPLOYMENT BOUNDARY VERIFIED — DIAGNOSTIC BEHAVIOR
+UNCHANGED.** All conditions met: path overrides unset/resolve to the
+original files; original fallbacks intact; timing/job/WAL instrumentation
+unchanged; diagnostic initializes and runs correctly; scanner behavior
+unaffected; pilot OFF; adapt ON. The new process epoch (`4be37e9a`
+onward) is a valid continuation of the experiment. No redeploy performed
+to "undo" this benign configurability addition — not needed, and doing so
+would itself be an unauthorized production change. Resuming natural-load
+observation from this epoch forward.
