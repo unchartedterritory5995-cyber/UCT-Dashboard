@@ -1,6 +1,7 @@
 /**
  * Portfolio Attention banner — Journal 2.0 Open Positions (Portfolio/Position
- * Intelligence Convergence V1, Part B3).
+ * Intelligence Convergence V1, Part B3; click-through added by Attention
+ * Signal Propagation V1).
  *
  * Read-only, deterministic. Fetches GET /api/j2/positions/attention (a thin
  * endpoint that reuses watchlist_intelligence.get_intelligence_for_symbols()
@@ -10,8 +11,14 @@
  *
  * Renders nothing when there are no open positions (no empty-state banner
  * for V1) or while the account has no fetched data yet.
+ *
+ * Each card links to PositionDetailPage (/journal-2-0/position/{sym}), which
+ * calls this same hook directly (useJ2PositionsAttention) and renders the
+ * identical facts for that symbol — so the loop closes: notable here →
+ * click → the same evidence there, no route-state propagation needed.
  */
 
+import { Link } from 'react-router-dom'
 import useJ2PositionsAttention from '../hooks/useJ2PositionsAttention'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './PortfolioAttentionBanner.module.css'
@@ -35,8 +42,9 @@ export default function PortfolioAttentionBanner() {
           const context = entry.context || {}
           const hasContext = context.composite_rating != null || context.rs_rank != null
           return (
-            <div
+            <Link
               key={sym}
+              to={`/journal-2-0/position/${encodeURIComponent(sym)}`}
               className={`${styles.card} ${entry.notable ? styles.cardNotable : ''}`}
               data-testid={`attention-card-${sym}`}
             >
@@ -69,7 +77,7 @@ export default function PortfolioAttentionBanner() {
                   {context.rs_rank != null && <span>RS {context.rs_rank}</span>}
                 </div>
               )}
-            </div>
+            </Link>
           )
         })}
       </div>

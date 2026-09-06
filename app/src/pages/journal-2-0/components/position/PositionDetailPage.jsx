@@ -18,6 +18,7 @@ import useEarningsTable from '../../../../hooks/useEarningsTable'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2Trades from '../../hooks/useJ2Trades'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useJ2PositionsAttention from '../../hooks/useJ2PositionsAttention'
 import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
 import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
@@ -108,6 +109,14 @@ export default function PositionDetailPage() {
   const { positions } = useJ2Positions()
   const { trades } = useJ2Trades()
   const { account: selectedAccount, accounts } = useJ2SelectedAccount()
+  // Same batch endpoint + hook PortfolioAttentionBanner uses on Open Positions
+  // (Attention Signal Propagation V1) — reused verbatim, never a new
+  // single-symbol call. Entry is simply absent for a symbol with no open
+  // position (or while data hasn't loaded/failed), which this page's
+  // existing null-safe convention already renders as "section hidden."
+  const { attention } = useJ2PositionsAttention()
+  const attentionEntry = attention[sym]
+  const attentionFacts = attentionEntry?.facts || []
 
   const todayIso = useMemo(
     () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
@@ -211,6 +220,40 @@ export default function PositionDetailPage() {
           <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
         )}
       </div>
+
+      {attentionEntry && (
+        <div
+          className={`${styles.attentionCard} ${attentionEntry.notable ? styles.attentionCardNotable : ''}`}
+          data-testid="position-attention"
+        >
+          <div className={styles.attentionHeader}>
+            <UIcon name="sparkle" size={12} />
+            <span>Attention</span>
+            {attentionEntry.notable && (
+              <span className={styles.attentionDot} title="Notable" aria-label={`${sym} notable`} />
+            )}
+            {attentionEntry.status && attentionEntry.status !== 'ok' && (
+              <span className={styles.attentionStatusPill} title={`Data ${attentionEntry.status}`}>
+                {attentionEntry.status}
+              </span>
+            )}
+          </div>
+          {attentionFacts.length > 0 ? (
+            <ul className={styles.attentionFactList}>
+              {attentionFacts.map((f, i) => (
+                <li key={`${f.kind}-${i}`} className={styles.attentionFact}>
+                  {f.label}
+                  {/* Evidence timestamp from the fact itself — never a
+                      rendered "now"/client clock. */}
+                  {f.as_of && <span className={styles.attentionFactDate}> · {f.as_of}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className={styles.attentionNoFacts}>Nothing notable</div>
+          )}
+        </div>
+      )}
 
       <div className={styles.chartCard}>
         <div className={styles.chartWrap}>
