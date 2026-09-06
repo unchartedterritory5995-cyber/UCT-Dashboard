@@ -105,6 +105,9 @@ function optionClosedToRow(s) {
     id: s.id,
     isOption: true,
     symbol: `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`,
+    // The REAL chartable ticker — `symbol` above is a synthesized display
+    // label ("SPY Oct 16 $110C"), never a valid chart/bars-API symbol.
+    underlying: s.underlying,
     side: `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`,
     result: s.result,
     shares: leg.qty,                          // contracts
@@ -121,6 +124,9 @@ function optionClosedToRow(s) {
     setup: s.setup,
     originalStop: null,
     source: s.source,
+    // Carried straight through from list_strategies — never recomputed
+    // client-side (the id:/ext: scheme is a backend-owned identity).
+    tradeRef: s.tradeRef,
   }
 }
 

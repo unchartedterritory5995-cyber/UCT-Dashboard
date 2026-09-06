@@ -230,7 +230,7 @@ function SaveToNotebookButton({ trade, tf }) {
         widgetId="chart"
         capture={captureMenu?.capture || { symbol: trade.symbol }}
         label={trade.symbol}
-        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRef={trade.tradeRef || undefined}
         onSent={setJournalMsg}
       />
     </>
