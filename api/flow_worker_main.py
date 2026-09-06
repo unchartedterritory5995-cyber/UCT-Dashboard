@@ -474,6 +474,9 @@ def _start_flow_schedulers():
             # ⚠ SAME DEPLOY GOTCHA as alpha_gold_eod: api/cream_card.py is NOT in the
             # flow-worker watch paths — edits to it must piggyback on THIS file (or
             # live_massive_router.py, where compute_cream lives).
+            # ARMED live 2026-09-06 (CREAM_EOD_ENABLED=1, old ALPHA_GOLD_EOD off);
+            # 2026-09-06: dropped the redundant content line — the post is image-only
+            # now (bot name already reads "UCT Intelligence · Top Flow").
             from apscheduler.triggers.cron import CronTrigger as _CRCron
             from api import cream_card as _cream
             sched.add_job(_cream.scheduled_cream_eod,
