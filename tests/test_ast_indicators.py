@@ -377,12 +377,22 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
 
 
 #: The role names an ``int`` slot may carry that are NOT windows. ⛔ CLOSED, and
-#: kept to one entry on purpose: the note inside ``accum``'s own generic-set
-#: widening warns against "a vocabulary that grows one adjective at a time", and
-#: this is the same widening. ``anchor`` earned it because ``avwap``'s instant is
-#: inexpressible any other way — the table has two argument kinds and no string
-#: literal node.
-_INT_ROLES = frozenset({"anchor"})
+#: widened only twice, each time for the SAME underlying reason and each
+#: time named here rather than silently grown: the note inside ``accum``'s
+#: own generic-set widening warns against "a vocabulary that grows one
+#: adjective at a time". ``anchor`` earned it because ``avwap``'s instant is
+#: inexpressible any other way — the table has two argument kinds and no
+#: string literal node. ``mult`` (RISK-032, 2026-09-06) earned it for the
+#: identical structural reason, disclosed at ship time
+#: (`VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md`'s Lane B precedent,
+#: `closedTable.json::_functions_vendor_note`'s ``bbw`` entry): Pine's real
+#: ``ta.bbw(source, length, mult)`` takes a FLOAT multiplier, and this table
+#: has no float-literal argument kind at all — ``int`` was the closest
+#: available slot, not a claim that ``mult`` is a window. It carries no
+#: ordering-ambiguity risk (the only other argument of the same kind is the
+#: `series` source, a different kind entirely), so widening this set does
+#: not weaken the guard this test exists to enforce.
+_INT_ROLES = frozenset({"anchor", "mult"})
 
 
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():

@@ -233,6 +233,37 @@ the remaining 8 Lane A functions (sma, ema, rma, hma, macd, stoch, adx-family, w
 no compatibility remediation was begun, Track F v2 was not begun, and RISK-004 was not begun — all
 await separate, explicit authorization.**
 
+**2026-09-06 (same day, follow-up) — RSI/ATR review ACCEPTED with evidence-label tightening; RISK-032
+bounded audit CLOSED before SMA/EMA.** Owner accepted the RSI/ATR batch but tightened the standing
+labels to name exactly what was proven, not the tool's bare internal verdict string: RSI →
+`VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR`; ATR → the same plus
+`+ PARTIAL / UNVERIFIED INITIALIZATION BOUNDARY` (naming that the bar-0/TR-definition ruling's
+alignment claim was not independently isolated by this capture). No evidence changed — applied
+consistently across the report, `RISK_REGISTER.md`, and `VALIDATION_COVERAGE_MAP.md`. Then, per
+explicit instruction, investigated and closed RISK-032 (the two incidentally-discovered test
+failures) BEFORE starting SMA/EMA: both classified **KNOWN SCOPED LIMITATION INCORRECTLY TESTED** by
+direct code reading (`pine.js`'s `%` refusal is a real, deliberate, unchanged-since-2026-08-09
+product boundary — `PINE_OP_TO_TABLE` has no `%` entry at all; `bbw`'s `mult:int` is a genuine,
+already-disclosed, ordering-unambiguous non-period role) and fixed test-file-only: the 4 Lane B
+oracle observations gained an explicit `script.independentlyTranslatable: false` + reason field
+(additive; frozen evidence untouched) that `vendorTruth.test.js` now asserts loudly instead of
+attempting a re-translation these scripts were never claimed to survive; `test_ast_indicators.py`'s
+`_INT_ROLES` closed set widened from `{"anchor"}` to `{"anchor", "mult"}` following the exact
+precedent already established for `anchor`. **No product code changed (`pine.js`/`ast_interpret.py`/
+`interpret.js`/`closedTable.json` all untouched); no published Lane B parity status invalidated.** A
+third, previously-unreported gap (a stale dual-kernel conformance snapshot for the 4 Lane B
+functions — zero lane disagreement, just an unrecorded digest) was found incidentally while running
+the required conformance suites and filed as RISK-033, explicitly left unfixed (out of RISK-032's
+named 2-item scope). Full re-verification green: `test_vendor_truth.py`, `test_vendor_parity_lane_b.py`,
+`test_vendor_parity_lane_b_multibar.py`, `test_vendor_parity_rsi_atr.py`, `test_ast_indicators.py`,
+`test_screener_technicals_accuracy.py`, `vendor_truth.py --check` (exit 0), `vendorTruth.test.js`,
+`vendorNote.test.js`, and the full `app/src/components/chart/engine/ast/` vitest sweep (111/112 files
+— the one remaining failure is the already-tracked, out-of-scope RISK-004 blind-corpus floor). Full
+detail: `VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` §15 addendum; `RISK_REGISTER.md`
+RISK-032 (RESOLVED)/RISK-033 (RECORDED). **Parity baseline confirmed clean enough to proceed to
+SMA/EMA. SMA/EMA itself is NOT started by this entry — awaiting separate authorization, per the
+explicit stop condition.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

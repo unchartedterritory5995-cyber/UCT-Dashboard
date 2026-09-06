@@ -160,11 +160,19 @@ vendor-parity-verified (per-function qualifiers in RISK-018b/`VALIDATION_COVERAG
 
 ### Lane A — already-shipped core functions, ranked by real evidence
 
-**Status update (2026-09-06): first batch (#1 `rsi`, #2 `atr`) DONE — both VENDOR-PARITY VERIFIED
+**Status update (2026-09-06): first batch (#1 `rsi`, #2 `atr`) DONE — RSI is VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR and ATR is VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + PARTIAL / UNVERIFIED INITIALIZATION BOUNDARY (labels tightened 2026-09-06 per owner review), both
 against a real 1,328-bar SPY Daily capture.** See `RISK_REGISTER.md` RISK-031 and
 `VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full evidence chain (real capture, decay
 curve, mutation controls). Functions #3-10 (sma, ema, rma, hma, macd, stoch, adx-family, wma) remain
 **NOT started** — not begun automatically, per this batch's own explicit stop condition.
+
+**RISK-032 bounded audit (2026-09-06, same day):** owner required RISK-032 (two test failures
+incidentally discovered during the RSI/ATR batch) closed before any SMA/EMA work begins. Both
+classified KNOWN SCOPED LIMITATION INCORRECTLY TESTED and fixed test-file-only (no product code
+changed, no Lane B parity status invalidated) — see `RISK_REGISTER.md` RISK-032 and the RSI/ATR
+report's §15 addendum. A third, related monitoring-coverage gap (RISK-033, a stale dual-kernel
+conformance snapshot for the 4 Lane B functions) was found but explicitly left unfixed, out of scope.
+**Parity baseline confirmed clean enough to proceed to SMA/EMA — SMA/EMA itself remains NOT started.**
 
 Derived from: full 64-function manifest read (`closedTable.json`), real corpus-frequency counts
 (regex function-call counts across all 123 `.pine`/`.ts`/PCF fixture files), `RISK_REGISTER.md`'s

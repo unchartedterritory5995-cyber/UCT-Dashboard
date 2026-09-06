@@ -82,10 +82,20 @@ Two distinct, non-overlapping exclusion classes, both reported explicitly by
 
 ## 5. Max deltas
 
-| | Compared (steady-state) | Disagreements | Max absolute delta | Verdict |
+| | Compared (steady-state) | Disagreements | Max absolute delta | Evidence-qualified label |
 |---|---|---|---|---|
-| RSI | 1,148 | **0** | 7.18877e-06 | **VENDOR-PARITY VERIFIED** |
-| ATR | 1,148 | **0** | 3.84955e-06 | **VENDOR-PARITY VERIFIED** |
+| RSI | 1,148 | **0** | 7.18877e-06 | **VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR** |
+| ATR | 1,148 | **0** | 3.84955e-06 | **VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + PARTIAL / UNVERIFIED INITIALIZATION BOUNDARY** |
+
+⚠️ **Labels tightened 2026-09-06 (owner review, same day).** `tools/vendor_parity_compare.py`'s own
+raw `verdict` field is the coarse two-value enum `VENDOR-PARITY VERIFIED` / `PARTIAL` (plus
+`DATA BLOCKED`) — that field is unchanged and correctly read `VENDOR-PARITY VERIFIED` for both
+functions (§5-8 originally stated the bare tool output as the standing label). The evidence itself
+never claimed more than steady-state, multi-bar agreement with 166 bars explicitly excluded as
+seed-convergence-lag — an unqualified label would imply a broader, unbounded claim than what this
+capture actually established. The qualified labels above are the corrected standing documentation
+labels, used consistently through the rest of this report and in `RISK_REGISTER.md`/
+`VALIDATION_COVERAGE_MAP.md`. No evidence, artifact, or test result changed.
 
 Both max deltas are float-precision noise relative to the values' own scale (RSI ~48-90, ATR ~4-10) —
 6-7 orders of magnitude below the 1e-6 *relative* tolerance actually used.
@@ -120,18 +130,24 @@ the committed permanent regression is `tests/test_vendor_parity_rsi_atr.py`, see
 
 ## 7. RSI final parity status
 
-**VENDOR-PARITY VERIFIED.** 1,148 real, current-market steady-state bars agree with the real vendor's
-`ta.rsi(close,14)` to ~1e-9 relative (float noise). RISK-019's historical incident (Cutler's RSI
-shipped under Wilder's name) is now independently reconfirmed fixed against REAL vendor data, not
-merely against a hand-typed reference implementation — closing the "no real-runtime confirmation of
-the fix exists yet" gap the readiness report named as RSI's own motivating open question.
+**VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR.** 1,148 real, current-market steady-state bars
+agree with the real vendor's `ta.rsi(close,14)` to ~1e-9 relative (float noise); 166 bars are
+explicitly excluded as seed-convergence-lag (§9), so the label names the exact scope proven rather
+than an unqualified claim. RISK-019's historical incident (Cutler's RSI shipped under Wilder's name)
+is now independently reconfirmed fixed against REAL vendor data, not merely against a hand-typed
+reference implementation — closing the "no real-runtime confirmation of the fix exists yet" gap the
+readiness report named as RSI's own motivating open question.
 
 ## 8. ATR final parity status
 
-**VENDOR-PARITY VERIFIED — steady-state half; the already-adjudicated bar-0/TR-definition half
-(`divergences.json::atr-tr-starts-at-bar-1`) is CONFIRMED-CONSISTENT, not reopened, and its separate
-ALIGNMENT claim remains untested by this specific capture.** See §10 for the precise disposition —
-this status intentionally does not collapse two different claims into one label.
+**VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + PARTIAL / UNVERIFIED INITIALIZATION BOUNDARY.**
+The steady-state half (1,148 bars, 0 disagreements) is verified on the same basis as RSI. The
+"PARTIAL / UNVERIFIED INITIALIZATION BOUNDARY" half of the label names, explicitly, that the already-
+adjudicated bar-0/TR-definition ruling (`divergences.json::atr-tr-starts-at-bar-1`) was NOT
+independently isolated by this finite capture window — its steady-state claim is CONFIRMED-CONSISTENT
+by real data, not reopened, but its separate ALIGNMENT claim remains untested by this specific
+capture. See §10 for the precise disposition — this status intentionally does not collapse two
+different claims into one label.
 
 ## 9. Convergence decay curve — why `warmup_bars=180`, not the naive `14`
 
@@ -279,3 +295,62 @@ Neither finding affects RSI or ATR, neither was caused by this batch, and neithe
 - The two incidental findings in §13 remain open, unquantified beyond what's stated here (no attempt
   was made to determine how many OTHER committed vendor observations or closed-table functions might
   carry similar undiscovered gaps).
+
+## 15. Addendum (2026-09-06, same day, follow-up) — RISK-032 closed; evidence labels tightened
+
+Per explicit owner review of this report:
+
+**Evidence-label tightening (terminology/provenance precision only, no evidence changed).** §5, §7, §8
+originally stated the bare tool-level `VENDOR-PARITY VERIFIED` string (`vendor_parity_compare.py`'s
+own coarse two-value verdict enum) as the standing documentation label. Corrected to the
+evidence-scoped labels used consistently below and in `RISK_REGISTER.md`/`VALIDATION_COVERAGE_MAP.md`:
+- **RSI → `VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR`**
+- **ATR → `VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + PARTIAL / UNVERIFIED INITIALIZATION
+  BOUNDARY`** (naming, in the label itself, that the bar-0/TR-definition ruling's alignment claim was
+  not independently isolated by this capture)
+
+**RISK-032 (§13's two incidental findings) investigated and closed, per explicit instruction, before
+any SMA/EMA work begins.** Full root-cause classification, fixes, and re-verification: see
+`RISK_REGISTER.md` RISK-032 (now RESOLVED). Summary:
+
+1. **`%`-operator gap** → classified **KNOWN SCOPED LIMITATION INCORRECTLY TESTED**. `pine.js`'s
+   table-wide `%` refusal is a real, deliberate, unchanged-since-2026-08-09 product boundary, not a
+   defect — confirmed by direct read of `PINE_OP_TO_TABLE` (no `%` entry exists at all; the refusal
+   fires on the token, not on any operand-sign analysis). The actual defect was `vendorTruth.test.js`
+   applying its "must independently re-translate" check to an observation class (multi-output
+   real-vendor disambiguation oracles) never claimed to be independently importable. **Fixed**: the 4
+   affected observations gained an explicit, reason-carrying `script.independentlyTranslatable: false`
+   field (additive; `source`/`engine.ast`/`engine.formula`/`provenance` untouched); the test now
+   asserts that flag+reason are present (a named, executed, LOUD exemption) instead of attempting the
+   re-translation. No product code changed.
+2. **`bbw`'s `mult:int` argument-order rail** → classified **KNOWN SCOPED LIMITATION INCORRECTLY
+   TESTED**, same shape. `mult` is genuinely not a period and carries no ordering-ambiguity risk (the
+   only structural thing the test actually guards against). **Fixed**: `tests/test_ast_indicators.py`'s
+   `_INT_ROLES` closed set widened from `{"anchor"}` to `{"anchor", "mult"}`, following the identical
+   precedent and justification already established for `anchor`. No product code changed;
+   `closedTable.json` untouched.
+
+**Neither finding invalidated any published Lane B parity status** — `rising`/`median`/`percentrank`
+remain VENDOR-PARITY VERIFIED — MULTI-BAR and `bbw` remains VENDOR-PARITY VERIFIED — SCOPED CONTRACT
+(integer multiplier), unchanged. Both fixes are test-file-only corrections; neither changes any
+semantic behavior to force a pass.
+
+**A third, previously-unreported gap was incidentally discovered** while running the required
+JS/Python conformance suites: `tools/ast_conformance.py --check` reports the 4 Lane B functions' corpus
+cases as "NOT IN THE FROZEN LOG" — a stale regression-snapshot (`tests/fixtures/ast/conformance_log.json`,
+last committed 2026-08-29, before Lane B existed), not a lane disagreement (the same run's own
+`compare_lanes` found zero JS/Python differences). Filed as RISK-033, **not fixed** — explicitly out of
+RISK-032's named 2-item scope, and re-recording the frozen log requires a human-authored justification
+per the tool's own design, which this bounded audit was not authorized to supply.
+
+**Full re-verification, all green** (exact counts in `RISK_REGISTER.md` RISK-032): `test_vendor_truth.py`,
+`test_vendor_parity_lane_b.py`, `test_vendor_parity_lane_b_multibar.py`, `test_vendor_parity_rsi_atr.py`,
+`test_ast_indicators.py`, `test_screener_technicals_accuracy.py` (Python); `vendor_truth.py --check`
+(exit 0); `vendorTruth.test.js`, `vendorNote.test.js`, and the full `app/src/components/chart/engine/ast/`
+vitest sweep (111/112 files — the one remaining failure is the already-tracked, out-of-scope RISK-004
+blind-corpus floor, confirmed unrelated by inspection).
+
+**Parity baseline status: clean enough to proceed to SMA/EMA**, pending the owner's own go/no-go —
+RISK-032's two named items are resolved with no product-code changes and no invalidated evidence;
+RISK-033 is a monitoring-coverage gap, not a correctness gap, and does not block further Lane A
+captures. Per the explicit stop condition, SMA/EMA itself is **not begun** by this addendum.
