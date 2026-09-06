@@ -1077,47 +1077,113 @@
 }
 .setNewGo:disabled { opacity: 0.4; cursor: default; }
 
-/* Edit toolbar — contextual, only in edit mode */
-.editToolbar {
+/* ── Edit command bar — the taller BOTTOM bar shown only while editing ── */
+.editBar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.08));
-  border-bottom: 1px solid var(--tt-divider, var(--border));
-  flex-shrink: 0;
+  padding: 9px 12px;                 /* taller than the view-mode footer (5px) */
+  min-height: 46px;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  border-top: 2px solid var(--tt-accent, var(--ut-gold));   /* the "taller bottom border" cue */
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.10));
+  white-space: nowrap;
+  overflow: hidden;
 }
-.editTool {
+.editBarSpacer { flex: 1 1 auto; }
+.editBarAdd {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.editBarAdd:hover { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.30)); filter: brightness(1.08); }
+.editBarReset {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border: 1px solid var(--tt-divider, var(--border));
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
-  color: var(--text-bright, #e4e6ea);
+  color: var(--tt-text, var(--text-secondary, #aab2bd));
   cursor: pointer;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
-.editTool:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
-.editToolDanger {
-  font-family: var(--font-sans);
-  font-size: calc(10px * var(--tt-font-scale, 1));
-  font-weight: 600;
-  padding: 4px 10px;
-  border: 1px solid var(--tt-divider, var(--border));
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-danger, #f87171);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.editToolDanger:hover { background: rgba(248, 113, 113, 0.12); }
-.editHint {
-  margin-left: auto;
+.editBarReset:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); color: var(--tt-sym, var(--text-bright)); }
+.editBarHint {
   font-size: calc(9px * var(--tt-font-scale, 1));
-  color: var(--text-secondary, #aab2bd);   /* brighter than muted so it reads on dark */
+  color: var(--text-secondary, #aab2bd);
   font-style: italic;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editBarAdding { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.editBarAddingLabel {
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  color: var(--tt-sym, var(--text-bright));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editBarAddingLabel b { color: var(--tt-accent, var(--ut-gold)); }
+.editBarDone {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.editBarSaveAs { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.editBarSaveInput {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 5px 8px;
+  min-width: 0;
+  width: 150px;
+  max-width: 46vw;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
+  outline: none;
+}
+.editBarSaveInput:focus { border-color: var(--tt-accent, var(--ut-gold)); }
+.editBarSaveGo {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 6px 11px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tt-accent, var(--ut-gold));
+  color: var(--tt-accent-fg, #1a1206);
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.editBarSaveGo:disabled { opacity: 0.4; cursor: default; }
+
+/* Pulse-highlight a just-added theme so the eye lands on it after the jump-scroll. */
+.groupFlash { animation: ttGroupFlash 1.8s ease-out 1; }
+@keyframes ttGroupFlash {
+  0%   { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.42)); }
+  100% { background: transparent; }
 }
 
 /* Add-theme search picker */
