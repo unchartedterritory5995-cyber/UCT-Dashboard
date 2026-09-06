@@ -56,6 +56,20 @@ requirement):
     adapter populates `eligibility`, `event`, AND a reconstructed
     `gate_trace` — exercising the fully-populated end of the same spectrum.
 
+Package 8F added a third family at HTF's own minimal end of the spectrum,
+per a disciplined family-by-family selection pass (owner directive,
+2026-09-06) that ranked all remaining candidates and picked the single
+highest-readiness one — not the next alphabetically or most convenient:
+
+  - `bullish_engulfing` — a 2-bar candlestick reversal with the CLEANEST
+    geometry of any remaining candidate (both anchors are real semantic
+    points — the engulfed bar's close and the engulfing bar's close — unlike
+    e.g. `bull_flag`, whose own anchors never include the pole, a separate,
+    still-open gap this package does not touch). No event concept (a
+    candlestick has no addressable calendar event) and no per-family
+    freshness gate — `event`/`criteria`/`gate_trace` are correctly,
+    deliberately ABSENT, an exact mirror of HTF's own adapter shape.
+
 KNOWN, DISCLOSED LIMITATION: because this adapter runs AFTER a Detection
 already exists (post-hoc, on the single surviving candidate a detector ever
 returns), it can only reconstruct gate evaluations for gates that candidate
@@ -149,6 +163,14 @@ _HTF_SEMANTIC_SUBTYPE = "pole_and_flag"
 _PEG_ANCHOR_ROLES = ["prior_close", "gap_open", "gap_close", "post_gap_high", "post_gap_low"]
 _PEG_SEMANTIC_SUBTYPE = "gap_event"
 
+# Phase 8 Package 8F. `bullish_engulfing._build_detection` (verified by direct
+# read) emits exactly 2 anchors -- the prior (engulfed) bar's close and the
+# engulfing bar's close, in that order. Both are real, already-honest
+# semantic points (unlike bull_flag, whose own anchors never include the
+# pole -- a separate, still-open geometry gap this package does not touch).
+_BE_ANCHOR_ROLES = ["prior_bar_close", "engulfing_bar_close"]
+_BE_SEMANTIC_SUBTYPE = "engulfing_pair"
+
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
     """Returns a NEW geometry dict (never mutates detection["geometry"] in
@@ -207,6 +229,20 @@ def adapt_power_earnings_gap(detection: Detection, *, now: Optional[int] = None)
     }
     out["event"] = event
     out["gate_trace"] = _peg_gate_trace(extras)
+    return out
+
+
+def adapt_bullish_engulfing(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Bullish Engulfing: eligibility + semantic geometry labels only --
+    exactly HTF's shape (Package 8D precedent), for the same reason: this
+    family has no event concept (a 2-bar candlestick reversal has no
+    addressable calendar event) and no per-family freshness gate in-file
+    (relies on the shared active-window check only). `event`/`criteria`/
+    `gate_trace` are deliberately, honestly ABSENT.
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(detection, _BE_ANCHOR_ROLES, _BE_SEMANTIC_SUBTYPE)
     return out
 
 

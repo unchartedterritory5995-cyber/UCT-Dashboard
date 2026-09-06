@@ -4,9 +4,11 @@ Converts an already-canonical (adapted — see `canonical_adapter.py`)
 `Detection` into an `Explanation`: a deterministic set of structured facts
 answering WHY this detection matched, what currently strengthens or weakens
 it, what stage it's in, and whether the scanner currently considers it
-eligible. Two families only (`high_tight_flag`, `power_earnings_gap`), per
-this package's authorization — every other `pattern_id` gets an Explanation
-with an empty `sections` list, not a crash and not fabricated facts.
+eligible. Three families (`high_tight_flag`, `power_earnings_gap`,
+`bullish_engulfing` — the last added Package 8F, mirroring HTF's own
+eligibility-only shape), per this package's authorization — every other
+`pattern_id` gets an Explanation with an empty `sections` list, not a crash
+and not fabricated facts.
 
 GOVERNING RULES (this package's authorization; directly motivated by a
 historical Phase-4A defect where a narrative layer stated things the
@@ -65,13 +67,14 @@ separately-authorized reachability stage.
 """
 from __future__ import annotations
 
+from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _be
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.types import Detection, Explanation, ExplanationFact
 
 BUILDER_VERSION = "phase8.8e.1"
 
-_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID)
+_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _be._PATTERN_ID)
 
 
 def build_explanation(detection: Detection) -> Explanation:
@@ -126,6 +129,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _htf_why_it_matched_facts(detection)
     if pid == _peg._PATTERN_ID:
         return _peg_why_it_matched_facts(detection)
+    if pid == _be._PATTERN_ID:
+        return _bullish_engulfing_why_it_matched_facts(detection)
     return []
 
 
@@ -163,6 +168,57 @@ def _htf_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
             f"Flag retraced {retrace_pct:.1f}% of the pole "
             f"(this family's own ceiling is {_htf._MAX_FLAG_RETRACE * 100:.0f}%).",
             "geometry.extras.retrace_pct", "supports", p,
+        ))
+        p += 1
+
+    return facts
+
+
+def _bullish_engulfing_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """Bullish Engulfing has no `gate_trace` (no canonical adapter reconstructs
+    one for it — see `adapt_bullish_engulfing`'s own docstring), so unlike
+    PEG this reads directly off `geometry.extras`, the same identity fields
+    the detector's own hard reversal-context gate (`detect_bullish_engulfing`)
+    already computed and stored -- never re-derived or guessed here."""
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    ratio = extras.get("engulfment_ratio")
+    if ratio is not None:
+        facts.append(_fact(
+            "be_engulfment_ratio", "identity", "direct",
+            f"Bar N's body is {ratio:.2f}x bar N-1's body "
+            f"(this family's own floor is {_be._MIN_ENGULF_BODY_RATIO:.1f}x).",
+            "geometry.extras.engulfment_ratio", "supports", p,
+        ))
+        p += 1
+
+    reversal_reasons = []
+    if extras.get("at_swing_low"):
+        reversal_reasons.append("at a near-term swing low")
+    if extras.get("below_50sma"):
+        reversal_reasons.append("below the 50-bar SMA")
+    decline = extras.get("recent_decline_pct")
+    if decline is not None and decline >= _be._MIN_DECLINE_FOR_REVERSAL * 100:
+        reversal_reasons.append(f"after a {decline:.1f}% recent decline")
+    if reversal_reasons:
+        facts.append(_fact(
+            "be_reversal_context", "identity", "direct",
+            "Reversal-context gate cleared: " + "; ".join(reversal_reasons) + " "
+            "(the detector requires at least one of these before it will build "
+            "a detection at all).",
+            "geometry.extras.at_swing_low|below_50sma|recent_decline_pct", "supports", p,
+        ))
+        p += 1
+
+    dcr = extras.get("curr_bar_dcr")
+    if dcr is not None:
+        facts.append(_fact(
+            "be_engulfing_bar_dcr", "identity", "direct",
+            f"The engulfing bar closed at DCR {dcr * 100:.0f}% of its own range "
+            f"({extras.get('dcr_strength', 'unclassified')}).",
+            "geometry.extras.curr_bar_dcr", "supports", p,
         ))
         p += 1
 
@@ -275,6 +331,11 @@ _FAMILY_PHRASE_FNS = {
     _peg._PATTERN_ID: (
         _peg._trend_stage_description, _peg._ma_alignment_phrase, _peg._rs_trend_phrase,
     ),
+    # bullish_engulfing's own phrase fns are named _trend_phrase/_ma_phrase/
+    # _rs_phrase (not the HTF/PEG names) but share the identical (context) ->
+    # str signature. Its _ma_phrase omits the word "moving-average" (like
+    # PEG's), so composing "{ma_fn(context)} alignment" here cannot repeat it.
+    _be._PATTERN_ID: (_be._trend_phrase, _be._ma_phrase, _be._rs_phrase),
 }
 
 
