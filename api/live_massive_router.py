@@ -4764,7 +4764,8 @@ def _pushed_keys(alert_date: str = None) -> set:
 # a separate, opt-in step so we can't spam the channel before you sign off).
 _AUTO_PUSH_CFG = {
     "enabled": False,            # master switch — auto-fire is OFF until turned on
-    "alpha_gold": True,          # push Alpha Gold tier (+ Alpha LEAPS)
+    "alpha_gold": True,          # push Alpha Gold tier
+    "alpha_leaps": True,         # push UCT Alpha LEAPS tier (aggregate ask build on a LEAP; own toggle 2026-09-05)
     "ask_accum": True,           # push UCT Ask Accumulation tier (aggregate ask build on a quiet name)
     "grade_a": True,             # push grade A / A+
     "size_sweep_enabled": False, # optional: high-premium Size B sweeps
@@ -4949,8 +4950,8 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     # ── Single-print tiers ──
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
-    # Alpha LEAPS rides the same auto-push toggle as Alpha Gold (top conviction).
-    if cfg.get("alpha_gold") and (tier == "alpha_leaps" or "alpha leaps" in name):
+    # Alpha LEAPS — own toggle (2026-09-05; was riding alpha_gold). Default on.
+    if cfg.get("alpha_leaps", True) and (tier == "alpha_leaps" or "alpha leaps" in name):
         return True
     # UCT Ask Accumulation — aggregate ask build on a quiet name. Its own toggle
     # (default on); the _qualifies_curated ask_accum path + the min_directional_ratio
@@ -5643,7 +5644,7 @@ async def set_auto_push_config(request: Request, _auth: dict = Depends(require_f
         raise HTTPException(400, f"Invalid JSON: {e}")
     if not isinstance(body, dict):
         raise HTTPException(400, "expected a JSON object")
-    for k in ("enabled", "alpha_gold", "ask_accum", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
+    for k in ("enabled", "alpha_gold", "alpha_leaps", "ask_accum", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
         if k in body:
             _AUTO_PUSH_CFG[k] = body[k]
     try:

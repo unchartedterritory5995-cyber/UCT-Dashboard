@@ -2292,6 +2292,11 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
               <input type="checkbox" checked={!!autoPushCfg.alpha_gold}
                 onChange={e => onAutoPush && onAutoPush({ alpha_gold: e.target.checked })} /> Alpha Gold
             </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                   title="Aggregate ask-side build (sweeps + blocks) ≥ $3M on one LEAP contract (DTE ≥ 180), near-the-money. Institutional conviction the single-print tiers miss.">
+              <input type="checkbox" checked={autoPushCfg.alpha_leaps !== false}
+                onChange={e => onAutoPush && onAutoPush({ alpha_leaps: e.target.checked })} /> Alpha LEAPS
+            </label>
             <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
               <input type="checkbox" checked={!!autoPushCfg.grade_a}
                 onChange={e => onAutoPush && onAutoPush({ grade_a: e.target.checked })} /> Grade A / A+
