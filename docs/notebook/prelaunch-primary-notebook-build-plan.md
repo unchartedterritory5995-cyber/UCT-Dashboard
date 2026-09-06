@@ -1282,9 +1282,316 @@ one named cache gap was closed.
 
 ---
 
-Design-before-build for Wave E onward happens at the start of that wave, not
-speculatively now — per the governing directive, this document reports and
-stops before beginning any wave past the currently-authorized one.
+## Wave E — Structured Research Properties / Saved Views / Dynamic Financial Research — entry checkpoint (2026-09-06)
+
+Per the user's own Wave E directive (125-point spec, §120's required 34-point
+checkpoint before any source mutation). Recon was done directly by reading this
+codebase (no subagent dispatched into this worktree, per the standing permanent
+fork rule) plus one isolated, no-file-access, no-git web-research fork for the
+fresh competitor pass (§18).
+
+**1. Current note schema.** `j2_notes` has NO existing typed-property mechanism:
+`ticker` is a single free-text column (one ticker per note, member-typed),
+`tags` is a JSON array of free-text strings, `folder_id` nests via
+`j2_note_folders.parent_id`. No `j2_note_properties`-shaped table exists today
+— confirms gap-ledger G-021 ("Absent") is still accurate.
+
+**2. Current entity/mention architecture (reuse target, do not duplicate).**
+`j2_note_mentions` (cashtag prose mentions) and `j2_note_embeds`
+(trade_ref/trade_ref_type + symbol, widget snapshots) are the two existing
+per-note financial-entity sidecars; `resolve_sector_theme_symbols()`
+(`notes.py`) already resolves a member's mentioned-symbol vocabulary against
+the shared `ticker_meta` sector/theme cache for Wave A's search filters. Wave
+D's `j2_note_links` is the existing note-to-note reverse index. All three are
+FILTER DIMENSIONS Wave E must compose with, never re-implement.
+
+**3. Current filter/query architecture (the extension point).** `_notes_filter_sql()`
+is the SINGLE AND-only WHERE-clause builder both `list_notes` and `count_notes`
+build from — folder/tag/ticker/q/date_from/date_to/embed_symbol/symbol_in all
+compose onto one predicate chain today. Wave E's property-based filtering
+extends THIS function (one more optional parameter + EXISTS clause), not a
+parallel query path — directive §54's "compose with Wave A search" is
+structurally free if done this way.
+
+**4. Current column/view UI precedent.** `useJ2ColumnPrefs.js` already
+implements drag-reorder + hide/show + non-hideable-column persistence
+(localStorage-backed) for TradesTable/PositionsTable's FIXED column sets —
+the interaction pattern (not the storage layer, which must be server-side for
+Wave E's member-defined properties) is directly reusable for a Table view's
+column configuration. `ColumnsPicker.jsx` is the reusable popover.
+`CollapsibleSection.jsx` (Wave B/D precedent), `Sheet.jsx` (responsive
+modal/drawer), and `ResponsiveTable.jsx` (card-mode / frozen-column mobile
+table) are the existing primitives a Table view and its filter/saved-view UI
+should build on — no new subsystem needed for any of these.
+
+**5. Current versioned-definition precedent.** `api/services/user_definitions.py`
+(Screener's user-authored scan definitions) already establishes this
+codebase's idiom for "a member-authored definition with a durable id that
+survives edits" (append-only version log, soft-delete-as-tombstone). Property
+definitions and saved views will mirror the SHAPE (stable id, editable
+in-place) without adopting its append-only version LOG (disproportionate for
+a property definition — see point 21 on Wave C integration).
+
+**6. Data-model decision: normalized definitions + a narrow values table
+(not wide-columns, not a single JSON blob, not per-type tables).**
+`j2_note_property_defs` (id, user_id, key [immutable, server-minted,
+NEVER derived from the display name], name [user-editable display label],
+type, options_json [select/multi-select choice list, each option carrying
+its OWN stable id], is_builtin, sort_order, deleted_at) +
+`j2_note_property_values` (note_id, user_id, property_def_id, value_json,
+PRIMARY KEY(note_id, property_def_id)). Rejected alternatives: wide columns
+(schema migration per new property, unbounded column growth, terrible fit for
+per-member-defined properties); a single JSON blob on `j2_notes` (unindexable
+for filtering/sorting at any scale, no per-property typing enforcement,
+fights the existing `_notes_filter_sql` EXISTS-clause idiom). This shape
+directly mirrors `j2_note_embeds`/`j2_note_mentions`'s existing
+sidecar-table-with-stable-parent-id pattern already proven at scale in this
+codebase.
+
+**7. Property/option identity — the load-bearing rename-safety contract,
+explicitly mirroring the Wave D note-link lesson.** A property's `key` and
+every select/multi-select option's own id are minted ONCE and never regenerated.
+`value_json` for select/multi-select stores OPTION IDS, never option label
+strings. Renaming a property's `name` or an option's label is a pure metadata
+UPDATE on `j2_note_property_defs` — it touches zero rows in
+`j2_note_property_values` and zero rows in `j2_note_saved_views`. This is the
+SAME structural guarantee Wave D's `noteLink.attrs.noteId` gives note links,
+applied to properties/options.
+
+**8. Saved-view identity — same contract, one level up.**
+`j2_note_saved_views` (id, user_id, name, filter_json [conditions keyed by
+`property_def_id` or a fixed built-in-field token, e.g. `"__ticker__"` —
+NEVER a property's current display name or a raw SQL string], sort_json,
+view_type, sort_order, created_at, updated_at). A saved view survives both a
+property rename AND a select-option rename by construction, because its
+`filter_json` never names either — it names ids. Directive §42-44/§66-68
+satisfied structurally, not by a runtime patch-up step.
+
+**9. Filter composition: AND-only, V1.** No OR, no nested groups — every
+condition composes onto the existing single WHERE chain exactly like
+folder/tag/ticker do today. Deferred, not rejected: OR/grouping is real
+Notion-parity work but directive §39-41 explicitly permits deferring it
+until AND-only is proven insufficient by real usage.
+
+**10. Sort: single-key, V1.** One property or built-in field, asc/desc —
+mirrors TradesTable/PositionsTable's existing click-to-sort header contract
+exactly (first click = sensible default direction per type, second click
+toggles, blanks sink last).
+
+**11. Built-in vs. user-defined property distinction.** A `j2_note_property_defs`
+row with `is_builtin=1` is SEEDED PER-USER (not global) at first use of that
+type, no different in the values table from a user-defined one — so the
+rename-safety/filter/sort/export code paths have exactly ONE property
+mechanism, not two. "Built-in" only changes: (a) whether the property-add UI
+surfaces it under a labeled quick-add list, and (b) whether its value is
+user-editable (see point 13) or read-only/derived.
+
+**12. Ticker property is a VIEW, not a new field (directive §33 resolved).**
+The "Ticker/Security" built-in property reads and writes the EXISTING
+`j2_notes.ticker` column through the new properties UI/filter/sort surface —
+it is not a second, duplicate ticker mechanism. `j2_note_property_values` never
+stores a shadow copy of `ticker`; the query layer treats `__ticker__` as a
+built-in filter/sort token resolving straight to the existing column, exactly
+like `folder_id`/`tag` already do in `_notes_filter_sql`.
+
+**13. Built-in financial property classification (directive §24), PRE-BETA:**
+- **CORE (ship in this slice):** Ticker/Security (view over `ticker`, point 12);
+  Research Type (user-set SELECT, UCT-seeded default options: Thesis / Trade
+  Idea / Earnings Prep / Post-Mortem / Watch); Thesis Status (user-set SELECT:
+  Researching / Active / Closed / Invalidated); Confidence (user-set SELECT:
+  Low / Medium / High); Catalyst Date (user-set DATE); Review Date (user-set
+  DATE); Sector (DERIVED, read-only, resolved from the note's ticker/mentions
+  via the EXISTING `resolve_sector_theme_symbols`-adjacent lookup — never
+  user-editable, never separately stored); Theme (DERIVED, read-only, same
+  mechanism).
+- **OPTIONAL (ship as ordinary user-defined properties, no special built-in
+  UI):** Catalyst (TEXT), Source Type (SELECT), Industry (DERIVED alongside
+  Sector if the underlying `ticker_meta` lookup already carries it cheaply).
+- **DERIVED, not a stored property at all — a FILTER DIMENSION over existing
+  data (directive §56-57):** Position Relationship / Trade Relationship. These
+  already exist as Wave 3's `widgetEmbed.tradeRef`/`tradeRefType` mechanism;
+  Wave E adds "has a linked trade" / "linked trade symbol" as filterable
+  dimensions in the SAME query layer, storing nothing new.
+- **FUTURE, explicitly out of scope:** Earnings Date as a live per-note
+  property (belongs with Wave F's Fact/Snapshot Ledger rights-aware
+  persistence, not invented ad hoc here — directive §94-95); deeper
+  Thesis-state semantics (Wave G).
+
+**14. User-defined property types (directive §25).** TEXT, NUMBER, SELECT,
+MULTI_SELECT, DATE, CHECKBOX, URL. Explicitly deferred: FORMULA, ROLLUP,
+RELATION (multi-note relation chains beyond Wave D's own link), PEOPLE,
+FILES-as-property.
+
+**15. Progressive disclosure (directive §30-32) — no new permanent header
+button.** Properties live in a new, collapsed-by-default "Properties" block
+inside the note's EXISTING metadata zone (the same header area already
+holding Ticker/Tags), directly below those fields — not a new toolbar icon.
+Mirrors Wave D's Backlinks-section convention: renders nothing extra when the
+note has zero non-derived properties set, so an untouched note looks
+byte-identical to today. Adding the FIRST property is a single "+ Add
+property" affordance that opens inline, not a modal wizard.
+
+**16. Filter/sort UX separation (directive §80).** "Using a view" (picking a
+saved view from the sidebar, seeing its live-filtered/sorted result) is a
+one-click action with no configuration surface visible. "Configuring a view"
+(building/editing its filter+sort) is a deliberate, secondary action (an
+"Edit view" affordance), never the default state a member lands in.
+
+**17. View types + sequencing (directive §47-53).** LIST (default — the
+existing `NoteCard` grid, unchanged rendering, just fed a saved view's
+filtered/sorted note set) ships alongside SAVED VIEWS in this slice. TABLE
+(dynamic columns = the view's chosen properties, `ResponsiveTable.jsx`
+card-mode on phone) ships in this slice too — real, not deferred, since a
+member picking a Table view is the single clearest "I want database-like
+UCT" signal this wave targets. BOARD and CALENDAR are explicitly DEFERRED
+(recorded here, not silently dropped): no demonstrated status-grouping
+workflow demand yet for Board, and a notes-calendar view risks duplicating
+the existing Journal Calendar tab's concept (directive §52's own warning) —
+both are roadmap items, not this slice's scope.
+
+**18. Sidebar IA discipline (directive §71-73).** "Saved Views" is a new,
+populated-conditional sidebar section (hidden entirely at zero saved views —
+same convention as Favorites/Recents/Backlinks), placed directly below
+Favorites/Recents and above Folders, tested at 0/1/10/30+ saved views for
+scroll/scan behavior — no accordion-of-accordions, no second "more" affordance
+introduced only for this section.
+
+**19. Reuse, not duplication, of Wave A's sector/theme + Wave D's link-count
++ Wave 3's trade-relationship logic (directive §55-57).** All three become
+filter DIMENSIONS composed into `_notes_filter_sql`'s single predicate chain
+via the SAME EXISTS-clause idiom already used for `embed_symbol`/`symbol_in`
+— zero new storage, zero new resolution logic duplicated.
+
+**20. The "financial structural advantage" framing (directive §58).** Sector
+and Theme are the concrete V1 proof point: a Notion user maintains those as
+manual select properties; UCT derives them from the ticker the member already
+typed, with zero extra member action and (by construction, point 7) never
+goes stale relative to the live UCT taxonomy the way a manually-typed value
+could.
+
+**21. Wave C version-history integration decision (directive §59-60, made
+explicitly, not by omission).** Property VALUES are **NOT** captured by Wave
+C's per-save version snapshot in this slice. Reasoning: Wave C's coalesced
+snapshot exists to protect narrative BODY content a member might want to
+recover after an editing mistake; property values are structured,
+low-narrative-risk state (a wrong Thesis Status is a one-click re-pick, not
+lost prose), and coupling them into `j2_note_versions`' body/title/subtitle
+snapshot shape would require extending that table's contract mid-flight for
+a benefit no one has asked for yet. System-DERIVED properties (Sector/Theme)
+are never stored, so they cannot be versioned by definition. This is recorded
+as a deliberate, revisitable V1 boundary, not a silent gap — a future wave
+adding a lightweight property-change audit log remains open if members ask.
+
+**22. Export/portability (directive §61-63).** Single-note and full-library
+export gain a `properties:` front-matter block (human-readable
+`name: value` pairs, option values rendered as their CURRENT label text —
+mirroring the existing `related_tickers`/`linked_trades` front-matter fields'
+"resolve to a readable string at export time, never store an opaque id in the
+file" convention). Saved views export as a small manifest entry (name +
+human-readable filter/sort description) in the full-library export, never as
+opaque `filter_json`.
+
+**23. Trash / property-deletion / rename semantics (directive §64-70).**
+Deleting a property definition is a SOFT delete (`deleted_at`, mirroring
+`j2_notes` itself) — existing values are hidden from the UI immediately but
+retained for a restore window (reuses the same 30-day purge sweep pattern as
+note trash, extended to cover this new table, directive §90). Deleting a
+select option removes it from FUTURE selection but does not silently rewrite
+notes that already hold it — a value referencing a deleted option renders
+with a "removed option" affordance rather than vanishing data. Renaming a
+saved view or deleting one never touches notes or property defs (a saved
+view is pure query configuration, never data).
+
+**24. Property/value autocomplete reuse (directive §74-75).** Ticker-typed
+property values (if a user-defined property is typed as TEXT but a member
+free-types a symbol) get NO special ticker-autocomplete in V1 — the only
+BUILT-IN property with ticker semantics is the existing Ticker field itself
+(point 12), which already has whatever autocomplete it has today. Sector/Theme
+are derived, not typed, so they need no autocomplete at all. This keeps V1
+from inventing a second free-text-vs-entity resolution system.
+
+**25. Date-UX semantic-label discipline (directive §76).** Every date
+property is labeled by what it MEANS (Catalyst Date, Review Date), never a
+bare "Date" — carried forward from Wave A's own calendar-copy rule.
+
+**26. Command palette / shortcuts (directive §81-82) — restrained.** "New
+saved view" and jumping to an existing saved view register in the existing
+app-wide palette (Wave B's precedent) if and only if it is a cheap, direct
+reuse of that registration mechanism; no new keyboard-shortcut chords are
+introduced for property editing in this slice.
+
+**27. Mobile/responsive plan (directive §47-49, §83).** List view: unchanged
+(already responsive). Table view: `ResponsiveTable.jsx`'s existing card-mode
+on phone — never a forced desktop data-grid squeezed into 390px. Property
+editing: the collapsed "Properties" block stacks naturally in the note's
+existing responsive column layout; no new phone-specific component needed
+beyond what `ResponsiveTable`/`Sheet` already provide for the saved-view
+editor (which opens as a `Sheet` bottom-sheet on touch, per the existing
+convention).
+
+**28. Accessibility plan (directive §84) — no full WCAG claim.** Property
+selects/multi-selects reuse native `<select>`/checkbox-group semantics
+where possible (cheaper and more robust than a custom listbox for V1); the
+Table view's sortable headers mirror TradesTable's existing
+`aria-sort`-carrying pattern exactly, not a new one.
+
+**29. Performance plan (directive §85-86).** `j2_note_property_values`
+indexed on `(user_id, property_def_id, note_id)` for the EXISTS-clause filter
+path and `(user_id, note_id)` for "load all of this note's properties."
+Benchmarked at 100/1,000/10,000/50,000 notes with 0/3/8 properties set per
+note before certification — no index/architecture change committed to until
+that measurement exists (query-plan-driven per directive §86, not assumed).
+
+**30. Security (directive §87-88).** Saved-view `filter_json` is a
+CLIENT-SUPPLIED structure but is NEVER interpreted as raw SQL or executed
+as-is — the backend re-validates every condition against the requesting
+user's OWN live property defs (rejecting/ignoring a condition naming another
+tenant's property_def_id or a nonexistent one) before building the SQL
+predicate, exactly mirroring how `folder_id`/`tag` filters already trust
+only validated, tenant-scoped values today. Every new table is `user_id`-
+scoped and joined accordingly; no query spans tenants.
+
+**31. Input validation (directive §89).** Each property type has a server-side
+validator (SELECT/MULTI_SELECT values must reference ids present in that
+property's current `options_json`; NUMBER must parse; DATE must be
+ISO-YYYY-MM-DD; URL must pass the same allowed-scheme check already used
+elsewhere in this codebase for user-supplied URLs) — a rejected value 400s
+the save rather than silently storing malformed data.
+
+**32. Purge coverage + migration (directive §90-92).** `j2_note_property_defs`,
+`j2_note_property_values`, and `j2_note_saved_views` are added to
+`account_purge.py`'s `_DIRECT_USER_TABLES` in the SAME commit that creates
+them — Wave D's own account_purge addition is the direct precedent for not
+letting this slip. Schema additions are pure `CREATE TABLE IF NOT EXISTS` +
+one new index set — no `ALTER` to `j2_notes` is needed (point 12), so no
+existing note gains a fabricated property value on migration; every note
+starts with zero rows in the values table, exactly as if the property system
+had always existed and simply never been used yet.
+
+**33. Notion-import property mapping — a narrow, bounded investigation only
+(directive §93), not a reopening of the import project.** If a durably-stored,
+already-imported Notion property blob exists on some notes from the prior
+import work, a FUTURE pass could offer to map it onto the new property system;
+this slice does not attempt that mapping — recorded as a deferred, scoped
+follow-up, not silently forgotten.
+
+**34. Vertical-slice plan for this pass (directive §119's suggested 8-slice
+decomposition, adapted).** This closure targets four of the eight suggested
+slices as one coherent, shippable V1, with the remaining four EXPLICITLY
+deferred and recorded (not attempted partially): **shipped this pass** —
+(1) Property Schema/Definitions/Values, (2) Property Editing UX
+(progressive-disclosure block), (3) Filter/Sort Query Layer (AND-only,
+extending `_notes_filter_sql`), (4) Saved Views + sidebar navigation +
+List/Table dynamic views. **Deferred, recorded in the roadmap, not this
+pass:** Financial-derived-property/trade-entity DEEP integration beyond the
+filter-dimension reuse in point 19 (e.g., an auto-populated "linked trades"
+property column); Board/Calendar views (point 17); a fresh Notion-import
+property-mapping pass (point 33); OR/grouped filters (point 9). This mirrors
+directive §53's explicit permission to sequence view types and other scope,
+provided the deferred work is recorded — done here.
+
+**No material contradiction found requiring a decision — proceeding
+autonomously into implementation.**
 
 ---
 
