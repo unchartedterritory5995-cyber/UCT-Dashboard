@@ -4325,7 +4325,8 @@ def cream_image(target_date: str = Query(default=None),
         dt = today
     png = render_watchlist_card(data["bull"], data["bear"], dt, mobile=mobile,
                                 title="Top Flow", section="FLOW",
-                                net=data.get("net"), show_dte=True)
+                                net=data.get("net"), show_dte=True,
+                                sec_labels=("Bulls", "Bears"))
     return Response(content=png, media_type="image/png")
 
 

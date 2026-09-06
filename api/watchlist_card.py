@@ -131,7 +131,7 @@ _D_W, _D_ROWH, _D_TOP, _D_SECH = 1150, 40, 112, 40
 _D_COLS = [("TICKER", 36, "l"), ("EXP", 350, "l"), ("STRIKE", 500, "r"),
            ("C/P", 512, "l"), ("PREMIUM", 645, "r"), ("VOL", 830, "r"),
            ("OI", 920, "r"), ("V/OI", 1000, "r"), ("GRADE", 1068, "l")]
-_D_NET_H = 44   # extra header height when a net-flow bar is shown
+_D_NET_H = 58   # extra header height when a net-flow bar is shown
 
 
 def _draw_net_bar(d, txt, tw, s, net, top, f_lbl):
@@ -141,20 +141,22 @@ def _draw_net_bar(d, txt, tw, s, net, top, f_lbl):
     bear = float((net or {}).get("bear") or 0)
     tot = (bull + bear) or 1.0
     x0, x1 = 36, _D_W - 36
-    ly, by, bh = top - 56, top - 42, 9              # label row, bar row, bar height
+    bh = 20                                         # bar thickness
+    by = top - 36 - bh                              # bar sits 6px above the headers
+    ly = by - 18                                    # labels above the bar
     txt(x0, ly, f"▲ {_fmt_prem(bull)} Bull", f_lbl, _BULL)
     net_d = bull - bear
     ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))}"
     txt((x0 + x1) / 2 - tw(ctext, f_lbl) / 2, ly, ctext, f_lbl, _GOLD)
     txt(x1, ly, f"{_fmt_prem(bear)} Bear ▼", f_lbl, _BEAR, "r")
     bx = x0 + int((x1 - x0) * (bull / tot))
-    d.rounded_rectangle([s(x0), s(by), s(max(bx - 1, x0)), s(by + bh)], radius=s(2), fill=_BULL)
-    d.rounded_rectangle([s(min(bx + 1, x1)), s(by), s(x1), s(by + bh)], radius=s(2), fill=_BEAR)
+    d.rounded_rectangle([s(x0), s(by), s(max(bx - 1, x0)), s(by + bh)], radius=s(4), fill=_BULL)
+    d.rounded_rectangle([s(min(bx + 1, x1)), s(by), s(x1), s(by + bh)], radius=s(4), fill=_BEAR)
 
 
 def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
                     title="Watchlist", section="WATCHLIST",
-                    net=None, show_dte=False) -> bytes:
+                    net=None, show_dte=False, sec_labels=None) -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
@@ -167,7 +169,8 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
     # show_dte (into the roomy TICKER→EXP gap) rather than cascading STRIKE/C-P/
     # PREMIUM right. The Watchlist card (never shows DTE) keeps EXP at its x.
     exp_x = 250 if show_dte else 350
-    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
+    _bl, _br = sec_labels or (f"BULL {section}", f"BEAR {section}")
+    sections = [(_bl, bull, _BULL), (_br, bear, _BEAR)]
     body_h = sum(_D_SECH + max(1, len(rows)) * _D_ROWH for _, rows, _ in sections)
     H = top + body_h + 54
     img = Image.new("RGB", (s(_D_W), s(H)), _BG)
@@ -238,14 +241,16 @@ _M_W, _M_ROWH, _M_TOP, _M_SECH, _M_L, _M_R = 560, 34, 90, 30, 20, 540
 
 
 def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
-                   title="Watchlist", section="WATCHLIST", show_dte=False) -> bytes:
+                   title="Watchlist", section="WATCHLIST", show_dte=False,
+                   sec_labels=None) -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
     def s(v):
         return int(v * _SS)
 
-    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
+    _bl, _br = sec_labels or (f"BULL {section}", f"BEAR {section}")
+    sections = [(_bl, bull, _BULL), (_br, bear, _BEAR)]
     body_h = sum(_M_SECH + max(1, len(rows)) * _M_ROWH for _, rows, _ in sections)
     H = _M_TOP + body_h + 44
     img = Image.new("RGB", (s(_M_W), s(H)), _BG)
@@ -309,7 +314,8 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
 # ── public entry ────────────────────────────────────────────────────────────
 def render_watchlist_card(bull, bear, date_text, mobile: bool = False,
                           title: str = "Watchlist", section: str = "WATCHLIST",
-                          net: dict = None, show_dte: bool = False) -> bytes:
+                          net: dict = None, show_dte: bool = False,
+                          sec_labels: tuple = None) -> bytes:
     """Render one PNG (Bull section + Bear section). mobile=True → narrow one-line
     layout; else the wide desktop table. Rows sorted by premium descending. `title`
     fills the header ("· <title>") and `section` the row-group labels ("BULL <section>");
@@ -319,6 +325,6 @@ def render_watchlist_card(bull, bear, date_text, mobile: bool = False,
     bull, bear = _by_premium(bull), _by_premium(bear)
     if mobile:
         return _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
-                              title, section, show_dte)
+                              title, section, show_dte, sec_labels)
     return _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
-                           title, section, net, show_dte)
+                           title, section, net, show_dte, sec_labels)
