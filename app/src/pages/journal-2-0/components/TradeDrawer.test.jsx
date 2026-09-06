@@ -36,9 +36,12 @@ const TRADE = {
   entryPrice: 50, exitPrice: 56, entryDate: '2026-05-01', exitDate: '2026-05-04',
   shares: 100, setup: 'VCP', pnlDollar: 600, pnlDollarNet: 588, pnlPercent: 0.12,
   rMultiple: 2,
-  // Backend-computed (trade_ref_for_row) — the id:/ext: scheme is a backend-
-  // owned identity, never recomputed client-side from the raw row id.
-  tradeRef: 'id:strat_7',
+  // Wave 3 regression rail: `tradeRef` here is the SEPARATE stable broker/
+  // annotation-reference (trade_refs.py, id:/ext: prefixed) — deliberately
+  // NOT what Notebook capture should send. If a future edit "simplifies"
+  // CaptureMenu's prop back to `trade.tradeRef`, this value's mismatch with
+  // the bare `id` below is what makes the capture assertion fail.
+  tradeRef: 'id:some-stable-reference',
 }
 
 beforeEach(() => {
@@ -64,7 +67,26 @@ describe('TradeDrawer — Save to Notebook (Wave 1, P1-1: tradeRef)', () => {
     expect(capture.from).toBeLessThan(Date.parse('2026-05-01') / 1000)
     expect(capture.to).toBeGreaterThan(Date.parse('2026-05-04') / 1000)
     expect(opts.target).toBe('inbox')
-    expect(opts.tradeRef).toBe('id:strat_7')
+    // Wave 3 (Thesis-Trade Link) regression rail: Notebook capture must send
+    // the AUTHORITATIVE DB ROW ID + explicit type -- never the SEPARATE
+    // stable broker/annotation-reference (TRADE.tradeRef, deliberately a
+    // different-looking value above). A future "simplification" back to
+    // `trade.tradeRef` fails this assertion.
+    expect(opts.tradeRef).toBe('strat_7')
+    expect(opts.tradeRefType).toBe('equity_trade')
+  })
+
+  it('tags an OPTION STRATEGY capture with tradeRefType "option_strategy", never the stable reference', async () => {
+    const STRATEGY = { ...TRADE, id: 'strat_9', isOption: true, tradeRef: 'id:some-other-stable-reference' }
+    render(<TradeDrawer trade={STRATEGY} accountId="a1" onClose={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /save to notebook/i }))
+    fireEvent.click(await screen.findByText('Notebook inbox'))
+
+    await waitFor(() => expect(sendCaptureMock).toHaveBeenCalledTimes(1))
+    const [, , opts] = sendCaptureMock.mock.calls[0]
+    expect(opts.tradeRef).toBe('strat_9')
+    expect(opts.tradeRefType).toBe('option_strategy')
   })
 
   it('renders nothing when no trade is selected', () => {

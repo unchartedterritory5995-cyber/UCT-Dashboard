@@ -92,9 +92,12 @@ const T1 = {
   pnlDollar: 600, pnlDollarNet: 588, pnlPercent: 0.12, holdDays: 3,
   result: 'Win', setup: 'VCP', entryDate: '2026-05-01', exitDate: '2026-05-04',
   notes: '', source: null, mistakeTags: [], emotionTags: [],
-  // Backend-computed (trade_ref_for_row, via _row_to_trade) — the id:/ext:
-  // scheme is a backend-owned identity, never recomputed client-side.
-  tradeRef: 'id:t1',
+  // Wave 3 regression rail: `tradeRef` here is the SEPARATE stable broker/
+  // annotation-reference (trade_refs.py, id:/ext: prefixed) — deliberately
+  // NOT what Notebook capture should send. If a future edit "simplifies"
+  // CaptureMenu's prop back to `trade.tradeRef`, this value's mismatch with
+  // the bare `id` below is what makes the capture assertion fail.
+  tradeRef: 'id:some-stable-reference',
 }
 
 const swrData = {
@@ -259,7 +262,13 @@ describe('TradeDetailPage — Save to Notebook (Wave 1, P1-1: tradeRef)', () => 
     expect(capture.from).toBeLessThan(Date.parse('2026-05-01') / 1000)
     expect(capture.to).toBeGreaterThan(Date.parse('2026-05-04') / 1000)
     expect(opts.target).toBe('inbox')
-    expect(opts.tradeRef).toBe('id:t1')
+    // Wave 3 (Thesis-Trade Link) regression rail: Notebook capture must send
+    // the AUTHORITATIVE DB ROW ID + explicit type -- never the SEPARATE
+    // stable broker/annotation-reference (T1.tradeRef, deliberately a
+    // different-looking value above). A future "simplification" back to
+    // `trade.tradeRef` fails this assertion.
+    expect(opts.tradeRef).toBe('t1')
+    expect(opts.tradeRefType).toBe('equity_trade')
   })
 })
 
