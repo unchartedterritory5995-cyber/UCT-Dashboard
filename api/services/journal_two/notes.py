@@ -20,6 +20,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services import buzz_extract
+from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
 MAX_TITLE_CHARS = 300
 MAX_SUBTITLE_CHARS = 500
@@ -168,11 +169,21 @@ def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
             if isinstance(widget_id, str) and widget_id:
                 sym = params.get("symbol")
                 tf = params.get("tf")
+                trade_ref = attrs.get("tradeRef") or None
+                trade_ref_type = attrs.get("tradeRefType") or None
+                # Degrade, never 500 the note write (same philosophy as the
+                # rest of this function): an unrecognized tradeRefType is
+                # dropped to NULL (the embed still saves, just as an
+                # untyped/legacy-shaped reference) rather than blocking the
+                # save. Note save is authoritative; this projection sync is not.
+                if trade_ref_type is not None and not is_valid_trade_ref_type(trade_ref_type):
+                    trade_ref_type = None
                 rows.append({
                     "widget_id": widget_id,
                     "symbol": sym.upper() if isinstance(sym, str) and sym else None,
                     "timeframe": str(tf) if tf is not None else None,
-                    "trade_ref": attrs.get("tradeRef") or None,
+                    "trade_ref": trade_ref,
+                    "trade_ref_type": trade_ref_type if trade_ref else None,
                     "mode": attrs.get("mode") or None,
                     "captured_at": attrs.get("capturedAt") or None,
                 })
@@ -195,10 +206,10 @@ def _sync_note_embeds(
     if rows:
         conn.executemany(
             "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
-            " symbol, timeframe, trade_ref, mode, captured_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " symbol, timeframe, trade_ref, trade_ref_type, mode, captured_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
             [(note_id, user_id, i, r["widget_id"], r["symbol"], r["timeframe"],
-              r["trade_ref"], r["mode"], r["captured_at"])
+              r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
              for i, r in enumerate(rows)])
 
 
@@ -1008,6 +1019,36 @@ def notes_for_folders(
             conn.close()
 
 
+def get_notes_linked_to_trade(
+    user_id: str, trade_ref: str, trade_ref_type: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Wave 3 (Thesis-Trade Link): notes whose embed(s) reference this exact
+    (trade_ref, trade_ref_type) — the reverse direction of
+    `note_trade_ref_resolve_endpoint`. See `note_trade_links.notes_linked_to_trade`
+    for why this is always typed (never a bare trade_ref lookup) and how a
+    legacy/untyped row is included only when it uniquely resolves."""
+    from api.services.journal_two import note_trade_links
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        note_ids = note_trade_links.notes_linked_to_trade(
+            conn, user_id, trade_ref, trade_ref_type)
+        if not note_ids:
+            return []
+        placeholders = ",".join("?" * len(note_ids))
+        rows = conn.execute(
+            f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes"
+            f" WHERE user_id = ? AND deleted_at IS NULL AND id IN ({placeholders})"
+            " ORDER BY updated_at DESC",
+            (user_id, *note_ids),
+        ).fetchall()
+        return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 def get_symbol_backlinks(
     user_id: str,
     symbol: str,
@@ -1416,6 +1457,7 @@ def list_captures(user_id: str, conn: sqlite3.Connection | None = None) -> list[
             "createdAt": r["created_at"],
             "caption": r["caption"] if "caption" in r.keys() else None,
             "tradeRef": r["trade_ref"] if "trade_ref" in r.keys() else None,
+            "tradeRefType": r["trade_ref_type"] if "trade_ref_type" in r.keys() else None,
         } for r in rows]
     finally:
         if owned:
@@ -1445,6 +1487,13 @@ def create_capture(
              + len(str(payload.get("searchText") or "").encode("utf-8")))
     if _size > 256 * 1024:
         raise NoteValidationError("capture too large (>256KB)")
+    trade_ref = payload.get("tradeRef") or None
+    trade_ref_type = payload.get("tradeRefType") or None
+    # Same degrade-not-fail philosophy as _extract_embeds: a capture must
+    # never be blocked by an unrecognized tradeRefType — it's dropped to
+    # NULL (untyped) rather than rejecting the whole capture.
+    if trade_ref_type is not None and not is_valid_trade_ref_type(trade_ref_type):
+        trade_ref_type = None
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -1453,13 +1502,14 @@ def create_capture(
         conn.execute(
             "INSERT INTO j2_capture_inbox (id, user_id, widget_id, params_json,"
             " search_text, fallback_url, annotations_json, captured_at, created_at,"
-            " caption, trade_ref)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " caption, trade_ref, trade_ref_type)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (cid, user_id, payload["widgetId"], json.dumps(params or {}),
              payload.get("searchText") or None, payload.get("fallbackUrl") or None,
              json.dumps(annotations) if annotations else None,
              payload.get("capturedAt") or now, now,
-             payload.get("caption") or None, payload.get("tradeRef") or None),
+             payload.get("caption") or None, trade_ref,
+             trade_ref_type if trade_ref else None),
         )
         # Keep only the newest _CAPTURE_INBOX_CAP rows — anything older is
         # unreachable through the tray anyway (see the cap's comment above).

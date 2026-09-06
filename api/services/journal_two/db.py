@@ -649,21 +649,27 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
 -- for derived auto-tags. The doc's attrs stay the single authority; these rows
 -- are a rebuildable projection of them (never edited directly).
 CREATE TABLE IF NOT EXISTS j2_note_embeds (
-    note_id     TEXT NOT NULL,
-    user_id     TEXT NOT NULL,
-    position    INTEGER NOT NULL,          -- document order of the embed
-    widget_id   TEXT NOT NULL,
-    symbol      TEXT,
-    timeframe   TEXT,
-    trade_ref   TEXT,
-    mode        TEXT,                      -- 'snapshot' | 'live'
-    captured_at TEXT,
+    note_id        TEXT NOT NULL,
+    user_id        TEXT NOT NULL,
+    position       INTEGER NOT NULL,          -- document order of the embed
+    widget_id      TEXT NOT NULL,
+    symbol         TEXT,
+    timeframe      TEXT,
+    trade_ref      TEXT,
+    trade_ref_type TEXT,                      -- 'equity_trade' | 'option_strategy' | NULL (legacy/untyped, Wave 1 rows predate this column)
+    mode           TEXT,                      -- 'snapshot' | 'live'
+    captured_at    TEXT,
     PRIMARY KEY (note_id, position)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_sym
     ON j2_note_embeds(user_id, symbol);
 CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_widget
     ON j2_note_embeds(user_id, widget_id);
+-- Wave 3's idx_j2_note_embeds_user_traderef (user_id, trade_ref, trade_ref_type)
+-- is created further down, alongside the ALTER that adds trade_ref_type to
+-- this table on an existing (pre-Wave-3) production DB -- it cannot be created
+-- here, since CREATE TABLE IF NOT EXISTS above no-ops on an already-existing
+-- table and the column wouldn't exist yet on this path.
 
 -- ── Notebook prose-mention sidecar (P0-3, Wave 1 Slice 2) ───────────────────
 -- One row per (note, symbol) CASHTAG mention in a note's plain-text body —
@@ -1311,6 +1317,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         "ALTER TABLE j2_note_sync_log ADD COLUMN source_deleted INTEGER",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
+        # Wave 3 (Thesis-Trade Link): j2_trades.id and j2_option_strategies.id
+        # are independent uuid4 namespaces, so a bare trade_ref cannot safely
+        # identify its target table alone. Existing Wave-1 rows predate this
+        # column and stay NULL (legacy/untyped) -- see note_trade_links.py's
+        # resolver for how those are handled (never guessed).
+        "ALTER TABLE j2_note_embeds ADD COLUMN trade_ref_type TEXT",
+        "ALTER TABLE j2_capture_inbox ADD COLUMN trade_ref_type TEXT",
     ):
         try:
             conn.execute(stmt)
@@ -1331,6 +1344,20 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.commit()
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v3] index creation aborted: {e}")
+
+    # Wave 3 (Thesis-Trade Link): index on j2_note_embeds' new trade_ref_type
+    # column, created here (AFTER the ALTER above that adds it) so it never
+    # runs before the column exists on a pre-Wave-3 production DB. The
+    # reverse lookup (a trade/strategy's linked notes) is ALWAYS
+    # user_id + trade_ref + trade_ref_type together -- see note_trade_links.py.
+    try:
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_traderef "
+            "ON j2_note_embeds(user_id, trade_ref, trade_ref_type)"
+        )
+        conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration] trade_ref_type index creation aborted: {e}")
 
 
 def _data_dir() -> Path:

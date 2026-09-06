@@ -40,6 +40,7 @@ from api.services.journal_two import (
     community as community_service,
     csv_import as csv_import_service,
     discipline as discipline_service,
+    note_trade_links,
     nudges as nudges_service,
     options as options_service,
     playbook_stats as playbook_stats_service,
@@ -1531,6 +1532,26 @@ def notes_by_folders_endpoint(
     return {"byFolder": notes_service.notes_for_folders(user["id"], folder_ids, limit_per_folder=limit)}
 
 
+@router.get("/notes/by-trade-ref")
+def notes_by_trade_ref_endpoint(
+    tradeRef: str,
+    tradeRefType: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 3 (Thesis-Trade Link): "notes linked to THIS trade/strategy" —
+    the reverse of `note_trade_ref_resolve_endpoint`. `tradeRefType` is
+    mandatory (per note_trade_links.py: a bare tradeRef is not globally
+    unique across j2_trades/j2_option_strategies, so the caller — already
+    viewing one specific trade or strategy — always knows which).
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks`/`/notes/tags`/`/notes/folder-counts`/`/notes/by-folders`
+    immediately above."""
+    if not note_trade_links.is_valid_trade_ref_type(tradeRefType):
+        raise HTTPException(status_code=422, detail="invalid tradeRefType")
+    return {"notes": notes_service.get_notes_linked_to_trade(user["id"], tradeRef, tradeRefType)}
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
@@ -1545,6 +1566,40 @@ def append_note_embed_endpoint(
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
     return {"note": note}
+
+
+@router.get("/notes/{note_id}/trade-ref/resolve")
+def note_trade_ref_resolve_endpoint(
+    note_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 3 (Thesis-Trade Link): resolve every trade/strategy this note's
+    embeds reference, so the frontend knows exactly where "linked trade"
+    should navigate (or that a legacy reference is ambiguous/unresolved —
+    never guessed). `get_note`'s ownership check IS the tenant gate here;
+    `resolve_trade_ref` independently re-checks ownership again per link
+    (the reference itself is never treated as authorization)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    conn = notes_service.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT trade_ref, trade_ref_type FROM j2_note_embeds"
+            " WHERE note_id = ? AND trade_ref IS NOT NULL",
+            (note_id,),
+        ).fetchall()
+        links = [
+            {
+                "tradeRef": r["trade_ref"],
+                "tradeRefType": r["trade_ref_type"],
+                "resolution": note_trade_links.resolve_trade_ref(
+                    conn, user["id"], r["trade_ref"], r["trade_ref_type"]),
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()
+    return {"links": links}
 
 
 @router.post("/notes/attachments/gc")
