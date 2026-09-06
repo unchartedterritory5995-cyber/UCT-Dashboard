@@ -257,6 +257,55 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
     return resolve
 
 
+_NOTE_LINK_MARKER = "internal-note-link://"
+
+
+def _make_note_link_aware_resolver(
+    user_id: str, conn: sqlite3.Connection, base_resolver, note_paths: dict[str, str] | None = None,
+):
+    """Wraps `base_resolver` (an attachment resolver) so the SAME resolver
+    parameter `_block`'s `noteLink` case calls also answers
+    `internal-note-link://<id>` markers -- see that case's own comment for
+    why this rides the existing single-resolver plumbing instead of a
+    second parameter threaded through 13 call sites.
+
+    `note_paths`, when given, maps note id -> the RELATIVE .md path that
+    note was (or will be) written to IN THIS SAME EXPORT (directive §57:
+    full export resolves a link to another bundled note as a real relative
+    path). Without it (the single-note-export case, directive §56), a
+    resolved target renders as an honest, clearly-internal reference URL
+    that does NOT pretend the target file is present in this archive.
+
+    Returns `(title, href) | None` for a note-link marker; delegates
+    everything else to `base_resolver` unchanged."""
+    note_paths = note_paths or {}
+
+    def resolve(url: str | None):
+        if not url or not url.startswith(_NOTE_LINK_MARKER):
+            return base_resolver(url) if base_resolver else None
+        note_id = url[len(_NOTE_LINK_MARKER):]
+        if not note_id:
+            return None
+        row = conn.execute(
+            "SELECT title, deleted_at FROM j2_notes WHERE id = ? AND user_id = ?",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None  # foreign tenant or genuinely nonexistent -- identical, never distinguished
+        title = row["title"] or "Untitled"
+        if note_id in note_paths:
+            # note_paths stores the BARE path (no extension) -- matching
+            # what _compute_note_export_paths hands the main loop, which
+            # appends ".md" itself right before zf.writestr(). The actual
+            # file inside the archive is `f"{path}.md"`; the link must match.
+            return title, f"{note_paths[note_id]}.md"
+        # Not bundled in this export -- an honest, clearly-internal
+        # reference, never a fabricated local file path.
+        return title, f"uct-note:///notebook?note={note_id}"
+
+    return resolve
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     for mark in node.get("marks") or []:
@@ -392,6 +441,24 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # `or` chain here would swallow a real 0-second timestamp as if it
         # were absent, per fix round 1 finding 3).
         return f"[{_fmt_time(attrs.get('seconds'))}]"
+    if ntype == "noteLink":
+        # Wave D. Reuses the SAME `resolver` parameter every other reference
+        # type here already threads through -- rather than adding a second
+        # resolver parameter to every _block/_inline call site (13 of them),
+        # the note's target id rides through as a distinguishable marker
+        # scheme (`internal-note-link://<id>`) that the CALLER's combined
+        # resolver (see `_note_link_aware_resolver` below) recognizes and
+        # answers from note-lookup state, falling through to the real
+        # attachment resolver for every ordinary URL. `resolver` returning
+        # None here means "target not resolvable" (foreign/nonexistent/no
+        # resolver at all) -- rendered as plain, honest text, never a
+        # dangling markdown link to nowhere.
+        note_id = attrs.get("noteId") or ""
+        resolved = resolver(f"internal-note-link://{note_id}") if resolver and note_id else None
+        if resolved is None:
+            return "*[linked note]*"
+        title, href = resolved
+        return f"[{title}]({href})"
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -704,6 +771,31 @@ _EXPORT_MANIFEST_NAME = "UCT_NOTEBOOK_EXPORT.json"
 _EXPORT_MANIFEST_VERSION = 1
 
 
+def _compute_note_export_paths(
+    rows: list[sqlite3.Row], folders: dict[str, tuple[str, str]],
+) -> dict[str, str]:
+    """Pre-pass (Wave D): the zip-relative path (no `.md` extension) every
+    note in `rows` WILL be written to, computed identically to -- and now
+    the single source of truth for -- what the main per-note loop below
+    used to compute inline. Needed as its own pass because a `noteLink`
+    resolver must know note B's final export path while still walking note
+    A's body, which can come BEFORE B in iteration order; collision
+    disambiguation (`used`) is inherently order-dependent, so this pass
+    iterates in the SAME order (`rows`' own `updated_at DESC`) the archive
+    is written in, guaranteeing byte-identical results either way."""
+    used: set[str] = set()
+    paths: dict[str, str] = {}
+    for row in rows:
+        folder = _folder_path(row["folder_id"], folders)
+        base = _safe_name(row["title"], row["id"])
+        path = f"{folder}/{base}" if folder else base
+        if f"{path}.md" in used:
+            path = f"{path}-{row['id'][:8]}"
+        used.add(f"{path}.md")
+        paths[row["id"]] = path
+    return paths
+
+
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
 ) -> None:
@@ -739,6 +831,7 @@ def _write_notes_archive(
     favorites, tickers_by_note, linked_trades_by_note = _resolve_note_related_data(
         conn, user_id, [r["id"] for r in rows],
     )
+    note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
         "product": "uct-notebook-export",
@@ -747,7 +840,6 @@ def _write_notes_archive(
         "note_count": len(rows),
     }))
 
-    used: set[str] = set()
     failures: list[tuple[str, str]] = []
     # ONE dict shared across every note: dedup (a file ten notes reference is
     # copied into the zip once), a running byte total against the shared cap,
@@ -769,9 +861,10 @@ def _write_notes_archive(
         # changes below (only the leaf filename might, on a title
         # collision), so this is stable to compute early.
         folder = _folder_path(row["folder_id"], folders)
-        resolver = _make_attachment_resolver(
+        attachment_resolver = _make_attachment_resolver(
             user_id, folder, row["id"], note_title, attach_state,
         )
+        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver, note_paths)
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception as exc:  # noqa: BLE001 -- deliberately broad.
@@ -804,12 +897,11 @@ def _write_notes_archive(
                     row["hero_image_url"],
                     (note_title, "hero image could not be bundled"),
                 )
-        base = _safe_name(row["title"], row["id"])
-        path = f"{folder}/{base}" if folder else base
-        # Two notes may share a title; the id keeps them distinct.
-        if f"{path}.md" in used:
-            path = f"{path}-{row['id'][:8]}"
-        used.add(f"{path}.md")
+        # Precomputed by _compute_note_export_paths above (title-collision
+        # disambiguation included) -- the noteLink resolver already needed
+        # every note's path before this loop started, so this loop now just
+        # looks its OWN path up rather than recomputing it a second time.
+        path = note_paths[row["id"]]
         extra = {
             "favorite": row["id"] in favorites,
             "related_tickers": [
@@ -979,7 +1071,12 @@ def build_single_note_export(
             "zf": zf, "written": set(), "failed": set(), "issues": {},
             "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
         }
-        resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
+        attachment_resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
+        # No `note_paths` here -- a single-note export never bundles its
+        # linked targets, so every noteLink resolves to the honest
+        # "not bundled" reference form (directive §56), never a fabricated
+        # local path.
+        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver)
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception:  # noqa: BLE001 -- same broad shield as the full export.

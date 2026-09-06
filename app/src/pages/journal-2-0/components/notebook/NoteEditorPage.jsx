@@ -23,6 +23,7 @@ import { sharedNoteUrl } from '../../lib/noteShareLink'
 import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
+import NoteBacklinksSection from './NoteBacklinksSection'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
 
@@ -1373,6 +1374,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         )}
 
         <EditorContent editor={editor} />
+
+        {/* Wave D: "Linked from" backlinks -- renders nothing until this
+            note has at least one real backlink (directive §70/§16). */}
+        <NoteBacklinksSection noteId={noteId} />
 
         <input
           ref={fileInputRef}

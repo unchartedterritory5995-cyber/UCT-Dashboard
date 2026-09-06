@@ -1026,6 +1026,73 @@ def test_import_provenance_appears_when_present_and_is_absent_otherwise():
     assert "import_source:" not in native_body
 
 
+# ── Wave D: internal note-link export (directive §56/§57) ──────────────────
+
+
+def _link_node(target_id):
+    return {"type": "noteLink", "attrs": {"noteId": target_id}}
+
+
+def test_full_export_renders_a_linked_note_as_a_relative_path_to_its_bundled_file():
+    c = _conn()
+    target = "t1"
+    _insert_note(c, target, "u1", "Target Note", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node(target)))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    body = zf.read("Source.md").decode("utf-8")
+    assert "[Target Note](Target Note.md)" in body
+
+
+def test_full_export_linked_note_path_reflects_a_title_collision_disambiguator():
+    """Two notes named the same thing: the second gets a `-<id prefix>`
+    suffix (existing behavior) -- a link to it must resolve to THAT exact
+    disambiguated path, not the bare title."""
+    c = _conn()
+    _insert_note(c, "dup1", "u1", "Duplicate", _doc(_para("first")))
+    _insert_note(c, "dup2", "u1", "Duplicate", _doc(_para("second")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("dup2")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    dup2_path = next(n for n in names if n.startswith("Duplicate-") and n.endswith(".md"))
+    body = zf.read("Source.md").decode("utf-8")
+    assert f"]({dup2_path})" in body
+
+
+def test_single_note_export_renders_a_linked_note_as_an_honest_not_bundled_reference():
+    c = _conn()
+    _insert_note(c, "t1", "u1", "Target Note", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("t1")))
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "[Target Note](uct-note:///notebook?note=t1)" in text
+
+
+def test_export_renders_a_link_to_a_nonexistent_note_as_a_plain_fallback_never_a_dead_link():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("does-not-exist")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Source.md").decode("utf-8")
+    assert "*[linked note]*" in body
+    assert "](" not in body.split("---", 2)[-1].replace("*[linked note]*", "")
+
+
+def test_export_never_leaks_a_foreign_users_note_title_through_a_crafted_link():
+    c = _conn()
+    _insert_note(c, "foreign", "u2", "Someone Else's Private Thesis", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("foreign")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Source.md").decode("utf-8")
+    assert "Someone Else" not in body
+    assert "*[linked note]*" in body
+
+
 def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
     """The escaping fix must not start quoting every title -- only the ones
     that actually need it, so the huge existing corpus of plain titles keeps

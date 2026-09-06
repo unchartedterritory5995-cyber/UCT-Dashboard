@@ -633,7 +633,19 @@ an overflow menu (low discoverability — use a persistent header star instead, 
 pattern); Obsidian's non-integrated sidebar tabs (File Explorer/Search/Bookmarks/Tags as
 separate silos — keep one nested tree instead, Notion's pattern).
 
-### Wave C — Version History / Trust / Export Completeness — IN PROGRESS 2026-09-06
+### Wave C — Version History / Trust / Export Completeness — CLOSED 2026-09-06
+
+**Final status: implemented, tested (105 backend + 1646 frontend), real-browser
+E2E verified (desktop + phone widths, fail-closed sandbox), merged to `master`
+(commit `928380241`), deployed, and production-verified** (Railway build
+SUCCESS; `/api/health` fresh-process check; `GET /api/j2/notes/{id}/versions`
+and `.../export` both return real `401 application/json` — auth-gated, no
+bypass — instead of the SPA catch-all; production `NotebookTab-*.js` bundle
+grepped live and confirmed to contain the shipped UI strings). Readiness
+scorecard: Trust/Recovery and Export/Portability both raised 6→7. See the
+Decision Log entry below and `primary-platform-decision-log.md`'s matching
+closure entry for full evidence. Wave D (Internal Links / Backlinks /
+Knowledge Relationships) begins after this section.
 
 **Entry checkpoint (directive §119), recorded before implementation began.** Three
 fresh, context-free general-purpose agents did the recon (same deliberate
@@ -937,17 +949,220 @@ not foreseeable at the checkpoint above.
    version out of NoteFind/Ask-this-note (separate `useEditor` instance).
 9. **History panel/preview/diff components are covered by unit tests with
    `NoteVersionPreview` (and thus real TipTap) mocked out, not by RTL-mounting
-   the real editor.** Matches this codebase's own existing convention —
-   `NoteEditorPage.jsx` and `SharedNotePage.jsx`, the only two other
-   components that mount `useEditor`+`EditorContent` directly, have zero RTL
-   test files; TipTap-mounting surfaces are verified via real-browser E2E in
-   this codebase, not jsdom.
+   the real editor.**
+   ⚠️ **Correction (Wave D, caught while adding a Wave D test to the SAME
+   suite this claim was about):** this said `NoteEditorPage.jsx` and
+   `SharedNotePage.jsx` "have zero RTL test files" — false.
+   `NoteEditorPage.jsx` has an extensive real-editor-mount RTL suite
+   (`NoteEditorPage.waveB.test.jsx`, `.rails.test.jsx`, `.loaderror.test.jsx`,
+   `.saveerror.test.jsx`, `.video.test.jsx`, and now
+   `.noteLinks.test.jsx`) — proven doubly wrong the hard way: reusing that
+   exact suite's convention for a new Wave D test caught a real crash
+   ("Adding different instances of a keyed plugin (suggestion$)") from two
+   `Suggestion()` extensions colliding, something a mocked-TipTap unit test
+   structurally cannot catch. `SharedNotePage.jsx` was NOT re-checked and
+   may or may not have its own tests. The underlying Wave C decision (mock
+   `NoteVersionPreview` in `NoteHistoryPanel.test.jsx` rather than mounting
+   real TipTap there) doesn't change — that was a reasonable scoping choice
+   on its own merits — but its stated justification was wrong and is
+   corrected here rather than left standing.
 
 ---
 
-Design-before-build for Wave D onward (directive §115) happens at the start of
-that wave, not speculatively now — per the governing directive, this document
-reports and stops before beginning any wave past the currently-authorized one.
+## Wave D — Internal Links / Backlinks / Knowledge Relationships — entry checkpoint (2026-09-06)
+
+Per the user's own Wave D directive (125-point spec, §96's required 25-point
+checkpoint before any source mutation). Recon was done directly by reading this
+codebase (no subagent dispatched into this worktree, per the new permanent fork
+rule recorded above and in user memory).
+
+**1. Current linking reality.** No native note-to-note internal links exist.
+Obsidian import already converts `[[wikilinks]]` into resolved links
+ONE-SHOT at import time (`note_connectors/providers/obsidian.py`,
+`note_connectors/convert/roam_text.py`) — that machinery is import-specific
+and out of scope to touch; Wave D is about NATIVE authoring, a different
+capability entirely.
+
+**2. Current TipTap link architecture.** A real `Link` mark already exists
+(`lib/tiptap.js::buildExtensions`), configured `openOnClick:false`,
+`isAllowedUri` explicitly allowing `/journal`-prefixed hrefs (already
+anticipating in-app links). `@tiptap/suggestion` is already a dependency,
+used by `SlashMenu.jsx`'s `/`-triggered popup — a full reference
+implementation of exactly the trigger-char → async-filtered-popup →
+keyboard-navigable → insert pattern this wave needs, including a
+already-solved viewport-clamped fixed-position popup and combobox ARIA wiring
+(`aria-controls`/`aria-activedescendant`). Three existing atomic inline node
+types with React node views (`videoTimestamp`, `attachmentChip`,
+`widgetEmbed`) are the precedent for a data-bound, non-text inline node.
+
+**3. Current financial relationship architecture.** `j2_note_embeds`
+(trade_ref/trade_ref_type + symbol, one row per embed) and `j2_note_mentions`
+(cashtag symbol, one row per mention) are separate sidecars, both rebuilt via
+a delete+insert idiom (`_sync_note_embeds`/`_sync_note_mentions`) at the SAME
+few call sites inside `create_note`/`update_note`/import/restore. A reverse
+lookup already exists for the SYMBOL-scoped case
+(`get_symbol_backlinks` → `GET /notes/backlinks`, consumed by
+`JournalBacklinks.jsx`'s chip+popover UI) — a real, working precedent for the
+NOTE-scoped backlinks this wave needs, one entity level up.
+
+**4. Current export link behavior.** None — no internal links exist to export
+yet.
+
+**5-7. Scoped competitor comparison** (general product knowledge, not a fresh
+live audit — see the disclosure at the end of this checkpoint). Notion:
+`@`-mention or `[[`, creates a real page reference; backlinks surface
+automatically at the bottom of a page ("N pages link to this page"), low
+visual weight. Obsidian: `[[wikilink]]` with fuzzy-search autocomplete on
+typing, backlinks pane shows source note + a context snippet per link,
+unlinked-mention detection as a secondary feature. Evernote: minimal —
+"copy internal link" + paste, no autocomplete, no backlinks pane at all (a
+real, current gap for that competitor). **UCT target**: Obsidian-level
+creation fluency (typed trigger + autocomplete, keyboard-complete) for
+authoring, a Notion-style low-key backlinks section for discovery — NOT a
+graph view (explicitly rejected, directive §27/§30).
+
+**8. Internal link identity contract.** `noteId` is the ONLY durable
+identity, carried as a custom inline node's attr (never encoded in link TEXT,
+unlike a plain `Link` mark whose visible text IS document content).
+
+**9. Rename contract.** The node's DISPLAY text is the target's CURRENT
+title, resolved live at render time (via a lightweight, cached lookup) —
+never frozen at insert time. This means renaming a note automatically and
+correctly updates every place it's linked from, with ZERO writes to any
+OTHER note's content — satisfies directive §31/§32 without the invasive
+alternative (batch-rewriting other notes' `body_json` on every rename, which
+would violate "note save is authoritative," §42/§75, by turning an unrelated
+save into a side-effecting write on someone else's content).
+
+**10. Trash/purge contract.** The node view resolves target state
+(active/trashed/nonexistent) at render time through the same lookup.
+Trashed → rendered as a distinct "unavailable (trashed)" state, link
+preserved. Restored → resolves correctly again automatically, no repair
+action needed (a direct consequence of id-based identity). Purged →
+permanently shows unavailable, honestly, and never deletes anything from the
+SOURCE note's content (directive §33).
+
+**11. Authoritative content/index contract.** `body_json` is authoritative;
+`j2_note_links` is a rebuildable projection, extracted by a new
+`_sync_note_links` wired into the EXACT same call sites as
+`_sync_note_embeds` (four call sites in `notes.py`: create, update, import,
+restore-adjacent). Restore therefore correctly rebuilds backlinks for free,
+identical to how it already does for embeds/mentions (directive §22/§51).
+
+**12. Backlink data design.** New table `j2_note_links(note_id, user_id,
+position, target_note_id)` — PK `(note_id, position)`, mirroring
+`j2_note_embeds`'s exact shape for the source side; new index on
+`(user_id, target_note_id)` for the reverse (backlink) query. No note
+content is duplicated into this table (title/excerpt are read live from
+`j2_notes` at query time) — directive §41's "do not persist duplicate
+content."
+
+**13. Autocomplete UX.** New `Suggestion`-based extension triggered by `[[`
+(SlashMenu's own `/` trigger stays untouched — this is a second, independent
+`Suggestion()` plugin registration, TipTap supports multiple), reusing the
+exact positioning/ARIA/keyboard code SlashMenu already has (extracted into a
+tiny shared helper rather than copy-pasted verbatim, to avoid two copies of
+one behavior). `items()` async-calls the EXISTING `GET /api/j2/notes?q=` search
+(Wave A's FTS-backed search) — no new backend search endpoint. Rows show
+title + folder/ticker context (directive §36), debounced (matching
+`NoteAskPanel`/`SymbolSearch`'s existing ~150ms debounce convention).
+
+**14. Link rendering/navigation.** New atomic inline node `noteLink` (attrs:
+`{noteId}`), React node view: subtle chip (icon + underline-on-hover, not a
+new color — directive §38/§90), click navigates via the EXISTING
+`notePath(noteId)` URL convention (`hooks/useNoteBacklinks.js`) through
+React Router's `navigate()` (in-app, no full reload) — mirroring how the rest
+of the SPA already client-side-routes.
+
+**15. Backlink API + UX.** New `GET /notes/{id}/backlinks` mirrors
+`get_symbol_backlinks`'s query shape (UNION/dedup, trash-exclusion join,
+tenant-scoped) but note-to-note. UI: reuses the EXISTING
+`CollapsibleSection.jsx` (already used for exactly this "optional, collapsible,
+persisted-open-state" shape in Analytics) for a "Linked from (N)" footer
+section below the editor body — no new UI subsystem.
+
+**16. IA placement.** Footer section (directive §44's own suggested location),
+`defaultOpen=false` (out of the way when a note has no/few backlinks —
+directive §90's "no link visual noise"), absent entirely (not "0 backlinks")
+when there are none, matching `JournalBacklinks.jsx`'s own "renders nothing
+on zero" convention.
+
+**17. Mobile design.** Inherits the note editor's existing responsive
+behavior; a footer `CollapsibleSection` stacks naturally at any width; the
+`[[` popup reuses SlashMenu's ALREADY viewport-clamped positioning code.
+
+**18. Keyboard design.** `[[` is keyboard-complete by construction (same
+`Suggestion` infra as `/`): arrow-navigate, Enter selects, Escape dismisses.
+
+**19. Accessibility plan.** Mirrors SlashMenu's existing combobox ARIA
+pattern verbatim (same shared helper, so the guarantee can't drift between
+the two menus). Backlinks section reuses `CollapsibleSection`'s existing
+`aria-expanded`/`aria-controls`.
+
+**20. Performance plan.** Autocomplete search debounced (~150ms, matching
+convention). Node-view title lookups are the real risk (a note with 20 links
+must not fire 20 separate requests) — resolved via ONE shared SWR key per
+target note id, so React/SWR's own dedup collapses repeated lookups of the
+same id across multiple node views on the page for free; a bulk
+`GET /notes/link-titles?ids=a,b,c` endpoint is added if per-id dedup alone
+proves insufficient once measured (directive §37: measure, don't
+pre-optimize for a number nobody asked for).
+
+**21. Export plan.** Single-note export: a `noteLink` renders as plain linked
+text using the target's CURRENT title (queried live from `j2_notes` — the
+exporter already holds an open connection to that table), honestly NOT
+pretending the target file is bundled (directive §56) — an inline note,
+e.g. `[Target Title](uct-note:///notebook?note=<id>)`, human-readable and
+identifiably an internal UCT reference. Full export: the SAME resolver
+mechanism as attachments (a shared per-export state dict already used by
+`_make_attachment_resolver`) computes a REAL relative `.md` path to the
+target's own exported file when it's part of the same archive (directive
+§57) — sharing one code path with single-note export, branching only on
+whether the target is in this export.
+
+**22. Version-restore integration.** Correct by construction, not a special
+case: restore calls `update_note`, which calls `_sync_note_links` on whatever
+content the restore actually applies — identical mechanism already
+established (and tested) for embeds/mentions in Wave C.
+
+**23. Security/tenant plan.** The `[[` autocomplete only ever searches the
+CURRENT user's own notes (same auth-scoped query `GET /api/j2/notes?q=`
+already uses). A crafted `noteLink` node pointing at a foreign note's id
+(via direct API manipulation, bypassing the UI) must never leak that note's
+title/existence — the node-view lookup and the backlinks query both
+re-verify `user_id` ownership on every read, exactly like `resolve_trade_ref`
+already does; an unowned/nonexistent target renders identically to a
+genuinely-deleted one (never a distinguishable "doesn't exist" vs.
+"exists but isn't yours" signal).
+
+**24. Vertical slices.** 1: durable representation (schema + extraction +
+`noteLink` node, static render). 2: editor autocomplete + creation +
+navigation. 3: backlink index + API. 4: backlink UX (footer section). 5:
+lifecycle integration (trash/restore/purge states, version-restore
+correctness, export). 6: responsive + accessibility + adversarial tests +
+real-browser E2E.
+
+**25. Rollback.** Fully additive (one new table, one new node type, two new
+endpoints, one new UI section) — rollback is dropping the table and removing
+the endpoints/UI, identical shape to every prior wave's rollback plan.
+
+**Disclosure on §5-7:** the competitor comparison above is general working
+product knowledge of Notion/Obsidian/Evernote's linking UX, not a fresh live
+audit dispatched to a research agent this session — internal note linking is
+a long-stable, well-documented pattern across all three products (unlike,
+say, a fast-moving pricing page), and the "no subagent in this worktree"
+rule plus this session's already-large scope make a fresh live re-audit a
+poor use of remaining budget for a well-understood UX pattern. Flagged
+honestly rather than presented as freshly re-verified.
+
+**No material contradiction found requiring a decision — proceeding
+autonomously into Slice 1.**
+
+---
+
+Design-before-build for Wave E onward happens at the start of that wave, not
+speculatively now — per the governing directive, this document reports and
+stops before beginning any wave past the currently-authorized one.
 
 ---
 

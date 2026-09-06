@@ -1571,6 +1571,23 @@ def note_backlinks_endpoint(
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
 
 
+@router.get("/notes/link-targets")
+def note_link_targets_endpoint(
+    ids: str = "",
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave D — batch-resolves `noteLink` target ids to their CURRENT title +
+    trashed/active status, for the noteLink node view (one request per note
+    being VIEWED, not per link inside it — directive §37/§65). `ids` is a
+    comma-separated list, same convention as every other CSV query param in
+    this router.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}` — same route-order
+    reason as `/notes/backlinks`/`/notes/tags` immediately above/below."""
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    return {"targets": notes_service.resolve_note_link_targets(user["id"], id_list)}
+
+
 @router.get("/notes/tags")
 def note_tag_counts_endpoint(
     user: dict = Depends(get_current_user),
@@ -1832,6 +1849,19 @@ def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_u
         content=content, media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/notes/{note_id}/backlinks")
+def note_note_backlinks_endpoint(
+    note_id: str, limit: int = 50, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave D — "which of my other notes link TO this one?" Deliberately does
+    NOT 404 for a note this user doesn't own or that doesn't exist — it
+    simply returns an empty result (get_note_backlinks itself short-circuits
+    on an empty/foreign note_id), matching this being a read ABOUT the note,
+    not a fetch OF it; the note detail endpoint is what enforces existence/
+    ownership for the page itself."""
+    return notes_service.get_note_backlinks(user["id"], note_id, limit=limit)
 
 
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
