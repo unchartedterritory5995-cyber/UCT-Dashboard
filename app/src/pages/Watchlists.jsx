@@ -593,10 +593,14 @@ function AttentionFacts({ facts }) {
 
 // Watchlist → Compare: reuses SymbolSearch (no new ticker-search component) to
 // pick the comparator, auto-opened so the popover is immediately usable.
-function CompareSearch({ onPick }) {
+// `baseSym` (Identity Normalization Hardening V1) is the security being
+// compared FROM -- without it, SymbolSearch's own clean !== sym
+// self-exclusion guard had nothing to compare against, so a member could
+// pick the same symbol as its own comparator.
+function CompareSearch({ onPick, baseSym }) {
   const searchRef = useRef(null)
   useEffect(() => { searchRef.current?.openWith('') }, [])
-  return <SymbolSearch ref={searchRef} sym="" onSymbolChange={onPick} />
+  return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
@@ -2790,6 +2794,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <Sheet open onClose={() => setComparePopover(null)} variant="bottom-sheet" title={`Compare ${comparePopover.sym} with…`}>
             <div className={styles.ctxSheetBody}>
               <CompareSearch
+                baseSym={comparePopover.sym}
                 onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
               />
             </div>
@@ -2799,6 +2804,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <div className={styles.attnPopover} style={{ top: comparePopover.y, left: comparePopover.x }} onClick={e => e.stopPropagation()}>
               <div className={styles.alertPopTitle}>Compare {comparePopover.sym} with…</div>
               <CompareSearch
+                baseSym={comparePopover.sym}
                 onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
               />
             </div>

@@ -54,7 +54,7 @@ vi.mock('../TradeReviewCard', () => ({ default: () => <div data-testid="review" 
 // page's own uppercasing, not SymbolSearch's.
 vi.mock('../../../../components/chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 vi.mock('../../hooks/useTradeReview', () => ({
@@ -310,6 +310,13 @@ describe('TradeDetailPage — Research trigger (Full Research / Ask AI / Compare
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
     expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
+  })
+
+  it('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
+    expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'NVDA')
   })
 })
 

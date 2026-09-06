@@ -227,6 +227,52 @@ def test_create_position_happy_path(db_conn):
     assert p["contextAtEntry"]["indexName"] == "NYA"
 
 
+def test_create_position_normalizes_class_share_dot_to_hyphen(db_conn):
+    """Identity Normalization Hardening V1: a manually-entered class-share
+    symbol spelled with a dot (broker/provider style) must save with the
+    app's canonical hyphen spelling, matching what SnapTrade broker sync
+    already normalizes to -- so a manual entry and a broker-synced entry of
+    the same security can never diverge in spelling."""
+    from api.services.journal_two import positions as svc
+    p = svc.create_position(
+        "u1",
+        {
+            "symbol": "BRK.B",
+            "side": "Long",
+            "entryDate": "2026-04-15",
+            "shares": 10,
+            "entryPrice": 400,
+            "stopPrice": 380,
+        },
+        _CTX,
+        conn=db_conn,
+    )
+    assert p["symbol"] == "BRK-B"
+
+
+def test_create_position_accepts_delisted_or_unknown_symbol_unchanged(db_conn):
+    """Regression guard: normalize_symbol is spelling-only, never an
+    existence/tradability check. AddPosition must accept a delisted,
+    renamed, or entirely made-up ticker string unchanged (aside from
+    case/whitespace) -- a hard existence block here would wrongly reject
+    legitimate historical positions."""
+    from api.services.journal_two import positions as svc
+    p = svc.create_position(
+        "u1",
+        {
+            "symbol": "notarealtickerxyz",
+            "side": "Long",
+            "entryDate": "2026-04-15",
+            "shares": 10,
+            "entryPrice": 5,
+            "stopPrice": 4,
+        },
+        _CTX,
+        conn=db_conn,
+    )
+    assert p["symbol"] == "NOTAREALTICKERXYZ"
+
+
 def test_create_position_rejects_stop_on_wrong_side_long(db_conn):
     from api.services.journal_two import positions as svc
     from api.services.journal_two.positions import PositionValidationError

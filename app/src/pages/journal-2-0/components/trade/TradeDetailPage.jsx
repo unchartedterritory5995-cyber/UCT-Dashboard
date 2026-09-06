@@ -194,7 +194,7 @@ function TradeResearchMenu({ symbol }) {
             </button>
           ) : (
             <div className={styles.researchMenuCompare}>
-              <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
             </div>
           )}
         </div>

@@ -26,7 +26,7 @@ vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null
 // this page's own uppercasing, not SymbolSearch's.
 vi.mock('../../../../components/chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 vi.mock('../../../../hooks/useFundamentalSnapshot', () => ({
@@ -171,6 +171,12 @@ describe('PositionDetailPage — cross-link actions (Full Research / Ask AI / Co
     fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
     expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+  })
+
+  it('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
+    expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'AAPL')
   })
 })
 

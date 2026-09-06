@@ -235,7 +235,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
           </button>
         ) : (
           <div className={styles.compareSection}>
-            <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
           </div>
         )}
 

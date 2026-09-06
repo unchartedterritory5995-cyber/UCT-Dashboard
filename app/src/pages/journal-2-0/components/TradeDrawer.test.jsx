@@ -18,7 +18,7 @@ vi.mock('../lib/sendToJournal', () => ({
 // drawer's own uppercasing, not SymbolSearch's.
 vi.mock('../../../components/chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 vi.mock('../../../hooks/useMobileSWR', () => ({ default: () => ({ data: null }) }))
@@ -128,5 +128,12 @@ describe('TradeDrawer — Research trigger (Full Research / Ask AI / Compare)', 
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
     expect(navigateMock).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
+  })
+
+  it('the Compare picker receives the real trade symbol, not null (Identity Normalization Hardening V1)', () => {
+    render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
+    fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
+    expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'NVDA')
   })
 })
