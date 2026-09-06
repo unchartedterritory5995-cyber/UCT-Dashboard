@@ -1,0 +1,73 @@
+{
+  "id": "public_script/14-earnings-gap-ups",
+  "lane": "public_script",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#14-earnings-gap-ups",
+    "captured_at": "2026-09-07",
+    "capture_method": "local_fixture_file"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null,
+      "evidence": []
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "pine"
+    },
+    "translate": {
+      "status": "UNSUPPORTED",
+      "guard": "pine:no-output",
+      "message": "the pasted script offers no plot and no alert condition to filter on",
+      "unsupported_constructs": []
+    },
+    "canonical_ast": {
+      "status": "UNSUPPORTED",
+      "ast_ref": null
+    },
+    "execution_requirements": {
+      "status": "PARTIAL",
+      "note": "Layer A v1 does not extract per-script lookback/timeframe/session requirements yet; deferred to a later pass, disclosed rather than guessed."
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": null,
+      "needs": []
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A is static-only; rendering is Layer B/C"
+    },
+    "persistence_save": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "persistence_reload": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "screener_eligibility": {
+      "status": "UNSUPPORTED",
+      "eligible": false,
+      "reason": "translation did not produce a formula"
+    },
+    "refusal_behavior": {
+      "status": "UNSUPPORTED",
+      "guard": "pine:no-output",
+      "message": "the pasted script offers no plot and no alert condition to filter on"
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "unsupported_builtin"
+  ],
+  "final_classification": "UNSUPPORTED",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

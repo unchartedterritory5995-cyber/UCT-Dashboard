@@ -152,6 +152,57 @@ product code changed. With item 8 closed, all 9 gate items are met; produced
 broad acceptance testing (per both the gate's own vocabulary and DEC-013's more specific standing scope).
 Vendor Parity Tranche 2 not yet started.
 
+**2026-09-06 — Vendor Parity Tranche 2 Lane B: implemented, then amended same day after an
+owner-caught overclaim.** All four Track A-resolved functions (`ta.rising`, `ta.median` even-length,
+`ta.percentrank`, `ta.bbw`) implemented in both JS/Python kernels, added to `closedTable.json`, and
+compared against the RISK-018a raw-CSV-backed vendor observation — closing RISK-018/RISK-018a's
+harness-minimum gap (0 parity-comparable) for these four functions. **Same day, owner review correctly
+rejected the initial "VENDOR-PARITY VERIFIED" label as resting on exactly one probe row per function.**
+A bounded audit (`tools/vendor_parity_lane_b_multibar_audit.py`, no new TradingView session) found the
+SAME preserved CSV already holds 300 rows across all 25 distinct states of the synthetic script's cycle;
+rebuilding the full series and comparing against both the ruling and a real-data mutation control
+(the rejected candidate) produced per-function multi-bar verdicts, each precisely qualified rather than
+uniformly upgraded: `rising`/`median`/`percentrank` → VENDOR-PARITY VERIFIED — MULTI-BAR; `bbw` →
+VENDOR-PARITY VERIFIED — SCOPED CONTRACT (integer multiplier only); `rising` additionally carries a
+disclosed PARTIAL — NA BEHAVIOR UNVERIFIED boundary (the artifact has zero NA-gap rows). Full detail:
+`RISK_REGISTER.md` RISK-018b, `VALIDATION_COVERAGE_MAP.md`'s vendor-parity row. Lane A (the 10-function
+priority list) was not started by this work.
+
+**2026-09-06 — Public Script + Complex Visual Indicator Compatibility Harness: First Return through
+Layer C, then a bounded final closeout.** A new tranche, separately authorized outside `PHASE_TWO_PLAN.md`'s
+original numbered sections (design doc:
+`PUBLIC_SCRIPT_VISUAL_COMPATIBILITY_HARNESS_READINESS_REPORT.md`). Sequence, condensed:
+- **Layer A** (static, no browser): `compatHarness.publicScript.test.js` classified an initial 8-script
+  `pine_community/` sample via the same real doors `doorScorecard.test.js` measures with — 5 SUPPORTED,
+  1 PARTIAL, 1 UNSUPPORTED, 1 CORRECTLY_REFUSED, non-vacuity + mutation-tested.
+- **Lane 2's six-level visual-fixture ladder** (Levels 1-6) found RISK-029: the document/schema layer
+  (bands, `fill`, `colorMode`, composite arithmetic) supports materially more visual capability than
+  `BuilderSheet.jsx`'s authoring UI exposes — recorded, explicitly not actioned per owner instruction.
+- **Layer B** (visual/persistence, Level 1 fixture): classifier logic unit-tested and mutation-sensitive;
+  a live re-run hit a reproducible `FontNotSettledError` (RISK-027), root cause undiagnosed, correctly
+  classified HARNESS_DEFECT rather than fabricating a result — the prior 140,925-px evidence for that
+  fixture stands unaffected.
+- **Layer C, first session** (live TradingView, 4-script sample): found RISK-028 — two Layer-A-SUPPORTED
+  scripts (`02-wavetrend-oscillator-lazybear.pine`, `19-cm-macd-ult-mtf.pine`) do NOT compile in
+  TradingView's real, current engine (vendor platform decay over ~11 years on un-pragma'd scripts, not a
+  UCT defect); Williams VIX Fix confirmed fully SUPPORTED end-to-end; ZigZag++'s attempt was
+  HARNESS_DEFECT (Monaco auto-indent corrupted the source via simulated per-keystroke typing).
+- **Final bounded closeout (this session)**: fixed the Monaco-corruption harness limitation with a
+  genuine OS-clipboard-paste source-entry mechanism (verified byte-exact pre-paste, line-count +
+  indentation-verified post-paste — reproduced no corruption across three scripts of increasing nesting
+  depth); retried ZigZag++ under the hardened mechanism (now SUPPORTED at the vendor level — the import
+  resolves cleanly; UCT's Layer A CORRECTLY_REFUSED is unchanged, a claim about UCT's own architecture,
+  not vendor resolvability); added exactly two new/retested categories chosen to maximize new
+  information (`14-earnings-gap-ups.pine`, input-heavy: enum/UDT/method/switch; `27-support-resistance-
+  channels.pine`, visual-heavy, previously Layer A UNSUPPORTED) — both compile and render cleanly in the
+  real vendor while UCT correctly rejects both (`pine:no-output`; `pine:reassign` — the latter correcting
+  an earlier, less precise assumption that the real blocker was missing array/box builtins). Filed
+  RISK-030 for the full finding set. Produced the required 17-item `PUBLIC_SCRIPT_COMPATIBILITY_
+  CHECKPOINT_01.md`, updated `RISK_REGISTER.md`/`VALIDATION_COVERAGE_MAP.md` accordingly. **Explicit next
+  phase boundary per owner instruction: no remediation, no further corpus expansion, no Track F v2, no
+  RISK-004 work begins from this closeout — awaiting the owner/ChatGPT review gate. Vendor Parity Lane A
+  RSI/ATR remains the next engineering tranche after this checkpoint is separately accepted.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

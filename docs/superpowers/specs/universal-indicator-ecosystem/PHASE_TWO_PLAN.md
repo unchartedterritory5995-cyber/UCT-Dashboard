@@ -151,7 +151,12 @@ closes) and reclassify readiness from actual evidence.
 
 ## §2 — Vendor Parity Tranche 2
 
-**Status: PLANNED, not started.**
+**Status: Lane B DONE (2026-09-06, amended same day — see `RISK_REGISTER.md` RISK-018b);
+Lane A NOT started.** ⚰️ This line said "PLANNED, not started" for both lanes — corrected in place
+rather than silently left, per this program's own Stale Documentation Principle. Lane B's four
+functions (`ta.rising`, `ta.median` even-length, `ta.percentrank`, `ta.bbw`) are implemented and
+vendor-parity-verified (per-function qualifiers in RISK-018b/`VALIDATION_COVERAGE_MAP.md`); Lane A's
+10-function priority list below has not been captured.
 
 ### Lane A — already-shipped core functions, ranked by real evidence
 

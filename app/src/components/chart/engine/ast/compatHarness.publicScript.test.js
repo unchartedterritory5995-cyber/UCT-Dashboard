@@ -53,6 +53,11 @@ const SAMPLE = [
   { file: '29-zigzag-plus-plus.pine', category: 'custom_state_logic' },
   { file: '27-support-resistance-channels.pine', category: 'visual_heavy_script' },
   { file: '18-minervini-trend-template.pine', category: 'input_heavy_script' },
+  // Added for the Layer C checkpoint (2026-09-06): the input-heavy pick for that
+  // tranche (enum/UDT/method/switch -- a richer input-type stress than
+  // Minervini's plain numeric/bool inputs), so the checkpoint report can cite a
+  // REAL UCT Layer A result rather than a predicted one.
+  { file: '14-earnings-gap-ups.pine', category: 'input_heavy_script_enum_udt' },
 ]
 
 /** ⛔ A CITATION, NOT A SECOND AUTHORITY. `doorScorecard.test.js` owns the real

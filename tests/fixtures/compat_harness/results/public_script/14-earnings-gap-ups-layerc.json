@@ -1,0 +1,37 @@
+{
+  "id": "public_script/14-earnings-gap-ups-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "category": "input_heavy_script_enum_udt",
+  "source": {
+    "dialect": "pine",
+    "version_declared": "6",
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#14-earnings-gap-ups",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview_clipboard",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "selection_rationale": "Chosen over 18-minervini-trend-template.pine (already Layer A SUPPORTED, a known quantity) because it stresses input KINDS Minervini does not: a custom `enum lineStyle` type + `input.enum()`, `input.color()` with `inline` grouping, a user-defined type (`type gap`), `method` definitions, and `switch` expressions -- maximizing new information about UCT's input-type coverage rather than re-testing an already-known-good case.",
+  "steps": {
+    "parse": { "status": "SUPPORTED", "note": "compiled cleanly in TradingView's real v6 engine, zero errors" },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v6_explicit" },
+    "translate": { "status": "SUPPORTED", "guard": null },
+    "canonical_ast": { "status": "SUPPORTED" },
+    "execution_requirements": { "status": "SUPPORTED", "note": "uses request.earnings() -- a real data dependency" },
+    "visual_requirements": { "status": "SUPPORTED", "plot_count": null, "needs": ["lines", "labels", "boxes", "enum_styled_lines"] },
+    "chart_render": {
+      "status": "SUPPORTED",
+      "note": "added to chart with NO compile errors. Object-tree legend resolved with real ENUM values: 'Earnings Gap Ups (Solid, Solid, Solid)' -- the three input.enum(lineStyle.solid, ...) inputs (hvcStyle, hvc5Style, gdhlStyle) all correctly resolved to their default enum member's display string. Strong evidence the custom enum type is genuinely functioning, not merely accepted syntactically."
+    },
+    "persistence_save": { "status": "PARTIAL", "note": "not exercised this pass" },
+    "persistence_reload": { "status": "PARTIAL", "note": "not exercised this pass" },
+    "screener_eligibility": { "status": "PARTIAL", "eligible": false, "reason": "draws only lines/labels/boxes, no plot or alertcondition -- matches Layer A's own reason" },
+    "refusal_behavior": { "status": "SUPPORTED", "guard": null, "note": "no refusal -- clean success" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "cross_reference_note": "UCT's own Layer A result for this SAME script (tests/fixtures/compat_harness/results/public_script/14-earnings-gap-ups.json, ADDED to the Layer A sample specifically for this checkpoint) is UNSUPPORTED, guard `pine:no-output` ('the pasted script offers no plot and no alert condition to filter on') -- the SAME reason doorScorecard.test.js's own RULED entry already gives for this script ('draws only box.new -- a drawing object, with no plotted series to screen on'). IMPORTANT, PRECISE DISCLOSURE: this does NOT confirm or deny whether UCT's translator would separately reject the enum/UDT/method/switch syntax on its own terms -- the 'no output' gate fires first (or the translator tolerates those constructs structurally without erroring; both are consistent with the observed guard and unsupported_constructs being empty). The original hypothesis ('does UCT choke on enum syntax specifically') was NOT directly tested by this script's actual failure path, and is recorded as still open rather than assumed either way.",
+  "evidence_artifact_paths": ["tests/fixtures/compat_harness/results/public_script/14-earnings-gap-ups.json"],
+  "harness_version": "compat-harness-v1"
+}
