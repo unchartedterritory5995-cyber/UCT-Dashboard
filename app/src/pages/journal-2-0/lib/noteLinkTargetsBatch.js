@@ -13,13 +13,16 @@
  * within it — in practice, every noteLink on a freshly-opened note resolves
  * in one request.
  *
- * Module-level cache, deliberately NOT invalidated on note save/restore
- * elsewhere in the app (a known, accepted limitation for this first
- * version): a target's title/trashed-status can go stale until the next
- * full page load if it changes in another tab while this one is open. Not
- * load-bearing for correctness (worst case: a stale but still-honest title
- * shows briefly) and cheap to fix later by wiring a cache-bust into the
- * existing save/restore success paths if it proves to matter.
+ * Module-level cache. `invalidateNoteLinkTarget(id)` is called from the
+ * note save (useJ2Notes.js) and restore (useJ2NoteVersions.js) success
+ * paths for the note whose OWN title/status just changed -- browser E2E
+ * (Wave D closure pass) confirmed that without this, a note-link chip
+ * elsewhere in the same tab kept showing a renamed/restored target's OLD
+ * title until a full page reload, which is exactly the "connected research
+ * feels stale after a rename" defect the closure pass was scoped to catch.
+ * Any OTHER tab/session still resolves fresh on its own next page load
+ * (the cache is per-tab, in-memory only) -- that residual gap is
+ * unaffected by this fix and remains accepted.
  */
 
 const BATCH_WINDOW_MS = 30
@@ -69,6 +72,16 @@ export function requestNoteLinkTarget(id) {
 export function subscribeNoteLinkTargets(fn) {
   listeners.add(fn)
   return () => listeners.delete(fn)
+}
+
+/** Evict `id` from the cache and notify subscribers -- the next render of
+ * any mounted noteLink pointing at this id sees a cache miss and re-queues
+ * a fresh fetch (same path as a first-ever lookup). A no-op when `id` was
+ * never cached (nothing to evict, nothing subscribed needs to know). */
+export function invalidateNoteLinkTarget(id) {
+  if (!id || !cache.has(id)) return
+  cache.delete(id)
+  notify()
 }
 
 /** Test-only: reset all module state between test files/cases. */

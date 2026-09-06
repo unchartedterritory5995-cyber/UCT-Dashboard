@@ -1,5 +1,6 @@
 /** Wave C (Version History) — Notebook version-history SWR hooks. */
 import useSWR, { mutate as globalMutate } from 'swr'
+import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -82,5 +83,11 @@ export async function restoreNoteVersion(noteId, versionId, baseUpdatedAt) {
   // revalidate it. Key-matcher form (not a fixed key) so it reaches every
   // filtered list variant currently cached, not just an unfiltered one.
   globalMutate(isNoteListKey)
+  // Same "this note's own title may have just changed" invalidation as a
+  // normal save (useJ2Notes.js) -- a restore reaches j2_notes.title through
+  // the identical update_note() write path, so a noteLink chip elsewhere in
+  // this tab pointing at this id is stale in exactly the same way and needs
+  // the same cache-bust (Wave D closure pass finding, live-browser confirmed).
+  invalidateNoteLinkTarget(noteId)
   return body.note
 }

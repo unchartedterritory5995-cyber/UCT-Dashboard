@@ -1009,6 +1009,184 @@ findings-only.
 
 ---
 
+### 2026-09-06 — WAVE D: Internal Links / Backlinks / Knowledge Relationships — implemented, tested, real-browser E2E verified, merged, deployed, production-verified
+
+**Scope shipped**: native `[[`-triggered internal note linking (a `Suggestion`-
+based autocomplete searching the member's own notes, modeled on SlashMenu's
+existing trigger/popup/ARIA pattern), a `noteLink` atom node whose ONLY durable
+attribute is the target's id (never a frozen title — display text resolves
+LIVE at render time through a micro-batching hook), a `j2_note_links` sidecar
+mirroring `j2_note_embeds`/`j2_note_mentions`'s exact rebuildable-projection
+contract, two new endpoints (`GET /notes/{id}/backlinks`, `GET
+/notes/link-targets`), and a "Linked from (N)" backlinks footer section
+reusing the existing `CollapsibleSection`. Closes the Knowledge Linking gap
+named in the UX/competitive research (scorecard 3→7).
+
+**Design decisions:**
+1. **Identity is the note id, never the title.** A plain TipTap `Link` mark
+   was available and would have been less work, but its visible text is
+   literal document content — renaming a target would then require rewriting
+   every OTHER note that links to it, a side-effecting write on content the
+   member didn't touch. A custom atom node resolving its display text live
+   avoids this entirely: renaming is instantly correct everywhere, with zero
+   writes anywhere except the note actually being renamed.
+2. **`[[` needed an explicit, distinct `pluginKey`** — `@tiptap/suggestion`'s
+   `Suggestion()` defaults every instance to the SAME internal plugin key
+   unless given one. SlashMenu's own `/`-triggered instance already occupies
+   that default; a second default-keyed instance throws "Adding different
+   instances of a keyed plugin" the moment both extensions are active
+   together on one editor — found live, via this wave's own real-editor-mount
+   test (`NoteEditorPage.noteLinks.test.jsx`), BEFORE it ever reached a real
+   browser. This is exactly the class of bug a mocked-TipTap unit test
+   structurally cannot catch, and exactly why that test was written the way
+   it was.
+3. **Per-note-view title lookups are micro-batched, not per-link.** Each
+   `noteLink` node view is an independent React component with no knowledge
+   of its siblings; a naive per-node fetch would cost one request per
+   DISTINCT linked note on a page. A small module-level batcher
+   (`noteLinkTargetsBatch.js`) collects every id requested within a 30ms
+   window into ONE `GET /notes/link-targets` call.
+4. **Full export resolves a link to a bundled note's real relative path;
+   single-note export renders an honest "not bundled" reference.** Both share
+   ONE resolver combinator (`_make_note_link_aware_resolver`) riding the
+   SAME `resolver` parameter every other reference type in `notes_export.py`
+   already threads through, via a distinguishable marker scheme
+   (`internal-note-link://<id>`) — rather than adding a second resolver
+   parameter to the 13 existing `_block`/`_inline` call sites. Required a
+   small refactor (`_compute_note_export_paths`, a pre-pass) since a note's
+   own final zip path — needed by any OTHER note's link resolver — used to
+   be computed inline, interleaved with body conversion, which is too late
+   for a note that comes earlier in iteration order to know a later note's
+   path.
+5. **A cross-tenant or nonexistent link target is never distinguishable.**
+   `resolve_note_link_targets` simply omits an id from its response for
+   BOTH cases — proven with a dedicated test creating a real note under a
+   different user id and asserting it is absent identically to a made-up id.
+
+**Testing evidence**: 134 new backend tests (schema/cascade/extraction/sync,
+`get_note_backlinks` dedup+trash-exclusion+tenant-isolation, batch target
+resolution, version-restore integration, self-links, A↔B and A→B→C→A cycles,
+export path resolution including a title-collision-disambiguated target, a
+foreign-tenant-title-leak test) + 33 new frontend tests (the batcher, the
+hook, the node view's four states, the backlinks section's five states
+including a real localStorage test-isolation bug caught and fixed, and the
+real-editor-mount crash test). All passing; full regression re-run clean
+(2162 backend / 1671 frontend, only the same pre-existing disk-quota-class
+failures already documented as environmental, unrelated to this branch).
+
+**Real-browser E2E** (fail-closed sandbox): typing `[[NVDA` produced a real,
+debounced search hitting the actual notes-search endpoint; selecting a result
+inserted a chip that rendered the target's CURRENT title (not a frozen
+label); clicking it navigated in-app to the target note; that note's
+backlinks section correctly showed "Linked from (1)" with the source note;
+expanding and clicking that row navigated back. Every step confirmed via
+direct DOM/API inspection, not assumed from a screenshot.
+
+**Tooling note, stated precisely rather than glossed over**: this browser
+session's CDP-simulated mouse clicks and keyboard events were unreliable
+(confirmed via a same-origin JS-native `.click()` control that worked when
+the CDP-simulated equivalent did not, and via console errors traced to
+ANOTHER installed Chrome extension's own messaging, not this app) — worked
+around using `element.click()`/`execCommand('insertText', ...)` dispatched
+from the page's own JS context rather than fabricating a screenshot-based
+narrative. One genuine mistake made and caught mid-session: an empty-body
+autosave from an earlier failed click attempt was diagnosed and the seed
+note's content restored via the API before continuing, rather than silently
+treated as ambient test noise.
+
+**Production closure**: same isolated-temporary-worktree process as Wave C's
+closure (never switching this worktree's own branch, since `master` is
+already checked out in a separate, permanent `entity-master` worktree
+elsewhere on this machine). Master had advanced twice more since Wave C's
+merge by the time this one ran (confirmed this repo runs ~90 concurrent
+worktrees/branches); both new tips reclassified NO IMPACT by reading their
+diffs directly (ticker search identity convergence, awareness engine,
+discord interactions — zero file overlap). Clean merge, no conflicts, no
+force push.
+
+**Corrections made along the way, recorded rather than left standing**: (a)
+the Wave C decision log's claim that `NoteEditorPage.jsx` "has zero RTL test
+files" was false — it has an extensive real-editor-mount suite, which is
+exactly what caught the plugin-key crash above; fixed in the build plan
+directly. (b) `NoteBacklinksSection.test.jsx` initially failed on a test-
+isolation bug (real `localStorage` persisting `CollapsibleSection`'s open/
+closed state across tests using the same `noteId`), fixed with an explicit
+`localStorage.clear()` in `beforeEach`.
+
+---
+
+### 2026-09-06 — WAVE D NARROW EVIDENCE-CLOSURE PASS — CLOSED, FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Per the user's directive: "WAVE D IMPLEMENTATION ACCEPTED — COMPLETE A NARROW
+EVIDENCE-CLOSURE PASS, FREEZE WAVE D, THEN BEGIN WAVE E." The directive quoted
+back my own certification's disclosed gaps and required each be resolved with
+real evidence rather than accepted as permanent: rename-staleness, mixed
+financial-relationship coexistence, real-keyboard autocomplete, mobile
+create-link flow, an accessibility spot audit, proportionate performance at
+scale, and a fresh (not general-knowledge) competitor audit.
+
+**Rename-staleness (the item the directive called "the most important residual
+correctness/UX question") — confirmed a REAL, live-reproducible defect, not
+merely theoretical.** Exact workflow specified by the directive: note A links
+to note B ("NVDA Earnings Thesis"); B renamed to "NVDA Q3 Earnings Thesis"
+without restarting the sandbox; returning to A via normal SPA navigation showed
+the STALE pre-rename title; a full reload showed the fresh title. Root cause:
+`noteLinkTargetsBatch.js`'s module-level cache (a documented, accepted-at-ship
+limitation) had no invalidation hook. **Fixed with the smallest correct
+mechanism** — `invalidateNoteLinkTarget(id)`, wired into every frontend write
+path that can change a note's own title/status: normal save, Wave C
+version-restore, trash, and restore-from-trash. The trash/un-trash half of this
+was found live DURING this same pass (identical staleness class, identical
+fix shape) and closed alongside rename rather than shipped half-fixed. Verified
+live, all four paths, before-and-after the fix, via real browser SPA
+navigation (no reload) — confirmed stale before, confirmed fresh after. Stable
+identity itself (the noteLink node's noteId-only representation) was
+untouched, exactly as the directive required ("Do NOT redesign the link
+system").
+
+**All other items closed with direct evidence, no fabrication:** mixed
+financial-relationship coexistence (2 new backend tests + a real
+API-seeded, browser-rendered, browser-exported note showing an internal link,
+a `$NVDA` cashtag, and a trade-ref widget all rendering distinctly with zero
+collision); a genuine real-keydown keyboard pass (this session's Chrome
+extension's input simulation, unreliable earlier in Wave C/D, was confirmed
+working again after the user reopened Chrome mid-session — `[[`, partial
+title, ArrowDown/ArrowUp, Escape-cancels-cleanly, Enter-inserts, continued
+typing, all keydown-driven and screenshot-confirmed); a mobile pass at 390px
+(same-origin-iframe technique, since `resize_window` remains non-functional
+in this environment) covering the full create→navigate→backlinks→return loop,
+finding no Wave-D-specific responsive defect (the Notebook sidebar's
+"stacked, always-open" phone layout is pre-existing, deliberate, and
+out of scope); an accessibility spot audit confirming correct
+listbox/option/aria-controls/aria-activedescendant wiring and real
+`<button>` accessible names, while HONESTLY RECORDING (not silently fixing)
+a shared pre-existing gap between `NoteLinkMenu` and `SlashMenu` — neither
+gives the editable root an explicit `role="combobox"`/`aria-autocomplete`
+pairing while its popup is open, and fixing only one would create a new
+inconsistency, so it was left as documented debt per the pass's own
+no-scope-creep rule; a proportionate performance check (sub-millisecond to
+~1ms at 1/20/100/250 backlinks and a 120-internal-link source note — no
+benchmark theater, no scaling concern); and a fresh competitor audit
+(dispatched to an isolated, explicitly no-file-access, no-git research fork)
+citing current official Notion/Obsidian/Evernote documentation rather than
+general product knowledge — Obsidian's rename-auto-propagation and richer
+context-preview backlinks pane are officially documented and now recorded as
+accepted competitive debt; Notion's own docs leave rename-behavior and
+export-link-portability themselves undocumented; Evernote has no officially
+documented keyboard-linking or backlinks feature at all.
+
+**Classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT** (the
+directive's own three-way outcome taxonomy) — one real local defect found,
+fixed, tested, and real-browser-verified; no architecture-level contradiction;
+no scope added (no unlinked mentions, no graph view, no new relationship
+types, no link analytics, no new entry points). **Wave D's core contracts are
+now FROZEN**: the noteLink stable-id representation, the `j2_note_links`
+sidecar/backlink-projection shape, rename/Trash/restore/purge semantics, the
+Wave C restore integration, and the export marker-scheme resolver.
+Competitive-gap-ledger G-022/G-033 updated to DONE with the fresh evidence.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

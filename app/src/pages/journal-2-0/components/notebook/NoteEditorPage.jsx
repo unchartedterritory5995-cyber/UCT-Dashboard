@@ -24,6 +24,7 @@ import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
+import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
 
@@ -991,7 +992,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const res = await fetch(`/api/j2/notes/${noteId}`, {
       method: 'DELETE', credentials: 'include',
     })
-    if (res.ok) onBack()
+    if (res.ok) {
+      // This note's target status just flipped active -> trashed -- same
+      // "a noteLink chip elsewhere in this tab is now stale" class as a
+      // rename (Wave D closure pass finding), so the same cache-bust applies.
+      invalidateNoteLinkTarget(noteId)
+      onBack()
+    }
   }
 
   const ToolButton = ({ active, onClick, label }) => (
