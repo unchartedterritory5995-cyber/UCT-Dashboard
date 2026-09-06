@@ -654,54 +654,50 @@ def test_bull_flag_anchors_do_not_all_land_on_one_point(name, detection):
 
 
 @pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
-def test_bull_flag_flag_channel_anchor_t_is_a_bar_index_KNOWN_DEFECT_NOT_FIXED_HERE(name, detection):
-    """⛔⛔ INDEPENDENTLY-PROVEN CORRECTNESS DEFECT, DISCOVERED BY PACKAGE 8H,
-    REPORTED SEPARATELY PER THE OWNER'S OWN GATE — NOT FIXED IN THIS PACKAGE.
+def test_bull_flag_flag_channel_anchor_t_is_now_a_real_unix_timestamp(name, detection):
+    """⛔⛔ INTEGRATION-REHEARSAL INVERSION of a Package-8H regression pin.
 
-    `types.py` defines `Bar.t`/`Pivot.t`/geometry-`Anchor.t` as `int  # unix
-    seconds, bar start` — the contract every OTHER family honors (HTF/PEG
-    both build anchors from `int(bars[idx]["t"])`, a real bar timestamp).
+    Package 8H itself discovered (but, per the owner's own gate, did NOT
+    fix) a real correctness defect: `bull_flag._try_extract_pattern`'s own
+    `upper_pivots`/`lower_pivots` (built inline, not via the shared
+    `detect_pivots` primitive HTF/PEG use) set `"t"` to a BAR INDEX rather
+    than a real unix-second timestamp, and `_build_detection` copied that
+    straight into `geometry.anchors[].t` -- verified against a real fixture
+    (`boundary_max_retrace`): anchor `.t` values of `31`/`37` against a real
+    `bars[-1].t` of ~1.7e9. Package 8H's own test pinned this as a NAMED,
+    visible, NOT-fixed-here fact, with its own docstring saying: "Delete/
+    invert this test only when a separately authorized fix lands in
+    `bull_flag.py` itself."
 
-    `bull_flag._try_extract_pattern`'s own `upper_pivots`/`lower_pivots`
-    (built inline, NOT via the shared `detect_pivots` primitive HTF/PEG use)
-    instead set `"t": pole_top_idx + 1 + i` — a BAR INDEX — and
-    `trendlines.fit_trendline`/`_fit_arithmetic` passes that value straight
-    through as `p1["t"]`/`p2["t"]` with no index-to-timestamp translation.
-    `_build_detection` then copies those bar-index values directly into
-    `geometry.anchors[].t`, unmodified.
-
-    Verified empirically against a real fixture (`boundary_max_retrace`):
-    `bars[0].t`/`bars[-1].t` are ~1.7e9 (real unix seconds) while the flag
-    anchors' `.t` values were `31`/`37` — small bar-index integers, off by
-    nine orders of magnitude from what `Bar.t`'s own contract promises. Any
-    future consumer plotting these anchors against real bar timestamps
-    (a chart overlay, an alignment check against `detection["end_t"]`) would
-    place the flag-channel drawing at a wildly wrong x-position.
-
-    This is a defect in `bull_flag.py`'s own geometry construction, entirely
-    upstream of anything `canonical_adapter.py`/`explanation_builder.py`
-    touch — neither module reads or interprets `anchors[].t` at all, so
-    Package 8H's own adaptation is unaffected by it. Per the owner's
-    explicit gate ("detector-geometry correction permitted ONLY upon an
-    independently-proven correctness defect which must be STOPped-on and
-    reported separately, never silently bundled into the adaptation"),
-    `bull_flag.py` is NOT edited here. This test PINS the current (buggy)
-    behavior as a named, visible fact so it cannot regress into something
-    even more silently wrong, and so nobody mistakes silence for "checked
-    and found correct." Delete/invert this test only when a separately
-    authorized fix lands in `bull_flag.py` itself."""
+    That fix landed: `fix/bull-flag-anchor-timestamps` was independently
+    authored (in parallel, from the same base commit as Package 8H) and,
+    per this integration branch's own dependency-safe ordering (detector-
+    correctness fixes before the canonical adapters that read the same
+    family's geometry), is cherry-picked BEFORE this package in this
+    branch. Re-verified directly, not assumed: every Bull Flag anchor's `t`
+    is now a real bar timestamp, present in the fixture's own `bars[].t`
+    set, and the flag channel's END anchors now correctly equal
+    `detection["end_t"]` (the last bar, since `flag_bars` always runs to
+    the end of the series -- Package 8H's own geometry-order finding, still
+    true and unaffected by the timestamp fix)."""
+    fixture_bars = next(
+        fx.bars for fx in load_all_fixtures("bull_flag", include_internal=False) if fx.name == name
+    )
+    bar_ts = {int(b["t"]) for b in fixture_bars}
     geometry = adapt_bull_flag(detection)["geometry"]
     anchors = geometry["anchors"]
-    upper_start, upper_end = anchors[0], anchors[1]
+    upper_start, upper_end, lower_start, lower_end = anchors
     end_t = detection["end_t"]  # a REAL unix-second timestamp (bars[-1]["t"])
-    # The anchor t-values are NOT unix seconds -- they are small bar-index
-    # integers, nowhere near the real timestamp of the bar they claim to sit on.
-    assert upper_end["t"] != end_t
-    assert upper_end["t"] < 10_000, (
-        f"anchor t={upper_end['t']!r} no longer looks like a bar index -- "
-        "if bull_flag.py's geometry construction changed, re-verify this "
-        "finding rather than assuming it still holds."
-    )
+
+    for a in anchors:
+        assert int(a["t"]) in bar_ts, (
+            f"anchor t={a['t']!r} is not a real bar timestamp in this fixture's "
+            "own bars -- the timestamp fix may have regressed"
+        )
+    # p2 (upper_end/lower_end) is always the LAST flag bar (Package 8H's own
+    # geometry-order finding) -- now correctly equal to end_t, not a bar index.
+    assert upper_end["t"] == end_t
+    assert lower_end["t"] == end_t
 
 
 def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():
