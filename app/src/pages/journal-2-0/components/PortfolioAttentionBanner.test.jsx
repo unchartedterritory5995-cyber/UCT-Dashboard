@@ -32,10 +32,14 @@ describe('PortfolioAttentionBanner', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders nothing on a fetch error', () => {
+  // S8 / Attention Freshness Propagation V1 — a total fetch failure must NOT
+  // collapse into the same rendered-nothing state as "no open positions": a
+  // real outage previously read as reassuring silence.
+  it('renders a distinct "could not check" state on a fetch error, never silence', () => {
     mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: new Error('500') })
-    const { container } = renderBanner()
-    expect(container.firstChild).toBeNull()
+    renderBanner()
+    expect(screen.getByTestId('portfolio-attention-banner')).toBeInTheDocument()
+    expect(screen.getByText('Could not check for updates')).toBeInTheDocument()
   })
 
   it('renders facts and context per symbol when the endpoint returns data', () => {
@@ -72,6 +76,12 @@ describe('PortfolioAttentionBanner', () => {
     expect(nvdaCard).toHaveTextContent('Rating 92')
     expect(nvdaCard).toHaveTextContent('RS 88')
     expect(screen.getByLabelText('NVDA notable')).toBeInTheDocument()
+    // S8 / Attention Freshness Propagation V1 — source/freshness are fetched
+    // by the hook already; this surface previously discarded them before
+    // render even though Watchlists.jsx's identical popover already showed them.
+    expect(nvdaCard).toHaveTextContent('live price')
+    expect(nvdaCard).toHaveTextContent('fresh')
+    expect(nvdaCard).toHaveTextContent('calendar')
 
     // Non-notable symbol still renders (per-symbol, read-only) but with no
     // notable marker and no fabricated facts.

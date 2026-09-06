@@ -91,10 +91,22 @@
   color: var(--text-muted);
 }
 
+.factMeta {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
 .noFacts {
   margin-top: 6px;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.unavailable {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
 .context {

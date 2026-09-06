@@ -467,15 +467,23 @@ const WatchRow = React.memo(function WatchRow({
     // the same blank the "checked, nothing notable" state would show.
     if (key === 'attention') {
       if (isGroup) return <span key="attention" className={styles.metaCell} />
-      if (intelStatus === 'unavailable') {
-        return <span key="attention" className={styles.metaCell} title="Could not check for updates" style={{ opacity: 0.4 }}>—</span>
+      // S8 / Attention Freshness Propagation V1 — broadened from the literal
+      // 'unavailable' to any non-'ok' status (backend vocabulary: ok/partial/
+      // unavailable). A 'partial' row with nothing notable previously fell
+      // through to the same blank cell as a fully-clean check, silently
+      // dropping the backend's own degradation signal.
+      if (intelStatus && intelStatus !== 'ok' && !notable) {
+        const title = intelStatus === 'unavailable' ? 'Could not check for updates' : `Data ${intelStatus}`
+        return <span key="attention" className={styles.metaCell} title={title} style={{ opacity: 0.4 }}>—</span>
       }
       if (!notable) return <span key="attention" className={styles.metaCell} />
       return (
         <button
           key="attention"
           className={styles.attnBadge}
-          title={`${(intelFacts || []).length} thing${(intelFacts || []).length === 1 ? '' : 's'} to know`}
+          title={intelStatus && intelStatus !== 'ok'
+            ? `${(intelFacts || []).length} thing${(intelFacts || []).length === 1 ? '' : 's'} to know (data ${intelStatus})`
+            : `${(intelFacts || []).length} thing${(intelFacts || []).length === 1 ? '' : 's'} to know`}
           onClick={e => { e.stopPropagation(); onAttention?.(e, sym, intelFacts || []) }}
         ><UIcon name="bell" size={13} /></button>
       )

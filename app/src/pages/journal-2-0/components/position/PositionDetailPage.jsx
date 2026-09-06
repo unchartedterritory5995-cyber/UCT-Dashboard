@@ -112,9 +112,12 @@ export default function PositionDetailPage() {
   // Same batch endpoint + hook PortfolioAttentionBanner uses on Open Positions
   // (Attention Signal Propagation V1) — reused verbatim, never a new
   // single-symbol call. Entry is simply absent for a symbol with no open
-  // position (or while data hasn't loaded/failed), which this page's
-  // existing null-safe convention already renders as "section hidden."
-  const { attention } = useJ2PositionsAttention()
+  // position (or while data hasn't loaded), which this page's existing
+  // null-safe convention already renders as "section hidden." A total fetch
+  // FAILURE is a distinct case (S8 / Attention Freshness Propagation V1) —
+  // previously indistinguishable from "no position"/"still loading," so a
+  // real outage silently looked like nothing to show.
+  const { attention, error: attentionError } = useJ2PositionsAttention()
   const attentionEntry = attention[sym]
   const attentionFacts = attentionEntry?.facts || []
 
@@ -221,7 +224,16 @@ export default function PositionDetailPage() {
         )}
       </div>
 
-      {attentionEntry && (
+      {attentionError && (
+        <div className={styles.attentionCard} data-testid="position-attention-unavailable">
+          <div className={styles.attentionHeader}>
+            <UIcon name="sparkle" size={12} />
+            <span>Attention</span>
+          </div>
+          <div className={styles.attentionNoFacts}>Could not check for updates</div>
+        </div>
+      )}
+      {!attentionError && attentionEntry && (
         <div
           className={`${styles.attentionCard} ${attentionEntry.notable ? styles.attentionCardNotable : ''}`}
           data-testid="position-attention"
@@ -246,6 +258,17 @@ export default function PositionDetailPage() {
                   {/* Evidence timestamp from the fact itself — never a
                       rendered "now"/client clock. */}
                   {f.as_of && <span className={styles.attentionFactDate}> · {f.as_of}</span>}
+                  {/* Source/freshness — same fields Watchlists.jsx's
+                      AttentionFacts popover already renders; this hook
+                      fetched them unmodified from the identical backend
+                      shape, they were just never displayed here before. */}
+                  {(f.source || (f.freshness && f.freshness !== 'unknown')) && (
+                    <span className={styles.attentionFactMeta}>
+                      {' · '}
+                      {f.source || 'unknown source'}
+                      {f.freshness && f.freshness !== 'unknown' ? ` · ${f.freshness}` : ''}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
