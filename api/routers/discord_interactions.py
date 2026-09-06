@@ -158,6 +158,72 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
         edit(app_id, token, content=content)
 
 
+def _flow_fmt_m(v) -> str:
+    v = float(v or 0)
+    if v >= 1e9:
+        return f"${v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"${v / 1e6:.1f}M"
+    return f"${v / 1e3:.0f}K"
+
+
+def _flow_window_phrase(w: dict) -> str:
+    req = str((w or {}).get("days_requested") or "").lower()
+    if req == "all":
+        return "all history"
+    return f"last {req} trading days" if req and req != "1" else "today"
+
+
+def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
+                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
+    """Background job for /flow: fetch the ticker's flow summary from the
+    FLOW-WORKER (which owns flow.db), render the card, and PATCH it onto the
+    deferred PUBLIC reply. Never raises (a background job must not) — a data
+    error or empty window edits an honest note instead of a false zero, the same
+    ethic as the Search tab's reconnecting state."""
+    from api.flow_ticker_card import render_ticker_flow_card
+    render = render_fn or render_ticker_flow_card
+    edit = edit_fn or di.edit_original
+    data = None
+    try:
+        if fetch_fn is not None:
+            data = fetch_fn(ticker, days)
+        else:
+            base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
+            if base:
+                import httpx
+                r = httpx.get(f"{base}/api/live/massive/ticker-flow",
+                              params={"symbol": ticker, "days": days, "source": "stocks"},
+                              timeout=30.0)
+                data = r.json() if r.is_success else None
+            else:
+                # Single-service / local fallback: compute in-process.
+                from api import live_massive_router as lmr
+                data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
+        data = None
+
+    if not data or not data.get("ok"):
+        edit(app_id, token,
+             content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
+        return
+    win = _flow_window_phrase(data.get("window") or {})
+    if not (data.get("contracts") or []):
+        edit(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
+        return
+    net = data.get("net") or {}
+    header = (f"**{ticker} Flow** · {win} · net {net.get('dir', '')} "
+              f"({_flow_fmt_m(net.get('bull'))} bull / {_flow_fmt_m(net.get('bear'))} bear)")
+    try:
+        png = render(data)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow] render failed %s: %s", ticker, e)
+        edit(app_id, token, content=header)   # numbers still land, just no image
+        return
+    edit(app_id, token, content=header, png=png, filename=f"{ticker}_flow.png")
+
+
 def breadth_adjust(req, prefs: dict):
     """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
     series built from the breadth monitor (the bars authority collapses an
@@ -226,6 +292,9 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
             return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
+        if name == di.FLOW_COMMAND:
+            q = di.parse_autocomplete(interaction)
+            return _autocomplete(fetch_ticker_choices(q) if q else [])
         if name not in di.CHART_COMMAND_NAMES:
             return _autocomplete([])
         q = di.parse_autocomplete(interaction)
@@ -310,6 +379,26 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                 # whatever this response declared.
                 return {"type": 5, "data": {"flags": di.EPHEMERAL}}
         return {"type": 4, "data": {"content": text, "flags": di.EPHEMERAL}}
+    if itype == 2 and name == di.FLOW_COMMAND:
+        # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
+        # (owner decision). Refused elsewhere with a pointer to that channel.
+        if not di.flow_channel_ok(interaction):
+            want = di.flow_channel_id()
+            return _ephemeral(f"Please use <#{want}> for /flow." if want else "Not available here.")
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)   # shares the /chart render budget (one valve)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="flow cards"))
+        try:
+            tkr, days = di.parse_flow_command(interaction)
+        except di.CommandError as e:
+            return _ephemeral(str(e))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_flow_card_job, app_id, token, tkr, days)
+        return {"type": 5}   # PUBLIC deferred reply — the card posts in-channel
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)

@@ -316,6 +316,56 @@ MULTI_COMMAND = "charts"
 MULTI_MAX = 4
 
 BUZZ_COMMAND = "buzz"
+FLOW_COMMAND = "flow"
+
+
+def flow_channel_id() -> str:
+    """The one channel /flow may be used in and posts to. Blank = allowed
+    anywhere (dev/testing); set FLOW_CMD_CHANNEL_ID to lock it to a channel."""
+    return (os.environ.get("FLOW_CMD_CHANNEL_ID") or "").strip()
+
+
+def flow_channel_ok(interaction: dict) -> bool:
+    """/flow is gated to ONE channel (owner decision): public in that channel,
+    refused elsewhere. Unset env = allowed anywhere so it can be tested first."""
+    want = flow_channel_id()
+    return (not want) or str(interaction.get("channel_id") or "") == want
+
+
+def parse_flow_command(interaction: dict) -> tuple:
+    """(ticker, days) from /flow. ticker required (1-12 letters/digits); days a
+    positive integer (capped 400) or 'all' — default 'today' (1 session)."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    ticker = str(opts.get("ticker") or "").strip().upper().lstrip("$")
+    if not _TICKER_RE.match(ticker):
+        raise CommandError("Give me a ticker, e.g. /flow DPRO.")
+    raw = str(opts.get("days") or "").strip().lower()
+    if raw in ("", "today", "1", "1d"):
+        return ticker, "1"
+    if raw in ("all", "max"):
+        return ticker, "all"
+    try:
+        d = int(float(raw))
+    except ValueError:
+        raise CommandError("days must be a whole number (e.g. 60) or 'all'.")
+    if d < 1:
+        raise CommandError("days must be at least 1, or 'all'.")
+    return ticker, str(min(d, 400))
+
+
+def build_flow_command() -> dict:
+    """/flow DPRO — options-flow read for a ticker: net bull/bear + top contracts."""
+    return {
+        "name": FLOW_COMMAND, "type": 1,
+        "description": "Options flow for a ticker: net bull/bear + top contracts over N days",
+        "options": [
+            {"name": "ticker", "type": 3, "required": True, "autocomplete": True,
+             "description": "Ticker, e.g. DPRO"},
+            {"name": "days", "type": 3, "required": False,
+             "description": "Trailing trading days (e.g. 60) or 'all' — default today"},
+        ],
+    }
 
 
 def _window_choices() -> dict[str, str]:
@@ -925,7 +975,7 @@ def build_commands(activity: bool = False) -> list:
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
-            build_settings_command(), build_buzz_command()]
+            build_settings_command(), build_buzz_command(), build_flow_command()]
     if activity:
         cmds.append(build_launch_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]

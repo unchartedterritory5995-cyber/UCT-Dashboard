@@ -18,7 +18,7 @@ from api.watchlist_card import (
 
 _W = 1000
 _ROWH = 40
-_TOP = 150          # header band + net bar + column headers
+_TOP = 156          # header band + net bar + column headers
 _MIXED = (201, 168, 76)   # gold for two-sided / unclear leans
 
 # (header, x, align) — one row per CONTRACT (no ticker column; it's one ticker)
@@ -90,7 +90,7 @@ def render_ticker_flow_card(data: dict) -> bytes:
     bull = float(net.get("bull") or 0); bear = float(net.get("bear") or 0)
     tot = (bull + bear) or 1.0
     x0, x1 = 36, _W - 36
-    bh = 20; by = 108; ly = by - 18
+    bh = 20; by = 100; ly = by - 18
     txt(x0, ly, f"▲ {_fmt_prem(bull)} Bull", f_hdr, _BULL)
     net_d = bull - bear
     ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))}  ·  {net.get('dir', '')}"
