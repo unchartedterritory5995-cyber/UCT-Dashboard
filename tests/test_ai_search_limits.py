@@ -301,7 +301,7 @@ def test_summarize_flow_rows_no_rows_at_all():
     assert ai._summarize_flow_rows("NVDA", [], "7/18/2026") == ""
 
 
-def test_flow_and_patterns_grounding_wiring(monkeypatch):
+def test_flow_grounding_wiring(monkeypatch):
     _reset_counters()
     captured = {}
 
@@ -314,18 +314,40 @@ def test_flow_and_patterns_grounding_wiring(monkeypatch):
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
     monkeypatch.setattr(ai, "_ctx_tape", lambda s: "")
-    monkeypatch.setattr(ai, "_ctx_patterns", lambda s: f"{s} active setups (UCT pattern engine): High Tight Flag (82% conf)")
     monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda s: f"{s} options flow today (UCT tape): 12 notable prints")
     monkeypatch.setattr(ai, "_UNI", {"NVDA"})
     c = _client()
-    # flow phrasing → patterns AND flow both ground
+    # flow phrasing → flow grounds
     c.post("/api/ai-search", json={"query": "what is the options flow saying on NVDA"})
-    assert "NVDA active setups (UCT pattern engine)" in captured["system"]
     assert "NVDA options flow today (UCT tape)" in captured["system"]
-    # non-flow phrasing → patterns yes, flow skipped (HTTP hop saved)
+    # non-flow phrasing → flow skipped (HTTP hop saved)
     c.post("/api/ai-search", json={"query": "what do you think of NVDA here"})
-    assert "NVDA active setups (UCT pattern engine)" in captured["system"]
     assert "options flow today" not in captured["system"]
+
+
+def test_setup_question_declares_a_gap_not_the_raw_pattern_feed(monkeypatch):
+    """AI Search Raw-Pattern Trust Adjudication V1: a member asking about a
+    setup/pattern must get an honest declared gap (never the raw, unconfirmed
+    pattern-engine feed narrated as fact -- see _SETUP_RE's comment in
+    ai_search.py for the full rationale)."""
+    _reset_counters()
+    captured = {}
+
+    def fake(query, **kw):
+        captured.update(kw)
+        return {"answer": "x", "citations": [], "related_questions": [], "cached": False}
+
+    monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
+    monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
+    monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
+    monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
+    monkeypatch.setattr(ai, "_ctx_tape", lambda s: "")
+    monkeypatch.setattr(ai, "_UNI", {"NVDA"})
+    c = _client()
+    c.post("/api/ai-search", json={"query": "is there a setup on NVDA right now"})
+    assert "active setups (UCT pattern engine)" not in captured["system"]
+    assert "confirmed technical setup" in captured["system"]
+    assert "DESK GAPS" in captured["system"]
 
 
 def test_scope_guard_present_in_widget_prompt():
