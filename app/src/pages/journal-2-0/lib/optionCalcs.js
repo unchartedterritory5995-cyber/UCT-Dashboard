@@ -196,3 +196,59 @@ export function prettyStrategyType(type) {
   }
   return map[type] || type
 }
+
+/**
+ * Normalize a CLOSED option strategy (the `_row_to_strategy` shape returned
+ * by both `GET /api/j2/option-strategies` and the calendar day-detail
+ * endpoint's `strategies.closed`/`strategies.expiring`) into a trade-table
+ * row so options can sit beside shares wherever TradesTable/TradeDrawer
+ * expect a trade row (Symbol "CRWV Oct 16 $110C", Side "Long Call"). Field
+ * shape matches TradesTable/summaryStats exactly (pnlPercent is a fraction,
+ * like share trades) -- shared by TradeJournalTab.jsx and DayDetailPage.jsx
+ * so the two surfaces can never diverge on how an option strategy becomes a
+ * trade-drawer-openable row (Journal / Trade Lifecycle Convergence V1).
+ */
+export function optionClosedToRow(s) {
+  const leg = (s.legs && s.legs[0]) || {}
+  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
+  const isCall = (s.strategyType || '').endsWith('call')
+  let when = ''
+  if (leg.expiration) {
+    const d = new Date(`${leg.expiration}T00:00:00`)
+    if (!Number.isNaN(d.getTime())) {
+      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
+    }
+  }
+  let holdDays = null
+  if (s.entryDate && s.closedAt) {
+    const dd = (new Date(s.closedAt) - new Date(s.entryDate)) / 86_400_000
+    if (Number.isFinite(dd)) holdDays = Math.max(0, Math.round(dd))
+  }
+  return {
+    id: s.id,
+    isOption: true,
+    symbol: `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`,
+    // The REAL chartable ticker — `symbol` above is a synthesized display
+    // label ("SPY Oct 16 $110C"), never a valid chart/bars-API symbol.
+    underlying: s.underlying,
+    side: `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`,
+    result: s.result,
+    shares: leg.qty,                          // contracts
+    entryPrice: leg.entryPrice,               // premium per contract
+    entryDate: s.entryDate,
+    exitPrice: leg.exitPrice,                 // exit premium per contract
+    exitDate: s.closedAt,
+    pnlDollar: s.pnlDollar,
+    pnlDollarNet: s.pnlDollar,                // options P&L is already net of fees
+    fees: (s.fees || 0) + (s.exitFees || 0),
+    pnlPercent: s.pnlPercent,                 // fraction (same as share trades)
+    rMultiple: s.rMultiple,
+    holdDays,
+    setup: s.setup,
+    originalStop: null,
+    source: s.source,
+    // Carried straight through from list_strategies — never recomputed
+    // client-side (the id:/ext: scheme is a backend-owned identity).
+    tradeRef: s.tradeRef,
+  }
+}

@@ -32,6 +32,7 @@ import BrokerImportingBanner from '../components/BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
 import { summaryStats } from '../../../lib/journal-2-0'
 import { DEFAULT_PAGE_SIZE } from '../../../lib/journal-2-0/scope'
+import { optionClosedToRow } from '../lib/optionCalcs'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
 
@@ -79,55 +80,6 @@ async function jsonFetch(url, method, body) {
     throw new Error(msg)
   }
   return res.json()
-}
-
-// Normalize a CLOSED option strategy into a trade-table row so options sit in
-// the same closed-trades table as shares (Symbol "CRWV Oct 16 $110C", Side
-// "Long Call"). Field shape matches TradesTable/summaryStats exactly
-// (pnlPercent is a fraction, like share trades), so no table changes.
-function optionClosedToRow(s) {
-  const leg = (s.legs && s.legs[0]) || {}
-  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
-  const isCall = (s.strategyType || '').endsWith('call')
-  let when = ''
-  if (leg.expiration) {
-    const d = new Date(`${leg.expiration}T00:00:00`)
-    if (!Number.isNaN(d.getTime())) {
-      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
-    }
-  }
-  let holdDays = null
-  if (s.entryDate && s.closedAt) {
-    const dd = (new Date(s.closedAt) - new Date(s.entryDate)) / 86_400_000
-    if (Number.isFinite(dd)) holdDays = Math.max(0, Math.round(dd))
-  }
-  return {
-    id: s.id,
-    isOption: true,
-    symbol: `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`,
-    // The REAL chartable ticker — `symbol` above is a synthesized display
-    // label ("SPY Oct 16 $110C"), never a valid chart/bars-API symbol.
-    underlying: s.underlying,
-    side: `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`,
-    result: s.result,
-    shares: leg.qty,                          // contracts
-    entryPrice: leg.entryPrice,               // premium per contract
-    entryDate: s.entryDate,
-    exitPrice: leg.exitPrice,                 // exit premium per contract
-    exitDate: s.closedAt,
-    pnlDollar: s.pnlDollar,
-    pnlDollarNet: s.pnlDollar,                // options P&L is already net of fees
-    fees: (s.fees || 0) + (s.exitFees || 0),
-    pnlPercent: s.pnlPercent,                 // fraction (same as share trades)
-    rMultiple: s.rMultiple,
-    holdDays,
-    setup: s.setup,
-    originalStop: null,
-    source: s.source,
-    // Carried straight through from list_strategies — never recomputed
-    // client-side (the id:/ext: scheme is a backend-owned identity).
-    tradeRef: s.tradeRef,
-  }
 }
 
 // The closed-options union is NOT server-scoped (A9 filters SHARES server-side),

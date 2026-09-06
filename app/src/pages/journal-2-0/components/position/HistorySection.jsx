@@ -5,7 +5,7 @@
 import { money, moneySigned, dateShort } from '../../../../lib/journal-2-0'
 import styles from './PositionDetailPage.module.css'
 
-export default function HistorySection({ trades, positions }) {
+export default function HistorySection({ trades, positions, onRowAction }) {
   const open = positions || []
   const closed = [...(trades || [])].sort(
     (a, b) => String(b.exitDate || '').localeCompare(String(a.exitDate || '')),
@@ -27,7 +27,16 @@ export default function HistorySection({ trades, positions }) {
           </li>
         ))}
         {closed.map((t) => (
-          <li key={t.id} className={styles.histItem}>
+          <li
+            key={t.id}
+            className={`${styles.histItem} ${onRowAction ? styles.histItemClickable : ''}`}
+            role={onRowAction ? 'button' : undefined}
+            tabIndex={onRowAction ? 0 : undefined}
+            onClick={onRowAction ? () => onRowAction('open', t) : undefined}
+            onKeyDown={onRowAction ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowAction('open', t) }
+            } : undefined}
+          >
             <div>
               <div className={styles.histTitle}>
                 {t.side === 'Short' ? 'Short' : 'Long'} · {t.shares} @ {money(t.entryPrice)} → {money(t.exitPrice)}
