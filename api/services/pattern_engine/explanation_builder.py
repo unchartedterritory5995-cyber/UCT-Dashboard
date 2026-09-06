@@ -4,11 +4,11 @@ Converts an already-canonical (adapted — see `canonical_adapter.py`)
 `Detection` into an `Explanation`: a deterministic set of structured facts
 answering WHY this detection matched, what currently strengthens or weakens
 it, what stage it's in, and whether the scanner currently considers it
-eligible. Three families (`high_tight_flag`, `power_earnings_gap`,
-`bullish_engulfing` — the last added Package 8F, mirroring HTF's own
-eligibility-only shape), per this package's authorization — every other
-`pattern_id` gets an Explanation with an empty `sections` list, not a crash
-and not fabricated facts.
+eligible. Four families (`high_tight_flag`, `power_earnings_gap`,
+`bullish_engulfing` — Package 8F — and `bearish_engulfing` — Package 8G,
+both mirroring HTF's own eligibility-only shape), per this package's
+authorization — every other `pattern_id` gets an Explanation with an empty
+`sections` list, not a crash and not fabricated facts.
 
 GOVERNING RULES (this package's authorization; directly motivated by a
 historical Phase-4A defect where a narrative layer stated things the
@@ -67,6 +67,7 @@ separately-authorized reachability stage.
 """
 from __future__ import annotations
 
+from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bre
 from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _be
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
@@ -74,7 +75,7 @@ from api.services.pattern_engine.types import Detection, Explanation, Explanatio
 
 BUILDER_VERSION = "phase8.8e.1"
 
-_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _be._PATTERN_ID)
+_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _be._PATTERN_ID, _bre._PATTERN_ID)
 
 
 def build_explanation(detection: Detection) -> Explanation:
@@ -131,6 +132,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _peg_why_it_matched_facts(detection)
     if pid == _be._PATTERN_ID:
         return _bullish_engulfing_why_it_matched_facts(detection)
+    if pid == _bre._PATTERN_ID:
+        return _bearish_engulfing_why_it_matched_facts(detection)
     return []
 
 
@@ -218,6 +221,67 @@ def _bullish_engulfing_why_it_matched_facts(detection: Detection) -> list[Explan
             "be_engulfing_bar_dcr", "identity", "direct",
             f"The engulfing bar closed at DCR {dcr * 100:.0f}% of its own range "
             f"({extras.get('dcr_strength', 'unclassified')}).",
+            "geometry.extras.curr_bar_dcr", "supports", p,
+        ))
+        p += 1
+
+    return facts
+
+
+def _bearish_engulfing_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """Bearish Engulfing has no `gate_trace` (same reasoning as Bullish
+    Engulfing's own docstring), so this reads directly off `geometry.extras`.
+
+    ⛔ NOT a mechanical copy of `_bullish_engulfing_why_it_matched_facts` --
+    the owner-required semantic diff (Package 8G) found 3 of the 12 extras
+    keys are DIRECTIONALLY RENAMED (`at_swing_high`/`above_50sma`/
+    `recent_advance_pct` here, not the bullish side's `at_swing_low`/
+    `below_50sma`/`recent_decline_pct`), and the DCR confirmation direction
+    is INVERTED: a LOW `curr_bar_dcr` is this family's confirming signal, the
+    opposite of bullish_engulfing's high-DCR signal. `dcr_strength()` is
+    direction-unaware (`"weak"` just means DCR<=0.30), so the fact below
+    describes the raw DCR position rather than reusing that label as if it
+    universally meant something is wrong with the pattern.
+    """
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    ratio = extras.get("engulfment_ratio")
+    if ratio is not None:
+        facts.append(_fact(
+            "bre_engulfment_ratio", "identity", "direct",
+            f"Bar N's body is {ratio:.2f}x bar N-1's body "
+            f"(this family's own floor is {_bre._MIN_ENGULF_BODY_RATIO:.1f}x).",
+            "geometry.extras.engulfment_ratio", "supports", p,
+        ))
+        p += 1
+
+    reversal_reasons = []
+    if extras.get("at_swing_high"):
+        reversal_reasons.append("at a near-term swing high")
+    if extras.get("above_50sma"):
+        reversal_reasons.append("above the 50-bar SMA")
+    advance = extras.get("recent_advance_pct")
+    if advance is not None and advance >= _bre._MIN_ADVANCE_FOR_REVERSAL * 100:
+        reversal_reasons.append(f"after a {advance:.1f}% recent advance")
+    if reversal_reasons:
+        facts.append(_fact(
+            "bre_reversal_context", "identity", "direct",
+            "Reversal-context gate cleared: " + "; ".join(reversal_reasons) + " "
+            "(the detector requires at least one of these before it will build "
+            "a detection at all).",
+            "geometry.extras.at_swing_high|above_50sma|recent_advance_pct", "supports", p,
+        ))
+        p += 1
+
+    dcr = extras.get("curr_bar_dcr")
+    if dcr is not None:
+        facts.append(_fact(
+            "bre_engulfing_bar_dcr", "identity", "direct",
+            f"The engulfing bar closed at DCR {dcr * 100:.0f}% of its own range -- "
+            f"for this family a LOW value (close near the bar's own low) is the "
+            f"confirming signal, the opposite of a bullish engulfing's high-DCR read.",
             "geometry.extras.curr_bar_dcr", "supports", p,
         ))
         p += 1
@@ -336,6 +400,12 @@ _FAMILY_PHRASE_FNS = {
     # str signature. Its _ma_phrase omits the word "moving-average" (like
     # PEG's), so composing "{ma_fn(context)} alignment" here cannot repeat it.
     _be._PATTERN_ID: (_be._trend_phrase, _be._ma_phrase, _be._rs_phrase),
+    # bearish_engulfing's own phrase fns are named _trend_phrase/_ma_phrase/
+    # _rs_phrase (verified identical (context) -> str signature to bullish's
+    # own trio during the Package 8G semantic diff). Its `_ma_phrase` omits
+    # the word "moving-average" (confirmed by direct read), so composing
+    # "{ma_fn(context)} alignment" here cannot repeat it.
+    _bre._PATTERN_ID: (_bre._trend_phrase, _bre._ma_phrase, _bre._rs_phrase),
 }
 
 

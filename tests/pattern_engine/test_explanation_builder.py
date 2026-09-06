@@ -21,9 +21,13 @@ import copy
 import pytest
 
 from api.services.pattern_engine.canonical_adapter import (
+    adapt_bearish_engulfing,
     adapt_bullish_engulfing,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
+)
+from api.services.pattern_engine.detectors.candlestick.bearish_engulfing import (
+    detect_bearish_engulfing,
 )
 from api.services.pattern_engine.detectors.candlestick.bullish_engulfing import (
     detect_bullish_engulfing,
@@ -51,6 +55,7 @@ def _adapted_detections(family, detect_fn, adapt_fn):
 HTF_ADAPTED = _adapted_detections("high_tight_flag", detect_high_tight_flag, adapt_high_tight_flag)
 PEG_ADAPTED = _adapted_detections("power_earnings_gap", detect_power_earnings_gap, adapt_power_earnings_gap)
 BE_ADAPTED = _adapted_detections("bullish_engulfing", detect_bullish_engulfing, adapt_bullish_engulfing)
+BRE_ADAPTED = _adapted_detections("bearish_engulfing", detect_bearish_engulfing, adapt_bearish_engulfing)
 
 
 def _sections(explanation) -> dict:
@@ -196,6 +201,134 @@ def test_be_has_no_strengths_or_weaknesses_section(name, detection):
     assert "weaknesses" not in sections
 
 
+# ─── semantic fixture tests — Bearish Engulfing ────────────────────────────
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_why_it_matched_reflects_real_geometry_extras(name, detection):
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    extras = detection["geometry"]["extras"]
+
+    by_id = {f["fact_id"]: f for f in facts}
+    ratio_fact = by_id["bre_engulfment_ratio"]
+    assert ratio_fact["claim_type"] == "direct"
+    assert ratio_fact["supporting_evidence"] == "geometry.extras.engulfment_ratio"
+    assert f"{extras['engulfment_ratio']:.2f}x" in ratio_fact["label"]
+
+    dcr_fact = by_id["bre_engulfing_bar_dcr"]
+    assert f"{extras['curr_bar_dcr'] * 100:.0f}%" in dcr_fact["label"]
+
+    assert all(f["polarity"] == "supports" for f in facts)
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_reversal_context_fact_names_the_gate_that_actually_fired(name, detection):
+    """The reversal-context fact must name only the reasons this SPECIFIC
+    candidate cleared -- never all three unconditionally."""
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    extras = detection["geometry"]["extras"]
+    ctx_fact = next((f for f in facts if f["fact_id"] == "bre_reversal_context"), None)
+    assert ctx_fact is not None, "a firing detection must have cleared the hard reversal gate"
+    if extras.get("at_swing_high"):
+        assert "swing high" in ctx_fact["label"]
+    if extras.get("above_50sma"):
+        assert "50-bar SMA" in ctx_fact["label"]
+    if not extras.get("at_swing_high") and not extras.get("above_50sma"):
+        assert "recent advance" in ctx_fact["label"]
+
+
+def test_bre_extras_are_read_with_the_bearish_specific_key_names_not_bullish_ones():
+    """⛔⛔ THE CROSS-WIRE GUARD THIS PACKAGE EXISTS FOR. The owner-required
+    semantic diff found 3 of 12 `geometry.extras` keys are DIRECTIONALLY
+    RENAMED between the two families (`at_swing_high`/`above_50sma`/
+    `recent_advance_pct` here vs the bullish side's `at_swing_low`/
+    `below_50sma`/`recent_decline_pct`). If the explanation builder had
+    accidentally been written against the BULLISH key names, this fixture
+    (real bearish_engulfing extras) would silently produce NO reversal-context
+    fact at all -- proving the read is real, not a copy-paste that happens to
+    import cleanly."""
+    assert BRE_ADAPTED, "fixture set must be non-empty for this rail to mean anything"
+    _, detection = BRE_ADAPTED[0]
+    extras = detection["geometry"]["extras"]
+    # the bullish-named keys must be genuinely absent from a real bearish
+    # detection -- otherwise this control proves nothing
+    assert "at_swing_low" not in extras
+    assert "below_50sma" not in extras
+    assert "recent_decline_pct" not in extras
+    assert any(k in extras for k in ("at_swing_high", "above_50sma", "recent_advance_pct"))
+    facts = _sections(build_explanation(detection))["why_it_matched"]
+    assert any(f["fact_id"] == "bre_reversal_context" for f in facts), (
+        "the reversal-context fact never fired against real bearish extras -- "
+        "the builder is reading the wrong (bullish-shaped) key names"
+    )
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_dcr_fact_does_not_reuse_bullish_directional_framing(name, detection):
+    """The DCR confirmation direction is INVERTED for this family (a LOW
+    curr_bar_dcr is the confirming signal) -- the fact must say so explicitly
+    rather than implying "high DCR = good" the way the bullish family's own
+    fact would."""
+    facts = _sections(build_explanation(detection))["why_it_matched"]
+    dcr_fact = next(f for f in facts if f["fact_id"] == "bre_engulfing_bar_dcr")
+    assert "opposite of a bullish engulfing" in dcr_fact["label"]
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_has_no_event_section(name, detection):
+    assert "event" not in _sections(build_explanation(detection))
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_warnings_flag_the_absent_sections_it_actually_lacks(name, detection):
+    warnings = _sections(build_explanation(detection))["warnings"]
+    by_id = {f["fact_id"]: f for f in warnings}
+    assert "gate_trace_absent" in by_id
+    assert by_id["gate_trace_absent"]["claim_type"] == "qualified"
+    assert "event_absent" in by_id
+    assert by_id["event_absent"]["claim_type"] == "qualified"
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_market_context_uses_its_own_phrase_fns_without_duplicating_the_word(name, detection):
+    facts = _sections(build_explanation(detection))["current_stage"]
+    context_fact = next(f for f in facts if f["fact_id"] == "market_context")
+    assert context_fact["label"].count("moving-average") == 0
+    assert "alignment" in context_fact["label"]
+
+
+@pytest.mark.parametrize("name,detection", BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_has_no_strengths_or_weaknesses_section(name, detection):
+    """Bearish Engulfing's own `_score_context` is monolithic (no separable
+    DCR/CAN-SLIM helper functions) -- strengths/weaknesses must be honestly
+    OMITTED, matching Bullish Engulfing's own precedent."""
+    sections = _sections(build_explanation(detection))
+    assert "strengths" not in sections
+    assert "weaknesses" not in sections
+
+
+def test_bullish_and_bearish_engulfing_facts_never_cross_wire():
+    """⛔ CROSS-WIRE GUARD (integration rehearsal). Both families are now
+    genuinely registered in `_IN_SCOPE_FAMILIES` in this branch (Package 8F +
+    8G, integrated together) -- unlike either family's own isolated branch,
+    where the sibling family was never registered at all and a stub
+    `pattern_id` with empty `sections` was enough to prove non-aliasing. Here
+    the real proof is stronger: every BE_ADAPTED detection's `why_it_matched`
+    facts must carry ONLY `be_`-prefixed fact_ids, and every BRE_ADAPTED
+    detection's must carry ONLY `bre_`-prefixed ones -- across every real
+    firing fixture in both batteries, not a single hand-built stub."""
+    assert BE_ADAPTED and BRE_ADAPTED
+    for _, detection in BE_ADAPTED:
+        facts = _sections(build_explanation(detection)).get("why_it_matched", [])
+        for f in facts:
+            assert f["fact_id"].startswith("be_"), f"bullish detection produced non-bullish fact {f['fact_id']!r}"
+    for _, detection in BRE_ADAPTED:
+        facts = _sections(build_explanation(detection)).get("why_it_matched", [])
+        for f in facts:
+            assert f["fact_id"].startswith("bre_"), f"bearish detection produced non-bearish fact {f['fact_id']!r}"
+
+
 # ─── semantic fixture tests — PEG ──────────────────────────────────────────
 
 @pytest.mark.parametrize("name,detection", PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
@@ -249,14 +382,14 @@ def test_peg_event_section_present_and_matches_verification_status(name, detecti
 
 # ─── current_stage / scanner_eligibility ───────────────────────────────────
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_current_stage_status_fact_matches_detection_status(name, detection):
     facts = _sections(build_explanation(detection))["current_stage"]
     status_fact = next(f for f in facts if f["fact_id"] == "detection_status")
     assert detection["status"] in status_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_market_context_never_says_moving_average_twice(name, detection):
     """Regression (found against real market-shaped data, Package 8F, not
     the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
@@ -270,7 +403,7 @@ def test_market_context_never_says_moving_average_twice(name, detection):
     assert "moving-average moving-average" not in context_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")
@@ -302,7 +435,7 @@ def test_raw_unadapted_detection_never_fabricates_an_eligibility_boolean(name, d
     assert not facts[0]["label"].startswith("Scanner eligibility: ")
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detection):
     exp = build_explanation(detection)
     # "win rate" may appear ONLY inside the neutral-prior disclaimer itself
@@ -323,7 +456,7 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         assert "50" not in neutral_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_no_fact_anywhere_references_rejected_candidates(name, detection):
     """The 'why matched, never why others failed' boundary — a rail, not
     just a docstring claim. `gate_trace_scope`/`gate_trace_absent` are the
@@ -341,7 +474,7 @@ def test_no_fact_anywhere_references_rejected_candidates(name, detection):
             assert term not in low, f"fact {fact['fact_id']!r} references rejected candidates: {fact['label']!r}"
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_context_strength_and_weakness_never_both_claim_the_same_signal(name, detection):
     sections = _sections(build_explanation(detection))
     strength_ids = {f["fact_id"] for f in sections.get("strengths", [])}

@@ -24,11 +24,15 @@ import pytest
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.canonical_adapter import (
     ADAPTER_VERSION,
+    adapt_bearish_engulfing,
     adapt_bullish_engulfing,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
     build_scanner_summary,
     compute_default_eligibility,
+)
+from api.services.pattern_engine.detectors.candlestick.bearish_engulfing import (
+    detect_bearish_engulfing,
 )
 from api.services.pattern_engine.detectors.candlestick.bullish_engulfing import (
     detect_bullish_engulfing,
@@ -61,6 +65,7 @@ def _fired_detections(family, detect_fn):
 HTF_DETECTIONS = _fired_detections("high_tight_flag", detect_high_tight_flag)
 PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_gap)
 BE_DETECTIONS = _fired_detections("bullish_engulfing", detect_bullish_engulfing)
+BRE_DETECTIONS = _fired_detections("bearish_engulfing", detect_bearish_engulfing)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -234,6 +239,106 @@ def test_be_scanner_summary_discloses_absent_sections_honestly(name, detection):
     assert summary["freshness_note"] == "no family-specific freshness gate (shared active window only)"
 
 
+# ─── Bearish Engulfing: eligibility-only, mirrors HTF/Bullish-Engulfing ───
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_bearish_engulfing(detection)
+    _assert_parity(detection, adapted, {"eligibility"})
+
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_adapter_omits_event_and_criteria(name, detection):
+    """A 2-bar candlestick reversal has no addressable calendar event -- these
+    keys must be genuinely ABSENT, not null/empty, matching HTF/Bullish
+    Engulfing's own precedent."""
+    adapted = adapt_bearish_engulfing(detection)
+    assert "event" not in adapted
+    assert "criteria" not in adapted
+    assert "gate_trace" not in adapted
+
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_adapter_eligibility_shape(name, detection):
+    adapted = adapt_bearish_engulfing(detection)
+    elig = adapted["eligibility"]
+    assert elig["eligibility_scope"] == "system_default"
+    assert elig["eligibility_version"] == ADAPTER_VERSION
+    assert elig["active_window_secs"] == memory.ACTIVE_WINDOW_SECS
+    # Bearish Engulfing has no per-family freshness gate in-file -- both must
+    # be None, not a fabricated number.
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+    assert any("within active window" in r for r in elig["eligibility_reasons"])
+
+
+def test_bre_adapter_eligible_false_once_outside_active_window():
+    assert BRE_DETECTIONS, "need at least one firing Bearish Engulfing fixture"
+    _, detection = BRE_DETECTIONS[0]
+    stale = dict(detection)
+    stale["detected_at"] = int(time.time()) - memory.ACTIVE_WINDOW_SECS - 3600
+    adapted = adapt_bearish_engulfing(stale)
+    assert adapted["eligibility"]["eligible"] is False
+    assert any("outside active window" in r for r in adapted["eligibility"]["eligibility_reasons"])
+
+
+def test_bre_adapter_does_not_mutate_its_input():
+    assert BRE_DETECTIONS
+    _, detection = BRE_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_bearish_engulfing(detection)
+    assert detection == snapshot
+
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    """Re-verifies the exact anchor order bearish_engulfing.py::_build_detection
+    emits (prior bar close, engulfing bar close) -- the same order the
+    owner-required semantic diff confirmed matches Bullish Engulfing's own
+    (still-unmerged-here) adapter shape."""
+    adapted = adapt_bearish_engulfing(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "engulfing_pair"
+    assert geometry["anchor_roles"] == ["prior_bar_close", "engulfing_bar_close"]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 2
+
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_scanner_summary_separates_status_from_eligibility(name, detection):
+    adapted = adapt_bearish_engulfing(detection)
+    summary = build_scanner_summary(adapted)
+    assert summary["status"] == adapted["status"] == "ready"
+    assert summary["scanner_eligible"] is True
+    assert summary["pattern_id"] == adapted["pattern_id"]
+    assert summary["confidence"] == adapted["confidence"]
+    assert summary["primary_reason"] == adapted["narrative"]["headline"]
+
+
+@pytest.mark.parametrize("name,detection", BRE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bre_scanner_summary_discloses_absent_sections_honestly(name, detection):
+    adapted = adapt_bearish_engulfing(detection)
+    summary = build_scanner_summary(adapted)
+    assert "no gate-evaluation trace available for this family" in summary["warnings"]
+    assert "no event provenance for this family" in summary["warnings"]
+    assert "event_note" not in summary
+    assert summary["freshness_note"] == "no family-specific freshness gate (shared active window only)"
+
+
+def test_bre_detections_all_carry_the_bearish_pattern_id_never_the_bullish_one():
+    """⛔ CROSS-WIRE GUARD (owner Section 10). The two families share almost
+    identical shapes -- this asserts the fixture battery's own real detector
+    output never confuses the two, which is the ONE thing that would make
+    every adapter test above pass for the wrong reason."""
+    assert BRE_DETECTIONS
+    for name, detection in BRE_DETECTIONS:
+        assert detection["pattern_id"] == "bearish_engulfing", (
+            f"fixture {name!r} produced pattern_id={detection['pattern_id']!r}"
+        )
+        assert detection["direction"] == "bearish"
+
+
 # ─── Power Earnings Gap: eligibility + event + reconstructed gate_trace ───
 
 @pytest.mark.parametrize("name,detection", PEG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
@@ -301,6 +406,7 @@ def test_fixture_coverage_is_nonzero():
     assert len(HTF_DETECTIONS) >= 3, "expected several firing HTF fixtures"
     assert len(PEG_DETECTIONS) >= 3, "expected several firing PEG fixtures"
     assert len(BE_DETECTIONS) >= 3, "expected several firing Bullish Engulfing fixtures"
+    assert len(BRE_DETECTIONS) >= 3, "expected several firing Bearish Engulfing fixtures"
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────
