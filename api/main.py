@@ -2853,6 +2853,18 @@ async def lifespan(app: FastAPI):
             "[startup] awareness regime_snapshots schema init failed"
         )
 
+    # Alert Durability V1 (2026-09-06): the user_alerts table backing
+    # api/services/alert_durability.py. Cheap + idempotent; initialized
+    # unconditionally at boot, same posture as the two schema inits above.
+    try:
+        from api.services import alert_durability as _alert_durability
+        _alert_durability.init_schema()
+        logging.getLogger(__name__).info("[startup] alert_durability schema ready")
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] alert_durability schema init failed"
+        )
+
     try:
         _start_priority_audit_background()
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
