@@ -1835,3 +1835,62 @@ Nothing was triggered to reproduce or investigate this further. Continuing
 the existing observation plan unchanged — next meaningful natural window
 is `screener_snapshot_nightly` (03:00 ET). No new implementation, no
 diagnostic changes, no pilot activation, no 8G-C.
+
+## screener_snapshot_nightly IN PROGRESS, real production evidence captured live (2026-09-06, 03:00-03:08+ ET)
+
+**Tooling note:** tonight's log volume is unusually heavy (a yfinance-404
+spam burst from the earlier `earnings_dates` pull), which made raw
+`railway logs -d --lines N` unable to reach recent timestamps even at
+N=5000-10000 (the latter errors as "Invalid input" — apparently a hard
+cap between 5000 and 10000). Switched to `railway logs --service web -d
+--since Nm [--filter "TEXT"]`, which resolved it. Also cross-checked wall
+clock directly via `date -u` after briefly self-confusing on this once —
+log-tail timestamps during a noisy burst are not a reliable proxy for
+current time; `date -u` is.
+
+**Confirmed: THREE separate APScheduler jobs share the exact
+`cron[hour='3', minute='0']` trigger** (not just
+`screener_snapshot_nightly` — at minimum `session_cleanup` and
+`tweet_cleanup_daily` also registered at this same hour/minute per the
+earlier job inventory). All three "Running job" submissions appear at
+`07:00:00,01x` UTC (03:00:00 ET); **only 2 of the 3 "executed successfully"
+lines appear** as of this check (07:08 UTC / 03:08 ET) — consistent with
+the two lightweight ones (`session_cleanup`, `tweet_cleanup_daily`)
+finishing near-instantly while the heavy one (`screener_snapshot_nightly`
+→ `snapshot_builder.run_build`) is still running.
+
+**Real, in-progress evidence from `snapshot_builder`'s own log lines
+(not inferred, not from static code reading):**
+- `03:00:01.939 ET` — `"[screener] 4 row(s) outside the universe queued
+  for rebuild: ACA, APGE, CRNX, NUVL"`
+- `03:00:01.942 ET` — `WARNING ... "[screener] rs_ranking cache cold at
+  build time — computing on cold (nightly-build path only, see
+  _read_rs_map docstring)"` — an explicitly-flagged, atypical/degraded
+  condition for tonight's specific run (the RS cache being cold at
+  build time is called out by the code itself as a slower path).
+- `03:00:26.008 ET` — `"[screener] rs_map source=computed-on-cold
+  n=3637"` — confirms the cold RS-map computation alone took **~24
+  seconds** (03:00:01.942 to 03:00:26.008).
+- **No `"[screener] build done built=... skipped=... errors=..."`
+  completion line has appeared as of 03:08 ET — i.e. at least ~8 minutes
+  elapsed since start, well past the ~24s RS-map step**, with no further
+  `snapshot_builder` progress lines in between (the per-200-row-batch
+  upserts don't have their own log line per the earlier writer-trace,
+  only the final summary does — so a long gap here is expected/
+  unsurprising, not itself anomalous, unlike patterns_universe_scan's
+  total silence).
+
+**No redeploy has landed during this specific window** (git tip and
+Railway deployment id both unchanged across every check spanning this
+build) — so unlike `patterns_universe_scan` earlier tonight, THIS run has
+NOT (yet) been interrupted by a process restart. If it eventually produces
+a completion line, that will be directly attributable to actual build
+duration, not survivorship past an interruption. Still watching for it.
+
+**Scanner-correlation sample: still none.** Zero natural `/api/screener/
+scan` traffic all night; no owner-initiated request reported yet. This
+remains the single most direct, currently-active writer window observed
+so far (screener.db, not a cross-database candidate) — genuinely the
+best opportunity for a C1 test if a scanner request occurs while it's
+still running. Continuing to watch closely for either the build's
+completion or an owner-supplied sample.
