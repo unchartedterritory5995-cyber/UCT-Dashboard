@@ -26,6 +26,7 @@ from api.services.pattern_engine.canonical_adapter import (
     ADAPTER_VERSION,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
+    adapt_pullback_to_50sma,
     build_scanner_summary,
     compute_default_eligibility,
 )
@@ -36,6 +37,10 @@ from api.services.pattern_engine.detectors.uct.power_earnings_gap import (
     _MIN_GAP_PCT,
     _MIN_VOLUME_RATIO,
     detect_power_earnings_gap,
+)
+from api.services.pattern_engine.detectors.uct.pullback_to_50sma import (
+    _MIN_PRIOR_ADVANCE_PCT,
+    detect_pullback_to_50sma,
 )
 from api.services.pattern_engine.primitives.context import build_context
 from tests.pattern_engine.detectors.fixture_loader import load_all_fixtures
@@ -56,6 +61,7 @@ def _fired_detections(family, detect_fn):
 
 HTF_DETECTIONS = _fired_detections("high_tight_flag", detect_high_tight_flag)
 PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_gap)
+P50_DETECTIONS = _fired_detections("pullback_to_50sma", detect_pullback_to_50sma)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -205,11 +211,128 @@ def test_peg_adapter_does_not_mutate_its_input():
     assert detection == snapshot
 
 
+# ─── Pullback to 50-SMA: eligibility-only, event/criteria/gate_trace absent
+#     (same minimal shape as HTF, for a DIFFERENT reason — no base_catalog.py
+#     counterpart exists at all, and no named gate constants to reconstruct
+#     against; see adapt_pullback_to_50sma's own docstring) ────────────────
+
+@pytest.mark.parametrize("name,detection", P50_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_pullback_to_50sma(detection)
+    _assert_parity(detection, adapted, {"eligibility"})
+
+
+@pytest.mark.parametrize("name,detection", P50_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_adapter_omits_event_and_criteria(name, detection):
+    """pullback_to_50sma.py has no external-event concept (a technical MA
+    touch is not a calendar event) and no parallel base_catalog.py structure
+    to defer criteria/provenance to (grepped directly — zero hits, unlike
+    VCP/HTF) — these keys must be genuinely ABSENT, not null/empty."""
+    adapted = adapt_pullback_to_50sma(detection)
+    assert "event" not in adapted
+    assert "criteria" not in adapted
+    assert "gate_trace" not in adapted
+
+
+@pytest.mark.parametrize("name,detection", P50_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_adapter_eligibility_shape(name, detection):
+    adapted = adapt_pullback_to_50sma(detection)
+    elig = adapted["eligibility"]
+    assert elig["eligibility_scope"] == "system_default"
+    assert elig["eligibility_version"] == ADAPTER_VERSION
+    assert elig["active_window_secs"] == memory.ACTIVE_WINDOW_SECS
+    # Phase-7 spec (Section 140) classifies this family as having no
+    # freshness/recency concept of its own at all — both must be None.
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+    assert any("within active window" in r for r in elig["eligibility_reasons"])
+
+
+def test_p50_adapter_eligible_false_once_outside_active_window():
+    assert P50_DETECTIONS, "need at least one firing pullback_to_50sma fixture"
+    _, detection = P50_DETECTIONS[0]
+    stale = dict(detection)
+    stale["detected_at"] = int(time.time()) - memory.ACTIVE_WINDOW_SECS - 3600
+    adapted = adapt_pullback_to_50sma(stale)
+    assert adapted["eligibility"]["eligible"] is False
+    assert any("outside active window" in r for r in adapted["eligibility"]["eligibility_reasons"])
+
+
+def test_p50_adapter_does_not_mutate_its_input():
+    assert P50_DETECTIONS
+    _, detection = P50_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_pullback_to_50sma(detection)
+    assert detection == snapshot
+
+
+# ─── Pullback to 50-SMA: the one-anchor geometry adjudication ──────────────
+
+@pytest.mark.parametrize("name,detection", P50_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_geometry_is_exactly_one_anchor_labeled_honestly(name, detection):
+    """Re-verifies pullback_to_50sma.py's own real anchor construction: ONE
+    anchor at (last_bar.t, sma50) — never the touch bar, never a fabricated
+    second point. If a future detector change ever adds real geometry, this
+    is what would catch the mismatch (roles length must track anchors length
+    via `_with_labeled_geometry`'s own cardinality check)."""
+    adapted = adapt_pullback_to_50sma(detection)
+    geometry = adapted["geometry"]
+    assert geometry["shape"] == "horizontal_line"
+    assert len(geometry["anchors"]) == 1
+    assert geometry["semantic_subtype"] == "ma_reference_point"
+    assert geometry["anchor_roles"] == ["current_sma_reading"]
+    # The single anchor's price is the real SMA reading this same detection
+    # reports in extras — not a placeholder, not re-derived independently.
+    assert geometry["anchors"][0]["price"] == pytest.approx(
+        geometry["extras"]["sma_50_value"], abs=1e-6
+    )
+    # And its timestamp is the real last/current bar, matching end_t exactly
+    # — never the touch bar's timestamp (which sits in pivot_ts[0] instead).
+    assert geometry["anchors"][0]["t"] == detection["end_t"]
+    # Sanity: every firing detection really did clear this family's own
+    # named prior-advance floor (a real threshold, unlike the two bare-
+    # literal volume-ratio gates this adapter deliberately doesn't cite).
+    assert geometry["extras"]["prior_advance_pct"] >= _MIN_PRIOR_ADVANCE_PCT * 100.0
+
+
+@pytest.mark.parametrize("name,detection", P50_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_touch_bar_timestamp_survives_on_the_raw_detection_but_is_not_promoted_into_anchors(name, detection):
+    """The touch (pullback) bar's real timestamp is NOT lost by this
+    detector — it survives in `pivot_ts[0]` — but this adapter deliberately
+    does not promote it into `geometry.anchors`, since doing so would mean
+    the ADAPTER inventing a second anchor the detector itself never emitted
+    as geometry (see adapt_pullback_to_50sma's own docstring on why this is
+    Category A, not a defect to silently fix here)."""
+    adapted = adapt_pullback_to_50sma(detection)
+    assert len(detection["pivot_ts"]) == 2
+    touch_bar_t = detection["pivot_ts"][0]
+    assert touch_bar_t != detection["end_t"], (
+        "fixture setup error: touch bar and last bar must differ for this "
+        "test to mean anything"
+    )
+    anchor_ts = [a["t"] for a in adapted["geometry"]["anchors"]]
+    assert touch_bar_t not in anchor_ts
+
+
+def test_p50_anchor_role_labeling_never_mutates_the_original_geometry_dict():
+    assert P50_DETECTIONS
+    _, detection = P50_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapted = adapt_pullback_to_50sma(detection)
+    assert detection == snapshot
+    assert "anchor_roles" not in detection["geometry"]
+    assert "anchor_roles" in adapted["geometry"]
+
+
 def test_fixture_coverage_is_nonzero():
     """A silent zero-fixture run would make every test above vacuously pass —
     guard against that."""
     assert len(HTF_DETECTIONS) >= 3, "expected several firing HTF fixtures"
     assert len(PEG_DETECTIONS) >= 3, "expected several firing PEG fixtures"
+    assert len(P50_DETECTIONS) >= 3, "expected several firing pullback_to_50sma fixtures"
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────

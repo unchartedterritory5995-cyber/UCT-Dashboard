@@ -67,11 +67,12 @@ from __future__ import annotations
 
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
+from api.services.pattern_engine.detectors.uct import pullback_to_50sma as _p50
 from api.services.pattern_engine.types import Detection, Explanation, ExplanationFact
 
 BUILDER_VERSION = "phase8.8e.1"
 
-_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID)
+_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _p50._PATTERN_ID)
 
 
 def build_explanation(detection: Detection) -> Explanation:
@@ -126,6 +127,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _htf_why_it_matched_facts(detection)
     if pid == _peg._PATTERN_ID:
         return _peg_why_it_matched_facts(detection)
+    if pid == _p50._PATTERN_ID:
+        return _p50_why_it_matched_facts(detection)
     return []
 
 
@@ -196,12 +199,81 @@ def _peg_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
     return facts
 
 
+def _p50_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """Pullback to 50-SMA has no `gate_trace` (see `adapt_pullback_to_50sma`'s
+    own docstring on why) — these facts read `geometry.extras` directly.
+    `_MIN_PRIOR_ADVANCE_PCT` is this family's own named constant (cited, not
+    restated); the test/reclaim volume-ratio gates are bare inline literals
+    in the detector (1.3 / 0.9, never named), so — matching the detector's
+    OWN restraint in its narrative — these facts state the OBSERVED ratios
+    only, never assert an un-named threshold number.
+
+    The reclaim-volume clause deliberately reuses the SAME
+    `reclaim_vol_ratio >= 1.0` boolean the detector's own
+    `_compose_narrative` computes before calling anything "expansion" — the
+    settled Phase 2B/3A correction (this file's own header comment: the 0.9
+    gate floor is BELOW average, so calling it "expanding" would be a literal
+    contradiction). This module must not reintroduce that removed claim."""
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    prior_adv = extras.get("prior_advance_pct")
+    prior_bars = extras.get("prior_advance_bars")
+    if prior_adv is not None and prior_bars is not None:
+        facts.append(_fact(
+            "p50_prior_advance", "identity", "direct",
+            f"Prior advance: {prior_adv:.0f}% over {prior_bars} bars "
+            f"(this family's own floor is "
+            f"{_p50._MIN_PRIOR_ADVANCE_PCT * 100:.0f}%).",
+            "geometry.extras.prior_advance_pct", "supports", p,
+        ))
+        p += 1
+
+    slope = extras.get("sma_50_slope_pct_over_20")
+    sma_val = extras.get("sma_50_value")
+    if slope is not None and sma_val is not None:
+        facts.append(_fact(
+            "p50_sma_rising", "identity", "direct",
+            f"50-SMA at {sma_val:.2f} rising {slope:.2f}% over the trailing "
+            f"20 bars (this family requires a rising 50-SMA — falling or "
+            f"flat disqualifies the setup before a Detection is ever built).",
+            "geometry.extras.sma_50_slope_pct_over_20", "supports", p,
+        ))
+        p += 1
+
+    test_ratio = extras.get("test_volume_ratio")
+    reclaim_ratio = extras.get("reclaim_volume_ratio")
+    if test_ratio is not None and reclaim_ratio is not None:
+        reclaim_is_expansion = reclaim_ratio >= 1.0
+        reclaim_clause = (
+            f"reclaimed on volume at {reclaim_ratio * 100:.0f}% of the "
+            f"20-bar average — an expansion back into the level"
+            if reclaim_is_expansion else
+            f"reclaimed on volume at {reclaim_ratio * 100:.0f}% of the "
+            f"20-bar average — below average, not an expansion, but inside "
+            f"this detector's own floor for 'enough volume returned to hold "
+            f"the level'"
+        )
+        facts.append(_fact(
+            "p50_test_reclaim_volume", "identity", "direct",
+            f"Tested the 50-SMA on volume at {test_ratio * 100:.0f}% of "
+            f"average, then {reclaim_clause}.",
+            "geometry.extras.reclaim_volume_ratio",
+            "supports" if reclaim_is_expansion else "neutral", p,
+        ))
+        p += 1
+
+    return facts
+
+
 # ─── strengths / weaknesses — DERIVED, by calling the detector's own separable
 #     context-scoring helpers on the Detection's own stored context ─────────
 
 _FAMILY_CONTEXT_FNS = {
     _htf._PATTERN_ID: (_htf._dcr_score_adjustment, _htf._can_slim_score_adjustment),
     _peg._PATTERN_ID: (_peg._dcr_score_adjustment, _peg._can_slim_score_adjustment),
+    _p50._PATTERN_ID: (_p50._dcr_score_adjustment, _p50._can_slim_score_adjustment),
 }
 
 
@@ -268,12 +340,38 @@ def _context_facts(detection: Detection, *, want_positive: bool) -> list[Explana
 # ─── current_stage — lifecycle facts: the Detection's own status + the same
 #     stage/MA/RS phrasing the detector's own narrative already uses ──────
 
+# pullback_to_50sma.py imports its phrase functions straight from the SHARED
+# `narrative_helpers` module (`ma_alignment_phrase`, `trend_stage_description`,
+# `rs_trend_phrase`) rather than defining its own family-local variants like
+# HTF/PEG do — and, verified by direct read of `narrative_helpers.py`, those
+# shared functions take a single already-extracted SCALAR
+# (`Optional[str]`/`Optional[int]`), not the full `context` dict HTF/PEG's
+# local copies take. `_current_stage_facts` below calls every registered
+# triple as `fn(context)` uniformly, so these three thin wrappers extract the
+# right scalar first — this is the ONLY way to reuse pullback_to_50sma's
+# real, already-imported phrase functions without either changing the
+# detector file or changing the shared dispatch every other family relies on.
+def _p50_trend_stage_description(context: dict) -> str:
+    return _p50.trend_stage_description(context.get("trend_stage"))
+
+
+def _p50_ma_alignment_phrase(context: dict) -> str:
+    return _p50.ma_alignment_phrase(context.get("ma_alignment"))
+
+
+def _p50_rs_trend_phrase(context: dict) -> str:
+    return _p50.rs_trend_phrase(context.get("rs_trend"))
+
+
 _FAMILY_PHRASE_FNS = {
     _htf._PATTERN_ID: (
         _htf._trend_stage_description, _htf._ma_alignment_phrase, _htf._rs_trend_phrase,
     ),
     _peg._PATTERN_ID: (
         _peg._trend_stage_description, _peg._ma_alignment_phrase, _peg._rs_trend_phrase,
+    ),
+    _p50._PATTERN_ID: (
+        _p50_trend_stage_description, _p50_ma_alignment_phrase, _p50_rs_trend_phrase,
     ),
 }
 

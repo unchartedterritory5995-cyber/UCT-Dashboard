@@ -74,6 +74,7 @@ from typing import Optional
 
 from api.services.pattern_engine import memory as _memory
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
+from api.services.pattern_engine.detectors.uct import pullback_to_50sma as _p50
 from api.services.pattern_engine.types import (
     Detection, Eligibility, EventProvenance, GateEvaluation, ScannerSummary,
 )
@@ -149,6 +150,36 @@ _HTF_SEMANTIC_SUBTYPE = "pole_and_flag"
 _PEG_ANCHOR_ROLES = ["prior_close", "gap_open", "gap_close", "post_gap_high", "post_gap_low"]
 _PEG_SEMANTIC_SUBTYPE = "gap_event"
 
+# PULLBACK-TO-50-SMA CANONICAL PACKAGE (2026-09-06). Owner-required geometry
+# adjudication FIRST (see this package's own readiness report):
+# `pullback_to_50sma.py::_build_detection` (verified by direct read) emits
+# EXACTLY ONE anchor: `{"t": last_bar.t, "price": sma50}` -- the CURRENT
+# 50-SMA reading as of the current/last bar, `shape="horizontal_line"`. This
+# is NOT the touch (pullback) bar, NOT the reclaim bar -- Phase-7 spec
+# Section 284 (re-read directly this package) already documents exactly this
+# limitation and RECOMMENDS a Phase-8 fix: emit a second anchor at the touch
+# bar with the same SMA price, `anchor_roles=["ma_touch","ma_current"]`.
+#
+# That fix is framed as something the DETECTOR should "emit" -- i.e. a change
+# to `pullback_to_50sma.py`'s own `_build_detection`, which this package's
+# authorization explicitly puts out of scope ("Do NOT add touch-bar
+# inference... If detector-side geometry must change: STOP"). The touch
+# bar's own real timestamp DOES already survive elsewhere on the raw
+# Detection (`pivot_ts[0]`, set the same line as `pivot_ts[1]==end_t`) --
+# but promoting a second entry into `geometry.anchors` from a *different*
+# already-emitted field would mean this ADAPTER inventing the family's
+# geometric contract rather than merely labeling what the detector itself
+# already put in `anchors`, which is precisely the kind of silent
+# architectural expansion this package must not perform. `_with_labeled_geometry`
+# is therefore called with a role list of length 1 -- Category A (owner's
+# own classification menu): valid but minimal semantic geometry, adapted
+# honestly, not forced into a shape the detector didn't itself emit as
+# anchors. The richer 2-anchor representation Phase-7 already prescribed
+# remains a real, already-recorded, NOT-yet-authorized detector-side
+# enhancement -- reported, not actioned, in this package's own report.
+_P50_ANCHOR_ROLES = ["current_sma_reading"]
+_P50_SEMANTIC_SUBTYPE = "ma_reference_point"
+
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
     """Returns a NEW geometry dict (never mutates detection["geometry"] in
@@ -207,6 +238,46 @@ def adapt_power_earnings_gap(detection: Detection, *, now: Optional[int] = None)
     }
     out["event"] = event
     out["gate_trace"] = _peg_gate_trace(extras)
+    return out
+
+
+def adapt_pullback_to_50sma(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Pullback to 50-SMA: eligibility + (minimal, Category-A) semantic
+    geometry label. `event`/`criteria`/`gate_trace` are absent -- this family
+    has no external-event concept (a technical MA touch is not a calendar
+    event) and, unlike VCP/HTF, has no parallel `base_catalog.py` structure
+    to defer provenance to at all (grepped directly, zero hits) -- there is
+    simply no criteria/gate concept elsewhere to point to, and the two
+    thresholds this detector's own gates actually compare against
+    (`test_volume_ratio <= 1.3`, `reclaim_volume_ratio >= 0.9`) are bare
+    inline literals, not named module constants -- reconstructing a
+    gate_trace against them would restate a literal this file itself never
+    names, the exact duplication-drift risk this program has repeatedly
+    flagged elsewhere. See this package's own report for the full
+    readiness/geometry adjudication.
+
+    Freshness: Phase-7 spec (Section 140, re-read directly) already
+    classifies this family, alongside bull_flag/high_tight_flag/the
+    engulfing pair, as having "no freshness/recency concept of their own at
+    all" -- confirmed independently by direct read: `_PULLBACK_LOOKBACK=5`
+    bounds the SEARCH ITSELF (only the most recent 5 bars are ever examined
+    for a qualifying touch), it is not a separate reject-if-stale gate
+    applied to an otherwise-unbounded search the way VCP's own
+    `_MAX_FINAL_LOW_AGE` is -- every Detection this function ever fires is
+    therefore maximally fresh by construction, with no distinct freshness
+    ceiling to represent. `freshness_bars`/`freshness_window_bars` are both
+    None, same as HTF -- an honestly-reported absence of a per-family gate,
+    not an absence of recomputable data (contrast VCP, where a real gate
+    exists but can't be recomputed post-hoc).
+
+    Geometry: see `_P50_ANCHOR_ROLES`'s own comment above for the full
+    one-anchor adjudication (Category A: valid but minimal, adapted
+    honestly -- not forced into a richer shape the detector itself never
+    emitted as `anchors`).
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(detection, _P50_ANCHOR_ROLES, _P50_SEMANTIC_SUBTYPE)
     return out
 
 
