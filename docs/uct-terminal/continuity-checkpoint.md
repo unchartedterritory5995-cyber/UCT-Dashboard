@@ -6,7 +6,8 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Search / Command Convergence V1 merge/deploy/production-verification).
+Event / News / Calendar → Research Convergence V1 merge/deploy/production-
+verification).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -24,13 +25,14 @@ shared canonical contract. Otherwise: record it, classify it, preserve it in
 the debt ledger, continue the product plan. Priority stack as of this
 checkpoint: **#1 Technical Research release** (blocked only by Pattern Vision
 reaching LIVE + ACCEPTED — when that happens, interrupt the queue safely and
-release it immediately) → **#2 (just closed) Journal / Trade Lifecycle
-Convergence V1** → **#3 Search/Command Convergence V1** (next, unless
-Pattern Vision/S7 interrupts) → #4 Event/News/Calendar → Research
-convergence → #5 Identity normalization hardening (BRK.B/BRK-B, Seam 1) →
-#6 Technical Ask AI (only after Technical Research is live/trusted) → #7 one
-shared multi-security grounding architecture for Comparison/Watchlist/
-Portfolio AI (do not build three separate systems).
+release it immediately) → **#2 (closed) Journal / Trade Lifecycle
+Convergence V1** → **#3 (closed) Search/Command Convergence V1** → **#4
+(just closed) Event/News/Calendar → Research convergence V1** → **#5
+Identity normalization hardening** (BRK.B/BRK-B, Seam 1 — next, unless
+Pattern Vision/S7 interrupts) → #6 Technical Ask AI (only after Technical
+Research is live/trusted) → #7 one shared multi-security grounding
+architecture for Comparison/Watchlist/Portfolio AI (do not build three
+separate systems).
 
 ## North star (do not lose this)
 
@@ -56,10 +58,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `e36ca0eb570a16133be0c1010f30c82081c82c8a`
-  (Search / Command Convergence V1 merge — this file's own update
-  is a docs-only branch cut fresh from this SHA; drift since then is unrelated
-  concurrent work — re-check overlap before trusting this SHA is still current).
+- **origin/master (last verified):** `d46f35a6820250b8cb2f701c5a9dbb85e79e2711`
+  (Event / News / Calendar → Research Convergence V1 merge — this file's own
+  update is a docs-only branch cut fresh from this SHA; drift since then is
+  unrelated concurrent work — re-check overlap before trusting this SHA is
+  still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -451,6 +454,63 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   program changed). See the new debt entries below for what was found but
   deliberately not fixed.
 
+- **Event / News / Calendar → Research Convergence V1** — IMPLEMENTED +
+  ACCEPTED + LIVE, merge `d46f35a68`, deployed + production-verified
+  2026-09-06. A 4-agent Phase A workflow inventoried the real Calendar/News/
+  Catalyst ecosystem (not assumed from memory): earnings is CONVERGED
+  end-to-end through a SINGLE choke point — every earnings-rendering surface
+  (EarningsCard, EarningsTile, CalendarDayTable, FeedView's two row types,
+  TodaysBrief, MonthView→drawer) funnels into `EarningsResearchModal`'s
+  member-clicked "Full Research" button (`navigate('/research/${sym}')`,
+  confirmed by reading the handler/JSX, not the docstring); Catalyst is
+  STRONG on its two live surfaces (`CatalystTable.jsx` on Dashboard/Morning
+  Wire, `CatalystsHistory.jsx`) via the existing `TickerPopup` door reaching
+  both `/research/{sym}` and `?section=ai`; News is WEAK (the one code-correct
+  tile, `NewsFeed.jsx`, is orphaned — its only importer `TapeFeed.jsx` is
+  itself unmounted, confirmed via `reachable.test.js`). The real, confirmed
+  gap: `EventCard.jsx`'s three variants (IPO/Dividend/Split cards, rendered in
+  `FeedView.jsx`'s DayGroup) had **zero onClick anywhere in the file** — a
+  full-file grep found no interactivity of any kind on cards that already
+  carry a real, security-scoped `sym` (confirmed via the calendar events
+  pipeline's `cap_universe` filter, which cannot pass a blank symbol). Chosen
+  V1: wire exactly those three variants to the same bare
+  `navigate('/research/${sym}')` shape already shipped at
+  `EarningsResearchModal.jsx:160` and `TickerActions.jsx` — the smallest cut
+  closing the highest ratio of dead-ends-to-files-touched (3 event families,
+  1 file). Deliberately used a native `<button>` wrapper (mirroring
+  `EarningsTile.jsx`'s existing pattern) rather than a bare `<div onClick>` —
+  Phase A independently found that exact keyboard-trap pattern already
+  shipped on 3 sibling components (`CalendarDayTable.jsx` Row,
+  `EarningsCard.jsx`, `MonthView.jsx` MonthCell), so this V1 deliberately does
+  not add a 4th instance; disabled (non-navigating) when `sym` is absent, so
+  a malformed event can never fabricate a Research route. Zero backend
+  changes, zero new endpoints, zero new query-param taxonomy invented (no
+  event-context preservation attempted — Phase A confirmed
+  `ResearchPage.jsx` reads exactly one query param, `section`, seeded once at
+  mount, and the closest prior-art precedent, the S7/alert `research_url`
+  field, also drops context, so this would have been new plumbing, not
+  reuse). No Ask AI or Compare action added to any event card — no evidence
+  supported either affordance on a static IPO/Dividend/Split card, consistent
+  with the authorization's explicit bias against over-cluttering event cards.
+  Primary-source access was never at risk: none of the three card variants
+  had an external link to begin with (pure static display), so nothing was
+  clobbered. 6 new focused tests (click-through ×3, keyboard Tab+Enter,
+  keyboard Tab+Space, disabled/no-sym guard) added to the pre-existing
+  `eventCard.test.jsx` (which itself needed `MemoryRouter` wrapping once
+  `useNavigate()` was introduced — the same self-caused-regression class
+  independently caught and fixed in Search/Command Convergence V1's
+  `ChartWidget.jsx`, found here by tracing the file's actual pre-existing test
+  suite rather than trusting Phase A's "regression risk: LOW" claim at face
+  value); full adjacent frontend regression (1012 test files) green except
+  the same 7 files/8 tests confirmed pre-existing and unrelated in the prior
+  program (Pine/ThinkScript corpus + chart-engine-manifest suites, a
+  `floor2`/`community` reachability finding, a `useWatchlistIntelligence.js`
+  polling-site finding, a `ThemeTrackerPage.jsx` timing flake, and
+  `CommandPalette.jsx`'s pre-existing missing-`r.ok` fetch bug) — independently
+  re-confirmed byte-identical to base master via `git diff --stat` this round,
+  not merely re-cited from the prior program. See the new debt entries below
+  for what was found but deliberately not fixed.
+
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
 - **Pattern Vision** — `PATTERN_VISION_ENABLED=1`. Safety defaults locked:
@@ -501,23 +561,23 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Search / Command
-  Convergence V1 (the prior active program) is now ACCEPTED + LIVE — see
-  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
-  that program's authorization ("Then STOP. Do not automatically begin
-  another Terminal program."), no next Terminal program has been
-  automatically begun. **Per the 2026-09-06 Strategic Re-Anchor above, the
-  next candidate in the stated priority stack is #4 — Event/News/Calendar →
-  Research convergence — unless Pattern Vision reaches LIVE + ACCEPTED first
-  (which makes Technical Research release the immediate #1 interrupt) or a
-  genuine S7 NVDA filing event fires.** Either way, the next Terminal
-  program still requires a new, explicit owner authorization — do not
-  self-start any program from this pointer alone. Do not infer a program
-  from the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below, nor from
-  Attention Signal Propagation V1's own explicitly-deferred surfaces
-  (TradeDetailPage/TradeDrawer Attention, TickerPopup/TickerHubSheet
-  Attention, Research Attention), nor from Alert Return-to-Research
-  Consistency V1's own deferred families
+- **None — requires new explicit authorization.** Event / News / Calendar →
+  Research Convergence V1 (the prior active program) is now ACCEPTED + LIVE —
+  see "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction
+  on that program's authorization ("Then STOP. Do NOT automatically begin
+  Identity Normalization or Technical Research release."), no next Terminal
+  program has been automatically begun. **Per the 2026-09-06 Strategic
+  Re-Anchor above, the next candidate in the stated priority stack is #5 —
+  Identity normalization hardening (BRK.B/BRK-B, Seam 1) — unless Pattern
+  Vision reaches LIVE + ACCEPTED first (which makes Technical Research
+  release the immediate #1 interrupt) or a genuine S7 NVDA filing event
+  fires.** Either way, the next Terminal program still requires a new,
+  explicit owner authorization — do not self-start any program from this
+  pointer alone. Do not infer a program from the "NEWLY IDENTIFIED DEBT" or
+  "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
+  explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
+  TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
+  Return-to-Research Consistency V1's own deferred families
   (`ai_deep_report`/`ai_briefing`/`exposure_gate`), nor from Temporal /
   Freshness Truth Convergence V1's own deferred candidates (the
   `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops, the dual NYSE
@@ -531,8 +591,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Convergence V1's own deferred items (the broker-sync position↔trade
   linkage gap, Research→Journal return-context, Position→Notes continuity),
   nor from Search / Command Convergence V1's own deferred duplicated-search
-  and identity findings (see the new debt entries below) — those are
-  candidate lists, not authorizations.
+  and identity findings, nor from Event / News / Calendar → Research
+  Convergence V1's own deferred items (the orphaned News surfaces, the
+  bounded TickerActions-reuse gap on Board/Table/Wire calendar views, event
+  context preservation, the WireView/MyStocksHub-Insights dead ends — see
+  the new debt entries below) — those are candidate lists, not
+  authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -786,6 +850,69 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   touched by it. `jsonFetcher.test.js`'s own rail newly flagged it during
   this program's regression run — recorded here so it isn't lost, not
   claimed as this program's fix.
+- **Seam 18 — News surfaces are code-correct but unreachable (surfaced by
+  Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
+  NOT fixed — a product decision, not a bounded V1).** `NewsFeed.jsx` already
+  wraps its security-scoped ticker pills in `TickerPopup` (a genuine, correct
+  door to `/research/{sym}` and `?section=ai`), but its only importer,
+  `TapeFeed.jsx`, is itself confirmed unmounted (`reachable.test.js:330-350`).
+  `CatalystFlow.jsx` is the same shape — correct code, retired/unreachable
+  (`reachable.test.js:301-303`). Fixing either is moot until a product
+  decision names the canonical live news tile (NewsFeed vs. TapeFeed vs. its
+  live duplicate `MoversSidebar.jsx`); wiring dead code serves no member.
+- **Seam 19 — TickerActions long-press/right-click reuse is bounded to one
+  earnings surface (surfaced by Event / News / Calendar → Research
+  Convergence V1's Phase A, 2026-09-06, NOT fixed — real gap, larger blast
+  radius than a bounded V1).** Only `EarningsCard.jsx` (reachable via
+  `DayDetailDrawer`/MyStocksHub Earnings tab) wires `useTickerActions`/
+  `TickerActionsMenu`, giving it BOTH `/research/{sym}` and
+  `?section=ai` plus touch-parity (`longPressProps` mirroring
+  `onContextMenu`). The dominant, first-landed calendar surfaces — Board
+  (`EarningsTile.jsx`), Table/Feed (`CalendarDayTable.jsx`,
+  `FeedView.jsx`), and Wire (`WireView.jsx`) — have none of this, so
+  `?section=ai` is unreachable from any of them without first opening the
+  modal → drawer path. Expanding reuse into 3+ additional live files with
+  existing click handlers to preserve is real work, deliberately left for a
+  dedicated V2, not bundled into this narrow V1.
+- **Seam 20 — Wire view rows and MyStocksHub's Insights tab are confirmed
+  dead ends (surfaced by Event / News / Calendar → Research Convergence V1's
+  Phase A, 2026-09-06, NOT fixed — deferred as a fast-follow, deliberately
+  not bundled into V1 to keep the diff to one file).** `WireView.jsx:119`
+  (`<span data-testid="wire-sym">{r.sym}</span>`) is a live, ticker-scoped,
+  first-listed top-level calendar view with zero click behavior on any row —
+  not even a chart popup. `MyStocksHub.jsx`'s Insights tab
+  (`InsightForSym`/`SentimentGaugeDisplay`, lines 314-326) is the same shape.
+  Both carry the identical structurally-simple fix EventCard.jsx just got
+  (one `navigate('/research/${sym}')` call, native-button/keyboard-safe);
+  lower priority than EventCard because Wire is not the default view (Board
+  is) and Insights is buried in a sub-route tab.
+- **Seam 21 — MyStocksHub's News/Filings/Calls tabs preserve only the
+  external source, no in-app Research path (surfaced by Event / News /
+  Calendar → Research Convergence V1's Phase A, 2026-09-06, NOT fixed —
+  PARTIAL by design per the authorization's "preserve primary-source access"
+  principle, not a confirmed defect).** News/Filings render a real external
+  `<a href target=_blank>` (article / EDGAR filing) with no Research
+  companion action; Calls renders `CallRecapSection`/`TranscriptPanel` inline
+  with no `navigate()`/`/research/` reference anywhere in either component.
+  Unlike EventCard's dead ends, these DO preserve primary evidence — the gap
+  is the absent SECOND door (Research), not a broken first one. Worth a
+  bounded follow-up (`goToResearch` sibling action beside each existing
+  external link) but not selected this round given the smaller V1 already
+  found higher-leverage.
+- **Seam 22 — Event context preservation remains fully absent (surfaced by
+  Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
+  confirmed NOT NEEDED for V1, real gap for a future "Back to Calendar"
+  feature).** `ResearchPage.jsx` reads exactly one query param (`section`),
+  seeded once at mount and never touched again; grep for
+  `from=`/`returnTo`/`backTo`/`returnContext` across
+  `ResearchPage.jsx`/`ResearchHeader.jsx`/`ResearchComparePage.jsx` returns
+  zero hits. The closest existing precedent — `AlertBell.jsx`'s
+  `research_url` field (Alert Return-to-Research Consistency V1) — also
+  constructs only a bare `/research/{SYM}` with no context param, so even
+  the nearest prior art drops context. Closing this needs new plumbing on
+  both the event-producer and Research sides with no proven pattern to
+  reuse; explicitly out of scope for any bounded V1 until a specific member
+  workflow demands it.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -853,8 +980,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Propagation V1 (merge `0d1c1d5bf`), Attention Source-Integrity
    Hardening V1 (merge `dc2cdc906`), Awareness Source-Integrity Audit +
    Hardening V1 (merge `f2d96ce11`), Journal / Trade Lifecycle
-   Convergence V1 (merge `701ca7319`), and Search / Command Convergence V1
-   (merge `e36ca0eb5`) are all ACCEPTED + LIVE as of this checkpoint — do
+   Convergence V1 (merge `701ca7319`), Search / Command Convergence V1
+   (merge `e36ca0eb5`), and Event / News / Calendar → Research Convergence
+   V1 (merge `d46f35a68`) are all ACCEPTED + LIVE as of this checkpoint — do
    not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
@@ -863,14 +991,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
    Freshness Propagation, Attention Source-Integrity Hardening, Awareness
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
-   Convergence, Search / Command Convergence, or the Whole-Product
-   Convergence Review from scratch — their findings above are current as of
-   this checkpoint; verify against live code only where something here
-   looks stale.
+   Convergence, Search / Command Convergence, Event / News / Calendar →
+   Research Convergence, or the Whole-Product Convergence Review from
+   scratch — their findings above are current as of this checkpoint; verify
+   against live code only where something here looks stale.
 7. **No Terminal program is currently authorized.** Per the 2026-09-06
    Strategic Re-Anchor at the top of this file, the stated next candidate is
-   #4 — Event/News/Calendar → Research convergence — unless Pattern Vision
-   reaches LIVE + ACCEPTED first (Technical Research release becomes the
-   immediate #1 interrupt) or S7 fires — but do not begin implementation of
-   ANY candidate, including that one, without a new, explicit owner
-   authorization naming the program.
+   #5 — Identity normalization hardening (BRK.B/BRK-B, Seam 1) — unless
+   Pattern Vision reaches LIVE + ACCEPTED first (Technical Research release
+   becomes the immediate #1 interrupt) or S7 fires — but do not begin
+   implementation of ANY candidate, including that one, without a new,
+   explicit owner authorization naming the program.
