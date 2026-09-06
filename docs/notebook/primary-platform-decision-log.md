@@ -1185,6 +1185,24 @@ sidecar/backlink-projection shape, rename/Trash/restore/purge semantics, the
 Wave C restore integration, and the export marker-scheme resolver.
 Competitive-gap-ledger G-022/G-033 updated to DONE with the fresh evidence.
 
+**Production closure:** same isolated-temporary-worktree process as prior waves
+(never switching this worktree's own branch). Clean merge, no conflicts, no
+new master commits landed between fetch and push, no force push. Railway
+build **SUCCESS** from commit `48d74aa6f` — confirmed by direct comparison:
+`railway status --json`'s `latestDeployment.meta.commitHash` for the `web`
+service reads exactly `48d74aa6f069e1fc174284b7e5c8c024b729ee87`, byte-identical
+to `origin/master`'s HEAD after the push, and Railway builds from source
+(Nixpacks), not a supplied artifact — this ties the running deploy directly to
+the merged commit rather than inferring it from a bundle-content grep.
+Fresh-process confirmed: `/api/health` returned `uptime_seconds: 25` moments
+after the deploy flipped to SUCCESS. **No bundle-content grep this time** — this
+fix changed pure JS logic (a cache-invalidation function + its four call sites)
+with no new string literals or new routes for a grep to key on, and this
+session's evidence-precision doctrine forbids substituting an authenticated
+production click-through for a real member credential this session does not
+have. The commit-hash match is offered as the honest, precise substitute
+rather than a fabricated bundle-content claim.
+
 ---
 
 ## Open Questions Carried Forward
