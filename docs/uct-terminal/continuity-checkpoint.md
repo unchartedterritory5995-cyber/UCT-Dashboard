@@ -6,9 +6,10 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Shared Multi-Security Grounding Architecture V1 merge/deploy/production-
-verification -- a continuous-execution program under the owner's 2026-09-06
-CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
+Journal <-> Research Return-Context + Notes Draft-Loss Fix (Seam 12) merge/
+deploy/production-verification -- a continuous-execution program under the
+owner's 2026-09-06 CONTINUOUS EXECUTION DIRECTIVE, not a separately-
+authorized program stop).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -79,11 +80,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `4c8b24c743a40aa3ef1a68641c0b64f800495906`
-  (Shared Multi-Security Grounding Architecture V1 merge — this file's own
-  update is a docs-only blob-swap on top of this SHA; drift since then is
-  unrelated concurrent work — re-check overlap before trusting this SHA is
-  still current).
+- **origin/master (last verified):** `1199086855f6746e9aa0155035581a4b14510054`
+  (Journal <-> Research Return-Context + Notes Draft-Loss Fix (Seam 12)
+  merge — this file's own update is a docs-only blob-swap on top of this
+  SHA; drift since then is unrelated concurrent work — re-check overlap
+  before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -775,6 +776,71 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     `research.py` import change). Clean startup log aside from one
     PRE-EXISTING, UNRELATED defect newly observed during this verification
     — see the new debt entry below; not touched, not this program's to fix.
+- **Journal ↔ Research Return-Context + Notes Draft-Loss Fix (Seam 12)** —
+  IMPLEMENTED + ACCEPTED + LIVE, merge `d6a99c708` (code) / `119908685`
+  (merge-to-master), deployed + production-verified 2026-09-06. Continuous
+  Execution Directive program #8 -- selected via a Strategic Re-Anchor
+  against the existing debt ledger (Section XXIII of the directive) rather
+  than a fresh Phase A: Seam 12 was already fully audited and its fix shape
+  already fully specified by Journal / Trade Lifecycle Convergence V1's own
+  Phase A, so this program implemented that recorded spec directly (per the
+  session-recovery checklist's own "do not re-run Phase A" convention).
+  Ranked #1 against the directive's 7 re-anchor criteria because it was the
+  only CONFIRMED (not merely theoretical) trust/correctness defect left
+  unfixed in the ledger: "a Notes textarea's draft is flushed only onBlur,
+  not on navigate-away... a real, confirmed data-loss bug, not a UX nicety."
+  - New shared `app/src/lib/journal-2-0/researchReturnContext.js`
+    (`buildResearchReturnParam`/`withResearchReturnParam`/
+    `parseResearchReturnParam`/`researchReturnTarget`/`researchReturnLabel`)
+    — the ONE build/parse pair for a `from=trade:{id}`/`from=position:{sym}`
+    query marker, used by all three writer surfaces
+    (`PositionDetailPage.jsx`'s own `goToResearch`/`goToAskAi`/`goToCompare`,
+    `TradeDetailPage.jsx`'s `TradeResearchMenu`, `TradeDrawer.jsx`'s
+    `TradeResearchTrigger`) and the one reader (`ResearchPage.jsx` renders a
+    "Back to Trade"/"Back to {SYM} Position" link when `?from=` parses).
+    `trade:{id}` always resolves to the canonical `/journal-2-0/trade/{id}`
+    detail page regardless of whether the trade was originally viewed via
+    `TradeDrawer`'s slide-over (which has no route of its own to reopen) or
+    the full `TradeDetailPage` — a deliberately correct, always-valid
+    destination, not an attempt to reconstruct the exact prior UI state.
+  - **The confirmed data-loss fix:** `TradeDetailPage.jsx` gained a
+    ref-backed unmount-cleanup effect (`notesFlushRef`, kept current every
+    render since an empty-dependency-array cleanup only ever sees mount-time
+    values otherwise) that fires a direct `PATCH` for an uncommitted Notes
+    edit on true unmount, independent of `blur` timing — removing a focused
+    element from the DOM (a full route navigation, e.g. clicking Full
+    Research) does not reliably fire `blur` first. Deliberately scoped to
+    TRUE UNMOUNT ONLY: the separate reseed effect that resets the Notes
+    draft on prev/next navigation (`trade?.id` changing while the SAME route
+    component stays mounted) is a different code path and was not touched.
+    Confirmed via grep that `PositionDetailPage.jsx`/`TradeDrawer.jsx` have
+    no equivalent raw Notes textarea (both use `LinkedNotesPanel` instead) —
+    the data-loss half of this fix is `TradeDetailPage.jsx`-only by
+    construction, not an oversight.
+  - **Tests:** 9 new tests for the shared helper
+    (`researchReturnContext.test.js`), 4 new `ResearchPage.test.jsx` tests
+    (link renders/doesn't/uppercases/rejects malformed markers), 3 new
+    `TradeDetailPage.test.jsx` tests (flush-on-unmount without ever
+    blurring, no-op when never edited, onBlur still works unchanged), plus
+    9 pre-existing navigation assertions across
+    `PositionDetailPage.test.jsx`/`TradeDetailPage.test.jsx`/
+    `TradeDrawer.test.jsx` updated to expect the new `?from=` marker (the
+    same "old test encodes the old behavior" pattern hit in every prior
+    program this session). Full regression: 1987 frontend tests across 196
+    files green, clean `npm run build`.
+  - **Production verification:** exact commit match
+    (`RAILWAY_GIT_COMMIT_SHA=1199086855f6746e9aa0155035581a4b14510054`),
+    clean startup log, and the deployed frontend bundle itself confirmed to
+    contain the fix (`grep`-verified on the pod: a built chunk
+    `researchReturnContext-*.js` containing the literal "Back to Trade"
+    string) — the frontend-equivalent of the backend adapter-file-presence
+    check used in prior programs, since a frontend fix's "did the SOURCE
+    change" and "did the SERVED BUNDLE change" are two different questions.
+  - **Explicitly NOT touched (separate, larger, unresolved seams):** Seam 11
+    (broker-synced closed trades' inert `position_id` sentinel — a real
+    architecture/product decision, not a bounded fix) and Seam 13 (Position
+    → Notes continuity via `j2_notes.ticker` — a different, additive UI gap
+    with its own fix shape). Neither is Seam 12's concern.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -905,32 +971,49 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Whole-Product Strategic Re-Anchor — about to run, no program mid-flight.**
-  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing
-  authorization: routine, bounded, independently-safe Terminal programs no
-  longer require a stop-and-wait between each one (see Section II of that
-  directive; the 10 owner-required stop conditions in its Section III remain
-  absolute). Sequence so far under this directive: Technical Ask AI Phase A
-  → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT PARKED" — zero
-  code written, per Section XXII's explicit "if blocked, zero changes"
+- **No program mid-flight — a lightweight (ledger-driven, not fresh-Phase-A)
+  Strategic Re-Anchor is the immediate next step.** Owner-issued
+  **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing authorization:
+  routine, bounded, independently-safe Terminal programs no longer require a
+  stop-and-wait between each one (see Section II of that directive; the 10
+  owner-required stop conditions in its Section III remain absolute).
+  Sequence so far under this directive: Technical Ask AI Phase A →
+  **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT PARKED" — zero code
+  written, per Section XXII's explicit "if blocked, zero changes"
   instruction) → per the directive's own priority interrupt (Section V), AI
   Search Raw-Pattern Trust Adjudication V1 was adjudicated FIRST (Seam 23, a
   live material production-trust defect the Technical Ask AI audit
   surfaced) — ACCEPTED + LIVE, merge `897e53cc5` → per the directive's
   Section XIV, proceeded directly into **#7 Shared Multi-Security Grounding
-  Architecture V1** — now ALSO ACCEPTED + LIVE, merge `271f79664`/
-  `4c8b24c74` (see "CURRENT ACCEPTED" above) → per the directive's Section
-  XXIII ("after Shared Multi-Security Grounding is accepted or cleanly
-  blocked: DO NOT STOP. Run a fresh Whole-Product Strategic Re-Anchor..."),
-  the re-anchor is the immediate next step, not yet run as of this
-  checkpoint write. **If you are resuming this session: run that re-anchor
-  now** (current code + current continuity, rank actual remaining gaps by
+  Architecture V1** — ACCEPTED + LIVE, merge `271f79664`/`4c8b24c74` → per
+  the directive's Section XXIII ("after Shared Multi-Security Grounding is
+  accepted or cleanly blocked: DO NOT STOP. Run a fresh Whole-Product
+  Strategic Re-Anchor..."), a re-anchor was run **against the existing debt
+  ledger** (below) rather than a fresh multi-agent Phase A sweep — every
+  candidate the re-anchor needed was already itemized and Phase-A-audited by
+  prior programs' own investigations, so re-deriving them from scratch would
+  have violated the session-recovery checklist's own "do not re-run Phase A"
+  rule. Ranked against Section XXIII's 7 criteria (member trust/correctness
+  first), **Seam 12 was the clear #1** — the only CONFIRMED (not merely
+  theoretical) trust/correctness defect left unfixed in the ledger, already
+  fully audited AND already fully fix-shape-specified by Journal / Trade
+  Lifecycle Convergence V1's own Phase A. Implemented directly from that
+  recorded spec: **Journal ↔ Research Return-Context + Notes Draft-Loss Fix
+  (Seam 12)** — now ACCEPTED + LIVE, merge `d6a99c708`/`119908685` (see
+  "CURRENT ACCEPTED" above). **A genuine fresh Whole-Product Strategic
+  Re-Anchor (a new multi-agent Phase-A-style sweep of current code, not a
+  re-ranking of the existing ledger) is still owed** the next time no
+  ledger-recorded, already-specified candidate remains eligible — do not
+  treat this lighter-weight re-anchor as having discharged that obligation
+  permanently; it discharged it for THIS one next-program selection only.
+  **If you are resuming this session: pick the next program from the
+  ledger below (NEWLY IDENTIFIED DEBT ranked by Section XXIII's 7 criteria:
   member trust/correctness → broken core workflows → professional-terminal
   capability → member frequency → interconnected leverage → UX friction →
-  implementation cost/risk, per Section XXIII), then continue into the
-  highest-priority UNBLOCKED program it identifies — do not treat "no
-  program is currently active" as a stop condition; it is not one of the 10
-  in Section III. **Technical Ask AI and Technical Research (#1) are
+  implementation cost/risk); if nothing eligible remains pre-audited, THEN
+  run the fuller fresh Whole-Product Strategic Re-Anchor** — do not treat
+  "no program is currently active" as a stop condition; it is not one of
+  the 10 in Section III. **Technical Ask AI and Technical Research (#1) are
   UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
   waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
   from its recorded spec under "CURRENT PARKED", never from scratch.** Do
@@ -1137,21 +1220,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   an explicit product decision that broker positions simply never show a
   "resulting trade." Both are real architecture/product decisions, not a
   bounded V1 — needs its own dedicated audit + authorization before any fix.
-- **Seam 12 — Research → Journal return-context is genuinely lost, and one
-  concrete data-loss bug exists (surfaced by Journal / Trade Lifecycle
-  Convergence V1's Phase A, 2026-09-06, NOT fixed — a separate MEDIUM-cost
-  candidate V1 the audit explicitly declined to select this round because it
-  touches the shared, multi-consumer `ResearchPage.jsx`).** Clicking Full
-  Research/Ask AI/Compare from `TradeDetailPage.jsx`/`TradeDrawer.jsx`/
-  `PositionDetailPage.jsx` carries no state back — a member cannot return to
-  the trade/position they came from except via browser back. Additionally: a
-  Notes textarea's draft is flushed only `onBlur`, not on navigate-away, so
-  clicking a research action mid-edit silently discards the unsaved draft —
-  a real, confirmed data-loss bug, not a UX nicety. Fix shape (per the
-  audit): a lightweight `from=trade:{id}`/`from=position:{sym}` query param
-  on the existing `goToResearch`/`goToAskAi`/`goToCompare` calls + a small
-  "Back to Trade/Position" link on `ResearchPage.jsx` when present, plus
-  flushing the Notes draft on navigate-away instead of only blur.
+- **Seam 12 — RESOLVED by Journal ↔ Research Return-Context + Notes
+  Draft-Loss Fix, merge `d6a99c708`/`119908685`, 2026-09-06.** The fix
+  described here (a `from=trade:{id}`/`from=position:{sym}` query marker on
+  the existing `goToResearch`/`goToAskAi`/`goToCompare` calls + a "Back to
+  Trade/Position" link on `ResearchPage.jsx` + flushing the Notes draft on
+  unmount, not just blur) is exactly what shipped — see "CURRENT ACCEPTED"
+  above. Kept as a record; do not re-open unless a concrete regression is
+  found.
 - **Seam 13 — Position → Notes continuity is fully ABSENT (surfaced by
   Journal / Trade Lifecycle Convergence V1's Phase A, 2026-09-06, NOT
   fixed — a separate MEDIUM-cost candidate V1 the audit declined to select
@@ -1479,10 +1555,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    (merge `e36ca0eb5`), Event / News / Calendar → Research Convergence
    V1 (merge `d46f35a68`), Identity Normalization Hardening V1 (merge
    `9c1bff81f`), AI Search Raw-Pattern Trust Adjudication V1 (merge
-   `897e53cc5`), and Shared Multi-Security Grounding Architecture V1 (merge
-   `271f79664`/`4c8b24c74`) are all ACCEPTED + LIVE as of this checkpoint —
-   do not re-implement any of them or treat them as pending; confirm via
-   `git log` only if something here looks stale.
+   `897e53cc5`), Shared Multi-Security Grounding Architecture V1 (merge
+   `271f79664`/`4c8b24c74`), and Journal ↔ Research Return-Context + Notes
+   Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`) are all ACCEPTED
+   + LIVE as of this checkpoint — do not re-implement any of them or treat
+   them as pending; confirm via `git log` only if something here looks
+   stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
@@ -1492,8 +1570,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Convergence, Search / Command Convergence, Event / News / Calendar →
    Research Convergence, Identity Normalization Hardening, Technical Ask AI,
    AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
-   Architecture (Comparison leg), or the Whole-Product Convergence Review
-   from scratch — their findings above are current as of this checkpoint
+   Architecture (Comparison leg), Journal ↔ Research Return-Context + Notes
+   Draft-Loss Fix (Seam 12), or the Whole-Product Convergence Review from
+   scratch — their findings above are current as of this checkpoint
    (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
    from it once unblocked, do not re-audit); verify against live code only
    where something here looks stale.
