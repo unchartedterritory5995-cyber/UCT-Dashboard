@@ -18,6 +18,7 @@ import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
+import NoteAskPanel from './NoteAskPanel'
 import styles from './NoteEditorPage.module.css'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
@@ -778,6 +779,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </div>
         )}
         <div className={styles.headerControls}>
+          <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
           {isAdmin && (
             <>
               <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
