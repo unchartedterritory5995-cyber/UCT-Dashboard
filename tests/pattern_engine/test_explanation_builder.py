@@ -21,9 +21,11 @@ import copy
 import pytest
 
 from api.services.pattern_engine.canonical_adapter import (
+    adapt_flat_base,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
 )
+from api.services.pattern_engine.detectors.uct.flat_base import detect_flat_base
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import detect_power_earnings_gap
 from api.services.pattern_engine.explanation_builder import BUILDER_VERSION, build_explanation
@@ -46,6 +48,7 @@ def _adapted_detections(family, detect_fn, adapt_fn):
 
 HTF_ADAPTED = _adapted_detections("high_tight_flag", detect_high_tight_flag, adapt_high_tight_flag)
 PEG_ADAPTED = _adapted_detections("power_earnings_gap", detect_power_earnings_gap, adapt_power_earnings_gap)
+FLAT_BASE_ADAPTED = _adapted_detections("flat_base", detect_flat_base, adapt_flat_base)
 
 
 def _sections(explanation) -> dict:
@@ -166,16 +169,59 @@ def test_peg_event_section_present_and_matches_verification_status(name, detecti
         assert fact["claim_type"] == "qualified" and fact["polarity"] == "neutral"
 
 
+# ─── semantic fixture tests — Flat Base ────────────────────────────────────
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_why_it_matched_reflects_real_geometry_extras(name, detection):
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    extras = detection["geometry"]["extras"]
+
+    by_id = {f["fact_id"]: f for f in facts}
+    advance_fact = by_id["flat_base_prior_advance"]
+    assert advance_fact["claim_type"] == "direct"
+    assert advance_fact["supporting_evidence"] == "geometry.extras.prior_advance_pct"
+    assert f"{extras['prior_advance_pct']:.1f}%" in advance_fact["label"]
+    assert str(extras["prior_advance_bars"]) in advance_fact["label"]
+
+    depth_fact = by_id["flat_base_depth"]
+    assert f"{extras['base_depth_pct']:.1f}%" in depth_fact["label"]
+    assert str(extras["base_bars"]) in depth_fact["label"]
+
+    vol_fact = by_id["flat_base_volume_contraction"]
+    assert f"{extras['volume_contraction_pct']:.1f}%" in vol_fact["label"]
+
+    # every why_it_matched fact for Flat Base supports (they're all
+    # pre-conditions the surviving detection already satisfied)
+    assert all(f["polarity"] == "supports" for f in facts)
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_has_no_event_section(name, detection):
+    exp = build_explanation(detection)
+    assert "event" not in _sections(exp)
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_warnings_flag_the_absent_sections_it_actually_lacks(name, detection):
+    warnings = _sections(build_explanation(detection))["warnings"]
+    by_id = {f["fact_id"]: f for f in warnings}
+    assert "gate_trace_absent" in by_id
+    assert by_id["gate_trace_absent"]["claim_type"] == "qualified"
+    assert "event_absent" in by_id
+    assert by_id["event_absent"]["claim_type"] == "qualified"
+
+
 # ─── current_stage / scanner_eligibility ───────────────────────────────────
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_current_stage_status_fact_matches_detection_status(name, detection):
     facts = _sections(build_explanation(detection))["current_stage"]
     status_fact = next(f for f in facts if f["fact_id"] == "detection_status")
     assert detection["status"] in status_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_market_context_never_says_moving_average_twice(name, detection):
     """Regression (found against real market-shaped data, Package 8F, not
     the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
@@ -189,7 +235,7 @@ def test_market_context_never_says_moving_average_twice(name, detection):
     assert "moving-average moving-average" not in context_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")
@@ -221,7 +267,7 @@ def test_raw_unadapted_detection_never_fabricates_an_eligibility_boolean(name, d
     assert not facts[0]["label"].startswith("Scanner eligibility: ")
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detection):
     exp = build_explanation(detection)
     # "win rate" may appear ONLY inside the neutral-prior disclaimer itself
@@ -242,7 +288,7 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         assert "50" not in neutral_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_no_fact_anywhere_references_rejected_candidates(name, detection):
     """The 'why matched, never why others failed' boundary — a rail, not
     just a docstring claim. `gate_trace_scope`/`gate_trace_absent` are the
@@ -260,7 +306,7 @@ def test_no_fact_anywhere_references_rejected_candidates(name, detection):
             assert term not in low, f"fact {fact['fact_id']!r} references rejected candidates: {fact['label']!r}"
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + FLAT_BASE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_context_strength_and_weakness_never_both_claim_the_same_signal(name, detection):
     sections = _sections(build_explanation(detection))
     strength_ids = {f["fact_id"] for f in sections.get("strengths", [])}

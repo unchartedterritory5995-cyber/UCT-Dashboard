@@ -65,13 +65,14 @@ separately-authorized reachability stage.
 """
 from __future__ import annotations
 
+from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.types import Detection, Explanation, ExplanationFact
 
 BUILDER_VERSION = "phase8.8e.1"
 
-_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID)
+_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _flat_base._PATTERN_ID)
 
 
 def build_explanation(detection: Detection) -> Explanation:
@@ -126,7 +127,53 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _htf_why_it_matched_facts(detection)
     if pid == _peg._PATTERN_ID:
         return _peg_why_it_matched_facts(detection)
+    if pid == _flat_base._PATTERN_ID:
+        return _flat_base_why_it_matched_facts(detection)
     return []
+
+
+def _flat_base_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    prior_advance_pct = extras.get("prior_advance_pct")
+    prior_advance_bars = extras.get("prior_advance_bars")
+    if prior_advance_pct is not None and prior_advance_bars is not None:
+        facts.append(_fact(
+            "flat_base_prior_advance", "identity", "direct",
+            f"Prior advance: {prior_advance_pct:.1f}% over {prior_advance_bars} bars "
+            f"into the base (this family's own floor is "
+            f"{_flat_base._MIN_PRIOR_ADVANCE * 100:.0f}%).",
+            "geometry.extras.prior_advance_pct", "supports", p,
+        ))
+        p += 1
+
+    base_depth_pct = extras.get("base_depth_pct")
+    base_bars = extras.get("base_bars")
+    if base_depth_pct is not None and base_bars is not None:
+        facts.append(_fact(
+            "flat_base_depth", "identity", "direct",
+            f"Base depth {base_depth_pct:.1f}% over {base_bars} bars (this family's "
+            f"own ceiling is {_flat_base._MAX_BASE_DEPTH * 100:.0f}%).",
+            "geometry.extras.base_depth_pct", "supports", p,
+        ))
+        p += 1
+
+    volume_contraction_pct = extras.get("volume_contraction_pct")
+    if volume_contraction_pct is not None:
+        facts.append(_fact(
+            "flat_base_volume_contraction", "identity", "direct",
+            f"Volume contracted {volume_contraction_pct:.1f}% from the base's first "
+            f"half to its second half (this family's own gate requires the second "
+            f"half to average under {_flat_base._MAX_VOL_LATTER_RATIO * 100:.0f}% of "
+            f"the first half -- i.e. contraction above "
+            f"{(1.0 - _flat_base._MAX_VOL_LATTER_RATIO) * 100:.0f}%).",
+            "geometry.extras.volume_contraction_pct", "supports", p,
+        ))
+        p += 1
+
+    return facts
 
 
 def _htf_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
@@ -202,6 +249,9 @@ def _peg_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
 _FAMILY_CONTEXT_FNS = {
     _htf._PATTERN_ID: (_htf._dcr_score_adjustment, _htf._can_slim_score_adjustment),
     _peg._PATTERN_ID: (_peg._dcr_score_adjustment, _peg._can_slim_score_adjustment),
+    _flat_base._PATTERN_ID: (
+        _flat_base._dcr_score_adjustment, _flat_base._can_slim_score_adjustment,
+    ),
 }
 
 
@@ -274,6 +324,10 @@ _FAMILY_PHRASE_FNS = {
     ),
     _peg._PATTERN_ID: (
         _peg._trend_stage_description, _peg._ma_alignment_phrase, _peg._rs_trend_phrase,
+    ),
+    _flat_base._PATTERN_ID: (
+        _flat_base._trend_stage_description, _flat_base._ma_alignment_phrase,
+        _flat_base._rs_trend_phrase,
     ),
 }
 
