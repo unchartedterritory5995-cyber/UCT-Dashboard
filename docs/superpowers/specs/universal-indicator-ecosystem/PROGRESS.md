@@ -318,6 +318,44 @@ The previously-logged clipboard-collision hazard did not recur this batch. **Per
 condition: HMA, MACD, Stoch, and the ADX-family were NOT begun — all remain candidates for a future,
 separately-authorized tranche.**
 
+**2026-09-06 (same day, follow-up) — RMA/WMA review ACCEPTED as complete; Vendor Parity Tranche 2, Lane
+A, fourth batch (HMA + MACD) COMPLETE.** Owner authorized exactly `hma`/`macd`, bounded ("Stop after
+HMA + MACD"; do not begin Stoch or ADX-family), with detailed per-function requirements including
+explicit non-assumption of HMA's rounding semantics and MACD's three-output independence. Captured the
+SAME 2,031-bar SPY Daily window (2018-08-07..2026-09-04) used for SMA/EMA and RMA/WMA. **HMA →
+VENDOR-PARITY VERIFIED — MULTI-BAR**, zero seed-convergence-lag exclusion, max delta exactly 0 — TIES
+WMA for the tightest result verified so far, confirmed structurally: HMA composes only `wma` (no
+recursive state). Its half-length (floor(n/2)=10), sqrt-length (round-half-up, floor(sqrt(20)+0.5)=4,
+NOT ceil), and arithmetic coefficient (2×near−full) were each independently mutation-confirmed against
+the real vendor data, not assumed from the pre-existing `divergences.json::hull-half-window-floors`
+spec-level finding (now upgraded to real-vendor-runtime confirmation). **MACD LINE, SIGNAL, and
+HISTOGRAM → each independently VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR**, captured as THREE
+separate observations per the explicit instruction so no output's agreement could mask another's. The
+line carries the same recursive-smoother lag as ema/rma (own last-disagreement index 191, compounding
+two independent EMA seed errors); the composed signal (`ema(macd(...),9)`) and histogram
+(`macd(...)-ema(macd(...),9)`) converge at 197 and 183 respectively, all rounded to a shared
+`_vendor_parity_warmup_bars=210`. **The architectural-isolation mutation proof the authorization
+specifically asked for was run and confirmed**: mutating the composed signal's own smoother
+(`ast_interpret._ema_col`) corrupts signal+histogram while the LINE stays fully verified (0/1,821
+disagree, unaffected); mutating the line's own internal smoother (`indicator_compute._ema_core`)
+corrupts all three outputs (expected propagation, since signal/histogram are built on the line's
+output). A swapped-fast/slow-lengths mutation was ALSO found to raise `TableRefusal` at the table/budget
+level rather than producing a silently-wrong number — a genuine, stronger-than-expected finding about
+UCT's own existing robustness. **No RSI/ATR/SMA/EMA/RMA/WMA evidence was invalidated, downgraded, or
+re-captured — this batch corroborates it.** Mutation controls: HMA reversed-weighting/wrong-half/
+wrong-root/wrong-coefficient each flip ~100%; MACD line-alpha and signal-smoothing mutations each flip
+the expected output set; histogram sign-inversion flips 100%; 16 vendor-source-refusal controls (4
+observations × 4 tokens) all pass. Full evidence: `VENDOR_PARITY_TRANCHE_2_LANE_A_HMA_MACD_REPORT.md`;
+permanent regression: `tests/test_vendor_parity_hma_macd.py` (33 tests). `RISK_REGISTER.md` RISK-036,
+`VALIDATION_COVERAGE_MAP.md`, `PHASE_TWO_PLAN.md` §2 updated. `python tools/vendor_truth.py --check`
+re-verified exit 0 (14 held observations, 14 parity-comparable, all deltas explained or matched); full
+JS `vendorTruth.test.js`/`vendorNote.test.js`/`pine.vendorParity.test.js` sweep green (28/28), confirming
+`pine.js`'s translator genuinely derives the composed signal/histogram formulas from the real destructured
+`[macdLine, signalLine, histLine] = ta.macd(...)` Pine construct — not merely asserted. The previously-
+logged clipboard-collision hazard did not recur this batch; the separate-tool-call paste fix worked on
+the first attempt with no retry needed. **Per the explicit stop condition: Stoch and the ADX-family were
+NOT begun — both remain candidates for a future, separately-authorized tranche.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
