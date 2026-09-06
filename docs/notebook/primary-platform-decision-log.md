@@ -627,6 +627,24 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-06 — Implementation-time collision: a concurrent commit conflated the two reference systems this Wave explicitly disambiguates
+
+**DISCOVERY:** Merging Wave 3 into `master` conflicted on `TradeDrawer.jsx`/`TradeDetailPage.jsx`'s `<CaptureMenu tradeRef=... />` prop. A concurrent commit (`46c9bc302`, "make Wave 1's tradeRef canonical", authored in a separate session ~2 hours before this merge) had changed both files to pass `trade.tradeRef` instead of `String(trade.id)`, on the stated premise that Wave 1's bare-id `tradeRef` was a bug because it "never matches `trade_refs.resolve_trade_by_ref`'s `id:`/`ext:` prefix checks."
+
+**DIRECT VERIFICATION:** A full source trace of both chains (Notebook typed reference vs. the stable broker/annotation reference) confirmed the premise is factually wrong for Notebook. `note_trade_links.py` and `notes.py` contain zero references to `trade_refs.py` beyond a disambiguating comment — neither imports nor calls any of its functions. Every real caller of `trade_ref_for_row` / `resolve_trade_by_ref` / `resolve_option_strategy_by_ref` / `ref_is_live` / `orphaned_refs` (`trades.py`, `options.py`, `analytics.py`, `calendar.py`, `playbook_stats.py`, `excursion_engine.py`, `excursion_jobs.py`, `media_evidence_bridge.py`, the orphan-scan/reattach endpoints in `journal_two.py`) serves screenshots, rule-adherence, excursions, or broker-orphan-reattachment — none read or write `j2_note_embeds`/`j2_capture_inbox`. The two chains never cross.
+
+**ROOT CAUSE:** Two independent reference systems share the field name "tradeRef" and nothing else. A session working without visibility into this Wave's design (and predating it by only hours) reasonably but incorrectly assumed one implementation error explained both.
+
+**AUTHORITATIVE DECISION:**
+- **Notebook:** `tradeRef` (bare authoritative DB row id) + `tradeRefType` (`equity_trade` | `option_strategy` | `position`) = the typed database relationship this Wave's whole contract is built on. Resolved exclusively by `note_trade_links.py`.
+- **Stable trade reference:** `trade.tradeRef` / `trade_ref_for_row` / `trade_refs.resolve_trade_by_ref` (`id:`/`ext:` prefixed) = the separate, pre-existing broker/review/annotation identity mechanism (screenshots, rule-adherence, broker-orphan-reattachment). Left untouched — `trade.tradeRef` still exists on every trade/strategy API response for its own consumers.
+- **These do not substitute for one another.** Resolving the merge conflict restored `tradeRef={trade.id != null ? String(trade.id) : undefined}` + explicit `tradeRefType` in both files, with an inline comment at each site naming the distinction. `46c9bc302` was NOT reverted — only these two capture-menu wires were corrected; everything else the concurrent session added (the `tradeRef` field on trade/strategy API responses, `TradeJournalTab.jsx`'s `optionClosedToRow` carrying it) is preserved untouched, since none of it touches Notebook.
+- Regression rails (`TradeDrawer.test.jsx`, `TradeDetailPage.test.jsx`) assert the bare-id + type contract with a fixture `tradeRef` deliberately shaped like a stable-reference string, so a future "simplification" back to `trade.tradeRef` fails immediately rather than passing by coincidence.
+
+**Standing maintenance invariant:** do not substitute one reference system for the other merely because both are called "trade ref." A component definitively representing one object class (`TradeDetailPage` = equity-only) states its `tradeRefType` explicitly; a component genuinely representing either class at runtime (`TradeDrawer`) may key off a runtime flag it already has (`trade.isOption`) — but the *value* of `tradeRef` is always the bare authoritative row id, never the stable-reference string, on either path.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
