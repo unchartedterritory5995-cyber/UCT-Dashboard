@@ -1,20 +1,41 @@
-"""Phase 8, Packages 8A/8B/8C — canonical Detection adapter (SHADOW MODE ONLY).
+"""Phase 8, Packages 8A/8B/8C — canonical Detection adapter (SHADOW MODE ONLY
+for ORDINARY users; see the 2026-09-06 correction below for the admin/pilot
+exception that now exists).
 
 Package 8C addition: `build_scanner_summary()` (below), the canonical
 scanner-facing projection. Package 8C traced the REAL scanner data path
-(`api/services/screener/pattern_join.py::read_pattern_fields`) directly and
-found it runs a raw SQL projection of exactly 5 existing `pattern_detections`
-columns (sym/pattern_id/direction/confidence/levels_json) — it does not even
-read the 4 OTHER existing JSON columns (geometry/context/quality/narrative),
-let alone anything from a section this schema has no column for. The
-authoritative scanner path therefore CROSSES PERSISTENCE, and per the
-Package-8C authorization's own hard gate (§4), that means: STOP before this
-becomes authoritative, and do not shortcut it by hiding the new sections
-inside an existing, semantically-unrelated JSON column. `build_scanner_summary`
-proves the summary CONTRACT is correct against real, adapted Detections; it
-is not wired into `pattern_join.py`, `snapshot_builder.py`, or any live
-request path. See `docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md`
-for the concrete persistence-schema recommendation this finding produced.
+(`api/services/screener/pattern_join.py::read_pattern_fields`, still the
+ONLY reader `snapshot_builder.py`'s universe-wide `screener_rows` snapshot
+uses, unconditionally, for every user) directly and found it runs a raw SQL
+projection of exactly 5 existing `pattern_detections` columns
+(sym/pattern_id/direction/confidence/levels_json) — it does not even read the
+4 OTHER existing JSON columns (geometry/context/quality/narrative), let alone
+anything from a section this schema has no column for. That legacy path
+still never reaches this module, by design (D6's confidence-scale doctrine
+in `pattern_join.py`'s own module docstring). See
+`docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md` for the
+persistence-schema finding that produced.
+
+⚰️ **THIS SAID `build_scanner_summary` "is not wired into `pattern_join.py`
+… or any live request path."** That was true when written and is false now:
+Package 8F added `pattern_join.read_pattern_fields_canonical_shadow`'s
+widened SELECT (geometry/quality/narrative/eligibility_json, all real
+columns) specifically to feed this function, and Package 8G-B wired the
+result into a REAL, LIVE request path —
+`apply_canonical_pilot_overlay` (`pattern_join.py`), called from
+`api/services/screener/query.py:1303` inside `/api/screener/scan` itself.
+It is narrowly gated (`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED=1` + admin +
+PEG-only legacy match — OFF/unset in production as of this writing) and
+additive-only (never mutates an existing served key), so ordinary users are
+still structurally unaffected by construction — but "not wired into any live
+request path" is no longer an accurate description of this module. Verified
+2026-09-06 by a narrow source-grounded review for the `pattern_join.py`
+canonical persistence/serving gap (Package 8G-B's follow-on parallel work);
+no code gap survived that review — both readers Package 8F/8G-A/8G-B built
+(this shadow path + `detail_response.build_canonical_detail`, admin-only)
+already reconstruct every Package-8C-persisted field. This paragraph is the
+correction; do not re-derive the "not wired in" claim from the paragraph
+above it.
 
 Converts an already-emitted `Detection` (unchanged) into the same object plus
 the Phase-7 additive canonical sections (`eligibility`, `event`, `criteria`,
@@ -217,10 +238,17 @@ def build_scanner_summary(detection: Detection) -> ScannerSummary:
     ONLY ever reads real fields off it — never fabricates a confidence,
     quality, or eligibility value the Detection doesn't actually carry.
 
-    ⛔ NOT WIRED INTO THE REAL SCANNER — see ScannerSummary's docstring and
-    this module's own module docstring. `pattern_join.py`'s live SQL never
-    reaches this function; it exists to prove the summary contract in
-    isolation ahead of the persistence change that would let it.
+    ⚰️ **This said "NOT WIRED INTO THE REAL SCANNER … `pattern_join.py`'s
+    live SQL never reaches this function."** That was true at Package 8C;
+    it is false as of Package 8G-B (2026-09-05), which wired
+    `pattern_join.read_pattern_fields_canonical_shadow` → this function into
+    `apply_canonical_pilot_overlay`, called from the real, live
+    `query.py:1303` inside `/api/screener/scan`. Still never reaches the
+    UNCONDITIONAL, universe-wide `read_pattern_fields`/`screener_rows` path
+    every ordinary user's scan is built from — the overlay is admin+PEG-pilot
+    gated and additive-only. Corrected 2026-09-06 (`pattern_join.py`
+    canonical persistence/serving gap review); the sentence above is history,
+    not current fact.
 
     Preserves the identity-vs-eligibility separation (§7): `status` (a
     Detection's own lifecycle field) and `scanner_eligible` (this
