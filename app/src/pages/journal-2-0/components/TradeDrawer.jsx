@@ -16,6 +16,7 @@ import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import CaptureMenu from './CaptureMenu'
+import LinkedNotesPanel from './notebook/LinkedNotesPanel'
 import UIcon from '../../../components/ui/UIcon'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -255,6 +256,15 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
           </div>
         </div>
 
+        {trade.id != null && (
+          <div style={{ padding: '0 18px' }}>
+            <LinkedNotesPanel
+              tradeRef={String(trade.id)}
+              tradeRefType={trade.isOption ? 'option_strategy' : 'equity_trade'}
+            />
+          </div>
+        )}
+
         {/* Trade detail grid */}
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
           <div style={{
@@ -369,7 +379,14 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
         widgetId="chart"
         capture={captureMenu?.capture || { symbol: trade.symbol }}
         label={trade.symbol}
-        tradeRef={trade.tradeRef || undefined}
+        // Notebook relation uses the typed DB row id (Wave 3 contract,
+        // note_trade_links.py) -- do NOT substitute trade.tradeRef here,
+        // that is the separate stable broker/annotation-reference scheme
+        // (trade_refs.py, id:/ext: prefixed) used by screenshots/adherence/
+        // broker-orphan-reattachment. The two share the word "trade ref"
+        // and nothing else -- see the decision log's disambiguation entry.
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRefType={trade.id != null ? (trade.isOption ? 'option_strategy' : 'equity_trade') : undefined}
         onSent={setJournalMsg}
       />
     </>

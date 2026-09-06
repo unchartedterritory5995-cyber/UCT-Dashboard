@@ -33,8 +33,27 @@ import useInterventions from '../hooks/useInterventions'
 import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
+import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
+
+// Pre-trade thesis flow (Wave 3, Thesis-Trade Link): the position has no
+// persisted id until AFTER it's created, so the thesis note is created/
+// selected FIRST and the typed reference is attached only once a real id
+// exists -- never a fabricated one. `tradeRefType: 'position'` (not
+// 'equity_trade') because j2_positions is a different table than j2_trades
+// until this position closes -- see note_trade_links.py's graduation logic
+// for how the reference automatically resolves to the resulting trade once
+// one exists.
+const DAY_SECONDS = 86400
+function positionChartWindow(entryDateIso) {
+  const entry = entryDateIso ? Date.parse(entryDateIso) : NaN
+  if (!Number.isFinite(entry)) return {}
+  return {
+    from: Math.floor((entry - 5 * DAY_SECONDS * 1000) / 1000),
+    to: Math.floor((entry + 5 * DAY_SECONDS * 1000) / 1000),
+  }
+}
 
 function prefillStop({ side, sharesVal, entryVal, defaultStop, barLow, barHigh }) {
   const shares = Number(sharesVal)
@@ -94,6 +113,36 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
   const [errorMsg, setErrorMsg] = useState('')
   const [saving, setSaving] = useState(false)
   const [overrideArmed, setOverrideArmed] = useState(false)
+
+  // Pre-trade thesis flow (Wave 3): null = no thesis note involved (the
+  // common case, unaffected) · {type:'existing', id, title} = link a
+  // previously-written note · {type:'new', title} = create one, THEN link
+  // it, only after the position itself is created (see handleSave).
+  const [thesisSelection, setThesisSelection] = useState(null)
+  const [thesisQuery, setThesisQuery] = useState('')
+  const [thesisResults, setThesisResults] = useState([])
+  const [thesisSearching, setThesisSearching] = useState(false)
+  const [thesisLinkWarning, setThesisLinkWarning] = useState('')
+  // Set only once the position is ALREADY saved and the link attempt fails --
+  // holds exactly what a retry needs so retrying never re-submits the
+  // position itself (which would create a duplicate).
+  const [pendingLink, setPendingLink] = useState(null) // { noteId, attrs, symbol } | null
+
+  useEffect(() => {
+    if (thesisSelection || !thesisQuery.trim()) { setThesisResults([]); return undefined }
+    let alive = true
+    setThesisSearching(true)
+    const t = setTimeout(() => {
+      fetch(`/api/j2/notes?q=${encodeURIComponent(thesisQuery.trim())}&limit=8&sort=updated`, {
+        credentials: 'include',
+      })
+        .then((r) => (r.ok ? r.json() : { notes: [] }))
+        .then((body) => { if (alive) setThesisResults(body?.notes || []) })
+        .catch(() => { if (alive) setThesisResults([]) })
+        .finally(() => { if (alive) setThesisSearching(false) })
+    }, 300)
+    return () => { alive = false; clearTimeout(t) }
+  }, [thesisQuery, thesisSelection])
 
   const isPaid = useIsPaid()
   const { accountId } = useJ2SelectedAccount()
@@ -222,12 +271,69 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
     return null
   }, [symbol, shares, entryPrice, entryDate, stopPrice, side])
 
+  // Returns null on success, or an error message string on failure -- never
+  // throws, so callers can decide what "saved but not linked" looks like
+  // without a try/catch at every call site.
+  const postTradeLink = useCallback(async (noteId, attrs) => {
+    try {
+      const res = await fetch(`/api/j2/notes/${noteId}/embeds`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attrs }),
+      })
+      if (!res.ok) return String(res.status)
+      return null
+    } catch (e) {
+      return String(e?.message || e)
+    }
+  }, [])
+
+  const retryPendingLink = useCallback(async () => {
+    if (!pendingLink) return
+    setThesisLinkWarning('')
+    const linkErr = await postTradeLink(pendingLink.noteId, pendingLink.attrs)
+    if (linkErr) {
+      setThesisLinkWarning(
+        `Still couldn't link the note (${linkErr}). ${pendingLink.symbol} is saved either way.`,
+      )
+      return
+    }
+    setPendingLink(null)
+    onClose?.()
+  }, [pendingLink, postTradeLink, onClose])
+
+  const dismissPendingLink = useCallback(() => {
+    setPendingLink(null)
+    onClose?.()
+  }, [onClose])
+
   const handleSave = useCallback(async () => {
     setErrorMsg('')
+    setThesisLinkWarning('')
     const err = validate()
     if (err) { setErrorMsg(err); return }
     setSaving(true)
     try {
+      // 1. CREATE / SELECT THESIS NOTE first -- before the position exists,
+      // so a trade-creation failure below never leaves a fabricated
+      // relationship dangling off a real note (there is none yet).
+      let thesisNoteId = thesisSelection?.type === 'existing' ? thesisSelection.id : null
+      if (thesisSelection?.type === 'new') {
+        const title = thesisSelection.title.trim()
+        if (title) {
+          const noteRes = await fetch('/api/j2/notes', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, tags: ['thesis'] }),
+          })
+          if (!noteRes.ok) throw new Error(`Could not create the thesis note (${noteRes.status})`)
+          const noteBody = await noteRes.json()
+          thesisNoteId = noteBody?.note?.id || null
+        }
+      }
+
       const payload = {
         symbol: symbol.trim().toUpperCase(),
         side,
@@ -244,14 +350,42 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           ? { compass_verdict_id: verdict.verdict_id, compass_verdict_label: verdict.label }
           : {},
       }
-      await onSave(payload)
+      // 2. CREATE THE AUTHORITATIVE POSITION -- obtain its real persisted id.
+      // Never manufacture a tradeRef before this resolves.
+      const created = await onSave(payload)
+
+      // 3. Attach the typed trade reference now that a real id exists.
+      // tradeRefType is 'position' (not 'equity_trade') -- this id lives in
+      // j2_positions until the position closes into a j2_trades row; see
+      // note_trade_links.py's resolve_trade_ref for how that graduates
+      // automatically. A failure here must NEVER undo the already-saved
+      // position or note -- surface it and let the member retry, rather
+      // than silently dropping the thesis link.
+      if (thesisNoteId && created?.id != null) {
+        const attrs = buildWidgetEmbedAttrs('chart', {
+          symbol: payload.symbol, tf: 'D', ...positionChartWindow(payload.entryDate),
+        }, {
+          tradeRef: String(created.id), tradeRefType: 'position',
+          caption: 'Thesis for this position',
+        })
+        const linkErr = await postTradeLink(thesisNoteId, attrs)
+        if (linkErr) {
+          setPendingLink({ noteId: thesisNoteId, attrs, symbol: payload.symbol })
+          setThesisLinkWarning(
+            `${payload.symbol} was added, but linking your thesis note failed `
+            + `(${linkErr}). Both are saved — you can link them from the note `
+            + 'later, or retry now.',
+          )
+          return // keep the modal open so the warning + retry stay visible
+        }
+      }
       onClose?.()
     } catch (e) {
       setErrorMsg(String(e?.message || e))
     } finally {
       setSaving(false)
     }
-  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, verdict, onSave, onClose])
+  }, [validate, symbol, side, entryDate, shares, entryPrice, stopPrice, setup, notes, verdict, thesisSelection, onSave, onClose])
 
   const suggestedTarget = computeSuggestedTarget({
     side,
@@ -468,6 +602,73 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             />
           </label>
 
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Thesis note (optional)</span>
+            {thesisSelection ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  flex: 1, padding: '6px 10px', borderRadius: 6,
+                  border: '1px solid var(--border, #333)', fontSize: 13,
+                }}>
+                  {thesisSelection.type === 'new'
+                    ? <>+ New note: <strong>{thesisSelection.title}</strong></>
+                    : <>{thesisSelection.title || 'Untitled note'}</>}
+                </span>
+                <button type="button" className="btn btn-ghost" onClick={() => setThesisSelection(null)}>
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={thesisQuery}
+                  onChange={(e) => setThesisQuery(e.target.value)}
+                  className={styles.textInput}
+                  placeholder="Search your notes, or type a new title…"
+                />
+                {thesisQuery.trim() && (
+                  <div style={{
+                    border: '1px solid var(--border, #333)', borderRadius: 6,
+                    marginTop: 4, maxHeight: 160, overflowY: 'auto',
+                  }}>
+                    {thesisSearching && (
+                      <div style={{ padding: '6px 10px', fontSize: 12, opacity: 0.7 }}>Searching…</div>
+                    )}
+                    {thesisResults.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => { setThesisSelection({ type: 'existing', id: n.id, title: n.title }); setThesisQuery('') }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', background: 'none',
+                          border: 'none', borderBottom: '1px solid var(--border, #2a2a2a)',
+                          padding: '6px 10px', fontSize: 13, cursor: 'pointer', color: 'inherit',
+                        }}
+                      >
+                        {n.title || 'Untitled note'}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => { setThesisSelection({ type: 'new', title: thesisQuery.trim() }); setThesisQuery('') }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left', background: 'none',
+                        border: 'none', padding: '6px 10px', fontSize: 13, cursor: 'pointer',
+                        color: 'var(--ut-gold, #c9a84c)',
+                      }}
+                    >
+                      + Create new note: "{thesisQuery.trim()}"
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+            <span className={styles.helper}>
+              Link a research note to this position — it stays linked once the trade closes.
+            </span>
+          </label>
+
           {regimeMultActive && (
             <div className={bannerStyles.info} style={{ fontSize: 12 }}>
               <UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Regime is <strong>{currentRegime.toUpperCase()}</strong>.
@@ -504,9 +705,23 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
             </div>
           )}
           {errorMsg && <div className={styles.errorBanner} role="alert">{errorMsg}</div>}
+          {thesisLinkWarning && (
+            <div className={bannerStyles.alert} role="alert">{thesisLinkWarning}</div>
+          )}
         </div>
 
         <div className={styles.footer} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {pendingLink ? (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={dismissPendingLink}>
+                Close without linking
+              </button>
+              <button type="button" className="btn btn-primary" onClick={retryPendingLink}>
+                Retry linking
+              </button>
+            </div>
+          ) : (
+          <>
           {isPaid && (
             <>
               <PreTradeVerdictCard verdict={verdict} isLoading={verdictLoading} error={verdictError} />
@@ -545,6 +760,8 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
               {saving ? 'Saving…' : 'Add Position'}
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

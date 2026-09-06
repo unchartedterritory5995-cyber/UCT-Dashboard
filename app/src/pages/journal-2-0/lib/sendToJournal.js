@@ -35,11 +35,12 @@ export function buildCapture(widgetId, capture, extra) {
  *  P1-1) are optional and forward into the frozen embed attrs — omitted
  *  entirely, every existing call site's capture is byte-identical to before. */
 export async function sendCaptureToJournal(
-  widgetId, capture, { label, target = 'note', comment, tradeRef } = {},
+  widgetId, capture, { label, target = 'note', comment, tradeRef, tradeRefType } = {},
 ) {
   const extra = {}
   if (comment) extra.caption = comment
   if (tradeRef) extra.tradeRef = tradeRef
+  if (tradeRef && tradeRefType) extra.tradeRefType = tradeRefType
   const attrs = buildCapture(widgetId, capture, extra)
   const name = label || attrs.params?.symbol || widgetId
   const t = CAPTURE_TARGETS[target] || CAPTURE_TARGETS.note

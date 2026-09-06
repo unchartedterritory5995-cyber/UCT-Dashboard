@@ -38,6 +38,7 @@ import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
+import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -230,7 +231,15 @@ function SaveToNotebookButton({ trade, tf }) {
         widgetId="chart"
         capture={captureMenu?.capture || { symbol: trade.symbol }}
         label={trade.symbol}
-        tradeRef={trade.tradeRef || undefined}
+        // Notebook relation uses the typed DB row id (Wave 3 contract,
+        // note_trade_links.py) -- do NOT substitute trade.tradeRef here,
+        // that is the separate stable broker/annotation-reference scheme
+        // (trade_refs.py, id:/ext: prefixed) used by screenshots/adherence/
+        // broker-orphan-reattachment. This page is equity-only by
+        // construction (fetches /api/j2/trades/{id}), so the type is
+        // known by surface, never inferred from a runtime flag.
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRefType={trade.id != null ? 'equity_trade' : undefined}
         onSent={setJournalMsg}
       />
     </>
@@ -538,6 +547,10 @@ export default function TradeDetailPage() {
           <TradeResearchMenu symbol={trade.symbol} />
         </span>
       </header>
+
+      {trade.id != null && (
+        <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
+      )}
 
       <div className={styles.outcomeGrid}>
         <div className={styles.outcomeCell}>

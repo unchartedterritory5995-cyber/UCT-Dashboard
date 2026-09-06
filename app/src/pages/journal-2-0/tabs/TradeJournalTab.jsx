@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
@@ -260,6 +260,34 @@ export default function TradeJournalTab({ settings }) {
 
   // Trade detail drawer
   const [drawerTrade, setDrawerTrade] = useState(null)
+
+  // Wave 3 (Thesis-Trade Link): a note's "linked trade" navigates an option
+  // strategy here via ?j2tab=journal&openTrade=<id> (equity trades have their
+  // own standalone route, /journal-2-0/trade/:id, and don't need this).
+  // allClosedForSummary is the UNPAGED filtered list — more likely to contain
+  // the target than the paged `allClosed` table rows. Consumes the param
+  // once found so re-filtering/re-rendering never re-opens the drawer.
+  // ⛔ MUST filter on `isOption` too, not id alone — j2_trades.id and
+  // j2_option_strategies.id are independent uuid4 namespaces (see
+  // note_trade_links.py), and allClosedForSummary merges rows from BOTH
+  // tables into one array. A bare id match silently opened the wrong
+  // object the day a real collision was tested (this comment is the
+  // regression rail's finding, not a hypothetical).
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const openId = searchParams.get('openTrade')
+    if (!openId) return
+    const row = allClosedForSummary.find((r) => String(r.id) === openId && !!r.isOption)
+    if (row) {
+      setDrawerTrade(row)
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('openTrade')
+        return next
+      }, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, allClosedForSummary])
 
   // Toolbar modals
   const [addOpen, setAddOpen] = useState(false)

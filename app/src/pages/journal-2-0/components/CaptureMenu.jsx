@@ -22,7 +22,7 @@ import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
  * menu (the exact "frozen means anchored" invariant this codebase already
  * enforces everywhere else a capture happens). */
 export default function CaptureMenu({
-  open, onClose, anchor, widgetId, capture, label, tradeRef, onSent,
+  open, onClose, anchor, widgetId, capture, label, tradeRef, tradeRefType, onSent,
 }) {
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
@@ -50,7 +50,7 @@ export default function CaptureMenu({
     setSending(true)
     try {
       const msg = await sendCaptureToJournal(widgetId, capture, {
-        label, target: targetId, comment: comment.trim() || undefined, tradeRef,
+        label, target: targetId, comment: comment.trim() || undefined, tradeRef, tradeRefType,
       })
       onSent?.(msg)
     } finally {
