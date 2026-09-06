@@ -782,6 +782,51 @@ Duplicated to user memory (extends `feedback_agent_authority_and_worktree_isolat
 
 ---
 
+### 2026-09-06 — WAVE B CERTIFICATION: High-Frequency Notebook UX / Power-User Foundation — shipped, deployed, production-verified
+
+**WAVE B — COMPLETE, MERGED, DEPLOYED, AND PRODUCTION-VERIFIED.** Command palette
+extended with Notebook actions; Favorites + Recents (new tables, sidebar sections,
+note-header star); Find-in-note (ephemeral TipTap decoration extension); native
+`confirm()` replaced with `ConfirmModal` in both Notebook delete flows; `Skeleton`
+adopted for the two highest-frequency loading states; a "Notebook" section added
+to the shortcut cheat sheet. Full 51-point certification report delivered to
+Patrick in-session (not duplicated here — see this document's Wave B section and
+the readiness scorecard / gap ledger updates dated 2026-09-06 for the durable
+record).
+
+**Two real defects found and fixed via live-browser E2E** — neither would have
+been caught by any unit test, because both are specific to a component that does
+NOT remount / a component that DOES already exist and is merely reused across an
+interaction the tests don't simulate:
+1. `NotebookTab.jsx`'s `?folder=`/`?new=` deep-link reads were one-time
+   `useState`/`useEffect` initializers — correct on a fresh page load, silently
+   no-op on a same-route client-side navigation (the command palette's own
+   `navigate()` call while the user is already inside Notebook). Fixed by making
+   both reactive on `searchParams`.
+2. The command palette's Enter key ignored the highlighted row entirely unless
+   the user had explicitly arrow-navigated — so typing "new note" and pressing
+   Enter (the most natural interaction) 404'd to a literal `/research/NEW NOTE`
+   ticker page instead of opening the command sitting highlighted at the top of
+   the list. Fixed: the highlighted row now wins Enter by default, with the
+   original zero-network-wait ticker guarantee preserved (proven unaffected by
+   the fix's own test suite).
+
+**Process note:** a concurrent, unrelated session pushed an "Ask AI" secondary
+action (Ctrl/Cmd+Enter) into the same Enter-key handler while this wave was in
+flight. Merged by hand (one real conflict in `CommandPalette.jsx`) rather than
+overwritten — both feature sets preserved, plus a new guard (a Wave B notebook
+command/note row has no `.ticker`, so Ctrl/Cmd+Enter on one now falls back to
+its normal action instead of navigating to a broken `/research/undefined`) with
+its own regression test.
+
+**Standing discipline reaffirmed:** per §130 of the governing directive, this
+wave's own certification report instructs stopping before Wave C. Recommended
+next wave per the report: Wave C (version history / trust / export completeness),
+per the dependency graph in `prelaunch-primary-notebook-build-plan.md` §14 — not
+started, not to be started without a new checkpoint.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
