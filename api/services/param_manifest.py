@@ -153,6 +153,21 @@ def _type_ok(value, decl_type: str) -> bool:
         return isinstance(value, int) or (isinstance(value, float) and value.is_integer())
     if decl_type == "float":
         return isinstance(value, (int, float))
+    if decl_type == "bool":
+        # Track F v1.1 (2026-09-06). No genuine Python/JS `bool` ever reaches
+        # this check — `_literal_value` already excludes `isinstance(v, bool)`
+        # before this function is called, because `pine.js::resolveInput`
+        # folds a Pine `input.bool`/bare `input(true/false)` to a plain
+        # `{"type":"num","value":0|1}` node, never a JSON `true`/`false`
+        # literal (see that module's own "NUMERIC bucket" comment). So the
+        # value here is always a real int/float, and the ONLY thing this
+        # type actually restricts, beyond `int`'s own whole-number check, is
+        # the DOMAIN: exactly 0 or 1, never an arbitrary integer. Rejects a
+        # crafted `2`, `-1`, or `0.5` the same way `_validate_bounds`' own
+        # min/max would, but as a TYPE fact rather than a bound one, since a
+        # boolean has no author-declared range to violate.
+        return (isinstance(value, int) or (isinstance(value, float) and value.is_integer())) \
+            and int(value) in (0, 1)
     return False
 
 
@@ -249,9 +264,19 @@ def reconcile(definition: dict, canonical_manifest: dict) -> dict:
 
 def _validate_bounds(pid: str, entry: dict, value) -> None:
     decl_type = entry.get("type")
-    if decl_type in ("int", "float") and not _type_ok(value, decl_type):
+    if decl_type in ("int", "float", "bool") and not _type_ok(value, decl_type):
         raise ParamManifestRejected(
             f"paramManifest.{pid}: must be {decl_type}, got {value!r}")
+    # ⛔ A `bool` PARAMETER HAS NO SEPARATE min/max TO ALSO CHECK. Its whole
+    # domain (0/1) is already enforced above, by TYPE — `resolveInput` never
+    # emits `minval`/`maxval` for a Pine `input.bool`/bare boolean `input()`
+    # (there is no such Pine argument for either), so `entry.get("min"/"max")`
+    # would always be `None` here anyway; the early return simply makes that
+    # fact explicit rather than relying on the min/max checks below to be
+    # silently inert for this type, the same way `options` short-circuits
+    # for an enum'd parameter two lines down.
+    if decl_type == "bool":
+        return
     options = entry.get("options")
     if options is not None:
         if value not in options:

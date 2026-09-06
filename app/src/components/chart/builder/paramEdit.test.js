@@ -96,6 +96,42 @@ plot(close * mult)
     expect(result.definition.compute.source).toBe('close * 2.5')
   })
 
+  it('⭐⭐ Track F v1.1 (2026-09-06): a window-bound `input.bool` toggles end to end', () => {
+    const def = realSingleTreeDefinition(`//@version=5
+indicator("t")
+useLong = input.bool(true, "Use Long Length")
+plot(sma(close, useLong))
+`)
+    expect(def.compute.paramManifest.__uct_param_1).toMatchObject({
+      sourceName: 'useLong', title: 'Use Long Length', type: 'bool', default: 1,
+    })
+    const off = applyParamEdit(def, '__uct_param_1', 0)
+    expect(off.ok, off.error).toBe(true)
+    expect(off.definition.compute.ast.args[1]).toEqual({ type: 'num', value: 0 })
+    expect(off.definition.compute.source).toBe('sma(close, 0)')
+    // ⛔ THE ORIGINAL IS UNTOUCHED, exactly like every other type's own test above.
+    expect(def.compute.ast.args[1].value).toBe(1)
+
+    const backOn = applyParamEdit(off.definition, '__uct_param_1', 1)
+    expect(backOn.ok, backOn.error).toBe(true)
+    expect(backOn.definition.compute.ast.args[1]).toEqual({ type: 'num', value: 1 })
+  })
+
+  it('⛔⛔ a bool parameter REJECTS anything outside {0, 1} — no truthy/falsy coercion', () => {
+    const def = realSingleTreeDefinition(`//@version=5
+indicator("t")
+useLong = input.bool(true, "Use Long Length")
+plot(sma(close, useLong))
+`)
+    for (const bad of [2, -1, 0.5, NaN, Infinity]) {
+      const result = applyParamEdit(def, '__uct_param_1', bad)
+      expect(result.ok, `${bad} must be refused`).toBe(false)
+      expect(result.error).toMatch(/must be 0 or 1/)
+    }
+    // Untouched by every rejected attempt.
+    expect(def.compute.ast.args[1].value).toBe(1)
+  })
+
   it('⛔ an unknown parameter id is refused by name', () => {
     const def = realSingleTreeDefinition(`//@version=5
 indicator("t")
@@ -249,6 +285,16 @@ plot(rsi(close, length))
       },
     }
     expect(reconcileParams(def).__uct_param_1.state).toBe(NON_LITERAL)
+  })
+
+  it('⭐⭐ Track F v1.1: a window-bound `input.bool` reconciles ATTACHED with a real 0/1 value', () => {
+    const def = realSingleTreeDefinition(`//@version=5
+indicator("t")
+useLong = input.bool(false, "Use Long Length")
+plot(sma(close, useLong))
+`)
+    const state = reconcileParams(def)
+    expect(state.__uct_param_1).toEqual({ state: ATTACHED, value: 0, reason: null })
   })
 
   it('⭐ a definition with no paramManifest reconciles to an empty object', () => {

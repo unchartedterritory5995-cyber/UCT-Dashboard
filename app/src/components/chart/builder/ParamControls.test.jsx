@@ -127,4 +127,48 @@ describe('ParamControls', () => {
     render(<ParamControls definition={def({ __uct_param_1: entry })} onChange={vi.fn()} />)
     expect(screen.queryByTestId('param-input-__uct_param_1').tagName).toBe('SELECT')
   })
+
+  // ─── Track F v1.1 (2026-09-06) — `input.bool` gets an APPROPRIATE control:
+  // a checkbox, through the SAME architecture (entry/status/onCommit), not a
+  // second bespoke UI. ────────────────────────────────────────────────────
+
+  const BOOL_ENTRY = {
+    sourceName: 'useLong', title: 'Use Long Length', type: 'bool', default: 1,
+    min: null, max: null, step: null, options: null,
+    locators: [{ treeIndex: null, astPath: ['args', 1] }],
+  }
+  const boolAst = (v) => ({ type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'num', value: v }] })
+
+  it('⭐⭐ an attached bool parameter renders a CHECKBOX, not a number input', () => {
+    render(<ParamControls definition={def({ __uct_param_1: BOOL_ENTRY }, boolAst(1))} onChange={vi.fn()} />)
+    const input = screen.getByTestId('param-input-__uct_param_1')
+    expect(input.tagName).toBe('INPUT')
+    expect(input.type).toBe('checkbox')
+    expect(input.checked).toBe(true)
+    expect(screen.getByText('Use Long Length')).toBeTruthy()
+    expect(screen.getByText('default On')).toBeTruthy()
+  })
+
+  it('⭐ an attached bool parameter at value 0 renders unchecked, default "Off"', () => {
+    render(<ParamControls definition={def({ __uct_param_1: { ...BOOL_ENTRY, default: 0 } }, boolAst(0))} onChange={vi.fn()} />)
+    expect(screen.getByTestId('param-input-__uct_param_1').checked).toBe(false)
+    expect(screen.getByText('default Off')).toBeTruthy()
+  })
+
+  it('⭐ toggling the checkbox calls onChange with 1 or 0, never true/false', () => {
+    const onChange = vi.fn()
+    render(<ParamControls definition={def({ __uct_param_1: BOOL_ENTRY }, boolAst(1))} onChange={onChange} />)
+    fireEvent.click(screen.getByTestId('param-input-__uct_param_1'))
+    expect(onChange).toHaveBeenCalledWith('__uct_param_1', 0)
+  })
+
+  it('⛔⛔ a detached bool parameter is disabled with a reason, never a stray checkbox', () => {
+    const d = def(
+      { __uct_param_1: BOOL_ENTRY },
+      { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }] }, // args[1] gone
+    )
+    render(<ParamControls definition={d} onChange={vi.fn()} />)
+    expect(screen.queryByTestId('param-input-__uct_param_1')).toBeNull()
+    expect(screen.getByTestId('param-reason-__uct_param_1')).toBeTruthy()
+  })
 })

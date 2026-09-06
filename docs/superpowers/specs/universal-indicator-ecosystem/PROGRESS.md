@@ -459,6 +459,36 @@ test). Filed RISK-038; full adjudication, before/after 8-script corpus matrix, a
 in `COMPATIBILITY_REMEDIATION_TRANCHE_1.md`. **Per explicit instruction: no further tranche begun —
 Stoch, ADX-family, Track F v2, and BuilderSheet visual exposure (bands/fill/colorMode) remain untouched.**
 
+**2026-09-06 (same day, fourth follow-up) — Tranche 1 review ACCEPTED; Track F v1.1 (`input.bool`
+ONLY) COMPLETE.** Owner accepted Tranche 1's shipped fixes and corpus results, confirmed QQE stays
+untouched, then authorized recovering the one fix that had been verified working but deliberately
+reverted for colliding with Track F's own scope guard: promoting `input.bool` into BOTH
+`pine.js::PARAM_MANIFEST_ELIGIBLE_KINDS` and `builderInputs.js::FOLDED_INPUT_TYPES` together (an
+explicit owner decision resolving the exact parity-test collision Tranche 1 deferred), mapped to
+Track F's existing `'int'` representation rather than a new `'bool'` type — byte-identical to the
+already-shipped bare `input(true/false)` fold. Extended `param_manifest.py`'s `_type_ok`/
+`_validate_bounds` (a real pre-existing gap: bounds validation never called `_type_ok` for bool
+at all), `paramEdit.js::validateValue`, and `ParamControls.jsx` (a checkbox branch reusing the
+identical entry/status/onCommit architecture — no second UI) to trust/round-trip the new type
+through the SAME server-authority and parameter-contract guarantees Track F v1 already proved for
+int/float. Diagnostics surfaced two genuine, honestly-disclosed boundaries rather than being
+smoothed over: a boolean used as a ternary CONDITION constant-folds away and cannot attach a Track F
+locator (the separate `memberInputs` fix from Tranche 1 is what actually resolves that idiom), and a
+window-bound boolean's fold is always exactly 0 or 1, so `interpret.js::windowLiteral`'s universal
+`>=1` floor means one of its two toggle states can never be a valid window argument — proven, live,
+as the CORRECT safety behavior (Save disables, nothing corrupts), not a defect. Full 8-script corpus
+re-run confirmed Minervini (0/2→2/2) and Support Resistance Channels (4/6→6/6) both now fully clean,
+closing RISK-037's Layer-A fidelity gap; VIX Fix, Pocket Pivot, Chandelier, QQE, Daily/Weekly/Monthly
+H/L, and ZigZag++ all unchanged; zero newly-exposed downstream failures. Full regression sweep: 71/71
+Python (`test_param_manifest.py`), 5,588/5,596 JS passing, all 4 remaining failures independently
+confirmed pre-existing/unrelated. 17 new/repurposed test assertions across 7 files, all passing,
+including permanent non-vacuity coverage (the cross-file parity test itself is the proof: it fails if
+either eligible-kinds list is widened without the other). Track F status updated to **"CLOSED FOR
+NARROW v1.1: input.int, input.float, input.bool"** — RISK-013 remains explicitly PARTIALLY CLOSED;
+Track F is NOT complete. Full detail in `TRACK_F_V1_1_INPUT_BOOL_COMPLETION_REPORT.md`. **Per explicit
+instruction: no further issue begun — Stoch, ADX-family, and every other Track F input type remain
+untouched.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

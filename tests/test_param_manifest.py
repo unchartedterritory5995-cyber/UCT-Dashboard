@@ -468,6 +468,112 @@ def test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_d
     assert row["version"] == 1
 
 
+# ─── 16-18. Track F v1.1 (2026-09-06): `input.bool` ─────────────────────────
+#
+# Real public-script corpus evidence (`18-minervini-trend-template.pine`,
+# `27-support-resistance-channels.pine`) showed a plain `input.bool` gate is
+# a common idiom this engine already folds byte-identically to a bare
+# `input(true/false)` — already eligible via the `input` kind. Promoted on
+# explicit owner authorization (Compatibility Remediation Tranche 1 → this
+# tranche). Fixture shape mirrors `_manifest_len`/`_sma_ast` exactly — a
+# boolean feeding a window/length slot is the ONE shape the translator's
+# non-`declareInputs` pass can attach a locator to at all (see
+# `app/src/components/chart/engine/ast/pine.paramManifest.test.js`'s own
+# comment on why a conditionally-used boolean gate has no surviving locator
+# to attach); the server-side enforcement proven below is type-agnostic to
+# that distinction — it only ever sees a submitted manifest + a tree.
+
+def _manifest_bool(value=1, def_id_note=None):
+    return {
+        "__uct_param_1": {
+            "sourceName": "useLong", "title": "Use Long Length", "type": "bool",
+            "default": 1, "min": None, "max": None, "step": None, "options": None,
+            "locators": [{"treeIndex": None, "astPath": ["args", 1]}],
+        }
+    }
+
+
+def test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly(store):
+    manifest = _manifest_bool()
+    r1 = svc.save(USER, DEF_ID, _definition(1, manifest))
+    row1 = svc._newest(_conn(store), USER, DEF_ID)
+    d1 = json.loads(row1["definition"])
+    assert d1["compute"]["paramState"]["__uct_param_1"]["state"] == pms.ATTACHED
+    assert d1["compute"]["paramState"]["__uct_param_1"]["value"] == 1
+
+    r2 = svc.save(USER, DEF_ID, _definition(0, manifest))
+    assert r2["ast_hash"] != r1["ast_hash"], "flipping the boolean must produce a new tree hash"
+    row2 = svc._newest(_conn(store), USER, DEF_ID)
+    d2 = json.loads(row2["definition"])
+    assert d2["compute"]["paramState"]["__uct_param_1"]["value"] == 0
+
+    # And back on again — a real toggle, not a one-way fold.
+    svc.save(USER, DEF_ID, _definition(1, manifest))
+    row3 = svc._newest(_conn(store), USER, DEF_ID)
+    assert json.loads(row3["definition"])["compute"]["paramState"]["__uct_param_1"]["value"] == 1
+
+
+def test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion(store):
+    manifest = _manifest_bool()
+    svc.save(USER, DEF_ID, _definition(1, manifest))
+    # Neither a genuinely different integer, a fraction, nor a JSON boolean
+    # literal (which decodes to Python `bool` — `_literal_value` excludes it
+    # by `isinstance` before `_type_ok` is ever asked) may pass as "truthy".
+    for bad in (2, -1, 0.5):
+        with pytest.raises(pms.ParamManifestRejected, match="must be bool"):
+            svc.save(USER, DEF_ID, _definition(bad, manifest))
+    # The prior, valid value is what's actually stored — no silent coercion.
+    row = svc._newest(_conn(store), USER, DEF_ID)
+    assert json.loads(row["definition"])["compute"]["ast"]["args"][1]["value"] == 1
+
+
+def test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest(store):
+    """⚰️ THIS TEST'S OWN FIRST DRAFT ASSUMED `param_manifest.py::_literal_
+    value` (which excludes `isinstance(v, bool)` before `_type_ok` runs) was
+    the layer that catches a tree hand-crafted to hold a genuine JSON `true`
+    at the locator, rather than the engine's own `{"type":"num","value":1}`
+    shape — and asserted NON_LITERAL. Running it found a STRONGER, EARLIER
+    gate: `user_definitions.py::stable_stringify` (what `save()` calls to
+    compute `ast_hash`, BEFORE `param_manifest.apply` ever runs) refuses a
+    canonical tree containing any Python `bool` outright — `type(value) is
+    bool` is checked before `isinstance(value, int)` specifically BECAUSE
+    `True == 1`, the exact trap this test set out to probe. So the real,
+    observed behaviour is stronger than what this test originally expected:
+    the WHOLE SAVE is refused before `param_manifest.py` is reached at all,
+    not merely reconciled to a disabled state. `_literal_value`'s OWN
+    `isinstance(v, bool)` exclusion is real defense-in-depth for any future
+    caller of `reconcile()` that does not route through `save()`'s own
+    `ast_hash` gate — kept, not proven dead, by this correction."""
+    manifest = _manifest_bool()
+    svc.save(USER, DEF_ID, _definition(1, manifest))
+    ast = {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"}, {"type": "num", "value": True}]}
+    with pytest.raises(ValueError, match="got a boolean"):
+        svc.save(USER, DEF_ID, {"id": DEF_ID, "compute": {
+            "kind": "ast", "ast": ast, "source": "sma(close, true)", "paramManifest": manifest}})
+    # And the prior, valid save is exactly what's still stored.
+    row = svc._newest(_conn(store), USER, DEF_ID)
+    assert json.loads(row["definition"])["compute"]["ast"]["args"][1]["value"] == 1
+
+
+def test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored(store):
+    """The SAME tamper shape as test_14b, one type over: the TRUE prior
+    `type` wins, never the client's forged one."""
+    manifest = _manifest_bool()
+    svc.save(USER, DEF_ID, _definition(1, manifest))
+    forged = json.loads(json.dumps(manifest))
+    forged["__uct_param_1"]["type"] = "int"
+    forged["__uct_param_1"]["max"] = 100000  # would only matter under the forged type
+    with pytest.raises(pms.ParamManifestRejected):
+        # 2 is a legal `int` but not a legal `bool` — proves the TRUE stored
+        # type (bool) is what is actually enforced, not the submitted one.
+        svc.save(USER, DEF_ID, _definition(2, forged))
+    row = svc._newest(_conn(store), USER, DEF_ID)
+    stored_entry = json.loads(row["definition"])["compute"]["paramManifest"]["__uct_param_1"]
+    assert stored_entry["type"] == "bool", "the TRUE prior type wins, not the client's forged one"
+    assert json.loads(row["definition"])["compute"]["ast"]["args"][1]["value"] == 1
+
+
 def test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter(store):
     """Control: condition 15's refusal is about an id being new RELATIVE TO
     THIS definition's own trusted history, not new parameter ids being

@@ -3513,23 +3513,34 @@ function foldLogicalIdentity(op, left, right, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
-/** ⭐ TRACK F (DEC-006) parameter-manifest eligibility — the exact 3 `input.*`
- *  kinds `builderInputs.js`'s `FOLDED_INPUT_TYPES` already treats as numeric-
- *  with-a-real-type-decision (`input.int`→'int', `input.float`→'float', bare
- *  `input`→decide by the default's integrality). Declared independently here
- *  rather than imported — `builderInputs.js` sits ABOVE this module and
+/** ⭐ TRACK F (DEC-006) parameter-manifest eligibility — the `input.*` kinds
+ *  `builderInputs.js`'s `FOLDED_INPUT_TYPES` already treats as a real type
+ *  decision (`input.int`→'int', `input.float`→'float', bare `input`→decide
+ *  by the default's integrality, `input.bool`→'bool'). Declared independently
+ *  here rather than imported — `builderInputs.js` sits ABOVE this module and
  *  injects `translate` rather than importing it for exactly the reason its
  *  own header gives ("importing `pine.js` here would put a second edge into
  *  the translator from a layer that only ever reads its output"); the
  *  reverse import (this file reaching UP into `builder/`) would be the same
  *  mistake the other way round. Pinned against drifting from
- *  `FOLDED_INPUT_TYPES` by `pine.paramManifestEligibility.test.js`, which
- *  asserts the two name the same three kinds, so a change to either without
- *  the other fails loudly rather than silently. `bool`/`source`/`price`/
- *  `string`/anything else is deliberately excluded — Track F's v1 scope is
- *  int/float only (owner instruction), and `resolveInput`'s existing refusal
- *  path already handles every kind this set does not name. */
-const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float']))
+ *  `FOLDED_INPUT_TYPES` by `pine.paramManifest.test.js`, which asserts the
+ *  two name the same kinds, so a change to either without the other fails
+ *  loudly rather than silently.
+ *
+ *  ⭐⭐ `bool` PROMOTED (Compatibility Remediation Tranche 1 → Track F v1.1,
+ *  2026-09-06) — real public-script corpus evidence (`18-minervini-trend-
+ *  template.pine`, `27-support-resistance-channels.pine`) showed a plain
+ *  `input.bool` gate is a common, real idiom this engine already folds
+ *  byte-identically to a bare `input(true/false)` (which was ALREADY
+ *  eligible via the `input` kind) — the exclusion had no execution-model
+ *  reason behind it once `resolveInput`'s own NUMERIC bucket is read: a
+ *  boolean's fold is always a plain `{type:'num', value: 0|1}`, exactly the
+ *  shape this mechanism already handles for `int`/`float`. `source`/`price`/
+ *  `string`/anything else remains deliberately excluded — each is a
+ *  DIFFERENT representation (a column reference, a schema-reserved future
+ *  type, free text), not a plain number, and `resolveInput`'s existing
+ *  refusal path already handles every kind this set does not name. */
+const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float', 'bool']))
 
 class Resolver {
   constructor(env, table, types, opts = {}) {

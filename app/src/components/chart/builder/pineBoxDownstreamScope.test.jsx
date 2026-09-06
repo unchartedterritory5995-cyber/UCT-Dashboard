@@ -22,29 +22,35 @@
 // already existed and was already proven live for numeric knobs. No change
 // anywhere in the translator, the interpreter, or the sentence read-back.
 //
-// ⛔⛔ THIS CLOSES THE GAP ONLY FOR A BARE, UNTYPED `input(true/false, …)`
-// (Pine v3/v4's idiom) — `03-cm-williams-vix-fix.pine`'s `hp`/`sd` and
-// `17-pocket-pivot-breakout.pine`'s `gapcandle`. It does NOT close it for an
-// EXPLICIT `input.bool(…)` (v5/v6) — `18-minervini-trend-template.pine`'s
-// `show_52_week_high_low` and `27-support-resistance-channels.pine`'s
-// `showthema1en`/`showthema2en` — because `builderInputs.js::
-// FOLDED_INPUT_INEXPRESSIBLE` refuses `input.bool` BY NAME, a SEPARATE,
-// pre-existing, deliberate exclusion. Verified directly (Compatibility
-// Remediation Tranche 1, 2026-09-06) that moving `input.bool` into
-// `FOLDED_INPUT_TYPES` DOES close Minervini's and Support Resistance
-// Channels' gaps too — same mechanism, byte-identical fold — but that change
-// was NOT shipped: `pine.js::PARAM_MANIFEST_ELIGIBLE_KINDS`'s own comment
-// records an explicit owner instruction ("Track F's v1 scope is int/float
-// only"), pinned against `FOLDED_INPUT_TYPES` by
-// `pine.paramManifest.test.js` specifically so the two cannot drift apart —
-// admitting `bool` here without the same decision on that list would be
-// exactly the silent scope-widening that pin exists to catch. Classified and
-// deferred, not implemented, pending an explicit owner decision.
+// ⛔⛔ AT SHIP TIME (Compatibility Remediation Tranche 1, 2026-09-06), THIS
+// CLOSED THE GAP ONLY FOR A BARE, UNTYPED `input(true/false, …)` (Pine
+// v3/v4's idiom) — `03-cm-williams-vix-fix.pine`'s `hp`/`sd` and
+// `17-pocket-pivot-breakout.pine`'s `gapcandle`. An EXPLICIT `input.bool(…)`
+// (v5/v6) — `18-minervini-trend-template.pine`'s `show_52_week_high_low`,
+// `27-support-resistance-channels.pine`'s `showthema1en`/`showthema2en` —
+// stayed blocked, because `builderInputs.js::FOLDED_INPUT_INEXPRESSIBLE`
+// refused `input.bool` by name, gated behind an explicit owner instruction
+// on `pine.js::PARAM_MANIFEST_ELIGIBLE_KINDS` ("Track F's v1 scope is
+// int/float only") this file's own tests could not unilaterally cross.
+//
+// ⭐⭐ PROMOTED (Track F v1.1, same day, second authorization): the owner
+// extended that scope to admit `input.bool`, on real corpus evidence this
+// file's OWN prior run supplied. `input.bool` now moves to
+// `FOLDED_INPUT_TYPES` (mapped to `'int'`, byte-identical to the bare-
+// `input()` fold `pine.js::resolveInput` already treats it as), closing the
+// Minervini/Support-Resistance-Channels half too — see
+// `COMPATIBILITY_REMEDIATION_TRANCHE_1.md` for the Tranche-1 investigation
+// and `pine.paramManifest.test.js`/`test_param_manifest.py` for Track F's
+// OWN (separate) `compute.paramManifest` extension this promotion also
+// required, to keep the two eligible-kind lists in the parity that test
+// pins.
 //
 // ⛔ NON-VACUITY: reverting `downstreamScopeFor` to `BUILDER_INPUT_SCOPE`
 // alone reproduces the exact `sentence:name` refusal these tests assert is
-// now gone for the bare-`input()` cases — verified by hand before this test
-// was written.
+// now gone; reverting `input.bool`'s own move back into
+// `FOLDED_INPUT_INEXPRESSIBLE` reproduces Minervini's own refusal
+// specifically — both verified by hand before this file reached its current
+// shape.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -99,20 +105,22 @@ describe('a declared Pine input reads back cleanly, wherever it lands in the for
     expect(readbacks).toMatch(/the input sd/)
   })
 
-  it('⛔⛔ Minervini — `input.bool` stays correctly, deliberately excluded (classified, not fixed)', async () => {
-    // ⚰️ This is a REGRESSION-PINNING test for the CURRENT boundary, not a
-    // claim that the underlying limitation is desirable. See the file header:
-    // the fix that would close this is known, verified working in isolation,
-    // and deliberately NOT shipped because it collides with an explicit
-    // owner-instructed Track F v1 scope boundary (int/float only). If this
-    // test ever goes red because `input.bool` starts resolving, that is a
-    // SIGNAL to update this test to match a deliberate scope decision — not a
-    // regression to chase back to `BUILDER_INPUT_SCOPE`.
+  it('⭐⭐ Minervini — Track F v1.1: `input.bool` now resolves, closing the Layer-A fidelity gap RISK-037 named', async () => {
+    // ⚰️ THIS TEST USED TO PIN THE OPPOSITE: `show_52_week_high_low` (an
+    // explicit `input.bool`) refusing both of Minervini's only 2 offered
+    // columns at `sentence:name`, deliberately NOT fixed pending an owner
+    // decision on Track F's scope. That decision landed the same day
+    // (Track F v1.1) — see the file header. Both columns now resolve
+    // cleanly, closing the exact gap RISK-037/Checkpoint 02 named: a script
+    // Layer A's static benchmark calls `SUPPORTED` now ALSO has working
+    // real-import outputs, not zero.
     render(<PineBox onPick={vi.fn()} />)
     type(MINERVINI)
     await screen.findByText(/This script offers/i)
     const blocked = document.querySelectorAll('[data-guard="sentence:name"]')
-    expect(blocked.length).toBe(2)
-    expect([...blocked].every((b) => b.textContent.includes('show_52_week_high_low'))).toBe(true)
+    expect(blocked.length, [...blocked].map((b) => b.textContent).join('\n')).toBe(0)
+    const readbacks = [...document.querySelectorAll('[class*="outReadback"]')]
+      .map((n) => n.textContent).join(' | ')
+    expect(readbacks).toMatch(/the input show_52_week_high_low/)
   })
 })

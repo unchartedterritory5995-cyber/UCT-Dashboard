@@ -136,41 +136,39 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
 /** `input.<kind>` → the member input type it becomes; `null` = decide by the
  *  default's integrality. Bare `input(…)` is Pine v3/v4's untyped form and the
- *  corpora are full of it — 80 of the 180 folded entries, measured. */
-export const FOLDED_INPUT_TYPES = Object.freeze({ 'input.int': 'int', 'input.float': 'float', input: null })
+ *  corpora are full of it — 80 of the 180 folded entries, measured.
+ *
+ *  ⭐⭐ `input.bool` → `'int'` (Track F v1.1, Compatibility Remediation
+ *  Tranche 1 → this tranche, 2026-09-06) — PROMOTED from
+ *  `FOLDED_INPUT_INEXPRESSIBLE` on explicit owner authorization, after real
+ *  public-script evidence (`18-minervini-trend-template.pine`'s
+ *  `show_52_week_high_low`, `27-support-resistance-channels.pine`'s
+ *  `showthema1en`/`showthema2en`) showed the exclusion had no execution-model
+ *  basis: `pine.js::resolveInput` already folds `input.bool` byte-identically
+ *  to a bare `input(true/false, …)` (already eligible via the `input` kind,
+ *  bottom row) — both land in the SAME "NUMERIC" bucket and produce the SAME
+ *  `{type:'num', value: 0|1}` shape. Mapped to `'int'`, not a new `'bool'`
+ *  row type, to stay byte-identical to the ALREADY-SHIPPED, proven-safe
+ *  bare-`input()` behavior (`03-cm-williams-vix-fix.pine`'s `hp`/`sd`) —
+ *  `document.inputs[]` is a DIFFERENT schema from Track F's own
+ *  `compute.paramManifest` (which DOES get a genuine `'bool'` type; see
+ *  `pine.js::PARAM_MANIFEST_ELIGIBLE_KINDS`) and does not need a new type
+ *  label to be correct: `defSchema.validateInputValue`'s `'int'` case only
+ *  requires an integer default, which `0`/`1` already are. */
+export const FOLDED_INPUT_TYPES = Object.freeze({
+  'input.int': 'int', 'input.float': 'float', 'input.bool': 'int', input: null,
+})
 
 /** 🔴 PINE INPUT KINDS THAT CANNOT BECOME A MEMBER INPUT HERE, EACH WITH ITS
  *  MECHANISM AND WHAT WOULD UNBLOCK IT.
  *
  *  ⛔ NOT "not built yet". Each has an obvious near-miss that would save and
- *  scan — a `bool` read as arithmetic 1/0, a `source` read as the number 1 — so
- *  they refuse by name rather than resolving to the neighbour.
+ *  scan — a `source` read as the number 1 — so it refuses by name rather than
+ *  resolving to the neighbour.
  *
- *  ⛔⛔ `input.bool` STAYS REFUSED, EVEN THOUGH `pine.js::resolveInput` FOLDS IT
- *  BYTE-IDENTICALLY TO BARE `input(true/false, …)` (confirmed directly:
- *  `18-minervini-trend-template.pine`'s `show_52_week_high_low` — an explicit
- *  `input.bool` — reads back and saves cleanly the moment this entry moves to
- *  `FOLDED_INPUT_TYPES`, mapped to `'int'`, exactly as a bare `input()` boolean
- *  already does). NOT SHIPPED, on purpose: `pine.js::PARAM_MANIFEST_ELIGIBLE_
- *  KINDS`'s own comment records an explicit owner instruction — "Track F's v1
- *  scope is int/float only" — and `pine.paramManifestEligibility.test.js` pins
- *  the two lists to name the same kinds specifically so one cannot widen without
- *  the other. Admitting `bool` here without the same decision on that list would
- *  be exactly the silent scope-widening that pin exists to catch. TO UNBLOCK:
- *  an explicit owner decision to extend Track F's v1 scope to include `bool` —
- *  recorded as a classified, deferred finding
- *  (Compatibility Remediation Tranche 1, 2026-09-06), not implemented here.
- *
- *  ⭐ THE FRAGMENT COMPLETES "`input.bool` …", so the token is named by the
+ *  ⭐ THE FRAGMENT COMPLETES "`input.source` …", so the token is named by the
  *  caller and never re-typed inside the reason. */
 export const FOLDED_INPUT_INEXPRESSIBLE = Object.freeze({
-  'input.bool': 'is not a numeric input — `evaluateFormula`\'s save gate runs the '
-    + 'tree with ONE FINITE NUMBER per declared name (its probe hands `1`) and '
-    + '`interpret` takes finite numbers only, so a true/false switch has no value '
-    + 'to hand it. The branch it selected was already decided when the translator '
-    + 'folded it, so restoring the switch would move nothing. TO UNBLOCK: a formula '
-    + 'lane that reads a `bool` input — `defSchema.INPUT_TYPES` already declares the '
-    + 'TYPE; what is missing is the read.',
   'input.source': 'names a COLUMN, not a number — it folds to `close`, `hl2` or '
     + '`(high + low) / 2`, and the formula this sheet saves already carries that '
     + 'column verbatim. A declared input resolves to a finite number here, so a '

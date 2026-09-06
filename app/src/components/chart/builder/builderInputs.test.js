@@ -142,22 +142,32 @@ describe('inputsFromFolded — the translator\'s folded list becomes member inpu
 
     // ⛔⛔ AND IT DISCRIMINATES. A skip for a DIFFERENT reason must not carry the
     // flag, or a consumer would render a number field seeded with `close`.
+    // ⚰️ THIS USED `input.bool` AS THE NEGATIVE EXAMPLE UNTIL TRACK F v1.1
+    // (2026-09-06) PROMOTED IT TO ELIGIBLE — `input.source` is still excluded
+    // (`FOLDED_INPUT_INEXPRESSIBLE`), so it is the "skip for a different
+    // reason" this assertion actually needs now.
     const other = inputsFromFolded(
-      [{ call: 'input.bool', title: 'Flag', folded: '1', name: 'flag' }], 'close > flag')
+      [{ call: 'input.source', title: 'Src', folded: '(high+low)/2', name: 'src' }], 'close > src')
     expect(other.skipped[0].windowBound).toBeUndefined()
   })
 
-  it('🔴 a bool is skipped BY NAME — it is not a numeric input', () => {
-    // ⛔ ITS OWN CASE, so a mutation that deletes the kind gate names THIS test
-    // rather than sharing a name with the never-read one below. A rail whose
-    // failure cannot be told apart from its neighbour's is half a rail.
-    const { skipped } = inputsFromFolded(
+  it('⭐⭐ Track F v1.1 (2026-09-06): a bool IS admitted now — mapped to `int`, same as bare `input(true/false)`', () => {
+    // ⚰️ THIS TEST USED TO ASSERT `input.bool` WAS SKIPPED BY NAME ("is not a
+    // numeric input"). It was PROMOTED, on explicit owner authorization,
+    // after real public-script corpus evidence (`18-minervini-trend-
+    // template.pine`, `27-support-resistance-channels.pine`) showed the
+    // exclusion had no execution-model basis — `pine.js::resolveInput`
+    // already folds `input.bool` byte-identically to a bare
+    // `input(true/false)` (already admitted, one row below in the corpus
+    // fixture at this file's own line 94). ITS OWN CASE, so a mutation that
+    // deletes the kind gate names THIS test rather than sharing a name with
+    // a neighbour's.
+    const { inputs, skipped } = inputsFromFolded(
       [{ call: 'input.bool', title: 'Flag', folded: '1', name: 'flag' }],
       'close > flag',
     )
-    expect(skipped).toHaveLength(1)
-    expect(skipped[0].reason).toMatch(/`input\.bool` is not a numeric input/)
-    expect(skipped[0].reason).toMatch(/TO UNBLOCK/)
+    expect(skipped).toHaveLength(0)
+    expect(inputs).toEqual([{ key: 'flag', type: 'int', label: 'Flag', default: 1 }])
   })
 
   it('☠️ a name the formula never reads is skipped — and the hand-back it named now SHIPS', () => {

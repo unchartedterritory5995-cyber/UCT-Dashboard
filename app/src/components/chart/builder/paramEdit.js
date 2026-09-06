@@ -245,6 +245,18 @@ function validateValue(entry, value) {
     if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
       return `must be a whole number, got ${JSON.stringify(value)}`
     }
+  } else if (entry.type === 'bool') {
+    // ⛔ THE SAME DOMAIN CHECK AS `param_manifest.py::_type_ok`'s `'bool'`
+    // branch, client-side first (Track F v1.1, 2026-09-06). No genuine JS
+    // `true`/`false` ever reaches here — `pine.js::resolveInput` folds a
+    // boolean input to a plain `{type:'num', value: 0|1}` node, so the
+    // control this reaches from (`ParamControls.jsx`'s checkbox) always
+    // commits a real number — but a hand-crafted call into this function
+    // (or a future control) must not silently accept `2`, `-1`, or `0.5` as
+    // "truthy enough".
+    if (typeof value !== 'number' || !Number.isFinite(value) || (value !== 0 && value !== 1)) {
+      return `must be 0 or 1, got ${JSON.stringify(value)}`
+    }
   } else if (typeof value !== 'number' || !Number.isFinite(value)) {
     return `must be a number, got ${JSON.stringify(value)}`
   }

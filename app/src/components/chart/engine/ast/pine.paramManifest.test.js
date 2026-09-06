@@ -1,5 +1,5 @@
-// 🎯 TRACK F (DEC-006) — Pine `input.int`/`input.float` → an adjustable,
-// server-protected parameter, narrow v1.
+// 🎯 TRACK F (DEC-006, v1.1 2026-09-06) — Pine `input.int`/`input.float`/
+// `input.bool` → an adjustable, server-protected parameter.
 //
 // ⭐⭐ THE MECHANISM, PROVEN HERE, NOT ASSUMED: `resolveInput` still folds
 // every eligible input to a plain literal exactly as it always has (a length
@@ -45,7 +45,8 @@ describe('Track F eligibility never drifts from builderInputs.js', () => {
     // OTHER direction: every kind `FOLDED_INPUT_TYPES` names is one this
     // file's own eligibility tests exercise, so a kind added to one without
     // the other is caught by a MISSING test case, not just a code review.
-    expect(Object.keys(FOLDED_INPUT_TYPES).sort()).toEqual(['input', 'input.float', 'input.int'].sort())
+    expect(Object.keys(FOLDED_INPUT_TYPES).sort())
+      .toEqual(['input', 'input.bool', 'input.float', 'input.int'].sort())
   })
 })
 
@@ -113,6 +114,51 @@ plot(close + length * 2)
     ])
   })
 
+  it('⭐⭐ Track F v1.1 (2026-09-06): a window-bound `input.bool` is eligible too — the SAME case `length` proves above, one type over', () => {
+    // ⭐ THE EXACT SHAPE VERIFIED LIVE BEFORE THIS TEST WAS WRITTEN: a boolean
+    // used AS a window/length argument is excluded from `declareInputs` for
+    // the identical reason `length` is (both translation passes fold it to
+    // the SAME literal at the SAME position), so the two passes agree and
+    // the manifest's locator lands on real, saved, live data — never a
+    // synthetic-only fixture. Real corpus evidence for the PROMOTION itself
+    // (an ORDINARY, non-window-bound `input.bool` gate) lives in
+    // `18-minervini-trend-template.pine`/`27-support-resistance-channels
+    // .pine`, closed by `builderInputs.js`'s OWN eligibility (a SEPARATE,
+    // parity-linked mechanism this file's first test above pins) — this
+    // fixture proves TRACK F'S OWN manifest specifically, mirroring
+    // `length`'s pattern one section up because that is the ONLY shape
+    // Track F's non-`declareInputs` pass can ever attach a boolean through
+    // (see this file's own "no locator survives a collapsed conditional"
+    // case below for the shape that does NOT attach, and why).
+    const { out, ast } = tree(`//@version=5
+indicator("t")
+useLong = input.bool(true, "Use Long Length")
+plot(sma(close, useLong))
+`)
+    expect(out.inputParams).toEqual([{
+      id: '__uct_param_1', sourceName: 'useLong', title: 'Use Long Length', type: 'bool',
+      default: 1, min: null, max: null, step: null, options: null,
+    }])
+    const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
+    expect(manifest).toEqual({
+      __uct_param_1: {
+        sourceName: 'useLong', title: 'Use Long Length', type: 'bool', default: 1,
+        min: null, max: null, step: null, options: null,
+        locators: [{ treeIndex: null, astPath: ['args', 1] }],
+      },
+    })
+    expect(ast.args[1]).toEqual({ type: 'num', value: 1 })
+  })
+
+  it('⭐ `input.bool(false, …)` folds to 0, not 1 — the default is read, not assumed', () => {
+    const { out } = tree(`//@version=5
+indicator("t")
+useLong = input.bool(false, "Use Long Length")
+plot(sma(close, useLong))
+`)
+    expect(out.inputParams[0]).toMatchObject({ type: 'bool', default: 0 })
+  })
+
   it('⭐⭐ one Pine input feeding two output trees mints ONE id, TWO locators (ADR V2.2 §1)', () => {
     // ⚠️ THE SECOND PLOT MUST READ A BAR. `plot(length * 2)` alone is a pure
     // constant (no series reference at all) and is correctly marked `hidden`
@@ -147,13 +193,34 @@ plot(close + length * 2)
 // --------------------------------------------------------------------------- //
 
 describe('excluded kinds mint nothing, by name, exactly as the owner scoped v1', () => {
-  it('⛔ input.bool never becomes a parameter', () => {
-    const { out } = tree(`//@version=5
+  it('⛔ a CONDITIONALLY-used input.bool is DECLARED-eligible but attaches NO locator — the collapse, not the kind, is why', () => {
+    // ⚰️ THIS TEST USED TO ASSERT `out.inputParams` WAS EMPTY, back when
+    // `bool` was excluded outright (pre Track F v1.1, 2026-09-06). It is
+    // NOT empty now — `showIt` is eligible and IS recorded here, exactly
+    // like `useLong` two sections up. What is still true, and is the actual
+    // point this test proves, is that `showIt ? close : 0`'s CONDITION is
+    // compile-time decidable (a `true` literal), so the whole ternary
+    // constant-folds to its taken branch and `showIt`'s own tagged node is
+    // pruned along with the branch that never runs — `buildParamManifest`
+    // then finds no surviving locator anywhere in the kept tree. This is
+    // the SAME reason a plain boolean toggle (the corpus's own, ordinary
+    // "only show this if the member turned it on" idiom) can be READBACK-
+    // resolvable via `builderInputs.js`'s eligibility (this file's first
+    // test pins the parity) while STILL never becoming a Track F slider —
+    // the two mechanisms solve different problems, and this shape is
+    // exactly the one Track F's own non-`declareInputs` pass cannot reach,
+    // regardless of `bool`'s own eligibility.
+    const { out, ast } = tree(`//@version=5
 indicator("t")
 showIt = input.bool(true, "Show")
 plot(showIt ? close : 0)
 `)
-    expect(out.inputParams).toEqual([])
+    expect(out.inputParams).toEqual([{
+      id: '__uct_param_1', sourceName: 'showIt', title: 'Show', type: 'bool',
+      default: 1, min: null, max: null, step: null, options: null,
+    }])
+    const manifest = buildParamManifest(out.inputParams, [{ treeIndex: null, ast }])
+    expect(manifest).toEqual({})
   })
 
   it('⛔ input.string / options-enum inputs never become a parameter', () => {

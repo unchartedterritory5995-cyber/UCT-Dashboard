@@ -67,6 +67,13 @@
   border-radius: var(--radius-md, 6px);
 }
 
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent, #c9a84c);
+  cursor: pointer;
+}
+
 .meta {
   display: flex;
   gap: 10px;

@@ -73,6 +73,19 @@ function ParamRow({ id, entry, status, onCommit }) {
         <div className={styles.disabledReason} data-testid={`param-reason-${id}`}>
           {status.reason || 'this control is not currently adjustable'}
         </div>
+      ) : entry.type === 'bool' ? (
+        // ⭐⭐ TRACK F v1.1 (2026-09-06) — the SAME architecture, an
+        // appropriate control for the type. A checkbox commits immediately,
+        // exactly like the `options` `<select>` two branches below: there is
+        // no free-text "0.7" a boolean could be typed as, so the draft/blur/
+        // Enter machinery the numeric input needs has nothing to debounce.
+        <input
+          type="checkbox"
+          className={styles.checkbox}
+          data-testid={`param-input-${id}`}
+          checked={status.value === 1}
+          onChange={(e) => onCommit(id, e.target.checked ? 1 : 0)}
+        />
       ) : Array.isArray(entry.options) ? (
         <select
           className={styles.select}
@@ -97,7 +110,7 @@ function ParamRow({ id, entry, status, onCommit }) {
         />
       )}
       <div className={styles.meta}>
-        <span>default {entry.default}</span>
+        <span>default {entry.type === 'bool' ? (entry.default === 1 ? 'On' : 'Off') : entry.default}</span>
         {entry.min != null && <span>min {entry.min}</span>}
         {entry.max != null && <span>max {entry.max}</span>}
       </div>
