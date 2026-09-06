@@ -1730,3 +1730,54 @@ cross-database writer candidate and NO scanner-correlation sample — an
 honest gap, not filled artificially. C1-C6 remain open. `screener_
 snapshot_nightly` (03:00 ET), `screener_scan_sweep`/`screener_screen_
 alerts` (~05:00/05:10 ET) still ahead tonight.
+
+## patterns_universe_scan very likely interrupted by an unrelated redeploy — live, naturally-occurring instance of the separately-tracked issue (2026-09-06 ~01:20-01:25 ET)
+
+**Precise timeline, from real production data (Railway deployment metadata
++ logs), not inferred:**
+- `patterns_universe_scan` submitted at **01:00:00.008 ET** (confirmed
+  scheduler log line, unique trigger signature `cron[hour='1',
+  minute='0']`).
+- A new deployment (`a3b3e9af-fcd7-44d4-b93b-cd9be035da61`, an unrelated
+  notebook-platform merge, confirmed no file overlap with the
+  instrumented files) has `createdAt: 2026-09-06T05:00:59.754Z` =
+  **01:00:59.754 ET — ~60 seconds after the scan started.**
+- The NEW process's own **"Application startup complete" line reads
+  `2026-09-06 05:04:21,254` UTC = 01:04:21.254 ET — only ~4 minutes 21
+  seconds after the scan started.**
+- No `[patterns] universe_scan: scanned...` completion line, and no
+  APScheduler "executed successfully"/exception line for this job, exists
+  anywhere in either the pre-restart or post-restart log windows queried.
+
+**Reading, stated at the right confidence level.** This is NOT proof (the
+exact instant the OLD process was killed vs. this new one started serving
+isn't separately confirmed), but it is strong, precise, naturally-occurring
+circumstantial evidence: given the per-detection-row commit pattern
+already traced (fresh connection + fsync-class commit per stored
+detection, across up to ~3,742 tickers × up to ~50 detectors), a run
+finishing an entire universe pass in under ~4.5 minutes would be
+surprising — far more consistent with the run having been killed mid-scan
+by this (or one of the several other closely-spaced) redeploys landing
+that night. Per the completeness-contract finding already on record, a
+killed run produces **no log line at all** — indistinguishable from
+"never fired" except by this kind of before/after timestamp
+triangulation, which is exactly what this entry preserves.
+
+**This is a live, naturally-occurring instance of the separately-tracked,
+NOT-this-package issue: "long-running pattern scans can be terminated by
+unrelated web-service redeploys."** Recorded as fresh, dated, concrete
+evidence for that already-open reliability item — not something being
+fixed now, and not conflated with the screener-contention question this
+package exists to answer (this job does not touch screener.db at all —
+confirmed earlier: it reads bars.db, writes only patterns.db — so even if
+proven interrupted, this specific event speaks to the redeploy/
+completeness issue, not to C1).
+
+**Owner's standing direction on the bounded scanner-request fallback,
+noted and respected**: no natural `/api/screener/scan` traffic occurred
+during this writer's active window, and no owner-initiated request has
+been reported yet either. No credential search or workaround attempted
+(already correctly blocked once, not retried). Continuing to watch for
+either an owner-supplied sample or the remaining nightly writers
+(`screener_snapshot_nightly` 03:00 ET, `screener_scan_sweep`/`screener_
+screen_alerts` ~05:00/05:10 ET) as the next natural evidence opportunities.
