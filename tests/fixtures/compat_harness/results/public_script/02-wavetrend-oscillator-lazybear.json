@@ -1,0 +1,69 @@
+{
+  "id": "public_script/02-wavetrend-oscillator-lazybear",
+  "lane": "public_script",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#02-wavetrend-oscillator-lazybear",
+    "captured_at": "2026-09-07",
+    "capture_method": "local_fixture_file"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null,
+      "evidence": []
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "pine"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null,
+      "unsupported_constructs": []
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "translatePine(02-wavetrend-oscillator-lazybear.pine).outputs"
+    },
+    "execution_requirements": {
+      "status": "PARTIAL",
+      "note": "Layer A v1 does not extract per-script lookback/timeframe/session requirements yet; deferred to a later pass, disclosed rather than guessed."
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": 8,
+      "needs": []
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A is static-only; rendering is Layer B/C"
+    },
+    "persistence_save": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "persistence_reload": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "Layer A does not persist; Layer B/C does"
+    },
+    "screener_eligibility": {
+      "status": "SUPPORTED",
+      "eligible": true,
+      "reason": "at least one output yields bool directly"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "SUPPORTED",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}
