@@ -83,6 +83,15 @@ vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   }),
 }))
 
+// Attention Signal Propagation V1 — same hook PortfolioAttentionBanner uses,
+// reused verbatim (no new endpoint). Defaults to an empty map so every
+// pre-existing test in this file (none of which cares about Attention) sees
+// no change; the dedicated describe block below overrides per test.
+const mockUseAttention = vi.fn(() => ({ attention: {}, isLoading: false, error: null }))
+vi.mock('../../hooks/useJ2PositionsAttention', () => ({
+  default: () => mockUseAttention(),
+}))
+
 const swrData = {
   '/api/bars/AAPL?tf=D&bars=30': {
     bars: [
@@ -197,5 +206,87 @@ describe('PositionDetailPage', () => {
     renderPage()
     expect(screen.getByText(/of 30 analysts rate it Buy/)).toBeInTheDocument()
     expect(screen.getByText('UCT Rating 92')).toBeInTheDocument()
+  })
+})
+
+describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', () => {
+  beforeEach(() => {
+    mockUseAttention.mockReset()
+    mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: null })
+  })
+
+  it('renders nothing when the symbol has no open position (attention map has no entry)', () => {
+    // AAPL IS an open position in this file's fixtures, but the batch
+    // endpoint scopes to currently-held symbols — an empty map here models
+    // "not yet loaded" / "no entry for this symbol", and the page's existing
+    // null-safe convention hides the section rather than rendering a
+    // false-empty card.
+    renderPage()
+    expect(screen.queryByTestId('position-attention')).not.toBeInTheDocument()
+  })
+
+  it('renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: {
+        AAPL: {
+          status: 'ok',
+          notable: true,
+          facts: [
+            { kind: 'price_move', label: 'Moving +5.2% today', as_of: '2026-09-05' },
+          ],
+          context: { composite_rating: 92, rs_rank: 88 },
+        },
+      },
+    })
+    renderPage()
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Moving +5.2% today')
+    expect(card).toHaveTextContent('2026-09-05')
+    expect(screen.getByLabelText('AAPL notable')).toBeInTheDocument()
+  })
+
+  it('shows "Nothing notable" for a non-notable held symbol, never fabricating a fact', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: { AAPL: { status: 'ok', notable: false, facts: [], context: {} } },
+    })
+    renderPage()
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Nothing notable')
+    expect(screen.queryByLabelText('AAPL notable')).not.toBeInTheDocument()
+  })
+
+  it('surfaces a degraded status pill rather than hiding it silently', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: { AAPL: { status: 'partial', notable: false, facts: [], context: {} } },
+    })
+    renderPage()
+    expect(screen.getByTitle('Data partial')).toBeInTheDocument()
+  })
+
+  it('renders nothing on a total fetch failure (mirrors PortfolioAttentionBanner\'s degrade-to-hidden, never a fabricated empty state)', () => {
+    mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: new Error('500') })
+    renderPage()
+    expect(screen.queryByTestId('position-attention')).not.toBeInTheDocument()
+  })
+
+  it('reads a different symbol\'s attention entry on symbol change (no stale prior-symbol card)', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: {
+        AAPL: { status: 'ok', notable: true, facts: [{ kind: 'price_move', label: 'AAPL moved', as_of: '2026-09-05' }], context: {} },
+        MSFT: { status: 'ok', notable: false, facts: [], context: {} },
+      },
+    })
+    renderPage('MSFT')
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Nothing notable')
+    expect(card).not.toHaveTextContent('AAPL moved')
   })
 })
