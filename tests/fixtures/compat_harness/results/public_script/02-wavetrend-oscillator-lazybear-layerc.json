@@ -1,0 +1,35 @@
+{
+  "id": "public_script/02-wavetrend-oscillator-lazybear-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "source": {
+    "dialect": "pine",
+    "version_declared": null,
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#02-wavetrend-oscillator-lazybear",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "steps": {
+    "parse": {
+      "status": "VENDOR_AMBIGUOUS",
+      "note": "TradingView's own editor could not translate this real, unmodified, verbatim script. Compiled under IMPLIED Pine v1 (confirmed via the editor's own info message: 'The Pine version of this script is unspecified, so it will compile as Pine v1'). Real error: 'Script could not be translated from: ap = hlc3' -- hlc3 does not resolve under the vendor's own current implied-v1 compile mode, even though this exact script (per SOURCES.md) was catalogued as Pine v1 at capture time (2026-08-25) and has been live/published on TradingView since 2014-05-27."
+    },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v1_implied" },
+    "translate": { "status": "VENDOR_AMBIGUOUS", "guard": null, "note": "vendor compile failure precedes any UCT involvement" },
+    "canonical_ast": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached -- vendor's own compile failed first" },
+    "execution_requirements": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "visual_requirements": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "chart_render": { "status": "ENVIRONMENT_BLOCKED", "reason": "compile failed; nothing to render. Confirmed no chart-object-tree placeholder was left behind for this specific attempt (checked directly)." },
+    "persistence_save": { "status": "ENVIRONMENT_BLOCKED", "reason": "never attempted; would have persisted a script the vendor's own engine refuses" },
+    "persistence_reload": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "screener_eligibility": { "status": "ENVIRONMENT_BLOCKED", "reason": "never reached" },
+    "refusal_behavior": { "status": "VENDOR_AMBIGUOUS", "guard": null, "note": "this is a VENDOR refusal (TradingView's own compiler), not a UCT refusal -- UCT was never reached" },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null, "note": "no comparable output exists to compare against; the vendor itself cannot produce one for this script today" }
+  },
+  "failure_taxonomy": ["vendor_ambiguity"],
+  "final_classification": "VENDOR_AMBIGUOUS",
+  "taxonomy_gap_note": "Neither 'vendor_ambiguity' (multiple plausible readings) nor 'environment_blocked' (a flag/key/TradingView-availability gap on OUR side) precisely describes 'the vendor's own current engine cannot compile the vendor's own previously-published, unmodified script.' Filed under vendor_ambiguity as the closest existing label; a future taxonomy revision may want a distinct 'vendor_platform_decay' category.",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}

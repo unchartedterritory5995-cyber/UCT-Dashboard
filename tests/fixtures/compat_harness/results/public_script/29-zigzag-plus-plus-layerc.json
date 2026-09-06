@@ -1,0 +1,38 @@
+{
+  "id": "public_script/29-zigzag-plus-plus-layerc",
+  "lane": "public_script",
+  "layer": "C",
+  "source": {
+    "dialect": "pine",
+    "version_declared": "5",
+    "provenance_ref": "tests/fixtures/pine_community/SOURCES.md#29-zigzag-plus-plus",
+    "captured_at": "2026-09-06",
+    "capture_method": "browser_paste_live_tradingview",
+    "tradingview_chart": "jHASRSzx (owner's account, TSDR_TRADING)"
+  },
+  "steps": {
+    "parse": {
+      "status": "HARNESS_DEFECT",
+      "note": "INCONCLUSIVE, not a real finding about the script or the vendor. Typing this script's nested if/else blocks via simulated keystrokes triggered a REPRODUCIBLE Monaco auto-indent cascade (each new line's own leading whitespace compounds with Monaco's auto-inserted indent), corrupting the block structure into a visual staircase -- the exact failure shape RISK-018a's earlier capture session already found and worked around for a different script. One transcription simplification was applied proactively (flattening two originally-multi-line label.new(...) calls onto one line each, semantically identical) but this did not prevent the cascade in the deeper nested if/else region. The resulting compile error ('Syntax error at input block of statements', near the switch/case block) is CONTAMINATED by this corruption and cannot be attributed to the real script, TradingView's real compiler, or anything UCT-relevant."
+    },
+    "dialect_detect": { "status": "SUPPORTED", "detected": "pine_v5_explicit" },
+    "translate": { "status": "HARNESS_DEFECT", "guard": null, "note": "see parse step -- result contaminated by transcription corruption" },
+    "canonical_ast": { "status": "HARNESS_DEFECT", "reason": "not reliably reachable given the transcription corruption" },
+    "execution_requirements": { "status": "HARNESS_DEFECT", "reason": "not reliably reachable" },
+    "visual_requirements": { "status": "HARNESS_DEFECT", "reason": "not reliably reachable" },
+    "chart_render": {
+      "status": "HARNESS_DEFECT",
+      "note": "A placeholder chart-object-tree entry ('ZigZag++') was added despite the compile error (same pattern found on the MacD attempt) -- found and removed via right-click -> Remove, confirmed restored."
+    },
+    "persistence_save": { "status": "HARNESS_DEFECT", "reason": "never saved" },
+    "persistence_reload": { "status": "HARNESS_DEFECT", "reason": "never reached" },
+    "screener_eligibility": { "status": "HARNESS_DEFECT", "reason": "never reached" },
+    "refusal_behavior": { "status": "HARNESS_DEFECT", "guard": null, "note": "UNANSWERED: the original, most interesting question for this script -- whether TradingView's real 'import DevLucem/ZigLib/1 as ZigZag' resolution succeeds or refuses for a fresh paste -- was never cleanly reached, since the compile error surfaced from the corrupted region, not the import line itself. This remains open for a future attempt with a more reliable transcription method (e.g. a genuine clipboard paste rather than simulated per-keystroke typing, if the browser tooling supports one)." },
+    "vendor_comparison": { "status": "SKIPPED_NOT_APPROPRIATE", "ref": null }
+  },
+  "failure_taxonomy": ["harness_defect"],
+  "final_classification": "HARNESS_DEFECT",
+  "note": "Layer A's own classification for this script (CORRECTLY_REFUSED, from the static translator door: 'imports another script, which is code this engine never sees') is UNCHANGED and NOT contradicted by this result -- this Layer C attempt simply could not independently confirm or add to it live, due to a harness-side transcription limitation, not a finding about the script.",
+  "evidence_artifact_paths": [],
+  "harness_version": "compat-harness-v1"
+}
