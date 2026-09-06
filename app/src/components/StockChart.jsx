@@ -1862,6 +1862,8 @@ export default function StockChart({
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
   disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
+  forcedDetections = null,  // Package 8G-C admin proof only: an explicit Detection[] to render on PatternOverlay INSTEAD OF the live usePatternDetections poll — bypasses /api/patterns/{sym} entirely. null (default) for every existing caller; only the new admin-only canonical-proof page passes this. Never touches showPatterns/onTogglePatterns/ChartToolbar's dead toggle.
+  forcedShowPatterns = false, // pairs with forcedDetections — enables PatternOverlay for the forced set without flipping the persisted showPatterns chart_settings flag.
   showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
   settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
   onSettingsPersist = null,  // optional (nextFullSettings) => void — when provided, ALL in-chart settings writes (gear, indicators, overlays, ext-hours, log/pct scale, right-click toggles) route HERE instead of the global chart_settings pref. Used by a Chart widget's EXTRA tabs so each tab's edits persist to that tab's own blob in isolation, never touching the global settings or another tab. `settingsOverride` should carry this tab's full settings so `cs` reflects it.
@@ -4372,7 +4374,13 @@ export default function StockChart({
     handleUpdateChartSettings({ ...cs, showPatterns: next, preset: 'custom' })
   }, [cs, handleUpdateChartSettings])
   const [activeDetection, setActiveDetection] = useState(null)
-  const { detections: patternDetections } = usePatternDetections(sym, resolvedTf, showPatterns && !disablePatterns, 50)
+  const { detections: livePatternDetections } = usePatternDetections(
+    sym, resolvedTf, showPatterns && !disablePatterns && !forcedDetections, 50
+  )
+  // Package 8G-C admin proof: a forced detection set wins outright, so the
+  // canonical-proof page never touches (and never depends on) the live poll.
+  const patternDetections = forcedDetections ?? livePatternDetections
+  const patternOverlayEnabled = !!forcedShowPatterns || showPatterns
 
   // ── Screenshot + Share state ──
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
@@ -15495,7 +15503,7 @@ export default function StockChart({
           series={candleSeriesRef.current}
           containerRef={containerRef}
           detections={patternDetections}
-          enabled={showPatterns}
+          enabled={patternOverlayEnabled}
           onDetectionClick={setActiveDetection}
         />
       )}

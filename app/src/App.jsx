@@ -166,6 +166,7 @@ const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
 const PatternAdmin = lazy(() => import('./pages/admin/PatternAdmin'))
 const LandingAnalytics = lazy(() => import('./pages/admin/LandingAnalytics'))
 const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
+const PatternCanonicalProof = lazy(() => import('./pages/admin/PatternCanonicalProof'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
@@ -563,6 +564,14 @@ export default function App() {
                 <Route path="/admin/chart-health" element={<ChartHealth />} />
                 <Route path="/admin/patterns" element={<PatternAdmin />} />
                 <Route path="/admin/pattern-review" element={<PatternReview />} />
+                {/* Phase 8 Package 8G-C readiness — admin-only canonical proof
+                    surface (real detection -> canonical persistence ->
+                    canonical detail payload -> geometry -> deterministic
+                    explanation -> chart render). Not linked from anywhere;
+                    reached only by URL, same as this section's siblings, and
+                    gated the same way (outer AuthGuard + each fetch's own
+                    require_admin 403). */}
+                <Route path="/admin/pattern-canonical-proof" element={<PatternCanonicalProof />} />
                 <Route path="/admin/landing-analytics" element={<LandingAnalytics />} />
               </Route>
             </Route>
