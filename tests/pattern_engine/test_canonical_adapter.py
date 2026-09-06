@@ -27,6 +27,7 @@ from api.services.pattern_engine.canonical_adapter import (
     adapt_bearish_engulfing,
     adapt_bullish_engulfing,
     adapt_bull_flag,
+    adapt_flat_base,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
     build_scanner_summary,
@@ -39,6 +40,7 @@ from api.services.pattern_engine.detectors.candlestick.bullish_engulfing import 
     detect_bullish_engulfing,
 )
 from api.services.pattern_engine.detectors.classical.bull_flag import detect_bull_flag
+from api.services.pattern_engine.detectors.uct.flat_base import detect_flat_base
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import (
     _GAP_FILL_THRESHOLD,
@@ -69,6 +71,7 @@ PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_g
 BE_DETECTIONS = _fired_detections("bullish_engulfing", detect_bullish_engulfing)
 BRE_DETECTIONS = _fired_detections("bearish_engulfing", detect_bearish_engulfing)
 BULL_FLAG_DETECTIONS = _fired_detections("bull_flag", detect_bull_flag)
+FLAT_BASE_DETECTIONS = _fired_detections("flat_base", detect_flat_base)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -490,6 +493,101 @@ def test_fixture_coverage_is_nonzero():
     assert len(BE_DETECTIONS) >= 3, "expected several firing Bullish Engulfing fixtures"
     assert len(BRE_DETECTIONS) >= 3, "expected several firing Bearish Engulfing fixtures"
     assert len(BULL_FLAG_DETECTIONS) >= 3, "expected several firing bull_flag fixtures"
+    assert len(FLAT_BASE_DETECTIONS) >= 3, "expected several firing Flat Base fixtures"
+
+
+# ─── Flat Base: eligibility-only, event/criteria/gate_trace absent — same
+#     minimal shape as HTF/Bull Flag, independently re-verified (not assumed)
+#     from flat_base.py's own current code ─────────────────────────────────
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_flat_base(detection)
+    _assert_parity(detection, adapted, {"eligibility"})
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_adapter_omits_event_and_criteria(name, detection):
+    """flat_base.py's own header STOP comment defers criteria/provenance to
+    base_catalog.py's parallel `flat-base` structure and has no event
+    concept — these keys must be genuinely ABSENT, not null/empty."""
+    adapted = adapt_flat_base(detection)
+    assert "event" not in adapted
+    assert "criteria" not in adapted
+    assert "gate_trace" not in adapted
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_adapter_eligibility_shape(name, detection):
+    adapted = adapt_flat_base(detection)
+    elig = adapted["eligibility"]
+    assert elig["eligibility_scope"] == "system_default"
+    assert elig["eligibility_version"] == ADAPTER_VERSION
+    assert elig["active_window_secs"] == memory.ACTIVE_WINDOW_SECS
+    # Flat Base has no per-family freshness gate (re-verified by direct read
+    # of flat_base.py — no `_MAX_.*AGE` constant in the file) — both must be
+    # None, not a fabricated number.
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+    assert any("within active window" in r for r in elig["eligibility_reasons"])
+
+
+def test_flat_base_adapter_eligible_false_once_outside_active_window():
+    assert FLAT_BASE_DETECTIONS, "need at least one firing Flat Base fixture"
+    _, detection = FLAT_BASE_DETECTIONS[0]
+    stale = dict(detection)
+    stale["detected_at"] = int(time.time()) - memory.ACTIVE_WINDOW_SECS - 3600
+    adapted = adapt_flat_base(stale)
+    assert adapted["eligibility"]["eligible"] is False
+    assert any("outside active window" in r for r in adapted["eligibility"]["eligibility_reasons"])
+
+
+def test_flat_base_adapter_does_not_mutate_its_input():
+    assert FLAT_BASE_DETECTIONS
+    _, detection = FLAT_BASE_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_flat_base(detection)
+    assert detection == snapshot
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    """Re-verifies the exact anchor order flat_base.py::_build_detection
+    emits (prior_advance_low, base_start_high, base_end_high, base_end_low)
+    -- if that ever changes, this label set would silently start describing
+    the wrong points, and this test is what would catch it."""
+    adapted = adapt_flat_base(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "base_and_pivot"
+    assert geometry["anchor_roles"] == [
+        "prior_advance_low", "base_start_high", "base_end_high", "base_end_low",
+    ]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 4
+    prior_advance_low, base_start_high, base_end_high, base_end_low = geometry["anchors"]
+    # A real prior-advance-low -> base-high transition: the base's own high
+    # must genuinely sit above the prior swing low that preceded it.
+    assert base_start_high["price"] > prior_advance_low["price"]
+    # base_start_high and base_end_high are the SAME price (the base's own
+    # high, both ends) but genuinely different bars in time.
+    assert base_start_high["price"] == pytest.approx(base_end_high["price"])
+    assert base_start_high["t"] != base_end_high["t"]
+    # base_end_high and base_end_low share the same bar (the base's last bar)
+    # but are genuinely different prices (a real range, not a collapsed point).
+    assert base_end_high["t"] == base_end_low["t"]
+    assert base_end_high["price"] > base_end_low["price"]
+
+
+@pytest.mark.parametrize("name,detection", FLAT_BASE_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_flat_base_scanner_summary_separates_status_from_eligibility(name, detection):
+    adapted = adapt_flat_base(detection)
+    summary = build_scanner_summary(adapted)
+    assert summary["status"] == adapted["status"] == "ready"
+    assert summary["scanner_eligible"] is True
+    assert summary["pattern_id"] == adapted["pattern_id"]
+    assert summary["confidence"] == adapted["confidence"]
+    assert summary["primary_reason"] == adapted["narrative"]["headline"]
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────

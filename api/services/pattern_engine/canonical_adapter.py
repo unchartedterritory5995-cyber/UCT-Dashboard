@@ -125,6 +125,7 @@ from typing import Optional
 
 from api.services.pattern_engine import memory as _memory
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag
+from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.types import (
     Detection, Eligibility, EventProvenance, GateEvaluation, ScannerSummary,
@@ -225,6 +226,22 @@ _BULL_FLAG_ANCHOR_ROLES = [
     "flag_upper_start", "flag_upper_end", "flag_lower_start", "flag_lower_end",
 ]
 _BULL_FLAG_SEMANTIC_SUBTYPE = "flag_channel"
+
+# Phase 8 Package 8I. flat_base._build_detection (verified by direct read, not
+# recon) emits exactly 4 anchors in this order: prior_advance_low,
+# base_start_high, base_end_high, base_end_low -- a real prior-advance-low
+# point (the pole's own base, distinct from the base's own low) and the
+# base's own two-sided range (start-high -> end-high -> end-low), unlike
+# either HTF/Bull Flag (a pole segment + a flag diagonal) or PEG (a gap
+# candle + its aftermath). All 4 anchors were independently re-verified as
+# real bar timestamps (never a bar-index leak of the kind Bull/Bear
+# Flag/Pennant had) -- flat_base builds every anchor from `bars[idx]["t"]` /
+# a real Bar dict directly, never from an inline pivot construction with its
+# own "t": <index> shortcut.
+_FLAT_BASE_ANCHOR_ROLES = [
+    "prior_advance_low", "base_start_high", "base_end_high", "base_end_low",
+]
+_FLAT_BASE_SEMANTIC_SUBTYPE = "base_and_pivot"
 
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
@@ -354,6 +371,34 @@ def adapt_bull_flag(detection: Detection, *, now: Optional[int] = None) -> Detec
     out["eligibility"] = compute_default_eligibility(detection, now=now)
     out["geometry"] = _with_labeled_geometry(
         detection, _BULL_FLAG_ANCHOR_ROLES, _BULL_FLAG_SEMANTIC_SUBTYPE
+    )
+    return out
+
+
+def adapt_flat_base(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Flat Base: eligibility + semantic geometry labels only -- the same
+    minimal shape as High Tight Flag / Bull Flag. `event`/`criteria`/
+    `gate_trace` are deliberately absent: this family has no event concept
+    (a pure price/volume continuation pattern) and no per-family freshness
+    gate of its own (re-verified by direct read -- no `_MAX_.*AGE` constant
+    in `flat_base.py`; staleness is structurally bounded by re-scan aging a
+    candidate past `flat_base._MAX_BASE_BARS` rather than a stored age
+    field, same situation as HTF/Bull Flag).
+
+    ⛔@@STOP@@ TWO ENGINES, SAME SETTLED BOUNDARY AS VCP. `flat_base.py`'s own
+    header STOP comment records a real, owner-decided (2026-08-31) split with
+    `base_catalog.py`'s parallel `flat-base` structure: the base library is
+    authoritative for WHETHER a structure is present (sourced/gated/carries
+    provenance), this detector is authoritative for WHERE TO ENTER one. This
+    adapter does not reconcile that split, does not add `criteria`/
+    `gate_trace` to paper over it, and does not touch either engine -- the
+    boundary is rail-tested (`tests/test_no_second_authority_across_axes.py`)
+    and explicitly NOT this package's to reopen.
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(
+        detection, _FLAT_BASE_ANCHOR_ROLES, _FLAT_BASE_SEMANTIC_SUBTYPE
     )
     return out
 
