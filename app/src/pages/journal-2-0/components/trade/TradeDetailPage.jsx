@@ -38,6 +38,7 @@ import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
+import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
 
@@ -137,6 +138,69 @@ function ReplayButton({ trade }) {
   )
 }
 
+
+/**
+ * Compact "Research" trigger for the already-dense CTA row — opens a small
+ * local dropdown (Full Research / Ask AI / Compare) rather than three more
+ * inline buttons. Same canonical /research/:sym contracts as TickerPopup's
+ * goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91); the Compare
+ * item reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
+ */
+function TradeResearchMenu({ symbol }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  if (!symbol) return null
+
+  const close = () => { setOpen(false); setShowCompare(false) }
+  const goToResearch = () => { navigate(`/research/${symbol}`); close() }
+  const goToAskAi = () => { navigate(`/research/${symbol}?section=ai`); close() }
+  const goToCompare = (comparator) => { navigate(`/research/${symbol}/compare/${comparator.toUpperCase()}`); close() }
+
+  return (
+    <span ref={wrapRef} className={styles.researchMenuWrap}>
+      <button
+        type="button"
+        className={styles.cardActionBtn}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <UIcon name="book" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        Research
+      </button>
+      {open && (
+        <div className={styles.researchMenu} role="menu">
+          <button type="button" className={styles.researchMenuItem} onClick={goToResearch}>
+            <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+          </button>
+          <button type="button" className={styles.researchMenuItem} onClick={goToAskAi}>
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+          </button>
+          {!showCompare ? (
+            <button type="button" className={styles.researchMenuItem} onClick={() => setShowCompare(true)}>
+              <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {symbol} with...
+            </button>
+          ) : (
+            <div className={styles.researchMenuCompare}>
+              <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
 
 /** Save-to-Notebook door for this trade — same CaptureMenu every widget door
  *  uses, tagged with `tradeRef` so the note carries a link back to this trade
@@ -471,6 +535,7 @@ export default function TradeDetailPage() {
           <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
           <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
+          <TradeResearchMenu symbol={trade.symbol} />
         </span>
       </header>
 

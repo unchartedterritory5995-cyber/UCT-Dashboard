@@ -47,6 +47,16 @@ vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid="chart">{sym}:{tf}</div>,
 }))
 vi.mock('../TradeReviewCard', () => ({ default: () => <div data-testid="review" /> }))
+// The canonical SymbolSearch component has its own dedicated coverage
+// elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
+// action can be exercised without its real dropdown/fetch machinery. The
+// stub deliberately hands back a LOWERCASE comparator so these tests pin the
+// page's own uppercasing, not SymbolSearch's.
+vi.mock('../../../../components/chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
+  ),
+}))
 vi.mock('../../hooks/useTradeReview', () => ({
   default: () => ({
     review: null, isLoading: false, generate: vi.fn(), regenerate: vi.fn(),
@@ -247,6 +257,47 @@ describe('TradeDetailPage — Save to Notebook (Wave 1, P1-1: tradeRef)', () => 
     expect(capture.to).toBeGreaterThan(Date.parse('2026-05-04') / 1000)
     expect(opts.target).toBe('inbox')
     expect(opts.tradeRef).toBe('t1')
+  })
+})
+
+describe('TradeDetailPage — Research trigger (Full Research / Ask AI / Compare)', () => {
+  it('opens without disturbing the other 4 CTA elements', () => {
+    renderPage()
+    expect(screen.getByRole('button', { name: /research/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
+    expect(screen.getByRole('button', { name: 'Full Research' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ask ai about nvda/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /compare nvda with/i })).toBeInTheDocument()
+    // The pre-existing CTA elements are untouched (ShareToFloor renders null
+    // under this file's SWR stub — /api/community/status resolves to null —
+    // same as every other test in this file, so it's not asserted here).
+    expect(screen.getByRole('button', { name: '▶ Replay' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save to notebook/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save image/i })).toBeInTheDocument()
+  })
+
+  it('Full Research navigates to the canonical /research/:sym route and closes the menu', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Full Research' }))
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA')
+    expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
+  })
+
+  it('Ask AI navigates to the same route with ?section=ai', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA?section=ai')
+  })
+
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
+    expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
   })
 })
 

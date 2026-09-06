@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PositionDetailPage, { combinePositions } from './PositionDetailPage'
+
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => navigateMock }))
 
 // The page now mounts ChartPane (the same chart /charts renders) instead of a
 // bare StockChart. ChartPane is lazy + imports the very same StockChart module,
@@ -16,6 +19,16 @@ vi.mock('../../../../components/CompanyLogo', () => ({
 // reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
 // must be used within AuthProvider" (this file renders without an AuthProvider).
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// The canonical SymbolSearch component has its own dedicated coverage
+// elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
+// action can be exercised without its real dropdown/fetch machinery. The
+// stub deliberately hands back a LOWERCASE comparator so these tests pin
+// this page's own uppercasing, not SymbolSearch's.
+vi.mock('../../../../components/chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+  ),
+}))
 vi.mock('../../../../hooks/useFundamentalSnapshot', () => ({
   default: () => ({
     data: {
@@ -117,6 +130,32 @@ describe('combinePositions', () => {
       { id: 2, side: 'Short', shares: 5, entryPrice: 200, entryDate: '2026-06-01' },
     ])
     expect(rows).toHaveLength(2)
+  })
+})
+
+describe('PositionDetailPage — cross-link actions (Full Research / Ask AI / Compare)', () => {
+  beforeEach(() => {
+    navigateMock.mockClear()
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+  })
+
+  it('Full Research navigates to the canonical /research/:sym route', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /full research/i }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
+  })
+
+  it('Ask AI navigates to the same route with ?section=ai', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /ask ai/i }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+  })
+
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
   })
 })
 

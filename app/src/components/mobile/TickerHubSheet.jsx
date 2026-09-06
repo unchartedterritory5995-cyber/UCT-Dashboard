@@ -8,6 +8,7 @@ import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
 import useTickerTweets from '../../hooks/useTickerTweets'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
+import SymbolSearch from '../chart/SymbolSearch'
 import styles from './TickerHubSheet.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -42,11 +43,16 @@ function TickerHubBody({ sym, onClose }) {
   const [alertDir, setAlertDir] = useState('above')
   const [alertPrice, setAlertPrice] = useState('')
   const [showFund, setShowFund] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
 
   const live = prices[sym] || prices[String(sym).toUpperCase()]
   const flagged = isFlagged(sym)
 
   const go = (to) => { onClose(); navigate(to) }
+  // Compare — same canonical route + picker as TickerPopup's own goToCompare
+  // (~TickerPopup.jsx:91). `sym` reaching this sheet is already uppercased by
+  // TickerHubContext.openTicker, so no second normalization here.
+  const goToCompare = (comparator) => { onClose(); navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`) }
   const openChart = () => {
     try { localStorage.setItem('charts_mobile_sym', sym) } catch { /* noop */ }
     go('/charts')
@@ -140,7 +146,23 @@ function TickerHubBody({ sym, onClose }) {
           <button type="button" className={styles.action} onClick={() => go(`/research/${sym}?section=ai`)}>
             <span className={styles.aicon} aria-hidden="true"><UIcon name="sparkle" size={14} /></span>Ask AI
           </button>
+          <button
+            type="button"
+            className={`${styles.action} ${showCompare ? styles.on : ''}`}
+            onClick={() => setShowCompare((o) => !o)}
+            aria-expanded={showCompare}
+          >
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="columns" size={14} /></span>Compare
+          </button>
         </div>
+
+        {/* Inline compare picker — same "+ Compare" SymbolSearch usage as
+            TickerPopup/TickerActions, toggled by the Compare action above. */}
+        {showCompare && (
+          <div className={styles.compareRow}>
+            <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+          </div>
+        )}
 
         {/* Fundamentals snapshot — lazy + fetch-gated on open */}
         {showFund && (

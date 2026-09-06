@@ -11,6 +11,7 @@ import useTagColors from '../hooks/useTagColors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
 import UIcon from './ui/UIcon'
+import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerActions.module.css'
 
 export function useTickerActions() {
@@ -85,6 +86,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const [showAddList, setShowAddList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
   // "+ Add to list" used to depend on a `lists` prop that NO call site passed,
   // so every surface in the app rendered "No lists yet". The menu now fetches
   // the user's lists itself when the picker opens; an explicit prop still wins
@@ -109,6 +111,11 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const { sym, x, y } = menu
   const flagged = isFlagged(sym)
   const currentTag = getTag(sym)
+
+  // Compare entry point — same canonical route + picker TickerPopup's own
+  // "+ Compare" uses (goToCompare, ~TickerPopup.jsx:91). `sym` here is already
+  // uppercased by openMenu, so no second normalization.
+  const goToCompare = (comparator) => { navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`); onClose() }
 
   async function handleAddToList(listId) {
     await fetch(`/api/watchlists/${listId}/items`, {
@@ -218,6 +225,17 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
                 {creating ? '…' : 'Create'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Compare — same bespoke-toggle pattern as Add to list / Set alert. */}
+        {!showCompare ? (
+          <button className={styles.item} onClick={() => setShowCompare(true)}>
+            <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {sym} with...
+          </button>
+        ) : (
+          <div className={styles.compareSection}>
+            <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
           </div>
         )}
 
