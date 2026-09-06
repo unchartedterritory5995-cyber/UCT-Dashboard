@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-S8 /
-Attention Freshness Propagation V1 merge/deploy/production-verification).
+**Last verified:** 2026-09-06, against live git + Railway state (post-
+Attention Source-Integrity Hardening V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -251,6 +251,49 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   not confirm whether other callers of that private helper exist);
   `research/ratings.py::get_ratings()`'s real `price_as_of` field is computed
   but discarded by `_rating_context()` before it ever reaches a fact.
+- **Attention Source-Integrity Hardening V1** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `dc2cdc906`, deployed + production-verified 2026-09-06. Phase A
+  (4 independent verification agents + synthesis) confirmed two MATERIAL
+  TRUST BUGs in `get_intelligence_for_symbols()`'s source-integrity
+  accounting, both the same architectural anti-pattern: an internal swallow
+  layer intercepted a real provider exception BEFORE the piece of machinery
+  specifically built to convert "source failed" into `sources_failed += 1`
+  ever saw it. (1) Earnings: `calendar_alerts._get_reporters_for_date()`'s
+  3-leg fallback (cache → Finnhub → FMP) structurally cannot raise by design,
+  so a total outage on any window day was indistinguishable from a genuinely
+  quiet week. Fixed by adding `_get_reporters_for_date_with_status()` /
+  `_fmp_reporters_for_date_with_status()` (the existing functions become
+  byte-identical thin wrappers, so `awareness/engine.py`'s and
+  `calendar_alerts.py`'s own alert scanner — the other 2 production callers —
+  are untouched); `_earnings_facts()` now applies a genuine leg failure as a
+  shared, batch-level `sources_failed` increment for every requested symbol
+  (earnings is one shared lookup, not per-symbol). (2) Analyst action:
+  `analyst_grades.py`'s 4 private FMP helpers (`_fmp_row`/`_fmp_rows`/
+  `_fmp_row_with_meta`/`_fmp_rows_with_meta`) swallowed EVERY exception
+  (`except Exception`) including real `ProviderError` outages, before
+  `get_analyst_grades()`'s own `all_answered`/`_FAIL_TTL` self-heal
+  mechanism — already built for exactly this distinction — could ever see
+  them. Fixed by narrowing those 4 catches to `ProviderNotFound` only (a
+  genuine no-data signal); real failures now propagate to the existing
+  `ThreadPoolExecutor` loop. The corrected signal reaches
+  `watchlist_intelligence.py` via a new opt-in `outage_out` out-param on
+  `get_analyst_grades()`/`get_analyst_ratings()` — both functions' existing
+  public return shapes (pinned by exact-key-set tests, including the live
+  `/api/research/analyst-ratings/{sym}` route) are byte-for-byte unchanged;
+  `_analyst_fact()` raises when `outage_out["outage"]` is true, mirroring
+  `_filing_fact()`'s existing `RuntimeError`-on-error idiom. Also folded in
+  Seam 8's narrow, zero-migration sub-fix: `_price_move_fact()`'s
+  `as_of=datetime.date.today()` → `as_of=None` (no trustworthy per-symbol
+  evidence timestamp exists anywhere in the current pipeline — confirmed by
+  tracing `live_prices.py`/`journal_two.py`/the frontend `changes` hooks end
+  to end; all three consumers already null-guard `as_of`). Full per-ticker
+  timestamp threading (2 endpoint contracts + 1 frontend hook) remains
+  DEFERRED. Zero public API contract changes across all 8 other confirmed
+  production callers of the two touched modules; zero frontend files
+  touched. 7 backend files changed (4 source + 3 test), 328 focused +
+  adjacent tests passing (2 pre-existing exact-equality miss-dict assertions
+  updated to include the new `_outage` key; 4 new regression tests added
+  proving the exact silent-failure scenarios each fix closes).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -302,8 +345,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** S8 / Attention Freshness
-  Propagation V1 (the prior active program) is now ACCEPTED + LIVE — see
+- **None — requires new explicit authorization.** Attention Source-Integrity
+  Hardening V1 (the prior active program) is now ACCEPTED + LIVE — see
   "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
   that program's authorization ("Then STOP. Do not automatically begin
   another Terminal program."), no next Terminal program has been
@@ -317,11 +360,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Freshness Truth Convergence V1's own deferred candidates (the
   `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops, the dual NYSE
   holiday-table consolidation — Watchlist/Portfolio/Position Attention
-  freshness parity was closed by S8, above), nor from S8's own newly-surfaced,
-  explicitly-deferred findings (`_price_move_fact()`'s wall-clock `as_of`, the
-  analyst_action/earnings_proximity total-outage status-integrity bugs — the
-  latter FLAGGED TO STOP, `composite_rating`'s discarded `price_as_of`) — those
-  are candidate lists, not authorizations.
+  freshness parity was closed by S8), nor from Attention Source-Integrity
+  Hardening V1's own remaining deferred item (Seam 8's full per-ticker
+  timestamp threading — the earnings/analyst status-integrity bugs it also
+  surfaced are now CLOSED, above) — those are candidate lists, not
+  authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -406,32 +449,38 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   the frontend should fetch the calendar instead of bundling it) — explicitly
   out of scope for a bounded V1, not urgent.
 - **Seam 8 — `_price_move_fact()`'s evidence date is wall-clock, not source-
-  derived (surfaced by S8 / Attention Freshness Propagation V1's Phase A,
-  2026-09-05/06).** `watchlist_intelligence.py`'s `_price_move_fact()` sets
-  `as_of = datetime.date.today().isoformat()` — a direct wall-clock call,
-  violating the file's own top-of-file rule ("never `datetime.now()`/
-  `date.today()`"). A price-move fact's displayed evidence date is therefore
-  always "today" regardless of when the underlying price data was actually
-  observed. Not fixed by S8 (that V1 propagated existing fields; this needs a
-  real backend change plumbing a source timestamp through `massive.py`/
-  `live_prices.py`/`journal_two.py`). Fix shape: derive `as_of` from the same
-  snapshot timestamp the price move itself was computed from.
+  derived — PARTIALLY RESOLVED by Attention Source-Integrity Hardening V1,
+  merge `dc2cdc906`, 2026-09-06.** The narrow, zero-migration half shipped:
+  `as_of=datetime.date.today().isoformat()` → `as_of=None` (an honest
+  "no reliable evidence date" rather than a fabricated wall-clock stamp; all
+  three consumers already null-guard `as_of`). The full fix — deriving a
+  real per-symbol evidence timestamp from a live-price snapshot — remains
+  DEFERRED: Phase A traced the entire pipeline (`live_prices.py`,
+  `journal_two.py`'s `positions_attention` endpoint, `watchlists.py`'s
+  `IntelRequest.changes`, the frontend `changesForIntel` hook) and confirmed
+  no trustworthy per-symbol timestamp exists anywhere in it today —
+  `changes` is a bare `{SYM: pct}` dict end-to-end. Closing it requires
+  widening 2 backend endpoint contracts + 1 frontend hook, which fails the
+  "small, additive, no broad caller migration" gate. Fix shape: add a real
+  observed-at field to `live_prices.py`'s response and thread it through
+  both endpoints into `_price_move_fact`.
 - **Seam 9 — analyst-action and earnings-proximity total-source-outage paths
-  leave `status="ok"` (surfaced by S8 / Attention Freshness Propagation V1's
-  Phase A, 2026-09-05/06) — MATERIAL TRUST BUG class, not touched.**
-  `get_analyst_ratings()`/`get_analyst_grades()` are documented "never raise",
-  so a total analyst-data-provider outage collapses to the same empty shape as
-  genuine no-coverage and `status` incorrectly stays `"ok"` — a real but
-  plausibly-small additive fix, deferred because it needs its own testing.
-  `_earnings_facts(symbols)` runs entirely OUTSIDE the per-symbol
-  try/except loop with no try/except of its own at all, so a total
-  earnings-calendar outage silently blanks every symbol in the batch with zero
-  accounting — **FLAGGED TO STOP**, not touched: closing it requires changing
-  `calendar_alerts._get_reporters_for_date()`'s return contract, and Phase A
-  did not confirm whether other callers of that private helper exist. Fix
-  shape (earnings side): a caller-graph investigation of
-  `_get_reporters_for_date()` first, then a contract change that lets a total
-  outage increment `sources_failed` instead of returning silently.
+  left `status="ok"` — RESOLVED by Attention Source-Integrity Hardening V1,
+  merge `dc2cdc906`, 2026-09-06.** Both MATERIAL TRUST BUGs fixed via the
+  identical additive pattern (a new `_with_status` sibling function/out-param,
+  existing function becomes a byte-identical thin wrapper for its other
+  callers — zero public contract changes). Earnings:
+  `calendar_alerts._get_reporters_for_date_with_status()` exposes whether
+  each window day's 3-leg fallback actually ran cleanly; `_earnings_facts()`
+  applies a real leg failure as a shared `sources_failed` increment for
+  every requested symbol. Analyst: `analyst_grades.py`'s 4 private FMP
+  helpers now catch only `ProviderNotFound` (not bare `Exception`), letting
+  a real `ProviderError` reach `get_analyst_grades()`'s own
+  `all_answered`/`_FAIL_TTL` mechanism (already built for this, previously
+  dead against real outages); the signal reaches `watchlist_intelligence.py`
+  via a new opt-in `outage_out` out-param on `get_analyst_grades()`/
+  `get_analyst_ratings()`. Kept as a record; do not re-open unless a
+  concrete regression is found.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -442,7 +491,7 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
 - Watchlist filing-watch creation action
-- S8 Freshness Presentation Consistency — price-move and earnings-proximity source-side freshness derivation (Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped and re-surfaced the still-open half as Seam 8 (price-move `as_of`) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity) above — those two seams are the current, precise form of this deferred item; still needs a real backend-contract change, not chosen for any V1 to date)
+- S8 Freshness Presentation Consistency — price-move and earnings-proximity source-side freshness derivation (Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped it into Seam 8 (price-move `as_of`, PARTIALLY RESOLVED — see Seam 8 above) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity, RESOLVED — see Seam 9 above); only Seam 8's full per-ticker timestamp threading remains open, needing a real backend-contract change across 2 endpoints + 1 frontend hook)
 - `research_url` for `ai_deep_report`/`ai_briefing` (Alert Return-to-Research Consistency V1 Phase A) — both hardcode/fall back to the literal placeholder symbol `"AI"`, which collides with the real NYSE ticker for C3.ai, Inc.; wiring a route here would silently misroute to a wrong real company. `ai_briefing` additionally has split identity (`r['sym'] or 'AI'`) with no field to distinguish a real per-ticker briefing from the placeholder after the fact.
 - `research_url` for `exposure_gate` (Alert Return-to-Research Consistency V1 Phase A) — `exposure_gate_watch.py` bypasses `deliver_alert_payload` entirely via a direct `add_alert` call; feature-flag OFF by default (`EXPOSURE_GATE_WATCH_ENABLED='0'`); syntactically a real tradable ETF ticker but semantically a macro gate-level alert, not a personal-security signal — a product-scope decision, not a technical blocker.
 - Reactivating `stop_hit`/`scanner_match` or implementing `ep_resolved` (Alert Return-to-Research Consistency V1 Phase A) — all three are dead/nonexistent code (zero live callers, or no implementation at all); out of scope regardless of research-routing.
@@ -495,17 +544,19 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`), Attention
    Signal Propagation V1 (merge `5e07b8150`), Alert Return-to-Research
    Consistency V1 (merge `c27c95c50`), Temporal / Freshness Truth
-   Convergence V1 (merge `94dd2bb5e`), and S8 / Attention Freshness
-   Propagation V1 (merge `0d1c1d5bf`) are all ACCEPTED + LIVE as of this
+   Convergence V1 (merge `94dd2bb5e`), S8 / Attention Freshness
+   Propagation V1 (merge `0d1c1d5bf`), and Attention Source-Integrity
+   Hardening V1 (merge `dc2cdc906`) are all ACCEPTED + LIVE as of this
    checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
    Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
-   Freshness Propagation, or the Whole-Product Convergence Review from
-   scratch — their findings above are current as of this checkpoint; verify
-   against live code only where something here looks stale.
+   Freshness Propagation, Attention Source-Integrity Hardening, or the
+   Whole-Product Convergence Review from scratch — their findings above are
+   current as of this checkpoint; verify against live code only where
+   something here looks stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
