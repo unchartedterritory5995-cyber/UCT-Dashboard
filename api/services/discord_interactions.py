@@ -319,17 +319,24 @@ BUZZ_COMMAND = "buzz"
 FLOW_COMMAND = "flow"
 
 
-def flow_channel_id() -> str:
-    """The one channel /flow may be used in and posts to. Blank = allowed
-    anywhere (dev/testing); set FLOW_CMD_CHANNEL_ID to lock it to a channel."""
-    return (os.environ.get("FLOW_CMD_CHANNEL_ID") or "").strip()
+def cmd_channel_id() -> str:
+    """The channel chart + flow requests are restricted to (owner: #chart-flow-
+    requests). CHART_FLOW_CHANNEL_ID wins; falls back to FLOW_CMD_CHANNEL_ID (the
+    /flow channel, already set). Blank = no restriction (dev/testing)."""
+    return (os.environ.get("CHART_FLOW_CHANNEL_ID")
+            or os.environ.get("FLOW_CMD_CHANNEL_ID") or "").strip()
 
 
-def flow_channel_ok(interaction: dict) -> bool:
-    """/flow is gated to ONE channel (owner decision): public in that channel,
-    refused elsewhere. Unset env = allowed anywhere so it can be tested first."""
-    want = flow_channel_id()
+def cmd_channel_ok(interaction: dict) -> bool:
+    """True if a gated command (/chart, /c, /charts, /flow) may run in this channel.
+    Unset env = allowed anywhere."""
+    want = cmd_channel_id()
     return (not want) or str(interaction.get("channel_id") or "") == want
+
+
+# Back-compat aliases — /flow's handler referenced these names first.
+flow_channel_id = cmd_channel_id
+flow_channel_ok = cmd_channel_ok
 
 
 def parse_flow_command(interaction: dict) -> tuple:
@@ -394,7 +401,7 @@ def build_flow_command() -> dict:
             {"name": "ticker", "type": 3, "required": True, "autocomplete": True,
              "description": "Start typing a ticker, e.g. DPRO — pick from the list"},
             {"name": "days", "type": 3, "required": False, "autocomplete": True,
-             "description": "Window (default: Today) — leave blank for Today, or pick 7 days / 30 days / 3 months / 6 months / All"},
+             "description": "Window — blank = Today, or 7 days / 30 days / 3 months / 6 months / All"},
         ],
     }
 

@@ -291,6 +291,13 @@ def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
 
+def _channel_nudge() -> dict:
+    """Private redirect when /chart or /flow is run outside the allowed channel."""
+    want = di.cmd_channel_id()
+    return _ephemeral(f"Please use <#{want}> for chart & flow requests." if want
+                      else "Not available in this channel.")
+
+
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
     key = _public_key()
@@ -338,6 +345,8 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         # channel's newest handoff itself; nothing to record here.
         return {"type": 12}
     if itype == 2 and name == di.MULTI_COMMAND:
+        if not di.cmd_channel_ok(interaction):     # /charts restricted to the channel
+            return _channel_nudge()
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         try:
@@ -416,9 +425,8 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
     if itype == 2 and name == di.FLOW_COMMAND:
         # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
         # (owner decision). Refused elsewhere with a pointer to that channel.
-        if not di.flow_channel_ok(interaction):
-            want = di.flow_channel_id()
-            return _ephemeral(f"Please use <#{want}> for /flow." if want else "Not available here.")
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
         uid = di.interaction_user_id(interaction)
         wait = di.user_rate_check(uid)   # shares the /chart render budget (one valve)
         if wait:
@@ -438,6 +446,10 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         # follow-up (Discord fixes visibility at defer time).
         return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
+        # Gate the SLASH invocation to the channel (owner). NOT component clicks
+        # (itype 3) — buttons under an already-posted chart must keep working.
+        if itype == 2 and not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
