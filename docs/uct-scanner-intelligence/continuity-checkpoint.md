@@ -2052,4 +2052,90 @@ C1–C6 question before Tuesday. None of these has occurred.
 **Standing constraints reaffirmed, unchanged:** no implementation changes,
 no manufactured traffic, no credential search/construction, `PATTERN_
 CANONICAL_SCANNER_PILOT_ENABLED` remains OFF/unset, 8G-C remains HOLD.
+
+## Parallel package authorized + delivered — SCAN COMPLETENESS / REDEPLOY RELIABILITY (2026-09-06, isolated worktree, NOT merged/pushed/deployed)
+
+Owner authorized progressing the broader scanner program IN PARALLEL with
+this package's natural-load observation, explicitly on the condition that
+it never contaminates the live 8G-B experiment. Delivered as a **separate,
+narrow, additive implementation on an isolated worktree/branch**
+(`C:\Users\Patrick\uct-dashboard-scan-completeness`, branch
+`feat/scan-completeness-redeploy-reliability`, off `origin/master@0fb917a9b`
+— NOT `phase3c`, NOT `uct-dashboard-8gb-conn-lifecycle`).
+
+**Dependency review (summary):** re-read `docs/uct-scanner-intelligence/
+phase7_canonical_architecture_spec.md` + `decision-log.md` — a SEPARATE
+track (pattern-engine canonical-model/visual-explainability, its own
+Stage A–F migration sequence + 9-item Section-34 work package list) from
+this checkpoint's own 8G-A/B/C track. The "long-running scanner jobs can
+be killed by unrelated redeploys" issue is explicitly tracked in this
+checkpoint (repeated across the 8G-A/8G-B sections above) as a real,
+separate, UNNAMED-until-now future workstream — never patched inside
+8G-B. It was the clear highest-value unblocked parallel package: fully
+independent of 8G-B's canonical-pilot/contention-diagnostic surface,
+requires no production deploy to deliver a reviewable local
+implementation, and directly answers a question this program's own
+`patterns_universe_scan` redeploy-interruption finding (STRONG NATURAL
+CIRCUMSTANTIAL EVIDENCE, recorded earlier this file) raised but could not
+close.
+
+**Grounded code trace (read-only, before implementing):** confirmed
+`_run_patterns_universe_scan`/`_scan_patterns_daily` (`api/main.py`) have
+NO scan-id/generation concept and no persisted progress — each
+detection is its own atomic `sqlite3.connect()`→commit→close
+(`memory.store_detection`, hash-key upsert, genuinely safe against
+mid-run interruption) but nothing records whether last night's FULL
+universe pass ever reached the end. `screener_snapshot_nightly`
+(`snapshot_builder.run_build`) has the identical gap — its "build done"
+line is `log.info` only, never persisted. The ONE existing precedent that
+already solves this correctly: `scan_evaluator.py`'s `scan_coverage`
+receipt — no row for a definition's `as_of` = it was not swept, "checked
+between units, never inside a unit's own loop," derived (not
+cursor-tracked) tail-fairness. `desk_session_jobs.py` was also read as a
+precedent (durable SQLite job queue, `claim_next`/stale-reclaim) but its
+per-item-retry shape fits a webhook-driven queue, not a single scheduled
+full-universe sweep — the scan_coverage idiom is the closer match and
+was the one actually reused.
+
+**Design + implementation delivered:** new additive table
+`pattern_scan_runs` (patterns.db, `CREATE TABLE IF NOT EXISTS`, zero
+migration risk — no ALTER on the 4 existing tables) keyed
+`(job_id, as_of)`; `memory.start_scan_run`/`complete_scan_run`/
+`fail_scan_run`/`latest_scan_run`. `completed_at` staying NULL is the
+ONLY signal that a run did not finish — deliberately true for BOTH a
+silent kill (redeploy/OOM/crash, no call ever reaches it) and a caught,
+logged failure (`fail_scan_run` records `error` but does not mark
+completion), the two states distinguished only by whether `error` is
+set, never collapsed into one status column. Wired into
+`_run_patterns_universe_scan` only (the job with real natural
+redeploy-interruption evidence) — `screener_snapshot_nightly` and any
+other long-running job are NOT touched this pass (same mechanism,
+explicit future work if warranted). Every new call site is individually
+wrapped in non-fatal try/except so a bug in this bookkeeping can never
+break the actual scan; zero scheduler/timing change; zero change to any
+serving path (`pattern_join.py`, `get_active_detections`, and every
+existing consumer of `pattern_detections` untouched).
+
+**Evidence hierarchy, precise:** implemented + 8 new tests written
+(`tests/pattern_engine/test_scan_runs.py`) + full
+`tests/pattern_engine/` suite run (2623 passed, 9 pre-existing xfails,
+unrelated) + the 3 directly-adjacent scheduler/import tests (22 passed,
+confirms `api.main` still imports/schedules cleanly) + committed
+**locally on the isolated branch only** (`38437b9b4`). **NOT** merged to
+master, **NOT** pushed, **NOT** deployed, **NOT** yet reviewed by the
+owner. No production schema change, no Railway config/variable change,
+no scheduler timing change has occurred anywhere. Confirmed via `git
+status` immediately after: both `phase3c` (this observation loop's own
+worktree) and `uct-dashboard-8gb-conn-lifecycle` (the live diagnostic's
+worktree) remain completely clean — zero cross-contamination from this
+parallel work.
+
+**Forbidden/unchanged throughout, per owner boundaries:** no push to
+master, no deploy, no live-diagnostic change, no Railway topology/
+scheduler-timing change, no manufactured traffic, no canonical-pilot
+reactivation, no 8G-C implementation/activation, no PatternOverlay
+exposure, no remaining-family mass-conversion, no 500ms-gate change. The
+natural-load observation loop (this file's own primary subject) was
+never paused or delayed to do this work and continues at its own
+cadence toward Tuesday 2026-09-08.
 Continuing the relaxed observation cadence toward Tuesday's open.
