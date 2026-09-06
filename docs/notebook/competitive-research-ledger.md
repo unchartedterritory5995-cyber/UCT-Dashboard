@@ -76,3 +76,28 @@ Nine dispatches, fully independent of each other (fresh context each, no shared 
 - **New major findings not anticipated by the governing directive:** 1 — the account-deletion cascade's foreign-key gap (P08), a platform-wide data-lifecycle defect discovered incidentally, unrelated to any specific Notebook feature.
 - **Assumptions overturned:** Phase Zero's 4-co-equal-persona framing (P01); the "primary notebook / full replacement" north star (P01); the proposed Trading Journal object model as greenfield (P07); the compose-time capture-picker gap as unbuilt (P02/P03/P06); the "highest-danger block" being an existing capture that needs hardening rather than a nonexistent one (P04); the account-deletion purge being merely "manual, no SLA" rather than structurally non-functional for Notebook data (P08).
 - **Assumptions confirmed:** the derived entity/mention layer's cheap feasibility (P04, sharpened); the frozen-at-insert pattern's correctness for the cases already built (P04, P09, with the "already proven universally" claim softened); the watchlist/scanner full-freeze design being correct as shipped (P04); cross-user query isolation being sound (carried forward from Phase Zero's own dedicated security pass, not re-audited).
+
+---
+
+## Phase Two — Reconciliation Against Waves 0-3 / Stage A / Wave 4 (2026-09-06)
+
+Three independent, fresh-context, read-only research dispatches, run one day after
+Phase One, to verify current-code reality against Phase Zero/One's findings before
+producing the durable tracking artifacts (`ultimate-notebook-competitive-roadmap.md`,
+`competitive-gap-ledger.md`, `primary-notebook-readiness-scorecard.md`). Each scoped
+to a non-overlapping domain cluster, each required to cite file:line, none permitted
+to edit code.
+
+| ID | Domain | Pass Type | Source Classes | Date | Outcome | Confidence |
+|---|---|---|---|---|---|---|
+| Q01 | Editor / Organization / Capture / Export | Codebase read | A (direct code read, file:line throughout) | 2026-09-06 | **Valid** — confirmed most Phase Zero/One editor/organization findings hold; found 2 genuinely new gaps neither phase flagged (no single-note export; trade-link references drop on export) | A |
+| Q02 | Knowledge Linking / AI / Trust-Recovery / Thesis-Trading | Codebase read | A (direct code read) | 2026-09-06 | **Valid** — confirmed thesis has no dedicated schema (pure tag); found a real, strong, previously-underweighted piece of prior art (`mode`/`captured_at` snapshot pattern already exists on chart embeds, direct precedent for Research Time Machine work); confirmed Obsidian-imported wikilinks already resolve to real note-to-note links | A |
+| Q03 | Sync Connectors / Mobile / Security / Performance | Codebase read | A (direct code read) | 2026-09-06 | **Valid** — confirmed all 7 sync providers are read-only pull with real (not last-write-wins) conflict handling; **confirmed the account-deletion FK gap (Phase One's single most severe finding) is now fixed** — `account_purge.py` covers all 9 Notebook-family tables; found real pre-existing performance benchmark evidence (`tools/notebook_scale_benchmark.py`) neither phase's summary had surfaced in this session's initial search | A |
+
+**Net effect of Phase Two:** no fabrication, no contradiction requiring correction
+of Phase Zero/One's own findings — this pass corroborates rather than overturns.
+Two genuinely new findings (single-note export absence; trade-link-drops-on-export)
+were added to the gap ledger as new rows, not retrofitted into Phase Zero/One's
+text. One major finding — the account-deletion FK gap — is now recorded as
+**RESOLVED** in the gap ledger, the most consequential status change since Phase
+One's research.
