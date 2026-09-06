@@ -203,6 +203,36 @@ original numbered sections (design doc:
   RISK-004 work begins from this closeout — awaiting the owner/ChatGPT review gate. Vendor Parity Lane A
   RSI/ATR remains the next engineering tranche after this checkpoint is separately accepted.**
 
+**2026-09-06 — Checkpoint 01 ACCEPTED; Vendor Parity Tranche 2, Lane A, first batch (RSI + ATR)
+COMPLETE.** Owner accepted the compatibility checkpoint and authorized the next tranche exactly as
+named. Captured a real, 1,328-bar SPY Daily TradingView series (2021-05-24..2026-09-04, full
+double-precision) via the same hardened clipboard-paste + CSV-export-interception technique the prior
+closeout established, then compared UCT's `rsi(close,14)`/`atr(high,low,close,14)` against it via
+`tools/vendor_parity_compare.py`. Both are now **VENDOR-PARITY VERIFIED**: 0 disagreements across 1,148
+genuine steady-state bars each (~1e-9 relative delta, float noise). A new, general finding along the
+way — deliberately investigated rather than glossed over, per the readiness report's own explicit
+warning: comparing UCT's Wilder/RMA-recursive functions against a real vendor value using only the
+naive 14-bar period-warmup produces a large (~25% relative at bar 14) apparent disagreement that is
+NOT a formula defect but a capture-window cold-start artifact (UCT re-seeds fresh at the window's own
+start; the real vendor value already reflects decades of continuous smoothing) — measured precisely
+(last disagreement at bar 172/169 of 1,328) and recorded as a new standing `divergences.json` row
+(`recursive-smoother-cold-start-in-a-finite-capture`) rather than silently widening the tolerance or
+mis-attributing it to either function's formula. Two formula mutations (Cutler's RSI; a bare-high-low
+ATR) each correctly flipped 100% of steady-state bars to disagreement, plus 4 vendor-source-refusal
+controls, all passing. `divergences.json::atr-tr-starts-at-bar-1`'s 2026-08-29 ruling was amended
+(appended, not rewritten) with this real-capture confirmation of its steady-state claim; its separate
+alignment claim remains untested by this window and is not reopened. Two pre-existing, unrelated test
+failures were incidentally discovered while confirming no regressions (a `%`-operator translator gap
+affecting the 4 Lane B oracle observations' own cross-check; `bbw`'s already-disclosed `mult:int`
+limitation additionally tripping an argument-order rail) — both confirmed pre-existing via `git log`,
+disclosed as RISK-032, and deliberately NOT fixed (out of this batch's scope). Full evidence chain:
+`VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md`; permanent regression:
+`tests/test_vendor_parity_rsi_atr.py` (14 tests). `RISK_REGISTER.md` RISK-031/RISK-032,
+`VALIDATION_COVERAGE_MAP.md`, and `PHASE_TWO_PLAN.md` §2 updated. **Per the explicit stop condition:
+the remaining 8 Lane A functions (sma, ema, rma, hma, macd, stoch, adx-family, wma) are NOT started,
+no compatibility remediation was begun, Track F v2 was not begun, and RISK-004 was not begun — all
+await separate, explicit authorization.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

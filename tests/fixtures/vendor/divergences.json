@@ -55,6 +55,13 @@
         ],
         "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
         "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
+      },
+      "real_vendor_capture_2026_09_06": {
+        "_": "Vendor Parity Tranche 2, Lane A, first batch (RSI+ATR). Does NOT alter `measured` or `decision` above — both remain the original spec-probe-derived evidence, verbatim. This is a SEPARATE, additional confirmation using real captured TradingView data, appended rather than overwritten.",
+        "artifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_rsi_atr_capture_spy.csv (1,328 real SPY Daily bars, 2021-05-24..2026-09-04, full double-precision ta.atr(14)/ta.rsi(close,14) plot values)",
+        "what_it_confirms": "Once past this capture's own seed-convergence lag (empirically measured, last disagreeing bar at index 169 of 1328 — see the observation's `_vendor_parity_warmup_bars_note`), UCT's atr(high,low,close,14) agrees with the real vendor's ta.atr(14) to ~1e-9 relative on 1,148 real, current-market steady-state bars. This directly re-confirms `why_keep_ours`'s 'THE DELTA IS INVISIBLE WHERE IT IS READ' claim with real vendor numbers for the first time (the original 0.23%-decaying-to-4e-12 figures were spec-probe-derived, not vendor-captured).",
+        "what_it_does_not_confirm": "This capture's own window starts in 2021, decades after SPY's real ~1993 inception, so it CANNOT independently re-test the separate ALIGNMENT claim in `what_would_reopen_it` (one fewer emitted value at a symbol's true first-ever bar) — that claim is unchanged, untouched, and not retested here. Also: this capture's early bars (index 14-169) show a much LARGER (~25% relative at bar 14) delta than the adjudicated 0.23%-at-the-seed figure — measured and disclosed as a DIFFERENT effect (this capture's own window-truncation cold-start, confounding the smaller inherent bar-0/TR-definition difference), not a contradiction of the existing ruling. See `docs/superpowers/specs/universal-indicator-ecosystem/VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full decay curve.",
+        "classification": "RULING CONFIRMED (steady-state half) by real vendor runtime; ALIGNMENT half remains UNTESTED by this capture, not reopened."
       }
     },
     {
@@ -125,6 +132,30 @@
         "discriminates": "measured in `pine.windowAdvice.test.js`, with the second assertion as the control that makes the first mean something"
       },
       "observation_ids": []
+    },
+    {
+      "id": "recursive-smoother-cold-start-in-a-finite-capture",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`interpret(ast, bars)` computes a Wilder/RMA-recursive function (e.g. `rsi`, `atr`) using ONLY the bars it is handed. Its first computable value (bar `period`) is seeded from a SIMPLE mean of just the first `period` diffs/true-ranges inside that window -- it has no knowledge of any bar before the window's own start.",
+      "theirs": "TradingView's `ta.rsi`/`ta.atr` run continuously over a symbol's REAL, often decades-long chart history. The real vendor value at any given calendar bar already reflects that entire prior smoothing history, not a fresh seed at whatever date a capture happens to start.",
+      "why_it_matters": "⚠️ THIS IS A CAPTURE-METHODOLOGY ARTIFACT, NOT A FORMULA DISAGREEMENT, and it is exactly the misclassification risk `VENDOR_PARITY_TRANCHE_2_READINESS_REPORT.md` named before any capture was made: comparing UCT's freshly-cold-seeded early bars against a vendor's already-converged value at the SAME calendar date can show a LARGE relative delta (measured up to ~25% at bar 14 of a 1,328-bar real SPY capture) that has nothing to do with the two engines disagreeing about the formula -- both use Wilder recursion identically, and the delta decays as UCT's own recursion catches up. This is a DIFFERENT, larger effect than (and confounds any attempt to isolate) the small, already-adjudicated `atr-tr-starts-at-bar-1` bar-0/TR-definition difference (~0.23% at ITS seed) -- the two must not be conflated. Applies to ANY Wilder/RMA-seeded function captured over a finite real-market window, not just rsi/atr specifically.",
+      "code": "api/services/ast_interpret.py::_fn_rsi/_fn_atr via indicator_compute.compute_rsi_raw/compute_atr_raw; api/services/indicator_compute.py's Wilder seed-then-recur pattern",
+      "probe": {
+        "case": "rsi(close,14) at bar index 14 of a 1,328-bar real SPY Daily capture (2021-05-24..2026-09-04) vs. the real vendor's ta.rsi(close,14) value at that same calendar bar",
+        "under_ours": "68.78150014823609 -- seeded fresh from only the 14 diffs inside this capture window",
+        "under_theirs": "68.16309777289919 -- the real vendor's value, reflecting continuous smoothing since well before this window began",
+        "discriminates": "a ~0.9% delta at bar 14 that shrinks to ~1e-9 (float noise) by bar 180 of the SAME series as UCT's own recursion converges -- a decay curve, not a persistent formula disagreement, and reproduced with near-identical shape/magnitude on atr(high,low,close,14) over the same bars"
+      },
+      "measured": {
+        "by": "tools/vendor_parity_compare.py against tests/fixtures/vendor/observations/{rsi-close14,atr-14}-2026-09-06.json, 2026-09-06",
+        "rsi_last_disagreeing_index": 172,
+        "atr_last_disagreeing_index": 169,
+        "of_bars": 1328,
+        "note": "both converge to <1e-6 relative delta permanently by bar 180; see VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md for the full per-checkpoint decay table"
+      },
+      "observation_ids": ["rsi-close14-2026-09-06", "atr-14-2026-09-06"]
     }
   ]
 }

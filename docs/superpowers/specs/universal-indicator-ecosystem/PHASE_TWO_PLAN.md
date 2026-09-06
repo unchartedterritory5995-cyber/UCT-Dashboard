@@ -160,6 +160,12 @@ vendor-parity-verified (per-function qualifiers in RISK-018b/`VALIDATION_COVERAG
 
 ### Lane A — already-shipped core functions, ranked by real evidence
 
+**Status update (2026-09-06): first batch (#1 `rsi`, #2 `atr`) DONE — both VENDOR-PARITY VERIFIED
+against a real 1,328-bar SPY Daily capture.** See `RISK_REGISTER.md` RISK-031 and
+`VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full evidence chain (real capture, decay
+curve, mutation controls). Functions #3-10 (sma, ema, rma, hma, macd, stoch, adx-family, wma) remain
+**NOT started** — not begun automatically, per this batch's own explicit stop condition.
+
 Derived from: full 64-function manifest read (`closedTable.json`), real corpus-frequency counts
 (regex function-call counts across all 123 `.pine`/`.ts`/PCF fixture files), `RISK_REGISTER.md`'s
 named historical incidents, `tests/fixtures/vendor/divergences.json`'s already-flagged-but-unverified
