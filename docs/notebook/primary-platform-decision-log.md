@@ -924,6 +924,91 @@ without a new checkpoint.
 
 ---
 
+### 2026-09-06 — WAVE C FINAL PRODUCTION CLOSURE
+
+Patrick accepted the implementation conditionally (independently re-verifying git
+state, file contents, tests, sandbox behavior, Railway state, and production state
+himself, separately from the fork's own report) and required completion of
+production closure before Wave D. Also caught and required a fix for a factual
+error in the export-entry-point decision record (see the standalone commit
+`6b03c6249` and the corrected item 2 above): the original correction claimed no
+command palette exists in this codebase, which was false — `CommandPalette.jsx` is
+real and Notebook already has entries in it (Wave B). Re-verified directly:
+`selectRow()` is a pure router (`navigate(row.to)` only), with no mechanism for a
+contextual command bound to "whichever note is currently open" — that, not
+non-existence, is why extending it would have been disproportionate new work. The
+underlying placement decision (PNG/Print toolbar group) did not change.
+
+**Production closure steps, each independently verified, not merely executed:**
+1. Re-fetched `origin/master` immediately before merging — it had advanced twice
+   more in the few minutes since the last check (this repo runs ~90 concurrent
+   worktrees/branches at once), each new commit re-classified NO IMPACT by reading
+   its diff directly (a Flow ticker card feature, a Discord `/flow` tweak — zero
+   file overlap with anything Wave C touches).
+2. Merged in an ISOLATED TEMPORARY worktree (`git worktree add ... -b
+   tmp-wave-c-master-merge origin/master`), never by switching this worktree's own
+   branch — `master` is already checked out in a separate, permanent
+   `entity-master` worktree elsewhere on this machine, and git worktrees refuse a
+   duplicate checkout of the same branch, so this also avoided any possible
+   collision with whatever process owns that worktree.
+3. Master moved AGAIN between the merge and the push; re-fetched, merged the new
+   tip in too (still NO IMPACT, one-line Discord fix), pushed immediately. No
+   force push at any point — every push was a clean fast-forward from the
+   remote's own current tip.
+4. Railway auto-deployed the push; polled `railway status --json` to SUCCESS
+   (BUILDING → DEPLOYING → SUCCESS) rather than assuming a push implies a deploy.
+5. Fresh-process verification: `/api/health` returned `uptime_seconds: 22` at
+   check time — a genuinely restarted process, not a stale cached response.
+6. Route verification: `GET /api/j2/notes/{id}/versions` and `.../export` on
+   `uctintelligence.com` both changed from a `200` SPA-catch-all HTML response
+   (pre-merge) to a real `401 application/json` (post-merge) — the routes exist
+   AND are correctly auth-gated. No authentication was weakened or bypassed to
+   produce this evidence, per the directive's own explicit instruction.
+7. Bundle verification: fetched the LIVE production `NotebookTab-*.js` chunk
+   directly (found via the production `index.js`'s own dynamic-import mapping,
+   not guessed) and grepped it for "Restore this version" / "No earlier versions
+   yet" / "portable Markdown" — all three present.
+8. Temporary worktree and branch cleaned up (`git worktree remove`, `git branch
+   -D`) after the push succeeded.
+
+**Readiness scorecard updated accordingly**: Trust/Recovery and Export/Portability
+both raised 6→7 (production-verified per the ladder's own definition of that band;
+capped at 7 not 8+ since no real member usage evidence exists yet — Day 0 for this
+specific capability). Composite average 4.9→5.0. The "what would move the
+composite most" list updated to mark both closed items done and record Wave D
+(internal links/backlinks) as the next highest-leverage item, ahead of the
+fact/snapshot ledger, per Patrick's own explicit sequencing decision this session.
+
+**Mobile/responsive verification note (directive's explicit closure requirement):**
+`resize_window` did not work in this environment (confirmed via direct
+`window.innerWidth` measurement — the browser is locked to its native 3840×1080
+display regardless of resize requests). Worked around it with a same-origin
+`<iframe>` sized to the target viewport (an iframe gets its own independent CSS
+viewport for media-query purposes, confirmed via `contentWindow.innerWidth`
+reading 386px against a 390px request). **Phone (390px): GOOD, live-verified with
+screenshots** — History opens as a bottom sheet, the version list/preview/diff/
+Restore button/ConfirmModal all render correctly with no overflow and reasonable
+touch-target sizing, and a full restore was actually performed and confirmed
+successful at this width. **Tablet: not independently live-verified** — the Chrome
+extension disconnected mid-check (the user had closed and was reopening the
+browser); inferred GOOD with high confidence rather than claimed as verified,
+since `NoteHistoryPanel.module.css` has exactly ONE responsive rule (`@media
+(max-width:1024px)`) covering phone and tablet identically — no separate
+tablet-specific styling exists to diverge, and more available width can only ease
+a layout that already didn't overflow at 390px. This is stated as an inference,
+not a live-verified fact, per the directive's own "do not fabricate a PASS"
+instruction.
+
+**Process-failure follow-up**: the fork's unauthorized commit/push is recorded as
+incident #3 of the same failure class in `feedback_agent_authority_and_worktree_
+isolation` (user memory) — a permanent new rule now applies going forward: no
+subagent/fork may operate inside the primary active wave worktree, ever, even for
+read-only verification; independent verification forks (if used) get an isolated
+worktree/clone with no ownership of the active branch, and their output is
+findings-only.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

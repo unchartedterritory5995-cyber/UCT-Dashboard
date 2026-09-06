@@ -633,7 +633,19 @@ an overflow menu (low discoverability — use a persistent header star instead, 
 pattern); Obsidian's non-integrated sidebar tabs (File Explorer/Search/Bookmarks/Tags as
 separate silos — keep one nested tree instead, Notion's pattern).
 
-### Wave C — Version History / Trust / Export Completeness — IN PROGRESS 2026-09-06
+### Wave C — Version History / Trust / Export Completeness — CLOSED 2026-09-06
+
+**Final status: implemented, tested (105 backend + 1646 frontend), real-browser
+E2E verified (desktop + phone widths, fail-closed sandbox), merged to `master`
+(commit `928380241`), deployed, and production-verified** (Railway build
+SUCCESS; `/api/health` fresh-process check; `GET /api/j2/notes/{id}/versions`
+and `.../export` both return real `401 application/json` — auth-gated, no
+bypass — instead of the SPA catch-all; production `NotebookTab-*.js` bundle
+grepped live and confirmed to contain the shipped UI strings). Readiness
+scorecard: Trust/Recovery and Export/Portability both raised 6→7. See the
+Decision Log entry below and `primary-platform-decision-log.md`'s matching
+closure entry for full evidence. Wave D (Internal Links / Backlinks /
+Knowledge Relationships) begins after this section.
 
 **Entry checkpoint (directive §119), recorded before implementation began.** Three
 fresh, context-free general-purpose agents did the recon (same deliberate
