@@ -147,3 +147,39 @@ describe('useJ2Notes — "Load more" pagination (Task 11)', () => {
     await waitFor(() => expect(result.current.notes.length).toBe(100))
   })
 })
+
+describe('useJ2Notes — Wave 4 (Search Evolution I) params', () => {
+  it('includes dateFrom/dateTo/sector/theme in the request URL when set', async () => {
+    const { result } = renderHook(() => useJ2Notes({
+      q: 'nvda', dateFrom: '2026-03-01', dateTo: '2026-03-31', sector: 'Technology', theme: 'AI Infrastructure',
+    }))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const url = new URL(global.fetch.mock.calls[0][0], 'http://localhost')
+    expect(url.searchParams.get('dateFrom')).toBe('2026-03-01')
+    expect(url.searchParams.get('dateTo')).toBe('2026-03-31')
+    expect(url.searchParams.get('sector')).toBe('Technology')
+    expect(url.searchParams.get('theme')).toBe('AI Infrastructure')
+  })
+
+  it('omits dateFrom/dateTo/sector/theme entirely when unset -- byte-identical to pre-Wave-4 requests', async () => {
+    const { result } = renderHook(() => useJ2Notes({ sort: 'updated' }))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const url = new URL(global.fetch.mock.calls[0][0], 'http://localhost')
+    expect(url.searchParams.has('dateFrom')).toBe(false)
+    expect(url.searchParams.has('dateTo')).toBe(false)
+    expect(url.searchParams.has('sector')).toBe(false)
+    expect(url.searchParams.has('theme')).toBe(false)
+  })
+
+  it('"Load more" (page 2) carries the SAME date/sector/theme filters forward -- a filtered search must not lose its filter mid-pagination', async () => {
+    const { result } = renderHook(() => useJ2Notes({
+      dateFrom: '2026-03-01', sector: 'Technology', sort: 'updated',
+    }))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => { await result.current.loadMore() })
+
+    const secondCallUrl = new URL(global.fetch.mock.calls[1][0], 'http://localhost')
+    expect(secondCallUrl.searchParams.get('dateFrom')).toBe('2026-03-01')
+    expect(secondCallUrl.searchParams.get('sector')).toBe('Technology')
+  })
+})

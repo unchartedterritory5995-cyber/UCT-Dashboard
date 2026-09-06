@@ -87,6 +87,62 @@
   line-height: 1;
 }
 .searchClear:hover { color: var(--accent); }
+/* Wave 4 Slice 1/3: filter toggle + panel. Collapsed by default. */
+.searchFilterToggle {
+  position: absolute;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.searchFilterToggle:hover { color: var(--color-text-primary, #e8eaed); }
+.searchFilterToggleActive { color: #dcbb5e; }
+/* .searchInput's right padding makes room for BOTH the clear (×) button and
+   this toggle, whichever combination is visible at once. */
+.searchInput { padding-right: 52px; }
+.searchFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px 4px 4px;
+  border-bottom: 1px solid var(--color-border, #232932);
+  margin-bottom: 4px;
+}
+.searchFilterField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.searchFilterField input {
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 118px;
+}
+.searchFilterField input:focus { outline: none; border-color: #dcbb5e; }
+.searchFilterClear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: underline;
+}
+.searchFilterClear:hover { color: var(--color-text-primary, #e8eaed); }
 .searchCount {
   font-size: 10px;
   text-transform: uppercase;
@@ -139,6 +195,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Wave 4 Slice 2: the query-aware match highlight -- the "why this result"
+   explanation itself, per the design doc's own framing. */
+.searchResultSnippet mark, .searchResultTitle mark {
+  background: rgba(220, 187, 94, 0.22);
+  color: #dcbb5e;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+/* Wave 4 Slice 2: the tag/ticker-only match explanation -- shown ONLY when
+   there is no snippet to render (never both at once). */
+.searchResultReason {
+  font-size: 11px;
+  color: #dcbb5e;
+  opacity: 0.85;
 }
 .searchHint, .searchEmpty {
   font-size: 12px;

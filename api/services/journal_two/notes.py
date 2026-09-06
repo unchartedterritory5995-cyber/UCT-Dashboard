@@ -732,6 +732,9 @@ def _notes_filter_sql(
     embed_symbol: str | None = None,
     embed_widget: str | None = None,
     deleted: bool = False,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol_in: list[str] | None = None,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -745,7 +748,23 @@ def _notes_filter_sql(
     notes only. True means the trash view's question — soft-deleted notes
     only. There is deliberately no third "both" mode: every caller asks one
     question or the other, never a blend that could double-count or leak a
-    deleted note into a normal list."""
+    deleted note into a normal list.
+
+    Wave 4 (Search Evolution I) additions — both AND onto the same predicate
+    chain like every existing filter, composing freely with folder/tag/
+    ticker/q:
+    `date_from`/`date_to` — inclusive `YYYY-MM-DD` bounds on `created_at`
+    ("Note created", never a bare "Date" — see the UI copy requirement in
+    the Wave 4 design doc). Router validates the format; this function
+    trusts its caller. `date_to` is treated as through-end-of-day UTC.
+    `symbol_in` — the sector/theme filter's resolved symbol set (resolved
+    ABOVE this function, in `list_notes`/`count_notes` — this stays a pure
+    SQL-predicate builder with no ticker_meta/theme_db calls of its own).
+    Generalizes the existing single-`embed_symbol` OR-of-two-EXISTS pattern
+    to "any of these symbols" via `IN (...)`. An empty list means "no
+    symbol in the member's mentioned vocabulary matched the requested
+    sector/theme" — filters to zero rows (an honest empty result), never
+    silently ignored."""
     sql = " WHERE user_id = ? AND deleted_at IS " + ("NOT NULL" if deleted else "NULL")
     params: list[Any] = [user_id]
     if folder_id == "__unfiled__":
@@ -778,6 +797,30 @@ def _notes_filter_sql(
                 " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
                 " AND e.widget_id = ?)")
         params.append(embed_widget.strip())
+    if date_from:
+        sql += " AND created_at >= ?"
+        params.append(date_from)
+    if date_to:
+        sql += " AND created_at <= ?"
+        params.append(f"{date_to}T23:59:59.999999+00:00")
+    if symbol_in is not None:
+        # Same OR-of-two-EXISTS shape as embed_symbol above, generalized to a
+        # set. `symbol_in == []` (every member-mentioned symbol filtered out
+        # by the requested sector/theme) deliberately still applies this
+        # clause -- `IN ()` matches nothing, an honest empty result rather
+        # than silently skipping the filter.
+        if symbol_in:
+            placeholders = ",".join("?" * len(symbol_in))
+            sql += (f" AND (EXISTS (SELECT 1 FROM j2_note_embeds e"
+                    f" WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                    f" AND e.symbol IN ({placeholders}))"
+                    f" OR EXISTS (SELECT 1 FROM j2_note_mentions m"
+                    f" WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
+                    f" AND m.symbol IN ({placeholders})))")
+            params.extend(symbol_in)
+            params.extend(symbol_in)
+        else:
+            sql += " AND 0"
     if tag:
         # JSON LIKE — case-insensitive substring of any tag value.
         sql += ' AND lower(tags) LIKE ?'
@@ -803,7 +846,14 @@ def _notes_filter_sql(
         # that would touch the virtual table, its 3 triggers, and the v4
         # backfill, for a scope this OR clause already covers.
         exact_tag_pattern = f'%"{q.strip().lower()}"%'   # same spelling as the `tag` filter above
-        exact_ticker = q.strip().upper()                  # same spelling as the `ticker` filter above
+        # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
+        # cashtag) used to survive into this comparison unstripped, so
+        # "$NVDA" never matched a note whose only NVDA signal was the
+        # `ticker` field (fts_match_expr already stripped it for the FTS
+        # branch, below -- this branch alone was the divergent one). Only
+        # the LEADING separator is stripped (mirrors fts_match_expr's own
+        # word/non-word split) so an internal hyphen (BRK-B) is untouched.
+        exact_ticker = re.sub(r"^[^\w]+", "", q.strip()).upper()
         expr = fts_match_expr(q)
         if expr:
             sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
@@ -815,6 +865,47 @@ def _notes_filter_sql(
             ql = f"%{q.lower()}%"
             params.extend([ql, ql, exact_tag_pattern, exact_ticker])
     return sql, params
+
+
+def _snippets_for(
+    conn: sqlite3.Connection, user_id: str, expr: str, note_ids: list[str],
+) -> dict[str, dict[str, str]]:
+    """Slice 2: `note_id -> {bodySnippet, titleSnippet}` for a page of
+    already-selected results. A SEPARATE query, not a join into the main
+    list SQL — SQLite's snippet()/highlight() may only be called within a
+    SELECT that itself carries a MATCH constraint on that FTS table, and
+    `_NOTE_SUMMARY_COLS`'s own `body_plain` is a truncated (400-char)
+    LIST-projection column, not the full text snippet() needs to search
+    across. Scoped to just this page's note_ids -- never the whole match
+    set -- so cost stays bounded by what's actually rendered."""
+    if not note_ids:
+        return {}
+    placeholders = ",".join("?" * len(note_ids))
+    rows = conn.execute(
+        "SELECT note_id,"
+        " snippet(j2_notes_fts, 3, '<mark>', '</mark>', '…', 12) AS body_snippet,"
+        # highlight(), not snippet(), for the title: snippet() truncates to
+        # the requested token window regardless of whether THAT column
+        # actually matched -- for a body-only match this would render an
+        # unrelated title with a spurious "…" if it happened to be long,
+        # never explaining anything. highlight() never truncates, so an
+        # unmatched title still renders in full (just unmarked) -- the
+        # Python filter below then drops it unless the title itself
+        # genuinely contains a <mark>, so the frontend contract stays
+        # simple: titleSnippet present+non-empty means the TITLE matched.
+        " highlight(j2_notes_fts, 2, '<mark>', '</mark>') AS title_highlight"
+        " FROM j2_notes_fts"
+        f" WHERE j2_notes_fts MATCH ? AND user_id = ? AND note_id IN ({placeholders})",
+        [expr, user_id, *note_ids],
+    ).fetchall()
+    out: dict[str, dict[str, str]] = {}
+    for r in rows:
+        title_highlight = r["title_highlight"] or ""
+        out[r["note_id"]] = {
+            "bodySnippet": r["body_snippet"] or "",
+            "titleSnippet": title_highlight if "<mark>" in title_highlight else "",
+        }
+    return out
 
 
 def list_notes(
@@ -830,6 +921,9 @@ def list_notes(
     limit: int = 100,
     offset: int = 0,
     deleted: bool = False,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol_in: list[str] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -838,20 +932,61 @@ def list_notes(
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
-        order_col = {
-            "updated": "updated_at DESC",
-            "created": "created_at DESC",
-            "title": "title COLLATE NOCASE ASC",
-            # Trash view default: most recently deleted first — a member
-            # scanning for "the thing I just deleted" shouldn't have to sort.
-            "deleted": "deleted_at DESC",
-        }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
-        sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
+        # Wave 4 Slice 2: relevance ranking is opt-in (`sort="relevance"`),
+        # never silently applied under the existing "updated" default --
+        # every pre-Wave-4 caller keeps byte-identical ordering. Requires a
+        # valid FTS expression; a relevance request with no `q` (or one
+        # that yields no FTS terms) falls back to updated_at DESC exactly
+        # like today, rather than erroring or ignoring the sort silently.
+        relevance_expr = fts_match_expr(q) if (sort == "relevance" and q) else None
+        if relevance_expr:
+            # bm25() is only callable within a SELECT that itself carries a
+            # MATCH on that FTS table -- this correlated scalar subquery
+            # satisfies that per outer row. A row with NO matching FTS entry
+            # (a tag/ticker-only match) gets no bm25 score at all (subquery
+            # returns no row -> NULL); COALESCE treats "matched on an exact
+            # structured field" as the BEST possible rank (a very negative
+            # sentinel -- bm25 is ascending, lower = more relevant) rather
+            # than losing that precise a match beneath every fuzzy-text hit.
+            sql += (
+                " ORDER BY COALESCE("
+                "(SELECT bm25(j2_notes_fts) FROM j2_notes_fts"
+                " WHERE note_id = j2_notes.id AND user_id = j2_notes.user_id"
+                " AND j2_notes_fts MATCH ?), -1e9) ASC, updated_at DESC"
+            )
+            params.append(relevance_expr)
+        else:
+            order_col = {
+                "updated": "updated_at DESC",
+                "created": "created_at DESC",
+                "title": "title COLLATE NOCASE ASC",
+                # Trash view default: most recently deleted first — a member
+                # scanning for "the thing I just deleted" shouldn't have to sort.
+                "deleted": "deleted_at DESC",
+            }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
+            sql += f" ORDER BY {order_col}"
+        sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
         results = [_row_to_note_summary(r) for r in rows]
+        # Slice 2: query-aware snippets, scoped to just this page's rows.
+        # `relevance_expr` above is gated on sort="relevance"; snippets are
+        # a rendering concern independent of ranking choice, so recompute
+        # from `q` directly (fts_match_expr is a pure, cheap, deterministic
+        # function -- calling it twice is not a second authority, it's the
+        # same single translation called from two independent call sites).
+        if q and not deleted:
+            snip_expr = fts_match_expr(q)
+            if snip_expr:
+                snippets = _snippets_for(conn, user_id, snip_expr, [r["id"] for r in results])
+                for r in results:
+                    hit = snippets.get(r["id"])
+                    if hit:
+                        r["bodySnippet"] = hit["bodySnippet"]
+                        r["titleSnippet"] = hit["titleSnippet"]
         if q and not deleted:
             # Stage A validation signal only (never the query text itself).
             # Debounced client-side (~250ms) but not deduped server-side, so
@@ -874,6 +1009,9 @@ def count_notes(
     embed_symbol: str | None = None,
     embed_widget: str | None = None,
     deleted: bool = False,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    symbol_in: list[str] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -889,6 +1027,7 @@ def count_notes(
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
@@ -1178,6 +1317,77 @@ def get_symbol_backlinks(
             # that must never be sacrificed to a metadata-provider hiccup.
             out["sector"] = out["industry"] = out["theme"] = None
         return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def resolve_sector_theme_symbols(
+    user_id: str,
+    *,
+    sector: str | None = None,
+    theme: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> list[str] | None:
+    """Wave 4 Slice 3 (entity-anchored retrieval): resolves a sector/theme
+    filter to the member's own bounded, DISTINCT mentioned-symbol
+    vocabulary — never a full-market scan (the design this program's own
+    Wave 4 dossier settled on over a denormalized per-mention sector/theme
+    column, which would have meant schema growth for the same answer).
+    Reuses the SAME 24h `ticker_meta` cache every chart header/TickerPopup
+    already relies on (including its own `theme` field — the live
+    UCT-taxonomy primary theme, resolved the identical way everywhere else
+    in this app) — zero new provider dependency, at most one lookup per
+    distinct symbol the member has ever mentioned, typically a small set.
+
+    Returns `None` when neither filter is requested (caller skips the
+    `symbol_in` predicate entirely, unchanged from today). Returns a
+    (possibly empty) list otherwise — an empty list is an honest "nothing
+    in this member's own vocabulary matches," not silently ignored (see
+    `_notes_filter_sql`'s `symbol_in=[]` handling). When both `sector` and
+    `theme` are given, a symbol must match BOTH (composes as AND, same as
+    every other filter in this program)."""
+    if not sector and not theme:
+        return None
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        # Same trash-exclusion join shape as get_symbol_backlinks above —
+        # a symbol mentioned only in a trashed note must not widen the
+        # member's resolved vocabulary.
+        rows = conn.execute(
+            "SELECT DISTINCT symbol FROM ("
+            "  SELECT e.symbol AS symbol FROM j2_note_embeds e"
+            "  JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+            "  WHERE e.user_id = ? AND n.deleted_at IS NULL"
+            "  UNION"
+            "  SELECT m.symbol AS symbol FROM j2_note_mentions m"
+            "  JOIN j2_notes n ON n.id = m.note_id AND n.user_id = m.user_id"
+            "  WHERE m.user_id = ? AND n.deleted_at IS NULL"
+            ")",
+            (user_id, user_id),
+        ).fetchall()
+        symbols = [r["symbol"] for r in rows if r["symbol"]]
+        if not symbols:
+            return []
+        from api.services.ticker_meta import get_ticker_meta
+        sector_l = sector.strip().lower() if sector else None
+        theme_l = theme.strip().lower() if theme else None
+        matched = []
+        for sym in symbols:
+            try:
+                meta = get_ticker_meta(sym)
+            except Exception:
+                # Never let one provider hiccup on one symbol break the
+                # whole filter — that symbol just doesn't match, same
+                # treatment as a symbol with genuinely unknown metadata.
+                continue
+            if sector_l and (meta.get("sector") or "").strip().lower() != sector_l:
+                continue
+            if theme_l and (meta.get("theme") or "").strip().lower() != theme_l:
+                continue
+            matched.append(sym)
+        return matched
     finally:
         if owned:
             conn.close()

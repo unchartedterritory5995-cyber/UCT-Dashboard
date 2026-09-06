@@ -45,6 +45,45 @@ export function buildFolderTree(folders) {
   return sortTree(roots)
 }
 
+// Wave 4 Slice 2: turns a snippet()/highlight() string (real text with
+// literal `<mark>`/`</mark>` delimiters SQLite inserted) into safe React
+// children — split-and-render, NEVER dangerouslySetInnerHTML. The member's
+// own note content is untrusted plain text that could itself contain `<`/
+// `>` characters; every non-delimiter chunk below is rendered as a plain
+// string child, which React escapes automatically. The one accepted edge
+// case (a member's own text literally containing the substring "<mark>")
+// would mis-render as a highlight boundary, never as executable markup —
+// a display quirk, not a security issue.
+export function renderSnippetMarks(snippet) {
+  if (!snippet) return null
+  const parts = snippet.split(/(<mark>|<\/mark>)/)
+  const nodes = []
+  let marking = false
+  parts.forEach((part, i) => {
+    if (part === '<mark>') { marking = true; return }
+    if (part === '</mark>') { marking = false; return }
+    if (!part) return
+    nodes.push(marking ? <mark key={i}>{part}</mark> : part)
+  })
+  return nodes
+}
+
+// Wave 4 Slice 2: for a result with NO snippet (a tag/ticker-only match —
+// the non-FTS5 OR-branch in _notes_filter_sql), explain what DID match
+// instead of rendering a blank or misleading body excerpt. Mirrors the
+// same leading-separator strip as the backend's own $NVDA fix so "$NVDA"
+// and "NVDA" explain identically.
+export function matchReasonFor(note, query) {
+  const q = (query || '').trim()
+  if (!q) return null
+  const exactTicker = q.replace(/^[^\w]+/, '').toUpperCase()
+  if (note.ticker && note.ticker === exactTicker) return `Matched ticker: ${note.ticker}`
+  const qLower = q.toLowerCase()
+  const tagHit = (note.tags || []).find((t) => String(t).toLowerCase() === qLower)
+  if (tagHit) return `Matched tag: ${tagHit}`
+  return null
+}
+
 function Chevron({ expanded }) {
   return (
     <svg
@@ -315,6 +354,16 @@ export default function FolderSidebar({
   const searchInputRef = useRef(null)
   const [tagFilter, setTagFilter] = useState('')
   const [showAllTags, setShowAllTags] = useState(false)
+  // Wave 4 (Search Evolution I): date/sector/theme filters, collapsed
+  // behind a toggle by default -- the design doc's own "don't overcomplicate
+  // Stage 1" instruction. `showFilters` starts false so a member who just
+  // wants to type-and-search never sees them.
+  const [showFilters, setShowFilters] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sectorFilter, setSectorFilter] = useState('')
+  const [themeFilter, setThemeFilter] = useState('')
+  const hasActiveFilters = Boolean(dateFrom || dateTo || sectorFilter || themeFilter)
 
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
@@ -381,7 +430,12 @@ export default function FolderSidebar({
   // fires only while the panel is actually searching — otherwise useJ2Notes's
   // SWR key would be non-null on every render (folder mode included) and
   // fire a redundant `/api/j2/notes` default-list request nobody asked for.
-  const searchEnabled = mode === 'search' && Boolean(debouncedQuery)
+  // Wave 4: a filters-only search (empty query, just a date/sector/theme
+  // bound) is an explicitly supported combination per the design doc's
+  // combined-search contract ("date-range and entity filters both work
+  // standalone") — gating solely on `debouncedQuery` would silently do
+  // nothing the moment a member set a filter without also typing a word.
+  const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
     isLoading: searchLoading,
@@ -397,7 +451,20 @@ export default function FolderSidebar({
     hasMore: searchHasMore,
     loadMore: searchLoadMore,
     isLoadingMore: searchIsLoadingMore,
-  } = useJ2Notes({ q: debouncedQuery || undefined, limit: SEARCH_RESULT_LIMIT, enabled: searchEnabled })
+  } = useJ2Notes({
+    q: debouncedQuery || undefined,
+    // Relevance ranking is opt-in server-side (sort="relevance") and only
+    // takes effect when a real `q` is present — requesting it unconditionally
+    // here is safe: a filters-only search (no q) falls back to updated_at
+    // DESC exactly as before.
+    sort: 'relevance',
+    limit: SEARCH_RESULT_LIMIT,
+    enabled: searchEnabled,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    sector: sectorFilter || undefined,
+    theme: themeFilter || undefined,
+  })
 
   // A query "in flight" — either still waiting out the debounce, or the fetch
   // itself hasn't resolved — must never render as "no results". That is the
@@ -593,9 +660,55 @@ export default function FolderSidebar({
                 aria-label="Clear search"
               >×</button>
             )}
+            {/* Wave 4 Slice 1/3: collapsed by default -- a member who just
+                wants to type-and-search never sees this. */}
+            <button
+              type="button"
+              className={`${styles.searchFilterToggle} ${hasActiveFilters ? styles.searchFilterToggleActive : ''}`}
+              onClick={() => setShowFilters((s) => !s)}
+              aria-expanded={showFilters}
+              aria-label="Search filters"
+              title="Filter by date, sector, or theme"
+            >
+              <UIcon name="sliders" size={13} gold={false} />
+            </button>
           </div>
 
-          {!trimmedQuery ? (
+          {showFilters && (
+            <div className={styles.searchFilters}>
+              <label className={styles.searchFilterField}>
+                <span>Note created from</span>
+                <input type="date" value={dateFrom} max={dateTo || undefined}
+                  onChange={(e) => setDateFrom(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>to</span>
+                <input type="date" value={dateTo} min={dateFrom || undefined}
+                  onChange={(e) => setDateTo(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>Sector</span>
+                <input type="text" value={sectorFilter} placeholder="e.g. Technology"
+                  onChange={(e) => setSectorFilter(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>Theme</span>
+                <input type="text" value={themeFilter} placeholder="e.g. AI Infrastructure"
+                  onChange={(e) => setThemeFilter(e.target.value)} />
+              </label>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className={styles.searchFilterClear}
+                  onClick={() => { setDateFrom(''); setDateTo(''); setSectorFilter(''); setThemeFilter('') }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {!trimmedQuery && !hasActiveFilters ? (
             <div className={styles.searchHint}>Search titles and content by word, or match an exact tag or ticker.</div>
           ) : searching ? (
             <div className={styles.searchHint} role="status">Searching…</div>
@@ -614,7 +727,16 @@ export default function FolderSidebar({
               </div>
               {serverSearchResults.map((n) => {
                 const title = n.title?.trim() || 'Untitled'
-                const snippet = (n.bodyPlain || '').trim().slice(0, 120)
+                // Wave 4 Slice 2: a query-aware snippet (highlighted around
+                // the actual match) when the server provided one; a
+                // tag/ticker-only match (no FTS hit) falls back to the
+                // "why matched" label instead of a blank/misleading body
+                // excerpt; a filters-only search (no query at all) shows
+                // neither — the naive first-120-chars slice this replaces
+                // never explained a match either, so this is strictly more
+                // honest, never less.
+                const hasSnippet = Boolean(n.bodySnippet || n.titleSnippet)
+                const reason = !hasSnippet ? matchReasonFor(n, trimmedQuery) : null
                 return (
                   <button
                     key={n.id}
@@ -624,8 +746,14 @@ export default function FolderSidebar({
                   >
                     <NoteIcon />
                     <span className={styles.searchResultBody}>
-                      <span className={styles.searchResultTitle}>{title}</span>
-                      {snippet && <span className={styles.searchResultSnippet}>{snippet}</span>}
+                      <span className={styles.searchResultTitle}>
+                        {n.titleSnippet ? renderSnippetMarks(n.titleSnippet) : title}
+                      </span>
+                      {n.bodySnippet ? (
+                        <span className={styles.searchResultSnippet}>{renderSnippetMarks(n.bodySnippet)}</span>
+                      ) : reason ? (
+                        <span className={styles.searchResultReason}>{reason}</span>
+                      ) : null}
                     </span>
                   </button>
                 )
@@ -643,7 +771,9 @@ export default function FolderSidebar({
               )}
             </div>
           ) : (
-            <div className={styles.searchEmpty}>No notes match “{trimmedQuery}”.</div>
+            <div className={styles.searchEmpty}>
+              {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+            </div>
           )}
         </div>
       ) : (

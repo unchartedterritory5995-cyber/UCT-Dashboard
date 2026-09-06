@@ -12,7 +12,7 @@ const fetcher = (url) =>
 // default `limit=100`) — the size of one page, and of a "Load more" click.
 const DEFAULT_PAGE_SIZE = 100
 
-function buildNotesUrl({ folderId, tag, ticker, q, sort, limit, offset, deleted }) {
+function buildNotesUrl({ folderId, tag, ticker, q, sort, limit, offset, deleted, dateFrom, dateTo, sector, theme }) {
   const params = new URLSearchParams()
   if (folderId) params.set('folder_id', folderId)
   if (tag) params.set('tag', tag)
@@ -22,14 +22,22 @@ function buildNotesUrl({ folderId, tag, ticker, q, sort, limit, offset, deleted 
   if (limit) params.set('limit', String(limit))
   if (offset) params.set('offset', String(offset))
   if (deleted) params.set('deleted', 'true')
+  // Wave 4 (Search Evolution I): dateFrom/dateTo bound created_at ("Note
+  // created"); sector/theme resolve to the member's own mentioned-symbol
+  // vocabulary server-side — see journal_two.py's list_notes_endpoint.
+  if (dateFrom) params.set('dateFrom', dateFrom)
+  if (dateTo) params.set('dateTo', dateTo)
+  if (sector) params.set('sector', sector)
+  if (theme) params.set('theme', theme)
   const qs = params.toString()
   return `/api/j2/notes${qs ? `?${qs}` : ''}`
 }
 
 export default function useJ2Notes({
   folderId, tag, ticker, q, sort = 'updated', limit, enabled = true, deleted = false,
+  dateFrom, dateTo, sector, theme,
 } = {}) {
-  const url = enabled ? buildNotesUrl({ folderId, tag, ticker, q, sort, limit, deleted }) : null
+  const url = enabled ? buildNotesUrl({ folderId, tag, ticker, q, sort, limit, deleted, dateFrom, dateTo, sector, theme }) : null
   // `enabled=false` passes SWR a null key, which skips the fetch entirely —
   // callers that only sometimes need this data (e.g. a search panel that
   // shouldn't hit the default list on every render) pass this instead of
@@ -78,7 +86,7 @@ export default function useJ2Notes({
     setLoadMoreError(null)
     try {
       const nextUrl = buildNotesUrl({
-        folderId, tag, ticker, q, sort, deleted,
+        folderId, tag, ticker, q, sort, deleted, dateFrom, dateTo, sector, theme,
         limit: limit || DEFAULT_PAGE_SIZE,
         offset: notes.length,
       })
@@ -98,7 +106,7 @@ export default function useJ2Notes({
       setIsLoadingMore(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes])
+  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes, dateFrom, dateTo, sector, theme])
 
   return {
     notes,

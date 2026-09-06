@@ -407,7 +407,18 @@ worktree/branch per agent, never two agents mutating the same working tree (dire
 
 ## 15. Implementation Waves — near-term detail
 
-### Wave A — Search Evolution I [CURRENT BUILD WAVE, beginning immediately after this report]
+### Wave A — Search Evolution I — ✅ SHIPPED 2026-09-06
+
+See the Wave A Certification Report appended at the end of this document for
+the full 44-point report. Summary: all 4 slices shipped, tested (28 new
+backend + 5 router + 11 hook + 11 component = 55 new tests, all green,
+plus the full pre-existing journal_two + journal-2-0 suites unaffected),
+live-browser-verified end-to-end in the fail-closed sandbox against real
+data and a real (unmocked) `ticker_meta` provider call, deployed to
+production, and production-verified (health uptime reset + `PRAGMA
+index_list` confirming the new index).
+
+Original design (preserved for reference):
 
 Fully implementation-ready per `wave4-search-evolution-i-prep.md` +
 `wave4-implementation-readiness.md` (both re-verified against current code this
