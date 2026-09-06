@@ -177,12 +177,38 @@ isolation requirements before running)*.
 
 - Default field: `created_at` (note-authored date — matches member intent
   for "notes from March" better than `updated_at`, which drifts every time
-  an old note is edited).
+  an old note is edited). **This is a provisional product contract, not a
+  settled one** (2026-09-06 checkpoint item 16) — a member could just as
+  reasonably mean "updated in March" or, for imported research,
+  "source-dated in March" (`imported_at`/original doc metadata). No member
+  behavior exists yet to confirm the assumption; `created_at` is the
+  reasonable Stage-1 default but the shipped UI copy must say **"Note
+  created"** next to the date picker (not a bare "Date") so the product
+  never silently claims a dimension it isn't filtering on. Revisit if Stage
+  A qualitative feedback or a later usage signal says otherwise — do not
+  overcomplicate Stage 1 with a field selector.
 - Query params: `dateFrom`/`dateTo` (ISO `YYYY-MM-DD`, inclusive), composed
   with the existing `_notes_filter_sql` predicate (AND, same as
   `folder_id`/`tag`/`ticker`/`q` today) — never a separate endpoint.
-- New index required before shipping: `idx_j2_notes_user_created ON
-  j2_notes(user_id, created_at)` — additive, one line, no migration risk.
+- New index proposed: `idx_j2_notes_user_created ON j2_notes(user_id,
+  created_at)` — additive, one line, no migration risk. **Validated, not
+  assumed** (checkpoint item 17): `tools/wave4_date_range_index_benchmark.py`
+  ran the exact proposed query (`user_id = ? AND created_at BETWEEN ? AND ?
+  ORDER BY created_at DESC`) in-memory at 1k/10k/50k global rows, before and
+  after creating the index. **Without it**, SQLite already uses the existing
+  `idx_j2_notes_user_deleted(user_id)` index and adds `USE TEMP B-TREE FOR
+  ORDER BY`. **With it**, the planner switches to `idx_j2_notes_user_created`
+  and the sort disappears entirely (range-seek returns pre-ordered). Measured
+  wall-clock speedup at these scales was modest (1.4x–1.9x, both variants
+  sub-millisecond — a single member's note count is nowhere near where a temp
+  sort gets expensive). **The real justification for building it is
+  structural, not the measured number**: it removes an O(n log n) sort that
+  scales with one member's TOTAL note count (import-heavy members can arrive
+  with thousands of notes on day one), not with the filtered result size —
+  worth the one-line cost now rather than waiting for a slow member to
+  surface it as a complaint. No production index change has been made; this
+  stays a Slice-1 implementation item, gated same as everything else in this
+  file.
 - Ambiguity to resolve at implementation time (not before): should
   `dateFrom`/`dateTo` also apply when `q` triggers the FTS5 path (an AND on
   `j2_notes.created_at` after the `id IN (SELECT note_id FROM
