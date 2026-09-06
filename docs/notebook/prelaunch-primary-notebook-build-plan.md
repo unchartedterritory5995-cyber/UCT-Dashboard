@@ -451,7 +451,31 @@ session — zero drift found). Four slices:
 Each slice: unit → integration → real-browser E2E in the fail-closed sandbox →
 re-benchmark → deploy → production verify, matching every prior wave's discipline.
 
-### Wave B — High-frequency Notebook UX / power-user foundation — IN PROGRESS 2026-09-06
+### Wave B — High-frequency Notebook UX / power-user foundation — ✅ SHIPPED 2026-09-06
+
+Command palette extended with Notebook actions (New Note, Open Notebook, Search
+Notebook, Open Trash, Open Recent/Favorite note) matched by natural terms;
+Favorites + Recents (new `j2_note_favorites`/`j2_note_recents` tables, sidebar
+sections, note-header star toggle); Find-in-note (TipTap ProseMirror-decoration
+extension, ephemeral, never persisted); native `confirm()` replaced with
+`ConfirmModal` in both Notebook delete flows; `Skeleton` loading adopted for
+search results and note-page load; a "Notebook" section added to the keyboard
+shortcut cheat sheet. 117 new tests (55 backend, 62 frontend), full backend
+(2090/2116 passing, 26 pre-existing unrelated failures) and frontend
+(1013/1021 files passing, 8 pre-existing unrelated failures — community pages,
+pine-script parity, theme-tracker, polling-sites rail, none touching Notebook)
+suites green. Live-browser E2E in the fail-closed sandbox found and fixed two
+real defects invisible to fresh-mount unit tests: a same-route client-side
+navigation not reactively reading `?folder=`/`?new=` (NotebookTab doesn't
+remount when the command palette navigates while already inside Notebook),
+and the palette's Enter key ignoring the highlighted row unless the user
+explicitly arrow-navigated (so a matched notebook command lost to a literal
+ticker-page 404). Deployed to production (`19963719b`), verified via health
+uptime reset + per-chunk bundle content grep (`NotebookTab`, `FolderSidebar`
+chunks) + live route checks. Full 51-point certification report delivered to
+Patrick in-session.
+
+Original design (preserved for reference):
 
 **Entry checkpoint (directive §73), recorded before implementation began:**
 
