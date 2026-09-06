@@ -5,17 +5,18 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state, post
-Outage-Integrity Threading (Seam 29) merge/deploy -- the second-ranked
-MUST-FIX from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC
-RE-ANCHOR (13-lens multi-agent current-state review + synthesis, ~3.9M
-subagent tokens, 699 tool calls, zero lens failures). Full re-anchor report
+**Last verified:** 2026-09-06, against live git + Railway state, post Alert
+Durability V1 (Seam 30) merge/deploy -- the fourth item down the priority
+stack from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR
+(13-lens multi-agent current-state review + synthesis, ~3.9M subagent
+tokens, 699 tool calls, zero lens failures). Full re-anchor report
 delivered to the owner in-conversation; this doc keeps only the load-
 bearing conclusions, not the full 30-section report. Both re-anchor
-MUST-FIX trust defects (Seam 28, Seam 29) are now closed. Alert Durability
-V1 is next; Awareness Reachability Restoration V1 is deliberately SKIPPED
-pending a genuine owner monetization/entitlement decision (see the
-top-of-file section) -- do not resolve it unilaterally.
+MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 are now
+closed. Watchlists/PositionsTable Keyboard Accessibility V1 is next;
+Awareness Reachability Restoration V1 remains deliberately SKIPPED pending
+a genuine owner monetization/entitlement decision (see the top-of-file
+section) -- do not resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -62,15 +63,17 @@ neither previously on the ledger, both now numbered:**
   discloses honestly via an evidence-pipeline `data_gap` item instead of
   silently reading as "no coverage." See "CURRENT ACCEPTED" for full detail.
 
-**Next priority stack (all unblocked by, independent of, Pattern Vision's
-gate):** Seam 28 → Seam 29 → Awareness Reachability Restoration V1 → Alert
-Durability V1 (non-S7 alerts are fully lost on every redeploy — no durable
-storage, and this pod redeploys multiple times/day; the fix pattern already
-exists in this codebase as S7's durable-receipts bridge) → Watchlists/
-PositionsTable Keyboard Accessibility V1 (Seam 5's sequel — AlertBell's fix
-was real but genuinely isolated; `PositionsTable.jsx`/`Watchlists.jsx`/
-`TradesTable.jsx` are all still keyboard-inaccessible on higher-traffic,
-paid-core surfaces) → Compare Coverage V1 (canonical Compare page has ZERO
+**Priority stack progress (all unblocked by, independent of, Pattern
+Vision's gate):** Seam 28 ✅ → Seam 29 ✅ → Awareness Reachability
+Restoration V1 (SKIPPED, owner monetization/entitlement decision pending,
+do not resolve unilaterally) → Alert Durability V1 (Seam 30) ✅ resolved
+same day, merge `56d4707e1`/`8779618af` — non-S7 alerts were fully lost on
+every redeploy; fixed via a dual-write bridge mirroring S7's own already-
+proven durable-receipts pattern → **now: Watchlists/PositionsTable Keyboard
+Accessibility V1** (Seam 5's sequel — AlertBell's fix was real but
+genuinely isolated; `PositionsTable.jsx`/`Watchlists.jsx`/`TradesTable.jsx`
+are all still keyboard-inaccessible on higher-traffic, paid-core surfaces)
+→ Compare Coverage V1 (canonical Compare page has ZERO
 price/technical data — a named north-star pillar can't answer "which one's
 the stronger stock"; also reconcile/retire the disconnected
 `ComparisonPicker.jsx`) → Calendar TickerActions Reuse V2 (Seams 19/20) →
@@ -142,10 +145,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `0e690583b2f0958244a83f5bd2b4c9ba05660caf`
-  (Seam 29's own merge -- this file's own update is a docs-only blob-swap on
-  top of this SHA; drift since then is unrelated concurrent work -- re-check
-  overlap before trusting this SHA is still current).
+- **origin/master (last verified):** `8779618afd3ff5856ad80f7329d4e352c4b4c7ee`
+  (Alert Durability V1's own merge -- this file's own update is a docs-only
+  blob-swap on top of this SHA; drift since then is unrelated concurrent
+  work -- re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -1306,6 +1309,65 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     consumer, out of this seam's named scope), and
     `watchlist_intelligence.py` itself (already correct, the precedent this
     fix copied).
+- **Alert Durability V1 (Seam 30)** — IMPLEMENTED + ACCEPTED + LIVE, merge
+  `56d4707e1` (code) / `8779618af` (merge-to-master), deployed 2026-09-06.
+  Fourth item down the re-anchor's priority stack (Awareness Reachability
+  Restoration V1, ranked ahead of it, was deliberately skipped pending an
+  owner monetization/entitlement decision — see the top-of-file section).
+  - **Root cause, already named in `api/services/alerts.py`'s OWN module
+    docstring** (a rare case where the fix shape was pre-specified by the
+    file itself): private ("legacy", non-S7) alerts — indicator/catalyst/
+    calendar/awareness/price — live only in an in-process TTLCache that
+    resets on every redeploy, and this pod redeploys multiple times a day.
+    S7's document-arrival alerts already have their own durable bridge
+    (`alert_taxonomy.alert_fires`, merged into `get_alerts()`); every OTHER
+    private alert type had no equivalent.
+  - **Fix:** new `api/services/alert_durability.py`, a `user_alerts` table
+    in `auth.db`, mirroring S7's own already-proven durable pattern
+    (`alert_taxonomy/receipts.py`) rather than inventing a new persistence
+    idiom — same WAL + busy_timeout pragmas, same private `_conn()` helper
+    as `indicator_alert_service.py`. Dual-write, not a replacement: `add_
+    alert()` still writes the ephemeral cache (unchanged hot path) AND,
+    when `should_persist(alert)` is true, the durable table; `get_alerts()`
+    merges cache + S7 durable + this new legacy-durable, deduped (trivial
+    here since both stores share the identical `id`, unlike S7's
+    cross-store accession key); `mark_read`/`mark_all_read`/`clear_alerts`
+    all dual-write/mirror into the durable table the same way the existing
+    S7 read-state-parity fix does.
+  - **Scope, deliberately bounded (V1):** PRIVATE alerts only — broadcast
+    alerts (regime_change/scanner_match/exposure_shift-as-system-wide-
+    announcements) stay ephemeral-only, matching `alerts.py`'s own
+    docstring scoping the concern to per-member alerts specifically. S7
+    document-arrival alerts are explicitly EXCLUDED from this new table
+    (`should_persist` checks `data.get("source") == "document_arrival"`)
+    — writing them here too would create a confusing THIRD copy of the
+    same fire once the ephemeral cache expires, on top of the two S7
+    already merges.
+  - **Retention is a per-user ROW CAP (200), not a time-based sweep** — no
+    new scheduled job needed; enforced inline on every write.
+  - **Schema initialized unconditionally at boot** (`main.py`, alongside
+    `indicator_alert_service`/`awareness.regime_snapshots`) — cheap,
+    idempotent, no flag needed for local dev/tests to read/write it.
+  - **Tests:** 32 new (19 unit-level in `api/services/test_alert_
+    durability.py` — CRUD, per-user isolation, read-state, retention-cap
+    eviction; 13 integration-level in `tests/test_alert_durability_
+    legacy.py`, mirroring `tests/test_s7_durable_notifications.py`'s exact
+    structure — real dual-write through `alerts.py`, survives a simulated
+    cache loss, ownership-scoped, S7-exclusion proven, broadcast-exclusion
+    proven). Full adjacent regression green: `test_s7_durable_
+    notifications.py` (26, including the read-state-parity suite my
+    changes run directly alongside), `test_alerts_privacy.py`, indicator/
+    price/research-url alert suites (150) — 234 tests total, plus a
+    full-lifespan app-boot test (`test_spa_head_reachability.py`)
+    confirming the new startup wiring actually runs, not just imports
+    cleanly.
+  - **Explicitly did NOT touch:** S7's own durable pipeline or read-state-
+    parity fix (untouched, still the sole owner of document-arrival
+    alerts), the ephemeral cache's own TTL/shape/hot-path behavior (purely
+    additive), broadcast alert delivery, or Awareness Reachability
+    Restoration (a separate, still-skipped item — durably storing an
+    alert and making the Awareness *engine's own insights* reachable are
+    different problems; this program did not touch the Awareness engine).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1436,11 +1498,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Seam 28 (closes Seam 26) + Seam 29 — BOTH DONE, ACCEPTED + LIVE.
-  Alert Durability V1 — STARTING NOW**, continuing directly down the
+- **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) —
+  ALL DONE, ACCEPTED + LIVE. Watchlists/PositionsTable Keyboard
+  Accessibility V1 — STARTING NOW**, continuing directly down the
   re-anchor's own priority stack per the standing directive (no new
   ledger-scan needed — the re-anchor already did that scan; see below).
-  **Awareness Reachability Restoration V1 was DELIBERATELY SKIPPED OVER,
+  **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
   current paid-only destination, or should the destination become free to
@@ -1448,10 +1511,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   policy decision, one of the standing stop conditions (Section III/XX of
   the directive). **Do not resolve that question unilaterally and do not
   implement ANY version of Awareness Reachability Restoration until the
-  owner has answered it** — proceeding to the next unblocked item instead
-  (Alert Durability V1), exactly as the directive's own "no independent
-  work left" framing intends: work IS left, just not on that one item.
-  See the new Seam 28/Seam 29 debt-ledger entries above for full scope of
+  owner has answered it.**
+  See the new Seam 28/29/30 debt-ledger entries above for full scope of
   what shipped.
   Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
   before this point, in order: Technical Ask AI Phase A →
@@ -1469,23 +1530,27 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   **Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)**
   — ACCEPTED + LIVE, merge `efe64acfb`/`c3128e010` →
   **Outage-Integrity Threading (Seam 29)** — ACCEPTED + LIVE, merge
-  `ec095a23d`/`0e690583b` (see "CURRENT ACCEPTED" above for both) → now
-  Alert Durability V1 (Awareness Reachability Restoration V1 skipped, see
-  above).
-  **Bounded Phase A required before Alert Durability V1's implementation**:
-  re-read `api/services/watchlist_alert_service.py`'s current alert-storage
-  mechanism (the re-anchor's monitoring lens described it as "an in-process
-  TTLCache explicitly documented as resetting on redeploy" — verify this is
-  still accurate, find the exact cache/table), and re-read S7's own durable-
-  receipts bridge (`api/services/alert_taxonomy/receipts.py` per earlier
-  session context) as the precedent to reuse — do not invent a new
-  persistence mechanism if S7's existing one can be adapted; do not migrate
-  or delete any existing alert history in the process.
-  **Next in the priority stack after Alert Durability V1** (all independent
-  of Pattern Vision's gate, Awareness Reachability Restoration still
-  excluded pending owner input): Watchlists/PositionsTable Keyboard
-  Accessibility V1 → Compare Coverage V1 → Calendar TickerActions Reuse V2
-  → Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
+  `ec095a23d`/`0e690583b` → **Alert Durability V1 (Seam 30)** — ACCEPTED +
+  LIVE, merge `56d4707e1`/`8779618af` (see "CURRENT ACCEPTED" above for
+  all three) → now Watchlists/PositionsTable Keyboard Accessibility V1
+  (Awareness Reachability Restoration V1 still skipped, see above).
+  **Bounded Phase A required before this program's implementation**:
+  re-verify the re-anchor's own mobile-ux lens finding — `Watchlists.jsx`'s
+  22+ bare `<div onClick>` interactive elements (confirm the count and the
+  exact rows: list-open toggles are the ones named as primary) and
+  `PositionsTable.jsx`'s both desktop `<tr onClick>` and phone-card
+  keyboard-inaccessibility — against CURRENT code before writing any fix;
+  the re-anchor's own counts/line numbers may have drifted. Reuse the EXACT
+  fix shape already shipped and proven for Seam 5 (`role="button"` +
+  `tabIndex={0}` + an `onKeyDown` handling Enter/Space, calling the SAME
+  handler the existing `onClick` already uses) — do not invent a new
+  accessibility pattern. `TradesTable.jsx`'s desktop-only gap was also
+  named by the re-anchor as the same defect class; fold it in if bounded,
+  split it out if it turns out to need its own investigation.
+  **Next in the priority stack after this program** (all independent of
+  Pattern Vision's gate, Awareness Reachability Restoration still excluded
+  pending owner input): Compare Coverage V1 → Calendar TickerActions Reuse
+  V2 → Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
   live `BROKER_BALANCE_HISTORY_ENABLED=1`).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
