@@ -82,7 +82,11 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
     only resolve over HTTP. Never raises - no choices is a valid answer."""
     try:
         from api.routers import ticker_search as ts
-        rows = (ts.ticker_search(q=q, limit=limit) or {}).get("results") or []
+        # `type` MUST be passed: ticker_search's signature is (q, limit, type) with a
+        # Query() default for `type`, which only resolves over HTTP. Called in-process
+        # without it, `type` stays a Query object → AttributeError inside the route →
+        # this whole function returned [] (no suggestions on /flow OR /chart).
+        rows = (ts.ticker_search(q=q, limit=limit, type="") or {}).get("results") or []
         out = []
         # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
         # so — the autocomplete is where a member would find out.
@@ -319,7 +323,10 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             # useful: it offers the most-mentioned names.
             return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
         if name == di.FLOW_COMMAND:
-            q = di.parse_autocomplete(interaction)
+            fname, fval = di.focused_option(interaction)
+            if fname == "days":                     # suggest day-window presets
+                return _autocomplete(di.flow_days_choices(fval))
+            q = (fval or "").strip().upper().lstrip("$")[:10]   # ticker field
             return _autocomplete(fetch_ticker_choices(q) if q else [])
         if name not in di.CHART_COMMAND_NAMES:
             return _autocomplete([])

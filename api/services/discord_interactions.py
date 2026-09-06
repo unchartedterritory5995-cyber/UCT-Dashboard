@@ -354,16 +354,47 @@ def parse_flow_command(interaction: dict) -> tuple:
     return ticker, str(min(d, 400))
 
 
+_FLOW_DAY_PRESETS = [
+    ("Today", "1"),
+    ("Last 5 days · ~1 week", "5"),
+    ("Last 20 days · ~1 month", "20"),
+    ("Last 60 days · ~3 months", "60"),
+    ("Last 90 days", "90"),
+    ("All history", "all"),
+]
+
+
+def flow_days_choices(typed: str = "") -> list:
+    """Suggestions for /flow's `days` field: friendly presets, filtered by what the
+    user has typed. `days` still accepts a free number — autocomplete only suggests,
+    it does not restrict — so a typed value is offered back rather than an empty list."""
+    t = (typed or "").strip().lower()
+    out = [{"name": n, "value": v} for n, v in _FLOW_DAY_PRESETS
+           if not t or t in n.lower() or t in v]
+    if not out and t.isdigit():
+        out = [{"name": f"Last {int(t)} trading days", "value": str(int(t))}]
+    return out[:25]
+
+
+def focused_option(interaction: dict) -> tuple:
+    """(name, value) of the option the user is currently typing into, or (None, '')."""
+    for o in (interaction.get("data") or {}).get("options") or []:
+        if isinstance(o, dict) and o.get("focused"):
+            return (o.get("name"), str(o.get("value") or ""))
+    return (None, "")
+
+
 def build_flow_command() -> dict:
-    """/flow DPRO — options-flow read for a ticker: net bull/bear + top contracts."""
+    """/flow DPRO — options-flow read for a ticker: net bull/bear + top contracts.
+    Both fields autocomplete so a member is guided rather than guessing the format."""
     return {
         "name": FLOW_COMMAND, "type": 1,
-        "description": "Options flow for a ticker: net bull/bear + top contracts over N days",
+        "description": "Options flow for a ticker — net bull/bear + its top contracts",
         "options": [
             {"name": "ticker", "type": 3, "required": True, "autocomplete": True,
-             "description": "Ticker, e.g. DPRO"},
-            {"name": "days", "type": 3, "required": False,
-             "description": "Trailing trading days (e.g. 60) or 'all' — default today"},
+             "description": "Start typing a ticker, e.g. DPRO — pick from the list"},
+            {"name": "days", "type": 3, "required": False, "autocomplete": True,
+             "description": "How far back — pick Today / 1 week / 1 month / 3 months / All, or type a number (blank = today)"},
         ],
     }
 
