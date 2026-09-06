@@ -692,6 +692,26 @@ Duplicated to user memory (`feedback_agent_authority_and_worktree_isolation`) so
 
 ---
 
+### 2026-09-06 — Stage A→B gate NOT waived; Stage A validation program started; Wave 4 prep authorized (build not shipped)
+
+**DECISION:** The Stage A→B gate (`primary-platform-implementation-plan.md` §5, "Beta Member-Validation Plan") was NOT waived. Waves 0–3 (the whole of Stage A, "Primary Notebook Beta") shipped and deployed to production essentially the same day this decision was made, so the plan's own required real-member validation — task completion, feature discovery, and specifically **repeat usage over the following weeks** — has not occurred and cannot be fabricated from internal testing.
+
+**RATIONALE:** The gate is genuine and load-bearing, not a formality. Claude browser E2E, synthetic accounts, unit/integration tests, internal design review, one-time admin clicks, and a single member trying the product once do NOT count as member validation — they remain valid technical evidence for correctness, but answer a different question than "are real active/swing traders actually using and returning to the product." Proceeding straight into Stage B (Wave 4) without that evidence would mean building search sophistication on top of a foundation whose actual adoption is unmeasured.
+
+**ACTION — two tracks, both authorized now, running in parallel:**
+- **Track A (Stage A member-validation program):** privacy-conscious usage-analytics instrumentation (aggregate events only — never note bodies, questions, or private research text) covering first Notebook visit, first note created, Save-to-Notebook usage, search usage, Ask Current Note usage, thesis-note creation, trade-link creation, trash/recovery usage, repeat visits, repeat note creation/editing, and return usage over time; a cohort plan drawn from real existing active/swing-trader UCT members (Journal 2.0 + Compass + broker-sync users), not a widened persona set; a lightweight admin-only validation report reading that event log (cohort/activation/task-completion/discovery/repeat-usage/research-accumulation/search-behavior/thesis-link-behavior/qualitative-feedback/blockers/gate-status) — built on existing reporting infrastructure, not a new analytics platform.
+- **Track B (Wave 4 prep, non-shipping):** verify the CURRENT reality of every Search Evolution I dependency (FTS5 schema/config, `snippet()`/`highlight()` behavior, available date fields, entity-layer query surfaces, confirming earnings-window retrieval is still genuinely deferred per Wave 1's own scope) directly against code — not assumed from the plan; run the Stage-0 FTS5 read-latency benchmark (research/verification, not a member-facing feature) at realistic scales in the fail-closed sandbox only; design (not build) the date-range filter contract, snippet/result-explanation UX, and entity-anchored retrieval architecture; produce a vertical-slice implementation plan ready to execute the moment the gate opens.
+
+**TWO SEPARATE GATES, not one collapsed threshold** (translating the plan's "over weeks" intent into a measurable near-term checkpoint without abandoning the longer study):
+- **EARLY SIGNAL GATE** — may be satisfied sooner than the full study: multiple real beachhead-persona members complete the core Stage A workflow (capture → write → organize → search → link → retrieve); no critical usability blocker found; members discover and use Save to Notebook without being told; at least some members return on a later session/day; at least some members revisit/build on prior research rather than a one-time trial; the thesis↔trade link is understood and used; search is used enough that Wave 4's retrieval investment is evidence-backed; no trust/data-loss defect (a failed trash/delete/recover would be independently disqualifying per the plan's own Wave 0 exit criteria); qualitative feedback does not indicate the Stage A model is fundamentally misunderstood. Satisfying this gate authorizes beginning Wave 4's member-facing implementation with real, if early, evidence behind it.
+- **FULL STAGE A VALIDATION** — the plan's original multi-week repeat-usage study, continuing on its own timeline even after the Early Signal Gate opens and Wave 4 work begins; this is the actual exit criterion the implementation plan names for the Stage A→B transition and is not shortened by the Early Signal Gate's existence.
+
+**FUTURE CONDITION:** Wave 4 member-facing implementation (date-range production UI, snippet/highlight production UI, entity-anchored search production changes) begins when the Early Signal Gate is satisfied by recorded evidence, OR the owner explicitly waives the gate based on new judgment — whichever comes first. Track B's preparation work (verification, benchmarking, design, planning) is authorized now and produces no member-facing change on its own.
+
+**NOT reopened:** the external FMP/Massive data-rights investigation remains untouched; nothing rights-dependent is newly activated by this work.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

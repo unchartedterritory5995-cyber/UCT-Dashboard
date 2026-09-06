@@ -13,7 +13,10 @@ const H = { calls: [], ok: true }
 // A chart capture also fires the bars deep-fill warm (POST /api/bars/warm)
 // so the (ticker, tf) history outlives the session — real, load-bearing,
 // and NOT a journal call. Sequence assertions look at the journal wire.
-const journalCalls = () => H.calls.filter((c) => !c.url.startsWith('/api/bars/'))
+// Stage A telemetry (notebook_capture_saved, sendToJournal.js) is a
+// fire-and-forget side channel, same treatment as the bars warm below —
+// real, load-bearing, and NOT a journal call.
+const journalCalls = () => H.calls.filter((c) => !c.url.startsWith('/api/bars/') && c.url !== '/api/j2/telemetry')
 
 function stubFetch() {
   vi.stubGlobal('fetch', vi.fn((url, opts = {}) => {

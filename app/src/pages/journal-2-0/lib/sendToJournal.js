@@ -12,6 +12,21 @@ import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 import { kickSnapshotWarm } from './embedArchive'
 import { CAPTURE_TARGETS } from './captureTargets'
 
+// Stage A member-validation instrumentation (decision-log "Stage A→B gate"
+// entry, 2026-09-06) — fires once per genuine capture, from the one function
+// every capture door funnels through, so it uniformly covers all three
+// destinations (current note / new note / inbox). Aggregate metadata only —
+// widget id, chosen destination, whether a trade link was attached — never
+// the captured content itself. Best-effort: never blocks or throws.
+function _logCaptureSaved(widgetId, target, hasTradeRef) {
+  fetch('/api/j2/telemetry', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'notebook_capture_saved', props: { widgetId, target, hasTradeRef } }),
+  }).catch(() => {})
+}
+
 /** Build the frozen embed attrs for a capture (+ fire the bars warm for
  *  charts). Split out so a caller that wants to offer a TARGET MENU can build
  *  once and route to any target, instead of re-capturing per destination.
@@ -45,7 +60,9 @@ export async function sendCaptureToJournal(
   const name = label || attrs.params?.symbol || widgetId
   const t = CAPTURE_TARGETS[target] || CAPTURE_TARGETS.note
   try {
-    return await t.run(attrs, { widgetId, label: name })
+    const result = await t.run(attrs, { widgetId, label: name })
+    _logCaptureSaved(widgetId, target, !!tradeRef)
+    return result
   } catch {
     return 'Capture failed — try again'
   }

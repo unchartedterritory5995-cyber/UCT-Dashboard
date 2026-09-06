@@ -65,6 +65,15 @@ router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 _J2_TELEMETRY_EVENTS = {
     "trade_page_open", "import_preset_used", "verdict_embed_run",
     "scope_applied", "surface_visit", "screenshot_added", "reflection_saved",
+    # Stage A member-validation instrumentation (decision-log "Stage A→B
+    # gate" entry, 2026-09-06) — aggregate usage signal only, never note
+    # content. notebook_tab_visit covers first/repeat Notebook visits (the
+    # validation report derives "first" vs "repeat" from created_at, not a
+    # separate event type); notebook_capture_saved fires once per genuine
+    # Save-to-Notebook action from the ONE function every capture door
+    # funnels through (sendToJournal.js::sendCaptureToJournal), covering all
+    # three destinations (current note / new note / inbox) uniformly.
+    "notebook_tab_visit", "notebook_capture_saved",
 }
 
 
@@ -137,6 +146,17 @@ def _most_recent_closed_monday() -> str:
     most_recent_friday = now - timedelta(days=days_back_to_friday)
     monday = most_recent_friday - timedelta(days=4)
     return monday.isoformat()
+
+
+# ── Stage A member-validation report (ADMIN) ──────────────────────────────
+# decision-log "Stage A→B gate" entry, 2026-09-06 — the quantitative half of
+# the plan's own required Beta Member-Validation gate (§5). Aggregate-only;
+# never a note body, search query, or Ask Current Note question.
+
+@router.get("/notebook-validation-report")
+def notebook_validation_report(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
+    from api.services.journal_two import stage_a_validation
+    return stage_a_validation.compute_report()
 
 
 # ── Compass health (ADMIN — see the handler for why "no-auth" was wrong) ─────
@@ -1830,6 +1850,14 @@ async def ask_current_note_stream(
                 f"[note_ask] note_id={note_id} query={query!r} "
                 f"model={note_ask._SYNTH_MODEL} elapsed_ms={(time.time() - t0) * 1000:.0f} "
                 f"cost_est={note_ask._APPROX_COST}"
+            )
+            # Stage A validation signal (decision log "Stage A→B gate" entry)
+            # — a durable, timestamped, aggregate-only record distinct from
+            # the process-log line above (which is not queryable and not
+            # user-scoped for the validation report).
+            notes_service._log_notebook_event(
+                user_id, "notebook_ask_current_note_used",
+                {"settled": settled, "hadAnswer": bool(text.strip())},
             )
         yield f"data: {json.dumps({'type': 'final', 'answer': text})}\n\n"
 
