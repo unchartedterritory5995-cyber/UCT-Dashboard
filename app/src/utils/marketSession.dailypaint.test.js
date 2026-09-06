@@ -6,7 +6,10 @@
 // first causes the "current candle loads one bar right, then pops left" shift.
 // Time-mocked (EDT = UTC-4 in Sep 2026). Wed 2026-09-02, prior sessions Mon 8/31 + Tue 9/1.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { isDailyTailStaleForPaint, isDailyTailStale, isDailyTodayCloseProvisionalForPaint } from './marketSession'
+import {
+  isDailyTailStaleForPaint, isDailyTailStale, isDailyTodayCloseProvisionalForPaint,
+  expectedLatestDailySessionET,
+} from './marketSession'
 
 describe('isDailyTailStaleForPaint', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -82,5 +85,75 @@ describe('isDailyTodayCloseProvisionalForPaint (after-hours sealed-close flicker
     vi.setSystemTime(new Date('2026-09-02T20:30:00Z'))
     expect(isDailyTodayCloseProvisionalForPaint(null)).toBe(false)
     expect(isDailyTodayCloseProvisionalForPaint('')).toBe(false)
+  })
+
+  // Temporal / Freshness Truth Convergence V1 — real NYSE early-close day
+  // (Day after Thanksgiving 2026-11-27, real close 13:00 ET, EST = UTC-5).
+  describe('a real NYSE early-close day (Fri 2026-11-27, sealed close = 13:00 ET)', () => {
+    it('before the real 13:00 close (11:00 ET): not provisional yet', () => {
+      vi.setSystemTime(new Date('2026-11-27T16:00:00Z')) // 11:00 EST
+      expect(isDailyTodayCloseProvisionalForPaint('2026-11-27')).toBe(false)
+    })
+
+    it('after the real 13:00 close but before the old hardcoded 16:00 (14:00 ET): NOW provisional — the fix', () => {
+      vi.setSystemTime(new Date('2026-11-27T19:00:00Z')) // 14:00 EST
+      expect(isDailyTodayCloseProvisionalForPaint('2026-11-27')).toBe(true)
+    })
+
+    it('after 16:00 ET too: still provisional (regression guard)', () => {
+      vi.setSystemTime(new Date('2026-11-27T22:00:00Z')) // 17:00 EST
+      expect(isDailyTodayCloseProvisionalForPaint('2026-11-27')).toBe(true)
+    })
+  })
+})
+
+describe('expectedLatestDailySessionET — S11 holiday/early-close awareness (Temporal / Freshness Truth Convergence V1)', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('NYSE holiday itself, before its own (assumed) close (MLK Mon 2026-01-19, 10:00 ET) → last real trading day (Fri 2026-01-16)', () => {
+    vi.setSystemTime(new Date('2026-01-19T15:00:00Z')) // 10:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-01-16')
+  })
+
+  it('NYSE holiday itself, after its own (assumed) close (MLK Mon 2026-01-19, 17:00 ET) → still Fri 2026-01-16, NOT the holiday date itself', () => {
+    vi.setSystemTime(new Date('2026-01-19T22:00:00Z')) // 17:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-01-16')
+  })
+
+  it('day AFTER a holiday, before its own close (Tue 2026-01-20, 10:00 ET) → last real trading day (Fri 2026-01-16), not the holiday Monday', () => {
+    vi.setSystemTime(new Date('2026-01-20T15:00:00Z')) // 10:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-01-16')
+  })
+
+  it('day AFTER a holiday, after its own close (Tue 2026-01-20, 17:00 ET) → today', () => {
+    vi.setSystemTime(new Date('2026-01-20T22:00:00Z')) // 17:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-01-20')
+  })
+
+  it('backward walk skips through an adjacent full-holiday session (day after Thanksgiving, Fri 2026-11-27, 11:00 ET) → Wed 2026-11-25 (skips Thu 11/26 Thanksgiving)', () => {
+    vi.setSystemTime(new Date('2026-11-27T16:00:00Z')) // 11:00 EST, before this day's own 13:00 early close
+    expect(expectedLatestDailySessionET()).toBe('2026-11-25')
+  })
+
+  it('real early-close day, after its 13:00 close but before the old hardcoded 16:00 (Fri 2026-11-27, 14:00 ET) → today — the half-day threshold fix', () => {
+    vi.setSystemTime(new Date('2026-11-27T19:00:00Z')) // 14:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-11-27')
+  })
+
+  it('real early-close day, before its own 13:00 close (Christmas Eve 2026-12-24, 11:00 ET) → previous real trading day (Wed 2026-12-23)', () => {
+    vi.setSystemTime(new Date('2026-12-24T16:00:00Z')) // 11:00 EST
+    expect(expectedLatestDailySessionET()).toBe('2026-12-23')
+  })
+
+  it('combined weekend + adjacent holiday (Mon 2026-07-06, 10:00 ET, following the Fri 2026-07-03 observed-Independence-Day closure) → walks past BOTH the holiday and the weekend to Thu 2026-07-02', () => {
+    vi.setSystemTime(new Date('2026-07-06T14:00:00Z')) // 10:00 EDT
+    expect(expectedLatestDailySessionET()).toBe('2026-07-02')
+  })
+
+  it('outside calendar coverage (a 2027 date, no real table): degrades to weekday-only behavior — a real MLK-day-equivalent Monday is NOT treated as a holiday', () => {
+    // 2027-01-18 is a Monday with no entry in nyseCalendar's 2026-only table.
+    vi.setSystemTime(new Date('2027-01-18T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
+    expect(expectedLatestDailySessionET()).toBe('2027-01-18')
   })
 })

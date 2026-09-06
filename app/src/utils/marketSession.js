@@ -1,11 +1,51 @@
 // Shared market-session helpers for daily-bar freshness. StockChart's daily
 // staleness gate and the prefetch warmer MUST agree on "what session should a
 // fresh daily series include" — so both import this one source of truth.
+//
+// Temporal / Freshness Truth Convergence V1 — S11 already owns the NYSE
+// holiday/early-close calendar (app/src/lib/marketClock/nyseCalendar.js); the
+// two functions below now consume its `holidayOn`/`earlyCloseOn`/`hasCoverage`
+// exports instead of a weekend-only, hardcoded-16:00 guess, so a holiday
+// evening or a real early-close day no longer misreports "the last closed
+// session." Outside `hasCoverage`'s covered years this degrades EXACTLY to the
+// prior weekday-only/16:00 behavior — never a guess, never a throw.
+import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
+
+const _pad = (n) => String(n).padStart(2, '0')
+
+// ISO date ('YYYY-MM-DD') of a Date object whose LOCAL getters already carry
+// ET-equivalent values (this file's established idiom: re-parsing a
+// toLocaleString('en-US', {timeZone: 'America/New_York'}) string yields a
+// Date whose getFullYear/getMonth/getDate/getDay read as ET).
+function _isoOfET(d) {
+  return `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`
+}
+
+// True when the ET calendar date `d` (same reparse-Date convention as above)
+// is not a trading day at all — weekend, or an NYSE full-holiday closure per
+// S11's calendar (silently skipped when the year has no coverage).
+function _isNonTradingDayET(d) {
+  const dow = d.getDay()
+  if (dow === 0 || dow === 6) return true
+  const iso = _isoOfET(d)
+  return hasCoverage(d.getFullYear()) && !!holidayOn(iso)
+}
+
+// The effective regular-session close, in minutes-since-midnight ET, for the
+// ET calendar date `d` — 13:00 (780) on a real NYSE early-close day, else the
+// ordinary 16:00 (960) close. Falls back to 960 outside calendar coverage.
+function _effectiveCloseMinutesET(d) {
+  if (!hasCoverage(d.getFullYear())) return 960
+  const earlyClose = earlyCloseOn(_isoOfET(d))
+  return earlyClose ? earlyClose.closeHour * 60 + earlyClose.closeMinute : 960
+}
 
 /**
  * The ET date ('YYYY-MM-DD') of the most recent CLOSED daily session that a fresh
  * daily series should carry: today only once today's session has CLOSED (>= 16:00
- * ET on a weekday), else the previous weekday. Weekend/pre-open/mid-session aware.
+ * ET on an ordinary weekday, >= 13:00 ET on a real NYSE early-close day), else the
+ * most recent real prior trading day. Weekend/holiday/early-close/pre-open/
+ * mid-session aware.
  *
  * The threshold is market CLOSE, NOT open — deliberately. During the trading day
  * today's daily bar is still FORMING; the historical series legitimately ends at
@@ -13,35 +53,31 @@
  * top. Anchoring on open (9:30) would flag every closed-only cache/pack as "stale"
  * mid-session and force a black-screen refetch, defeating the instant-paint pack —
  * while STILL catching a series that's missing an EARLIER closed session (that
- * tail is < the previous weekday, so it's flagged stale regardless of the hour).
- * So this keeps the "no Friday-close-on-a-Tuesday" fix and makes closed-only daily
- * caches paint instantly during RTH. Holidays aren't tracked client-side — a rare
- * holiday only costs a brief refetch, never stale data on screen.
+ * tail is < the last real prior trading day, so it's flagged stale regardless of
+ * the hour). So this keeps the "no Friday-close-on-a-Tuesday" fix and makes
+ * closed-only daily caches paint instantly during RTH.
+ *
+ * Holiday awareness matters for exactly one asymmetric reason: on the DOW-only
+ * (weekend-only) predecessor of this function, a wrong answer could only ever be
+ * >= the true last-closed-session date — every consumer that treats a lower date
+ * as "needs refetch" (prefetchBars.js, barsIDB.js, StockChart.jsx) could at worst
+ * be tricked into one extra, harmless refetch. The one consumer that compares the
+ * OTHER direction (useBrokerMarkPreference.js, deciding broker-mark vs live-feed
+ * pricing) could have that inflated date silently SUPPRESS a correct broker-mark
+ * preference on every full NYSE holiday evening — never wrongly activate one
+ * early. This fix removes that asymmetry rather than papering over one side of it.
  */
 export function expectedLatestDailySessionET() {
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const dow = nowET.getDay()               // 0 Sun … 6 Sat
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   const d = new Date(nowET)
-  // CLOSE threshold (960 / 16:00 ET): closed-only daily caches/packs paint INSTANTLY
-  // during RTH (today's bar is still forming and rides the live feed; the historical
-  // series legitimately ends at the last closed session). Anchoring on OPEN (570) would
-  // flag every closed-only cache as stale mid-session and force a black-screen refetch,
-  // defeating the instant-paint pack.
-  //   History: 960 was briefly reverted to 570 on 2026-08-19 because skipping the RTH
-  //   refetch exposed two LATENT client bugs the refetch had been masking — the view-lock
-  //   restoring a back-in-time pan on instant paint, and a corrupt-value daily bar painting
-  //   from IDB. Both are now fixed at the source (StockChart.jsx: the anchorFrac back-in-time
-  //   guard re-anchors to latest when a stored pan predates current data; _idbDailyLastInsane
-  //   refuses to instant-paint an internally-inconsistent daily bar → falls through to the
-  //   healing refetch). With those guards in place the instant paint is correct, so 960 is
-  //   restored. A series missing an EARLIER closed session is still < the previous weekday, so
-  //   it's flagged stale regardless of the hour ("no Friday-close-on-a-Tuesday" holds).
-  if (!(dow >= 1 && dow <= 5 && mins >= 960)) { // not a weekday at/after 16:00 ET (close)
-    do { d.setDate(d.getDate() - 1) } while (d.getDay() === 0 || d.getDay() === 6)
+  const isTradingDayToday = dow >= 1 && dow <= 5 && !_isNonTradingDayET(nowET)
+  const closeThresholdMin = _effectiveCloseMinutesET(nowET)
+  if (!(isTradingDayToday && mins >= closeThresholdMin)) {
+    do { d.setDate(d.getDate() - 1) } while (_isNonTradingDayET(d))
   }
-  const p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return _isoOfET(d)
 }
 
 /**
@@ -120,21 +156,23 @@ export function isDailyTailStaleForPaint(isoTail) {
  * network for such a tail shows the sealed close on the first frame instead. It is a
  * paint-timing gate only (the SWR fetch happens regardless), so it adds no request.
  *
- * Scoped to a weekday AT/AFTER close, same ET day as the tail (16:00 → midnight ET) —
- * the "after hours" window. Overnight/next-session a today-dated tail is a DIFFERENT
- * ET day than the cache, so it never matches; the date gate + expected session handle
- * those. During RTH this is intentionally false: the developing bar's close SHOULD
- * evolve with the live feed, so a same-session cache is legitimately live.
+ * Scoped to a weekday AT/AFTER close, same ET day as the tail (close → midnight ET) —
+ * the "after hours" window. Close is the ordinary 16:00 ET threshold, or 13:00 ET on
+ * a real NYSE early-close day (a half-day session sealed 3 hours earlier — without
+ * this the sealed close's provisional-paint deferral stayed dormant until 16:00 even
+ * though the real close had already happened). Overnight/next-session a today-dated
+ * tail is a DIFFERENT ET day than the cache, so it never matches; the date gate +
+ * expected session handle those. During RTH this is intentionally false: the
+ * developing bar's close SHOULD evolve with the live feed, so a same-session cache
+ * is legitimately live.
  */
 export function isDailyTodayCloseProvisionalForPaint(isoTail) {
   if (typeof isoTail !== 'string' || !isoTail) return false
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
-  if (!(dow >= 1 && dow <= 5 && mins >= 960)) return false   // only at/after today's close
-  const p = (n) => String(n).padStart(2, '0')
-  const todayET = `${nowET.getFullYear()}-${p(nowET.getMonth() + 1)}-${p(nowET.getDate())}`
-  return isoTail.slice(0, 10) === todayET
+  if (!(dow >= 1 && dow <= 5 && mins >= _effectiveCloseMinutesET(nowET))) return false   // only at/after today's close
+  return isoTail.slice(0, 10) === _isoOfET(nowET)
 }
 
 // ET calendar date ('YYYY-MM-DD') of a unix-SECONDS timestamp (intraday bars carry
