@@ -131,18 +131,41 @@ _D_W, _D_ROWH, _D_TOP, _D_SECH = 1150, 40, 112, 40
 _D_COLS = [("TICKER", 36, "l"), ("EXP", 350, "l"), ("STRIKE", 500, "r"),
            ("C/P", 512, "l"), ("PREMIUM", 645, "r"), ("VOL", 830, "r"),
            ("OI", 920, "r"), ("V/OI", 1000, "r"), ("GRADE", 1068, "l")]
+_D_NET_H = 44   # extra header height when a net-flow bar is shown
 
 
-def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
+def _draw_net_bar(d, txt, tw, s, net, top, f_lbl):
+    """Whole-day Bull vs Bear premium: labels + a proportional green/red bar, in
+    the _D_NET_H band above the column headers."""
+    bull = float((net or {}).get("bull") or 0)
+    bear = float((net or {}).get("bear") or 0)
+    tot = (bull + bear) or 1.0
+    x0, x1 = 36, _D_W - 36
+    ly, by, bh = top - 56, top - 42, 9              # label row, bar row, bar height
+    txt(x0, ly, f"▲ {_fmt_prem(bull)} Bull", f_lbl, _BULL)
+    net_d = bull - bear
+    ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))}"
+    txt((x0 + x1) / 2 - tw(ctext, f_lbl) / 2, ly, ctext, f_lbl, _GOLD)
+    txt(x1, ly, f"{_fmt_prem(bear)} Bear ▼", f_lbl, _BEAR, "r")
+    bx = x0 + int((x1 - x0) * (bull / tot))
+    d.rounded_rectangle([s(x0), s(by), s(max(bx - 1, x0)), s(by + bh)], radius=s(2), fill=_BULL)
+    d.rounded_rectangle([s(min(bx + 1, x1)), s(by), s(x1), s(by + bh)], radius=s(2), fill=_BEAR)
+
+
+def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                    title="Watchlist", section="WATCHLIST",
+                    net=None, show_dte=False) -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
     def s(v):
         return int(v * _SS)
 
-    sections = [("BULL WATCHLIST", bull, _BULL), ("BEAR WATCHLIST", bear, _BEAR)]
+    net_h = _D_NET_H if net else 0
+    top = _D_TOP + net_h
+    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
     body_h = sum(_D_SECH + max(1, len(rows)) * _D_ROWH for _, rows, _ in sections)
-    H = _D_TOP + body_h + 54
+    H = top + body_h + 54
     img = Image.new("RGB", (s(_D_W), s(H)), _BG)
     d = ImageDraw.Draw(img)
     txt, chip, tw = _mk(ImageDraw, d)
@@ -151,17 +174,20 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes
     f_row = font("DejaVuSans.ttf", 15); f_rowb = font("DejaVuSans-Bold.ttf", 15)
     f_chip = font("DejaVuSans-Bold.ttf", 9); f_foot = font("DejaVuSans.ttf", 12)
 
-    d.rectangle([0, 0, s(_D_W), s(_D_TOP - 26)], fill=_BAND)
+    d.rectangle([0, 0, s(_D_W), s(top - 26)], fill=_BAND)
     _logo(Image, img, 32, 18, 48)
     tx = 94
     tx += txt(tx, 24, "UCT Intelligence", f_title, _GOLD) + 12
-    tx += txt(tx, 24, "· Watchlist", f_title, _GOLD_DIM) + 12
+    tx += txt(tx, 24, "· " + title, f_title, _GOLD_DIM) + 12
     txt(tx, 32, "— " + date_text, f_date, _DIM)
+    if net:
+        _draw_net_bar(d, txt, tw, s, net, top, f_hdr)
     for hdr, x, al in _D_COLS:
-        txt(x, _D_TOP - 30, hdr, f_hdr, _DIM, al)
-    d.rectangle([s(36), s(_D_TOP - 10), s(_D_W - 36), s(_D_TOP - 10) + 1], fill=_DIV)
+        _h = "EXP · DTE" if (hdr == "EXP" and show_dte) else hdr
+        txt(x, top - 30, _h, f_hdr, _DIM, al)
+    d.rectangle([s(36), s(top - 10), s(_D_W - 36), s(top - 10) + 1], fill=_DIV)
 
-    y = _D_TOP + 4
+    y = top + 4
     for label, rows, accent in sections:
         d.rectangle([0, s(y - 4), s(_D_W), s(y - 4) + s(_D_SECH - 8)], fill=_BAND)
         arrow = "▲" if accent is _BULL else "▼"
@@ -177,7 +203,10 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes
             for fl in _flags(it):
                 cx += chip(cx, y + 1.5, fl, f_chip, _ER_FG if fl == "ER" else _BULL,
                            _ER_BG if fl == "ER" else _HV_BG) + 4
-            txt(350, y, it.get("exp") or "", f_row, _DIM)
+            _exp = it.get("exp") or ""
+            if show_dte and it.get("dte") is not None:
+                _exp = f"{_exp} · {_num(it, 'dte')}d"
+            txt(350, y, _exp, f_row, _DIM)
             txt(500, y, _strike(it.get("strike")), f_row, _TXT, "r")
             txt(512, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
             txt(645, y, _fmt_prem(it.get("prem")), f_rowb, _GOLD, "r")
@@ -203,14 +232,15 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes
 _M_W, _M_ROWH, _M_TOP, _M_SECH, _M_L, _M_R = 560, 34, 90, 30, 20, 540
 
 
-def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
+def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                   title="Watchlist", section="WATCHLIST", show_dte=False) -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
     def s(v):
         return int(v * _SS)
 
-    sections = [("BULL WATCHLIST", bull, _BULL), ("BEAR WATCHLIST", bear, _BEAR)]
+    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
     body_h = sum(_M_SECH + max(1, len(rows)) * _M_ROWH for _, rows, _ in sections)
     H = _M_TOP + body_h + 44
     img = Image.new("RGB", (s(_M_W), s(H)), _BG)
@@ -226,7 +256,7 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
     _logo(Image, img, 20, 16, 40)
     hx = 70
     hx += txt(hx, 20, "UCT Intelligence", f_title, _GOLD) + 8
-    txt(hx, 25, "· Watchlist", f_title, _GOLD_DIM)
+    txt(hx, 25, "· " + title, f_title, _GOLD_DIM)
     txt(70, 48, date_text, f_sub, _DIM)
     d.rectangle([s(20), s(_M_TOP - 14), s(_M_W - 20), s(_M_TOP - 14) + 1], fill=_DIV)
 
@@ -245,7 +275,10 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
                 cx += chip(cx, y + 8, fl, f_chip, _ER_FG if fl == "ER" else _BULL,
                            _ER_BG if fl == "ER" else _HV_BG) + 4
             cx += 6
-            cx += txt(cx, y + 8, it.get("exp") or "", f_det, _DIM) + 6
+            _exp = it.get("exp") or ""
+            if show_dte and it.get("dte") is not None:
+                _exp = f"{_exp} · {_num(it, 'dte')}d"
+            cx += txt(cx, y + 8, _exp, f_det, _DIM) + 6
             cx += txt(cx, y + 8, _strike(it.get("strike")), f_det, _TXT) + 5
             cx += txt(cx, y + 8, cp, f_detb, _BULL if cp == "C" else _BEAR) + 12
             v = _num(it, "vol"); o = _num(it, "oi")
@@ -269,11 +302,18 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
 
 
 # ── public entry ────────────────────────────────────────────────────────────
-def render_watchlist_card(bull, bear, date_text, mobile: bool = False) -> bytes:
+def render_watchlist_card(bull, bear, date_text, mobile: bool = False,
+                          title: str = "Watchlist", section: str = "WATCHLIST",
+                          net: dict = None, show_dte: bool = False) -> bytes:
     """Render one PNG (Bull section + Bear section). mobile=True → narrow one-line
-    layout; else the wide desktop table. Rows sorted by premium descending."""
+    layout; else the wide desktop table. Rows sorted by premium descending. `title`
+    fills the header ("· <title>") and `section` the row-group labels ("BULL <section>");
+    `net` ({bull, bear} whole-day premium) draws the net-flow bar; `show_dte` appends
+    "· <N>d" to each EXP — so the same renderer serves the Watchlist and Top Flow cards."""
     from PIL import Image, ImageDraw, ImageFont
     bull, bear = _by_premium(bull), _by_premium(bear)
     if mobile:
-        return _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text)
-    return _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text)
+        return _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                              title, section, show_dte)
+    return _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                           title, section, net, show_dte)

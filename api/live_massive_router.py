@@ -4177,6 +4177,158 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     }
 
 
+# ── Cream of the Crop — the day's highest-conviction aggregate builds ────────
+# A curation-free EOD list: rank the AGGREGATE tiers (Alpha LEAPS / Alpha Gold /
+# Ask Accumulation) by the session ask premium the tiers grade on, one row per NAME
+# (its biggest qualifying build), split Bull/Bear. Filters (owner-approved 2026-09-05):
+# single names only (no index options), NO weekly expiries, has-SWEEP (not a
+# block-only spread leg), and FRESH positioning (agg ask V/OI > min_voi; a fresh
+# OI=0 strike passes). Fixes the EOD blind spots the Top Flow card (single prints)
+# and the hand-curated Watchlist both had. Read-only preview here; the Discord card
+# + schedule live in api/cream_card.py (flag-gated, preview-only until armed).
+_CREAM_INDEX_TICKERS = {"SPX", "SPXW", "NDX", "NDXP", "RUT", "VIX", "XSP", "XSPX"}
+_CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
+_cream_cache: dict = {}
+_cream_lock = threading.Lock()
+
+
+def _cream_contract_meta(today: str) -> dict:
+    """Per-contract flags from flow.db for the day: (is_weekly, has_sweep), keyed by
+    (Symbol, CallPut, Strike, ExpirationDate). ONE grouped query, not per-contract."""
+    meta = {}
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    try:
+        for r in conn.execute(
+            "SELECT Symbol, CallPut, Strike, ExpirationDate, "
+            "MAX(CASE WHEN CAST(Weekly AS TEXT)='T' THEN 1 ELSE 0 END), "
+            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "         THEN 1 ELSE 0 END) "
+            "FROM flow WHERE source='stocks' AND CreatedDate=? "
+            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (today,)):
+            meta[(r[0], r[1], str(r[2]), r[3])] = (bool(r[4]), bool(r[5]))
+    finally:
+        conn.close()
+    return meta
+
+
+def _cream_meta_key(a: dict):
+    st = a.get("strike")
+    try:
+        sk = str(int(st)) if float(st).is_integer() else str(st)
+    except (TypeError, ValueError):
+        sk = str(st)
+    return (a.get("ticker"), "CALL" if a.get("cp") == "C" else "PUT", sk, a.get("exp"))
+
+
+def compute_cream(today: str, top_n=None, min_voi=None,
+                  exclude_weekly=None, exclude_block_only=None) -> dict:
+    """Build the Cream of the Crop for `today` (concrete M/D/YYYY). Returns
+    {date, bull:[...], bear:[...], params} with items in the watchlist_card format
+    (sym, exp, strike, cp, prem, vol, oi, voi, grade). Knobs default from env
+    (CREAM_TOP_N / CREAM_MIN_VOI / CREAM_EXCLUDE_WEEKLY / CREAM_EXCLUDE_BLOCK_ONLY)."""
+    top_n = int(os.getenv("CREAM_TOP_N", "12")) if top_n is None else int(top_n)
+    min_voi = float(os.getenv("CREAM_MIN_VOI", "1.0")) if min_voi is None else float(min_voi)
+    excl_wk = (os.getenv("CREAM_EXCLUDE_WEEKLY", "1") == "1") if exclude_weekly is None else bool(exclude_weekly)
+    excl_bo = (os.getenv("CREAM_EXCLUDE_BLOCK_ONLY", "1") == "1") if exclude_block_only is None else bool(exclude_block_only)
+
+    meta = _cream_contract_meta(today)
+    # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
+    # "latest N" window, which crowds the rare aggregate tiers out (measured 9/4: 5
+    # alpha_leaps vs 61 with a per-tier scan); the tier-scoped fetch is tier-aware
+    # and returns the whole day's rows for that tier.
+    best: dict = {}
+    seen_ids = set()
+    for _tier in _CREAM_TIERS:
+        alerts, _ = _compute_recent_core(today, 100000, "F", "premium", _tier, False)
+        for a in alerts:
+            if a.get("id") in seen_ids:
+                continue
+            seen_ids.add(a.get("id"))
+            if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
+                continue
+            d = a.get("_direction")
+            if d not in ("Bull", "Bear"):
+                continue
+            wk, swp = meta.get(_cream_meta_key(a), (False, True))
+            if excl_wk and wk:
+                continue
+            if excl_bo and not swp:
+                continue
+            oi = a.get("priorOI") or 0
+            av = a.get("aggAskVolume") or 0
+            fresh = (oi <= 0 and av > 0)
+            if not fresh and (oi <= 0 or (av / oi) <= min_voi):
+                continue
+            agg = a.get("aggAskPremium") or a.get("alertPremium") or 0
+            tk = a.get("ticker")
+            cur = best.get(tk)
+            if cur is None or agg > cur["_agg"]:
+                best[tk] = {
+                    "sym": tk, "cp": a.get("cp"), "strike": a.get("strike"),
+                    "exp": a.get("exp"), "prem": float(agg), "vol": int(av),
+                    "oi": int(oi) if oi else 0,
+                    "voi": (None if fresh else round(av / oi, 1)),
+                    "grade": (a.get("grade") or "").replace(" \U0001F680", ""),
+                    "dte": a.get("dte"), "tier": a.get("_tierKey"),
+                    "_dir": d, "_agg": float(agg),
+                }
+    rows = list(best.values())
+    bull = sorted([r for r in rows if r["_dir"] == "Bull"], key=lambda r: -r["_agg"])[:top_n]
+    bear = sorted([r for r in rows if r["_dir"] == "Bear"], key=lambda r: -r["_agg"])[:top_n]
+    # Whole-day directional premium for the net-flow bar (the market read, same
+    # number the old Top Flow card showed) — NOT the sum of just these contracts.
+    try:
+        _ds = _build_day_stats(today)
+        net = {"bull": _ds.get("bull_premium", 0.0), "bear": _ds.get("bear_premium", 0.0)}
+    except Exception:
+        net = None
+    return {"date": today, "bull": bull, "bear": bear, "net": net,
+            "params": {"top_n": top_n, "min_voi": min_voi,
+                       "exclude_weekly": excl_wk, "exclude_block_only": excl_bo}}
+
+
+@router.get("/cream")
+def cream_preview(target_date: str = Query(default=None)):
+    """Read-only Cream of the Crop preview (JSON). The day's highest-conviction
+    aggregate builds, filtered + ranked — no Discord post. See compute_cream."""
+    today = _resolve_date(target_date)
+    ttl = 60 if today == _today_mdyyyy() else _HISTORICAL_TTL
+    return _cached_single_flight(_cream_cache, today, _cream_lock, ttl,
+                                 lambda: compute_cream(today))
+
+
+@router.post("/cream/post")
+def cream_post(target_date: str = Query(default=None),
+               post: bool = Query(default=True, description="false = dry-run (render only, no Discord)"),
+               _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card and (post=true) push it to the
+    configured webhook — which falls back to the Alpha-Gold-EOD / LiveFlow ADMIN
+    webhook, never a public channel. `post=false` = dry-run (render + summary only).
+    force=True is implied so a manual trigger always renders even on an empty day."""
+    from api.cream_card import run_cream_eod
+    return run_cream_eod(target_date=target_date, force=True, post=post)
+
+
+@router.get("/cream/image")
+def cream_image(target_date: str = Query(default=None),
+                mobile: bool = Query(default=False),
+                _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card as a PNG for eyeballing in the
+    browser BEFORE it ever posts to Discord. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.watchlist_card import render_watchlist_card
+    today = _resolve_date(target_date)
+    data = compute_cream(today)
+    try:
+        dt = datetime.strptime(today, "%m/%d/%Y").strftime("%B %d, %Y").replace(" 0", " ")
+    except Exception:
+        dt = today
+    png = render_watchlist_card(data["bull"], data["bear"], dt, mobile=mobile,
+                                title="Top Flow", section="FLOW",
+                                net=data.get("net"), show_dte=True)
+    return Response(content=png, media_type="image/png")
+
+
 @router.get("/by-contract")
 def by_contract(
     target_date: str = Query(default=None),

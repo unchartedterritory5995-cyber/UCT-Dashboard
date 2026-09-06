@@ -590,6 +590,14 @@ def test_ask_accum_curated_survives_hide_block_only():
                                 contract_types={}) is False
 
 
+def test_cream_meta_key():
+    # (ticker, CALL/PUT, strike normalized to int-text when whole, exp)
+    assert m._cream_meta_key({"ticker": "IREN", "cp": "C", "strike": 65.0,
+                              "exp": "3/19/2027"}) == ("IREN", "CALL", "65", "3/19/2027")
+    assert m._cream_meta_key({"ticker": "SPY", "cp": "P", "strike": 47.5,
+                              "exp": "1/1/2027"}) == ("SPY", "PUT", "47.5", "1/1/2027")
+
+
 def test_alpha_leaps_auto_push_own_toggle():
     # Alpha LEAPS auto-push now has its OWN toggle (was riding alpha_gold). Grade B
     # so the grade_a path can't confound the tier gate.
