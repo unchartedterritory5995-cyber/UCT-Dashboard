@@ -2776,3 +2776,104 @@ Engulfing, Bearish Engulfing canonical adapters), zero cross-contamination,
 8G-B observation cadence uninterrupted throughout. Tuesday 2026-09-08 RTH
 remains the key `screener_live_tier` live-acceptance window (Monday 9/7 is
 Labor Day).
+
+---
+
+## BULL FLAG CANONICAL ADAPTER — PACKAGE 8H (2026-09-06)
+
+Worktree `uct-dashboard-bull-flag`, branch `feat/canonical-bull-flag`, base
+`origin/master@d7b53b339`. Owner steering preference (non-binding) named Bull
+Flag next; readiness check confirmed it cleanly ready and proceed-worthy.
+
+**Readiness check findings:** NO competing base_catalog engine (only
+`HIGH_TIGHT_FLAG` exists for "flag"; re-confirmed via grep against BOTH
+standing two-engines regression rails — zero hits for `bull_flag`/`bull-flag`
+in either). NO event concept, NO per-family freshness gate (same absence
+shape as HTF — staleness is structurally bounded by re-scan aging past
+`bull_flag._MAX_FLAG_BARS`, not a stored age field). HAS separable
+`_dcr_score_adjustment`/`_can_slim_score_adjustment` AND matching
+`_trend_stage_description`/`_ma_alignment_phrase`/`_rs_trend_phrase` —
+identical signatures to HTF/PEG's own, so (unlike both Engulfing families)
+Bull Flag DOES support real strengths/weaknesses explanation sections.
+
+**Geometry — pre-existing, disclosed completeness gap, NOT fixed:** only the
+4 flag-channel anchors are emitted (`upper_line.p1/p2`, `lower_line.p1/p2`);
+the pole segment is never anchored — this is the exact finding HTF's own
+adapter comment already names as being "about bull_flag specifically."
+Adapter labels the 4 real anchors honestly (`flag_upper_start/end`,
+`flag_lower_start/end`, subtype `flag_channel`) — no fabrication, no detector
+change.
+
+**⛔⛔ INDEPENDENTLY-PROVEN CORRECTNESS DEFECT FOUND, STOPPED ON, REPORTED
+SEPARATELY, NOT FIXED HERE (per this package's own scope gate):**
+`bull_flag.py`'s flag-channel anchors carry BAR-INDEX integers in their `t`
+field, not unix-second bar timestamps — violating `types.py`'s own contract
+(`Bar.t`/`Pivot.t`/geometry `Anchor.t`: `int  # unix seconds, bar start`),
+which HTF and PEG both correctly honor (their anchors build from
+`int(bars[idx]["t"])`). Root cause: `bull_flag._try_extract_pattern`'s own
+inline `upper_pivots`/`lower_pivots` (NOT built via the shared `detect_pivots`
+primitive HTF/PEG use) set `"t": pole_top_idx + 1 + i` — a bar index — and
+`trendlines.fit_trendline` passes it straight through with no index-to-
+timestamp translation; `_build_detection` copies it into `geometry.anchors[]`
+unmodified. Verified empirically against a real fixture
+(`boundary_max_retrace`): `bars[0].t`/`bars[-1].t` ≈ 1.7e9 (real unix
+seconds) while the flag anchors' `.t` were `31`/`37` — small bar-index
+integers, nine orders of magnitude off. A future chart consumer plotting
+these anchors against real bar timestamps would place the flag-channel
+drawing at a wildly wrong x-position. Entirely upstream of anything Package
+8H's own code touches (neither `canonical_adapter.py` nor
+`explanation_builder.py` reads/interprets `anchors[].t` at all) — pinned by a
+dedicated named test (`test_bull_flag_flag_channel_anchor_t_is_a_bar_index_KNOWN_DEFECT_NOT_FIXED_HERE`)
+rather than silently tolerated. **`bull_flag.py` is NOT edited by this
+package.** Owner adjudication needed on whether/when to authorize a separate
+fix.
+
+**Implementation:** `canonical_adapter.py` gained `_BULL_FLAG_ANCHOR_ROLES`/
+`_BULL_FLAG_SEMANTIC_SUBTYPE` + `adapt_bull_flag()` (HTF's minimal shape:
+eligibility + anchor labeling only; `event`/`criteria`/`gate_trace` absent).
+`explanation_builder.py` gained bull_flag as a third in-scope family:
+`_bull_flag_why_it_matched_facts` (reads `pole_pct`/`retrace_pct`/`flag_bars`/
+`parallel_score` off `geometry.extras`), `_FAMILY_CONTEXT_FNS` entry (real
+strengths/weaknesses — a genuine departure from Engulfing precedent),
+`_FAMILY_PHRASE_FNS` entry. Zero persistence/schema/scanner-wiring change.
+Zero production authority activated.
+
+**Collateral fix (expected consequence of this package, not an unrelated
+regression):** `test_detail_response.py::test_out_of_scope_family_returns_base_fields_with_empty_explanation`
+used bull_flag as its "genuinely out of scope" fixture — now stale since
+bull_flag IS in scope. Swapped to `double_bottom` (still genuinely unadapted),
+preserving the test's original intent.
+
+**Tests:** mirrors HTF's own shape (parity, event/criteria/gate_trace-absent,
+eligibility incl. outside-window, non-mutation, anchor-role order, scanner-
+summary honesty, why-matched facts, warnings) PLUS: an anchors-don't-collapse-
+onto-one-point proof (real fixtures, not synthetic) and the dedicated defect-
+pinning test above. Reused the existing 16-fixture `tests/fixtures/bull_flag/`
+battery — no new fixtures needed.
+
+**Regression:** `test_canonical_adapter.py` + `test_explanation_builder.py` +
+`test_bull_flag.py` (detector): 369 passed. Full `tests/pattern_engine/`
+suite: 2737 passed, 9 xfailed — same pre-existing xfails as every prior pass.
+`test_two_engines_do_not_agree.py`/`test_no_second_authority_across_axes.py`:
+31 passed, 1 failed (`test_the_shipped_thresholds_have_not_moved` — the SAME
+pre-existing Phase 3A Trend-Template drift confirmed unrelated earlier this
+session during the VCP phase; `git status` on this worktree shows zero touches
+to `base_catalog.py` or any Trend-Template file).
+
+**Verdict: BULL FLAG CANONICAL ADAPTATION COMPLETE LOCALLY — READY FOR OWNER
+REVIEW**, with one independently-discovered, separately-reported, NOT-fixed
+correctness defect in `bull_flag.py`'s own geometry construction awaiting
+owner adjudication (fix authorization, timing, and scope are the owner's
+call — this package deliberately did not touch the detector).
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package.
+Committed locally at `5a629be54`, never pushed.
+
+Eight packages now frozen on identical hold discipline (scan-completeness,
+PEG-geometry, pattern-join docs, 8G-C admin-proof, VCP adjudication, Bullish
+Engulfing, Bearish Engulfing, Bull Flag canonical adapters), zero
+cross-contamination, 8G-B observation cadence uninterrupted throughout.
+Tuesday 2026-09-08 RTH remains the key `screener_live_tier` live-acceptance
+window (Monday 9/7 is Labor Day). Do NOT proceed to another family without
+fresh owner authorization; the bar-index anchor-timestamp defect in
+`bull_flag.py` is a separate, standing item awaiting owner adjudication.
