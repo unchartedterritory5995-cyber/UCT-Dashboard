@@ -1,0 +1,94 @@
+{
+  "id": "visual_fixture/level1_single_line_own_pane",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "tools/chart_parity_cases.json#ast_user_formula_sma20",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": null
+    },
+    "visual_requirements": {
+      "status": "SUPPORTED",
+      "plot_count": 1,
+      "needs": []
+    },
+    "chart_render": {
+      "status": "HARNESS_DEFECT",
+      "reason": "FontNotSettledError, reproducible and deterministic in this session's environment. NOT a font-route-missing issue -- that was checked directly (curl to the exact woff2 URL returns 200 from the bare vite dev server) and disproven, not assumed. Root cause is UNDIAGNOSED; do not re-attribute this to a guessed cause without re-testing it.",
+      "raw_error": "FontNotSettledError: 31 of 239 canvas text operation(s) ran before their font was loaded \u2014 first at 469ms \u2014 and it persisted across 2 reload(s). Families: {'Instrument Sans Tab': 31}. lightweight-charts bakes whichever font resolves AT DRAW TIME into the axis canvas and never repaints it, so this capture carries fallback glyphs or a fallback-derived baseline: it is settled, and it is not comparable to any recorded `expect`. The family is SELF-HOSTED and PRELOADED from this origin (app/index.html @font-face -> /fonts/*.woff2, app/public/fonts, mounted in api/main.py), so this is a REGRESSION to find, not a network hiccup to retry: check the /fonts route still exists and serves the woff2 rather than the SPA catch-all's index.html, and that the preload link still names the face the axis draws in. --font-retries N reloads instead of refusing, for debugging a machine \u2014 it is not a fix. url=http://localhost:5232/r/chart?sym=PARITY&tf=D&w=1200&h=620&fixedbars=ramp200&indicators=eyJiYWNrZ3JvdW5kIjoiIzBlMGYwZCIsImJnTW9kZSI6InNvbGlkIiwiY2FuZGxlQ29sb3JNb2RlIjoibmV0Y2hhbmdlIiwiY2FuZGxlcyI6eyJkb3duQm9yZGVyIjoiI2M0MWYyZCIsImRvd25Db2xvciI6IiNjNDFmMmQiLCJkb3duV2ljayI6IiNjNDFmMmQiLCJ0aGluQmFycyI6dHJ1ZSwidXBCb3JkZXIiOiIjMWFlNTFhIiwidXBDb2xvciI6IiMxYWU1MWEiLCJ1cFdpY2siOiIjMWFlNTFhIn0sImNoYXJ0VHlwZSI6ImNhbmRsZXMiLCJjb21wYXJpc29uU3ltYm9scyI6W10sImNyb3NzaGFpciI6eyJjb2xvciI6IiM3MDZiNWUiLCJtYWduZXQiOmZhbHNlLCJzdHlsZSI6MSwid2lkdGgiOjF9LCJncmlkIjp7ImNvbG9yIjoicmdiYSg0Niw0OSwzOSwwLjI1KSIsInZpc2libGUiOnRydWV9LCJoZWlraW5Bc2hpIjpmYWxzZSwibG9nU2NhbGUiOmZhbHNlLCJtYXJrZXJzIjp7ImRpdmlkZW5kcyI6ZmFsc2UsImVhcm5pbmdzIjpmYWxzZSwibmV3cyI6ZmFsc2UsInNwbGl0cyI6ZmFsc2V9LCJvdmVybGF5cyI6W10sInBlcmNlbnRTY2FsZSI6ZmFsc2UsInNob3dQYXR0ZXJucyI6ZmFsc2UsInNpZ25hdHVyZSI6eyJkYXJrUG9vbExldmVscyI6ZmFsc2UsImZsb3dTaWduYWxzIjpmYWxzZSwiZ2V4V2FsbHMiOmZhbHNlfSwic3dpbmdMYWJlbHMiOnsiZW5hYmxlZCI6ZmFsc2V9LCJ0ZXh0Q29sb3IiOiIjNzA2YjVlIiwidGV4dFNpemUiOjExLCJ2b2x1bWUiOnsiYmFyU3R5bGUiOiJjb2x1bW5zIiwiZG93bkNvbG9yIjoiI2M0MWYyZCIsImh2Y0VuYWJsZWQiOnRydWUsImxhYmVsVmlzaWJsZSI6dHJ1ZSwibWFQZXJpb2QiOjUwLCJwYW5lSGVpZ2h0UGN0IjoyMiwic2VwYXJhdGVQYW5lIjp0cnVlLCJ1cENvbG9yIjoiIzFhZTUxYSIsInZpc2libGUiOnRydWV9LCJ3YXRlcm1hcmsiOnsidmlzaWJsZSI6ZmFsc2V9fQ&userdefs=W3siY29tcHV0ZSI6eyJhc3QiOnsiYXJncyI6W3sibmFtZSI6ImNsb3NlIiwidHlwZSI6InNlcmllcyJ9LHsidHlwZSI6Im51bSIsInZhbHVlIjoyMH1dLCJuYW1lIjoic21hIiwidHlwZSI6ImNhbGwifSwiZm4iOiJzaGEyNTY6NWU3ZWVlMGExOTAyNzliZGUzM2FkZDM2YjRjNjE5NTc5MTliZDFmNjFiNTNkZTg1NWY2YmI5YmE1Yzc0OTE4NiIsImtpbmQiOiJhc3QiLCJyZXYiOjEsInNvdXJjZSI6InNtYShjbG9zZSwgMjApIn0sImlkIjoidV81ZWE3YzBkZTEyMzQiLCJpbnB1dHMiOlt7ImRlZmF1bHQiOiIjYzlhODRjIiwia2V5IjoiY29sb3IiLCJsYWJlbCI6IkNvbG9yIiwidHlwZSI6ImNvbG9yIn0seyJkZWZhdWx0IjoxLCJrZXkiOiJsaW5lV2lkdGgiLCJsYWJlbCI6IkxpbmUgd2lkdGgiLCJtYXgiOjQsIm1pbiI6MSwic3RlcCI6MSwidHlwZSI6ImludCJ9XSwibWV0YSI6eyJjYXRlZ29yeSI6IkN1c3RvbSIsImRlc2NyaXB0aW9uIjoidGhlIDIwLWJhciBhdmVyYWdlIG9mIGNsb3NlIiwibmFtZSI6IlNNQSAyMCIsInJlcGFpbnQiOiJub24tcmVwYWludGluZyIsInNob3J0TmFtZSI6IlNNQSAyMCIsInRhZ3MiOlsiY3VzdG9tIl0sInRpZXIiOiJwcmVtaXVtIn0sInBsYWNlbWVudCI6eyJwYW5lIjp7ImhlaWdodCI6MC4xNX0sInRhcmdldCI6InBhbmUifSwicGxvdHMiOlt7ImNvbG9yIjoiJGNvbG9yIiwia2V5IjoidmFsdWUiLCJsYWJlbCI6IlNNQSAyMCIsInJvbGUiOiJwcmltYXJ5Iiwic3R5bGUiOiJsaW5lIiwid2lkdGgiOiIkbGluZVdpZHRoIn1dLCJzY2hlbWFWZXJzaW9uIjoxLCJ2ZXJzaW9uIjoxfV0&bars=200&priceline=0&token=UcFgoOFP2RI9vy_n1WNNaZYmu61QD0YC",
+      "prior_committed_evidence": {
+        "expect_px": 140925,
+        "expect_regions": {
+          "export_header": 0,
+          "price_plot": 28719,
+          "mid_panes": 61883,
+          "osc_strip": 50323,
+          "time_axis": 0
+        },
+        "provenance": "chart_parity.py --base-a http://localhost:5231 --same-build --repeat 5 --include-placeholders --cases ast_user_formula_sma20 on build 9b7a6dfc8d8a (dev, engine source: present) -- 140925 px, 5/5 runs, zero variance, exit 0. Fail-proof: --perturb-b-instances '{\"color\": \"#ff00ff\", \"lineWidth\": 4}' -> 141551, 5/5, zero variance (+626, all of it in osc_strip)."
+      }
+    },
+    "persistence_save": {
+      "status": "PARTIAL",
+      "note": "not exercised by this case; a save/reopen fixture is a later level"
+    },
+    "persistence_reload": {
+      "status": "PARTIAL",
+      "note": "not exercised by this case; a save/reopen fixture is a later level"
+    },
+    "screener_eligibility": {
+      "status": "PARTIAL",
+      "eligible": false,
+      "reason": "sma yields num; not itself screener-eligible without a comparison"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "harness_defect"
+  ],
+  "final_classification": "HARNESS_DEFECT",
+  "evidence_artifact_paths": [
+    "tools/chart_parity_cases.json#ast_user_formula_sma20"
+  ],
+  "harness_version": "compat-harness-v1"
+}
