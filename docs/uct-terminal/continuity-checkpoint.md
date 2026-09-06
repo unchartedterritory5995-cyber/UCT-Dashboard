@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-Portfolio
-Intelligence V1, post-Whole-Product Convergence Review).
+**Last verified:** 2026-09-05/06, against live git + Railway state (post-Universal
+Ticker Actions Convergence V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -32,10 +32,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `da91a07d0760c96e6f4ad8621f61feaa2caea2fe`
-  (Portfolio Intelligence V1 merge `c1c206838` is an ancestor; drift since then is
-  unrelated concurrent work — Live Massive / Notebook migration — no overlap
-  with anything in this file).
+- **origin/master (last verified):** `dee56d7def0a38235921e3a7bb01395f095102c9`
+  (Universal Ticker Actions Convergence V1 merge — this file's own update is a
+  docs-only branch cut from this SHA; drift since then is unrelated concurrent
+  work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -67,11 +67,34 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `watchlist_intelligence.get_intelligence_for_symbols()` verbatim over
   Journal 2.0's held-position symbols (`PortfolioAttentionBanner.jsx` on
   OpenPositionsTab). Also closed Research/Ask AI/Compare dead ends on
-  TickerPopup + PositionsTable row click-through. Explicitly NOT done:
-  PositionDetailPage/TradeDetailPage/TradeDrawer navigation wiring (that gap
-  is exactly what the next authorized program, below, closes), the
+  TickerPopup + PositionsTable row click-through. Explicitly NOT done at the
+  time: PositionDetailPage/TradeDetailPage/TradeDrawer navigation wiring (that
+  gap was closed by Universal Ticker Actions Convergence V1, below), the
   `position_id` sentinel/join defect, portfolio_heat.py/get_risk_dashboard UI
   surfacing, any symbol-normalization fix.
+- **Universal Ticker Actions Convergence V1** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `dee56d7de`, deployed + production-verified 2026-09-05/06. Added a
+  "Compare" action (reusing `TickerPopup.jsx`'s `goToCompare` + inline
+  `SymbolSearch "+Compare"` pattern, same canonical
+  `/research/:sym/compare/:comparator` route) to `TickerActions.jsx` (the
+  universal right-click/long-press menu) and independently to
+  `mobile/TickerHubSheet.jsx` (confirmed NOT delegating to
+  `useTickerActions`, so it needed its own copy). Wired Full Research / Ask AI
+  / Compare navigation into the three Journal 2.0 detail surfaces that had
+  zero of the three: `PositionDetailPage.jsx` (inline action row),
+  `TradeDetailPage.jsx` (new `TradeResearchMenu` overflow trigger in the CTA
+  row), and `TradeDrawer.jsx` (new `TradeResearchTrigger` in the header
+  icon-button row, matching that file's all-inline-style convention). Zero
+  backend changes. `TickerPopup.jsx` preserved untouched as the reference
+  implementation. Both READY-WITH-CONDITIONS items from the readiness audit
+  were resolved as bounded implementation details, not blockers: TickerHubSheet
+  got its own local inline Compare-picker code (not factored into a shared
+  hook — an acceptable one-time duplication per the authorization), and
+  TradeDetailPage got the single compact overflow trigger rather than three
+  more inline buttons. Explicitly NOT done: the `position_id` sentinel/join
+  defect, `HistorySection.jsx` click-through, `PortfolioAttentionBanner.jsx`
+  card click-through, Seam 1/Seam 2 fixes below, any multi-security AI work —
+  all remain open, unauthorized candidates for a future program.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -123,44 +146,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Universal Ticker Actions Convergence V1** — NOT YET AUTHORIZED FOR
-  IMPLEMENTATION (Phase A + a dedicated implementation-readiness audit both
-  complete as of the 2026-09-05/06 Whole-Product Convergence Review;
-  classification returned to the owner was **READY WITH CONDITIONS**, not
-  outright READY — two named conditions below). Worktree used for the review:
-  `C:\Users\Patrick\uct-worktrees\terminal-convergence-review` (detached HEAD,
-  no implementation branch cut yet).
-  - **Part A:** add a "Compare" action to `app/src/components/TickerActions.jsx`
-    (the universal right-click/long-press ticker menu, mounted on 11+ surfaces)
-    and to `app/src/components/mobile/TickerHubSheet.jsx` (its touch
-    equivalent — confirmed NOT at the path a prior brief guessed, and confirmed
-    to NOT delegate to `useTickerActions`, so both files need the edit
-    independently). Reuse the exact `goToCompare` + inline `SymbolSearch
-    "+Compare"` pattern already live in `TickerPopup.jsx`
-    (lines ~84-91, ~230-248) — same canonical `/research/:sym/compare/:comparator`
-    route, no new picker component.
-  - **Part B:** wire Full Research / Ask AI / Compare navigation into three
-    Journal 2.0 detail surfaces confirmed to have zero of the three today:
-    `app/src/pages/journal-2-0/components/position/PositionDetailPage.jsx`,
-    `.../components/trade/TradeDetailPage.jsx`, and
-    `app/src/pages/journal-2-0/components/TradeDrawer.jsx` (confirmed at this
-    path, NOT under `components/trade/` as a prior brief guessed). Zero backend
-    changes required anywhere in Part A or B — pure frontend navigation reuse
-    of already-live routes.
-  - **Conditions to resolve during implementation, not blockers:** (1)
-    TickerHubSheet has no existing secondary-input mechanism of its own — needs
-    the same small inline-picker code TickerActions.jsx needs, written a second
-    time (or factored into one tiny shared piece); (2) TradeDetailPage's CTA
-    row already holds 3-4 elements — recommend ONE overflow trigger for
-    Research/Ask AI/Compare rather than 3 more inline buttons.
-  - **Explicitly OUT of V1:** the `j2_trades.position_id` sentinel/join defect
-    (separate, larger data-integrity item), `HistorySection.jsx` click-through
-    to individual closed trades, `PortfolioAttentionBanner.jsx` card
-    click-through (a natural v1.1, not required), any symbol-normalization fix
-    (Seam 1, below — V1 uses whatever symbol string each page already holds,
-    unchanged), any multi-security AI work.
-  - Update this section's status (implementation branch / merged / deployed)
-    once the owner authorizes proceeding past the readiness audit.
+- **None.** Universal Ticker Actions Convergence V1 (the prior active program)
+  is now ACCEPTED + LIVE — see "CURRENT ACCEPTED" above. Per the owner's
+  explicit closing instruction on that program's authorization, no candidate
+  #2 or other Terminal program has been automatically begun. The next Terminal
+  program requires a new, explicit owner authorization. Do not infer one from
+  the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below — those are
+  candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06)
 
@@ -225,14 +217,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 4. Check whether a genuinely newer NVDA filing has landed (S7 Stage 2) —
    `GET /api/alerts/taxonomy/fires` for the production predicate, or the
    `alert_fires` table directly.
-5. Check `git log`/`git worktree list` for the current state of any
-   implementation branch for Universal Ticker Actions Convergence V1 before
-   resuming — none existed as of this checkpoint (Phase A + readiness audit
-   only); this file will lag actual branch state between refreshes.
+5. Universal Ticker Actions Convergence V1 is ACCEPTED + LIVE (merge
+   `dee56d7de`) as of this checkpoint — do not re-implement it or treat it as
+   pending; confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
-   Comparison V1, Entry-Point Convergence, or the Whole-Product Convergence
-   Review from scratch — their findings above are current as of this
-   checkpoint; verify against live code only where something here looks stale.
-7. Universal Ticker Actions Convergence V1 has NOT been authorized past its
-   readiness audit as of this checkpoint — do not begin implementation without
-   confirming the owner has since said to proceed.
+   Comparison V1, Entry-Point Convergence, Universal Ticker Actions
+   Convergence, or the Whole-Product Convergence Review from scratch — their
+   findings above are current as of this checkpoint; verify against live code
+   only where something here looks stale.
+7. **No Terminal program is currently authorized.** Do not begin
+   implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
+   without a new, explicit owner authorization naming that program.
