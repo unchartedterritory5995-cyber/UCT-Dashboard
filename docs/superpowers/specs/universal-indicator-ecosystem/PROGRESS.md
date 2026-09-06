@@ -291,6 +291,33 @@ re-checked per owner request and left unactioned, per the explicit "without reop
 instruction. **Per the explicit stop condition: the next Lane A batch was NOT started (rma, hma, macd,
 stoch, adx-family, wma remain candidates for a future, separately-authorized tranche).**
 
+**2026-09-06 (same day, follow-up) — SMA/EMA review ACCEPTED (EMA's INITIALIZATION CANDIDATE-VERIFIED
+label explicitly NOT upgraded, per direct instruction); Vendor Parity Tranche 2, Lane A, third batch
+(RMA + WMA) COMPLETE.** Owner authorized exactly `rma`/`wma`, bounded, treating RMA's initialization as
+first-class given it propagates into rsi/atr/adx-family. Captured the SAME 2,031-bar SPY Daily window
+(2018-08-07..2026-09-04) used for SMA/EMA. **WMA → VENDOR-PARITY VERIFIED — MULTI-BAR**, zero
+seed-convergence-lag exclusion, max delta exactly 0 (the tightest result of any function verified so
+far) — confirmed structurally to be memoryless, like SMA. **RMA → VENDOR-PARITY VERIFIED —
+STEADY-STATE, MULTI-BAR + INITIALIZATION CANDIDATE-VERIFIED**, explicitly held to the SAME
+non-upgraded standard set for EMA: the seed-convergence-lag boundary (bar 130 of 2,031) reuses the
+existing general divergence row; the wrong-seed-passes-steady-state-alone finding was independently
+reconfirmed on RMA's own data (0/1,881 disagreements); the real initialization proof is a separate
+check on the 137 excluded early bars, where UCT's real SMA-of-window seed beat a wrong first-value-seed
+alternative on 137/137 (100%) real vendor bars. This is the FIRST standalone real-vendor confirmation
+of the `_smooth_col` primitive underlying rsi/atr/adx-family (previously only inferred through those
+composites or a spec-level probe) and DIRECTLY EXPLAINS a previously-unexamined asymmetry: RMA
+converges faster (bar 130) than the RSI/ATR composites built on it (bar ~169-172) because those
+composites compound two independent RMA seed errors while a standalone rma carries only one. **No
+RSI/ATR evidence was invalidated, downgraded, or re-captured — this batch corroborates it.** Mutation
+controls: RMA wrong-alpha (EMA-style `2/(n+1)`) flips 1,880/1,881 steady-state bars; WMA
+reversed-weight and wrong-denominator each flip 100%; 4×2 vendor-source-refusal controls pass. Full
+evidence: `VENDOR_PARITY_TRANCHE_2_LANE_A_RMA_WMA_REPORT.md`; permanent regression:
+`tests/test_vendor_parity_rma_wma.py` (18 tests, including the intentionally-passing wrong-seed
+control). `RISK_REGISTER.md` RISK-035, `VALIDATION_COVERAGE_MAP.md`, `PHASE_TWO_PLAN.md` §2 updated.
+The previously-logged clipboard-collision hazard did not recur this batch. **Per the explicit stop
+condition: HMA, MACD, Stoch, and the ADX-family were NOT begun — all remain candidates for a future,
+separately-authorized tranche.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
