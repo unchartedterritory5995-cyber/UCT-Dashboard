@@ -356,6 +356,40 @@ logged clipboard-collision hazard did not recur this batch; the separate-tool-ca
 the first attempt with no retry needed. **Per the explicit stop condition: Stoch and the ADX-family were
 NOT begun — both remain candidates for a future, separately-authorized tranche.**
 
+**2026-09-06 (same day, follow-up) — HMA/MACD review ACCEPTED; Public Script Compatibility Layer C
+Real-Import Checkpoint 02 COMPLETE.** Owner authorized re-inserting the previously-authorized Public
+Script + Complex Visual Indicator Compatibility Harness, specifically its still-open Layer C real-
+import gap: every prior Layer C session (Checkpoint 01, RISK-030) had only ever tested whether a real
+public script compiles/renders on the real TradingView VENDOR, never whether it actually imports
+through UCT's OWN product path. This session set up an isolated local UCT backend+frontend (imports
+the repo-root `conftest.py` before `api.main` so its `SHARED_DATA_ENV_PINS` redirect sandboxes every
+`/data/*` path away from real `C:\data`; the write tripwire stayed armed the whole session and never
+fired) and pasted 8 real public Pine scripts (from the already-provenanced `pine_community/` corpus,
+covering all 8 requested categories) through the real `Indicators → New formula → Import` door.
+**Headline finding: a plain Pine boolean `input()` referenced directly inside a conditional
+(`boolInput ? x : na` or bare `boolInput and ...`) makes UCT's own readback fail with "the read-back
+cannot name a value the table does not declare," reproduced independently on 4 distinct variable names
+across 4 distinct scripts** — zeroing out BOTH of Support Resistance Channels' and BOTH of Minervini
+Trend Template's only offered columns. **Methodologically important second finding**: Minervini Trend
+Template is `SUPPORTED` in this program's own existing static Layer A corpus benchmark, yet its real
+import path yields zero working outputs — direct evidence the coarse static label can overclaim
+relative to the real member experience. Also newly confirmed clean (no confound): `array.get`/arrays
+are independently UNSUPPORTED (Daily/Weekly/Monthly Highs & Lows, a total correct refusal, closing
+Checkpoint 01's own disclosed "untested" question); ZigZag++'s external-library-import refusal message
+is clear and well-written in the real product UI; Pine `input()` adjustability DOES sometimes carry
+through automatically (CM Williams Vix Fix's lookback period), contradicting the earlier "never carries
+over" assumption from Golden Journey #1. Built one first-party complex visual stress fixture live
+through the Formula tab (nested `macd`/`ema` reuse, an independent second plot, a zero-line guide,
+per-plot adjustable styling) and carried it through a REAL save→close→reopen (via the actual pencil-icon
+edit door)→re-tune→save→full-page-reload cycle, confirmed via direct backend reads at every step
+(`version` 1→2 on the SAME `def_id`). Re-confirmed the numeric-vs-boolean screener gate on a
+freshly-authored formula (`scannable:false` vs `scannable:true`). Filed RISK-037; full evidence in
+`PUBLIC_SCRIPT_LAYER_C_REAL_IMPORT_CHECKPOINT_02.md`. **Discovery/validation only, per explicit
+instruction — no remediation performed, no product code changed.** Isolated backend/frontend stopped
+by direct PID kill at session end; TradingView was not used this session (its state from the prior
+vendor-parity tranche is unchanged). **Per the explicit stop condition: Stoch, the ADX-family, and any
+remediation of the findings above were NOT begun.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
