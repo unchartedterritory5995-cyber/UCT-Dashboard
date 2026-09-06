@@ -3880,7 +3880,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # `lookback_days` trading days present in the data (default 1 = today).
     # Same-strike/same-exp repeats across days are the strongest accumulation
     # signal — someone building a position with conviction.
-    lookback_days = max(1, min(int(lookback_days or 1), 31))   # range picker: up to 31 (was 5)
+    # The market-wide rollup caps the window at 31 days (heavy: up to ~100k rows
+    # through _row_to_alert). A single-ticker scan (only_ticker) is only a few
+    # hundred rows even across all history, so it may look back much further — the
+    # /flow Discord command asks for "all".
+    _lb_cap = 400 if only_ticker else 31
+    lookback_days = max(1, min(int(lookback_days or 1), _lb_cap))   # range picker: up to 31 (was 5); up to 400 for a single ticker
     if lookback_days <= 1:
         target_dates = [today]
     else:
@@ -4328,6 +4333,91 @@ def cream_image(target_date: str = Query(default=None),
                                 net=data.get("net"), show_dte=True,
                                 sec_labels=("Bulls", "Bears"))
     return Response(content=png, media_type="image/png")
+
+
+# ── Single-ticker flow summary (powers the Discord /flow command) ────────────
+_ticker_flow_cache: dict = {}
+_TICKER_FLOW_TTL = 60
+
+
+@router.get("/ticker-flow")
+def ticker_flow(
+    symbol: str = Query(..., description="Underlying ticker, e.g. DPRO."),
+    days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
+    source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
+    top_n: int = Query(default=15, ge=1, le=40, description="Max contracts returned in the table (net uses ALL qualifying contracts)."),
+):
+    """Single-ticker options-flow summary over the last N trading days (or 'all'):
+    the ticker's net bull/bear premium + direction, plus its top contracts by
+    premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
+    math is identical to the site's Search tab. Uncapped per ticker (small-caps'
+    low-premium prints are kept). Cached 60s. Powers the Discord /flow command."""
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {"ok": False, "error": "no symbol"}
+    today = _today_mdyyyy()
+    d = str(days or "1").strip().lower()
+    if d in ("all", "0", "max"):
+        lookback, days_label = 400, "all"
+    else:
+        try:
+            lookback = max(1, int(float(d)))
+        except ValueError:
+            lookback = 1
+        days_label = str(lookback)
+    se = "etfs" if source == "etfs" else "stocks"
+    key = (sym, lookback, se, int(top_n))
+    now = time.time()
+    cached = _ticker_flow_cache.get(key)
+    if cached and (now - cached[0]) < _TICKER_FLOW_TTL:
+        return cached[1]
+
+    payload = _build_by_contract(today, se, 1, True, lookback, only_ticker=sym)
+    contracts = payload.get("contracts", [])
+    bull = sum((c.get("bull_premium") or 0) for c in contracts)
+    bear = sum((c.get("bear_premium") or 0) for c in contracts)
+    net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
+    top = sorted(contracts, key=lambda c: -(c.get("total_premium") or 0))[:int(top_n)]
+    spot = next((c.get("spot") for c in contracts if c.get("spot")), None)
+    # Window span from the contracts' active dates.
+    _dates = set()
+    for c in contracts:
+        for dh in (c.get("day_hits") or []):
+            if dh.get("date"):
+                _dates.add(dh["date"])
+    ds = sorted(_dates, key=_parse_mdy)
+    # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
+    slim = [{
+        "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
+        "exp": c.get("exp"), "dte": c.get("dte"),
+        "premium": c.get("total_premium"), "volume": c.get("total_volume"),
+        "oi": c.get("max_oi"), "voi": c.get("cum_voi"),
+        "direction": c.get("direction"),
+        "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
+        "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
+        "days_active": c.get("days_active"),
+    } for c in top]
+    result = {
+        "ok": True, "symbol": sym, "source": se, "spot": spot,
+        "net": {"bull": round(bull), "bear": round(bear), "dir": net_dir},
+        "window": {"start": ds[0] if ds else None, "end": ds[-1] if ds else None,
+                   "active_days": len(ds), "days_requested": days_label},
+        "contract_count": len(contracts), "contracts": slim, "query_date": today,
+    }
+    _ticker_flow_cache[key] = (now, result)
+    return result
+
+
+@router.get("/ticker-flow/image")
+def ticker_flow_image(symbol: str = Query(...), days: str = Query(default="1"),
+                      source: str = Query(default="stocks"),
+                      _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the single-ticker flow card as a PNG for eyeballing before the
+    Discord /flow command posts it. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.flow_ticker_card import render_ticker_flow_card
+    data = ticker_flow(symbol=symbol, days=days, source=source)
+    return Response(content=render_ticker_flow_card(data), media_type="image/png")
 
 
 @router.get("/by-contract")
