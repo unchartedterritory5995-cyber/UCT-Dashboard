@@ -2011,3 +2011,45 @@ session also passes without a usable slow-trace sample, the final report
 will honestly classify this as **C6 — CONTENTION ATTRIBUTION STILL
 INSUFFICIENT** rather than force a classification the evidence doesn't
 support.
+
+## OWNER SCHEDULE CORRECTION — Monday 2026-09-07 is Labor Day, market CLOSED — primary `screener_live_tier` window re-targeted to TUESDAY 2026-09-08
+
+**Owner-issued correction, confirmed independently beforehand via actual
+`date -u` day-of-week arithmetic (not memory):** Monday, September 7, 2026
+is Labor Day. U.S. equity markets are closed. Consequently:
+
+- `screener_live_tier` will NOT run a genuine RTH cycle on Monday — it is
+  gated on session state and simply stays in its skip branch all day, as
+  designed.
+- **Monday's absence of a `screener_live_tier` cycle is NOT evidence
+  against C1** (or any other hypothesis) — it is the correct, expected
+  behavior of the RTH gate on a market holiday, not a data point.
+- No manual trigger or RTH-gate bypass is authorized to force a cycle on
+  Monday. None was attempted.
+- **The first genuine next market-hours `screener_live_tier` observation
+  window is TUESDAY, SEPTEMBER 8, 2026 — NORMAL MARKET HOURS.** This is
+  now the primary remaining target for a scanner-traffic correlation
+  sample.
+
+**Tonight's completed 02:00–05:10 ET nightly writer window stands exactly
+as recorded above** — four confirmed natural writers, all completed
+cleanly, zero scanner-traffic correlation samples, no redeploy during any
+final check. Nothing in this correction revises that record.
+
+**Monday is being treated as a holiday/control day** — natural
+scheduled/background jobs (if any fire on a market holiday) are still
+worth observing passively, but no `screener_live_tier` RTH-gated activity
+is expected and none should be manufactured or forced.
+
+**Diagnostic preservation through Tuesday, per explicit owner direction:**
+the current instrumentation (`contention_trace_temp.py` + its 3 wiring
+call sites + its test file) stays live and untouched through Tuesday's
+session unless one of exactly three conditions occurs: (1) it causes a
+genuine production problem, (2) an unrelated deployment removes it
+incidentally, or (3) sufficient evidence from another writer resolves the
+C1–C6 question before Tuesday. None of these has occurred.
+
+**Standing constraints reaffirmed, unchanged:** no implementation changes,
+no manufactured traffic, no credential search/construction, `PATTERN_
+CANONICAL_SCANNER_PILOT_ENABLED` remains OFF/unset, 8G-C remains HOLD.
+Continuing the relaxed observation cadence toward Tuesday's open.
