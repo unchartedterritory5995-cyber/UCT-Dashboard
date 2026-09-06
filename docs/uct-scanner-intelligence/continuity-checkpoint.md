@@ -3124,3 +3124,114 @@ packages now frozen total. 8G-B observation cadence uninterrupted throughout
 — no diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH
 remains the next real evidence window. Pennant remains the one standing,
 un-opened candidate package awaiting fresh owner authorization.
+
+---
+
+## PENNANT ANCHOR TIMESTAMP CORRECTNESS — THIRD PACKAGE, OWNER-AUTHORIZED
+
+Worktree `uct-dashboard-pennant-ts-fix`, branch `fix/pennant-anchor-timestamps`,
+fresh base `origin/master@4efb085c3`, committed `c68a57886`. Explicitly
+authorized as the closing package in this defect-class series (owner's own
+"no further defect-class expansion" instruction) unless something is found
+incidentally.
+
+**Owner's central warning — do not assume Pennant is flag-shaped — was
+correct to raise and independently checked, not just acknowledged.** Read
+`pennant.py` in full (837 lines) before touching anything. Confirmed
+Pennant's geometry genuinely differs from Bull Flag / Bear Flag in three real
+ways: (1) a CONVERGING channel (upper slopes down, lower slopes up, width
+ratio < 0.60), not a parallel one; (2) fitted in LOG-PRICE space
+(`_LOG_SPACE=True`) via `fit_trendline(..., log_space=True)`, not arithmetic
+— re-read `trendlines.py`'s `_fit_arithmetic` to confirm the log-space branch
+only exponentiates `price` back on `p1`/`p2`, never touches `t`, so the same
+translation-safety proof holds regardless of space; (3) an extra projected
+**apex** (`geometry.intersect_at(upper_line, lower_line)` → `apex_bars_ahead`,
+a bars-ahead COUNT gated to `1–30`, reported in `geometry.extras` — required
+for the pattern to fire at all). None of those three differences touch the
+defect: the apex is a separate, already-correct computation, never written
+into an `Anchor.t`.
+
+**The defect itself is byte-identical in shape to Bull Flag / Bear Flag,
+independently re-derived from this file's own code, not assumed:**
+`_fit_pennant_lines` (used by both the bullish and bearish extraction paths)
+builds its own inline `upper_pivots`/`lower_pivots` with `"t": start_idx + i`
+— an absolute bar index — instead of using the shared `detect_pivots()`
+primitive (which IS used correctly elsewhere in this same file, line 76, for
+the pole-top/pole-bottom pivot search). `fit_trendline` copies that straight
+through into `p1["t"]`/`p2["t"]`, and `_build_detection` copied it directly
+into `geometry.anchors[].t`, unmodified. `pivot_ts`/`start_t`/`end_t` were
+independently re-checked and were ALREADY correct (built from
+`bars[idx]["t"]` / a real pivot's own `.t`) — the defect is confined to the
+same 4 trendline-pair anchors as both flag families.
+
+**Empirical reproduction** (`detect_pennant` against all 5 real positive
+fixtures, before the fix): every anchor's `.t` was a small integer (e.g. `30`,
+`36`) matching the pennant's own bar-index span, not a unix timestamp —
+`upper_start`/`lower_start` both equal the pennant's start bar index,
+`upper_end`/`lower_end` both equal the last bar's index.
+
+**Fix**: identical pattern to both flag families — a narrow
+`_anchor_bar_t(bars, pivot_t) -> int: return int(bars[int(pivot_t)]["t"])`
+helper, and the 4 anchor-construction lines in `_build_detection` changed
+from `int(c["upper_line"]["p1"]["t"])` to
+`_anchor_bar_t(bars, c["upper_line"]["p1"]["t"])` (×4). The internal
+bar-index/log-price regression fit is untouched.
+
+**Semantics-invariance proof — a cleaner within-worktree method than either
+prior package**: loaded the pre-fix `pennant.py` under an isolated module
+name via `git show HEAD:...` + `importlib`, ran it against all 15 fixtures
+(positive/negative/edge — 14 total fired detections across both directions),
+and diffed every field of every resulting Detection against the post-fix
+version. Result: **zero drift in any field except `geometry.anchors[].t`**,
+which changed from a bar index to a real unix timestamp on every anchor,
+every fixture. Confidence, scores, levels, narrative, extras — byte-identical.
+
+**Companion-defect checks** (price-coordinate sanity, upper>lower at both
+ends, anchors don't collapse, `apex_bars_ahead` stays a bars-ahead count and
+was never touched): all held across all 14 fired detections, no new defect
+found.
+
+**Production reach**: re-confirmed identical to both flag families —
+`pennant` is `register()`-ed and imported unconditionally in
+`api/routers/patterns.py` alongside `bull_flag`/`bear_flag`, swept by the
+same unconditional daily/hourly scan jobs → `detect_all()` →
+`memory.store_detection()`. Compass tools (`coach_chat_tools.py`) and
+`PatternOverlay.jsx`/`TrendlinePair.jsx` have no pennant-specific branch —
+same generic `geometry.anchors`/`shape: "trendline_pair"` path, same
+non-rendering failure mode as both flag families, same dead-toggle
+reconciliation already recorded above (nothing pennant-specific changes
+that reconciliation — it was never about a specific pattern family).
+
+**Tests added** (`test_pennant_anchor_timestamps.py`, 11 tests): mirrors the
+flag families' shape (anchor-by-anchor real-timestamp proof with independent
+oracle, anchors-don't-collapse, price-coordinate + upper>lower sanity,
+structural scores-first signature check — Pennant's own `_build_detection`
+carries an extra `direction` param the flag families don't, since one
+detector emits both directions — real SQLite round-trip, non-mutation of
+`bars`) plus two Pennant-specific additions: both-directions fixture
+coverage, and a guard that `apex_bars_ahead` stays a bars-ahead count (never
+becomes an `Anchor.t`).
+
+**Regression**: targeted (50 passed). Full `tests/pattern_engine/`: 2649
+passed, 9 xfailed (same pre-existing xfails as every prior package this
+session). Two-engines rail re-run standalone: 23 passed, 1 failed — the same
+pre-existing `test_the_shipped_thresholds_have_not_moved` drift, confirmed
+unrelated (`git status` shows zero touches to `base_catalog.py` or any
+Trend-Template file in this worktree either).
+
+**No further defect-class expansion performed** — per the owner's own
+closing instruction, no repo-wide reconnaissance was re-run past Pennant.
+Nothing found incidentally beyond what the earlier Bull Flag package's
+read-only audit already reported (bull_flag, bear_flag, pennant — the three
+files that audit named, now all three fixed).
+
+**Verdict: PENNANT ANCHOR TIMESTAMP DEFECT CONFIRMED AND FIXED LOCALLY —
+READY FOR OWNER REVIEW.**
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package.
+Eleven packages now frozen total (pending this one's acceptance). 8G-B
+observation cadence uninterrupted throughout — no diagnostic touched, no
+load manufactured; Tuesday 2026-09-08 RTH remains the next real evidence
+window. Per the owner's own Section 16, this closes the known
+anchor-timestamp defect-class series unless something new turns up
+incidentally.
