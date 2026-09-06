@@ -79,7 +79,7 @@
 **Stage A does NOT require:** Ask Notebook (corpus-wide), encryption at rest, version history, universal snapshot semantics beyond the entity/temporal work above, or any collaboration feature.
 
 **Entry criteria:** all items above shipped, real-E2E verified (see implementation plan gates).
-**Exit criteria / evidence:** Stage-A benchmark tasks (§6) pass in real usage with the beachhead persona; see the implementation plan's Beta Member-Validation Plan.
+**Exit criteria / evidence:** Stage-A benchmark tasks (§9) pass in real usage with the beachhead persona; see the implementation plan's Beta Member-Validation Plan.
 
 ### 4.2 Stage B — Financial Research System of Record
 
@@ -105,7 +105,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 - The professional-analyst/PM persona question (§3) resolved with real usage/signup-source data — only then does further investment toward that persona make sense.
 - Ask Notebook + UCT (the legal-gated Experiment, §8) either shipped (if the external rights review has resolved) or explicitly still deferred.
 
-**Evidence required (not marketing language):** the Master Benchmark Suite (§6) passing for real members, not synthetic testers; retention/return-usage data showing the beachhead persona's research genuinely accumulates in UCT over months; first-30-minutes and first-7-days churn signals (implementation plan §Analytics) trending in the right direction for each incoming persona segment.
+**Evidence required (not marketing language):** the Master Benchmark Suite (§9) passing for real members, not synthetic testers; retention/return-usage data showing the beachhead persona's research genuinely accumulates in UCT over months; first-30-minutes and first-7-days churn signals (implementation plan §Analytics) trending in the right direction for each incoming persona segment.
 
 ---
 
@@ -128,7 +128,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Non-goals | Version history (separate P1 item), bulk-restore UI polish |
 | Dependencies | None |
 | Success metric | Zero support tickets of the shape "I deleted a note and can't get it back," measured over 30 days post-ship |
-| Benchmark task | "Recover deleted work" (§6) |
+| Benchmark task | "Recover deleted work" (§9) |
 | Failure conditions | A restored note loses embeds/attachments/tags; the purge sweep fires before the stated retention window |
 
 ### P0-2 — Folder-sidebar correctness fix + search-latency verification
@@ -148,7 +148,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Non-goals | Full sidebar virtualization/redesign |
 | Dependencies | None |
 | Success metric | Zero folders showing a note count that disagrees with a direct query, at any library size tested |
-| Benchmark task | "Find months-old research," "work at scale" (§6) |
+| Benchmark task | "Find months-old research," "work at scale" (§9) |
 | Failure conditions | Fix regresses sidebar load latency; count still drifts at very large folder sizes |
 
 *(The search read-latency item is a verification task, not a build item — benchmark FTS5 at 5k/20k/100k platform-wide rows before any further search investment is justified by "already proven at scale." No product-facing acceptance criteria; this is due diligence gating Stage-B search work.)*
@@ -170,7 +170,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Non-goals | A general knowledge graph; multi-hop traversal beyond one-hop ticker/theme joins |
 | Dependencies | None |
 | Success metric | A note mentioning NVDA only in prose (no embed) appears in NVDA's reverse-index; `$BRK-B` resolves correctly |
-| Benchmark task | "Find all notes on a theme," "screener → saved research" (partially) (§6) |
+| Benchmark task | "Find all notes on a theme," "screener → saved research" (partially) (§9) |
 | Failure conditions | False-positive rate rises for fundamental-analyst vocabulary (untested register — ROIC/EBIT/FCF/WACC/CAGR); the sector/earnings join makes an unbounded per-ticker external call |
 
 ⚰️ **The "~75% already shipped" line above is SUPERSEDED — implementation-time code verification (2026-09-05, Wave 1 Slice 2) found it materially wrong, not just imprecise.** Preserved above as the historical research-time claim; do not delete it, and do not re-derive a "remaining gap" from it.
@@ -201,7 +201,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Non-goals | The revision-count indicator UI (real, valuable, genuinely new UI/data concept — defer to a fast-follow once the capture path exists) |
 | Dependencies | None for the capture path itself; the append-only fact ledger (shared with Ask Notebook, P1) is needed for the revision-indicator fast-follow, not for this item |
 | Success metric | A member can embed analyst estimates into a note and reopen it a month later showing the value as captured, not the current value |
-| Benchmark task | "Save a filing excerpt with provenance" (adjacent), "determine what changed since thesis creation" (§6) |
+| Benchmark task | "Save a filing excerpt with provenance" (adjacent), "determine what changed since thesis creation" (§9) |
 | Failure conditions | The frozen payload silently re-fetches (repeating the Calendar-embed bug class below); no "as of" stamp shown |
 
 *(Bundled into this item: fix the Calendar embed's `reconstructable: true` unconditional re-fetch — correct for backward-looking review, wrong for a pre-earnings note reopened after the event resolves, currently live and unflagged. Small, scoped: gate on whether the captured date is in the future relative to capture time.)*
@@ -223,7 +223,7 @@ This corrects and sharpens, without reversing, the Phase One/Two finding that "f
 | Non-goals | Cross-note retrieval (Ask Notebook, P1); citations across multiple notes |
 | Dependencies | None |
 | Success metric | A member asks "what did I think about NVDA's margins" on an open note and gets an answer citing only that note's actual content, zero fabricated facts, measured via the same grounding-audit pattern used elsewhere |
-| Benchmark task | "Ask Current Note with grounded citations" (§6) |
+| Benchmark task | "Ask Current Note with grounded citations" (§9) |
 | Failure conditions | Any fabricated fact not present in the note; answer references content from a different note |
 
 **Architectural constraint on this and every future AI item (Constitution §2 item 7):** must not become a second, disconnected AI chat surface — integrate with or explicitly reconcile against Compass's existing tool registry.
