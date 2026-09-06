@@ -21,7 +21,7 @@ import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2PositionsAttention from '../../hooks/useJ2PositionsAttention'
 import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
-import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
+import { money, moneySigned, percent, withResearchReturnParam } from '../../../../lib/journal-2-0'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import AboutSection from './AboutSection'
@@ -193,9 +193,14 @@ export default function PositionDetailPage() {
   // TickerPopup's goToResearch/goToAskAi/goToCompare use (~TickerPopup.jsx:84-91).
   // This page already shows much of what /research/:sym shows; these are
   // deliberate deep links to that canonical page, not new information.
-  const goToResearch = () => navigate(`/research/${sym}`)
-  const goToAskAi = () => navigate(`/research/${sym}?section=ai`)
-  const goToCompare = (comparator) => navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`)
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): tag the outbound
+  // navigation with where it came from so ResearchPage.jsx can render a way
+  // back other than browser Back.
+  const goToResearch = () => navigate(withResearchReturnParam(`/research/${sym}`, 'position', sym))
+  const goToAskAi = () => navigate(withResearchReturnParam(`/research/${sym}?section=ai`, 'position', sym))
+  const goToCompare = (comparator) => navigate(
+    withResearchReturnParam(`/research/${sym}/compare/${comparator.toUpperCase()}`, 'position', sym),
+  )
 
   if (!sym) {
     return (

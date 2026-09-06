@@ -20,7 +20,7 @@ import LinkedNotesPanel from './notebook/LinkedNotesPanel'
 import UIcon from '../../../components/ui/UIcon'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
-import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, rMultiple as fmtR, dateShort, withResearchReturnParam } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
 import { useJournalToast, JournalToast } from '../lib/useJournalToast'
 
@@ -50,7 +50,7 @@ const _menuItemStyle = {
  * TickerPopup's goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91);
  * Compare reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
  */
-function TradeResearchTrigger({ symbol }) {
+function TradeResearchTrigger({ symbol, tradeId }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
@@ -67,9 +67,22 @@ function TradeResearchTrigger({ symbol }) {
   if (!symbol) return null
 
   const close = () => { setOpen(false); setShowCompare(false) }
-  const goToResearch = () => { navigate(`/research/${symbol}`); close() }
-  const goToAskAi = () => { navigate(`/research/${symbol}?section=ai`); close() }
-  const goToCompare = (comparator) => { navigate(`/research/${symbol}/compare/${comparator.toUpperCase()}`); close() }
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): `trade:{id}` always
+  // resolves to the canonical /journal-2-0/trade/{id} detail page on the way
+  // back -- the drawer itself has no route of its own to reopen, but that page
+  // shows the same trade regardless of whether it was opened via drawer or page.
+  const goToResearch = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}`, 'trade', tradeId)); close()
+  }
+  const goToAskAi = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}?section=ai`, 'trade', tradeId)); close()
+  }
+  const goToCompare = (comparator) => {
+    navigate(withResearchReturnParam(
+      `/research/${symbol}/compare/${comparator.toUpperCase()}`, 'trade', tradeId,
+    ))
+    close()
+  }
 
   return (
     <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
@@ -240,7 +253,7 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
             >
               <UIcon name="journal" size={16} />
             </button>
-            <TradeResearchTrigger symbol={trade.symbol} />
+            <TradeResearchTrigger symbol={trade.symbol} tradeId={trade.id} />
             <button
               type="button"
               onClick={onClose}

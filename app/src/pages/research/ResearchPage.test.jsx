@@ -149,4 +149,32 @@ describe('ResearchPage', () => {
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     expect(screen.getByRole('button', { name: 'Ask AI' })).toBeInTheDocument()
   })
+
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a "Back to
+  // Trade/Position" link when arriving via ?from=trade:{id} / position:{sym}.
+  it('renders no return link when no ?from param is present', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByText(/Back to/i)).not.toBeInTheDocument()
+  })
+
+  it('renders a "Back to Trade" link pointing at the trade detail page for ?from=trade:{id}', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?from=trade%3At1' })
+    const link = screen.getByRole('link', { name: /back to trade/i })
+    expect(link).toHaveAttribute('href', '/journal-2-0/trade/t1')
+  })
+
+  it('renders a "Back to {SYM} Position" link pointing at the position detail page for ?from=position:{sym}', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?from=position%3Aaapl' })
+    const link = screen.getByRole('link', { name: /back to aapl position/i })
+    expect(link).toHaveAttribute('href', '/journal-2-0/position/AAPL')
+  })
+
+  it('ignores a malformed ?from param rather than rendering a broken link', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?from=garbage' })
+    expect(screen.queryByText(/Back to/i)).not.toBeInTheDocument()
+  })
 })

@@ -106,27 +106,27 @@ describe('TradeDrawer — Research trigger (Full Research / Ask AI / Compare)', 
     expect(screen.getByRole('button', { name: 'Close drawer' })).toBeInTheDocument()
   })
 
-  it('Full Research navigates to the canonical /research/:sym route and closes the menu', () => {
+  it('Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu', () => {
     render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Full Research' }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA')
+    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA?from=trade%3Astrat_7')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
   })
 
-  it('Ask AI navigates to the same route with ?section=ai', () => {
+  it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
     fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA?section=ai')
+    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA?section=ai&from=trade%3Astrat_7')
   })
 
-  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased)', () => {
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)', () => {
     render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
     fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
+    expect(navigateMock).toHaveBeenCalledWith('/research/NVDA/compare/AMD?from=trade%3Astrat_7')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
   })
 
