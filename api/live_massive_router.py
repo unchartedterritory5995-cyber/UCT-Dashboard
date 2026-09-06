@@ -4343,6 +4343,37 @@ _ticker_flow_cache: dict = {}
 _TICKER_FLOW_TTL = 60
 
 
+def _contract_has_sweep_map(sym: str, dates) -> dict:
+    """Per-contract has-a-sweep flag from RAW flow.db, keyed by (cp_letter,
+    float_strike, exp 'M/D/YYYY'), scoped to `dates`. ⚠️ Read from the raw Type
+    column, NOT the classified `types`: blank-side SWEEPs are frequently dropped by
+    _row_to_alert (verified 2026-09-06 — PPTA 35C 1/15/27 on 9/4: a $680K + $29K
+    sweep beside a $485K block all classified None), so a sweep-backed contract can
+    read as block-only in the aggregate. The raw query sees every sweep."""
+    dates = list(dates or [])
+    if not dates:
+        return {}
+    m: dict = {}
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        ph = ",".join("?" * len(dates))
+        for r in conn.execute(
+            "SELECT CallPut, Strike, ExpirationDate, "
+            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "         THEN 1 ELSE 0 END) "
+            "FROM flow WHERE Symbol=? AND CreatedDate IN (" + ph + ") "
+            "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
+            try:
+                sk = float(r[1])
+            except (TypeError, ValueError):
+                continue
+            cp = "C" if str(r[0]).upper().startswith("C") else "P"
+            m[(cp, sk, str(r[2]).strip())] = bool(r[3])
+    finally:
+        conn.close()
+    return m
+
+
 def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
                          top_n: int = 15) -> dict:
     """Single-ticker options-flow summary over the last N trading days (or 'all'):
@@ -4380,10 +4411,22 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
     # SWEEP/ISO print (aggressive positioning), matching the Top Flow card's block-only
     # filter. Kill switch FLOW_EXCLUDE_BLOCK_ONLY=0. Applied BEFORE net/top so the
     # net-flow bar and the table reflect the same sweep-backed set.
-    if os.getenv("FLOW_EXCLUDE_BLOCK_ONLY", "1") == "1":
-        contracts = [c for c in contracts
-                     if any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
-                            for t in (c.get("types") or []))]
+    if os.getenv("FLOW_EXCLUDE_BLOCK_ONLY", "1") == "1" and contracts:
+        _win_dates = sorted({dh["date"] for c in contracts
+                             for dh in (c.get("day_hits") or []) if dh.get("date")})
+        _sweep = _contract_has_sweep_map(sym, _win_dates)
+
+        def _has_sweep(c):
+            try:
+                k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                     str(c.get("exp") or "").strip())
+            except (TypeError, ValueError):
+                k = None
+            if k is not None and k in _sweep:
+                return _sweep[k]
+            return any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
+                       for t in (c.get("types") or []))   # fallback if raw lookup missed
+        contracts = [c for c in contracts if _has_sweep(c)]
     bull = sum((c.get("bull_premium") or 0) for c in contracts)
     bear = sum((c.get("bear_premium") or 0) for c in contracts)
     net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
