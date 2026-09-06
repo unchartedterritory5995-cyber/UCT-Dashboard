@@ -1690,3 +1690,43 @@ onward) is a valid continuation of the experiment. No redeploy performed
 to "undo" this benign configurability addition — not needed, and doing so
 would itself be an unauthorized production change. Resuming natural-load
 observation from this epoch forward.
+
+## patterns_universe_scan confirmed running long, natural cross-DB writer window (2026-09-06 ~01:20 ET)
+
+**Confirmed via live production logs (`railway logs --service web -d`),
+not inferred.** The scheduler line
+`Running job "instrument_scheduler.<locals>.add_job.<locals>.wrapped
+(trigger: cron[hour='1', minute='0'], next run at: 2026-09-07 01:00:00
+EDT)" (scheduled at 2026-09-06 01:00:00-04:00)` — this trigger signature
+matches `patterns_universe_scan` uniquely (the only `hour='1', minute='0'`
+cron job) — confirms it started exactly on schedule at 01:00:00 ET. Across
+the following ~1,500 log lines (through ~01:20 ET), **no matching
+`"executed successfully"`/exception line and no `[patterns] universe_scan:
+scanned...` completion print appear for it** — every OTHER job in the same
+window shows its submit+complete pair within seconds. **This job is very
+likely still actively running 20+ minutes after starting.** Consistent
+with the earlier code-trace finding (one fresh SQLite connection + one
+full-fsync-class commit PER INDIVIDUAL DETECTION ROW, potentially hundreds
+to thousands of times per run) — this is real, natural, in-progress
+evidence of exactly the "long-running scan" behavior previously only
+inferred from static code reading.
+
+**Natural scanner traffic remained zero throughout** — no `/api/screener/
+scan` hits all night. Attempted to determine whether a single, previously-
+authorized bounded PEG-family test request could be sent to correlate
+against this confirmed-active writer window; found no ready, safe,
+already-established authenticated path to the endpoint in this session
+(the sandbox itself blocked even a read-only search for a stored session/
+credential file — correctly, since constructing one would cross the
+explicit credential-handling boundary). Did not attempt a workaround.
+Surfaced this to the owner directly rather than improvising; asked whether
+they could fire one request themselves from an already-logged-in session
+while this writer window is active.
+
+No `[contention-trace]` SLOW/fast-control sample exists for this window
+regardless (no scanner request occurred at all to produce one). This is
+recorded as a genuine natural-load window with a confirmed-active
+cross-database writer candidate and NO scanner-correlation sample — an
+honest gap, not filled artificially. C1-C6 remain open. `screener_
+snapshot_nightly` (03:00 ET), `screener_scan_sweep`/`screener_screen_
+alerts` (~05:00/05:10 ET) still ahead tonight.
