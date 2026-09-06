@@ -1,0 +1,76 @@
+{
+  "id": "visual_fixture/level3_colormode_placement_boundary",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "app/src/components/chart/builder/compatHarness.level3Fixture.test.js",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "change(close)"
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": 1
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": 1,
+      "needs": [
+        "sign_color"
+      ],
+      "discovery": [
+        "placement is DOCUMENT-level, not per-plot -- a single document cannot mix overlay and own-pane across its own plots",
+        "colorMode is plot-level and schema-validated (validateColorModes) but buildDefinition()'s own row API has no field for it -- only reachable by patching the document directly, not through the current BuilderSheet UI form",
+        "colorMode:\"column:<key>\" is schema-VALID (installs cleanly), consistent with the already-known VALIDATED-BUT-INERT finding -- whether it actually draws requires a live render, not answered here"
+      ]
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "RISK-027 still blocks a live pixel re-run in this session"
+    },
+    "persistence_save": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "persistence_reload": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "screener_eligibility": {
+      "status": "PARTIAL",
+      "eligible": false,
+      "reason": "change(close) yields num"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "chart_placement_mismatch"
+  ],
+  "final_classification": "PARTIAL",
+  "evidence_artifact_paths": [
+    "app/src/components/chart/engine/defSchema.js#validateColorModes"
+  ],
+  "harness_version": "compat-harness-v1"
+}
