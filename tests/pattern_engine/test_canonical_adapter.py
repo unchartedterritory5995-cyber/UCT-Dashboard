@@ -24,11 +24,13 @@ import pytest
 from api.services.pattern_engine import memory
 from api.services.pattern_engine.canonical_adapter import (
     ADAPTER_VERSION,
+    adapt_bull_flag,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
     build_scanner_summary,
     compute_default_eligibility,
 )
+from api.services.pattern_engine.detectors.classical.bull_flag import detect_bull_flag
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import (
     _GAP_FILL_THRESHOLD,
@@ -56,6 +58,7 @@ def _fired_detections(family, detect_fn):
 
 HTF_DETECTIONS = _fired_detections("high_tight_flag", detect_high_tight_flag)
 PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_gap)
+BULL_FLAG_DETECTIONS = _fired_detections("bull_flag", detect_bull_flag)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -205,11 +208,91 @@ def test_peg_adapter_does_not_mutate_its_input():
     assert detection == snapshot
 
 
+# ─── Bull Flag: eligibility-only, event/criteria/gate_trace absent ────────
+# (Package 8H) — same minimal shape as High Tight Flag: no event concept, no
+# per-family freshness gate, no competing base_catalog Structure (verified
+# against both standing two-engines regression rails — see canonical_adapter
+# module docstring).
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_bull_flag(detection)
+    _assert_parity(detection, adapted, {"eligibility"})
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_adapter_omits_event_and_criteria(name, detection):
+    """Bull Flag is a pure price/volume continuation pattern with no event
+    concept and no named public gate constants analogous to PEG's — these
+    keys must be genuinely ABSENT, not null/empty."""
+    adapted = adapt_bull_flag(detection)
+    assert "event" not in adapted
+    assert "criteria" not in adapted
+    assert "gate_trace" not in adapted
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_adapter_eligibility_shape(name, detection):
+    adapted = adapt_bull_flag(detection)
+    elig = adapted["eligibility"]
+    assert elig["eligibility_scope"] == "system_default"
+    assert elig["eligibility_version"] == ADAPTER_VERSION
+    assert elig["active_window_secs"] == memory.ACTIVE_WINDOW_SECS
+    # Bull Flag has no per-family freshness gate — both must be None, not a
+    # fabricated number (its own staleness bound is re-scan aging past
+    # bull_flag._MAX_FLAG_BARS, not a stored age field).
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+    assert any("within active window" in r for r in elig["eligibility_reasons"])
+
+
+def test_bull_flag_adapter_eligible_false_once_outside_active_window():
+    assert BULL_FLAG_DETECTIONS, "need at least one firing bull_flag fixture"
+    _, detection = BULL_FLAG_DETECTIONS[0]
+    stale = dict(detection)
+    stale["detected_at"] = int(time.time()) - memory.ACTIVE_WINDOW_SECS - 3600
+    adapted = adapt_bull_flag(stale)
+    assert adapted["eligibility"]["eligible"] is False
+    assert any("outside active window" in r for r in adapted["eligibility"]["eligibility_reasons"])
+
+
+def test_bull_flag_adapter_does_not_mutate_its_input():
+    assert BULL_FLAG_DETECTIONS
+    _, detection = BULL_FLAG_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_bull_flag(detection)
+    assert detection == snapshot
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_scanner_summary_separates_status_from_eligibility(name, detection):
+    adapted = adapt_bull_flag(detection)
+    summary = build_scanner_summary(adapted)
+    assert summary["status"] == adapted["status"] == "ready"
+    assert summary["scanner_eligible"] is True
+    assert summary["pattern_id"] == adapted["pattern_id"]
+    assert summary["confidence"] == adapted["confidence"]
+    assert summary["primary_reason"] == adapted["narrative"]["headline"]
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_scanner_summary_discloses_absent_sections_honestly(name, detection):
+    adapted = adapt_bull_flag(detection)
+    summary = build_scanner_summary(adapted)
+    assert "no gate-evaluation trace available for this family" in summary["warnings"]
+    assert "no event provenance for this family" in summary["warnings"]
+    assert "event_note" not in summary
+    assert summary["freshness_note"] == "no family-specific freshness gate (shared active window only)"
+
+
 def test_fixture_coverage_is_nonzero():
     """A silent zero-fixture run would make every test above vacuously pass —
     guard against that."""
     assert len(HTF_DETECTIONS) >= 3, "expected several firing HTF fixtures"
     assert len(PEG_DETECTIONS) >= 3, "expected several firing PEG fixtures"
+    assert len(BULL_FLAG_DETECTIONS) >= 3, "expected several firing bull_flag fixtures"
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────
@@ -332,6 +415,96 @@ def test_peg_anchor_roles_match_the_detectors_real_anchor_order(name, detection)
     gap_open_anchor = geometry["anchors"][1]
     gap_close_anchor = geometry["anchors"][2]
     assert gap_open_anchor["t"] == gap_close_anchor["t"]
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    """Re-verifies the exact anchor order bull_flag.py::_build_detection
+    emits (upper_line.p1, upper_line.p2, lower_line.p1, lower_line.p2) —
+    covering ONLY the flag channel, never the pole (a known, disclosed
+    completeness gap in the detector itself — see canonical_adapter's own
+    module docstring, not something this test papers over)."""
+    adapted = adapt_bull_flag(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "flag_channel"
+    assert geometry["anchor_roles"] == [
+        "flag_upper_start", "flag_upper_end", "flag_lower_start", "flag_lower_end",
+    ]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 4
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_anchors_do_not_all_land_on_one_point(name, detection):
+    """The exact 'anchors collapse onto the final bar' class the owner's
+    directive warned against (citing the PEG anchor-timestamp defect):
+    proves — against every real firing fixture, not one hand-authored
+    synthetic case — that this family's 4 flag-channel anchors do NOT all
+    share one x-position. `upper_line`/`lower_line` are each fit from pivots
+    spanning the WHOLE flag (trendlines.py::_fit_arithmetic: p1 = ts[0],
+    p2 = ts[-1]), so the *_start anchors sit at the first flag bar and the
+    *_end anchors at the last — genuinely different positions whenever the
+    flag is more than one bar long, which `bull_flag._MIN_FLAG_BARS=3`
+    guarantees for every real detection. (See the dedicated test below for
+    what unit that x-position is actually IN — it is not what a naive read
+    of this test alone would assume.)"""
+    geometry = adapt_bull_flag(detection)["geometry"]
+    anchors = geometry["anchors"]
+    upper_start, upper_end, lower_start, lower_end = anchors
+    assert upper_start["t"] < upper_end["t"]
+    assert lower_start["t"] < lower_end["t"]
+    assert upper_end["t"] == lower_end["t"]
+    assert upper_start["t"] == lower_start["t"]
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_flag_channel_anchor_t_is_a_bar_index_KNOWN_DEFECT_NOT_FIXED_HERE(name, detection):
+    """⛔⛔ INDEPENDENTLY-PROVEN CORRECTNESS DEFECT, DISCOVERED BY PACKAGE 8H,
+    REPORTED SEPARATELY PER THE OWNER'S OWN GATE — NOT FIXED IN THIS PACKAGE.
+
+    `types.py` defines `Bar.t`/`Pivot.t`/geometry-`Anchor.t` as `int  # unix
+    seconds, bar start` — the contract every OTHER family honors (HTF/PEG
+    both build anchors from `int(bars[idx]["t"])`, a real bar timestamp).
+
+    `bull_flag._try_extract_pattern`'s own `upper_pivots`/`lower_pivots`
+    (built inline, NOT via the shared `detect_pivots` primitive HTF/PEG use)
+    instead set `"t": pole_top_idx + 1 + i` — a BAR INDEX — and
+    `trendlines.fit_trendline`/`_fit_arithmetic` passes that value straight
+    through as `p1["t"]`/`p2["t"]` with no index-to-timestamp translation.
+    `_build_detection` then copies those bar-index values directly into
+    `geometry.anchors[].t`, unmodified.
+
+    Verified empirically against a real fixture (`boundary_max_retrace`):
+    `bars[0].t`/`bars[-1].t` are ~1.7e9 (real unix seconds) while the flag
+    anchors' `.t` values were `31`/`37` — small bar-index integers, off by
+    nine orders of magnitude from what `Bar.t`'s own contract promises. Any
+    future consumer plotting these anchors against real bar timestamps
+    (a chart overlay, an alignment check against `detection["end_t"]`) would
+    place the flag-channel drawing at a wildly wrong x-position.
+
+    This is a defect in `bull_flag.py`'s own geometry construction, entirely
+    upstream of anything `canonical_adapter.py`/`explanation_builder.py`
+    touch — neither module reads or interprets `anchors[].t` at all, so
+    Package 8H's own adaptation is unaffected by it. Per the owner's
+    explicit gate ("detector-geometry correction permitted ONLY upon an
+    independently-proven correctness defect which must be STOPped-on and
+    reported separately, never silently bundled into the adaptation"),
+    `bull_flag.py` is NOT edited here. This test PINS the current (buggy)
+    behavior as a named, visible fact so it cannot regress into something
+    even more silently wrong, and so nobody mistakes silence for "checked
+    and found correct." Delete/invert this test only when a separately
+    authorized fix lands in `bull_flag.py` itself."""
+    geometry = adapt_bull_flag(detection)["geometry"]
+    anchors = geometry["anchors"]
+    upper_start, upper_end = anchors[0], anchors[1]
+    end_t = detection["end_t"]  # a REAL unix-second timestamp (bars[-1]["t"])
+    # The anchor t-values are NOT unix seconds -- they are small bar-index
+    # integers, nowhere near the real timestamp of the bar they claim to sit on.
+    assert upper_end["t"] != end_t
+    assert upper_end["t"] < 10_000, (
+        f"anchor t={upper_end['t']!r} no longer looks like a bar index -- "
+        "if bull_flag.py's geometry construction changed, re-verify this "
+        "finding rather than assuming it still holds."
+    )
 
 
 def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():

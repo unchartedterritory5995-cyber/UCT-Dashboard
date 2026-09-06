@@ -4,9 +4,10 @@ Converts an already-canonical (adapted — see `canonical_adapter.py`)
 `Detection` into an `Explanation`: a deterministic set of structured facts
 answering WHY this detection matched, what currently strengthens or weakens
 it, what stage it's in, and whether the scanner currently considers it
-eligible. Two families only (`high_tight_flag`, `power_earnings_gap`), per
-this package's authorization — every other `pattern_id` gets an Explanation
-with an empty `sections` list, not a crash and not fabricated facts.
+eligible. Three families only (`high_tight_flag`, `power_earnings_gap`, `bull_flag` —
+the last added by Phase 8 Package 8H), per this package's authorization —
+every other `pattern_id` gets an Explanation with an empty `sections` list,
+not a crash and not fabricated facts.
 
 GOVERNING RULES (this package's authorization; directly motivated by a
 historical Phase-4A defect where a narrative layer stated things the
@@ -65,13 +66,14 @@ separately-authorized reachability stage.
 """
 from __future__ import annotations
 
+from api.services.pattern_engine.detectors.classical import bull_flag as _bf
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.types import Detection, Explanation, ExplanationFact
 
 BUILDER_VERSION = "phase8.8e.1"
 
-_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID)
+_IN_SCOPE_FAMILIES = (_htf._PATTERN_ID, _peg._PATTERN_ID, _bf._PATTERN_ID)
 
 
 def build_explanation(detection: Detection) -> Explanation:
@@ -126,6 +128,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _htf_why_it_matched_facts(detection)
     if pid == _peg._PATTERN_ID:
         return _peg_why_it_matched_facts(detection)
+    if pid == _bf._PATTERN_ID:
+        return _bull_flag_why_it_matched_facts(detection)
     return []
 
 
@@ -196,12 +200,54 @@ def _peg_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
     return facts
 
 
+def _bull_flag_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    pole_pct = extras.get("pole_pct")
+    if pole_pct is not None:
+        facts.append(_fact(
+            "bull_flag_pole_advance", "identity", "direct",
+            f"Prior advance: {pole_pct:.1f}% into the pole top "
+            f"(this family's own floor is {_bf._MIN_POLE_PCT * 100:.0f}%).",
+            "geometry.extras.pole_pct", "supports", p,
+        ))
+        p += 1
+
+    retrace_pct = extras.get("retrace_pct")
+    flag_bars = extras.get("flag_bars")
+    if retrace_pct is not None:
+        duration_clause = f" over a {flag_bars}-bar flag" if flag_bars is not None else ""
+        facts.append(_fact(
+            "bull_flag_retrace", "identity", "direct",
+            f"Flag retraced {retrace_pct:.1f}% of the pole{duration_clause} "
+            f"(this family's own band is {_bf._MIN_FLAG_RETRACE * 100:.0f}-"
+            f"{_bf._MAX_FLAG_RETRACE * 100:.0f}%).",
+            "geometry.extras.retrace_pct", "supports", p,
+        ))
+        p += 1
+
+    parallel_score = extras.get("parallel_score")
+    if parallel_score is not None:
+        facts.append(_fact(
+            "bull_flag_channel_parallel", "identity", "direct",
+            f"Flag channel parallel score {parallel_score:.2f} "
+            f"(this family's own floor is {_bf._MIN_PARALLEL_SCORE:.2f}).",
+            "geometry.extras.parallel_score", "supports", p,
+        ))
+        p += 1
+
+    return facts
+
+
 # ─── strengths / weaknesses — DERIVED, by calling the detector's own separable
 #     context-scoring helpers on the Detection's own stored context ─────────
 
 _FAMILY_CONTEXT_FNS = {
     _htf._PATTERN_ID: (_htf._dcr_score_adjustment, _htf._can_slim_score_adjustment),
     _peg._PATTERN_ID: (_peg._dcr_score_adjustment, _peg._can_slim_score_adjustment),
+    _bf._PATTERN_ID: (_bf._dcr_score_adjustment, _bf._can_slim_score_adjustment),
 }
 
 
@@ -274,6 +320,9 @@ _FAMILY_PHRASE_FNS = {
     ),
     _peg._PATTERN_ID: (
         _peg._trend_stage_description, _peg._ma_alignment_phrase, _peg._rs_trend_phrase,
+    ),
+    _bf._PATTERN_ID: (
+        _bf._trend_stage_description, _bf._ma_alignment_phrase, _bf._rs_trend_phrase,
     ),
 }
 
