@@ -74,13 +74,14 @@ from api.services.pattern_engine.detectors.classical import bull_flag as _bf
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
+from api.services.pattern_engine.detectors.uct import vcp as _vcp
 from api.services.pattern_engine.types import Detection, Explanation, ExplanationFact
 
 BUILDER_VERSION = "phase8.8e.1"
 
 _IN_SCOPE_FAMILIES = (
     _htf._PATTERN_ID, _peg._PATTERN_ID, _be._PATTERN_ID, _bre._PATTERN_ID, _bf._PATTERN_ID,
-    _flat_base._PATTERN_ID,
+    _flat_base._PATTERN_ID, _vcp._PATTERN_ID,
 )
 
 
@@ -144,6 +145,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _bull_flag_why_it_matched_facts(detection)
     if pid == _flat_base._PATTERN_ID:
         return _flat_base_why_it_matched_facts(detection)
+    if pid == _vcp._PATTERN_ID:
+        return _vcp_why_it_matched_facts(detection)
     return []
 
 
@@ -411,6 +414,51 @@ def _bull_flag_why_it_matched_facts(detection: Detection) -> list[ExplanationFac
     return facts
 
 
+def _vcp_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """VCP has no `gate_trace` (see `canonical_adapter.adapt_vcp`'s own
+    docstring on why) — these facts instead read `geometry.extras` directly,
+    citing the SAME `contraction_pcts`/`final_contraction_volume_ratio`
+    values the chart's `why-it-matched` evidence and the detector's own
+    narrative both already draw from, against `vcp.py`'s own real threshold
+    constants (never a restated literal)."""
+    extras = detection.get("geometry", {}).get("extras", {})
+    facts: list[ExplanationFact] = []
+    p = 1
+
+    n = extras.get("n_contractions")
+    pcts = extras.get("contraction_pcts")
+    if n is not None and pcts:
+        facts.append(_fact(
+            "vcp_contraction_sequence", "identity", "direct",
+            f"{n} contractions tightening {' -> '.join(f'{x:.1f}%' for x in pcts)} "
+            f"(this family's own floor is {_vcp._MIN_CONTRACTIONS} contractions).",
+            "geometry.extras.contraction_pcts", "supports", p,
+        ))
+        p += 1
+
+        final_pct = pcts[-1]
+        facts.append(_fact(
+            "vcp_final_contraction_tightness", "identity", "direct",
+            f"Final contraction tightened to {final_pct:.1f}% "
+            f"(this family's own ceiling is "
+            f"{_vcp._MAX_FINAL_CONTRACTION_PCT * 100:.0f}%).",
+            "geometry.extras.contraction_pcts", "supports", p,
+        ))
+        p += 1
+
+    vol_ratio = extras.get("final_contraction_volume_ratio")
+    if vol_ratio is not None:
+        facts.append(_fact(
+            "vcp_final_contraction_volume", "identity", "direct",
+            f"Final contraction volume ran {vol_ratio:.0%} of the 50-bar "
+            f"average — lower means more of the prior supply has been absorbed.",
+            "geometry.extras.final_contraction_volume_ratio", "supports", p,
+        ))
+        p += 1
+
+    return facts
+
+
 # ─── strengths / weaknesses — DERIVED, by calling the detector's own separable
 #     context-scoring helpers on the Detection's own stored context ─────────
 
@@ -421,6 +469,7 @@ _FAMILY_CONTEXT_FNS = {
     _flat_base._PATTERN_ID: (
         _flat_base._dcr_score_adjustment, _flat_base._can_slim_score_adjustment,
     ),
+    _vcp._PATTERN_ID: (_vcp._dcr_score_adjustment, _vcp._can_slim_score_adjustment),
 }
 
 
@@ -511,6 +560,9 @@ _FAMILY_PHRASE_FNS = {
     _flat_base._PATTERN_ID: (
         _flat_base._trend_stage_description, _flat_base._ma_alignment_phrase,
         _flat_base._rs_trend_phrase,
+    ),
+    _vcp._PATTERN_ID: (
+        _vcp._trend_stage_description, _vcp._ma_alignment_phrase, _vcp._rs_trend_phrase,
     ),
 }
 

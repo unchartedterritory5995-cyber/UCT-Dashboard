@@ -127,6 +127,7 @@ from api.services.pattern_engine import memory as _memory
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
+from api.services.pattern_engine.detectors.uct import vcp as _vcp
 from api.services.pattern_engine.types import (
     Detection, Eligibility, EventProvenance, GateEvaluation, ScannerSummary,
 )
@@ -242,6 +243,38 @@ _FLAT_BASE_ANCHOR_ROLES = [
     "prior_advance_low", "base_start_high", "base_end_high", "base_end_low",
 ]
 _FLAT_BASE_SEMANTIC_SUBTYPE = "base_and_pivot"
+
+# VCP GEOMETRY SHAPE-CONTRACT PACKAGE (2026-09-06, separate priority-interrupt
+# package -- see continuity checkpoint): `vcp.py::_build_detection` (verified
+# by direct read) emits `anchors = [start_high, low_0, ..., low_{n-1}, pivot]`
+# -- length n_contractions+2, GENUINELY VARIABLE (4 anchors at 2 contractions,
+# 5 at 3, 6 at 4, growing with real contraction count) under the SAME
+# "trendline_pair" shape string HTF/PEG/the 11 classical detectors use with a
+# fixed 4 anchors. That renderer-side mismatch was found, classified, and
+# fixed on its own isolated worktree/branch (`fix/vcp-geometry-shape-contract`,
+# frozen, NOT merged here) -- this package is the SEPARATE, later-authorized
+# canonical-adapter package for the same family, deliberately not touching
+# that frozen renderer fix or vcp.py itself.
+#
+# Phase-7 spec Section 10/23 already prescribes the fix for exactly this
+# mismatch: `anchor_roles = ["contraction_low"] * n + ["pivot"]`. That literal
+# string is one element SHORT of `vcp.py`'s real anchor count (it does not
+# name the leading `start_high` anchor), which would violate the same
+# 1:1-length invariant the spec itself requires (Section 32 item 2) -- so
+# `_vcp_anchor_roles` below completes it with a `"start_high"` role (the
+# exact internal name `vcp.py` already uses for that point) rather than
+# inventing a new naming scheme. Every contraction low shares the identical
+# `"contraction_low"` string (not indexed `_1`/`_2`) -- this is what Phase-7
+# itself specifies, and a renderer wanting which contraction a given low
+# belongs to can still read that off its POSITION in `anchors`, which this
+# adapter never reorders (see `adapt_vcp`'s own docstring on semantic vs.
+# chronological order).
+_VCP_SEMANTIC_SUBTYPE = "contraction_sequence"
+
+
+def _vcp_anchor_roles(n_anchors: int) -> list:
+    n_contractions = n_anchors - 2
+    return ["start_high"] + ["contraction_low"] * n_contractions + ["pivot"]
 
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
@@ -399,6 +432,78 @@ def adapt_flat_base(detection: Detection, *, now: Optional[int] = None) -> Detec
     out["eligibility"] = compute_default_eligibility(detection, now=now)
     out["geometry"] = _with_labeled_geometry(
         detection, _FLAT_BASE_ANCHOR_ROLES, _FLAT_BASE_SEMANTIC_SUBTYPE
+    )
+    return out
+
+
+def adapt_vcp(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """VCP: eligibility + (variable-length) semantic geometry labels.
+
+    Minimal shape, structurally identical to `adapt_high_tight_flag` -- and
+    for the same reason, verified directly rather than assumed: `vcp.py`'s
+    own header STOP comment names `base_catalog.py`'s parallel `vcp`
+    structure as authoritative for WHETHER a structure is present, with
+    "criteria... sourced, gated and carry provenance" living THERE, not in
+    this detector. This detector is authoritative for WHERE TO ENTER one.
+    `event`/`criteria`/`gate_trace` are therefore correctly, deliberately
+    ABSENT here -- not because no candidate gate_trace COULD be partially
+    reconstructed (several of vcp.py's numeric gates -- first/final
+    contraction pct, the 0.85 tightening ratio -- are recomputable from
+    `geometry.extras.contraction_pcts` alone), but because several others
+    genuinely CANNOT be (prior-advance %, the first-vs-final volume-segment
+    ratio, the Trend-Template SMA precondition, and the already-broken check
+    all need raw bar data that does not survive into a persisted Detection).
+    A gate_trace naming only the reconstructable subset would look like a
+    complete "what this candidate had to clear" receipt while silently
+    omitting real gates -- exactly the "arithmetic that doesn't close"
+    failure this program's own `CoverageLine` idiom exists to prevent
+    elsewhere. Given vcp.py's own file already assigns criteria/provenance
+    authority to base_catalog.py, the honest, narrow choice is to build none
+    here at all, matching HTF's own precedent rather than a partial PEG-style
+    one.
+
+    Freshness: `vcp.py._MAX_FINAL_LOW_AGE` (15 bars) is a REAL per-family
+    recency gate -- the final contraction's low must be within the last 15
+    bars, enforced BEFORE a candidate ever becomes a Detection (`detect_vcp`'s
+    own recency-gate `continue`). It is IDENTITY-time evidence (a
+    precondition already satisfied by construction for every Detection this
+    adapter ever sees), not live-recomputable ELIGIBILITY-time freshness
+    metadata: the bar-index positions the gate actually compares
+    (`last_bar_idx`, `final_low_idx`) do not survive into the persisted
+    Detection object (only their TIMESTAMPS do, via `geometry.anchors`, and
+    converting elapsed calendar time back into an elapsed BAR count would
+    need a trading calendar this layer does not have -- exactly the kind of
+    guessed number Explanation Rule 5 forbids). `freshness_bars`/
+    `freshness_window_bars` are therefore both None here, same as HTF -- an
+    honestly-reported absence of RECOMPUTABLE data, not an absence of a real
+    gate. This is deliberately NOT the same claim as base_catalog.py's own,
+    separately-scoped `VCP_MAX_AGE_BARS=60` (a different question -- "is
+    price still in the base" vs. this detector's "is the final contraction
+    low recent" -- already reconciled as a deliberate two-engine split; this
+    package does not reopen it, and this docstring names both numbers only to
+    keep them from ever being silently conflated by a future reader).
+
+    Geometry: `anchors` is passed through completely UNCHANGED (see
+    `_with_labeled_geometry` -- never mutated, never truncated, never forced
+    into a fixed 4-anchor shape) for however many contractions this candidate
+    actually has. `anchor_roles` is generated dynamically per this
+    detection's own real anchor count via `_vcp_anchor_roles` and describes
+    each anchor by its SEMANTIC/CONSTRUCTION-order position (`anchors[0]` is
+    always `start_high`, the last is always `pivot`, matching `vcp.py`'s own
+    construction order) -- it is NOT chronologically resorted here. The
+    already-frozen, separately-authorized renderer fix sorts (anchor, role)
+    PAIRS together by real timestamp at DRAW time, which is the only place
+    chronological order matters; this adapter's semantic order and that
+    renderer's chronological draw order are two intentionally distinct
+    concepts, and conflating them here would make `anchor_roles[i]` describe
+    the wrong anchor the moment `anchors[i]` isn't already time-sorted (which,
+    for VCP's own pivot anchor, it never is).
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    anchors = detection.get("geometry", {}).get("anchors", [])
+    out["geometry"] = _with_labeled_geometry(
+        detection, _vcp_anchor_roles(len(anchors)), _VCP_SEMANTIC_SUBTYPE
     )
     return out
 
