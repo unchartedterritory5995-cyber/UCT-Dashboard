@@ -209,13 +209,31 @@ Each entry: date, who pulled it, and the report's headline numbers. Full
 detail lives in the live endpoint; this is a durable trail so the gate's
 history over time is auditable without re-querying production.
 
-### 2026-09-06 — instrumentation just deployed
+### 2026-09-06 — instrumentation deployed, first real query (deploy `a0119804`)
 
-Report queried immediately after deploy. See the checkpoint response in the
-session transcript / decision log for the exact numbers at this timestamp.
-Expected near-zero across the board — this snapshot exists to confirm the
-report itself computes without error against real production data, not to
-represent any real usage yet.
+Queried via `GET /api/j2/notebook-validation-report` (PUSH_SECRET bearer)
+immediately after the fresh-process uptime reset confirmed rollout.
+
+**Cohort:** 25 total registered users · 17 eligible (non-admin, ≥1
+`j2_accounts` row) · 2 broker-synced eligible · 12 recently active (login
+within 30d) · **2** in the recommended beachhead (active + J2 + broker-synced).
+**Activated (touched Notebook):** 0.
+
+**All Early Signal Gate criteria: FAIL / REQUIRES_OWNER_JUDGMENT** — expected,
+this is the first query immediately post-deploy with zero real usage yet.
+This snapshot exists to confirm the report itself computes correctly against
+real production data (no errors, sane numbers), not to represent any real
+usage.
+
+**Important sizing note, confirmed by this query, not assumed:** the
+"recommended beachhead" (active + J2 + broker-synced) is only **2 people**
+today — too small to ever independently produce `MULTI_USER_MIN=3` evidence
+on its own. This is why the gate criteria in §4 are computed against the
+broader **eligible** population (17, non-admin `j2_accounts` users), not the
+narrow recommended-beachhead number — the beachhead figure is reported for
+sizing context only, never as the gating population. If eligible-pool growth
+stalls, revisit `MULTI_USER_MIN` with the owner rather than silently
+lowering it.
 
 ---
 
