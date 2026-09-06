@@ -2529,3 +2529,81 @@ Four packages now frozen on identical hold, zero cross-contamination,
 8G-B observation cadence uninterrupted throughout this pass.
 
 Continuing the relaxed observation cadence toward Tuesday's open.
+
+---
+
+## VCP FRESHNESS-GATE ADJUDICATION — CLOSED, NO CODE CHANGE (2026-09-06)
+
+**Worktree:** `uct-dashboard-vcp-freshness`, branch `fix/vcp-freshness-gate-adjudication`,
+off `origin/master@d05994e92`, HEAD now `3baadbd21` (tests-only commit).
+
+**Question:** does `pattern_engine/detectors/uct/vcp.py`'s `_MAX_FINAL_LOW_AGE=15`
+disagree with `screener/base_catalog.py`'s `VCP_MAX_AGE_BARS=60` — flagged in the
+prior "NEXT UNBLOCKED SCANNER PACKAGE REVIEW" pass as a genuine, unresolved-looking
+finding structurally similar to the PEG anchor-timestamp bug.
+
+**Verdict: VCP 15/60 VALUES ARE SEMANTICALLY DISTINCT — NO THRESHOLD FIX REQUIRED.**
+
+Four independent, mutually-reinforcing pieces of durable evidence, found by reading
+current code (not by trusting the prior review's flag):
+1. `vcp.py`'s own 2026-08-31 `⛔@@STOP@` comment: the two engines are a pre-existing,
+   owner-ratified, deliberately parallel pair (base_catalog authoritative for WHETHER
+   a structure is present; the engine for WHERE TO ENTER one) — explicitly "NOT a bug
+   to fix blindly." Standing rail: `tests/test_no_second_authority_across_axes.py`.
+2. `base_catalog.py`'s own comment on `VCP_MAX_AGE_BARS=60`: "DELIBERATELY LOOSE,
+   PAIRED WITH A STRUCTURAL TEST" — the real currency test is
+   `floor <= last_close <= top`, not the age count. A tighter 30-bar version
+   regressed by refusing a well-formed 47-bar pattern; already boundary-tested in
+   `tests/pattern_engine/primitives/test_vcp.py`.
+3. `tests/test_two_engines_do_not_agree.py` pins BOTH exact constants together
+   (`MEASURED_AGAINST['vcp']`) as part of a kappa~0.003 (n=1397) independence
+   measurement: "these are not the same rule at different sensitivities. They are
+   different rules."
+4. **The most direct hit** — `api/services/pattern_engine/types.py`'s
+   `Eligibility.freshness_window_bars` field comment names this EXACT pair
+   verbatim ("the rules-engine VCP's 15-bar ceiling vs. base_catalog's 60-bar
+   ceiling for the same pattern name") as the canonical reason the field exists:
+   architecture intent is to keep such mismatches visible, never silently
+   normalize them away.
+
+No `adapt_vcp` canonical adapter exists — the canonical eligibility layer has never
+been invoked for VCP — so there is no ordinary-user-facing impact today; the
+"mismatch" is confined to two pre-existing, already-adjudicated legacy detectors.
+
+**One genuine gap found and closed:** no prior test isolated `_MAX_FINAL_LOW_AGE`
+at its own boundary in isolation. Added
+`tests/pattern_engine/detectors/test_vcp_recency_gate.py` — 5 tests, all passing,
+proving the gate fires at exactly 15 bars and rejects at 16, with a non-vacuity
+control (the enumerator still finds the 16-bar candidate; only the age gate
+discards it) and a source-level proof the two engines' gates read disjoint input
+structures by construction. This is the ONLY change — zero production code.
+
+**Pre-existing, unrelated, NOT fixed (flagged only):**
+`tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved`
+fails on unmodified `phase3c@09e27fec3` too — a Phase 3A (2026-09-02) Trend
+Template constant drift (`_TREND_TEMPLATE_SMA_SHORT`/`_LONG` added to `vcp.py`,
+never added to the test's `MEASURED_AGAINST['vcp']['engine']` pin, because that
+sweep has no VCP_-style prefix filter on the engine side the way base_catalog's
+side does). Confirmed pre-existing via identical failure on the untouched
+`phase3c` worktree. Out of scope for this package (unrelated constant pair, no
+bearing on 15-vs-60); left exactly as found.
+
+**Regression:** focused VCP + two-engines suite 86 passed / 1 pre-existing failure
+(above). Broader `tests/pattern_engine/` full suite: 2621 passed, 9 xfailed
+(documented, pre-existing).
+
+**Frozen, no merge/deploy** — same 3-option gate as the other four packages
+(none has occurred). Prior closed VCP decisions (2026-08-31 boundary ruling,
+Phase 3A Trend Template correction) unchanged and unreopened. VCP remains NOT
+canonically adapted (no `adapt_vcp`) — this closes the freshness question but is
+not itself a readiness step toward canonical adaptation.
+
+**Per owner instruction: remaining-family canonical adaptation may now resume**
+on a future pass (this was the one blocking condition). 8G-B natural-load
+observation continued uninterrupted throughout; Tuesday 2026-09-08 RTH remains
+the key live-acceptance window; pilot OFF, adapt ON, 8G-C activation HOLD.
+
+Five packages now frozen/closed on identical hold discipline
+(scan-completeness, PEG-geometry, pattern-join docs, 8G-C admin-proof,
+this VCP adjudication), zero cross-contamination, 8G-B observation cadence
+uninterrupted throughout this pass.
