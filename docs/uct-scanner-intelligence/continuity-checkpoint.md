@@ -2995,3 +2995,132 @@ Nine packages now frozen total. Two candidate same-defect-class cases
 whether/when to open separate packages for them. 8G-B observation cadence
 uninterrupted throughout — no diagnostic touched, no load manufactured;
 Tuesday 2026-09-08 RTH remains the next real evidence window.
+
+---
+
+## ⚰️ CORRECTION — "REAL MEMBER-FACING GEOMETRY DEFECT" REFINED (2026-09-06)
+
+The Bull Flag report above said the pattern overlay would "likely silently
+fail to render" for a member who enables "Show Patterns." That framing
+IMPLIED the toggle is reachable today. It is not, for a reason that predates
+and is independent of the anchor-timestamp defect — reconciled here per
+owner instruction, without touching any UI code.
+
+**Two separate, non-contradictory facts, now distinguished:**
+
+**A. The dead toggle (pre-existing, unrelated to this defect class).**
+`app/src/components/chart/ChartToolbar.jsx` line 1348:
+`{false && !hidePatterns && onTogglePatterns && (<PatternToolbarButton .../>)}`
+— a literal `false &&` short-circuit. The comment above it: *"Patterns
+overlay toggle — temporarily removed (was overlapping the toolbar)."* This
+button can never render, regardless of any other prop. `chartDefaults.js`
+line 208: `showPatterns: false` is the hard default. **Net effect: there is
+currently NO reachable UI control to turn "Show Patterns" on** for a member
+starting from the default — this is the toggle "earlier work" found dead,
+confirmed again here by direct read.
+
+**B. The live path (real, wired, NOT orphaned).** `StockChart.jsx` itself
+owns `showPatterns` state (persisted via `chart_settings.showPatterns`),
+calls `usePatternDetections(...)` when true, and unconditionally mounts
+`<PatternOverlay detections={patternDetections} enabled={showPatterns} .../>`
+(gated only by `!disablePatterns && bars?.length > 0`). `PatternOverlay.jsx`
+→ `TrendlinePair.jsx` → `tToX(anchor.t)` is real, executable code — not a
+component with zero importers, not a phantom nav entry. **This is NOT
+"PatternOverlay is unreachable"** — the render pipeline is genuinely live;
+only the ONE discovery affordance in `ChartToolbar.jsx` is currently dead.
+
+**Reconciled current impact (supersedes the earlier looser framing, for
+BOTH Bull Flag and Bear Flag):** because the toggle is dead and the default
+is `false`, almost no live member session has `showPatterns=true` today
+purely by the ordinary UI path — so the anchor-timestamp defect's practical
+blast radius right now is close to zero, NOT because the render path is
+unreachable, but because a separate, prior, already-identified issue already
+suppresses it for most members. The one caveat, not checked here (checking
+it would mean reading member preference data, out of scope for a detector-
+geometry package): a member who enabled the toggle before it was disabled
+and never toggled it off would still have `showPatterns=true` persisted —
+for that (unknown-sized, possibly-empty) set, the render pipeline runs live
+today and the anchor-timestamp bug was/is real for them. Classification per
+owner's own required framing:
+**REAL MEMBER-FACING GEOMETRY DEFECT — LIKELY SILENT NON-RENDERING**, refined
+with the toggle context above rather than left to imply broader reach than
+verified.
+
+This correction does not reopen either Bull Flag package's verdict — both
+remain frozen exactly as approved. It corrects the impact-framing record only.
+
+---
+
+## BEAR FLAG ANCHOR TIMESTAMP CORRECTNESS — SECOND PACKAGE, OWNER-AUTHORIZED (2026-09-06)
+
+Worktree `uct-dashboard-bear-flag-ts-fix`, branch `fix/bear-flag-anchor-timestamps`,
+base fresh `origin/master@d274beda3`. Committed locally at `bb05a7332`, never
+pushed. Independent of the Bull Flag fix worktree, the Bull Flag canonical
+worktree, and every other frozen package — all confirmed untouched
+(`git status` clean on both).
+
+**Re-proven from current code, not assumed byte-for-byte identical to Bull
+Flag:** `bear_flag.py`'s `_try_extract_pattern` (lines ~150-155) builds its
+own inline `upper_pivots`/`lower_pivots` with `"t": pole_bottom_idx + 1 + i`
+— an absolute bar index — and `_build_detection` (lines ~456-461) copied that
+straight into `geometry.anchors[].t`, unmodified, exactly mirroring Bull
+Flag's own defect. Empirically reproduced against real fixtures BEFORE any
+edit: anchor `.t` values of `29`-`44` next to real bar timestamps of `~1.7e9`,
+across 7 firing fixtures.
+
+**Difference from Bull Flag noted while in the file (not acted on — out of
+scope for this package):** `bear_flag.py`'s candidate dict has no
+`hl_result`/`ma_result` keys and its `_score_context` has no
+`_can_slim_score_adjustment` call/function at all (bull_flag has both) — a
+real scoring-composition asymmetry between the two mirror families, relevant
+only to a FUTURE Bear Flag canonical-adaptation package's quality
+decomposition, not to this geometry fix.
+
+**Production reach:** confirmed `register(_PATTERN_ID, detect_bear_flag)` —
+bear_flag is swept by the exact same unconditional
+`_run_patterns_universe_scan` (daily)/`_run_patterns_leaders_scan` (hourly)
+→ `memory.store_detection()` path already traced for Bull Flag. See the
+correction above for the reconciled toggle-vs-render-path impact framing,
+which applies identically here.
+
+**The fix:** identical shape to Bull Flag's — a new `_anchor_bar_t()` helper
+translating the bar-index `t` to `bars[index]["t"]`, applied at the 4 anchor
+constructions in `_build_detection`. The regression fit itself untouched.
+
+**Semantics invariance — proven within one worktree, no cross-worktree
+dependency needed this time:** dumped every firing detection (anchors[].t
+and wall-clock fields excluded) from `bear_flag.py` BEFORE any edit, then
+again AFTER the fix, across all 15 fixtures — `pre == post` compared exactly
+equal. Also pinned structurally: `_build_detection`'s parameter order proves
+scores are already computed before this function (and this fix) ever runs.
+
+**Tests added** (`test_bear_flag_anchor_timestamps.py`, 8 tests): mirrors
+Bull Flag's own test shape exactly — anchor-by-anchor real-timestamp proof
+with an independent oracle, anchors-don't-collapse proof, price-coordinate
+sanity, the structural scores-first invariant, a real SQLite round-trip,
+non-mutation of `bars`.
+
+**Regression:** targeted (42 passed). Full `tests/pattern_engine/`: 2641
+passed, 9 xfailed (same pre-existing xfails). Two-engines rails: 31 passed,
+1 failed — the same pre-existing `test_the_shipped_thresholds_have_not_moved`
+drift confirmed unrelated (`git status` shows zero touches to
+`base_catalog.py` here either).
+
+**Relationship to a future Bear Flag canonical adapter:** none exists yet —
+no worktree, no readiness check, nothing to check compatibility against.
+Noted the scoring-composition asymmetry above as a fact a future package
+would need to verify, not assume, from HTF/PEG/Bull Flag precedent.
+
+**Pennant remains deferred** — not touched in this package, per explicit
+owner instruction. Still just the one candidate case recorded (from the
+Bull Flag package's own read-only audit); no new reconnaissance performed
+here, per the owner's explicit "do not start mass reconnaissance" instruction.
+
+**Verdict: BEAR FLAG ANCHOR TIMESTAMP DEFECT CONFIRMED AND FIXED LOCALLY —
+READY FOR OWNER REVIEW.**
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package. Ten
+packages now frozen total. 8G-B observation cadence uninterrupted throughout
+— no diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH
+remains the next real evidence window. Pennant remains the one standing,
+un-opened candidate package awaiting fresh owner authorization.
