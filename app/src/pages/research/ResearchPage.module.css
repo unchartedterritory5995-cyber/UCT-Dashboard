@@ -1,5 +1,8 @@
 .page { padding: 18px 22px 26px; height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--bg); color: var(--text); }
 
+.returnLink { display: inline-block; margin-bottom: 10px; color: var(--ut-gold); text-decoration: none; font-size: var(--text-sm); }
+.returnLink:hover { text-decoration: underline; }
+
 /* header */
 .hdr { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .hdrId { min-width: 0; }

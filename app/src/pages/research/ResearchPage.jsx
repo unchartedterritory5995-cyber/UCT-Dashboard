@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { parseResearchReturnParam, researchReturnTarget, researchReturnLabel } from '../../lib/journal-2-0'
 import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
 import useRatings from './hooks/useRatings'
@@ -71,6 +72,12 @@ export default function ResearchPage() {
   const [active, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
   )
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a member arriving
+  // via Full Research/Ask AI/Compare from a Trade or Position surface
+  // otherwise has no way back except browser Back. Seeded once at mount,
+  // same convention as `section` above -- this is a one-time entry marker,
+  // not live state the tab-switching UI needs to track.
+  const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
@@ -82,6 +89,11 @@ export default function ResearchPage() {
 
   return (
     <div className={styles.page}>
+      {returnTo && (
+        <Link to={researchReturnTarget(returnTo)} className={styles.returnLink}>
+          &larr; {researchReturnLabel(returnTo)}
+        </Link>
+      )}
       <ResearchHeader
         sym={sym}
         meta={data.meta}

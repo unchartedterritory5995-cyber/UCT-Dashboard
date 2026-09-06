@@ -288,27 +288,27 @@ describe('TradeDetailPage — Research trigger (Full Research / Ask AI / Compare
     expect(screen.getByRole('button', { name: /save image/i })).toBeInTheDocument()
   })
 
-  it('Full Research navigates to the canonical /research/:sym route and closes the menu', () => {
+  it('Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12), and closes the menu', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Full Research' }))
-    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA')
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA?from=trade%3At1')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
   })
 
-  it('Ask AI navigates to the same route with ?section=ai', () => {
+  it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
     fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
-    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA?section=ai')
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA?section=ai&from=trade%3At1')
   })
 
-  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased)', () => {
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
     fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
-    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
+    expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA/compare/AMD?from=trade%3At1')
     expect(screen.queryByRole('button', { name: 'Full Research' })).not.toBeInTheDocument()
   })
 
@@ -348,5 +348,48 @@ describe('TradeDetailPage — trade-card PNG actions', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /copy image/i }))
     await waitFor(() => expect(copyBlobMock).toHaveBeenCalledWith(FAKE_BLOB))
+  })
+
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a confirmed
+  // data-loss bug — the Notes textarea previously flushed ONLY on blur, so
+  // unmounting (navigate-away) with an uncommitted edit silently discarded
+  // it. These pin the fix without depending on real browser blur-before-
+  // unmount timing, which jsdom does not reliably provide either.
+  describe('Notes draft flush on navigate-away', () => {
+    it('flushes an unsaved Notes edit to the server when the page unmounts without ever blurring', () => {
+      const { unmount } = renderPage()
+      fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'unsaved thought' } })
+      // No blur fired — this is exactly the gap onBlur-only flushing left open.
+      unmount()
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/j2/trades/t1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ notes: 'unsaved thought' }),
+        }),
+      )
+    })
+
+    it('does not fire a PATCH on unmount when the Notes draft was never edited', () => {
+      const { unmount } = renderPage()
+      unmount()
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        '/api/j2/trades/t1',
+        expect.objectContaining({ method: 'PATCH' }),
+      )
+    })
+
+    it('still flushes via onBlur for the ordinary case (unchanged behavior)', () => {
+      renderPage()
+      fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'blurred thought' } })
+      fireEvent.blur(screen.getByLabelText('Notes'))
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/j2/trades/t1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ notes: 'blurred thought' }),
+        }),
+      )
+    })
   })
 })

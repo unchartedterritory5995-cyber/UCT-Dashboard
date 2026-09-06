@@ -25,7 +25,7 @@ import useTradeReview from '../../hooks/useTradeReview'
 import TradeReviewCard from '../TradeReviewCard'
 import TagChipPicker from '../TagChipPicker'
 import { filtersFromSearchParams } from '../../hooks/useJ2Filters'
-import { money, moneySigned, percent, dateShort } from '../../../../lib/journal-2-0'
+import { money, moneySigned, percent, dateShort, withResearchReturnParam } from '../../../../lib/journal-2-0'
 import { useIsPaid } from '../../../../context/AuthContext'
 import UIcon from '../../../../components/ui/UIcon'
 import { useFeatureFlag } from '../../featureFlags'
@@ -147,7 +147,7 @@ function ReplayButton({ trade }) {
  * goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91); the Compare
  * item reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
  */
-function TradeResearchMenu({ symbol }) {
+function TradeResearchMenu({ symbol, tradeId }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
@@ -164,9 +164,21 @@ function TradeResearchMenu({ symbol }) {
   if (!symbol) return null
 
   const close = () => { setOpen(false); setShowCompare(false) }
-  const goToResearch = () => { navigate(`/research/${symbol}`); close() }
-  const goToAskAi = () => { navigate(`/research/${symbol}?section=ai`); close() }
-  const goToCompare = (comparator) => { navigate(`/research/${symbol}/compare/${comparator.toUpperCase()}`); close() }
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): tag the outbound
+  // navigation with where it came from so ResearchPage.jsx can render a way
+  // back other than browser Back.
+  const goToResearch = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}`, 'trade', tradeId)); close()
+  }
+  const goToAskAi = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}?section=ai`, 'trade', tradeId)); close()
+  }
+  const goToCompare = (comparator) => {
+    navigate(withResearchReturnParam(
+      `/research/${symbol}/compare/${comparator.toUpperCase()}`, 'trade', tradeId,
+    ))
+    close()
+  }
 
   return (
     <span ref={wrapRef} className={styles.researchMenuWrap}>
@@ -420,6 +432,29 @@ export default function TradeDetailPage() {
     [id, mutate],
   )
 
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a confirmed
+  // data-loss bug — the Notes textarea previously flushed ONLY on blur, so
+  // navigating away (Full Research/Ask AI/Compare, the back link, browser
+  // back) while an edit was uncommitted silently discarded it. Removing a
+  // focused element from the DOM does not reliably fire `blur` first, so
+  // onBlur alone is not a safety net for unmount — this ref-backed cleanup
+  // effect is. The ref (not the raw closed-over values) is required because
+  // a cleanup registered with an empty dependency array only ever sees the
+  // values captured at mount unless read through a ref kept current on every
+  // render. Deliberately scoped to true unmount only — the SEPARATE reseed
+  // effect above (keyed on `trade?.id`) already owns prev/next's per-trade
+  // draft reset and is not touched by this fix.
+  const notesFlushRef = useRef({ draft: '', saved: '', id: null })
+  useEffect(() => {
+    notesFlushRef.current = { draft: notesDraft, saved: trade?.notes || '', id }
+  })
+  useEffect(() => () => {
+    const { draft, saved, id: flushId } = notesFlushRef.current
+    if (flushId && draft !== saved) {
+      patchJson(`/api/j2/trades/${encodeURIComponent(flushId)}`, { notes: draft }).catch(() => {})
+    }
+  }, [])
+
   const backTo = `/journal?j2tab=journal${location.search ? `&${location.search.slice(1)}` : ''}`
 
   if (!id) {
@@ -544,7 +579,7 @@ export default function TradeDetailPage() {
           <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
           <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
-          <TradeResearchMenu symbol={trade.symbol} />
+          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
         </span>
       </header>
 
