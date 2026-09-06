@@ -1504,12 +1504,216 @@ def create_note(
             conn.close()
 
 
+# ── Wave C: Version History ──────────────────────────────────────────────────
+# Full snapshots (title/subtitle/body only -- see the build-plan doc's entry
+# checkpoint for the field-boundary rationale). Coalescing lives HERE, in
+# Python, not a SQL trigger -- this codebase reserves triggers for
+# unconditional cascade-cleanup (see the FTS/favorites/recents triggers in
+# db.py); coalescing is conditional business logic and belongs in the
+# service layer, matching house convention.
+
+J2_VERSION_COALESCE_MINUTES = int(os.environ.get("J2_VERSION_COALESCE_MINUTES", "30"))
+
+
+def _versioned_content_of(row_like: Any) -> tuple[str, str | None, str]:
+    """The exact three fields Wave C versions -- a sqlite3.Row (from j2_notes,
+    keyed by column name) or a dict (from a j2_note_versions row) both work
+    via [] access."""
+    return (row_like["title"] or "", row_like["subtitle"], row_like["body_plain"] or "")
+
+
+def _maybe_capture_version(
+    conn: sqlite3.Connection,
+    note_id: str,
+    user_id: str,
+    existing: sqlite3.Row,
+    force: bool = False,
+) -> None:
+    """Coalescing version-capture hook -- called from update_note BEFORE the
+    UPDATE is applied, so `existing` is the pre-edit row (the content about
+    to be overwritten). Captures a checkpoint of it ONLY when:
+
+    (a) it differs from the most recently captured version's content (a
+        save that only changes ticker/tags/folder must never create a
+        version -- title/subtitle/body_plain are unchanged in `existing`
+        itself in that case, so this naturally also gates on "did the
+        VERSIONED fields actually change since the last checkpoint", not
+        merely "did SOMETHING in the patch change"), AND
+    (b) no version exists yet for this note, OR the existing row's OWN
+        updated_at (when it became the current saved state) is more than
+        J2_VERSION_COALESCE_MINUTES past the latest version's created_at.
+
+    This produces one meaningful checkpoint per editing session, not one row
+    per 800ms autosave tick: during a burst of typing, every autosave call's
+    `existing` was itself captured (or would have been, had it differed) at
+    the START of that burst -- so once the burst's first checkpoint lands,
+    every subsequent call within the coalescing window sees a `latest`
+    version whose timestamp is still "recent" and skips. The version that
+    DOES eventually land, once the window elapses, captures whatever content
+    was actually stable for that whole quiet period -- not a mid-keystroke
+    fragment.
+
+    The captured version's `created_at` is `existing["updated_at"]` (when
+    that content became current), never "now" (when we detected it's about
+    to change) -- so "version from 4:05 PM" means the note read that way AT
+    4:05 PM, not "we noticed at some later time."
+
+    `force=True` (used ONLY by restore_note_version) skips the (b) coalescing-
+    window check -- restore is a deliberate, explicit user action, never an
+    incidental autosave tick, and directive §20/21's "restore must not erase
+    history" requirement is unconditional: a restore performed shortly after
+    the previous edit (inside the normal coalescing window) must STILL
+    capture the pre-restore state, or that content becomes unrecoverable.
+    (a) still applies even when forced -- restoring to the note's own
+    current, unchanged content never creates a pointless duplicate version.
+    Found via a dedicated test: without this, a restore-immediately-after-
+    editing sequence silently dropped the pre-restore state from history.
+
+    Never raises. This runs inside update_note's own transaction, before its
+    UPDATE — a bug here must never be able to block the authoritative note
+    save (directive §19); any failure here costs a version-history entry,
+    never note data.
+    """
+    try:
+        latest = conn.execute(
+            "SELECT title, subtitle, body_plain, created_at FROM j2_note_versions"
+            " WHERE note_id = ? ORDER BY created_at DESC LIMIT 1",
+            (note_id,),
+        ).fetchone()
+        old_content = _versioned_content_of(existing)
+        if latest is not None:
+            if old_content == _versioned_content_of(latest):
+                return  # nothing versioned actually changed since the last checkpoint
+            if not force:
+                elapsed = datetime.fromisoformat(existing["updated_at"]) - datetime.fromisoformat(latest["created_at"])
+                if elapsed.total_seconds() < J2_VERSION_COALESCE_MINUTES * 60:
+                    return  # still inside the same coalescing window -- no new checkpoint
+        conn.execute(
+            "INSERT INTO j2_note_versions (id, user_id, note_id, title, subtitle,"
+            " body_json, body_plain, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                uuid.uuid4().hex, user_id, note_id,
+                old_content[0], old_content[1],
+                existing["body_json"], old_content[2],
+                existing["updated_at"],
+            ),
+        )
+    except Exception:  # noqa: BLE001 — see docstring: never break the real save
+        pass
+
+
+def list_note_versions(
+    user_id: str,
+    note_id: str,
+    limit: int = 200,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Newest-first, title/subtitle/timestamp only (no body_json/body_plain --
+    this is the history LIST, matching _row_to_note_summary's own "list view
+    never carries full body" convention; the single-version fetch is
+    get_note_version). `limit=200` is generous headroom over the coalescing
+    window's realistic output, not a hard product cap (directive §38: no
+    retention pruning in Wave C)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, title, subtitle, created_at FROM j2_note_versions"
+            " WHERE user_id = ? AND note_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, note_id, limit),
+        ).fetchall()
+        return [
+            {"id": r["id"], "title": r["title"], "subtitle": r["subtitle"], "createdAt": r["created_at"]}
+            for r in rows
+        ]
+    finally:
+        if owned:
+            conn.close()
+
+
+def get_note_version(
+    user_id: str,
+    note_id: str,
+    version_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Tenant-scoped on BOTH user_id AND note_id -- a member must never
+    preview/diff another member's version, nor a version that belongs to a
+    DIFFERENT note than the one they're asking about, even if they somehow
+    guess a real version id (directive §42, §87)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_note_versions WHERE id = ? AND user_id = ? AND note_id = ?",
+            (version_id, user_id, note_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "noteId": row["note_id"],
+            "title": row["title"],
+            "subtitle": row["subtitle"],
+            "bodyJson": json.loads(row["body_json"]),
+            "bodyPlain": row["body_plain"],
+            "createdAt": row["created_at"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def restore_note_version(
+    user_id: str,
+    note_id: str,
+    version_id: str,
+    expected_updated_at: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Restore is NOT a bespoke write path -- it loads the target version's
+    content and calls update_note with it, the exact same function every
+    normal edit uses (passing force_version=True -- a restore must ALWAYS
+    checkpoint the pre-restore state regardless of the coalescing window;
+    see _maybe_capture_version's own docstring for why this is unconditional,
+    unlike an ordinary autosave). That gets, for free: (a) the pre-restore state is
+    captured as a new version via the SAME coalescing hook (a restore never
+    erases history -- directive §20), (b) the SAME optimistic-lock 409 on a
+    stale restore (directive §89's multi-tab race), (c) embeds/mentions
+    re-derive correctly from the restored body (directive §15/§7 boundary --
+    relationships are never separately versioned/restored, they just follow
+    whatever body content is current). folder_id/ticker/tags are
+    deliberately untouched (never part of the patch below) -- restoring
+    content must never silently relocate or re-tag a note.
+
+    Returns None if the version doesn't exist / isn't this note's / isn't
+    this user's (tenant/existence check happens via get_note_version, which
+    already scopes on user_id AND note_id). Raises NoteConflictError exactly
+    like any other update_note call when the note moved since the caller's
+    baseline."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        version = get_note_version(user_id, note_id, version_id, conn=conn)
+        if version is None:
+            return None
+        return update_note(
+            user_id, note_id,
+            {"title": version["title"], "subtitle": version["subtitle"], "bodyJson": version["bodyJson"]},
+            conn=conn, expected_updated_at=expected_updated_at, force_version=True,
+        )
+    finally:
+        if owned:
+            conn.close()
+
+
 def update_note(
     user_id: str,
     note_id: str,
     patch: dict[str, Any],
     conn: sqlite3.Connection | None = None,
     expected_updated_at: str | None = None,
+    force_version: bool = False,
 ) -> dict[str, Any] | None:
     """`expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
@@ -1590,6 +1794,18 @@ def update_note(
 
         if not sets:
             return _row_to_note(existing)
+
+        # Wave C: capture a version checkpoint of the OLD content BEFORE
+        # applying this edit -- gated on the ACTUAL new values (not merely
+        # "did the patch mention a versioned key"), so a save that re-sends
+        # an unchanged title/subtitle/body (e.g. a client re-PUTting the same
+        # content) never creates a spurious version. `_maybe_capture_version`
+        # itself further gates on the coalescing window.
+        new_title = t if "title" in patch else (existing["title"] or "")
+        new_subtitle = s if "subtitle" in patch else existing["subtitle"]
+        new_body_plain = bp if "bodyJson" in patch else (existing["body_plain"] or "")
+        if (new_title, new_subtitle, new_body_plain) != _versioned_content_of(existing):
+            _maybe_capture_version(conn, note_id, user_id, existing, force=force_version)
 
         sets.append("updated_at = ?"); params.append(_now_iso())
         params.extend([note_id, user_id])

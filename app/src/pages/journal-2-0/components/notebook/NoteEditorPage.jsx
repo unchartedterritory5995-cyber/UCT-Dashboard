@@ -22,6 +22,7 @@ import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
+import NoteHistoryPanel from './NoteHistoryPanel'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
 
@@ -374,6 +375,39 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       setFavoriteBusy(false)
     }
   }
+
+  // Wave C: version history / trust panel.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  // Restore is NOT reachable through the normal "note loaded" effects below
+  // (both are gated on `[note?.id]` only -- a restore keeps the same note
+  // id, so they never re-fire). This mirrors exactly what those effects
+  // already do on note-open, so a restore behaves identically to "reopening
+  // the note with fresh content": pushes the restored body into the live
+  // editor, resyncs the title/subtitle inputs, and -- critically -- advances
+  // `lastSavedRef` so the very next autosave tick sees nothing changed
+  // (the server already has this content) instead of racing a stale
+  // baseUpdatedAt into a spurious 409, or re-PUTting content that's already
+  // saved.
+  const onVersionRestored = (restoredNote) => {
+    if (!restoredNote) return
+    const t = restoredNote.title || ''
+    const s = restoredNote.subtitle || ''
+    setTitle(t)
+    titleRef.current = t
+    setSubtitle(s)
+    subtitleRef.current = s
+    lastSavedRef.current = {
+      title: t, subtitle: s,
+      bodyJson: restoredNote.bodyJson,
+      updatedAt: restoredNote.updatedAt || null,
+    }
+    try {
+      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, false)
+    } catch {
+      /* editor view not mounted yet -- next note-open effect will still show it */
+    }
+  }
+
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
   const columnRef = useRef(null)
   const [exportBusy, setExportBusy] = useState(false)
@@ -407,6 +441,39 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const ok = await exportNoteAsPng(columnRef.current, title)
       setChromeMsg(ok ? 'PNG saved' : 'export failed')
+    } catch {
+      setChromeMsg('export failed')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+  // Wave C: portable single-note export (directive §46-58) -- unlike PNG/
+  // Print above, this is a round-trippable .md/.zip a member can bring to
+  // another app, matching the full-notebook export's own format
+  // (build_single_note_export reuses that exact markdown+front-matter code
+  // path). A bare fetch+blob download, not the ExportDialog machinery: one
+  // note is bounded in size, so there's no multi-minute wait to progress-bar.
+  const downloadMarkdown = async () => {
+    if (exportBusy) return
+    setExportBusy(true)
+    setChromeMsg('preparing…')
+    try {
+      const res = await fetch(`/api/j2/notes/${noteId}/export`, { credentials: 'include' })
+      if (!res.ok) throw new Error(String(res.status))
+      const blob = await res.blob()
+      const cd = res.headers.get('content-disposition') || ''
+      const m = /filename="([^"]+)"/.exec(cd)
+      const filename = m ? m[1] : 'note.md'
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      setChromeMsg('downloaded')
     } catch {
       setChromeMsg('export failed')
     } finally {
@@ -1016,6 +1083,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </button>
           <NoteLinkedTradeChips noteId={noteId} />
           <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={() => setHistoryOpen(true)}
+            title="See earlier versions of this note and restore one"
+            aria-label="Version history"
+          >
+            <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            History
+          </button>
           {isAdmin && (
             <>
               <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
@@ -1211,6 +1288,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               title="Print — or Save as PDF from the print dialog">
               Print
             </button>
+            {/* Wave C: portable markdown export -- unlike PNG/Print, this
+                round-trips back into this product (or Obsidian/any
+                markdown-aware app), matching the full-notebook export's
+                own format. */}
+            <button type="button" className={styles.chromeBtn} onClick={downloadMarkdown} disabled={exportBusy}
+              title="Download this note as portable Markdown — the same format the full notebook export uses">
+              Markdown
+            </button>
           </div>
         </div>
       )}
@@ -1305,6 +1390,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
         )}
       </div>
+      <NoteHistoryPanel
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        noteId={noteId}
+        currentNote={note}
+        onRestored={onVersionRestored}
+      />
     </div>
   )
 }

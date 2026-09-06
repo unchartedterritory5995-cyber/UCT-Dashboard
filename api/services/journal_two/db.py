@@ -560,6 +560,37 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_recents_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_note_recents WHERE note_id = old.id;
 END;
 
+-- ── Wave C (Version History / Trust / Export Completeness) ─────────────────
+-- Full snapshots, not deltas -- at current scale (see the build-plan doc's
+-- entry checkpoint) this trades a trivial amount of storage for zero replay
+-- complexity on restore/preview/diff. Versioned fields are deliberately
+-- narrow: title/subtitle/body only (see notes.py's coalescing logic for the
+-- full rationale) -- folder_id/ticker/tags are NOT captured here, and a
+-- restore never touches them. `id` is a real, independent identity (never
+-- rely on created_at alone -- directive §13): a UUID, not an autoincrement
+-- rowid, so it stays stable across a VACUUM the same way j2_notes' own id
+-- does. Cascade-cleaned on hard delete via trigger, same rationale as the
+-- favorites/recents triggers immediately above (multiple hard-delete call
+-- sites; a trigger cannot be forgotten on a future one).
+CREATE TABLE IF NOT EXISTS j2_note_versions (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    title       TEXT NOT NULL DEFAULT '',
+    subtitle    TEXT,
+    body_json   TEXT NOT NULL,
+    body_plain  TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_versions_note
+    ON j2_note_versions(note_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_j2_note_versions_user
+    ON j2_note_versions(user_id, note_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_versions_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_versions WHERE note_id = old.id;
+END;
+
 -- ── Note Connectors ─────────────────────────────────────────────────────────
 -- Account-connected background sync of external note libraries (Roam/Craft/
 -- Notion/Dropbox) into the Notebook. Spec: docs/superpowers/specs/

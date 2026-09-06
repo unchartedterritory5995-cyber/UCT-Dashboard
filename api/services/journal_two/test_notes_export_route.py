@@ -103,6 +103,33 @@ def test_export_route_registered_before_dynamic_note_detail():
         "/api/j2/notes/{note_id}")
 
 
+# ── Wave C: single-note export route ─────────────────────────────────────────
+# build_single_note_export itself has thorough unit coverage in
+# test_notes_export.py; this only proves the route wires it up correctly.
+
+
+def test_single_note_export_returns_a_markdown_attachment(route_client):
+    r = route_client.get("/api/j2/notes/n1/export")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/markdown")
+    cd = r.headers["content-disposition"]
+    assert cd.startswith("attachment; filename=")
+    assert cd.endswith('.md"')
+    assert b"Cup and handle" in r.content
+
+
+def test_single_note_export_404s_for_a_nonexistent_note(route_client):
+    r = route_client.get("/api/j2/notes/does-not-exist/export")
+    assert r.status_code == 404
+
+
+def test_single_note_export_404s_for_another_users_note(route_client):
+    """n2 belongs to u2; the route caller is u1 -- must 404, never leak
+    another member's note through a guessed id."""
+    r = route_client.get("/api/j2/notes/n2/export")
+    assert r.status_code == 404
+
+
 # ── Fix round 2 (review): memory shape + concurrency guard ──────────────────
 
 

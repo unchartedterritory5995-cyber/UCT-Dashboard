@@ -14,7 +14,7 @@ import pytest
 
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.notes_export import (
-    build_export_zip, tiptap_to_markdown,
+    build_export_zip, build_single_note_export, tiptap_to_markdown,
 )
 
 
@@ -842,6 +842,188 @@ def test_title_with_colon_quote_and_newline_round_trips_through_yaml():
     if yaml is not None:
         parsed = yaml.safe_load("\n".join(front_lines))
         assert parsed["title"] == tricky_title
+
+
+# ── Wave C: single-note export + full-export completeness fixes ────────────
+# Gap ledger G-091 (single-note export did not exist at all) and G-092 (typed
+# trade-link references / import provenance / entity mentions were silently
+# dropped from every export). See docs/notebook/prelaunch-primary-notebook-
+# build-plan.md's Wave C checkpoint §11/§12 for the design record.
+
+
+def _conn():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    return c
+
+
+def test_single_note_export_returns_none_for_a_missing_note():
+    c = _conn()
+    assert build_single_note_export("u1", "does-not-exist", conn=c) is None
+
+
+def test_single_note_export_is_tenant_scoped():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.commit()
+    assert build_single_note_export("u2", "n1", conn=c) is None
+
+
+def test_single_note_export_excludes_a_trashed_note():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.execute("UPDATE j2_notes SET deleted_at = ? WHERE id = ?", ("2026-09-01T00:00:00Z", "n1"))
+    c.commit()
+    assert build_single_note_export("u1", "n1", conn=c) is None
+
+
+def test_single_note_export_with_no_attachments_is_a_bare_markdown_file():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.commit()
+    content, filename, media_type = build_single_note_export("u1", "n1", conn=c)
+    assert filename.endswith(".md")
+    assert media_type == "text/markdown"
+    text = content.decode("utf-8")
+    assert "title: Cup and handle" in text
+    assert "NVDA base" in text
+
+
+def test_single_note_export_with_an_attachment_is_a_zip(attach_root):
+    _plant(attach_root, "u1", "n1", "inline", "abc.png")
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/abc.png")))
+    c.commit()
+    content, filename, media_type = build_single_note_export("u1", "n1", conn=c)
+    assert filename.endswith(".zip")
+    assert media_type == "application/zip"
+    names = zipfile.ZipFile(io.BytesIO(content)).namelist()
+    assert "Cup and handle.md" in names
+    assert "attachments/u1/n1/inline/abc.png" in names
+
+
+def test_single_note_export_shares_the_completeness_fields_with_the_full_export():
+    """One code path, not two -- proves the single-note export doesn't drift
+    from the full export's front-matter completeness fixes below."""
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.execute(
+        "INSERT INTO j2_note_favorites (user_id, note_id, created_at) VALUES (?,?,?)",
+        ("u1", "n1", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    assert "favorite: true" in content.decode("utf-8")
+
+
+def test_favorited_note_carries_favorite_true_in_front_matter():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Not favorited", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_favorites (user_id, note_id, created_at) VALUES (?,?,?)",
+        ("u1", "n1", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "favorite: true" in zf.read("Cup and handle.md").decode("utf-8")
+    assert "favorite:" not in zf.read("Not favorited.md").decode("utf-8")
+
+
+def test_related_tickers_from_mentions_and_embeds_appear_in_front_matter():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+        " VALUES (?,?,?,?)", ("n1", "u1", "TSLA", "2026-09-01T00:00:00Z"),
+    )
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol)"
+        " VALUES (?,?,?,?,?)", ("n1", "u1", 0, "w1", "AMD"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "related_tickers: [TSLA, AMD]" in body or "related_tickers: [AMD, TSLA]" in body
+
+
+def test_related_tickers_excludes_the_notes_own_primary_ticker():
+    """The note's `ticker` field already gets its own front-matter line --
+    repeating it under related_tickers would be redundant noise."""
+    c = _conn()
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, ticker, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Cup and handle", '{"type":"doc","content":[]}', "",
+         "[]", "NVDA", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.execute(
+        "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+        " VALUES (?,?,?,?)", ("n1", "u1", "NVDA", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "related_tickers:" not in body
+
+
+def test_typed_trade_ref_resolves_to_a_human_readable_linked_trade_line():
+    """The raw trade_ref (an internal uuid) must NEVER appear in the export --
+    only a resolved, human-readable symbol + kind."""
+    from api.services.journal_two.test_note_trade_links import _seed_trade
+
+    c = _conn()
+    _seed_trade(c, "u1", "trade-abc123", symbol="NVDA")
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
+        " trade_ref, trade_ref_type) VALUES (?,?,?,?,?,?)",
+        ("n1", "u1", 0, "w1", "trade-abc123", "equity_trade"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "linked_trades: [NVDA (equity trade)]" in body
+    assert "trade-abc123" not in body
+
+
+def test_unresolved_trade_ref_is_omitted_not_shown_as_a_broken_reference():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
+        " trade_ref, trade_ref_type) VALUES (?,?,?,?,?,?)",
+        ("n1", "u1", 0, "w1", "ghost-ref", "equity_trade"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "linked_trades:" not in body
+    assert "ghost-ref" not in body
+
+
+def test_import_provenance_appears_when_present_and_is_absent_otherwise():
+    c = _conn()
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, import_source, import_key, imported_at, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Imported note", '{"type":"doc","content":[]}', "", "[]",
+         "obsidian", "vault/note.md", "2026-08-01T00:00:00Z",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    _insert_note(c, "n2", "u1", "Native note", _doc(_para("x")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    imported_body = zf.read("Imported note.md").decode("utf-8")
+    assert "import_source: obsidian" in imported_body
+    assert "imported_at: 2026-08-01T00:00:00Z" in imported_body
+    native_body = zf.read("Native note.md").decode("utf-8")
+    assert "import_source:" not in native_body
 
 
 def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():

@@ -1,0 +1,134 @@
+.wrap {
+  min-height: 320px;
+}
+.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 16px;
+  color: var(--text-muted, #999);
+  text-align: center;
+}
+.emptyHint {
+  max-width: 380px;
+  font-size: 13px;
+}
+
+.split {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+/* Touch tier (≤1024px, matching app/src/styles/breakpoints.css) never forces
+   the list and the detail pane side-by-side -- the list becomes a horizontal
+   scroller above a full-width detail pane instead of squeezing both into a
+   sheet that's already a phone-width bottom sheet. */
+@media (max-width: 1024px) {
+  .split { flex-direction: column; }
+  .list { flex-direction: row; overflow-x: auto; max-height: none; width: 100%; gap: 6px; }
+  .list li { flex: 0 0 auto; }
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 220px;
+  flex: 0 0 220px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--border, #333);
+}
+.listItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text, #cfcfcf);
+  min-height: 44px;
+}
+.listItem:hover { background: var(--surface-hover, rgba(255,255,255,0.05)); }
+.listItemActive { background: var(--surface-hover, rgba(220,187,94,0.12)); border: 1px solid var(--ut-gold, #dcbb5e); }
+.listItemTitle {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.listItemTime {
+  font-size: 11px;
+  color: var(--text-muted, #999);
+}
+
+.detail {
+  flex: 1;
+  min-width: 0;
+}
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.tabs { display: flex; gap: 4px; }
+.tab, .tabActive {
+  background: transparent;
+  border: 1px solid var(--border, #333);
+  color: var(--text-muted, #999);
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 12px;
+  min-height: 44px;
+}
+.tabActive { color: var(--text, #e5e5e5); border-color: var(--ut-gold, #dcbb5e); }
+
+.statusOk {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.statusErr {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.diffWrap { padding: 4px 2px; }
+.diffText {
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  color: var(--text, #d8d8d8);
+}
+.diffRemoved {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  text-decoration: line-through;
+}
+.diffAdded {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  text-decoration: none;
+}

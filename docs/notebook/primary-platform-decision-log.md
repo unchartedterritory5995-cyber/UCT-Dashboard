@@ -827,6 +827,103 @@ started, not to be started without a new checkpoint.
 
 ---
 
+### 2026-09-06 — WAVE C: Version History / Trust / Export Completeness — implemented, tested, real-browser E2E verified; PUSHED, awaiting the program's master-merge step before production verification
+
+**Scope shipped** (full detail in `prelaunch-primary-notebook-build-plan.md`'s Wave C
+checkpoint §11-15 and this doc's own commit `b2ae57564`): version history (full-
+snapshot `j2_note_versions`, coalescing capture gated on actual value change + a
+30-min window, restore that force-captures the pre-restore state unconditionally so
+history is never erased), 3 new endpoints (list/get/restore), a read-only TipTap
+preview reusing `SharedNotePage`'s `shareView` recipe (a historical version can
+never mount a live widget or leak into find/Ask-this-note by construction, not by a
+second guard), a client-side LCS word diff (never touches `body_json`, sidesteps
+rich-content XSS risk structurally), a `Sheet`-based History panel wired into the
+note header; single-note export (bare `.md`/`.zip`, sharing the full export's
+code path) closing gap ledger G-091; trade-ref/import-provenance/related-ticker/
+favorite front-matter completeness closing G-092.
+
+**Design decisions worth recording:**
+1. **Restore reuses `update_note` verbatim** (`force_version=True`), not a bespoke
+   write path. This was recognized as the correct shape only once the pre-existing
+   optimistic-lock 409 mechanism was found already covering the directive's own
+   flagged multi-tab concurrency risk (§89-90) — restore needed zero new
+   concurrency code as a direct consequence, and relationships (trade/thesis links)
+   are never separately versioned by construction (they re-derive from whatever
+   body content is current on every write).
+2. **A design mistake was found and corrected DURING implementation, not at
+   checkpoint time — and the FIRST correction was itself wrong on one fact,
+   caught and fixed the same day.** The original checkpoint
+   (`prelaunch-primary-notebook-build-plan.md` §11 as first written) specified
+   a note-header overflow menu + a command-palette entry as the single-note
+   export entry point. The first correction pass claimed "neither an overflow
+   menu nor a command palette exists anywhere in this codebase" — the overflow
+   menu half was true, the command-palette half was not: `CommandPalette.jsx`
+   is real and app-wide, and Notebook already has entries in it (New Note,
+   Open Notebook, Search Notebook, Open Trash) since Wave B. Re-verified
+   directly by reading `CommandPalette.jsx`'s `selectRow()`: every row's only
+   behavior is `navigate(row.to)` — the palette is a pure router with no
+   mechanism for a contextual, side-effecting command bound to "whichever
+   note is currently open" (export needs a specific `noteId` the palette has
+   no way to know). Extending it to support that would itself be new,
+   disproportionate capability work to host one button — the same §112
+   scope-creep concern, reached via the correct reasoning this time.
+   Corrected to the actual minimal-clutter placement: a third "Markdown"
+   button inside the pre-existing PNG/Print export button group, which
+   already has `noteId` in scope. The checkpoint doc's own §11/§12 and its
+   Decision Log item 4 were updated in place to record both corrections
+   rather than let the wrong claim stand.
+3. **The diff tokenizer went through two iterations, both caught by its own test
+   suite before either shipped**: gluing whitespace to its own separate token
+   fragmented an unrelated-sentence replacement into an alternating wall of
+   removed/added/equal-space spans (found via a "merges consecutive tokens" test);
+   gluing whitespace to the FOLLOWING word instead fixed that but broke a pure-
+   append-at-the-end case (a word's trailing space differs between old/new the
+   moment something follows it). The shipped fix glues each word to its OWN
+   LEADING whitespace, which has neither failure mode.
+
+**DEPLOYMENT STATUS — read precisely, do not round up.** This codebase's `web`
+Railway service deploys ONLY from `master` (confirmed via `railway status --json`:
+`"branch": "master"`). This program's own branch strategy (confirmed via
+`git merge-base --is-ancestor`, applied to Wave A's and Wave B's own commits) is:
+work happens on `notebook-primary-platform`; a SEPARATE process periodically merges
+it into `master` (evidenced by merge commit `d274beda3`, "Merge branch
+'notebook-primary-platform' into notebook-bucketA-merge-temp-...", combining 11
+parallel feature/fix branches at once) — not this session, and not triggerable from
+here without violating the multi-branch coordination discipline this program
+already relies on. **Wave C is pushed to `notebook-primary-platform` (commit
+`b2ae57564`) and is NOT YET on `master`** — confirmed directly by requesting
+`GET /api/j2/notes/{id}/versions` against `uctintelligence.com` and observing the
+SPA catch-all HTML (200, `text/html`) rather than a real API response, meaning the
+route does not exist in the currently-deployed build. Production health was
+otherwise confirmed green (`/api/health` → `200 ok`) as an unrelated baseline.
+**This is not a gap in this wave's work — it is the correct, honest state of a
+push that is genuinely waiting on an external step.** The certification report
+records this precisely rather than claiming production verification that hasn't
+happened, per the directive's own §107 evidence-precision instruction.
+
+**Testing evidence:** 105 backend tests (version storage/coalescing/restore/
+tenant-isolation, export completeness, router-level HTTP, account-purge coverage)
++ 1646 frontend tests across the `journal-2-0` suite (174 files) all passing.
+Real-browser E2E in the fail-closed sandbox (a fresh admin-promoted test account,
+since a brand-new free account without a started trial routes to `/subscribe`
+before reaching `/journal` — a real friction point, noted for whoever owns
+onboarding, not a Wave C defect): full restore round trip verified live in the
+DOM (blank → restore → reverse-restore back to the original content, both
+transitions actually visible in the editor, not just in API responses), the diff
+view, the honest empty-history state, and the export endpoint's real HTTP response.
+Zero console errors. One real, minor gap found and fixed live during the same
+pass: `restoreNoteVersion` was invalidating the single-note and versions-list SWR
+caches but not the Notebook sidebar's note-list cache, so a restored title stayed
+stale in the sidebar until an unrelated navigation revalidated it — fixed by adding
+a key-matcher `globalMutate` call (`isNoteListKey`, exported and directly unit-
+tested) that reaches every filtered list variant, not just one fixed key.
+
+**Standing discipline reaffirmed:** per the governing directive, the full 68-point
+Wave C certification report is delivered to Patrick in-session; stop before Wave D
+without a new checkpoint.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
