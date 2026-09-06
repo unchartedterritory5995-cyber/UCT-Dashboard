@@ -6,7 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Attention Source-Integrity Hardening V1 merge/deploy/production-verification).
+Awareness Source-Integrity Audit + Hardening V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -32,9 +32,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `94dd2bb5e73aef73dc084097bdddc92ebe0cdb5a`
-  (Temporal / Freshness Truth Convergence V1 merge — this file's own update is a
-  docs-only branch cut fresh from this SHA; drift since then is unrelated
+- **origin/master (last verified):** `f2d96ce1155146295e3a58229db556a47b6ef564`
+  (Awareness Source-Integrity Audit + Hardening V1 merge — this file's own update
+  is a docs-only branch cut fresh from this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
@@ -294,6 +294,48 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   adjacent tests passing (2 pre-existing exact-equality miss-dict assertions
   updated to include the new `_outage` key; 4 new regression tests added
   proving the exact silent-failure scenarios each fix closes).
+- **Awareness Source-Integrity Audit + Hardening V1** — IMPLEMENTED + ACCEPTED
+  + LIVE, merge `f2d96ce11`, deployed + production-verified 2026-09-06. Phase A
+  independently traced Awareness end to end (single entry point: the
+  double-gated `_awareness_engine_scan` scheduler job) and confirmed the
+  program's central question: `api/services/awareness/engine.py::
+  _collect_earnings_window()` has the SAME MATERIAL DEFECT class as the
+  just-fixed Attention earnings bug — it called `calendar_alerts.
+  _get_reporters_for_date()`, which structurally cannot raise, so its own
+  `try/except Exception: any_failed = True` was dead code. The consequence
+  here was more precise than Attention's: `any_failed` was never a raw
+  counter, it was the input to an ALREADY-BUILT, already-wired self-heal
+  (`_EARNINGS_MEMO_TTL_PARTIAL`=5min vs `_EARNINGS_MEMO_TTL`=1h) that was
+  permanently starved — a genuine source outage on any window day memoized a
+  day-incomplete window for the full hour, indistinguishable from a quiet
+  week, silencing R5 earnings-proximity for any symbol reporting on the
+  failed day. Fixed by reusing S9's own `_get_reporters_for_date_with_status()`
+  sibling verbatim (zero new backend infrastructure) — `_collect_earnings_
+  window()` now tracks the real `ok` flag instead of a dead exception
+  handler; `_get_reporters_for_date()`'s other production caller
+  (`calendar_alerts.py`'s own `run_prereport_alerts()`) is untouched, and
+  Attention's `_earnings_facts()` was already migrated in S9. Rewrote the
+  load-bearing `test_collect_earnings_window_partial_day_failure_uses_
+  short_memo_ttl` from mocking an actually-raised exception (a failure mode
+  the real function structurally cannot produce) to `(set(), False)` — the
+  real production failure shape — plus a new all-sources-fail control test.
+  Also independently traced and correctly ruled OUT two other candidate
+  findings: `rule_stop_watch`'s cold-price-cache skip is HONEST AS DESIGNED
+  (no fetch attempt exists inside Awareness to fail, confirmed by direct
+  code read + an explicit in-file comment); the Alert Return-to-Research
+  path (`_fire_candidate` → `deliver_alert_payload(source="awareness_
+  engine")`) is a separate call site, structurally unreachable from the
+  earnings-window bug, confirmed unaffected. One separate, DIFFERENT
+  reliability gap was found and correctly classified OUT OF SCOPE for this
+  narrow V1 — see the new debt entry below (regime-classifier whole-cycle
+  scan abort). 16 focused tests passing (15 existing awareness tests + 1
+  new), 122 adjacent regression tests passing across
+  `test_calendar_alerts.py`/`test_watchlist_intelligence.py`/
+  `test_analyst_grades.py`/`test_analyst_grades_cache_policy.py`/
+  `test_calendar_paging.py`/`test_fmp_guard_census.py`/
+  `test_calendar_a5_modernization.py`/`test_alert_research_url_routing.py`.
+  1 backend file changed (`api/services/awareness/engine.py`) + 1 test file
+  extended; zero frontend files touched, zero public API contract changes.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -345,10 +387,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Attention Source-Integrity
-  Hardening V1 (the prior active program) is now ACCEPTED + LIVE — see
-  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
-  that program's authorization ("Then STOP. Do not automatically begin
+- **None — requires new explicit authorization.** Awareness Source-Integrity
+  Audit + Hardening V1 (the prior active program) is now ACCEPTED + LIVE —
+  see "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction
+  on that program's authorization ("Then STOP. Do not automatically start
   another Terminal program."), no next Terminal program has been
   automatically begun. The next Terminal program requires a new, explicit
   owner authorization. Do not infer one from the "NEWLY IDENTIFIED DEBT" or
@@ -363,8 +405,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   freshness parity was closed by S8), nor from Attention Source-Integrity
   Hardening V1's own remaining deferred item (Seam 8's full per-ticker
   timestamp threading — the earnings/analyst status-integrity bugs it also
-  surfaced are now CLOSED, above) — those are candidate lists, not
-  authorizations.
+  surfaced are now CLOSED, above), nor from Awareness Source-Integrity Audit
+  + Hardening V1's own out-of-scope finding (the regime-classifier
+  whole-cycle scan-abort risk — see the new debt entry below) — those are
+  candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -481,6 +525,30 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   via a new opt-in `outage_out` out-param on `get_analyst_grades()`/
   `get_analyst_ratings()`. Kept as a record; do not re-open unless a
   concrete regression is found.
+- **Seam 10 — Awareness's regime-classifier read can silently abort the
+  ENTIRE scan cycle for every user (surfaced by Awareness Source-Integrity
+  Audit + Hardening V1's Phase A, 2026-09-06, correctly classified OUT OF
+  SCOPE for that program's narrow V1).** `voice_regime_classifier.
+  get_current_regime()` has no try/except of its own around
+  `_fetch_signals()`/`_classify()` (only the final `cache.set()` call is
+  defensively wrapped); `awareness/engine.py::_build_market_scan_ctx()` —
+  which calls it — is itself called from `run_awareness_scan()` with NO
+  try/except at that call site either (only the PER-USER rule loop and the
+  per-candidate `_fire_candidate` call are exception-isolated). A single
+  regime-classifier hiccup therefore propagates uncaught all the way up to
+  the scheduler's own bare `try/except Exception: print(...)` in `api/main.
+  py::_awareness_engine_scan()`, silently dropping stop-watch + earnings-
+  proximity + regime-flip awareness for EVERY user that 20-minute cycle with
+  only an unstructured `print` as evidence. This is a DIFFERENT defect
+  mechanism from the earnings-swallow bug fixed above (whole-cycle-abort-on-
+  uncaught-exception vs a permanently-dead-input flag) and a materially
+  different fix shape (new exception-isolation structure around a scan-cycle
+  boundary, not a `_with_status` sibling) — correctly kept out of this V1 per
+  its "narrowest fix, no broad Awareness redesign" authorization. Not
+  confirmed to have fired in production; a real but undemonstrated risk.
+  Fix shape: wrap `_build_market_scan_ctx()`'s call (or just the regime read
+  inside it) in its own try/except with a structured log, mirroring the
+  per-user isolation pattern already used one line below it.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -545,18 +613,20 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Signal Propagation V1 (merge `5e07b8150`), Alert Return-to-Research
    Consistency V1 (merge `c27c95c50`), Temporal / Freshness Truth
    Convergence V1 (merge `94dd2bb5e`), S8 / Attention Freshness
-   Propagation V1 (merge `0d1c1d5bf`), and Attention Source-Integrity
-   Hardening V1 (merge `dc2cdc906`) are all ACCEPTED + LIVE as of this
+   Propagation V1 (merge `0d1c1d5bf`), Attention Source-Integrity
+   Hardening V1 (merge `dc2cdc906`), and Awareness Source-Integrity Audit +
+   Hardening V1 (merge `f2d96ce11`) are all ACCEPTED + LIVE as of this
    checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
    Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
-   Freshness Propagation, Attention Source-Integrity Hardening, or the
-   Whole-Product Convergence Review from scratch — their findings above are
-   current as of this checkpoint; verify against live code only where
-   something here looks stale.
+   Freshness Propagation, Attention Source-Integrity Hardening, Awareness
+   Source-Integrity Audit + Hardening, or the Whole-Product Convergence
+   Review from scratch — their findings above are current as of this
+   checkpoint; verify against live code only where something here looks
+   stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
