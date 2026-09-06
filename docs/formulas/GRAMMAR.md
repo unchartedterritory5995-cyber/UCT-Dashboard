@@ -68,7 +68,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (64)
+## Functions (68)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -84,6 +84,7 @@ decide whether a formula can run at all.
 | `atr(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close` |
 | `avwap(anchor)` | a number | a session (960 bars) | the volume-weighted average price accumulated from the first bar at or after epoch `anchor` |
 | `barssince(condition, period)` | a number | whatever `period` asks for | the number of bars since `condition` was last true, and `period` when it has not been true that recently |
+| `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
 | `change(source)` | a number | 1 bar | the bar-over-bar change in `source` |
@@ -112,6 +113,7 @@ decide whether a formula can run at all.
 | `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the lowest `source` of the last `period` bars |
 | `macd(source, fastPeriod, slowPeriod)` | a number | whatever `slowPeriod` asks for | the `fastPeriod`/`slowPeriod` MACD line of `source` |
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
+| `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |
 | `mfi(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume` |
 | `min(left, right)` | a number | 0 bars | the smaller of `left` and `right` |
 | `minusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar -DI of `high`, `low` and `close` |
@@ -119,10 +121,12 @@ decide whether a formula can run at all.
 | `na(source)` | true or false | 0 bars | `source` being unknown |
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
+| `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
 | `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `plusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar +DI of `high`, `low` and `close` |
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
+| `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |
 | `rsi(source, period)` | a number | whatever `period` asks for | the `period`-bar RSI of `source` |

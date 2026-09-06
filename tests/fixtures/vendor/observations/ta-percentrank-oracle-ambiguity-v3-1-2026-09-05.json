@@ -8,18 +8,503 @@
   },
   "engine": {
     "formula": null,
-    "ast": null
+    "ast": {
+      "type": "call",
+      "name": "percentrank",
+      "args": [
+        {
+          "type": "series",
+          "name": "close"
+        },
+        {
+          "type": "num",
+          "value": 4
+        }
+      ]
+    }
   },
   "market": {
     "symbol": "PANW",
     "timeframe": "1D",
     "bars": [
       {
+        "t": "1748784600",
+        "o": 25.0,
+        "h": 25.0,
+        "l": 25.0,
+        "c": 25.0,
+        "v": 0
+      },
+      {
+        "t": "1748871000",
+        "o": 26.0,
+        "h": 26.0,
+        "l": 26.0,
+        "c": 26.0,
+        "v": 0
+      },
+      {
+        "t": "1748957400",
+        "o": 27.0,
+        "h": 27.0,
+        "l": 27.0,
+        "c": 27.0,
+        "v": 0
+      },
+      {
+        "t": "1749043800",
+        "o": 28.0,
+        "h": 28.0,
+        "l": 28.0,
+        "c": 28.0,
+        "v": 0
+      },
+      {
+        "t": "1749130200",
+        "o": 29.0,
+        "h": 29.0,
+        "l": 29.0,
+        "c": 29.0,
+        "v": 0
+      },
+      {
+        "t": "1749216600",
+        "o": 9.0,
+        "h": 9.0,
+        "l": 9.0,
+        "c": 9.0,
+        "v": 0
+      },
+      {
+        "t": "1749303000",
+        "o": 1.0,
+        "h": 1.0,
+        "l": 1.0,
+        "c": 1.0,
+        "v": 0
+      },
+      {
+        "t": "1749389400",
+        "o": 5.0,
+        "h": 5.0,
+        "l": 5.0,
+        "c": 5.0,
+        "v": 0
+      },
+      {
+        "t": "1749475800",
+        "o": 3.0,
+        "h": 3.0,
+        "l": 3.0,
+        "c": 3.0,
+        "v": 0
+      },
+      {
+        "t": "1749562200",
+        "o": 6.0,
+        "h": 6.0,
+        "l": 6.0,
+        "c": 6.0,
+        "v": 0
+      },
+      {
+        "t": "1749648600",
+        "o": 10.0,
+        "h": 10.0,
+        "l": 10.0,
+        "c": 10.0,
+        "v": 0
+      },
+      {
+        "t": "1749735000",
+        "o": 11.0,
+        "h": 11.0,
+        "l": 11.0,
+        "c": 11.0,
+        "v": 0
+      },
+      {
+        "t": "1749821400",
+        "o": 12.0,
+        "h": 12.0,
+        "l": 12.0,
+        "c": 12.0,
+        "v": 0
+      },
+      {
+        "t": "1749907800",
+        "o": 13.0,
+        "h": 13.0,
+        "l": 13.0,
+        "c": 13.0,
+        "v": 0
+      },
+      {
+        "t": "1749994200",
+        "o": 14.0,
+        "h": 14.0,
+        "l": 14.0,
+        "c": 14.0,
+        "v": 0
+      },
+      {
+        "t": "1750080600",
+        "o": 15.0,
+        "h": 15.0,
+        "l": 15.0,
+        "c": 15.0,
+        "v": 0
+      },
+      {
+        "t": "1750167000",
+        "o": 16.0,
+        "h": 16.0,
+        "l": 16.0,
+        "c": 16.0,
+        "v": 0
+      },
+      {
+        "t": "1750253400",
+        "o": 17.0,
+        "h": 17.0,
+        "l": 17.0,
+        "c": 17.0,
+        "v": 0
+      },
+      {
+        "t": "1750339800",
+        "o": 18.0,
+        "h": 18.0,
+        "l": 18.0,
+        "c": 18.0,
+        "v": 0
+      },
+      {
+        "t": "1750426200",
+        "o": 19.0,
+        "h": 19.0,
+        "l": 19.0,
+        "c": 19.0,
+        "v": 0
+      },
+      {
+        "t": "1750512600",
+        "o": 20.0,
+        "h": 20.0,
+        "l": 20.0,
+        "c": 20.0,
+        "v": 0
+      },
+      {
+        "t": "1750599000",
+        "o": 21.0,
+        "h": 21.0,
+        "l": 21.0,
+        "c": 21.0,
+        "v": 0
+      },
+      {
+        "t": "1750685400",
+        "o": 22.0,
+        "h": 22.0,
+        "l": 22.0,
+        "c": 22.0,
+        "v": 0
+      },
+      {
+        "t": "1750771800",
+        "o": 23.0,
+        "h": 23.0,
+        "l": 23.0,
+        "c": 23.0,
+        "v": 0
+      },
+      {
+        "t": "1750858200",
+        "o": 24.0,
+        "h": 24.0,
+        "l": 24.0,
+        "c": 24.0,
+        "v": 0
+      },
+      {
+        "t": "1750944600",
+        "o": 25.0,
+        "h": 25.0,
+        "l": 25.0,
+        "c": 25.0,
+        "v": 0
+      },
+      {
+        "t": "1751031000",
+        "o": 26.0,
+        "h": 26.0,
+        "l": 26.0,
+        "c": 26.0,
+        "v": 0
+      },
+      {
+        "t": "1751117400",
+        "o": 27.0,
+        "h": 27.0,
+        "l": 27.0,
+        "c": 27.0,
+        "v": 0
+      },
+      {
+        "t": "1751203800",
+        "o": 28.0,
+        "h": 28.0,
+        "l": 28.0,
+        "c": 28.0,
+        "v": 0
+      },
+      {
+        "t": "1751290200",
+        "o": 29.0,
+        "h": 29.0,
+        "l": 29.0,
+        "c": 29.0,
+        "v": 0
+      },
+      {
+        "t": "1751376600",
+        "o": 9.0,
+        "h": 9.0,
+        "l": 9.0,
+        "c": 9.0,
+        "v": 0
+      },
+      {
+        "t": "1751463000",
+        "o": 1.0,
+        "h": 1.0,
+        "l": 1.0,
+        "c": 1.0,
+        "v": 0
+      },
+      {
+        "t": "1751549400",
+        "o": 5.0,
+        "h": 5.0,
+        "l": 5.0,
+        "c": 5.0,
+        "v": 0
+      },
+      {
+        "t": "1751635800",
+        "o": 3.0,
+        "h": 3.0,
+        "l": 3.0,
+        "c": 3.0,
+        "v": 0
+      },
+      {
+        "t": "1751722200",
+        "o": 6.0,
+        "h": 6.0,
+        "l": 6.0,
+        "c": 6.0,
+        "v": 0
+      },
+      {
+        "t": "1751808600",
+        "o": 10.0,
+        "h": 10.0,
+        "l": 10.0,
+        "c": 10.0,
+        "v": 0
+      },
+      {
+        "t": "1751895000",
+        "o": 11.0,
+        "h": 11.0,
+        "l": 11.0,
+        "c": 11.0,
+        "v": 0
+      },
+      {
+        "t": "1751981400",
+        "o": 12.0,
+        "h": 12.0,
+        "l": 12.0,
+        "c": 12.0,
+        "v": 0
+      },
+      {
+        "t": "1752067800",
+        "o": 13.0,
+        "h": 13.0,
+        "l": 13.0,
+        "c": 13.0,
+        "v": 0
+      },
+      {
+        "t": "1752154200",
+        "o": 14.0,
+        "h": 14.0,
+        "l": 14.0,
+        "c": 14.0,
+        "v": 0
+      },
+      {
+        "t": "1752240600",
+        "o": 15.0,
+        "h": 15.0,
+        "l": 15.0,
+        "c": 15.0,
+        "v": 0
+      },
+      {
+        "t": "1752327000",
+        "o": 16.0,
+        "h": 16.0,
+        "l": 16.0,
+        "c": 16.0,
+        "v": 0
+      },
+      {
+        "t": "1752413400",
+        "o": 17.0,
+        "h": 17.0,
+        "l": 17.0,
+        "c": 17.0,
+        "v": 0
+      },
+      {
+        "t": "1752499800",
+        "o": 18.0,
+        "h": 18.0,
+        "l": 18.0,
+        "c": 18.0,
+        "v": 0
+      },
+      {
+        "t": "1752586200",
+        "o": 19.0,
+        "h": 19.0,
+        "l": 19.0,
+        "c": 19.0,
+        "v": 0
+      },
+      {
+        "t": "1752672600",
+        "o": 20.0,
+        "h": 20.0,
+        "l": 20.0,
+        "c": 20.0,
+        "v": 0
+      },
+      {
+        "t": "1752759000",
+        "o": 21.0,
+        "h": 21.0,
+        "l": 21.0,
+        "c": 21.0,
+        "v": 0
+      },
+      {
+        "t": "1752845400",
+        "o": 22.0,
+        "h": 22.0,
+        "l": 22.0,
+        "c": 22.0,
+        "v": 0
+      },
+      {
+        "t": "1752931800",
+        "o": 23.0,
+        "h": 23.0,
+        "l": 23.0,
+        "c": 23.0,
+        "v": 0
+      },
+      {
+        "t": "1753018200",
+        "o": 24.0,
+        "h": 24.0,
+        "l": 24.0,
+        "c": 24.0,
+        "v": 0
+      },
+      {
+        "t": "1753104600",
+        "o": 25.0,
+        "h": 25.0,
+        "l": 25.0,
+        "c": 25.0,
+        "v": 0
+      },
+      {
+        "t": "1753191000",
+        "o": 26.0,
+        "h": 26.0,
+        "l": 26.0,
+        "c": 26.0,
+        "v": 0
+      },
+      {
+        "t": "1753277400",
+        "o": 27.0,
+        "h": 27.0,
+        "l": 27.0,
+        "c": 27.0,
+        "v": 0
+      },
+      {
+        "t": "1753363800",
+        "o": 28.0,
+        "h": 28.0,
+        "l": 28.0,
+        "c": 28.0,
+        "v": 0
+      },
+      {
+        "t": "1753450200",
+        "o": 29.0,
+        "h": 29.0,
+        "l": 29.0,
+        "c": 29.0,
+        "v": 0
+      },
+      {
+        "t": "1753536600",
+        "o": 9.0,
+        "h": 9.0,
+        "l": 9.0,
+        "c": 9.0,
+        "v": 0
+      },
+      {
+        "t": "1753623000",
+        "o": 1.0,
+        "h": 1.0,
+        "l": 1.0,
+        "c": 1.0,
+        "v": 0
+      },
+      {
+        "t": "1753709400",
+        "o": 5.0,
+        "h": 5.0,
+        "l": 5.0,
+        "c": 5.0,
+        "v": 0
+      },
+      {
+        "t": "1753795800",
+        "o": 3.0,
+        "h": 3.0,
+        "l": 3.0,
+        "c": 3.0,
+        "v": 0
+      },
+      {
         "t": "1753882200",
-        "o": 180.27,
-        "h": 186.12,
-        "l": 176.56,
-        "c": 183.03,
+        "o": 6.0,
+        "h": 6.0,
+        "l": 6.0,
+        "c": 6.0,
         "v": 0
       }
     ]
@@ -50,6 +535,7 @@
     "when": "2026-09-05",
     "chartUrl": null,
     "rawArtifact": "tests/fixtures/vendor/raw_captures/2026-09-05-tv_oracle_capture_2026-09-05.csv",
-    "note": "Captured via CSV export (tv_oracle_capture_2026-09-05.csv) against docs/superpowers/specs/universal-indicator-ecosystem/OWNER_VENDOR_CAPTURE_PACKET_V3_1.md (script id 'uct-oracle-ambiguity-v3'). real underlying-chart OHLCV captured alongside the plotted values. CLASSIFICATION: VENDOR SEMANTICS CAPTURED, NOT UCT VENDOR-PARITY VERIFIED -- no UCT engine implementation of ta.percentrank exists yet. Finding: ta.percentrank builtin (75.0) matches candidate_a_over_L -- divide by L=4, current bar NOT in the sample. RAW ARTIFACT PRESERVED at tests/fixtures/vendor/raw_captures/2026-09-05-tv_oracle_capture_2026-09-05.csv -- independently inspectable, not just this session's own transcription."
-  }
+    "note": "Captured via CSV export (tv_oracle_capture_2026-09-05.csv) against docs/superpowers/specs/universal-indicator-ecosystem/OWNER_VENDOR_CAPTURE_PACKET_V3_1.md (script id 'uct-oracle-ambiguity-v3'). real underlying-chart OHLCV captured alongside the plotted values. CLASSIFICATION: VENDOR-PARITY VERIFIED 2026-09-06 (Vendor Parity Tranche 2, Lane B) -- UCT implementation added to interpret.js/ast_interpret.py, dual-kernel conformance and vendor comparison both pass via tools/vendor_parity_compare.py (see tests/fixtures/vendor/parity/). Was: VENDOR SEMANTICS CAPTURED, NOT UCT VENDOR-PARITY VERIFIED -- no UCT engine implementation of ta.percentrank exists yet. Finding: ta.percentrank builtin (75.0) matches candidate_a_over_L -- divide by L=4, current bar NOT in the sample. RAW ARTIFACT PRESERVED at tests/fixtures/vendor/raw_captures/2026-09-05-tv_oracle_capture_2026-09-05.csv -- independently inspectable, not just this session's own transcription."
+  },
+  "_vendor_parity_warmup_bars": 4
 }

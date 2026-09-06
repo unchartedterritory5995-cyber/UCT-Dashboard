@@ -733,6 +733,84 @@ function windowStdev(series, lo, hi) {
   return Math.sqrt(sq / (hi - lo + 1))
 }
 
+/** `ta.rising(src, length)` — STRICT MONOTONE over `length + 1` samples.
+ *
+ *  ⭐ RESOLVED 2026-09-06 BY A REAL VENDOR CAPTURE, not by the v5/v6 RETURNS
+ *  clause (which reads as running-maximum). See `closedTable.json`'s
+ *  `_functions_vendor_parity_resolutions.rising_resolution` for the full
+ *  evidence chain. `lo..hi` is `length + 1` samples wide by construction —
+ *  the caller passes `n + 1` as the `rolling` window size.
+ *
+ *  ⛔ NaN ANYWHERE IN THE WINDOW MAKES THE ANSWER NaN, matching every other
+ *  windowed function in this file (`windowExtreme`'s "NaN does not lose a
+ *  comparison" rule, restated here for a different comparison). This is a
+ *  KNOWN, DISCLOSED narrowing versus the vendor's own stated na-skipping
+ *  window walk — see the resolution note. */
+function windowRisingMonotone(series, lo, hi) {
+  for (let i = lo + 1; i <= hi; i++) {
+    const a = series[i], b = series[i - 1]
+    if (Number.isNaN(a) || Number.isNaN(b)) return NaN
+    if (!(a > b)) return 0
+  }
+  return 1
+}
+
+/** `ta.median(src, length)` — rank-counting, no sort/array ops (keeps
+ *  `maxLookback` a pure tree sum, per `closedTable.json`'s own constraint).
+ *
+ *  For each candidate `s[j]` in the window: `less` = count of window values
+ *  strictly below it, `equal` = count equal to it. The element holding
+ *  sorted rank `k` is the first `j` where `less <= k < less + equal`.
+ *
+ *  ⭐ EVEN LENGTH = MEAN OF THE TWO MIDDLE RANKS, resolved 2026-09-06 by a
+ *  real vendor capture against the lower-middle candidate the int->int
+ *  overload had circumstantially suggested — see
+ *  `_functions_vendor_parity_resolutions.median_resolution`. Odd length is
+ *  unambiguous under every definition in circulation and was never in
+ *  question. */
+function windowMedian(series, lo, hi) {
+  const length = hi - lo + 1
+  const rankElement = (k) => {
+    for (let j = lo; j <= hi; j++) {
+      const vj = series[j]
+      if (Number.isNaN(vj)) return NaN
+      let less = 0, equal = 0
+      for (let m = lo; m <= hi; m++) {
+        const vm = series[m]
+        if (Number.isNaN(vm)) return NaN
+        if (vm < vj) less++
+        else if (vm === vj) equal++
+      }
+      if (less <= k && k < less + equal) return vj
+    }
+    return NaN // unreachable while every window index is scanned above
+  }
+  if (length % 2 === 1) return rankElement((length - 1) / 2)
+  const a = rankElement(length / 2 - 1)
+  const b = rankElement(length / 2)
+  if (Number.isNaN(a) || Number.isNaN(b)) return NaN
+  return (a + b) / 2
+}
+
+/** `ta.percentrank(src, length)` — `100 * count(prior length bars <= current)
+ *  / length`. NOT `sum`-expressible: `sum` evaluates each term at ITS OWN
+ *  bar, and percentrank compares every prior term against the SAME current
+ *  bar — a fixed reference, not a rolling one. Resolved 2026-09-06 by a real
+ *  vendor capture confirming divisor `length` with the current bar EXCLUDED
+ *  from the sample (not `length + 1` with it included) — see
+ *  `_functions_vendor_parity_resolutions.percentrank_resolution`. */
+function percentrankAt(series, i, length) {
+  const cur = series[i]
+  if (Number.isNaN(cur)) return NaN
+  let count = 0
+  for (let k = 1; k <= length; k++) {
+    const v = series[i - k]
+    if (Number.isNaN(v)) return NaN
+    if (v <= cur) count++
+  }
+  return (100 * count) / length
+}
+
 /** EMA seeded with the SMA of the first full window, `k = 2 / (n + 1)`.
  *
  *  ⚠️ THE SEED IS A DECISION AND IT MATCHES THE NATIVE LANE. `indicators.js::_ema`
@@ -1053,6 +1131,28 @@ export const FN = Object.freeze({
   stdev: (series, n) => rolling(series, n, windowStdev),
   sum: (series, n) => rolling(series, n, windowSum),
   dev: (series, n) => rolling(series, n, windowMeanAbsDev),
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
+  // TradingView capture, not by inferred/documentation evidence. See
+  // `closedTable.json`'s `_functions_vendor_parity_resolutions` for the
+  // full evidence chain each of these four carries.
+  rising: (series, n) => rolling(series, n + 1, windowRisingMonotone),
+  median: (series, n) => rolling(series, n, windowMedian),
+  percentrank: (series, n) => {
+    const out = nan(series.length)
+    for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n)
+    return out
+  },
+  bbw: (series, n, mult) => {
+    const sd = rolling(series, n, windowStdev)
+    const avg = rolling(series, n, windowMean)
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) {
+      const s = sd[i], a = avg[i]
+      if (Number.isNaN(s) || Number.isNaN(a) || a === 0) continue
+      out[i] = ((2 * mult * s) / a) * 100
+    }
+    return out
+  },
   change: (series) => {
     const out = nan(series.length)
     for (let i = 1; i < series.length; i++) out[i] = series[i] - series[i - 1]

@@ -741,7 +741,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # IS UNTOUCHED AT 111 -- again the reason for two numbers rather than one.
     # ⚠️ THE SCALAR HALF MOVED 111 -> 137 ON 2026-09-02 (the Wave-1 promotion);
     # the BAR half is untouched, which is the half this test is about.
-    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 137
+    # 97 -> 101 (2026-09-06): Vendor Parity Tranche 2, Lane B (`rising`,
+    # `median`, `percentrank`, `bbw`). Scalar half untouched at 137.
+    assert len(parts["bar"]) == 101 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

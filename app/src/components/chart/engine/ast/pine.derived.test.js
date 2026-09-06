@@ -251,6 +251,26 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     bop: 'ta.bop is not a Pine builtin (TradingView ships BOP as an indicator, not a ta.* fn)'
       + ' — and UNLIKE the two above, the formulas would NOT agree if it became one:'
       + ' theirs is the unsmoothed per-bar ratio, ours is its n-bar mean (equal only at n=1)',
+    // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — vetted against a REAL
+    // vendor CAPTURE, not merely documentation, which is exactly why all four
+    // sat in `_functions_excluded` until now: TradingView's own published
+    // text was genuinely ambiguous or silent on each of these (see
+    // `closedTable.json::_functions_vendor_parity_resolutions` for the full
+    // evidence chain each carries). Argument order is (source, length[, mult])
+    // in both, matching Pine's own signature — no sign flip, no index shift,
+    // no offset convention to disagree about (none of these four return a bar
+    // OFFSET or an EXTREME's location the way `highestbars`/`pivothigh` do;
+    // they return the value/boolean itself, computed to agree with the
+    // measured real-runtime output).
+    rising: 'ta.rising — resolved by real TradingView capture: STRICT MONOTONE over'
+      + ' length+1 samples, not the running-maximum the v5/v6 RETURNS clause suggested',
+    median: 'ta.median — resolved by real TradingView capture: MEAN of the two middle'
+      + ' ranks for even length (the int->int overload had circumstantially suggested'
+      + ' lower-middle; real output disagreed)',
+    percentrank: 'ta.percentrank — resolved by real TradingView capture: divisor is'
+      + ' length with the CURRENT bar EXCLUDED from the sample, not length+1',
+    bbw: 'ta.bbw — resolved by real TradingView capture: the PERCENT form (x100),'
+      + ' not the bare ratio; population stdev matches this table\'s existing stdev',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 64 functions and 137 scalars — 234 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 68 functions and 137 scalars — 238 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -472,7 +472,14 @@ describe('the manifest', () => {
     // ⚠️ It IS the first `reads: "bars"` entry that also takes a `series`, and
     // that cost neither walker a line: both already evaluate a bar reader's
     // non-`int` slots to columns before dispatch.
-    expect(Object.keys(TABLE.functions)).toHaveLength(64)
+    // ⭐ 64 -> 68 IS VENDOR PARITY TRANCHE 2, LANE B (2026-09-06): `rising`,
+    // `median`, `percentrank` and `bbw`, each resolved by a REAL TradingView
+    // capture rather than by inferred/documentation evidence alone (see
+    // `closedTable.json::_functions_vendor_parity_resolutions`, and the prior
+    // `_functions_excluded` writeups each entry replaces). No new node type,
+    // argument kind, or lookback form — all four are ordinary `arg1` windows,
+    // same shape as `sma`/`stdev` beside them. `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(68)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -558,9 +565,10 @@ describe('the manifest', () => {
     // `closedTable.json::_functions_cumulative` says why a cumulative sum can
     // exist here at all, and why Pine's `cum` still cannot. Scalar half
     // untouched at 111.
-    expect(bar.size).toBe(97)
+    // 97 -> 101 IS VENDOR PARITY TRANCHE 2, LANE B. Scalar half untouched at 137.
+    expect(bar.size).toBe(101)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(234)
+    expect(declared.size).toBe(238)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

@@ -678,6 +678,114 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     return math.sqrt(sq / (hi - lo + 1))
 
 
+def _window_rising_monotone(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.rising(src, length)`` — STRICT MONOTONE over ``length + 1`` samples.
+
+    Resolved 2026-09-06 by a real vendor capture, not the v5/v6 RETURNS clause
+    (which reads as running-maximum). See ``closedTable.json``'s
+    ``_functions_vendor_parity_resolutions.rising_resolution`` for the full
+    evidence chain. The JS twin is ``interpret.js::windowRisingMonotone`` —
+    same two rules: NaN anywhere in the window makes the answer NaN (matching
+    every other windowed function here, a disclosed narrowing versus the
+    vendor's own stated na-skipping window walk).
+    """
+    for i in range(lo + 1, hi + 1):
+        a, b = series[i], series[i - 1]
+        if _isnan(a) or _isnan(b):
+            return NAN
+        if not (a > b):
+            return 0.0
+    return 1.0
+
+
+def _window_median(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.median(src, length)`` — rank-counting, no sort/array ops.
+
+    Even length resolved 2026-09-06 by a real vendor capture to MEAN of the
+    two middle ranks (not the lower-middle rank the int->int overload had
+    circumstantially suggested) — see
+    ``_functions_vendor_parity_resolutions.median_resolution``. The JS twin
+    is ``interpret.js::windowMedian``.
+    """
+    length = hi - lo + 1
+
+    def rank_element(k: int) -> float:
+        for j in range(lo, hi + 1):
+            vj = series[j]
+            if _isnan(vj):
+                return NAN
+            less = 0
+            equal = 0
+            for m in range(lo, hi + 1):
+                vm = series[m]
+                if _isnan(vm):
+                    return NAN
+                if vm < vj:
+                    less += 1
+                elif vm == vj:
+                    equal += 1
+            if less <= k < less + equal:
+                return vj
+        return NAN  # unreachable while every window index is scanned above
+
+    if length % 2 == 1:
+        return rank_element((length - 1) // 2)
+    a = rank_element(length // 2 - 1)
+    b = rank_element(length // 2)
+    if _isnan(a) or _isnan(b):
+        return NAN
+    return (a + b) / 2
+
+
+def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
+    """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
+    current) / length``. NOT expressible via a running ``sum`` (each ``sum``
+    term evaluates at its OWN bar; percentrank compares every prior term
+    against the SAME current bar). Resolved 2026-09-06 by a real vendor
+    capture confirming divisor ``length`` with the current bar EXCLUDED —
+    see ``_functions_vendor_parity_resolutions.percentrank_resolution``.
+    """
+    cur = series[i]
+    if _isnan(cur):
+        return NAN
+    count = 0
+    for k in range(1, length + 1):
+        v = series[i - k]
+        if _isnan(v):
+            return NAN
+        if v <= cur:
+            count += 1
+    return 100.0 * count / length
+
+
+def _bbw_col(series: Sequence[float], n: int, mult: float) -> List[float]:
+    """``ta.bbw(src, length, mult)`` — the PERCENT form: ``(2 * mult *
+    stdev(src, length) / sma(src, length)) * 100``, with ``stdev`` the same
+    POPULATION form ``_window_stdev`` already uses.
+
+    Resolved 2026-09-06 by a real vendor capture confirming the percent form
+    (x100), not the bare ratio — see
+    ``_functions_vendor_parity_resolutions.bbw_resolution``. The JS twin is
+    ``interpret.js``'s ``FN.bbw``.
+
+    ⚠️ KNOWN, DISCLOSED NARROWING: ``mult`` is typed ``int`` in
+    ``closedTable.json`` (this grammar has no float-constant arg type at all
+    — ``int``/``series`` are the only two argument kinds in the whole
+    table), so a fractional multiplier cannot be expressed here, unlike
+    TradingView's true float-typed signature. The captured real evidence
+    used ``mult=2`` (an integer).
+    """
+    sd = _rolling(series, n, _window_stdev)
+    avg = _rolling(series, n, _window_mean)
+    out = _nan_col(len(series))
+    for i in range(len(series)):
+        s, a = sd[i], avg[i]
+        if _isnan(s) or _isnan(a) or a == 0:
+            continue
+        out[i] = (2 * mult * s / a) * 100
+    return out
+
+
 def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     """An exponential smoother seeded with the SMA of the first full window.
 
@@ -1340,6 +1448,17 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "stdev": lambda series, n: _rolling(series, n, _window_stdev),
     "sum": lambda series, n: _rolling(series, n, _window_sum),
     "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
+    # ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
+    # TradingView capture. See ``closedTable.json``'s
+    # ``_functions_vendor_parity_resolutions`` for the full evidence chain
+    # each of these four carries. JS twins: ``interpret.js``'s ``FN.rising``/
+    # ``FN.median``/``FN.percentrank``/``FN.bbw``.
+    "rising": lambda series, n: _rolling(series, n + 1, _window_rising_monotone),
+    "median": lambda series, n: _rolling(series, n, _window_median),
+    "percentrank": lambda series, n: [
+        _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
+    ],
+    "bbw": lambda series, n, mult: _bbw_col(series, n, mult),
     "change": _fn_change,
     "abs": _fn_abs,
     # ⚠️ NaN PROPAGATES, WRITTEN OUT RATHER THAN INHERITED. JS's `Math.min(NaN, x)`

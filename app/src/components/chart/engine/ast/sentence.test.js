@@ -156,6 +156,18 @@ const FORMS = [
   // `stdev` is the other one, and a sentence a member cannot tell apart is how a
   // wrong CCI gets approved in a read-back review.
   { kind: 'call', name: 'dev', parts: ['the mean absolute deviation of ', 0, ' over the last ', 1, ' bars'] },
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — hand-typed from
+  // closedTable.json's own words like every row above, deliberately NOT
+  // derived from it: the round trip proves nothing if the oracle agrees
+  // with the renderer by construction.
+  { kind: 'call', name: 'rising', parts: [0, ' rising for ', 1, ' bars'] },
+  { kind: 'call', name: 'median', parts: ['the ', 1, '-bar median of ', 0] },
+  { kind: 'call', name: 'percentrank', parts: ['the ', 1, '-bar percent rank of ', 0] },
+  {
+    kind: 'call',
+    name: 'bbw',
+    parts: ['the ', 1, '-bar Bollinger Band Width of ', 0, ' at multiplier ', 2],
+  },
   { kind: 'call', name: 'sqrt', parts: ['the square root of ', 0] },
   { kind: 'call', name: 'ln', parts: ['the natural log of ', 0] },
   { kind: 'call', name: 'log10', parts: ['the base-10 log of ', 0] },
@@ -954,6 +966,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:atr',
       'function:avwap',
       'function:barssince',
+      // ⭐ 97 -> 101: Vendor Parity Tranche 2, Lane B — `bbw`, `median`,
+      // `percentrank`, `rising`, each resolved 2026-09-06 by a real
+      // TradingView capture (`closedTable.json`'s
+      // `_functions_vendor_parity_resolutions`), not asserted from
+      // documentation alone. Four named entries, not a bumped count.
+      'function:bbw',
       'function:bop',
       'function:cci',
       'function:change',
@@ -987,6 +1005,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:lowestbars',
       'function:macd',
       'function:max',
+      'function:median',
       'function:mfi',
       'function:min',
       'function:minusDI',
@@ -994,10 +1013,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      'function:percentrank',
       'function:pivothigh',
       'function:pivotlow',
       'function:plusDI',
       'function:pow',
+      'function:rising',
       'function:rma',
       'function:round',
       'function:rsi',
@@ -1015,7 +1036,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(97)
+    expect(entries.length).toBe(101)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1025,7 +1046,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(97)
+    expect(subjects.length).toBe(101)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2342,6 +2363,14 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'cumFrom_anchored_on_the_very_first_bar',
       'cumFrom_a_hole_in_the_source_is_sticky',
       'cumFrom_the_member_fills_the_hole_and_it_totals',
+      // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — one corpus case per
+      // function, each resolved by a real TradingView capture rather than
+      // documentation alone (`closedTable.json::
+      // _functions_vendor_parity_resolutions`).
+      'rising_close_3',
+      'median_close_4',
+      'percentrank_close_10',
+      'bbw_close_20_2',
     ])
   })
 
@@ -2384,7 +2413,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 97)
+    expect(sentences.length).toBe(CORPUS.cases.length + 101)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

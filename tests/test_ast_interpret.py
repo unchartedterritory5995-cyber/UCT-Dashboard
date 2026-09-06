@@ -258,7 +258,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # first `reads: "bars"` entry that also takes a `series`, and it is the ruling
     # that lets `_functions_excluded.obv` and the new `_functions_excluded.cum`
     # point at a successor instead of only refusing.
-    assert len(ast_table.bar_names()) == 97, len(ast_table.bar_names())
+    # 97 -> 101 (2026-09-06): Vendor Parity Tranche 2, Lane B -- `rising`,
+    # `median`, `percentrank`, `bbw`, each resolved by a real TradingView
+    # capture rather than documentation alone (`closedTable.json::
+    # _functions_vendor_parity_resolutions`). No new node type, argument
+    # kind, or lookback form -- ordinary `arg1` windows like `sma`/`stdev`.
+    assert len(ast_table.bar_names()) == 101, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -277,7 +282,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # ⭐ 208 -> 234 (2026-09-02) is the SAME 26 Wave-1 columns as the scalar
     # bump below; this is their combined total, so the two move together or
     # one of them is wrong.
-    assert len(declared) == 234, f"the table declares {len(declared)} names, not 234"
+    # 234 -> 238 (2026-09-06): the same four Lane B functions; the scalar half
+    # is untouched at 137.
+    assert len(declared) == 238, f"the table declares {len(declared)} names, not 238"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

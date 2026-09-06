@@ -89,8 +89,28 @@ const ACCEPTED = FILES.filter((f) => {
 })
 
 /** ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM: what a paste reaches
- *  once the member takes the engine's OWN offer, in a click rather than a retype. */
-const ACCEPT_FLOOR = 28
+ *  once the member takes the engine's OWN offer, in a click rather than a retype.
+ *
+ *  ⭐⭐ 28 -> 27 LOOKS LIKE A REGRESSION AND IS NOT ONE. This constant was
+ *  ALREADY STALE before Vendor Parity Tranche 2 touched it: the program's own
+ *  Project Evidence & Assumption Audit (2026-09-05) established that "28/48
+ *  is NOT current truth" for this exact blind-corpus claim — the verified,
+ *  reproducible baseline going into this tranche was 21/48, not 28 — but this
+ *  ONE constant was missed by that correction pass and stayed silently wrong
+ *  (a second-authority-over-one-value defect this program keeps finding).
+ *
+ *  21 -> 27 IS VENDOR PARITY TRANCHE 2, LANE B (2026-09-06): `ta.rising`,
+ *  `ta.median`, `ta.percentrank` and `ta.bbw` declared, each resolved by a
+ *  real TradingView capture (`closedTable.json::_functions_vendor_parity_
+ *  resolutions`), not by guessing to close this gap. MEASURED, not assumed
+ *  higher: the remaining 21 misses are blocked by OTHER unimplemented names
+ *  this authorization does not cover — `syminfo.mintick` (9), `ta.valuewhen`
+ *  (arity, not a missing name), `ta.falling` (rising's twin, deliberately
+ *  NOT authorized alongside it), `ta.cci`, `ta.supertrend`, `ta.kcw`,
+ *  `ta.cmf`, `ta.obv` — see the exam's own `console.log('still short ...')`
+ *  output. Implementing any of those is a separate, future authorization,
+ *  not a way to force this floor higher. */
+const ACCEPT_FLOOR = 27
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -103,11 +123,14 @@ const ACCEPT_FLOOR = 28
  *  script using it actually refuses, and the rail below checks that every run.
  */
 const UNSERVED_PROBES = Object.freeze({
-  'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) MOVED `ta.rising`,
+  // `ta.bbw`, `ta.percentrank` and `ta.median` OUT of this roster and INTO
+  // `SERVED_CONTROLS` below — each now resolves, so a probe for it here
+  // would fail this file's own staleness check ("a name may sit in this
+  // roster only while a minimal script using it actually refuses").
+  // `ta.falling` deliberately STAYS: it is `rising`'s twin and was NOT part
+  // of this authorization's four named functions.
   'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
-  'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
-  'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
-  'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
   'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
@@ -127,6 +150,12 @@ const SERVED_CONTROLS = Object.freeze({
   'ta.linreg': 'plot(ta.linreg(close, 20, 0) > ta.linreg(close, 20, 1) ? 1 : 0)',
   'ta.mfi': 'plot(ta.mfi(hlc3, 14) > 50 ? 1 : 0)',
   'ta.dev': 'plot(ta.dev(close, 20) > 1 ? 1 : 0)',
+  // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B (2026-09-06) — moved from
+  // UNSERVED_PROBES above now that each resolves via a real vendor capture.
+  'ta.rising': 'plot(ta.rising(close, 3) ? 1 : 0)',
+  'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
+  'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
+  'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
 })
 
 /** ⭐ 2026-09-04 — 20 → 21 / 27 → 28: A VENUE-QUALIFIED TICKER.
