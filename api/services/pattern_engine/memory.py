@@ -280,7 +280,7 @@ def prune_old(retention_days: int = PRUNE_RETENTION_DAYS, batch: int = 50_000) -
 # no trace left anywhere -- `_scan_patterns_daily` commits each detection in
 # its own transaction via `store_detection`, so partial progress is never
 # corrupted, but nothing records whether a given night's run went the full
-# distance. These three functions are a pure, additive observability layer:
+# distance. The functions below are a pure, additive observability layer:
 # they change no serving behavior (`get_active_detections`/`pattern_join.py`
 # are untouched) and no scheduling behavior. Mirrors
 # `api/services/screener/scan_evaluator.py`'s `scan_coverage` idiom: a run
@@ -364,10 +364,23 @@ def fail_scan_run(job_id: str, as_of: int, error: str) -> None:
 
 
 def latest_scan_run(job_id: str) -> Optional[dict]:
-    """Most recent recorded attempt for `job_id`, or None if it has never
-    run under this mechanism. Read-only diagnostic -- never used to gate
-    serving behavior; a caller wanting "is there fresh data" should keep
-    reading pattern_detections directly, same as today."""
+    """Most recent recorded ATTEMPT for `job_id`, regardless of whether it
+    finished -- or None if it has never run under this mechanism.
+
+    ⛔ THIS IS "LATEST ATTEMPT", NOT "LATEST GOOD DATA". A caller asking "can
+    I trust that last night's scan actually finished" must check this row's
+    own `completed_at` (NULL = it did not), and MUST NOT assume a non-NULL
+    row means fresh, complete coverage -- an interrupted run's row is
+    returned here just as readily as a completed one, by design (mirrors
+    scan_coverage's own "the absence is the signal" philosophy, extended to
+    a job that writes a STARTED row before it can possibly know it will
+    finish). Use `latest_complete_scan_run` for "the last run we KNOW went
+    the full distance" -- an interrupted attempt must never be read as
+    though it superseded the last real completion.
+
+    Read-only diagnostic either way -- never used to gate serving behavior;
+    a caller wanting "is there fresh data" should keep reading
+    pattern_detections directly, same as today."""
     conn = get_connection()
     try:
         row = conn.execute(
@@ -376,6 +389,34 @@ def latest_scan_run(job_id: str) -> Optional[dict]:
                    symbols_intended, symbols_scanned, symbols_stored, error
               FROM pattern_scan_runs
              WHERE job_id = ?
+             ORDER BY as_of DESC
+             LIMIT 1
+            """,
+            (job_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def latest_complete_scan_run(job_id: str) -> Optional[dict]:
+    """The most recent run for `job_id` that is KNOWN to have finished
+    (`completed_at IS NOT NULL`) -- or None if none ever has.
+
+    This is the query a future readiness/health check should call, never
+    `latest_scan_run`: an interrupted or still-running attempt (however
+    recent) is invisible to this function by construction, so it can never
+    be mistaken for -- or silently supersede -- the last genuinely complete
+    run. `latest_scan_run` and this function answer two different questions
+    on purpose; see that docstring."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT job_id, as_of, started_at, completed_at,
+                   symbols_intended, symbols_scanned, symbols_stored, error
+              FROM pattern_scan_runs
+             WHERE job_id = ? AND completed_at IS NOT NULL
              ORDER BY as_of DESC
              LIMIT 1
             """,
