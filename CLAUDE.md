@@ -2798,6 +2798,32 @@ ledger) and names whatever is missing.
   in Discord. The endpoint always reports `checked`, and "no sessions published at
   all" is already owned by `check_missing_session_alert`.
 
+### Media-evidence bridge — cross-repo read-only endpoints for uct-clips (Phase 4D-4C, 2026-09-05)
+
+`api/services/media_evidence_bridge.py` + `api/routers/media_evidence_bridge.py`
+(`/api/internal/media-evidence/*`, PUSH_SECRET bearer, same idiom as
+`desk_zoom_webhook.py`'s `/recap-*` routes). Built on branch
+`feat/media-evidence-foundation` for the sibling `uct-clips` repo's video/
+market/trade evidence foundation — infrastructure only, no trading graphics.
+
+- **`GET .../session-time/{video_id}`** — joins `edu_videos.meeting_uuid` to
+  `desk_session_jobs.start_time` for the authoritative Zoom wall-clock session
+  start. **Fails closed** (`confidence: "unknown"`) at every break in that
+  chain — no `meeting_uuid`, a pruned job row, or an unparseable `start_time`
+  — never substitutes `now()` the way `desk_daily_session._to_et` does for
+  thumbnail cosmetics (that fallback is fine for a cosmetic card; it would be
+  a lie here).
+- **`GET .../trades`** — read-only `j2_trades`/`j2_positions`/
+  `j2_option_strategies` rows for one user (resolved by `email` via
+  `auth_service.get_user_by_email` — the caller never passes a raw
+  `user_id`), each carrying its existing stable `trade_ref`
+  (`journal_two.trade_refs.trade_ref_for_row`). Returns evidence only —
+  `entry_date`/`exit_date` pass through byte-identical to storage (date-only,
+  no fabricated time-of-day) precisely so uct-clips' own linkage-confidence
+  classifier can see it can never call a date-only match `DETERMINISTIC`.
+- Not yet deployed — branch-only. `tests/test_media_evidence_bridge.py` (17
+  tests) + desk-area regression green (143 total) as of the commit that added it.
+
 ## Performance & Scale — 2026-07-01 launch-hardening (do NOT regress)
 
 Big perf/scale pass ahead of the ~200-user launch. Full detail + remaining backlog
