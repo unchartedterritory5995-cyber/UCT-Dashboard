@@ -37,6 +37,17 @@ const JOURNAL_SHORTCUTS = [
   { keys: ['/'], label: 'Focus symbol filter' },
 ]
 
+// Wave B (High-Frequency Notebook UX). Deliberately small (§35 — "do not
+// create dozens of shortcuts at once") and, unlike the bare-letter shortcuts
+// above, these ARE active while typing inside the note editor's
+// contenteditable body — Ctrl/Cmd never collides with normal typing the way
+// a bare letter would, so they're exempt from this sheet's own footnote.
+const NOTEBOOK_SHORTCUTS = [
+  { keys: ['Ctrl', 'K'], label: 'Open command palette (works from anywhere, incl. Notebook)' },
+  { keys: ['Ctrl', 'F'], label: 'Find in the current note' },
+  { keys: ['Esc'], label: 'Close find, or the command palette' },
+]
+
 function Kbd({ keys }) {
   return (
     <span className={styles.kbdGroup}>
@@ -106,6 +117,7 @@ export default function ShortcutCheatSheet({ open, onClose }) {
           <Section title="General" shortcuts={GENERAL_SHORTCUTS} />
           <Section title="Open Positions" shortcuts={POSITIONS_SHORTCUTS} />
           <Section title="Trade Journal" shortcuts={JOURNAL_SHORTCUTS} />
+          <Section title="Notebook" shortcuts={NOTEBOOK_SHORTCUTS} />
           <p className={styles.footNote}>
             Shortcuts are disabled while typing in an input, textarea, or
             contenteditable element.

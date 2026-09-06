@@ -1639,6 +1639,36 @@ def notes_by_trade_ref_endpoint(
     return {"notes": notes_service.get_notes_linked_to_trade(user["id"], tradeRef, tradeRefType)}
 
 
+@router.get("/notes/favorites")
+def list_favorites_endpoint(
+    limit: int = notes_service.FAVORITES_DEFAULT_LIMIT,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave B: the sidebar's Favorites section + the command palette's
+    "Open Favorite" entries share this one read.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks`/`/notes/tags`/`/notes/folder-counts`/`/notes/by-folders`/
+    `/notes/by-trade-ref` above — FastAPI matches in declaration order and
+    that route would otherwise swallow "favorites" as a note id."""
+    return {"notes": notes_service.list_favorites(user["id"], limit=limit)}
+
+
+@router.get("/notes/recents")
+def list_recents_endpoint(
+    limit: int = notes_service.RECENTS_DEFAULT_LIMIT,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave B: the sidebar's Recents section + the command palette's "Open
+    Recent" entries share this one read. System-derived — no write endpoint
+    to reorder or curate; see `POST /notes/{note_id}/opened` for the only way
+    a note enters this list.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/favorites` immediately above."""
+    return {"notes": notes_service.list_recents(user["id"], limit=limit)}
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
@@ -1702,6 +1732,37 @@ def attachment_gc_endpoint(
     return attachment_gc.sweep_orphaned_attachments(
         dry_run=dry_run, min_age_hours=max(1.0, min_age_hours),
     )
+
+
+@router.post("/notes/{note_id}/favorite")
+def add_favorite_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        notes_service.add_favorite(user["id"], note_id)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"isFavorite": True}
+
+
+@router.delete("/notes/{note_id}/favorite")
+def remove_favorite_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    notes_service.remove_favorite(user["id"], note_id)
+    return {"isFavorite": False}
+
+
+@router.post("/notes/{note_id}/opened")
+def note_opened_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Wave B Recents beacon — fired by the frontend when a note finishes
+    loading in the editor. Deliberately never 404s on a missing/foreign note
+    id and never surfaces a failure: this is a best-effort recency signal,
+    not a correctness-bearing write, and must never be able to break opening
+    a note. A note the caller doesn't own simply won't appear in their own
+    Recents (list_recents joins on user_id), so there is no cross-tenant leak
+    even though this endpoint itself doesn't verify ownership up front."""
+    try:
+        notes_service.record_note_opened(user["id"], note_id)
+    except Exception:  # noqa: BLE001 — recency tracking must never break note viewing
+        pass
+    return {"ok": True}
 
 
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).

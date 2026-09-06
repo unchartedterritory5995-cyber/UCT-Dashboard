@@ -15,6 +15,19 @@
   color: var(--color-text-muted, #98a0aa);
   padding: 0 8px 6px;
 }
+/* Wave B: Favorites/Recents section header — same weight as .sectionLabel,
+   inline with its leading UIcon, sitting beside a .disclosureBtn instead of
+   standing alone (unlike Tags, these sections collapse). */
+.sectionHeaderLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 3px 0;
+}
 
 /* ── Header toolbar: collapse + Folders/Search mode switch ─────────────────── */
 .sbHeader {
@@ -305,6 +318,10 @@
   text-align: left;
 }
 .noteRow:hover { background: var(--color-surface-hover, #1c2028); color: var(--color-text-primary, #e8eaed); }
+/* Wave B: search-results loading skeleton, replacing the plain "Searching…"
+   text on the one high-frequency structural load in this panel. */
+.searchResultsSkeleton { display: flex; flex-direction: column; gap: 12px; padding: 8px 10px; }
+.searchResultSkeletonRow { display: flex; flex-direction: column; gap: 6px; }
 .noteIcon { flex: 0 0 auto; opacity: 0.75; }
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; }

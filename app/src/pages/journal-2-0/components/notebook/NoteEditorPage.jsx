@@ -3,8 +3,9 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
-import { useJ2Note } from '../../hooks/useJ2Notes'
+import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
+import ConfirmModal from '../ConfirmModal'
 import HeroImagePicker from './HeroImagePicker'
 import NoteVideoHero, { getNoteVideoTime } from './NoteVideoHero'
 import { NoteRailLeft, NoteRailRight, seekNoteVideo } from './NoteVideoRails'
@@ -20,6 +21,8 @@ import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import NoteAskPanel from './NoteAskPanel'
+import NoteFindBar from './NoteFindBar'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
@@ -318,6 +321,59 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+
+  // Wave B Recents: fire the "opened" beacon once per real note view (not on
+  // every render, not while it's still loading, not on a failed load). Keyed
+  // on noteId so switching notes without unmounting (NotebookTab reuses this
+  // component across selections) records each one.
+  useEffect(() => {
+    if (noteId && note) recordNoteOpened(noteId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId, Boolean(note)])
+
+  // Wave B Favorites: local + optimistic, reverted on a failed write (§47 —
+  // "restore truthful state" on failure). Re-syncs from the server's own
+  // value whenever a DIFFERENT note's data lands (note.isFavorite for the
+  // note currently open), so switching notes never carries the previous
+  // note's star state onto the new one.
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [favoriteBusy, setFavoriteBusy] = useState(false)
+  useEffect(() => {
+    setIsFavorite(Boolean(note?.isFavorite))
+  }, [noteId, note?.isFavorite])
+  // Wave B: find-in-note. Scoped to this page's own keydown (a React
+  // synthetic handler bubbling from anywhere inside .page below) rather
+  // than a global window listener — the browser's native Ctrl/Cmd+F is
+  // untouched everywhere else in the app, since this handler only exists
+  // while a note is actually mounted.
+  const [findOpen, setFindOpen] = useState(false)
+  const onPageKeyDown = (e) => {
+    const key = e.key.toLowerCase()
+    if ((e.metaKey || e.ctrlKey) && key === 'f') {
+      e.preventDefault()
+      setFindOpen(true)
+    } else if (key === 'escape' && findOpen) {
+      // Only when the find bar's OWN input isn't already handling it (its
+      // handler calls stopPropagation on Escape) -- this is the fallback
+      // for Escape pressed while focus is elsewhere on the page.
+      setFindOpen(false)
+      editor?.commands.noteFindClear()
+    }
+  }
+
+  const onToggleFavorite = async () => {
+    if (favoriteBusy) return
+    const next = !isFavorite
+    setIsFavorite(next) // optimistic
+    setFavoriteBusy(true)
+    try {
+      await setNoteFavorite(noteId, next)
+    } catch {
+      setIsFavorite(!next) // revert -- never diverge silently from the server
+    } finally {
+      setFavoriteBusy(false)
+    }
+  }
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
   const columnRef = useRef(null)
   const [exportBusy, setExportBusy] = useState(false)
@@ -857,10 +913,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await update({ tags })
   }
 
-  const onDelete = async () => {
-    // Wave 0 trash: a soft delete — restorable from the sidebar's Trash
-    // entry for 30 days before it's permanently purged.
-    if (!confirm('Delete this note? You can restore it from Trash for 30 days.')) return
+  // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
+  // request opens the modal, confirm performs the actual mutation. Wave 0
+  // trash: this is a soft delete, restorable from the sidebar's Trash entry
+  // for 30 days, so the copy stays proportional rather than "permanently".
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const onDeleteRequest = () => setConfirmingDelete(true)
+  const onDeleteConfirm = async () => {
     const res = await fetch(`/api/j2/notes/${noteId}`, {
       method: 'DELETE', credentials: 'include',
     })
@@ -876,7 +935,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   )
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading…</div>
+    // Wave B (G-106 adoption): a skeleton approximating the note page's own
+    // layout (title, then body lines) — reduces layout shift vs. a bare
+    // spinner and matches every other high-frequency structural load's
+    // treatment in this wave.
+    return (
+      <div className={styles.loading} role="status" aria-label="Loading…">
+        <SkeletonLine width="45%" height={26} />
+        <div style={{ height: 20 }} />
+        <SkeletonLine width="92%" height={14} />
+        <SkeletonLine width="88%" height={14} />
+        <SkeletonLine width="70%" height={14} />
+      </div>
+    )
   }
 
   // P0-2 fix: `error` is real and returned by useJ2Note, but was never
@@ -914,7 +985,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
 
   return (
-    <div className={styles.page} ref={pageRef}>
+    <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
         {showBack && (
@@ -932,6 +1003,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </div>
         )}
         <div className={styles.headerControls}>
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={onToggleFavorite}
+            disabled={favoriteBusy}
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+          >
+            <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
+          </button>
           <NoteLinkedTradeChips noteId={noteId} />
           <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
           {isAdmin && (
@@ -972,11 +1054,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTagsChange(e.target.value)}
             style={{ width: 200 }}
           />
-          <button type="button" className="btn btn-danger" onClick={onDelete}>
+          <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>
         </div>
       </header>
+
+      {confirmingDelete && (
+        <ConfirmModal
+          title="Delete this note?"
+          body="It moves to Trash and can be restored for 30 days before it's permanently removed."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={onDeleteConfirm}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
 
       {/* Wave 0 (P1-10): a locally-drafted version of this note from a
           session that never actually saved it to the server (tab closed,
@@ -1189,6 +1282,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
+
+        {findOpen && (
+          <NoteFindBar editor={editor} onClose={() => { setFindOpen(false); editor?.commands.noteFindClear() }} />
+        )}
 
         <EditorContent editor={editor} />
 

@@ -1427,6 +1427,11 @@ def get_note(
                 )
                 conn.commit()
                 note["firstImageUrl"] = first
+        fav_row = conn.execute(
+            "SELECT 1 FROM j2_note_favorites WHERE user_id = ? AND note_id = ?",
+            (user_id, note_id),
+        ).fetchone()
+        note["isFavorite"] = fav_row is not None
         return note
     finally:
         if owned:
@@ -1918,6 +1923,128 @@ def register_trash_purge_job(scheduler) -> bool:
         coalesce=True,
     )
     return True
+
+
+# ── Favorites + Recents (Wave B: High-Frequency Notebook UX) ────────────────
+# Both idempotent (re-favoriting / re-opening is a no-op write), both
+# trash-aware via the read-side JOIN (a favorited/opened note that gets
+# trashed is silently excluded from these lists; Restore un-hides it again
+# with no extra reconciliation), both cascade-cleaned on hard delete via the
+# j2_notes_favorites_ad / j2_notes_recents_ad triggers in db.py — never via a
+# per-call-site DELETE here, same rationale as the FTS triggers.
+
+RECENTS_DEFAULT_LIMIT = 8
+FAVORITES_DEFAULT_LIMIT = 50
+
+
+def add_favorite(
+    user_id: str,
+    note_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise NoteValidationError("note not found")
+        conn.execute(
+            "INSERT INTO j2_note_favorites (user_id, note_id, created_at) "
+            "VALUES (?, ?, ?) ON CONFLICT(user_id, note_id) DO NOTHING",
+            (user_id, note_id, _now_iso()),
+        )
+        if owned:
+            conn.commit()
+    finally:
+        if owned:
+            conn.close()
+
+
+def remove_favorite(
+    user_id: str,
+    note_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM j2_note_favorites WHERE user_id = ? AND note_id = ?",
+            (user_id, note_id),
+        )
+        if owned:
+            conn.commit()
+    finally:
+        if owned:
+            conn.close()
+
+
+def list_favorites(
+    user_id: str,
+    limit: int = FAVORITES_DEFAULT_LIMIT,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT n.* FROM j2_note_favorites f "
+            "JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id "
+            "WHERE f.user_id = ? AND n.deleted_at IS NULL "
+            "ORDER BY f.created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def record_note_opened(
+    user_id: str,
+    note_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    """Fire-and-forget system-derived recency tracking — the router wraps this
+    in a broad try/except so a failure here never surfaces to the member or
+    blocks note rendering (see the "opened" endpoint's own docstring)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO j2_note_recents (user_id, note_id, opened_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(user_id, note_id) DO UPDATE SET opened_at = excluded.opened_at",
+            (user_id, note_id, _now_iso()),
+        )
+        if owned:
+            conn.commit()
+    finally:
+        if owned:
+            conn.close()
+
+
+def list_recents(
+    user_id: str,
+    limit: int = RECENTS_DEFAULT_LIMIT,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT n.* FROM j2_note_recents r "
+            "JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id "
+            "WHERE r.user_id = ? AND n.deleted_at IS NULL "
+            "ORDER BY r.opened_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
 
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────

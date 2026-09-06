@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
@@ -181,6 +181,20 @@ describe('NotebookTab — template picker', () => {
     // give the effect a tick to run
     await new Promise((r) => setTimeout(r, 50))
     expect(lastPostBody).toBeNull()
+  })
+
+  it('Wave B: ?new=blank auto-creates a plain blank note (the command palette\'s "New Note" destination)', async () => {
+    renderTab('/journal/notebook?new=blank')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.title).toBe('')
+    expect(lastPostBody.bodyJson).toBeUndefined()
+    expect(lastPostBody.tags).toBeUndefined()
+  })
+
+  it('Wave B: ?new=blank&ticker=NVDA seeds the ticker on the blank note', async () => {
+    renderTab('/journal/notebook?new=blank&ticker=nvda')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.ticker).toBe('NVDA')
   })
 })
 
@@ -387,5 +401,43 @@ describe('NotebookTab — Wave 0 trash view', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }))
     expect(screen.queryByText('Trash is empty.')).not.toBeInTheDocument()
+  })
+
+  it('Wave B: ?folder=__trash__ deep link opens directly into the Trash view (the command palette\'s "Open Trash" destination)', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab('/journal/notebook?folder=__trash__')
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({ deleted: true, sort: 'deleted' }))
+  })
+
+  it('Wave B: ?folder=__trash__ ALSO works as a same-route client-side navigation while NotebookTab is already mounted -- the command palette\'s real path (caught live: a lazy useState/one-time useEffect only fires on first mount and silently no-ops here)', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    function NavTrigger() {
+      const navigate = useNavigate()
+      return <button type="button" onClick={() => navigate('/journal/notebook?folder=__trash__')}>navigate-to-trash</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <NavTrigger />
+        <NotebookTab />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByText('navigate-to-trash'))
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({ deleted: true, sort: 'deleted' }))
   })
 })

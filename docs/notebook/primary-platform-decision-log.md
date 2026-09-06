@@ -770,6 +770,18 @@ Duplicated to user memory (extends `feedback_agent_authority_and_worktree_isolat
 
 ---
 
+### 2026-09-06 — Wave A (Search Evolution I) accepted; process correction: per-wave scoped competitor comparison; Wave B authorized
+
+**WAVE A ACCEPTED.** Patrick reviewed the 44-point Wave A certification report and accepted it as final: complete, tested, real-browser verified, deployed, production-verified. The shipped Search Evolution I contract (FTS5 lexical retrieval, created-date filtering, `idx_j2_notes_user_created`, query-aware snippets/highlighting, match-reason explanations, BM25 ranking, ticker/sector/theme filtering, filters-only search, AND composition, malformed-query safety, hyphenated-ticker + `$NVDA` correctness, trash exclusion, tenant isolation, honest zero-result states) is **not to be reopened for speculative hardening**. One known non-blocking debt item is explicitly preserved, not silently dropped: sector/theme filters require exact-name typing today — logged as a future "Search Filter Autocomplete / Discovery UX" item, not to be folded into Wave A retroactively.
+
+**PROCESS CORRECTION:** Wave A's own certification deferred all competitor-experience comparison to the future Stage C formal certification. Patrick corrected this — Stage C remains the large formal switching/parity certification, but **every major pre-launch wave from Wave B forward must perform a small, task-specific competitor-experience comparison** scoped to that wave's own workflows only (not a giant research program). Recorded in `prelaunch-primary-notebook-build-plan.md` §2 (Operating Posture) as a durable implementation principle.
+
+**WAVE B AUTHORIZED:** "High-Frequency Notebook UX / Power-User Foundation" — command palette participation, favorites, recents, find-in-note, native-`confirm()` replacement, shared loading/skeleton foundation where warranted, folder-sidebar re-verification, responsive/mobile re-verification, high-value keyboard flow, and small visual-consistency fixes on touched surfaces only. Full scope, exit standard, and 51-point certification format specified in Patrick's directive (this session). Explicit non-goals restated: no version history, no backlinks, no structured research properties, no semantic search, no Ask Notebook expansion, no PDF/OCR, no offline, no full mobile architecture rebuild, no collaboration, no new trading functionality — those remain later waves.
+
+**Standing discipline reaffirmed, unchanged:** autonomy applies WITHIN Wave B once the entry checkpoint (current-reality reconstruction + no material contradiction) is recorded; certify → report → STOP before Wave C, same as every prior wave.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

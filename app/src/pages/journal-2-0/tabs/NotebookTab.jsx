@@ -52,7 +52,30 @@ export default function NotebookTab() {
 
   useEffect(() => { _logNotebookVisit() }, [])
 
+  // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
+  // Trash" destination. NOT a lazy one-time initializer: NotebookTab does
+  // NOT remount for a same-route client-side navigation (command palette ->
+  // "Open Trash" while already inside Notebook is exactly this case), so a
+  // `useState(() => ...)` initializer or a `useEffect(..., [])` would only
+  // ever fire on the component's FIRST mount and silently no-op on every
+  // later "Open Trash" click -- caught live (not by any unit test, which
+  // always mounts fresh) because the E2E pass drove the real palette-click
+  // -> same-mounted-tab path. Deliberately NOT a two-way sync afterward
+  // (folder selection stays local component state once read) -- only a
+  // freshly-arriving `folder` param drives it.
   const [folderId, setFolderId] = useState(null)
+  useEffect(() => {
+    const f = searchParams.get('folder')
+    if (!f) return
+    setFolderId(f)
+    // Strip it immediately -- a stale ?folder= must never re-force the view
+    // back to Trash on an unrelated future navigation (e.g. browser back).
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('folder')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
@@ -339,11 +362,14 @@ export default function NotebookTab() {
   // Deep link: /journal/notebook?new=<templateKey>[&ticker=SYM] — Today page, the
   // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
   // Runs once; params are stripped either way so a stale key can't loop.
+  // Wave B: `new=blank` is the one reserved key that isn't a template — it's
+  // the command palette's "New Note" destination, mirroring the sidebar's
+  // own "+ New note" button (a bare createNote() call, no template).
   const newKey = searchParams.get('new')
   useEffect(() => {
     if (!newKey || noteId || creating || deepLinkRan.current) return
     deepLinkRan.current = true
-    const tpl = getTemplate(newKey)
+    const tpl = newKey === 'blank' ? null : getTemplate(newKey)
     const ticker = searchParams.get('ticker')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -352,6 +378,14 @@ export default function NotebookTab() {
       return next
     }, { replace: true })
     if (tpl) createFromTemplate(tpl, { ticker })
+    else if (newKey === 'blank') {
+      // Same uppercase-and-trim normalization assembleTemplateContext applies
+      // for the template path (templateContext.js) — kept consistent so a
+      // deep-linked ticker behaves identically regardless of which "new
+      // note" door it came through.
+      const normalizedTicker = (ticker || '').trim().toUpperCase() || undefined
+      createNote({ ticker: normalizedTicker })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newKey])
 
