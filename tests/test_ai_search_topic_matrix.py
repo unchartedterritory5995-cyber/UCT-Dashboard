@@ -54,7 +54,6 @@ def client(monkeypatch):
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 100.0, "direction": "up", "abs_pct": 1.0})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: f"[CATALYST:{s}]")
     monkeypatch.setattr(ai, "_ctx_tape", lambda s: f"[TAPE:{s}]")
-    monkeypatch.setattr(ai, "_ctx_patterns", lambda s: f"[PATTERNS:{s}]")
     monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda s: f"[FLOW:{s}]")
     monkeypatch.setattr(ai, "_ctx_movers", lambda: "[MOVERS]")
     monkeypatch.setattr(ai, "_ctx_breadth", lambda: "[BREADTH]")
@@ -101,7 +100,11 @@ def test_price_check(client, t, phrase):
     c = ask(client, phrase.format(t=t))
     assert c["mode"] == "fast"                       # sonar-pro default
     assert f"{t}: last $100.0" in c["system"]        # live quote grounded
-    assert f"[PATTERNS:{t}]" in c["system"]          # setups always ride along
+    # AI Search Raw-Pattern Trust Adjudication V1: patterns no longer ride
+    # along unconditionally -- a plain price check names no setup intent, so
+    # no gap is declared either.
+    assert f"[PATTERNS:{t}]" not in c["system"]
+    assert "confirmed technical setup" not in c["system"]
     assert "[FLOW" not in c["system"]                # no flow hop without intent
     assert "[MOVERS]" not in c["system"]
 
@@ -115,8 +118,11 @@ def test_price_check(client, t, phrase):
 def test_why_moving(client, t, phrase):
     c = ask(client, phrase.format(t=t))
     assert c["recency"] == "day"
-    for marker in (f"[CATALYST:{t}]", f"[TAPE:{t}]", f"[PATTERNS:{t}]"):
+    for marker in (f"[CATALYST:{t}]", f"[TAPE:{t}]"):
         assert marker in c["system"], marker
+    # AI Search Raw-Pattern Trust Adjudication V1: "why is it moving" names no
+    # setup intent, so no pattern claim and no declared gap either.
+    assert f"[PATTERNS:{t}]" not in c["system"]
     # hot queries get the 5-min freshness bucket in the salt
     assert c["cache_salt"].split("|")[-1].startswith(("b", "off"))
 
@@ -136,11 +142,17 @@ def test_flow_questions(client, t, phrase):
 # ── Category: setups / patterns ──────────────────────────────────────────────
 @pytest.mark.parametrize("t", TICKERS[:10])
 def test_setup_questions(client, t):
-    # A per-ticker setup question gets that ticker's pattern-engine detections,
-    # but NOT the market-wide scanner-candidates feed (that fires on "scanner /
-    # candidates / pullbacks", not "setup on X") — refined 2026-07-18 audit.
+    # AI Search Raw-Pattern Trust Adjudication V1 (2026-09-06): a per-ticker
+    # setup question used to get that ticker's raw, unconfirmed pattern-engine
+    # detections narrated as fact -- the SAME ~16%-Opus-confirmation-rate feed
+    # whose universe-wide page was retired for that exact reason. It now gets
+    # an honest declared gap instead (never the raw feed), and still NOT the
+    # market-wide scanner-candidates feed (that fires on "scanner / candidates
+    # / pullbacks", not "setup on X") — refined 2026-07-18 audit.
     c = ask(client, f"Is there a setup on {t} right now?")
-    assert f"[PATTERNS:{t}]" in c["system"]
+    assert f"[PATTERNS:{t}]" not in c["system"]
+    assert "confirmed technical setup" in c["system"]
+    assert "DESK GAPS" in c["system"]
     assert "[CANDIDATES]" not in c["system"]
     assert c["recency"] == "day"                     # "right now"
 
@@ -405,7 +417,9 @@ def test_analyst_action_questions(client, t):
 def test_short_interest_questions(client, t):
     c = ask(client, f"What's the short interest on {t} and is a squeeze setting up?")
     assert f"{t}: last $" in c["system"]
-    assert f"[PATTERNS:{t}]" in c["system"]
+    # AI Search Raw-Pattern Trust Adjudication V1: this question names no
+    # setup/pattern intent ("setting up" != "setup"), so no pattern claim.
+    assert f"[PATTERNS:{t}]" not in c["system"]
 
 
 # ── Category: multi-ticker basket questions (3-ticker cap honored) ──────────
