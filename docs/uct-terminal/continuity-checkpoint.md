@@ -6,7 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Ticker Search Identity Convergence V1 (Seam 16) merge/deploy/production-
+AlertBell Keyboard Accessibility (Seam 5) merge/deploy/production-
 verification -- a continuous-execution program under the owner's 2026-09-06
 CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
 
@@ -79,8 +79,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `910eca6195d74039f55440645f451d6ed27445e1`
-  (Ticker Search Identity Convergence V1's own merge — this file's own update
+- **origin/master (last verified):** `296517d80d3f0c1a002d8bfb8add922f1fca879c`
+  (AlertBell Keyboard Accessibility's own merge — this file's own update
   is a docs-only blob-swap on top of this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still
   current).
@@ -1048,6 +1048,49 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     were made), clean `api.main` app-boot.
   - **Seam 1:** confirmed OPEN, not narrowed by this program (see the
     updated Seam 1 entry above for the precise reasoning).
+- **AlertBell Keyboard Accessibility (Seam 5)** — IMPLEMENTED + ACCEPTED +
+  LIVE, merge `1eff7c83b` (code) / `296517d80` (merge-to-master), deployed
+  + production-verified 2026-09-06. Closed the keyboard-accessibility gap
+  ranked #3 in the prior bounded reconvergence review (Awareness Scan-Abort
+  Hardening V1's own entry, above) and independently confirmed by Alert
+  Return-to-Research Consistency V1's Phase A.
+  - **Bounded re-verification before implementing (per the owner's own
+    explicit instruction):** re-read `app/src/components/AlertBell.jsx` in
+    full immediately before editing — confirmed byte-for-byte the same
+    defect as both prior recordings: the per-item row (a `<div key={a.id}
+    onClick={() => handleItemClick(a)}>`) carried no `role`, `tabIndex`,
+    `onKeyDown`, or `aria-label`. No material change to the component since
+    either prior audit.
+  - **Fix, narrowly scoped to the one defective element:** added
+    `role="button"` + `tabIndex={0}` + an `onKeyDown` handler firing on
+    `Enter`/`Space` (calling `preventDefault()` on Space so the page does not
+    also scroll) that calls the SAME `handleItemClick(a)` the mouse `onClick`
+    already used — keyboard and mouse activation are now identical by
+    construction, not a parallel reimplementation. Added a composed
+    `aria-label` (`title` + `message` + `. Unread` when unread) so a
+    screen-reader user landing on the row via Tab gets the same information
+    the visual row shows; content-only, no visual change. The bell button
+    (`aria-label="Notifications"`) and "Mark all read" were already real
+    `<button>` elements and needed no change — confirmed unchanged by a new
+    regression test asserting their tag name.
+  - **Did NOT redesign Notification Center** — no new component, no new
+    endpoint, no change to `handleItemClick`'s own logic, no change to the
+    dropdown/list/failures rendering.
+  - **Tests:** 5 new tests in `app/src/components/AlertBell.test.jsx`
+    (row exposes `role="button"`/`tabIndex`/`aria-label`; Enter activates
+    identically to a click, including the S7 `research_url` navigation;
+    Space activates AND is prevented-default so it can't also scroll; an
+    unrelated key, e.g. Tab, does nothing; bell + Mark-all-read remain plain
+    `<button>` elements) + all 6 pre-existing tests in that file green (11
+    total) + all 7 pre-existing `AlertBell.delivery.test.jsx` tests green
+    (18 total across both files). No backend changes — this is a pure
+    frontend accessibility fix; production verification is therefore
+    build-confirmation + deploy-success rather than a live interactive
+    check, matching the pattern established for Seam 12's frontend-only fix.
+  - **Explicitly did NOT touch:** S7's `research_url` deep-link logic
+    (`handleItemClick` itself, unchanged), the failures/`delivery-health`
+    section, sound/browser-notification logic, identity-scoping bookkeeping,
+    or any other Terminal seam.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1178,14 +1221,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **No program mid-flight — Seam 5 (AlertBell keyboard accessibility) is
-  next per the owner's own explicit "after Seam 16" instruction (Section
-  XXIII of the 2026-09-06 directive), unless fresh evidence changes the
-  picture.** Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)**
-  is standing authorization: routine, bounded, independently-safe Terminal
-  programs no longer require a stop-and-wait between each one (see Section
-  II of that directive; the 10 owner-required stop conditions in its
-  Section III remain absolute). Sequence so far under this directive:
+- **No program mid-flight — Seam 5 shipped; the ledger was re-checked against
+  the course-correction bar and nothing else auto-qualifies (see below).**
+  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing
+  authorization: routine, bounded, independently-safe Terminal programs no
+  longer require a stop-and-wait between each one (see Section II of that
+  directive; the 10 owner-required stop conditions in its Section III remain
+  absolute). Sequence so far under this directive:
   Technical Ask AI Phase A → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see
   "CURRENT PARKED" — zero code written) → AI Search Raw-Pattern Trust
   Adjudication V1 (Seam 23) — ACCEPTED + LIVE, merge `897e53cc5` →
@@ -1199,26 +1241,48 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `b48200739`/`7e2dec405`, alongside a ~36GB disk-hygiene pass (109
   fully-merged, clean worktrees removed — see that entry above for the full
   accounting) → per the owner's own explicit priority order, implemented
-  **Ticker Search Identity Convergence V1 (Seam 16)** — now ACCEPTED +
-  LIVE, merge `8ebb6f076`/`910eca619` (see "CURRENT ACCEPTED" above).
-  **Seam 1 was confirmed OPEN, not narrowed, by that program** — see the
+  **Ticker Search Identity Convergence V1 (Seam 16)** — ACCEPTED + LIVE,
+  merge `8ebb6f076`/`910eca619` → per the owner's own explicit "after Seam
+  16, do Seam 5 next" instruction (Section XXIII), implemented **AlertBell
+  Keyboard Accessibility (Seam 5)** — now ACCEPTED + LIVE, merge
+  `1eff7c83b`/`296517d80` (see "CURRENT ACCEPTED" above).
+  **Seam 1 was confirmed OPEN, not narrowed, by Seam 16** — see the
   updated Seam 1 entry above for the precise reasoning (Seam 16's fix never
-  touches Entity Master's own alias data). **A genuine fresh Whole-Product
-  Strategic Re-Anchor (a new multi-agent Phase-A-style sweep of current
-  code, not a re-ranking of the existing ledger) is still owed** the next
-  time no ledger-recorded, already-audited candidate remains eligible —
-  none of the lighter-weight re-anchors this session has run discharge that
-  obligation permanently, only for their own single next-program selection.
-  **If you are resuming this session: implement Seam 5 next (AlertBell's
-  per-item notification row is a bare `<div onClick>` with no `role`/
-  `tabIndex`/`onKeyDown`/`aria-label` — `app/src/components/AlertBell.jsx`,
-  fix shape: `role="button"` + `tabIndex={0}` + an `onKeyDown` handling
-  Enter/Space, mirroring the existing `handleItemClick`; do NOT redesign
-  Notification Center) — re-verify against current code before
-  implementing, do not trust this pointer blindly; the component may have
-  changed since it was last read.** Do not treat "no program is currently
-  active" as a stop condition; it is not one of the 10 in Section III.
-  **Technical Ask AI and Technical Research (#1) are
+  touches Entity Master's own alias data).
+  **Ledger re-check performed before selecting a next program (bounded, not
+  a fresh multi-agent sweep): every remaining open item in "NEWLY IDENTIFIED
+  DEBT" was re-read against the course-correction bar (MATERIAL TRUST/
+  CORRECTNESS defect, blocks a CORE MEMBER WORKFLOW, blocks a HIGH-VALUE
+  capability release, or propagates a defect through a shared canonical
+  contract) and none qualifies for auto-promotion:** Seam 1's remaining
+  read-side half needs a real S3 schema/alias-seeding decision, not a
+  bounded V1; Seam 3/4 are duplicated constants that are each currently
+  correct, just unshared (no member-visible defect); Seam 6/7/8/9/13/14/17/
+  18/19/20/21/22/26 are each the explicitly-deferred remainder of a program
+  that already drew its own scope line on purpose (re-opening any of them
+  without new authorization would relitigate a closed decision, not resolve
+  new evidence); Seam 11 needs its own dedicated architecture/product
+  decision (broker-sync `position_id` sentinel), not a bounded fix; Seam 24/
+  25 are downstream of Pattern Vision's own still-in-flight acceptance
+  trial; Seam 27 was triaged DEGRADED PERFORMANCE (not a trust/correctness
+  defect) and deliberately left unfixed twice already. **Conclusion: no
+  ledger-recorded, already-audited candidate remains eligible — the
+  standing obligation for a genuine fresh Whole-Product Strategic Re-Anchor
+  (a new multi-agent Phase-A-style sweep of current code, not a re-ranking
+  of the existing ledger) is now DUE.** This bounded re-check discharges
+  the ledger-scan step for this single decision point only, per the
+  standing rule that lighter-weight re-anchors don't discharge the
+  obligation permanently. **If you are resuming this session: the next
+  action is either (a) Pattern Vision's classification landing (see
+  "CURRENT LIVE OBSERVATION" — not due until after the Tue 9/8 / Wed 9/9
+  evidence window, at which point Technical Research and Technical Ask AI
+  both become eligible immediately, from their recorded specs, never from
+  scratch), or (b) if the owner authorizes it, launching the fresh
+  Whole-Product Strategic Re-Anchor described above — do NOT launch that
+  sweep unilaterally without checking in first, given its scale relative to
+  every program this session has run so far.** Do not treat "no program is
+  currently active" as a stop condition; it is not one of the 10 in
+  Section III. **Technical Ask AI and Technical Research (#1) are
   UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
   waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
   from its recorded spec under "CURRENT PARKED", never from scratch.** Do
@@ -1257,13 +1321,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Watchlist multi-security AI, Portfolio AI/LLM-computed P&L, entitlement-
   based ticker-count gating, multi-turn comparison history — see "DEFERRED"
   below), nor from Awareness Scan-Abort Hardening V1's own bounded
-  reconvergence review (Seam 5 AlertBell keyboard accessibility — ranked
-  #3, real, but not this round's pick; Seam 27 breadth warm-cache — triaged
-  DEGRADED PERFORMANCE, deliberately not fixed), nor from Ticker Search
+  reconvergence review (Seam 27 breadth warm-cache — triaged DEGRADED
+  PERFORMANCE, deliberately not fixed twice now), nor from Ticker Search
   Identity Convergence V1's own explicitly-out-of-scope items (Seam 14
   broad search-implementation consolidation, Seam 11 broker position↔trade
-  linkage, any Entity Master schema/alias change) — those are candidate
-  lists, not authorizations.
+  linkage, any Entity Master schema/alias change), nor from AlertBell
+  Keyboard Accessibility's own explicitly-out-of-scope items (any other
+  Notification Center change) — those are candidate lists, not
+  authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1289,17 +1354,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   literals (`_EARNINGS_PROXIMITY_DAYS` vs `EARNINGS_PROXIMITY_DEFAULT_DAYS`).
   Fix shape: extract the shared walk+earliest-date logic into one function both
   modules call; not urgent (both currently correct, just duplicated).
-- **Seam 5 — AlertBell notification rows are keyboard-inaccessible (surfaced
-  by Alert Return-to-Research Consistency V1's Phase A, 2026-09-05/06).**
-  `app/src/components/AlertBell.jsx`'s per-item row is a bare
-  `<div onClick={...}>` with no `role`, no `tabIndex`, no `onKeyDown` handler,
-  and no `aria-label` — a keyboard-only member cannot open any notification,
-  including the already-live S7 document-arrival rows. Pre-existing (predates
-  this program), not worsened by it (this V1 touched zero frontend files),
-  and explicitly out of scope per that authorization's own "do not redesign
-  Notification Center" framing — recorded here because Phase A newly
-  confirmed and documented it. Fix shape: `role="button"` + `tabIndex={0}` +
-  an `onKeyDown` handling Enter/Space, mirroring `handleItemClick`.
+- **Seam 5 — RESOLVED by AlertBell Keyboard Accessibility, merge
+  `1eff7c83b`/`296517d80`, 2026-09-06.** The fix described here
+  (`role="button"` + `tabIndex={0}` + an `onKeyDown` handling Enter/Space,
+  mirroring `handleItemClick`) is exactly what shipped — see "CURRENT
+  ACCEPTED" above. Kept as a record; do not re-open unless a concrete
+  regression is found.
 
 - **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT) —
   WRITE-TIME HALF CLOSED by Identity Normalization Hardening V1, merge
