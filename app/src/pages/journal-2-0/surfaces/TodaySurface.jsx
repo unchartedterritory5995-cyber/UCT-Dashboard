@@ -233,13 +233,21 @@ export default function TodaySurface() {
           settings={settings}
           accountName={account?.name || accounts?.[0]?.name}
           onSave={async (payload) => {
-            await jsonFetch('/api/j2/positions', 'POST', {
+            // Wave 3 (Thesis-Trade Link) / P0-18 fix: this used to (a) discard
+            // the created position, so the linking step below never got a
+            // real id, and (b) close the modal itself immediately — which
+            // would have unmounted AddPositionModal before its own
+            // handleSave could even attempt the link, let alone show the
+            // retry footer on failure. AddPositionModal calls onClose itself
+            // once it's actually done (see its handleSave) — this handler
+            // must only write + revalidate + return the created position.
+            const created = await jsonFetch('/api/j2/positions', 'POST', {
               ...payload,
               accountId: payload.accountId || targetAccountId,
             })
             await refreshPositions()
             refreshTodaySignals()
-            closeModal()
+            return created
           }}
           onClose={closeModal}
         />

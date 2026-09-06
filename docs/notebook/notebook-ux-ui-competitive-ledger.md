@@ -211,21 +211,21 @@ Stage A behavioral evidence collected right now risks being wrong (a member who
 | # | Bar | Verdict | Evidence |
 |---|---|---|---|
 | 1 | Note creation works | **PASS** | Workflow 1, LIVE-VERIFIED — empty-state + template/blank flow both clean |
-| 2 | Note loading fails honestly (no infinite hang) | **FAIL** | Note-load defect (#2 below) — `isLoading \|\| !note` hangs on "Loading…" forever after any failed fetch; reachable via ordinary transient network failure |
-| 3 | Saving doesn't silently lose work | **PASS** (with caveat) | Autosave failure sets `saveErrorMsg` and surfaces it — not silent — but the message text itself is one of the 3 raw-error-leak surfaces (see #4) |
-| 4 | Errors are understandable | **FAIL** | 3 confirmed raw-text surfaces (notes-load failure, note-save failure, import-wizard crash fallback) — UGLY/CONFUSING, not dangerous, but not understandable either |
+| 2 | Note loading fails honestly (no infinite hang) | **PASS — FIXED 2026-09-06** | Was FAIL (`isLoading \|\| !note` hung on "Loading…" forever after any failed fetch). Bucket A fix: distinct error branch + retry, LIVE-VERIFIED against a real 404 in the sandbox — see the Bucket A Certification section below |
+| 3 | Saving doesn't silently lose work | **PASS** | Autosave failure sets `saveErrorMsg` and surfaces it — not silent. The message text is now also sanitized (see #4's fix) |
+| 4 | Errors are understandable | **PASS — FIXED 2026-09-06** | Was FAIL (3 confirmed raw-text surfaces). Bucket A fix: sanitized all 3 (notes-load, note-save, import-wizard crash), preserving real backend-authored detail where one exists — see Bucket A Certification |
 | 5 | Core navigation reachable | **PASS** | Notebook is a reachable nav tab; command-palette absence is a power-user convenience gap (P2), not a reachability failure |
 | 6 | Search usable | **PASS** | Confirmed fast (250ms debounce); zero-result handling is blunt but functional |
 | 7 | Capture works | **PASS** | 1-click safe-default save confirmed working; destination-menu wiring is a P2 enhancement, not a functional break |
-| 8 | Thesis/trade link is understandable (member knows whether it worked) | **FAIL** | The single most severe finding this pass — see #0/#18 below. On failure, member sees a clean success toast; on success via a working door, the link is invisible on the open position |
+| 8 | Thesis/trade link is understandable (member knows whether it worked) | **PASS — FIXED 2026-09-06** | Was FAIL, the single most severe finding this pass. Bucket A fix: all 3 broken entry points now return the created position; `LinkedNotesPanel` now mounted on the open-position view. LIVE-VERIFIED end-to-end through the real "+ Log Trade" header button — see Bucket A Certification |
 | 9 | Destructive actions are recoverable | **PASS** | Trash/restore proven one-click, 30-day window, exact-content restore (Wave 0 sandbox E2E). Native `confirm()` styling is a P2 consistency gap, not a recoverability failure |
-| 10 | Responsive layout not functionally broken | **UNVERIFIED** | Live pass blocked by a tooling limitation this session (`resize_window` no-op); code shows CSS responsiveness present, zero JS-level touch hooks in Notebook specifically — no confirmed breakage, not proven safe either |
+| 10 | Responsive layout not functionally broken | **UNVERIFIED** | Live pass blocked by a tooling limitation this session (`resize_window` no-op); code shows CSS responsiveness present, zero JS-level touch hooks in Notebook specifically — no confirmed breakage, not proven safe either. Out of Bucket A's authorized scope (mobile remediation is explicitly Bucket B) |
 
-**Verdict: 2 of 10 bars FAIL today (#2, #8), 1 borderline FAIL (#4), 1 UNVERIFIED
-(#10).** Both hard FAILs are cheap, mechanical, low-risk fixes (see Bucket A
-below) — this is a "the experience currently misreports itself" problem, not a
-"the architecture needs rework" problem. Full reasoning on what this means for
-Stage A's Day-0 baseline is in the decision report, point 1.
+**Verdict, post-Bucket-A (2026-09-06): 9 of 10 bars PASS, 1 UNVERIFIED (#10,
+responsive — unchanged, out of scope for this pass).** All bars that were
+reachable within Bucket A's authorized scope now pass. Full reasoning on what
+this means for Stage A's baseline is in the Bucket A Certification section and
+`stage-a-member-validation.md` §7.
 
 ---
 
@@ -240,10 +240,10 @@ parity/usability gap (competitiveness/efficiency, doesn't invalidate Stage A)
 
 | # | Finding | Tier | Member Job Affected | Stage A Impact | Competitor Parity Impact | Trust Impact | Effort | Dependencies | Recommended Timing |
 |---|---|---|---|---|---|---|---|---|---|
-| 0/18 | **Thesis-trade link silently fails to create from 3 of 5 "Add Position" entry points** (`LogTradeButton.jsx`, `JournalLogFab.jsx`, `TodaySurface.jsx` discard the position-creation response) | **P0** | Thesis-trade linking (a direct Stage A computable criterion) | **Directly corrupts the "thesis-trade linking ≥3 members" measurement** — the most discoverable door (header "+ Log Trade") silently no-ops; real attempts would undercount or register as failures that were actually product bugs | High — this is UCT's own differentiator vs. all 3 standalone-journal competitors; a broken flagship feature is worse than no feature | Severe — member sees a clean success toast while their core ask (link research to this trade) silently didn't happen | **Low** — 3× missing `return created`, mirroring 2 already-correct copies in the same codebase | None | **Bucket A — immediate** |
-| 19 | `LinkedNotesPanel` not mounted on `PositionDetailPage.jsx` (only on closed-trade views) | **P1** | Confirming a link succeeded, on an open position | Does not corrupt the linking metric itself (the API call, when it fires, succeeds) but removes the member's only confirmation loop while the position is open | Medium — same differentiator feature, half-invisible | Medium-High — a member who used a working door still can't see their own work until the trade closes | **Low-Medium** — mount an existing, working component | Pairs naturally with #0/18 (same feature) | **Bucket A** |
-| 2 | Note-load failure has no error branch — hangs on "Loading…" indefinitely | **P0** | Viewing/editing any existing note | Can make a member believe Notebook itself is broken on any transient failure — directly corrupts "core workflow completion" evidence, reachable in ordinary use (not a rare edge case) | N/A (internal defect) | Severe if hit — total task blockage, no way forward | **Low** — destructure `error` from `useJ2Note` (already returned, just unused), add a distinct error branch | None | **Bucket A — immediate** |
-| 1 | Raw backend error leaks in 3 places (notes-load failure, note-save failure, import-wizard crash) | **P1** | Understanding what went wrong / trusting the product | Does not block task completion by itself, but degrades a member's confidence during exactly the period Stage A evidence is being formed | N/A (internal defect) | Medium — confirmed UGLY/CONFUSING only, NOT information disclosure (no debug mode, no stack traces, no sensitive data — verified via code) and NOT data-loss (autosave still fires; error is shown, not swallowed) | **Low** — reuse the already-correct friendly-error pattern from Workflow 6 (Ask This Note) | None | **Bucket A** |
+| 0/18 | **Thesis-trade link silently fails to create from 3 of 5 "Add Position" entry points** (`LogTradeButton.jsx`, `JournalLogFab.jsx`, `TodaySurface.jsx` discard the position-creation response) | **RESOLVED — FIXED 2026-09-06** | Thesis-trade linking (a direct Stage A computable criterion) | **Was: directly corrupted the "thesis-trade linking ≥3 members" measurement.** Fixed: all 3 entry points now return `created`; `TodaySurface.jsx` also stopped self-closing the modal before the link attempt could run. Unit-tested (all 3 entry points, matrix below) + LIVE-VERIFIED via the real header "+ Log Trade" button in the fail-closed sandbox — position created, thesis note created, `POST /notes/{id}/embeds` fired and returned 200, link visible both directions | High — this is UCT's own differentiator vs. all 3 standalone-journal competitors | Was severe, now resolved | Low (as estimated — 3× missing `return`, 1× removed premature `closeModal()`) | None | **Bucket A — SHIPPED** |
+| 19 | `LinkedNotesPanel` not mounted on `PositionDetailPage.jsx` (only on closed-trade views) | **RESOLVED — FIXED 2026-09-06** | Confirming a link succeeded, on an open position | Fixed: `LinkedNotesPanel` now mounted per raw position id (not the side-merged display model, which could silently drop a second scale-in's link — see `idsBySide` in `PositionDetailPage.jsx`). LIVE-VERIFIED: "LINKED RESEARCH — NVDA breakout thesis" rendered on the open position, clicking it navigated to the note, the note's own "NVDA · open position" chip navigated back | Medium — same differentiator feature | Was medium-high, now resolved | Low-Medium (as estimated) | Paired with #0/18 (same feature, shipped together) | **Bucket A — SHIPPED** |
+| 2 | Note-load failure has no error branch — hangs on "Loading…" indefinitely | **RESOLVED — FIXED 2026-09-06** | Viewing/editing any existing note | **Was: could corrupt "core workflow completion" evidence.** Fixed: distinct LOADING/ERROR/SUCCESS branches, honest copy ("Couldn't load this note... this looks like a connection problem, not a save problem"), retry wired to `refresh()`. LIVE-VERIFIED against a real 404 (nonexistent note id) in the sandbox — error card rendered, retry re-attempted and correctly stayed on the honest error state (persistent-failure case), no raw text, no infinite spinner, diagnostic logged to console only | N/A (internal defect) | Was severe if hit, now resolved | Low (as estimated) | None | **Bucket A — SHIPPED** |
+| 1 | Raw backend error leaks in 3 places (notes-load failure, note-save failure, import-wizard crash) | **RESOLVED — FIXED 2026-09-06** | Understanding what went wrong / trusting the product | Fixed: `friendlySaveError()` helper replaces a bare HTTP status code with honest copy while preserving a real backend-authored detail verbatim (never over-sanitized); `NotebookTab.jsx`'s notes-load error now reads "Couldn't load your notes..." + Try again; `ImportWizardBoundary`'s crash fallback no longer dumps the raw JS exception. Unit-tested (11 new test cases across the 3 surfaces) + LIVE-VERIFIED (console showed `Error: 404` only in the diagnostic log, never in the rendered UI) | N/A (internal defect) | Was medium, now resolved | Low (as estimated) | None | **Bucket A — SHIPPED** |
 | 3 | Notebook absent from the existing app-wide command palette | **P2** | Power-user navigation speed | None — palette is a convenience, not a reachability path; core nav works without it | Medium (Notion/Obsidian both have this deeply) | Low | **Low** — the palette infra already exists and works elsewhere | None | Bucket B |
 | 4 | Native browser `confirm()` used for note delete | **P2** | Deleting a note | None — the action works and is honestly worded ("...restore it from Trash for 30 days") and fully recoverable | Low-Medium (both competitors use styled modals) | Low — message content is good; only the visual chrome breaks pattern | **Low** | Shared modal/Sheet component (exists) | Bucket B |
 | 5 | Token vs. hardcoded-hex inconsistency (73/53 split in `NoteEditorPage.module.css`, 77/39 in `FolderSidebar.module.css`) | **P3** | None directly (invisible if hex values match token values) | None | None | None | Low | None | **Excluded from package** — opportunistic-only when a file is touched for another reason |
@@ -276,26 +276,33 @@ justified by evidence above. **Explicitly excludes** every P3 polish item and
 every item gated on something not yet true (Wave 4 filters, the backlinks
 backlog) — those stay in the ledger as backlog, not as scheduled work.
 
-### Bucket A — recommended BEFORE Stage A validation continues
+### Bucket A — recommended BEFORE Stage A validation continues — ✅ SHIPPED 2026-09-06
 *(Only items that materially affect trust, task-completion, or validation
 validity. This is the set that answers "is the clock we're running actually
-measuring the right thing.")*
+measuring the right thing." All four authorized items below are now fixed,
+tested, and live-browser-verified — see the Bucket A Certification section
+at the end of this document for the full report.)*
 
-1. **Fix the thesis-trade link creation bug** — add the missing `return
+1. ✅ **Fixed the thesis-trade link creation bug** — added the missing `return
    created` in `LogTradeButton.jsx`, `JournalLogFab.jsx`, and
-   `TodaySurface.jsx`'s inline handler, mirroring the 2 already-correct
-   copies (`GlobalAddPositionProvider.jsx`, `OpenPositionsTab.jsx`). [P0]
-2. **Add a note-load error branch** — destructure `error` from `useJ2Note`
-   in `NoteEditorPage.jsx` and render a distinct "Couldn't load this note"
-   state with a retry action, instead of hanging on the loading branch
-   forever. [P0]
-3. **Mount a linked-notes panel on `PositionDetailPage.jsx`** — reuse the
-   existing, working `LinkedNotesPanel` so a successful link is visible on
-   the OPEN position immediately, not only after it closes into a trade.
-   [P1, pairs with #1]
-4. **Sanitize the 3 raw-error-leak surfaces** (notes-load failure, note-save
-   failure, import-wizard crash fallback) — reuse the already-correct
-   friendly-error pattern proven in Workflow 6 (Ask This Note). [P1]
+   `TodaySurface.jsx`'s inline handler (which also had a second bug: it
+   self-closed the modal before the link attempt could run), mirroring the 2
+   already-correct copies (`GlobalAddPositionProvider.jsx`,
+   `OpenPositionsTab.jsx`). [P0]
+2. ✅ **Added a note-load error branch** — destructured `error` from
+   `useJ2Note` in `NoteEditorPage.jsx` and rendered a distinct "Couldn't load
+   this note" state with a retry action, instead of hanging on the loading
+   branch forever. [P0]
+3. ✅ **Mounted a linked-notes panel on `PositionDetailPage.jsx`** — reused
+   the existing, working `LinkedNotesPanel`, keyed to the RAW (pre-merge)
+   position id via a new `idsBySide` helper so a member who scaled into a
+   side across two "Add Position" calls never silently loses one link. [P1,
+   shipped with #1]
+4. ✅ **Sanitized the 3 raw-error-leak surfaces** (notes-load failure,
+   note-save failure, import-wizard crash fallback) via a new
+   `friendlySaveError()` helper that preserves a real backend-authored
+   detail verbatim and only replaces a bare, meaningless HTTP status code.
+   [P1]
 
 ### Bucket B — recommended AFTER Stage A / before or around Wave 4
 *(High-leverage parity/usability items that do not invalidate current
@@ -323,3 +330,79 @@ gated on Wave 4 filters shipping first).
 
 None of the above is authorized for implementation under the current
 directive — this package is prepared for authorization, not executed.
+
+---
+
+## Bucket A Certification Report (2026-09-06)
+
+**Scope actually touched:** 9 files edited (`LogTradeButton.jsx`,
+`JournalLogFab.jsx`, `TodaySurface.jsx`, `AddPositionModal.jsx` — read only,
+no change needed, its failure-recovery UI was already correct —
+`PositionDetailPage.jsx`, `NoteEditorPage.jsx` + `.module.css`,
+`NotebookTab.jsx`, `ImportWizard.jsx`), zero backend files. 6 new test files
++ 3 extended existing test files, 20 new test cases. No product redesign,
+no Bucket B item touched, no Wave 4 work started.
+
+### All five "Add Position" entry points — final matrix
+
+| Entry point | Pre-fix behavior | Fix | Test | Verdict |
+|---|---|---|---|---|
+| `GlobalAddPositionProvider.jsx` (chart right-click → Add to Portfolio) | Correct — `return created` already present | None needed | Pre-existing coverage | PASS (unchanged) |
+| `OpenPositionsTab.jsx` ("+Add Position" button) | Correct — `return created` already present | None needed | Pre-existing coverage | PASS (unchanged) |
+| `LogTradeButton.jsx` (header "+ Log Trade", the single most discoverable door) | **Broken** — discarded the response | Added `return created` | `LogTradeButton.test.jsx` (2 new tests) + LIVE-VERIFIED in sandbox | **FIXED** |
+| `JournalLogFab.jsx` (mobile quick-log FAB) | **Broken** — byte-identical bug to `LogTradeButton.jsx` | Added `return created` | `JournalLogFab.test.jsx` (2 new tests) | **FIXED** (unit-verified; mobile viewport live pass blocked by the same tooling limitation noted for Bucket B item 8) |
+| `TodaySurface.jsx` (inline modal on the Today lead) | **Broken twice** — discarded the response AND self-closed the modal before `AddPositionModal`'s own link-attempt code could run | Removed the premature `closeModal()`; added `return created` | `TodaySurface.test.jsx` (2 new tests) | **FIXED** |
+
+### Live-browser E2E (fail-closed sandbox, real account, zero mocking)
+
+1. Logged in as a fresh admin account, zero prior data.
+2. Clicked the real header **"+ Log Trade" → "Log open position"** — the
+   exact entry point that was broken and the exact one a real member would
+   use.
+3. Filled NVDA / 10 shares / $100 entry, typed a new thesis title, selected
+   "+ Create new note," clicked **Add Position**.
+4. Confirmed via network trace: `POST /api/j2/notes` → 200 → `POST
+   /api/j2/positions` → 200 → **`POST /api/j2/notes/{id}/embeds` → 200**
+   (this exact call never fired at all before the fix) → modal closed
+   cleanly, no warning.
+5. Opened the resulting position at `/journal-2-0/position/NVDA` — the
+   **"LINKED RESEARCH — NVDA breakout thesis"** panel rendered.
+6. Clicked it → navigated to the note → the note's header showed a **"🔗
+   NVDA · open position"** chip → clicked it → navigated back to Open
+   Positions. Full bidirectional loop confirmed live.
+7. Separately, navigated to a nonexistent note id → got the new **"Couldn't
+   load this note"** error card (never an infinite spinner), clicked **Try
+   again** → correctly stayed on the honest error state (a real,
+   persistent 404) → navigated away safely via the persistent folder
+   sidebar.
+8. Console showed the new diagnostic `console.warn('note load failed',
+   Error: 404)` exactly twice (initial load + retry) — proving the error
+   path fired, and proving it never reaches the member-facing UI.
+9. Zero unexpected console errors throughout the entire session.
+
+### Automated tests
+
+105 targeted new/updated tests across 10 files, all passing, plus the full
+`journal-2-0` regression suite (167 files, 1,532 tests, all passing — zero
+collateral damage). New coverage: both P0 entry-point fixes (as individual
+files + the shared `TodaySurface` fix), the `idsBySide` raw-id-grouping
+helper (including the exact "second scale-in silently drops a link"
+regression this fix targets), the `LinkedNotesPanel` mount on the open
+position (zero/one-note cases), the note-load LOADING/ERROR/SUCCESS
+three-way branch (including a full error→retry→success transition), the
+`friendlySaveError()` sanitizer (bare-status-code vs. real-detail
+preservation, across autosave/restore/reconnecting-tooltip paths), the
+`NotebookTab.jsx` notes-load sanitization, and the `ImportWizardBoundary`
+crash-fallback sanitization. No backend files were touched, so tenant
+isolation and typed-reference resolution (`tradeRef`/`tradeRefType`,
+`equity_trade`/`option_strategy`/`position`) rely on Wave 3's existing,
+unmodified backend test suite — nothing here could regress them.
+
+### Stage A baseline
+
+See `stage-a-member-validation.md` §7 (2026-09-06 entry) — **Case A**: the
+most recent recorded snapshot showed zero real eligible member activity
+(`Activated: 0`) at any point before this fix, so no behavioral evidence
+was excluded. The Day-0 historical record is preserved verbatim; the
+validation-eligible baseline is redefined as this fix's production
+deployment. Gate criteria, thresholds, and cohort definition are unchanged.

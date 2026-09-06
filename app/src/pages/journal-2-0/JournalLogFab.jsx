@@ -76,10 +76,14 @@ export default function JournalLogFab() {
 
   const handleCreatePosition = useCallback(async (payload) => {
     const acctId = resolveAccountId(payload)
-    await jsonPost('/api/j2/positions', { ...payload, accountId: acctId })
+    const created = await jsonPost('/api/j2/positions', { ...payload, accountId: acctId })
     await mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/positions'))
     setToast({ message: `Logged ${payload.symbol} ${payload.side?.toLowerCase?.() || ''} position`.trim(), tone: 'success' })
     navigate('/journal/trades?seg=open')
+    // Wave 3 (Thesis-Trade Link) / P0-18 fix: see LogTradeButton.jsx's
+    // handleCreatePosition — same defect, same fix (this FAB is a separate
+    // component with a byte-identical handler, not a shared one).
+    return created
   }, [resolveAccountId, mutate, navigate])
 
   const handleCreateTrade = useCallback(async (payload) => {

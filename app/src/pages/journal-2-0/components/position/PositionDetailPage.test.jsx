@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import PositionDetailPage, { combinePositions } from './PositionDetailPage'
+import PositionDetailPage, { combinePositions, idsBySide } from './PositionDetailPage'
 
 const navigateMock = vi.fn()
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => navigateMock }))
@@ -105,6 +105,12 @@ const swrData = {
   '/api/earnings/analyst-grades/AAPL': {
     consensus: { strongBuy: 12, buy: 8, hold: 5, sell: 3, strongSell: 2, total: 30, label: 'Buy' },
     price_target: { consensus: 250 },
+  },
+  // P1-19 fix: LinkedNotesPanel's own useSWR call resolves through this same
+  // mocked 'swr' module -- AAPL's fixture position id is 1 (see
+  // useJ2Positions mock above), so this is the exact key it computes.
+  '/api/j2/notes/by-trade-ref?tradeRef=1&tradeRefType=position': {
+    notes: [{ id: 'n1', title: 'AAPL thesis' }],
   },
 }
 vi.mock('swr', () => ({
@@ -325,5 +331,56 @@ describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', (
     const card = screen.getByTestId('position-attention')
     expect(card).toHaveTextContent('Nothing notable')
     expect(card).not.toHaveTextContent('AAPL moved')
+  })
+})
+
+describe('idsBySide (P1-19 fix)', () => {
+  it('groups raw ids by side for the given symbol only', () => {
+    const map = idsBySide([
+      { id: 1, symbol: 'AAPL', side: 'Long' },
+      { id: 2, symbol: 'AAPL', side: 'Long' },
+      { id: 3, symbol: 'AAPL', side: 'Short' },
+      { id: 4, symbol: 'MSFT', side: 'Long' },
+    ], 'AAPL')
+    expect(map.get('Long')).toEqual([1, 2])
+    expect(map.get('Short')).toEqual([3])
+    expect(map.has('MSFT')).toBe(false)
+  })
+
+  it('never drops a second raw id on the same side (the exact regression this fixes)', () => {
+    // Two separate "Add Position" calls on the same symbol+side -- combinePositions
+    // would merge these into one display block and keep only id 1, which is
+    // exactly why the linked-notes lookup must read this, not that merged model.
+    const map = idsBySide([
+      { id: 1, symbol: 'AAPL', side: 'Long' },
+      { id: 2, symbol: 'AAPL', side: 'Long' },
+    ], 'AAPL')
+    expect(map.get('Long')).toHaveLength(2)
+  })
+
+  it('is empty for a symbol with no positions', () => {
+    const map = idsBySide([{ id: 1, symbol: 'MSFT', side: 'Long' }], 'AAPL')
+    expect(map.size).toBe(0)
+  })
+
+  it('ignores rows with no id', () => {
+    const map = idsBySide([{ id: null, symbol: 'AAPL', side: 'Long' }], 'AAPL')
+    expect(map.size).toBe(0)
+  })
+})
+
+describe('PositionDetailPage — linked research on the open position (P1-19 fix)', () => {
+  it('shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id', async () => {
+    renderPage()
+    const panel = await screen.findByTestId('linked-notes-panel')
+    expect(panel).toHaveTextContent('AAPL thesis')
+  })
+
+  it('renders nothing extra for a symbol with no linked research (no forced empty state)', () => {
+    // MSFT's fixture position id is 7; no swrData entry exists for that
+    // tradeRef, so LinkedNotesPanel's own "notes.length === 0 -> null"
+    // behavior (already covered by LinkedNotesPanel.test.jsx) applies here too.
+    renderPage('MSFT')
+    expect(screen.queryByTestId('linked-notes-panel')).not.toBeInTheDocument()
   })
 })

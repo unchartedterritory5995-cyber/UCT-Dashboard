@@ -81,10 +81,16 @@ export default function LogTradeButton() {
   // handlers only do the write + revalidate + confirm; they must NOT close.
   const handleCreatePosition = useCallback(async (payload) => {
     const acctId = resolveAccountId(payload)
-    await jsonPost('/api/j2/positions', { ...payload, accountId: acctId })
+    const created = await jsonPost('/api/j2/positions', { ...payload, accountId: acctId })
     await mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/positions'))
     setToast({ message: `Logged ${payload.symbol} ${payload.side.toLowerCase()} position`, tone: 'success' })
     navigate('/journal/trades?seg=open')
+    // Wave 3 (Thesis-Trade Link) / P0-18 fix: AddPositionModal's post-create
+    // linking step needs the real persisted position id, which only exists
+    // after this resolves — see AddPositionModal.jsx's handleSave. This
+    // handler used to discard the response, so a thesis note selected here
+    // never got linked and the member saw a clean success toast anyway.
+    return created
   }, [resolveAccountId, mutate, navigate])
 
   const handleCreateTrade = useCallback(async (payload) => {

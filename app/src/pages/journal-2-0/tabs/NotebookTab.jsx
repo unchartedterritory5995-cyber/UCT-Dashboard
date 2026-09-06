@@ -496,8 +496,9 @@ export default function NotebookTab() {
         />
 
         {error && (
-          <div className={styles.error}>
-            Couldn't load notes: {String(error.message || error)}
+          <div className={styles.error} role="alert">
+            Couldn't load your notes — this looks like a connection problem, not lost work.{' '}
+            <button type="button" className="btn btn-ghost" onClick={refresh}>Try again</button>
           </div>
         )}
 
