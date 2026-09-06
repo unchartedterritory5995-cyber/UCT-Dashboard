@@ -4302,6 +4302,25 @@ def cream_post(target_date: str = Query(default=None),
     return run_cream_eod(target_date=target_date, force=True, post=post)
 
 
+@router.get("/cream/image")
+def cream_image(target_date: str = Query(default=None),
+                mobile: bool = Query(default=False),
+                _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card as a PNG for eyeballing in the
+    browser BEFORE it ever posts to Discord. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.watchlist_card import render_watchlist_card
+    today = _resolve_date(target_date)
+    data = compute_cream(today)
+    try:
+        dt = datetime.strptime(today, "%m/%d/%Y").strftime("%B %d, %Y").replace(" 0", " ")
+    except Exception:
+        dt = today
+    png = render_watchlist_card(data["bull"], data["bear"], dt, mobile=mobile,
+                                title="Cream of the Crop", section="CREAM")
+    return Response(content=png, media_type="image/png")
+
+
 @router.get("/by-contract")
 def by_contract(
     target_date: str = Query(default=None),
