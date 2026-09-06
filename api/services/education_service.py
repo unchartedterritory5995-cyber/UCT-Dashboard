@@ -141,6 +141,14 @@ _EXTRA_COLUMNS = (
     ("audio_at", "INTEGER"),       # epoch when the audio track was produced
     ("tags", "TEXT"),              # JSON: ["risk", ...] — filter chips
     ("episode_label", "TEXT"),     # normalized "S12 · E9" / "E42.4" self-identified episode tag
+    # Phase 4D-4C.3 — durable media-time provenance. Captured at
+    # session-insights processing time (the last moment Zoom's own recording
+    # metadata is reachable, before zoom_cleaned/trash), so it survives
+    # desk_session_jobs being pruned. NEVER overwrites meeting_uuid (already
+    # its own column, set earlier at publish) or any processing timestamp.
+    ("media_started_at", "TEXT"),          # ISO 8601 UTC — the durable base timestamp
+    ("media_started_at_source", "TEXT"),   # 'zoom_recording_file' | 'zoom_meeting_start' | 'recovered_job_metadata'
+    ("source_recording_file_id", "TEXT"),  # the specific Zoom recording_file.id (BEST tier only; else NULL)
 )
 
 
@@ -1135,6 +1143,31 @@ def set_meeting_uuid(video_id: int, meeting_uuid: str) -> None:
         c.execute(
             "UPDATE edu_videos SET meeting_uuid = ?, updated_at = ? WHERE id = ?",
             (mu, int(time.time()), int(video_id)),
+        )
+        c.commit()
+
+
+def set_media_provenance(
+    video_id: int, started_at: str, source: str, recording_file_id: str | None = None,
+) -> None:
+    """Phase 4D-4C.3: durably persist the strongest media-time base timestamp
+    found this pass. `source` should be one of 'zoom_recording_file' (BEST —
+    the specific selected recording file's own recording_start),
+    'zoom_meeting_start' (FALLBACK — the meeting-level start_time, from either
+    a fresh Zoom REST fetch or the webhook payload), or
+    'recovered_job_metadata' (RECOVERED — the recording itself is already
+    gone from Zoom, but a desk_session_jobs row survived). Unconditional
+    UPDATE (mirrors set_meeting_uuid/set_audio) — the source data doesn't
+    change between passes, so re-deriving the same value is harmless; this
+    is never a merge/upsert of a caller-partial value."""
+    sa = (started_at or "").strip()
+    if not sa:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "UPDATE edu_videos SET media_started_at = ?, media_started_at_source = ?, "
+            "source_recording_file_id = ?, updated_at = ? WHERE id = ?",
+            (sa, source, recording_file_id, int(time.time()), int(video_id)),
         )
         c.commit()
 

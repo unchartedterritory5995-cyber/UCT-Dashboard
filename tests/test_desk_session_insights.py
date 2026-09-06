@@ -1234,3 +1234,108 @@ def test_generate_ticker_moments_max_t_verifies_order_not_just_last_cue():
     ordered = [{"t": 10, "text": "a"}, {"t": 500, "text": "b"}]
     assert si._max_cue_t(ordered) == 500
     assert si._max_cue_t([]) == 0
+
+
+# ── Phase 4D-4C.3: durable media-time provenance ─────────────────────────────────
+
+from api.services.zoom_client import select_largest_mp4  # noqa: E402
+
+
+def test_select_largest_mp4_prefers_biggest_file_size():
+    files = [
+        {"file_type": "MP4", "download_url": "http://a", "file_size": 100, "id": "small"},
+        {"file_type": "MP4", "download_url": "http://b", "file_size": 9999, "id": "big"},
+        {"file_type": "TRANSCRIPT", "download_url": "http://c", "file_size": 50000},
+    ]
+    assert select_largest_mp4(files)["id"] == "big"
+
+
+def test_select_largest_mp4_none_when_no_mp4():
+    assert select_largest_mp4([{"file_type": "TRANSCRIPT", "download_url": "http://x"}]) is None
+    assert select_largest_mp4(None) is None
+    assert select_largest_mp4([]) is None
+
+
+def test_capture_media_provenance_best_tier_uses_recording_file_start(edu_db):
+    v = _seed_session_video()
+    rec = {
+        "start_time": "2026-06-24T13:30:00Z",  # meeting-level — must NOT win when file-level exists
+        "recording_files": [
+            {"file_type": "MP4", "download_url": "http://x/mp4", "file_size": 100,
+             "id": "file-abc", "recording_start": "2026-06-24T13:30:07Z"},
+        ],
+    }
+    si._capture_media_provenance(v["id"], "UUID1", rec)
+    row = edu.get_video(v["id"])
+    assert row["media_started_at"] == "2026-06-24T13:30:07Z"
+    assert row["media_started_at_source"] == "zoom_recording_file"
+    assert row["source_recording_file_id"] == "file-abc"
+
+
+def test_capture_media_provenance_fallback_tier_uses_meeting_start(edu_db):
+    v = _seed_session_video()
+    rec = {
+        "start_time": "2026-06-24T13:30:00Z",
+        "recording_files": [
+            # MP4 present but with NO recording_start of its own (a real gap Zoom can return)
+            {"file_type": "MP4", "download_url": "http://x/mp4", "file_size": 100, "id": "file-abc"},
+        ],
+    }
+    si._capture_media_provenance(v["id"], "UUID1", rec)
+    row = edu.get_video(v["id"])
+    assert row["media_started_at"] == "2026-06-24T13:30:00Z"
+    assert row["media_started_at_source"] == "zoom_meeting_start"
+    assert row["source_recording_file_id"] is None
+
+
+def test_capture_media_provenance_recovered_tier_when_recording_already_gone(edu_db, monkeypatch, tmp_path):
+    from api.services import desk_session_jobs as jobs
+    monkeypatch.setattr(jobs, "_DB_PATH", str(tmp_path / "jobs.db"))
+    jobs._init_db()
+    jobs.enqueue("UUID1", "Live Trading", "2026-06-24T13:30:00Z", "http://dl", "tok")
+
+    v = _seed_session_video()
+    si._capture_media_provenance(v["id"], "UUID1", None)  # rec is None: recording already trashed
+    row = edu.get_video(v["id"])
+    assert row["media_started_at"] == "2026-06-24T13:30:00Z"
+    assert row["media_started_at_source"] == "recovered_job_metadata"
+
+
+def test_capture_media_provenance_unknown_when_nothing_available(edu_db, monkeypatch, tmp_path):
+    from api.services import desk_session_jobs as jobs
+    monkeypatch.setattr(jobs, "_DB_PATH", str(tmp_path / "jobs.db"))
+    jobs._init_db()  # empty — no job row for this uuid at all
+
+    v = _seed_session_video()
+    si._capture_media_provenance(v["id"], "UUID1", None)
+    row = edu.get_video(v["id"])
+    assert row["media_started_at"] is None
+    assert row["media_started_at_source"] is None
+
+
+def test_capture_media_provenance_never_raises_on_a_malformed_rec(edu_db):
+    v = _seed_session_video()
+    si._capture_media_provenance(v["id"], "UUID1", {"recording_files": "not-a-list"})  # must not raise
+    row = edu.get_video(v["id"])
+    assert row["media_started_at"] is None
+
+
+def test_capture_media_provenance_wired_into_run_one_pending(edu_db, chapters_enabled, monkeypatch):
+    """The real orchestration entry point (process_pending_session_insights,
+    which re-fetches rows from the DB — unlike calling _run_one_pending
+    directly with a stale pre-set_meeting_uuid dict) captures provenance even
+    on the recording_gone early-return branch — not just the happy path."""
+    from api.services import desk_session_jobs as jobs
+    with tempfile.TemporaryDirectory() as d:
+        monkeypatch.setattr(jobs, "_DB_PATH", os.path.join(d, "jobs.db"))
+        jobs._init_db()
+        jobs.enqueue("UUID1", "Live Trading", "2026-06-24T13:30:00Z", "http://dl", "tok")
+
+        v = _seed_session_video()
+        zoom = _FakeZoom(None, {})  # recording already gone
+        out = si.process_pending_session_insights(zoom=zoom)
+        assert any(r.get("action") == "recording_gone" for r in out)
+        row = edu.get_video(v["id"])
+        assert row["media_started_at"] == "2026-06-24T13:30:00Z"
+        assert row["media_started_at_source"] == "recovered_job_metadata"
+        assert row["zoom_cleaned"] == 1  # unaffected — provenance capture never blocks this

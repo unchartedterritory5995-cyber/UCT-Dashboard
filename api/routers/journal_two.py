@@ -48,6 +48,7 @@ from api.services.journal_two import (
     regime_backfill,
     settings as settings_service,
     setup_stats as setup_stats_service,
+    trade_refs as trade_refs_service,
     trades as trades_service,
     trading_day_backfill,
     verdict_scorecard as verdict_scorecard_service,
@@ -544,6 +545,22 @@ def get_trade_detail(
     out = trades_service.get_trade_detail(user["id"], trade_id)
     if out is None:
         raise HTTPException(status_code=404, detail="Trade not found")
+    return out
+
+
+@router.get("/trade-evidence")
+def get_trade_evidence(
+    tradeRef: str = Query(..., description="A stable tradeRef, e.g. from a note's captured chart"),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Phase 4D-4C.2 — resolves an explicit tradeRef (captured from TradeDrawer
+    into a note) back to its authoritative trade/option-strategy evidence.
+    404 when the ref doesn't resolve to anything live for this user (a stale
+    or foreign ref — never a partial/guessed object). See
+    trade_refs.resolve_trade_ref_evidence for the assetType-tagged shape."""
+    out = trade_refs_service.resolve_trade_ref_evidence(user["id"], tradeRef)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Trade evidence not found")
     return out
 
 

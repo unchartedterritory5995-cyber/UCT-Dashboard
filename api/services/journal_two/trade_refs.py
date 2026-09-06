@@ -65,6 +65,64 @@ def orphaned_refs(user_id: str, refs: list[str], conn: sqlite3.Connection) -> li
     return [r for r in refs if not ref_is_live(user_id, r, conn)]
 
 
+def resolve_option_strategy_by_ref(user_id: str, ref: str, conn: sqlite3.Connection):
+    """The option-strategy twin of `resolve_trade_by_ref` — same id:/ext:
+    parsing, same generic identity scheme (an option strategy can carry
+    source='broker'+external_id exactly like a trade, so it can resolve via
+    EITHER form, not just id:)."""
+    if ref.startswith("ext:"):
+        return conn.execute(
+            "SELECT * FROM j2_option_strategies WHERE user_id = ? AND external_id = ?",
+            (user_id, ref[4:]),
+        ).fetchone()
+    if ref.startswith("id:"):
+        return conn.execute(
+            "SELECT * FROM j2_option_strategies WHERE user_id = ? AND id = ?",
+            (user_id, ref[3:]),
+        ).fetchone()
+    return None
+
+
+def resolve_trade_ref_evidence(
+    user_id: str, trade_ref: str, conn: sqlite3.Connection | None = None,
+) -> dict | None:
+    """Phase 4D-4C.2 evidence resolver: given a stable tradeRef (from a note's
+    widget-embed capture), return the authoritative record it names — never
+    invented, never re-derived from ticker/date. Tries j2_trades first, then
+    j2_option_strategies (mirroring ref_is_live's own dual-check), and tags
+    the result with `assetType` rather than collapsing an option strategy
+    into equity-shaped fields it doesn't have (Section 7's hard requirement).
+
+    Returns None when the ref resolves to nothing live for this user (the
+    router maps that to 404) — never a partial/guessed object."""
+    own = conn is None
+    conn = conn or get_connection()
+    try:
+        trade_row = resolve_trade_by_ref(user_id, trade_ref, conn)
+        if trade_row is not None:
+            from api.services.journal_two.trades import get_trade_detail
+            detail = get_trade_detail(user_id, trade_row["id"], conn=conn)
+            if detail is None:
+                return None
+            return {"assetType": "equity", **detail}
+
+        strategy_row = resolve_option_strategy_by_ref(user_id, trade_ref, conn)
+        if strategy_row is not None:
+            from api.services.journal_two.options import get_strategy
+            strategy = get_strategy(user_id, strategy_row["id"], conn=conn)
+            if strategy is None:
+                return None
+            return {
+                "assetType": "option_strategy",
+                "tradeRef": trade_ref,
+                "strategy": strategy,
+            }
+        return None
+    finally:
+        if own:
+            conn.close()
+
+
 # ── Trust Center: orphaned-annotation scan + reattach (spec §8, Task B7) ─────
 #
 # The two ref-keyed annotation stores are j2_trade_attachments (many rows per
