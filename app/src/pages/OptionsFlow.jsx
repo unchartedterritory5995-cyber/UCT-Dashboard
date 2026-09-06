@@ -761,6 +761,8 @@ export default function OptionsFlowDashboard() {
   const [ideaGexRange, setIdeaGexRange] = useState("3mo");
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchFull, setSearchFull] = useState(null); // {sym, data}: UNCAPPED per-ticker flow (from /api/flow/ticker) for the Search deep-dive; bulk /data caps by premium and drops small-caps' low-premium prints
+  const [searchStatus, setSearchStatus] = useState("idle"); // idle|loading|ok|error — status of the /api/flow/ticker fetch; lets the Search view tell a 502 deploy-blip apart from a genuinely-empty ticker
+  const [searchRetry, setSearchRetry] = useState(0);        // bump to re-fire the ticker fetch (bounded auto-retry while the flow-worker is mid-deploy)
   const [selectedConv, setSelectedConv] = useState(null); // clicked Top Flow card index
   const [selectedItem, setSelectedItem] = useState(null); // {sym,cp,K,exp} clicked from any table/chart
   // Dark pool bars for the contract detail panel (renderDetailPanel below) —
@@ -1075,16 +1077,32 @@ export default function OptionsFlowDashboard() {
   // it through the SAME processFlowData pipeline so the header totals and the
   // Top-Trades table reconcile with the raw tape. Falls back to the capped data
   // if the fetch is empty or fails.
+  // Reset the auto-retry counter whenever the searched ticker (or source) changes,
+  // so a fresh symbol always gets its full retry budget even if the previous one
+  // exhausted it.
+  useEffect(() => { setSearchRetry(0); }, [selectedTicker, dataMode]);
   useEffect(() => {
     const sym = selectedTicker && selectedTicker.s;
-    if (!sym) { setSearchFull(null); return; }
+    if (!sym) { setSearchFull(null); setSearchStatus("idle"); return; }
     let cancelled = false;
+    let retryTimer = null;
+    setSearchStatus("loading");
     const src = dataMode === "index" ? "indexes" : "stocks";
+    // /api/flow/ticker is proxied web→flow-worker and returns 502 while the worker
+    // restarts (a deploy). Treat a 502 (or any throw) as a TRANSIENT "reconnecting"
+    // state — surface it + auto-retry — instead of nulling the data into a false
+    // "NEUTRAL / $0 / no flow" read. Bounded so a genuinely broken fetch stops.
+    const _fail = () => {
+      if (cancelled) return;
+      setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null });
+      setSearchStatus("error");
+      if (searchRetry < 8) retryTimer = setTimeout(() => { if (!cancelled) setSearchRetry(n => n + 1); }, 4000);
+    };
     fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
       .then(r => (r.ok ? r.text() : null))
       .then(async text => {
         if (cancelled) return;
-        if (!text) { setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); return; }
+        if (!text) { _fail(); return; }
         // ZERO-OUT FIX (2026-07-18): do NOT scope to availableDates here, and do
         // NOT depend on it. This is the uncapped per-ticker fetch — it returns
         // the ticker's FULL history, which legitimately includes dates the main
@@ -1107,10 +1125,11 @@ export default function OptionsFlowDashboard() {
         // — the erSoonSet-triggered re-fetch (calendar loads ~1s after search)
         // occasionally returned empty and nulled searchFull.data → fell back to bulk.
         setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
+        setSearchStatus("ok");
       })
-      .catch(() => { if (!cancelled) setSearchFull(prev => (prev && prev.sym === sym && prev.data) ? prev : { sym, data: null }); });
-    return () => { cancelled = true; };
-  }, [selectedTicker, dataMode, erSoonArr]);
+      .catch(_fail);
+    return () => { cancelled = true; if (retryTimer) clearTimeout(retryTimer); };
+  }, [selectedTicker, dataMode, erSoonArr, searchRetry]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -7685,6 +7704,37 @@ export default function OptionsFlowDashboard() {
               const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data)
                 ? searchFull.data
                 : (_lastUncappedRef.current[selectedTicker.s] || null);   // last-good, never collapse to bulk
+              // DEPLOY-BLIP GUARD (2026-09-06): /api/flow/ticker is proxied to the
+              // flow-worker, which returns 502 while it restarts (a deploy). With no
+              // dataset the cards below zero out to a false "NEUTRAL / $0 / 0 total"
+              // read — indistinguishable from a ticker that genuinely has no flow.
+              // When the fetch is in-flight or failed AND we have nothing to show,
+              // render a reconnecting/loading panel (auto-retrying) instead. A
+              // genuinely-empty ticker fetches OK (searchStatus==="ok") and keeps the
+              // real empty read below; only loading/error with no data lands here. A
+              // re-selected ticker with cached last-good data (_uncapped truthy) shows
+              // its data (never blanks) even mid-reconnect.
+              if (!_uncapped && searchStatus !== "ok") {
+                const _err = searchStatus === "error";
+                return (
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:24, textAlign:"center" }}>
+                    <div style={{ fontSize:14, fontWeight:800, color:_err?P.ac:P.dm, marginBottom:6 }}>
+                      {_err ? "Live feed reconnecting…" : `Loading ${selectedTicker.s} flow…`}
+                    </div>
+                    <div style={{ fontSize:11, color:P.dm, lineHeight:1.5, maxWidth:460, margin:"0 auto" }}>
+                      {_err
+                        ? <>Couldn&rsquo;t reach the flow feed for <b>{selectedTicker.s}</b> right now &mdash; this happens briefly while the feed redeploys. Retrying automatically&hellip; <b>Your flow data is safe</b> and will reappear once the feed is back.</>
+                        : <>Fetching the full history for <b>{selectedTicker.s}</b>&hellip;</>}
+                    </div>
+                    {_err && (
+                      <button onClick={() => setSearchRetry(n => n + 1)}
+                        style={{ marginTop:12, padding:"5px 14px", borderRadius:8, border:"1.5px solid "+P.ac, background:P.ac+"18", color:P.ac, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                        Retry now
+                      </button>
+                    )}
+                  </div>
+                );
+              }
               // DAY-FILTER FIX (2026-07-18, v2): searchFull is a SEPARATE
               // per-ticker fetch (uncapped) with its own rows and its own dates —
               // it can contain dates the main parsedRows set doesn't. So the
