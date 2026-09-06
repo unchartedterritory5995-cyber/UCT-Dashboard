@@ -1115,6 +1115,78 @@ closed state across tests using the same `noteId`), fixed with an explicit
 
 ---
 
+### 2026-09-06 — WAVE D NARROW EVIDENCE-CLOSURE PASS — CLOSED, FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Per the user's directive: "WAVE D IMPLEMENTATION ACCEPTED — COMPLETE A NARROW
+EVIDENCE-CLOSURE PASS, FREEZE WAVE D, THEN BEGIN WAVE E." The directive quoted
+back my own certification's disclosed gaps and required each be resolved with
+real evidence rather than accepted as permanent: rename-staleness, mixed
+financial-relationship coexistence, real-keyboard autocomplete, mobile
+create-link flow, an accessibility spot audit, proportionate performance at
+scale, and a fresh (not general-knowledge) competitor audit.
+
+**Rename-staleness (the item the directive called "the most important residual
+correctness/UX question") — confirmed a REAL, live-reproducible defect, not
+merely theoretical.** Exact workflow specified by the directive: note A links
+to note B ("NVDA Earnings Thesis"); B renamed to "NVDA Q3 Earnings Thesis"
+without restarting the sandbox; returning to A via normal SPA navigation showed
+the STALE pre-rename title; a full reload showed the fresh title. Root cause:
+`noteLinkTargetsBatch.js`'s module-level cache (a documented, accepted-at-ship
+limitation) had no invalidation hook. **Fixed with the smallest correct
+mechanism** — `invalidateNoteLinkTarget(id)`, wired into every frontend write
+path that can change a note's own title/status: normal save, Wave C
+version-restore, trash, and restore-from-trash. The trash/un-trash half of this
+was found live DURING this same pass (identical staleness class, identical
+fix shape) and closed alongside rename rather than shipped half-fixed. Verified
+live, all four paths, before-and-after the fix, via real browser SPA
+navigation (no reload) — confirmed stale before, confirmed fresh after. Stable
+identity itself (the noteLink node's noteId-only representation) was
+untouched, exactly as the directive required ("Do NOT redesign the link
+system").
+
+**All other items closed with direct evidence, no fabrication:** mixed
+financial-relationship coexistence (2 new backend tests + a real
+API-seeded, browser-rendered, browser-exported note showing an internal link,
+a `$NVDA` cashtag, and a trade-ref widget all rendering distinctly with zero
+collision); a genuine real-keydown keyboard pass (this session's Chrome
+extension's input simulation, unreliable earlier in Wave C/D, was confirmed
+working again after the user reopened Chrome mid-session — `[[`, partial
+title, ArrowDown/ArrowUp, Escape-cancels-cleanly, Enter-inserts, continued
+typing, all keydown-driven and screenshot-confirmed); a mobile pass at 390px
+(same-origin-iframe technique, since `resize_window` remains non-functional
+in this environment) covering the full create→navigate→backlinks→return loop,
+finding no Wave-D-specific responsive defect (the Notebook sidebar's
+"stacked, always-open" phone layout is pre-existing, deliberate, and
+out of scope); an accessibility spot audit confirming correct
+listbox/option/aria-controls/aria-activedescendant wiring and real
+`<button>` accessible names, while HONESTLY RECORDING (not silently fixing)
+a shared pre-existing gap between `NoteLinkMenu` and `SlashMenu` — neither
+gives the editable root an explicit `role="combobox"`/`aria-autocomplete`
+pairing while its popup is open, and fixing only one would create a new
+inconsistency, so it was left as documented debt per the pass's own
+no-scope-creep rule; a proportionate performance check (sub-millisecond to
+~1ms at 1/20/100/250 backlinks and a 120-internal-link source note — no
+benchmark theater, no scaling concern); and a fresh competitor audit
+(dispatched to an isolated, explicitly no-file-access, no-git research fork)
+citing current official Notion/Obsidian/Evernote documentation rather than
+general product knowledge — Obsidian's rename-auto-propagation and richer
+context-preview backlinks pane are officially documented and now recorded as
+accepted competitive debt; Notion's own docs leave rename-behavior and
+export-link-portability themselves undocumented; Evernote has no officially
+documented keyboard-linking or backlinks feature at all.
+
+**Classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT** (the
+directive's own three-way outcome taxonomy) — one real local defect found,
+fixed, tested, and real-browser-verified; no architecture-level contradiction;
+no scope added (no unlinked mentions, no graph view, no new relationship
+types, no link analytics, no new entry points). **Wave D's core contracts are
+now FROZEN**: the noteLink stable-id representation, the `j2_note_links`
+sidecar/backlink-projection shape, rename/Trash/restore/purge semantics, the
+Wave C restore integration, and the export marker-scheme resolver.
+Competitive-gap-ledger G-022/G-033 updated to DONE with the fresh evidence.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

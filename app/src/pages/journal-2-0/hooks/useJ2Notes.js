@@ -1,6 +1,7 @@
 /** Notebook notes SWR hook. */
 import { useCallback, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
+import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -155,6 +156,12 @@ export function useJ2Note(noteId) {
       }
       const body = await res.json()
       await mutate({ note: body.note }, { revalidate: false })
+      // This note's own title/status may have just changed -- evict it from
+      // the noteLink batch-resolution cache so any noteLink chip elsewhere
+      // in this tab pointing at THIS id (another open note, a backlinks
+      // row) re-resolves fresh instead of showing the pre-save title until
+      // a full reload (Wave D closure pass finding).
+      invalidateNoteLinkTarget(noteId)
       return body.note
     },
   }

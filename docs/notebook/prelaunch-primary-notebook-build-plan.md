@@ -1178,6 +1178,108 @@ reached a browser. See the Decision Log's matching Wave D closure entry for
 full evidence. Wave E begins after this section, at the start of that wave,
 not speculatively now.
 
+### Wave D — narrow evidence-closure pass — CLOSED 2026-09-06 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+The initial Wave D certification above disclosed several unresolved/partially-verified
+gaps rather than rounding them up to a blanket pass. This pass closed each one with
+direct evidence, per the follow-up directive's own three-way classification
+(PASS / TEMPORARY STALENESS / DEFECT):
+
+1. **Target-title rename staleness (§3) — TEMPORARY STALENESS, confirmed real, FIXED.**
+   Live-browser workflow exactly as specified: created note A and note B ("NVDA
+   Earnings Thesis"), linked A→B, renamed B to "NVDA Q3 Earnings Thesis" without
+   restarting the sandbox, returned to A via normal SPA navigation — **the link showed
+   the STALE pre-rename title**; a full reload showed the fresh title immediately.
+   Root cause: `noteLinkTargetsBatch.js`'s module-level cache had no invalidation hook
+   (a documented, accepted-at-the-time limitation). Fixed with the smallest correct
+   mechanism — a new `invalidateNoteLinkTarget(id)` export, wired into the four
+   frontend write paths that can change a note's own title/status: normal save
+   (`useJ2Notes.js`), Wave C version-restore (`useJ2NoteVersions.js`), trash, and
+   restore-from-trash (`NoteEditorPage.jsx`/`NotebookTab.jsx`) — the trash/un-trash
+   pair was found live during this same pass (same staleness class, same mechanism)
+   and closed alongside rename rather than left half-fixed. Also verified: a Wave C
+   version-restore that reverts B's title independently reproduces the identical
+   staleness (proven both by code — `restore_note_version` calls the same
+   `update_note()` path — and by a live browser reproduction), and the fix closes it
+   identically. Re-verified live, all four paths, before-and-after: title/status now
+   updates immediately on SPA navigation, no reload required. 3 new unit tests added
+   (11→14 in `noteLinkTargetsBatch.test.js`); full frontend suite (1674 tests/179
+   files) green after the change. Stable identity itself was NOT redesigned — this was
+   purely a display-cache invalidation gap.
+2. **Mixed financial relationships (§4) — PASS.** One realistic note containing an
+   internal `noteLink`, a `$NVDA` cashtag, and a typed `equity_trade` widget embed:
+   verified via 2 new backend tests (all three sidecars — `j2_note_links`,
+   `j2_note_mentions`, `j2_note_embeds` — populate independently, no collision, no
+   misparse, reload round-trips correctly) AND a live-browser-rendered, live-exported
+   real note (seeded via the same API a member's client uses) — all three relationships
+   rendered in visually distinct locations, single-note export front matter carried
+   both `related_tickers: [NVDA]` and `linked_trades: [NVDA (equity trade)]` correctly,
+   and the body rendered the note-link as an honest deep-link, the cashtag verbatim,
+   and the widget as its own block, all non-colliding.
+3. **Real keyboard autocomplete (§5) — PASS, fully verified, no limitation hit.**
+   This session's Chrome extension's simulated input, unreliable earlier in the Wave
+   C/D work, was confirmed working after the user reopened Chrome — a real keydown
+   pass was possible and was done: typed `[[NVDA`, ArrowDown, ArrowUp (both confirmed
+   via screenshot — highlight state under keyboard control), Escape (confirmed: popup
+   closed, raw `[[NVDA` text preserved, no insertion), retyped and Enter (confirmed:
+   correct chip inserted), then continued typing after the chip with no interruption.
+4. **Mobile link-creation pass (§6) — PASS, no Wave-D-specific defect found.**
+   Same-origin iframe pinned to 390×844 (the `resize_window` tool remains non-functional
+   in this environment — confirmed again, `window.innerWidth` stayed 1920 after a
+   resize request). Full flow at phone width: opened a note, typed `[[NVDA`, the
+   popup rendered fully on-screen with no horizontal clipping, tap-selected the result,
+   continued typing, tapped the inserted chip to navigate, expanded "Linked from (N)",
+   tapped the backlink row, returned to the source note. The Notebook sidebar's
+   "always-open, stacked above the note" phone layout (`NotebookTab.module.css`
+   `@media (max-width:640px)`) is pre-existing, deliberate, Notebook-wide behavior —
+   not a Wave D regression — so it was left untouched per the no-scope-creep rule.
+5. **Accessibility spot audit (§7) — no full WCAG claim.** Confirmed correct: the
+   `[[` popup is a real `role="listbox"`/`role="option"` combobox pattern with
+   `aria-controls`/`aria-activedescendant` wired onto the editor root exactly while
+   open (removed on close/Escape); the internal-link chip and every backlink row are
+   real `<button>`s with tabIndex=0 and a visible-text accessible name; a trashed
+   target's badge is real text ("Trashed"), not color-only. **Recorded, not fixed
+   (shared pre-existing pattern, not a Wave D regression):** the editable root lacks
+   an explicit `role="combobox"`/`aria-autocomplete="list"` pairing while the `[[`
+   popup is open — `SlashMenu.jsx`'s `/` popup has the identical gap, by the same
+   author decision to mirror its shape exactly, so fixing only `NoteLinkMenu` would
+   create a NEW inconsistency and fixing both is outside this pass's narrow scope.
+6. **Proportionate performance check (§8) — PASS, no scaling concern.** Real numbers,
+   real code paths, in-memory SQLite: `get_note_backlinks` at 1/20/100/250 backlinks
+   — 0.18ms/0.17ms/0.55ms/0.58ms. `create_note` with 120 internal links (extract+sync)
+   — 0.87ms. `resolve_note_link_targets` batch of 120 ids — 0.35ms. `update_note`
+   re-save with 120 links (delete+reinsert sync) — 1.01ms. No index/architecture change
+   indicated at realistic member scale.
+7. **Fresh competitor audit (§9) — DONE, current official sources, not general
+   knowledge.** Notion: `help.notion.com/create-links-and-backlinks` confirms
+   `@`/`[[`/`+`-equivalent keyboard creation and a `{#} backlinks` feature with no
+   documented context preview; rename-propagation and export link-portability are
+   themselves undocumented in Notion's own docs (not just unverified by this audit).
+   Obsidian: `obsidian.md/help/links` confirms automatic link-rename-propagation
+   (opt-out) as an official, current feature; `obsidian.md/help/plugins/backlinks`
+   confirms a dedicated pane with linked/unlinked-mention split and a "Show more
+   context" toggle — richer than UCT's title+count row, recorded as accepted debt
+   above. Evernote: no officially documented keyboard-composition-time linking or
+   backlinks feature at all — confirmed via its own note-links help article (one
+   citation snippet-corroborated after a direct fetch was blocked, cross-checked via
+   an independent search pass). Full matrix + URLs in the competitive-gap-ledger
+   (G-022, G-033) update.
+8. **Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** One real,
+   local defect was found (rename/trash staleness) and fixed, tested, and
+   real-browser-verified per the directive's own rule for that outcome. No
+   architecture-level contradiction surfaced. Explicitly recorded residual debt (not
+   fixed, by design, per the no-scope-creep instruction): backlink rows show no
+   context preview around the link (Obsidian has this); the `[[`/`/` popups' shared
+   ARIA-combobox gap. **No scope was added** — no unlinked mentions, graph
+   visualization, new relationship types, link analytics, or new entry points were
+   introduced.
+
+**Wave D's core contracts are now FROZEN per the directive** (§12): the `noteLink`
+node's stable-id-only representation, the `j2_note_links` sidecar/backlink-projection
+shape, rename/Trash/restore/purge semantics, the Wave C restore integration, and the
+export marker-scheme resolver — none of these were redesigned by this pass, only the
+one named cache gap was closed.
+
 ---
 
 Design-before-build for Wave E onward happens at the start of that wave, not

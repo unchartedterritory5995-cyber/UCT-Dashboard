@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  requestNoteLinkTarget, subscribeNoteLinkTargets, _resetNoteLinkTargetsBatchForTests,
+  requestNoteLinkTarget, subscribeNoteLinkTargets, invalidateNoteLinkTarget,
+  _resetNoteLinkTargetsBatchForTests,
 } from './noteLinkTargetsBatch'
 
 beforeEach(() => {
@@ -91,5 +92,39 @@ describe('noteLinkTargetsBatch', () => {
     global.fetch = vi.fn()
     expect(requestNoteLinkTarget(null)).toBeNull()
     expect(requestNoteLinkTarget('')).toBeNull()
+  })
+
+  it('invalidate evicts a cached id so the next request re-fetches fresh', async () => {
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse({ targets: { n1: { title: 'Old Title', status: 'active' } } }))
+      .mockImplementationOnce(() => jsonResponse({ targets: { n1: { title: 'New Title', status: 'active' } } }))
+    requestNoteLinkTarget('n1')
+    await vi.runAllTimersAsync()
+    expect(requestNoteLinkTarget('n1')).toEqual({ title: 'Old Title', status: 'active' })
+
+    const listener = vi.fn()
+    subscribeNoteLinkTargets(listener)
+    invalidateNoteLinkTarget('n1')
+    expect(listener).toHaveBeenCalled() // mounted consumers re-render and re-request
+
+    expect(requestNoteLinkTarget('n1')).toBeUndefined() // cache miss again
+    await vi.runAllTimersAsync()
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(requestNoteLinkTarget('n1')).toEqual({ title: 'New Title', status: 'active' })
+  })
+
+  it('invalidate on an id never cached is a no-op (no spurious notify)', () => {
+    const listener = vi.fn()
+    subscribeNoteLinkTargets(listener)
+    invalidateNoteLinkTarget('never-seen')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('invalidate ignores a falsy id', () => {
+    const listener = vi.fn()
+    subscribeNoteLinkTargets(listener)
+    invalidateNoteLinkTarget(null)
+    invalidateNoteLinkTarget('')
+    expect(listener).not.toHaveBeenCalled()
   })
 })

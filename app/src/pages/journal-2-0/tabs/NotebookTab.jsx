@@ -14,6 +14,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import useAppFocus from '../../../hooks/useAppFocus'
+import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -286,6 +287,10 @@ export default function NotebookTab() {
       refresh()
       refreshAll()
       refreshSidebarCounts()
+      // Trashed -> active is the same target-status flip as trashing itself
+      // (NoteEditorPage's onDeleteConfirm) -- a noteLink chip elsewhere in
+      // this tab may still show the pre-restore "Trashed" state.
+      invalidateNoteLinkTarget(note.id)
     } catch (e) {
       alert(`Could not restore note: ${e.message || e}`)
     }

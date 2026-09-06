@@ -10,6 +10,7 @@ import pytest
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.notes import (
     create_note,
+    get_note,
     get_note_backlinks,
     resolve_note_link_targets,
     restore_note_version,
@@ -325,3 +326,92 @@ def test_a_link_cycle_a_to_b_to_a_does_not_crash_either_read_path():
     resolved = resolve_note_link_targets("u1", [a["id"], b["id"]], conn=c)
     assert resolved[a["id"]]["status"] == "active"
     assert resolved[b["id"]]["status"] == "active"
+
+
+# ── Wave D closure pass: mixed financial relationships in ONE note ──────────
+# directive: internal note link + cashtag entity + typed trade relationship
+# must all save/reload/render distinctly, without collision, in a single
+# realistic financial note.
+
+def _widget_embed(trade_ref, symbol="NVDA"):
+    return {
+        "type": "widgetEmbed",
+        "attrs": {
+            "widgetId": "chart-1", "params": {"symbol": symbol, "tf": "D"},
+            "tradeRef": trade_ref, "tradeRefType": "equity_trade",
+            "mode": "snapshot", "capturedAt": "2026-09-06T00:00:00Z",
+            "searchText": f"{symbol} chart",
+        },
+    }
+
+
+def test_one_note_with_a_note_link_a_cashtag_and_a_trade_ref_all_coexist():
+    from api.services.journal_two.test_note_trade_links import _seed_trade
+
+    c = _conn()
+    _seed_trade(c, "u1", "trade-nvda-1", symbol="NVDA")
+    research = _create(c, "u1", "Earnings Prep", {"type": "doc", "content": []})
+
+    note = _create(c, "u1", "NVDA Q3 Thesis", {
+        "type": "doc",
+        "content": [
+            _para(_text("See "), _link_node(research["id"]), _text(" for background.")),
+            _para(_text("Watching $NVDA closely into earnings.")),
+            _widget_embed("trade-nvda-1"),
+        ],
+    })
+
+    # All three sidecars populated, none clobbering another.
+    links = c.execute("SELECT target_note_id FROM j2_note_links WHERE note_id=?", (note["id"],)).fetchall()
+    assert [r["target_note_id"] for r in links] == [research["id"]]
+
+    mentions = c.execute("SELECT symbol FROM j2_note_mentions WHERE note_id=?", (note["id"],)).fetchall()
+    assert [r["symbol"] for r in mentions] == ["NVDA"]
+
+    embeds = c.execute(
+        "SELECT symbol, trade_ref, trade_ref_type FROM j2_note_embeds WHERE note_id=?", (note["id"],)
+    ).fetchall()
+    assert len(embeds) == 1
+    assert embeds[0]["symbol"] == "NVDA"
+    assert embeds[0]["trade_ref"] == "trade-nvda-1"
+    assert embeds[0]["trade_ref_type"] == "equity_trade"
+
+    # Reload via the normal read path -- nothing lost, nothing merged/misparsed.
+    reloaded = get_note("u1", note["id"], conn=c)
+    kids = reloaded["bodyJson"]["content"]
+    assert kids[0]["content"][1]["type"] == "noteLink"
+    assert kids[0]["content"][1]["attrs"]["noteId"] == research["id"]
+    assert kids[2]["type"] == "widgetEmbed"
+    assert kids[2]["attrs"]["tradeRef"] == "trade-nvda-1"
+
+    # Each relationship resolves independently and correctly.
+    assert get_note_backlinks("u1", research["id"], conn=c)["count"] == 1
+    backlink_syms = c.execute(
+        "SELECT symbol FROM j2_note_embeds WHERE user_id=? AND trade_ref=?", ("u1", "trade-nvda-1")
+    ).fetchall()
+    assert backlink_syms[0]["symbol"] == "NVDA"
+
+
+def test_export_of_the_mixed_relationship_note_renders_all_three_distinctly():
+    from api.services.journal_two.test_note_trade_links import _seed_trade
+    from api.services.journal_two.notes_export import build_export_zip
+    import io, zipfile
+
+    c = _conn()
+    _seed_trade(c, "u1", "trade-nvda-1", symbol="NVDA")
+    research = _create(c, "u1", "Earnings Prep", {"type": "doc", "content": []})
+    _create(c, "u1", "NVDA Q3 Thesis", {
+        "type": "doc",
+        "content": [
+            _para(_link_node(research["id"])),
+            _para(_text("Watching $NVDA closely.")),
+            _widget_embed("trade-nvda-1"),
+        ],
+    })
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    body = zf.read("NVDA Q3 Thesis.md").decode("utf-8")
+    assert "[Earnings Prep](Earnings Prep.md)" in body  # the note link
+    assert "$NVDA" in body                              # the cashtag, untouched
+    assert "NVDA chart" in body                          # the widget embed's search line
+    assert "linked_trades: [NVDA (equity trade)]" in body  # the trade-ref front matter
