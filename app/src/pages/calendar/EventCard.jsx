@@ -1,6 +1,7 @@
 // app/src/pages/calendar/EventCard.jsx
 // Renders IPO, dividend, and split event cards (non-earnings).
 // Used in FeedView DayGroup when the matching event-type chip is enabled.
+import { useNavigate } from 'react-router-dom'
 import CompanyLogo from '../../components/CompanyLogo'
 import styles from './Calendar.module.css'
 
@@ -35,6 +36,7 @@ function statusClass(status) {
 // ── IPO Card ──────────────────────────────────────────────────────────────────
 
 function IpoCard({ event }) {
+  const navigate = useNavigate()
   const sym    = event.sym || ''
   const name   = event.name || sym || 'Unknown'
   const exch   = event.exchange || null
@@ -43,8 +45,19 @@ function IpoCard({ event }) {
   const value  = fmtValue(event.value)
   const status = event.status || null
 
+  // Entry-point convergence (Event / News / Calendar -> Research V1): a
+  // deliberate, member-clicked exit into canonical Research — the same bare
+  // navigation shape already shipped at EarningsResearchModal.jsx:160. `sym`
+  // is a real per-company ticker on every live event; disabled when absent
+  // so a malformed event never fabricates a Research route.
   return (
-    <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardIpo}`}>
+    <button
+      type="button"
+      className={`${styles.card} ${styles.evtCard} ${styles.evtCardIpo}`}
+      onClick={sym ? () => navigate(`/research/${sym}`) : undefined}
+      disabled={!sym}
+      title={sym ? `View ${sym} in Research` : undefined}
+    >
       <div className={styles.evtTypeTag}>IPO</div>
       <div className={styles.cardTop}>
         <CompanyLogo sym={sym || '?'} size={46} tile />
@@ -78,19 +91,26 @@ function IpoCard({ event }) {
           <span className={styles.mono}>{exch}</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 
 // ── Dividend Card ──────────────────────────────────────────────────────────────
 
 function DividendCard({ event }) {
+  const navigate = useNavigate()
   const sym    = event.sym || ''
   const amount = event.amount != null ? `$${event.amount.toFixed(4)}` : null
   const exDate = event.date || null
 
   return (
-    <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardDiv}`}>
+    <button
+      type="button"
+      className={`${styles.card} ${styles.evtCard} ${styles.evtCardDiv}`}
+      onClick={sym ? () => navigate(`/research/${sym}`) : undefined}
+      disabled={!sym}
+      title={sym ? `View ${sym} in Research` : undefined}
+    >
       <div className={styles.evtTypeTag}>DIV</div>
       <div className={styles.cardTop}>
         <CompanyLogo sym={sym || '?'} size={46} tile />
@@ -111,19 +131,26 @@ function DividendCard({ event }) {
           <span className={styles.mono}>{amount} / share</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 
 // ── Split Card ────────────────────────────────────────────────────────────────
 
 function SplitCard({ event }) {
+  const navigate = useNavigate()
   const sym   = event.sym || ''
   const ratio = event.ratio || null
   const date_ = event.date || null
 
   return (
-    <div className={`${styles.card} ${styles.evtCard} ${styles.evtCardSplit}`}>
+    <button
+      type="button"
+      className={`${styles.card} ${styles.evtCard} ${styles.evtCardSplit}`}
+      onClick={sym ? () => navigate(`/research/${sym}`) : undefined}
+      disabled={!sym}
+      title={sym ? `View ${sym} in Research` : undefined}
+    >
       <div className={styles.evtTypeTag}>SPLIT</div>
       <div className={styles.cardTop}>
         <CompanyLogo sym={sym || '?'} size={46} tile />
@@ -144,7 +171,7 @@ function SplitCard({ event }) {
           <span className={styles.mono}>{ratio}</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 
