@@ -4275,7 +4275,14 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     rows = list(best.values())
     bull = sorted([r for r in rows if r["_dir"] == "Bull"], key=lambda r: -r["_agg"])[:top_n]
     bear = sorted([r for r in rows if r["_dir"] == "Bear"], key=lambda r: -r["_agg"])[:top_n]
-    return {"date": today, "bull": bull, "bear": bear,
+    # Whole-day directional premium for the net-flow bar (the market read, same
+    # number the old Top Flow card showed) — NOT the sum of just these contracts.
+    try:
+        _ds = _build_day_stats(today)
+        net = {"bull": _ds.get("bull_premium", 0.0), "bear": _ds.get("bear_premium", 0.0)}
+    except Exception:
+        net = None
+    return {"date": today, "bull": bull, "bear": bear, "net": net,
             "params": {"top_n": top_n, "min_voi": min_voi,
                        "exclude_weekly": excl_wk, "exclude_block_only": excl_bo}}
 
@@ -4317,7 +4324,8 @@ def cream_image(target_date: str = Query(default=None),
     except Exception:
         dt = today
     png = render_watchlist_card(data["bull"], data["bear"], dt, mobile=mobile,
-                                title="Cream of the Crop", section="CREAM")
+                                title="Top Flow", section="FLOW",
+                                net=data.get("net"), show_dte=True)
     return Response(content=png, media_type="image/png")
 
 

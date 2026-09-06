@@ -58,15 +58,16 @@ def run_cream_eod(*, target_date=None, force: bool = False, post: bool = True) -
 
         date_text = _date_text(today)
         png = render_watchlist_card(bull, bear, date_text, mobile=False,
-                                    title="Cream of the Crop", section="CREAM")
+                                    title="Top Flow", section="FLOW",
+                                    net=data.get("net"), show_dte=True)
         posted, detail = False, ""
         if post:
             wh = _webhook()
             if not wh:
                 detail = "no webhook configured"
             else:
-                content = f"**Cream of the Crop — {date_text}**  ·  top conviction builds of the day"
-                posted, detail = _post_discord_image(wh, png, content, filename="cream.png")
+                content = f"**Top Flow — {date_text}**  ·  the day's highest-conviction builds"
+                posted, detail = _post_discord_image(wh, png, content, filename="top_flow.png")
         return {"ok": True, "posted": posted, "detail": detail, "date": today,
                 "bull": len(bull), "bear": len(bear), "png_bytes": len(png),
                 "params": data.get("params")}
