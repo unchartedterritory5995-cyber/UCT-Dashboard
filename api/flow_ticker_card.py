@@ -16,16 +16,16 @@ from api.watchlist_card import (
     _BG, _BAND, _ROWALT, _GOLD, _GOLD_DIM, _TXT, _DIM, _DIV, _BULL, _BEAR, _SS,
 )
 
-_W = 1000
+_W = 1180
 _ROWH = 40
 _TOP = 156          # header band + net bar + column headers
 _MIXED = (201, 168, 76)   # gold for two-sided / unclear leans
 
 # (header, x, align) — one row per CONTRACT (no ticker column; it's one ticker)
 _COLS = [
-    ("STRIKE", 150, "r"), ("C/P", 168, "l"), ("EXP · DTE", 250, "l"),
-    ("PREMIUM", 520, "r"), ("VOL", 660, "r"), ("OI", 770, "r"),
-    ("V/OI", 858, "r"), ("DIR", 900, "l"),
+    ("STRIKE", 120, "r"), ("C/P", 138, "l"), ("EXP · DTE", 210, "l"),
+    ("WHEN", 415, "l"), ("PREMIUM", 600, "r"), ("VOL", 722, "r"),
+    ("OI", 828, "r"), ("V/OI", 912, "r"), ("PERF", 1012, "r"), ("DIR", 1032, "l"),
 ]
 
 
@@ -36,6 +36,25 @@ def _dir_color(d: str):
     if d == "bear":
         return _BEAR
     return _MIXED   # mixed / unclear
+
+
+def _md_compact(s) -> str:
+    """'8/27/2026' → '8/27' for the WHEN column."""
+    s = str(s or "").strip()
+    if not s:
+        return "—"
+    p = s.split("/")
+    return f"{p[0]}/{p[1]}" if len(p) >= 2 else s
+
+
+def _fmt_perf(p):
+    """(text, color) for the PERF column — the option's entry→now return."""
+    try:
+        p = float(p)
+    except (TypeError, ValueError):
+        return ("—", _DIM)
+    col = _BULL if p > 0 else (_BEAR if p < 0 else _DIM)
+    return (f"{'+' if p >= 0 else '−'}{abs(p):.0f}%", col)
 
 
 def _window_label(w: dict) -> str:
@@ -115,20 +134,23 @@ def render_ticker_flow_card(data: dict) -> bytes:
         if i % 2 == 1:
             d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
         cp = (c.get("cp") or "").upper()
-        txt(150, y, _strike(c.get("strike")), f_rowb, _TXT, "r")
-        txt(168, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
+        txt(120, y, _strike(c.get("strike")), f_rowb, _TXT, "r")
+        txt(138, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
         _exp = c.get("exp") or ""
         if c.get("dte") is not None:
             _exp = f"{_exp} · {_num(c, 'dte')}d"
-        txt(250, y, _exp, f_row, _DIM)
-        txt(520, y, _fmt_prem(c.get("premium")), f_rowb, _GOLD, "r")
-        v = _num(c, "volume"); txt(660, y, f"{v:,}" if v is not None else "—", f_row, _TXT, "r")
-        o = _num(c, "oi"); txt(770, y, f"{o:,}" if o is not None else "—", f_row, _DIM, "r")
+        txt(210, y, _exp, f_row, _DIM)
+        txt(415, y, _md_compact(c.get("first_seen")), f_row, _DIM)
+        txt(600, y, _fmt_prem(c.get("premium")), f_rowb, _GOLD, "r")
+        v = _num(c, "volume"); txt(722, y, f"{v:,}" if v is not None else "—", f_row, _TXT, "r")
+        o = _num(c, "oi"); txt(828, y, f"{o:,}" if o is not None else "—", f_row, _DIM, "r")
         voi = c.get("voi")
-        txt(858, y, _fmt_voi(voi), f_row,
+        txt(912, y, _fmt_voi(voi), f_row,
             _BULL if (voi is not None and float(voi) >= 3) else _DIM, "r")
+        _pt, _pc = _fmt_perf(c.get("perf"))
+        txt(1012, y, _pt, f_rowb, _pc, "r")
         dr = (c.get("direction") or "").upper()
-        txt(900, y, dr or "—", f_rowb, _dir_color(c.get("direction")))
+        txt(1032, y, dr or "—", f_rowb, _dir_color(c.get("direction")))
         y += _ROWH
 
     # ── footer ───────────────────────────────────────────────────────────────

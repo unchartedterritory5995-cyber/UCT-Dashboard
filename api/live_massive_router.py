@@ -4139,9 +4139,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             _shape_factor *= 1.15
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
                     * voi_factor * _shape_factor * (2.0 if dormant else 1.0))
+        _fv = sum((p.get("price") or 0) * (p.get("volume") or 0) for p in g["prints"])
+        _vv = sum((p.get("volume") or 0) for p in g["prints"])
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
+            "avg_fill": (round(_fv / _vv, 2) if _vv else None),  # VWAP entry (for P&L)
             "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
             "days_active": days_active, "first_seen": first_seen,
@@ -4393,17 +4396,54 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             if dh.get("date"):
                 _dates.add(dh["date"])
     ds = sorted(_dates, key=_parse_mdy)
+    # Live enrichment: ONE Massive chain snapshot → CURRENT mark + LATEST OI per
+    # strike, so the OI column is current (not flow-time) and PERF = entry→now.
+    # Best-effort + flow-worker-safe (stdlib urllib); on any failure the card falls
+    # back to flow-time OI and shows no perf. Only the top-N shown contracts are read.
+    _chain, _canon = {}, (lambda s: str(s or "").strip())
+    try:
+        from api import massive_oi_snapshots as _moi
+        _chain = _moi.fetch_chain_price_oi(sym)
+        _canon = _moi._canon_mdy
+    except Exception:
+        pass
+
+    def _enrich(c):
+        try:
+            k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                 _canon(str(c.get("exp") or "")))
+        except (TypeError, ValueError):
+            return (None, None)
+        e = _chain.get(k) or {}
+        return (e.get("oi"), e.get("price"))
+
+    def _perf(entry, now):
+        try:
+            entry, now = float(entry), float(now)
+            if entry > 0 and now > 0:
+                return round((now - entry) / entry * 100.0, 1)
+        except (TypeError, ValueError):
+            pass
+        return None
+
     # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
-    slim = [{
-        "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
-        "exp": c.get("exp"), "dte": c.get("dte"),
-        "premium": c.get("total_premium"), "volume": c.get("total_volume"),
-        "oi": c.get("max_oi"), "voi": c.get("cum_voi"),
-        "direction": c.get("direction"),
-        "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
-        "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
-        "days_active": c.get("days_active"),
-    } for c in top]
+    slim = []
+    for c in top:
+        _loi, _now = _enrich(c)
+        _entry = c.get("avg_fill")
+        slim.append({
+            "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
+            "exp": c.get("exp"), "dte": c.get("dte"),
+            "premium": c.get("total_premium"), "volume": c.get("total_volume"),
+            "oi": _loi if _loi is not None else c.get("max_oi"),  # LATEST OI (fallback flow-time)
+            "voi": c.get("cum_voi"),
+            "direction": c.get("direction"),
+            "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
+            "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
+            "days_active": c.get("days_active"),
+            "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
+            "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
+        })
     result = {
         "ok": True, "symbol": sym, "source": se, "spot": spot,
         "net": {"bull": round(bull), "bear": round(bear), "dir": net_dir},

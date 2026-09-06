@@ -251,6 +251,80 @@ def _fetch_chain_blocking(ticker: str) -> dict:
     return combined
 
 
+def _mark_from_item(item: dict):
+    """Current option mark from a chain snapshot item: NBBO midpoint (guarded
+    bid>0/ask>0 — the quote side is zeroed overnight), else last trade, else the
+    session/prev close. None if nothing usable."""
+    lq = item.get("last_quote") or {}
+    try:
+        bid, ask = float(lq.get("bid") or 0), float(lq.get("ask") or 0)
+        if bid > 0 and ask > 0:
+            return round((bid + ask) / 2, 2)
+    except (TypeError, ValueError):
+        pass
+    for path, key in ((item.get("last_trade") or {}, "price"),
+                      (item.get("day") or {}, "close"),
+                      (item.get("day") or {}, "previous_close")):
+        try:
+            v = float(path.get(key) or 0)
+            if v > 0:
+                return round(v, 2)
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def fetch_chain_price_oi(ticker: str) -> dict:
+    """ONE chain snapshot → {(cp_letter, float_strike, 'M/D/YYYY'): {'oi': int|None,
+    'price': float|None}} — CURRENT open interest + current mark per strike, in a
+    single Massive call. Stdlib urllib (flow-worker-safe). Unlike the OI-only index
+    this KEEPS oi==0 (a real fresh strike) and carries the price. {} on any error."""
+    url = _with_key(f"{MASSIVE_REST_BASE}/v3/snapshot/options/{ticker}"
+                    f"?limit={MASSIVE_PAGE_LIMIT}")
+    out: dict = {}
+    page = 0
+    while url and page < MAX_PAGES:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": _UCT_UA})
+            with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_SEC) as resp:
+                if getattr(resp, "status", 200) != 200:
+                    break
+                data = _json.loads(resp.read().decode("utf-8"))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[massive-oi] price+oi %s page %d failed: %s", ticker, page, e)
+            break
+        results = data.get("results")
+        if isinstance(results, dict):
+            results = [results]
+        for item in (results or []):
+            if not isinstance(item, dict):
+                continue
+            details = item.get("details") or {}
+            ctype = (details.get("contract_type") or "").lower()
+            cp = "C" if ctype == "call" else ("P" if ctype == "put" else None)
+            strike, exp_iso = details.get("strike_price"), details.get("expiration_date") or ""
+            exp_mdy = _canon_mdy(_parse_iso_date_to_mdy(exp_iso))
+            if not cp or strike is None or not exp_mdy:
+                continue
+            try:
+                strike_f = float(strike)
+            except (TypeError, ValueError):
+                continue
+            oi = item.get("open_interest")
+            try:
+                oi = int(oi) if oi is not None else None
+            except (TypeError, ValueError):
+                oi = None
+            out[(cp, strike_f, exp_mdy)] = {"oi": oi, "price": _mark_from_item(item)}
+        nu = data.get("next_url")
+        if nu:
+            url = _with_key(nu if nu.startswith("http") else f"{MASSIVE_REST_BASE}{nu}")
+            page += 1
+        else:
+            url = None
+    return out
+
+
 async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
     """Public entry point — matches the Schwab module's interface.
 
