@@ -2877,3 +2877,121 @@ Tuesday 2026-09-08 RTH remains the key `screener_live_tier` live-acceptance
 window (Monday 9/7 is Labor Day). Do NOT proceed to another family without
 fresh owner authorization; the bar-index anchor-timestamp defect in
 `bull_flag.py` is a separate, standing item awaiting owner adjudication.
+
+---
+
+## BULL FLAG ANCHOR TIMESTAMP CORRECTNESS — SEPARATE PACKAGE, OWNER-AUTHORIZED (2026-09-06)
+
+Worktree `uct-dashboard-bull-flag-ts-fix`, branch `fix/bull-flag-anchor-timestamps`,
+base `origin/master@d7b53b339` (fresh clean base, NOT the frozen Bull Flag
+canonical branch — that branch was never touched). Committed locally at
+`b3e2dc2b4`, never pushed.
+
+**The defect, re-proven from current code:** `bull_flag.py`'s flag-channel
+geometry anchors (`upper_line`/`lower_line` p1/p2) carried absolute BAR-INDEX
+integers in `Anchor.t` instead of real unix-second bar timestamps — verified
+against `types.py`'s own contract (`Bar.t`/`Pivot.t`: `int # unix seconds,
+bar start`) and against `Pivot`'s own field split (`t` vs `bar_index` are
+DIFFERENT fields by design), and against the shared `detect_pivots`
+primitive (which HTF/PEG use and which correctly builds both fields
+separately). Root cause: `_try_extract_pattern`'s own inline
+`upper_pivots`/`lower_pivots` (built directly, NOT via `detect_pivots`) set
+`"t": pole_top_idx + 1 + i` — an index — and `fit_trendline` passed it
+straight through unmodified into the final anchors. Empirically confirmed
+against a real fixture before the fix: anchor `.t` values of `31`/`37` next
+to real bar timestamps of `~1.7e9`.
+
+**Real, not hypothetical, production reach.** Traced the full flow: Bull Flag
+IS a registered detector (`register(_PATTERN_ID, detect_bull_flag)`), and
+`api/main.py::_run_patterns_universe_scan` (daily 1am ET, unconditional —
+no flag gate around the job registration) + `_run_patterns_leaders_scan`
+(hourly) both call `detect_all()` (every registered detector) and
+`memory.store_detection()` UNCONDITIONALLY for every result — so buggy Bull
+Flag anchors ARE being persisted into production's `pattern_detections`
+table today, not merely in test fixtures. Further traced: Compass's
+`find_patterns_on_ticker`/`scan_active_patterns` tools (which explicitly
+name "Bull Flag" in their own descriptions) never read `geometry`/`anchors`
+— only `levels`/`confidence`/`status` — so no LLM-facing surface is affected.
+BUT `app/src/components/chart/PatternOverlay.jsx` (mounted on every
+`StockChart` instance dashboard-wide, gated only by a real, member-clickable
+"Show Patterns" toolbar toggle, `disablePatterns` false by default) DOES map
+`shape: "trendline_pair"` → `TrendlinePair.jsx`, which calls `tToX(anchor.t)`
+expecting a real unix timestamp. A bar-index value handed to that function
+would almost certainly return `null` (no matching point in the visible
+time range) — most likely result: **the Bull Flag pattern silently fails to
+draw its trendlines on a member's real chart when they enable "Show
+Patterns"**, rather than drawing them in a visibly wrong place. Traced the
+code path; did not execute the frontend runtime to confirm the exact
+null-vs-off-screen failure mode — stated as the honest boundary of what was
+verified.
+
+**The fix** (`_anchor_bar_t()` in `bull_flag.py`): a single, narrow
+translation at the ONE place a flag-channel trendline's `t` is read to build
+a canonical anchor — `bars[int(pivot_t)]["t"]`. The regression fit itself
+(`_try_extract_pattern`'s `upper_pivots`/`lower_pivots`, `fit_trendline`) is
+UNTOUCHED — re-fitting on real calendar timestamps would distort the channel
+across weekend/holiday gaps (bar-index spacing vs. calendar-time spacing are
+legitimately different things, per the owner's own explicit framing).
+Verified `channel_width_parallel_score` (the pattern's own parallel-score
+gate) reads ONLY `.price`, never `.t`, off these lines — confirming the fix
+cannot affect whether a pattern fires or its score.
+
+**Semantics invariance — proven empirically, not just argued.** Dumped every
+firing detection (confidence, quality_components, status, direction, levels,
+count) from BOTH the frozen pre-fix worktree and this fix's worktree across
+all 15 fixtures, diffed them: byte-identical except `geometry.anchors[].t`
+(the intended fix) and `detected_at`/`last_seen_at` (wall-clock noise between
+the two separate runs). Also pinned structurally: `_build_detection` takes
+`confidence`/`geom_score`/`vol_score`/`ctx_score`/`hist_score` as
+ALREADY-COMPUTED parameters, so nothing this fix touches can feed back into
+scoring by construction.
+
+**Tests added** (`test_bull_flag_anchor_timestamps.py`, 8 tests): anchor-by-
+anchor real-timestamp proof with an INDEPENDENT oracle (`bars[expected_index]
+["t"]`, never calling the fix's own helper); anchors-don't-collapse-onto-one-
+bar proof (real fixtures); price-coordinate sanity (no companion index/swap
+defect); the structural scores-computed-first invariant; a REAL SQLite
+store/read round-trip proving anchors survive persistence unchanged (Bull
+Flag genuinely reaches `pattern_detections` today, so this is not a
+hypothetical test); non-mutation of `bars`.
+
+**Read-only same-defect-class audit (Section 14, reconnaissance only, NOT
+fixed here):** grepped every detector for a bar-index expression assigned
+directly into a `"t"` field. Found the IDENTICAL bug, byte-for-byte, in
+`bear_flag.py` (lines ~150/153/456-460) and `pennant.py` (lines ~348/351/
+789-792) — same inline-pivot-construction pattern, same anchor-copy site.
+**NOT touched.** Reported as candidate cases requiring their own separate
+PROVE→LOCALIZE→FIX package.
+
+**Regression:** targeted file (49 passed). Full `tests/pattern_engine/`:
+2648 passed, 9 xfailed (same pre-existing xfails as every prior pass — this
+worktree is origin/master-based, so the count is lower than the Package 8H
+worktree's 2737 by design; it doesn't carry the canonical-adapter test
+suite). Two-engines regression rails: 31 passed, 1 failed — the SAME
+pre-existing `test_the_shipped_thresholds_have_not_moved` Trend-Template
+drift confirmed unrelated earlier this session; `git status` shows zero
+touches to `base_catalog.py` here either.
+
+**Relationship to the frozen Bull Flag canonical package (untouched,
+confirmed via `git status` — clean, still at `5a629be54`):** the canonical
+adapter's own code remains semantically correct without modification (it
+only LABELS whatever anchors exist; it never interprets `.t`). ONE test in
+that frozen package will need updating whenever it is eventually rebased
+onto this fix — `test_bull_flag_flag_channel_anchor_t_is_a_bar_index_
+KNOWN_DEFECT_NOT_FIXED_HERE`, which explicitly pins the OLD (buggy) small-
+int behavior and would legitimately fail once real timestamps are in place;
+that failure is exactly what should happen and is easy to recognize by
+name. The frozen package's other geometry test (anchors-don't-collapse)
+asserts only ORDER/EQUALITY relationships between `.t` values, which this
+fix preserves exactly — that test needs no change. No fixture assumptions
+were invalidated (same 16-fixture battery, unmodified either side).
+
+**Verdict: BULL FLAG ANCHOR TIMESTAMP DEFECT CONFIRMED AND FIXED LOCALLY —
+READY FOR OWNER REVIEW.**
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package.
+Nine packages now frozen total. Two candidate same-defect-class cases
+(`bear_flag.py`, `pennant.py`) recorded, awaiting a fresh owner decision on
+whether/when to open separate packages for them. 8G-B observation cadence
+uninterrupted throughout — no diagnostic touched, no load manufactured;
+Tuesday 2026-09-08 RTH remains the next real evidence window.
