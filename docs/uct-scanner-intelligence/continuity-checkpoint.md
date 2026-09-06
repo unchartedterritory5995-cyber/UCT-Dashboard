@@ -3522,3 +3522,133 @@ on record. 8G-B observation cadence uninterrupted throughout — no
 diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH remains the
 next real evidence window. Thirteen packages now frozen total (pending this
 one's acceptance).
+
+---
+
+## VCP CANONICAL ADAPTATION (Package 8J) — 2026-09-06
+
+Worktree `C:\Users\Patrick\uct-dashboard-vcp-canonical`, branch
+`feat/canonical-vcp`, base `origin/master@2940f557b` (master had advanced
+past the geometry package's `47df3a902` — routine parallel-session drift,
+labeled per standing instruction, does not affect either package). Committed
+`098ad67d5`. Deliberately does NOT include the frozen renderer fix
+(`a1942b164`, its own separate branch) — this package touches only
+`canonical_adapter.py`/`explanation_builder.py`/their two test files.
+
+**Minimal shape, mirroring `adapt_high_tight_flag` exactly, and for the same
+reason:** `vcp.py`'s own header STOP comment already assigns criteria/
+provenance authority to `base_catalog.py`'s parallel `vcp` structure ("the
+base library is authoritative for WHETHER a structure is present... this
+engine is authoritative for WHERE TO ENTER one"). `adapt_vcp()` therefore
+emits `eligibility` + labeled geometry only — `event`/`criteria`/
+`gate_trace` genuinely absent, not merely undecided.
+
+**Gate_trace — explicitly NOT built, despite partial reconstructability.**
+Several of `vcp.py`'s numeric gates (first/final contraction pct, the 0.85
+tightening ratio) ARE reconstructable from `geometry.extras.contraction_pcts`
+alone — verified directly. But several others genuinely are NOT (prior-
+advance %, the first-vs-final volume-segment ratio, the Trend-Template SMA
+precondition, the already-broken check) — all need raw bar data that does
+not survive into a persisted Detection. A `gate_trace` naming only the
+reconstructable subset would look like a complete "what this candidate had
+to clear" receipt while silently omitting real gates — the same "arithmetic
+that doesn't close" failure shape `CoverageLine` exists to prevent elsewhere
+in this codebase. Given `vcp.py`'s own file already assigns that authority
+to `base_catalog.py`, the honest, narrow choice was none at all — pinned by
+a dedicated test (`test_vcp_adapter_does_not_reconstruct_a_gate_trace_from_reconstructable_extras`).
+
+**Freshness — the 15-vs-60 distinction reaffirmed, not reopened.** `vcp.py`'s
+real `_MAX_FINAL_LOW_AGE=15` recency gate is IDENTITY-time evidence (already
+satisfied by construction for any Detection this adapter ever sees — the
+gate runs pre-Detection, inside `detect_vcp`'s own candidate loop), NOT
+live-recomputable ELIGIBILITY-time freshness metadata — the bar-index
+positions it actually compares (`last_bar_idx`, `final_low_idx`) do not
+survive into the persisted Detection object; only their timestamps do (via
+`geometry.anchors`), and converting elapsed calendar time back into an
+elapsed bar count would need a trading calendar this layer doesn't have —
+exactly the guessed-number trap the Explanation Rules forbid.
+`freshness_bars`/`freshness_window_bars` are both `None`, same as HTF — an
+honest absence of recomputable data, not an absence of a real gate. This is
+a DIFFERENT question from `base_catalog.py`'s own, separately-scoped
+`VCP_MAX_AGE_BARS=60` ("is price still in the base" vs. this detector's "is
+the final contraction low recent") — already reconciled 2026-08-31 as a
+deliberate two-engine split; this package did not reopen it, read past the
+two constant names, or touch `base_catalog.py`.
+
+**Geometry — dynamic `anchor_roles`, completing Phase-7's own prescription.**
+`docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md`
+(Section 10/23, re-read directly this package) already prescribes
+`anchor_roles = ["contraction_low"] * n + ["pivot"]` for VCP — but that
+literal string is ONE ELEMENT SHORT of `vcp.py`'s real anchor count
+(`n_contractions+2`, verified again this package), which would violate the
+spec's own 1:1-length invariant (Section 32 item 2). `_vcp_anchor_roles()`
+completes it with a leading `"start_high"` role (the exact internal name
+`vcp.py` itself already uses for that point) rather than inventing a new
+naming scheme, and is generated dynamically per detection — never a static
+list — so it's correct at every contraction count. Anchors themselves pass
+through `_with_labeled_geometry` completely unchanged (never truncated,
+never forced into a fixed 4-anchor shape) for however many contractions a
+given detection actually has; `semantic_subtype="contraction_sequence"`, the
+exact string Phase-7 Section 187's amendment names for this family.
+
+**Semantic order vs. chronological render order — kept explicitly distinct
+(owner's own required distinction, §9).** `anchor_roles[i]` describes
+`anchors[i]` in the detector's own CONSTRUCTION order (`anchors[0]` is always
+`start_high`, the last is always `pivot`) — never chronologically resorted
+here. The already-frozen, separately-authorized renderer fix
+(`fix/vcp-geometry-shape-contract`) is what sorts (anchor, role) PAIRS
+together by real timestamp at DRAW time; this adapter's semantic order and
+that renderer's chronological draw order are two intentionally distinct
+concepts that must never be conflated, since VCP's own pivot anchor is
+chronologically EARLIER than the final contraction low sitting one position
+before it in the array (the same real, on-record fact the geometry package
+proved and fixed) — a chronologically-resorted role list here would
+silently describe the wrong anchor. Pinned by
+`test_vcp_anchor_roles_are_never_reordered_from_the_detectors_own_construction_order`.
+
+**explanation_builder.py**: VCP added to `_IN_SCOPE_FAMILIES` (now HTF, PEG,
+VCP). `_vcp_why_it_matched_facts` reads `geometry.extras.contraction_pcts`/
+`final_contraction_volume_ratio` against `vcp.py`'s own real threshold
+constants (`_MIN_CONTRACTIONS`, `_MAX_FINAL_CONTRACTION_PCT`). Added to
+`_FAMILY_CONTEXT_FNS` (`_dcr_score_adjustment`/`_can_slim_score_adjustment`,
+confirmed identical single-arg shape to HTF's, by direct read) and
+`_FAMILY_PHRASE_FNS` (`_trend_stage_description`/`_ma_alignment_phrase`/
+`_rs_trend_phrase`, confirmed single-arg, non-bidirectional shape).
+
+**Tests added**: extended `test_canonical_adapter.py` (parity, minimal-shape
+event/criteria/gate_trace absence, eligibility shape including the
+freshness-absence reasoning, variable-anchor-count role correctness proven
+against each real fixture's own real contraction count, a dedicated test
+proving anchor-count genuinely VARIES across the real fixture set — not
+just one accidentally-uniform sample — semantic-vs-chronological order
+proof against the real pivot-precedes-final-low fact, and an explicit pin
+that no partial gate_trace gets built despite some gates being
+reconstructable) and `test_explanation_builder.py` (why_it_matched facts
+against real extras, no event section, warnings, extended into the shared
+HTF+PEG family-agnostic test set) — both existing files extended in place,
+per this program's own established convention.
+
+**Regression**: targeted (327 passed, `test_canonical_adapter.py` +
+`test_explanation_builder.py` combined). Full `tests/pattern_engine/`: 2712
+passed, 9 xfailed (same pre-existing xfails as every prior package this
+session). Two-engines rail (`tests/test_two_engines_do_not_agree.py`,
+re-identified correctly this package — NOT
+`test_no_second_authority_across_axes.py`, a different file that also
+exists and is fully green): 23 passed, 1 failed — the same pre-existing,
+unrelated `test_the_shipped_thresholds_have_not_moved` drift on VCP's
+Trend-Template SMA constants, confirmed unrelated (zero touches to `vcp.py`
+or `base_catalog.py` in this branch).
+
+**Verdict: VCP CANONICAL ADAPTATION COMPLETE LOCALLY — READY FOR OWNER
+REVIEW.**
+
+**Frozen, no merge/deploy.** Fourteen packages now frozen total (pending
+this one's acceptance). This branch does not include the frozen renderer
+fix (`a1942b164`) — the eventual integration dependency (stated for the
+record, not actioned here): the VCP renderer correction should land before
+or with any rendered VCP canonical exposure, though the adapter itself is
+semantically correct independent of that merge order. Episodic Pivot and
+Pullback-to-50-SMA remain deferred, not started in parallel. 8G-B
+observation cadence uninterrupted throughout — no diagnostic touched, no
+load manufactured; Tuesday 2026-09-08 RTH remains the next real evidence
+window.
