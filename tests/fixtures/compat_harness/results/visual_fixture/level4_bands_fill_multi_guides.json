@@ -1,0 +1,80 @@
+{
+  "id": "visual_fixture/level4_bands_fill_multi_guides",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "app/src/components/chart/builder/compatHarness.level4Fixture.test.js",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "sma(close,10) / sma(close,30)"
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": 30
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": 3,
+      "needs": [
+        "band",
+        "fill",
+        "multi_guide"
+      ],
+      "discovery": [
+        "a style:\"band\" plot is STILL data-bearing under validateTreesAgainstPlots (only style===\"hlines\" is exempt) and is REFUSED with no tree of its own, even though its visible pixels come entirely from its two edges -- there is no way to declare a band with no independent computed value, only one that carries a (possibly redundant) one",
+        "once given its own (redundant) tree, a band plot with edges referencing two USER ast-kind plots (not natives) installs cleanly through validateUserDefinitions -- bands are NOT restricted to native-only registration at the schema/validation layer, only unreachable through the current BuilderSheet UI form",
+        "edges self-reference and edges-against-an-hlines-guide are both correctly REFUSED (proven by mutation, isolated from the missing-tree case)",
+        "plots[].fill:{with} is schema-valid on a user document, consistent with the known VALIDATED-BUT-INERT finding (accepted, not drawn) -- whether it draws requires a live render, not answered here",
+        "four hlines guide levels ([80,70,30,20]) collapse into ONE trailing guide plot, not four separate plots"
+      ]
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "RISK-027 still blocks a live pixel re-run in this session"
+    },
+    "persistence_save": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "persistence_reload": {
+      "status": "PARTIAL",
+      "note": "not exercised live"
+    },
+    "screener_eligibility": {
+      "status": "PARTIAL",
+      "eligible": false,
+      "reason": "scanPlot yields num"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [
+    "guide_fill_color_style_mismatch"
+  ],
+  "final_classification": "PARTIAL",
+  "evidence_artifact_paths": [
+    "app/src/components/chart/engine/defSchema.js#validateBandEdges"
+  ],
+  "harness_version": "compat-harness-v1"
+}
