@@ -9,7 +9,14 @@ is deliberately NOT exercised -- see the finding at the bottom; F/G
 date-range and entity-filter COMBINATIONS are not executable yet, those
 filters don't exist in code until Wave 4 Slices 1/3 ship).
 
-    DATA_DIR=/some/scratch/dir python tools/wave4_search_correctness_matrix.py
+    DATA_DIR=/some/scratch/dir AUTH_DB_PATH=/some/scratch/dir/auth.db \
+        python tools/wave4_search_correctness_matrix.py
+
+Both env vars are REQUIRED and validated by notebook_sandbox_guard.py before
+any workload runs -- see that module's docstring for why (this script's
+list_notes() calls transitively reach auth_db.get_connection(), whose
+default path is independent of DATA_DIR and resolves to the real shared
+C:\\data\\auth.db on this box).
 
 Real assertions (hand-verifiable cases) raise AssertionError on mismatch.
 One case (Porter stemming on "marginalized") is EXPLORATORY -- printed, not
@@ -23,26 +30,11 @@ import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-if "DATA_DIR" not in os.environ:
-    raise SystemExit(
-        "Refusing to run without DATA_DIR set to a scratch directory -- "
-        "see this file's own module docstring."
-    )
+from notebook_sandbox_guard import require_sandboxed_env  # noqa: E402
 
-# ⛔ SAFETY: notes.list_notes() calls _log_notebook_event() ->
-# auth_service.log_activity() -> auth_db.get_connection(), whose default
-# path is AUTH_DB_PATH or '/data/auth.db' -- which resolves to the REAL
-# shared C:\data\auth.db on this box (confirmed present; see CLAUDE.md's
-# "C:\data IS REAL ON THIS BOX" section). This module-level assignment
-# in auth_db.py is evaluated at IMPORT time, so AUTH_DB_PATH must be set
-# BEFORE anything that transitively imports auth_db is imported below.
-# (First run of this script, before this guard existed, hit exactly this:
-# every list_notes() call attempted a real connection to C:\data\auth.db;
-# each INSERT failed on a foreign-key constraint against a fake user id,
-# meaning SQLite performed no write -- but the guard belongs here anyway,
-# not left to a lucky FK failure.)
-os.environ.setdefault("AUTH_DB_PATH", os.path.join(os.environ["DATA_DIR"], "auth_scratch.db"))
+require_sandboxed_env()  # DATA_DIR + AUTH_DB_PATH -- fails closed, never defaults
 
 import sqlite3  # noqa: E402
 

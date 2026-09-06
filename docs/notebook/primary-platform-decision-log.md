@@ -712,6 +712,23 @@ Duplicated to user memory (`feedback_agent_authority_and_worktree_isolation`) so
 
 ---
 
+### 2026-09-06 — Test-safety discovery: AUTH_DB_PATH is an independent sandbox boundary, not implied by DATA_DIR
+
+**FACTUAL EVENT:** During Wave 4 prep, a standalone diagnostic script (`tools/wave4_search_correctness_matrix.py`, run directly via `python`, not through pytest) correctly redirected `DATA_DIR` but left `AUTH_DB_PATH` untouched. `notes.py::list_notes()`'s telemetry logging transitively calls `auth_db.get_connection()`, whose default path (`AUTH_DB_PATH` env var, or `/data/auth.db`) resolved to the real, shared `C:\data\auth.db` on this box — a module-level default entirely independent of `DATA_DIR`. The resulting writes failed harmlessly (a foreign-key constraint against synthetic user ids that don't exist in that real table — SQLite performs no write when a single statement raises), so **no confirmed production/shared-data mutation occurred.** The connection attempt itself still reached the real file, which is the real defect, not the (absent) outcome. This is the same incident shape as the 2026-09-05 `flow.db`/`darkpool.db` gap already on record (`tests/test_e2e_sandbox_guard.py`) — one day earlier, for a different pair of vars — confirming the general lesson: **`DATA_DIR` isolation alone does not define a fully isolated Notebook test environment; every datastore var a script's own code path can transitively reach needs its own explicit check.**
+
+Root cause of exposure, specifically: the repo-root `conftest.py` already isolates `AUTH_DB_PATH` unconditionally, but only for pytest-collected runs — conftest.py is a pytest-only mechanism. A bare `python tools/....py` invocation never imports it, so standalone scripts get none of that protection even though they can reach the exact same product code.
+
+**PERMANENT FIX — `tools/notebook_sandbox_guard.py`**, a reusable, fail-closed guard for every standalone (non-pytest) Notebook/Wave 4 script:
+
+1. **Layer 1 (named pre-flight checks):** `require_sandboxed_env()` requires `DATA_DIR` and (by default) `AUTH_DB_PATH` to be EXPLICITLY set by the caller — never silently defaulted — and validates each does not resolve to a known shared-root literal (`C:\data`, `/data`) and resolves INSIDE the same sandbox root as `DATA_DIR`. Fails closed with `SystemExit` before any workload runs, never a warning-and-continue. Callers request only the extra datastores their own code path can actually reach (`needs_auth_db`/`needs_flow_db`/`needs_darkpool_db`/`needs_bars_db`) — `wave4_fts_benchmark.py` and `wave4_date_range_index_benchmark.py` never call into `notes.py`'s service layer, so they pass `needs_auth_db=False` rather than being forced to set a var they don't need.
+2. **Layer 2 (runtime tripwire):** the same call also installs `audit_shared_root_probe.install(strict=True)` — the identical mechanism `tools/e2e_sandbox_launcher.py` already uses for the full E2E server, proven against the sibling 2026-09-05 gap. This wraps `open`/`sqlite3.connect`/`makedirs`/`mkdir` globally and refuses BEFORE the real call for ANY touch of the shared root, regardless of which var (or missing var, or hardcoded literal) caused it — catching what a hand-maintained var list (layer 1) cannot know to name in advance.
+3. All three Wave 4 scripts (`wave4_search_correctness_matrix.py`, `wave4_fts_benchmark.py`, `wave4_date_range_index_benchmark.py`) now call this ONE reusable guard rather than each hand-rolling its own check.
+4. **Discriminating regression coverage:** `tests/test_notebook_sandbox_guard.py` (9 tests) proves — against throwaway pretend roots, never real `C:\data` — the SAFE case runs, an unset `AUTH_DB_PATH` refuses even with `DATA_DIR` isolated (the exact mixed-state case that exposed this gap), a real-shared-root value refuses, a value outside the `DATA_DIR` sandbox root refuses, and the runtime tripwire is genuinely armed afterward (a connect attempt is refused before the file is created on disk).
+
+**Scope discipline:** this is test/sandbox tooling only — no production default changed, no shared datastore accessed for cleanup or verification (a read-only check against the real `C:\data\auth.db` was attempted for extra assurance and was itself refused by the sandbox's own protective classifier — treated as a reasonable signal that path is already well-guarded, not pursued further).
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

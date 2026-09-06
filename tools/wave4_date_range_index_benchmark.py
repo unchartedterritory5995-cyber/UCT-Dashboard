@@ -25,20 +25,16 @@ import uuid
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
-if "DATA_DIR" not in os.environ:
-    raise SystemExit(
-        "Refusing to run without DATA_DIR set to a scratch directory -- "
-        "db.py's schema init resolves DATA_DIR-derived paths, and its "
-        "default ('/data') is the real shared production root on this box. "
-        "See this file's own module docstring."
-    )
-# Defensive, even though this script never calls the notes.py service layer
-# today (only raw SQL against j2_notes): a future edit that calls
-# list_notes()/create_note() would otherwise silently resolve
-# auth_db.get_connection() to the real C:\data\auth.db on this box (that
-# module-level path is independent of DATA_DIR entirely) -- see the real
-# near-miss recorded in wave4_search_correctness_matrix.py's history.
-os.environ.setdefault("AUTH_DB_PATH", os.path.join(os.environ["DATA_DIR"], "auth_scratch.db"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from notebook_sandbox_guard import require_sandboxed_env  # noqa: E402
+
+# needs_auth_db=False: this script only runs raw SQL against j2_notes -- it
+# never calls into notes.py's service layer, so it never transitively opens
+# auth_db. If a future edit adds a list_notes()/create_note() call, flip
+# this to True (an explicit decision, not a silent default) -- see
+# notebook_sandbox_guard.py's docstring for the real near-miss this guards
+# against.
+require_sandboxed_env(needs_auth_db=False)
 
 from api.services.journal_two.db import ensure_schema  # noqa: E402
 
