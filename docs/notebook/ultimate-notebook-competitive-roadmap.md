@@ -10,10 +10,22 @@ against, and points to the two research artifacts underneath it for full depth.
 
 **Read in this order:** this document (orientation) → `competitive-gap-ledger.md`
 (the living, row-level tracker — the one to check for "is X done yet") →
-`primary-notebook-readiness-scorecard.md` (the current evidence-based score) →
+`notebook-ux-ui-competitive-ledger.md` (the interaction-sequence-level UX/UI
+tracker — added 2026-09-06, see below) → `primary-notebook-readiness-scorecard.md`
+(the current evidence-based score, now including a dedicated UX/UI section) →
 `competitive-primary-platform-phase-zero.md` + `-phase-one-adversarial.md` (the
 full research, for when a section below says "see Phase X §Y" and you need the
 complete reasoning, not just the verdict).
+
+**2026-09-06 addition — UX/UI is now permanent, cross-cutting, first-class.**
+Every section below already described a *capability*; from this point forward,
+capability parity is explicitly NOT the same thing as experience parity (see
+the scorecard's own "Capability Readiness vs. Experience Readiness" section),
+and every future wave's readiness checkpoint and certification must report a
+UX/UI verdict alongside the functional one. This did not require rewriting any
+conclusion below — every capability verdict already written stands; the UX/UI
+ledger and scorecard section are additive layers on top of it, not a
+replacement for it.
 
 **Status discipline:** Phase Zero (12 dispatches) ran 2026-09-05 and produced the
 original competitive matrices, personas, and P0-P3 prioritization. Phase One (9
@@ -445,6 +457,18 @@ foundation-tier project) → everything downstream.
    confirmed to be exactly what constrains Thesis Intelligence's design).
 5. A capability's authoritative state belongs to exactly one surface (§4) —
    the operative test before adding anything to Notebook.
+6. **(2026-09-06) UX/UI is evaluated at every stage of every wave, not as a
+   trailing polish phase** — research, product definition, architecture,
+   design, implementation, testing, production validation, and member
+   validation all carry an explicit UX/UI verdict alongside the functional
+   one. A feature is not complete because the backend works, the UI exists,
+   or tests pass — see `notebook-ux-ui-competitive-ledger.md` for the
+   standing method and `primary-notebook-readiness-scorecard.md`'s UX/UI
+   section for current scores. Every future wave's readiness checkpoint and
+   exit certification must include a UX/UI verdict; a wave with unknown
+   discoverability/information-architecture/visual-hierarchy/interaction-
+   model/empty-loading-error-state/mobile/keyboard/accessibility answers is
+   not implementation-ready regardless of backend completeness.
 
 ## §40. Open Questions
 

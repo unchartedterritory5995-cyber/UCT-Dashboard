@@ -57,6 +57,42 @@ by a future editor without new evidence.
 
 ---
 
+## UX/UI Domain Scores (2026-09-06 addition — permanent cross-cutting requirement)
+
+**Why this section exists separately, not folded into the domains above:** the
+governing UX/UI Constitution requires UX/UI quality to be explicitly evaluated,
+never hidden inside a capability score or inflated because a component exists.
+These scores are grounded in real interaction-code evidence (a dedicated
+read-only research pass over empty/loading/error states, destructive-action
+safeguards, keyboard behavior, and design-system consistency) — not visual
+impressions from a rendered screen, which this pass did not perform. Where a
+verdict below says "confirmed," it means confirmed from code; live-browser
+visual confirmation remains a distinct, not-yet-performed step (see the UX/UI
+ledger's own evidence-standard note).
+
+| Dimension | Score | Rationale |
+|---|---|---|
+| **Visual Coherence** | 4 | Real, quantified inconsistency: `NoteEditorPage.module.css` uses design tokens 73 times against 53 hardcoded hex-color values (11 distinct hexes); `FolderSidebar.module.css` is 77 tokens vs. 39 hex. Delete confirmation uses the native, unstyled browser `confirm()` dialog rather than a UCT modal component. Several UI-chrome elements (a close `×`, a discard `✕`, a blockquote toolbar `❝`) use raw Unicode glyphs, directly against this codebase's own stated convention (no generic symbols — use `UIcon`). |
+| **Information Architecture** | 5 | Folders/tags/trash form a coherent, real structure — but no favorites, recents, or saved views exist, and Notebook doesn't register with the app-wide `CommandPalette.jsx` at all (zero mentions of "notebook"/"journal-2-0" in that file), so a proven, reusable IA pattern already built for the rest of UCT simply doesn't include Notebook. |
+| **Discoverability** | 4 | Capture is well-discovered (9 real widget doors, a genuine structural head start) — but the destination-choice menu (`targetsFor()`) is unwired to the capture buttons per Phase One's independent finding, and the command-palette gap above means a power user has no app-wide way to discover Notebook actions the way they can for the rest of UCT. |
+| **Interaction Quality** | 5 | A real split: Ask Current Note is the single best-executed interaction pattern found anywhere in Notebook this pass (token-streamed answers, clickable citations that scroll-and-highlight the exact source text, specific and friendly error copy even for rate-limits and paid-gates) — pulled down by the native-`confirm()` delete dialog and a genuinely concerning, repeated pattern below. |
+| **Navigation** | 4 | Folder-sidebar leaf-row correctness bug status is unconfirmed (needs a direct re-check, see gap ledger G-012); no favorites/recents to jump back into recent work; note-open/close is otherwise straightforward. |
+| **Editor Experience** | 6 | Confirmed strong core (headings/lists/tables/checklists/callouts/toggles, autosave with retry+backoff + a localStorage safety net). Real gap confirmed this pass: **zero custom keydown handling exists in `NoteEditorPage.jsx` itself** — every keyboard behavior beyond TipTap's own defaults (save, close, navigate between notes) is simply absent, and the editor doesn't participate in the app-wide command palette either. |
+| **Search Experience** | 6 | Search-as-you-type is real and fast (250ms debounce, confirmed by Phase One as comfortably inside RAIL/Nielsen targets), with an honest `role="status"` loading indicator and a friendly, non-leaking error message ("Search failed — try again."). Real gap: zero-results copy ("No notes match \"{query}\"") offers no next step — no "try broadening your search" or similar guidance. |
+| **Capture Experience** | 6 | One-click default save is real and correctly designed (per §12 of the governing directive's own prescription, already matches it). `CaptureInboxTray`'s two-step inline "Discard?" confirm (2.5s window, no modal) is a genuinely well-judged low-friction pattern for a reversible, low-risk action. Capped by the unwired destination menu and the 4 uncovered capture surfaces (Screener/Options Flow/COT/Model Book). |
+| **Mobile/Responsive Experience** | 4 | CSS-level responsiveness exists in 7 Notebook component stylesheets (not zero) but zero JS-level responsive hooks (`useIsPhone`/`useBreakpoint`) are used anywhere in Notebook specifically — a real inconsistency with how the rest of the app (per its own documented convention) is supposed to handle touch-vs-mouse conditional rendering. No mobile capture/share-sheet (a confirmed, deliberately-deferred-to-Stage-B gap, not scored down further here). |
+| **Perceived Performance** | 4 | No skeleton/shimmer loading component is reused anywhere checked — every loading state found is plain, un-styled `"Loading…"`/`"Searching…"` text. This is a real, cheap-to-fix gap: the underlying data loads fast (confirmed elsewhere on this scorecard), but the UI doesn't visually communicate that speed the way a skeleton would, so *perceived* performance likely undersells *actual* performance. |
+| **Empty/Loading/Error States** | 5 | A genuine split, not a single verdict. **Empty states are well-designed** — the zero-notes state explicitly explains purpose and offers the two most likely next actions ("Start from a template — or a blank page" + an import CTA), and the empty-Trash state explains the 30-day retention window, both matching §20 of the governing directive's own specification closely. **Error states have a real, repeated defect**: raw error objects are interpolated directly into member-facing text in at least three places (`NotebookTab.jsx`'s notes-load failure, `NoteEditorPage.jsx`'s save-error UI showing raw HTTP/exception text, `ImportWizard.jsx`'s crash-boundary fallback) — a direct, concrete violation of "never show raw backend errors to normal members." A second real defect: a note that fails to load has no distinct error branch at all — `NoteEditorPage.jsx` appears to remain on `"Loading…"` indefinitely rather than surfacing a "couldn't load this note" message. |
+| **Accessibility** | UNSCORED | Not comprehensively audited this pass — scoring it without real evidence would be exactly the "inflate because code exists" failure mode this scorecard exists to avoid. One positive data point (`role="status"` on the search-loading indicator) and one incidental positive (the native `confirm()` dialog is, ironically, fully keyboard/screen-reader accessible by virtue of being a real OS dialog) were found; nothing more. Needs a dedicated accessibility pass before this row can carry a number. |
+| **Consistency** | 4 | The token/hex mix, the native-dialog-vs-modal split, and the raw-glyph-vs-UIcon split are three independent, each real, instances of the same underlying pattern: Notebook was not built against one enforced set of shared interaction primitives. None are severe individually; together they're the clearest concrete evidence for this dimension's score. |
+| **Power-User Efficiency** | 3 | The lowest score on this scorecard, and deliberately so: every keyboard interaction found is local/scoped to one component (folder rename, search box, slash-menu, Ask panel) — there is no note-level shortcut set at all, and critically, **a fully-built, proven, app-wide `Cmd/Ctrl+K` command palette already exists in this codebase and Notebook has zero participation in it.** This is the single cheapest, highest-leverage UX gap found in this entire audit: the infrastructure exists, the wiring doesn't. |
+
+**UX/UI composite (14 scored dimensions, Accessibility excluded as unscored):
+~4.5/10.** Same orientation-only caveat as the capability composite below — read
+the table, not the average.
+
+---
+
 ## Composite view
 
 **Unweighted average across the 16 domains above: ~4.9 / 10.**
@@ -85,6 +121,31 @@ more Wave 4 design work, more competitive research, or any synthetic/sandbox
 testing. Every domain here is capped at 6-7 until real Stage A member behavior
 exists — that gate is the actual ceiling on this scorecard right now, not any
 individual feature gap.
+
+---
+
+## Capability Readiness vs. Experience Readiness — the split that matters more than either average
+
+Per the UX/UI Constitution: **the split matters more than the average.** Neither
+the 4.9 capability composite nor the 4.5 UX composite was raised or lowered to
+produce this section — both stand as independently scored above. Where the two
+diverge meaningfully for the same underlying capability:
+
+| Capability | Capability Score | Experience Score | Gap | Read |
+|---|---|---|---|---|
+| Capture (Save-to-Notebook) | 6 | 6 (Capture Experience) | None | Genuinely matched — the mechanism and its UX were built together and it shows. |
+| Trading Journal Integration | 7 | *(no dedicated UX row — folds into Editor/Navigation)* | Likely a real gap, unmeasured | The technical link layer is this scorecard's highest score, but no UX-specific pass evaluated whether a trader *understands* why a thesis is linked or can navigate both directions naturally (governing directive §17) — flagged as an open measurement gap, not scored on guesswork. |
+| Search / Retrieval | 5 | 6 (Search Experience) | +1, experience ahead | The engine has more open correctness/ranking work than its interaction quality does — the search BOX feels better than the search ENGINE is complete. |
+| Editor | 6 | 6 (Editor Experience) | None | Matched, but for different reasons on each side — capability gaps are missing features (find-in-note, link authoring); experience gaps are missing power-user wiring (keyboard, command palette). Both real, both distinct. |
+| AI on Notebook content | 4 | 5 (Interaction Quality, Ask-Current-Note-specific) | +1, experience ahead | The one AI capability that exists (Ask Current Note) is executed to a noticeably higher UX standard than the domain's overall capability score reflects — Ask Notebook's absence drags the capability score down without touching the interaction quality of what's actually shipped. |
+| Trust / Recovery | 6 | 5 (Empty/Loading/Error States, partial proxy) | -1, experience behind | The backend trust mechanism (trash/restore/account-purge) is solid, but the raw-error-leak defects found this pass mean a member experiencing a genuine failure (a save error, a failed note load) sees exactly the kind of unpolished, trust-eroding surface the capability layer was built to prevent. **This is the most consequential gap on this table** — a trustworthy backend undermined by an untrustworthy-looking error surface. |
+| Overall Power-User Efficiency | *(spans several domains)* | 3 | Experience clearly behind | The single sharpest capability-vs-experience gap found: a fully-built, proven, app-wide command palette exists and Notebook has zero participation in it. No capability-layer score captures this because it isn't a missing capability — the capability (keyboard-driven navigation) exists elsewhere in UCT; Notebook simply isn't wired into it. Cheapest, highest-leverage fix identified in this entire audit. |
+
+**Read for prioritization:** the raw-error-leak pattern and the command-palette
+non-participation are the two findings this split analysis surfaces as
+higher-priority than their raw scores alone would suggest — both are cheap,
+both are concrete, and both directly undermine a domain (Trust; Power-User
+Efficiency) the product's own constitution already names as important.
 
 ---
 

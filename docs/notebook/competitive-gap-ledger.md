@@ -17,6 +17,11 @@ validation instrumentation, and Wave 4 prep all shipped or were designed in the 
 between that research and this ledger, verified this session via 3 fresh read-only
 research passes, not assumed from the wave names alone.
 
+**2026-09-06 addition:** `notebook-ux-ui-competitive-ledger.md` is the sibling
+UX/UI ledger — interaction-sequence-level, not capability-level. A few concrete
+UX findings from that pass are also recorded as rows here (G-100 series) because
+they're real, discrete capability gaps in their own right, not merely polish.
+
 **Update discipline:** change STATUS only when code/evidence changes, not on a
 schedule. Add new rows for newly-discovered gaps; never delete a row — mark it
 DONE/REJECTED/SUPERSEDED and keep the history.
@@ -146,6 +151,18 @@ DONE/REJECTED/SUPERSEDED and keep the history.
 | G-093 | Sync connectors bidirectional (write back to source) | N/A — UCT chose read-only by design | **Confirmed all 7 providers (Notion/Obsidian/Dropbox/Craft/Roam/OneNote/OneDrive) are read-only pull, none push** | N/A — deliberate scope, not a gap | N/A | N/A | N/A | Fork C | **DONE (as scoped)** | — | — | — |
 | G-094 | Sync conflict handling | Implicit | **Real and correct** — a genuine conflict creates a sibling note tagged `sync-conflict`, both versions preserved, never silently clobbered | Already matches best practice | PARITY | Connector users | Low (already solved) | Fork C, `engine.py:51-75` | **DONE** | — | — | — |
 
+## UX/UI (2026-09-06 addition — see `notebook-ux-ui-competitive-ledger.md` for full interaction-sequence detail)
+
+| ID | Capability | Competitor | UCT Current | Target | Parity/Diff | Persona | Switching Impact | Evidence | Status | Priority | Dependencies | Validation Condition |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| G-100 | Raw backend errors leaked to members | All three show sanitized error copy | **Confirmed real, repeated defect**: raw error objects interpolated directly into member-facing text in 3 places (notes-load failure, note-save error UI showing raw HTTP/exception text, import-wizard crash-boundary fallback) | Sanitize all three | PARITY (trust) | All | Medium-High (undermines trust in a domain — Trust/Recovery — the product otherwise handles well) | UX audit fork, `NotebookTab.jsx`, `NoteEditorPage.jsx`, `ImportWizard.jsx` | OPEN — highest-leverage UX finding this session | Not yet tiered, recommend P0-equivalent (cheap, trust-critical) | None | A save/load failure shows friendly copy, never a raw exception string |
+| G-101 | Note-load failure has no distinct error state | Implicit baseline | **Confirmed**: `NoteEditorPage.jsx` has no `error` branch for a failed note fetch — appears to hang on "Loading…" indefinitely | Add an explicit failure state | PARITY | All | Medium | UX audit fork | OPEN — new finding this session | Not yet tiered | None | A 404/network-failed note load shows a clear message, not an infinite spinner |
+| G-102 | App-wide command palette does not include Notebook | Notion (Cmd/Ctrl+K), Obsidian (Cmd/Ctrl+O quick switcher) | **A fully-built, proven `CommandPalette.jsx` already exists app-wide in this codebase — zero Notebook participation confirmed** (grepped for "notebook"/"journal-2-0", zero matches) | Register Notebook actions in the existing palette | PARITY | Power users | Medium-High (real, and unusually cheap to close — the infra exists) | UX audit fork, `CommandPalette.jsx:61` | OPEN — new finding this session, single highest-leverage item in the UX ledger | Not yet tiered, recommend early (cheap) | None | Cmd/Ctrl+K from Notebook surfaces new-note/search-focus/jump-to-note |
+| G-103 | Delete-note confirmation uses native browser dialog, not a UCT modal | All three use styled, in-product modals | **Confirmed**: `confirm('Delete this note?...')` — the unstyled OS-native popup | Replace with the shared UCT modal component | PARITY (visual consistency) | All | Low-Medium | UX audit fork, `NoteEditorPage.jsx:838` | OPEN — new finding this session | Not yet tiered | None | Delete confirmation renders as a UCT-styled modal |
+| G-104 | Design-token adoption is inconsistent (hardcoded hex vs. shared tokens) | Implicit | **Confirmed, quantified**: `NoteEditorPage.module.css` 73 token uses vs. 53 hardcoded hex; `FolderSidebar.module.css` 77 vs. 39 | Migrate hardcoded values to tokens | PARITY (visual consistency) | All | Low | UX audit fork | OPEN — new finding this session | Not yet tiered, cheap/mechanical | None | 0 hardcoded hex colors in Notebook `.module.css` files |
+| G-105 | Raw Unicode glyphs used as UI chrome instead of `UIcon` | N/A — a UCT internal convention violation | **Confirmed** in 3 places (`×`, `✕`, `❝` close/discard/toolbar buttons) — against this codebase's own explicit "no generic symbols, use UIcon" rule | Replace with `UIcon` glyphs | PARITY (visual consistency) | All | Low | UX audit fork | OPEN — new finding this session | Not yet tiered, cheap | None | 0 raw-glyph UI-chrome elements in Notebook components |
+| G-106 | No shared skeleton/loading component reused | All three use polished loading states | **Confirmed**: every loading state audited is plain, un-styled `"Loading…"`/`"Searching…"` text | Adopt a shared skeleton component | PARITY (perceived performance) | All | Low-Medium (broad, cheap improvement to perceived speed) | UX audit fork | OPEN — new finding this session | Not yet tiered, cheap and broad-impact | None | Loading states use a consistent skeleton/shimmer pattern |
+
 ---
 
 ## Summary counts (2026-09-06)
@@ -153,6 +170,7 @@ DONE/REJECTED/SUPERSEDED and keep the history.
 - **DONE:** 17 rows (trash/undo, account-deletion purge, local draft safety net, search-latency verification, chart temporal correctness, fundamentals/watchlist/scanner snapshot semantics, Ask Current Note, tradeRef population, thesis-trade link, nested folders, rich editor, chart-only compose-time embed as designed, share-link mechanism dark, full-library export, sync connectors read-only as scoped, sync conflict handling, editor)
 - **REJECTED (Do-Not-Build, confirmed):** 3 rows (general web clipper, plugin marketplace, new trading-journal object model)
 - **OPEN, new findings this session (not in either phase):** 3 rows (G-091 single-note export, G-092 trade-link-drops-on-export, folder-sidebar status needs re-confirmation)
+- **OPEN, new UX/UI findings this session (G-100 series):** 7 rows — raw error leaks (G-100, highest-leverage trust finding), no note-load error state (G-101), command-palette non-participation (G-102, highest-leverage power-user finding), native confirm() dialog (G-103), token/hex inconsistency (G-104), raw-glyph UI chrome (G-105), no shared loading skeleton (G-106). All cheap; none require new backend work.
 - **DESIGNED, Stage-A-gated (Wave 4):** 4 rows (date filter, snippet/highlight, ranking, entity sector/theme filter)
 - **EXPERIMENT / validate-first:** 5 rows (semantic search, offline editing, extensibility, plugin marketplace's narrower cousins, Ask Notebook+UCT)
 - **OPEN, unscheduled:** remainder — see per-row priority.
