@@ -1911,3 +1911,28 @@ interrupted this run. `railway logs ... --filter "contention"` over the
 same 25-minute window returns nothing — confirmed no scanner traffic and
 no contention-trace sample (expected, since `record()` only ever fires in
 response to an actual request). Continuing to watch.
+
+**COMPLETED — real, precise, natural runtime measurement, no
+interruption.** `03:20:39.069 ET` — `[screener] build done built=3745
+skipped=1 errors=0 rs_map=3637 bulk_map=3743
+empty_columns=implied_move_pct`. **Total runtime: 03:00:01.939 →
+03:20:39.069 ET = 20 minutes 37.1 seconds.** Git tip and Railway
+deployment id confirmed unchanged across the ENTIRE window — this run was
+NOT interrupted; its ~20.6-minute duration is real, natural runtime (very
+likely elongated by the cold-RS-cache path flagged at the start, per the
+builder's own warning). Immediately followed by two WARNING-level summary
+lines (reader failures: `rs_ranking.no_rank=281`, `ticker_meta.none=40`,
+`massive_market_cap.none=141`, `fmp_bulk.no_row=2`; identity refusals: a
+detailed per-rule withheld-row breakdown, largest being
+`share_band__inst_pct` at 200 withheld/624 rows flagged systemic — matches
+the 03:15:03 ET ERROR line exactly, confirming that was this same rule
+firing, not a separate incident).
+
+**Scanner-correlation result for this entire ~20.6-minute confirmed
+writer-active window: zero.** No natural `/api/screener/scan` traffic and
+no owner-initiated request occurred at any point during the single
+longest, most-confirmed screener.db writer-active period observed all
+night. This is an honest, disappointing-but-real gap — not filled
+artificially. The nightly writer window (`screener_scan_sweep` ~05:00 ET,
+`screener_screen_alerts` ~05:10 ET) and Monday's market open
+(`screener_live_tier`) remain the next opportunities.
