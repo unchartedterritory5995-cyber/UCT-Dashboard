@@ -6,9 +6,11 @@
  * Short Interest is intentionally omitted (no data source).
  */
 import { useMemo, useState, lazy, Suspense } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import CompanyLogo from '../../../../components/CompanyLogo'
+import UIcon from '../../../../components/ui/UIcon'
+import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import useFundamentalSnapshot from '../../../../hooks/useFundamentalSnapshot'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
 import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
@@ -71,7 +73,9 @@ export function combinePositions(rows) {
 export default function PositionDetailPage() {
   const { sym: rawSym } = useParams()
   const sym = (rawSym || '').toUpperCase().trim()
+  const navigate = useNavigate()
   const [tf, setTf] = useState('D')
+  const [showCompare, setShowCompare] = useState(false)
 
   const { data: snapshot } = useFundamentalSnapshot(sym)
   const { prices } = useRealtimePrices(sym ? [sym] : [])
@@ -149,6 +153,14 @@ export default function PositionDetailPage() {
     : null
   const up = (changePct ?? 0) >= 0
 
+  // Cross-links into the canonical /research/:sym surface — same contracts
+  // TickerPopup's goToResearch/goToAskAi/goToCompare use (~TickerPopup.jsx:84-91).
+  // This page already shows much of what /research/:sym shows; these are
+  // deliberate deep links to that canonical page, not new information.
+  const goToResearch = () => navigate(`/research/${sym}`)
+  const goToAskAi = () => navigate(`/research/${sym}?section=ai`)
+  const goToCompare = (comparator) => navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`)
+
   if (!sym) {
     return (
       <div className={styles.page}>
@@ -183,6 +195,22 @@ export default function PositionDetailPage() {
           )}
         </div>
       </header>
+
+      <div className={styles.actionsRow}>
+        <button type="button" className={styles.actionBtn} onClick={goToResearch}>
+          <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+        </button>
+        <button type="button" className={styles.actionBtn} onClick={goToAskAi}>
+          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI
+        </button>
+        {!showCompare ? (
+          <button type="button" className={styles.actionBtn} onClick={() => setShowCompare(true)}>
+            <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare
+          </button>
+        ) : (
+          <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+        )}
+      </div>
 
       <div className={styles.chartCard}>
         <div className={styles.chartWrap}>
