@@ -163,6 +163,10 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
 
     net_h = _D_NET_H if net else 0
     top = _D_TOP + net_h
+    # "EXP · DTE" is wider than a bare EXP, so slide the EXP column LEFT when
+    # show_dte (into the roomy TICKER→EXP gap) rather than cascading STRIKE/C-P/
+    # PREMIUM right. The Watchlist card (never shows DTE) keeps EXP at its x.
+    exp_x = 250 if show_dte else 350
     sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
     body_h = sum(_D_SECH + max(1, len(rows)) * _D_ROWH for _, rows, _ in sections)
     H = top + body_h + 54
@@ -184,7 +188,8 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
         _draw_net_bar(d, txt, tw, s, net, top, f_hdr)
     for hdr, x, al in _D_COLS:
         _h = "EXP · DTE" if (hdr == "EXP" and show_dte) else hdr
-        txt(x, top - 30, _h, f_hdr, _DIM, al)
+        _x = exp_x if hdr == "EXP" else x
+        txt(_x, top - 30, _h, f_hdr, _DIM, al)
     d.rectangle([s(36), s(top - 10), s(_D_W - 36), s(top - 10) + 1], fill=_DIV)
 
     y = top + 4
@@ -206,7 +211,7 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
             _exp = it.get("exp") or ""
             if show_dte and it.get("dte") is not None:
                 _exp = f"{_exp} · {_num(it, 'dte')}d"
-            txt(350, y, _exp, f_row, _DIM)
+            txt(exp_x, y, _exp, f_row, _DIM)
             txt(500, y, _strike(it.get("strike")), f_row, _TXT, "r")
             txt(512, y, cp or "—", f_rowb, _BULL if cp == "C" else _BEAR)
             txt(645, y, _fmt_prem(it.get("prem")), f_rowb, _GOLD, "r")
