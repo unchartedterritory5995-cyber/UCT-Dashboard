@@ -1781,3 +1781,57 @@ been reported yet either. No credential search or workaround attempted
 either an owner-supplied sample or the remaining nightly writers
 (`screener_snapshot_nightly` 03:00 ET, `screener_scan_sweep`/`screener_
 screen_alerts` ~05:00/05:10 ET) as the next natural evidence opportunities.
+
+**Owner-accepted formulation and final classification for this incident:**
+
+**STRONG NATURAL CIRCUMSTANTIAL EVIDENCE — LONG-RUNNING SCAN / REDEPLOY
+INTERRUPTION.** Explicitly NOT stated as definite (the exact old-process
+termination/cutover instant is not separately confirmed, only
+triangulated from the new process's own startup timestamp) — "strongly
+consistent with," not "proven." Kept explicitly separate from C1-C6
+scanner-latency attribution (this job never touches screener.db).
+
+**Preserved facts, per owner's exact list:**
+- Scan trigger timestamp: **~01:00:00.008 ET**, 2026-09-06 (confirmed
+  scheduler log line, unique `cron[hour='1', minute='0']` signature).
+- Deployment build-created timestamp: **~01:00:59.754 ET** (Railway
+  deployment `a3b3e9af-fcd7-44d4-b93b-cd9be035da61`,
+  `createdAt: 2026-09-06T05:00:59.754Z`).
+- Eventual cutover/restart evidence available: the NEW process's own
+  `"Application startup complete"` line at **01:04:21.254 ET** — the best
+  available lower-bound marker that the old process was gone by this
+  instant; no more precise old-process-death timestamp is available from
+  what's been queried.
+- Absence of completion line: confirmed — no `[patterns] universe_scan:
+  scanned...` print and no APScheduler "executed successfully"/exception
+  line for this job in any log window queried, before or after the
+  restart.
+- Whether any retry/resume occurred: **No** — the job's own trigger log
+  line reads `next run at: 2026-09-07 01:00:00 EDT`, i.e. the standard
+  daily cron re-fire tomorrow; there is no separate resume/retry
+  mechanism (confirmed absent by the earlier scan/snapshot completeness
+  agent's static-code review — no scan ID, no persisted progress).
+- Whether partial progress/completeness state exists: **Yes, by
+  construction, but with no metadata marking it as partial.**
+  `memory.store_detection`'s `INSERT ... ON CONFLICT DO UPDATE` commits
+  per-detection, so whatever detections were computed and written before
+  interruption are durably saved in `patterns.db` — but nothing records
+  "this was a partial universe pass"; those rows are indistinguishable at
+  the data level from a fully-completed run's rows. Symbols not yet
+  reached when the process died simply keep whatever `detected_at`/
+  `last_seen_at` they already had from a prior successful run (or remain
+  absent if never previously detected).
+- Whether a later run replaced or obscured the interrupted state: **Not
+  today.** The next `patterns_universe_scan` fire is tomorrow (2026-09-07
+  01:00 ET) per its own cron log line. Two OTHER, narrower jobs also write
+  to `patterns.db` via the same `store_detection` path on their own
+  independent cadences (`patterns_leaders_scan`, hourly, ~84-ticker leader
+  set; `patterns_track_outcomes`, every 4h, not calendar-anchored) — these
+  could add incremental leader-scoped updates today, but would not
+  specifically "obscure" or repair the interrupted full-universe pass;
+  that requires tomorrow's scheduled re-fire.
+
+Nothing was triggered to reproduce or investigate this further. Continuing
+the existing observation plan unchanged — next meaningful natural window
+is `screener_snapshot_nightly` (03:00 ET). No new implementation, no
+diagnostic changes, no pilot activation, no 8G-C.
