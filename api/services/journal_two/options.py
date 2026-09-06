@@ -27,6 +27,7 @@ from typing import Any
 from api.services.auth_db import get_connection
 from api.services.journal_two.filters import FilterSpec
 from api.services.journal_two.timeutil import compute_trading_day_et
+from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
 # ── Allowed strategy types (matches frontend StrategyTemplates.js keys) ──────
@@ -373,6 +374,10 @@ def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, 
         # Broker-sync: current market value (mark x qty x 100, signed) so open
         # broker option strategies can show Current + P&L like equity positions.
         "source": row["source"] if "source" in keys else None,
+        # Wave 1's capture surfaces (TradeDrawer/TradeDetailPage, via
+        # TradeJournalTab's optionClosedToRow) source their tradeRef from
+        # THIS field — the id:/ext: scheme is a backend-owned identity.
+        "tradeRef": trade_ref_for_row(row),
         "brokerCurrentValue": None if bcv is None else float(bcv),
         "brokerCurrentValuePrev": None if bcv_prev is None else float(bcv_prev),
         "brokerCurrentValuePrevSession": (

@@ -36,6 +36,9 @@ const TRADE = {
   entryPrice: 50, exitPrice: 56, entryDate: '2026-05-01', exitDate: '2026-05-04',
   shares: 100, setup: 'VCP', pnlDollar: 600, pnlDollarNet: 588, pnlPercent: 0.12,
   rMultiple: 2,
+  // Backend-computed (trade_ref_for_row) — the id:/ext: scheme is a backend-
+  // owned identity, never recomputed client-side from the raw row id.
+  tradeRef: 'id:strat_7',
 }
 
 beforeEach(() => {
@@ -61,7 +64,7 @@ describe('TradeDrawer — Save to Notebook (Wave 1, P1-1: tradeRef)', () => {
     expect(capture.from).toBeLessThan(Date.parse('2026-05-01') / 1000)
     expect(capture.to).toBeGreaterThan(Date.parse('2026-05-04') / 1000)
     expect(opts.target).toBe('inbox')
-    expect(opts.tradeRef).toBe('strat_7')
+    expect(opts.tradeRef).toBe('id:strat_7')
   })
 
   it('renders nothing when no trade is selected', () => {
