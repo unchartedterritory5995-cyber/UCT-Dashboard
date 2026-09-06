@@ -8,7 +8,7 @@ from api.main import _is_gzip_exempt
 def test_all_sse_endpoints_are_gzip_exempt():
     for p in ("/api/stream/prices", "/api/stream/bars",
               "/api/live/massive/stream", "/api/community/chat/stream",
-              "/api/ai-search/stream"):
+              "/api/ai-search/stream", "/api/j2/notes/abc123/ask/stream"):
         assert _is_gzip_exempt(p), f"{p} would be gzip-buffered → SSE dead"
 
 

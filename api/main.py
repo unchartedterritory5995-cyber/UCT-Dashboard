@@ -6869,6 +6869,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
+        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # Ask Current Note token stream
         or path == "/api/j2/notes/export"        # already-DEFLATE zip, streamed
         or path.startswith("/assets/")
         or path.startswith("/fonts/")   # .woff2 is already compressed

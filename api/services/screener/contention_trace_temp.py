@@ -56,11 +56,17 @@ FAST_SAMPLE_MIN_INTERVAL_S = 60.0
 # subject; bars.db/patterns.db/darkpool.db are the largest same-volume
 # files with the most frequent scheduled writers (see continuity
 # checkpoint's job/DB inventory).
+#
+# Read-only (os.path.exists/getsize on the -wal sidecar only, never opened)
+# -- env-overridable so the fail-closed local E2E sandbox
+# (tools/e2e_sandbox_launcher.py) can redirect these off the shared /data
+# root like every other pin; unset in production, so these resolve
+# byte-identically to the literals that were already here.
 _WATCHED_DB_PATHS = {
-    "screener": "/data/screener.db",
-    "bars": "/data/bars.db",
-    "patterns": "/data/patterns.db",
-    "darkpool": "/data/darkpool.db",
+    "screener": os.environ.get("SCREENER_DB_PATH", "/data/screener.db"),
+    "bars": os.environ.get("CONTENTION_TRACE_BARS_DB_PATH", "/data/bars.db"),
+    "patterns": os.environ.get("CONTENTION_TRACE_PATTERNS_DB_PATH", "/data/patterns.db"),
+    "darkpool": os.environ.get("CONTENTION_TRACE_DARKPOOL_DB_PATH", "/data/darkpool.db"),
 }
 
 

@@ -19,13 +19,18 @@ Spec §5, audit §4.3.
 import csv
 import io
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
+)
+
+logger = logging.getLogger(__name__)
 from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
@@ -1666,6 +1671,101 @@ def get_note_endpoint(
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
     return {"note": n}
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for Ask Current Note — an LLM-synthesis call on the firm's
+    key, same shape as every other AI-cost route in this codebase.
+
+    Defined HERE, never imported from a sibling router — each router owns
+    its own 402 sentence so "which surface refused me" is readable off the
+    message (see api/routers/ai_search.py:39's docstring; railed by
+    tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…,
+    which enforces a distinct detail string per definer)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Ask Current Note requires a paid plan")
+    return user
+
+
+@router.post("/notes/{note_id}/ask/stream")
+async def ask_current_note_stream(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(require_paid),
+):
+    """Wave 2, P0-5 — Ask Current Note: bounded-context Q&A over ONE
+    already-authorized note. SSE: `data: {"type":"delta","text":...}` per
+    token, then `data: {"type":"final","answer":...}`.
+
+    Tenant isolation is structural: `get_note()`'s ownership check is the
+    only gate needed, because context is exactly one already-owned note —
+    no cross-row retrieval exists to leak (architecture spec §8.1).
+
+    Reserve BEFORE the stream opens (bills even if the client disconnects
+    mid-stream, mirroring ai_search.py's `/stream`); refund on an empty or
+    failed synthesis so a failed question doesn't burn the member's daily cap.
+
+    This path MUST stay in main.py's `_is_gzip_exempt` — GZip buffers the
+    whole stream and no tokens would ever reach the client.
+    """
+    import time
+    from api.services import note_ask
+
+    payload = payload or {}
+    query = (payload.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="Empty question.")
+    if len(query) > 2000:
+        raise HTTPException(status_code=422, detail="Question too long.")
+
+    user_id = user["id"]
+    note = notes_service.get_note(user_id, note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if not note_ask.reserve_ask(user_id):
+        raise HTTPException(
+            status_code=429,
+            detail="You've hit today's Ask Current Note limit — it resets at midnight ET.",
+        )
+
+    history = payload.get("history")
+    if not isinstance(history, list):
+        history = None
+    note_title = note.get("title") or ""
+    note_block = note_ask.assemble_note_block(note.get("bodyPlain"))
+    t0 = time.time()
+
+    async def gen():
+        settled = False
+        text = ""
+        try:
+            async for delta in note_ask.synthesize(query, note_title, note_block, history):
+                if delta:
+                    text += delta
+                    yield f"data: {json.dumps({'type': 'delta', 'text': delta})}\n\n"
+            settled = True
+        except Exception:
+            logger.exception(f"[note_ask] synthesis failed note_id={note_id}")
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
+        finally:
+            if not settled or not text.strip():
+                note_ask.refund_ask(user_id)
+            # Never log note content or the answer body — query text, note id,
+            # model, latency, cost only (spec §8.1 observability requirement).
+            logger.info(
+                f"[note_ask] note_id={note_id} query={query!r} "
+                f"model={note_ask._SYNTH_MODEL} elapsed_ms={(time.time() - t0) * 1000:.0f} "
+                f"cost_est={note_ask._APPROX_COST}"
+            )
+        yield f"data: {json.dumps({'type': 'final', 'answer': text})}\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/notes")
