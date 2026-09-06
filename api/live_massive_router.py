@@ -4340,18 +4340,16 @@ _ticker_flow_cache: dict = {}
 _TICKER_FLOW_TTL = 60
 
 
-@router.get("/ticker-flow")
-def ticker_flow(
-    symbol: str = Query(..., description="Underlying ticker, e.g. DPRO."),
-    days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
-    source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
-    top_n: int = Query(default=15, ge=1, le=40, description="Max contracts returned in the table (net uses ALL qualifying contracts)."),
-):
+def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
+                         top_n: int = 15) -> dict:
     """Single-ticker options-flow summary over the last N trading days (or 'all'):
     the ticker's net bull/bear premium + direction, plus its top contracts by
     premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
     math is identical to the site's Search tab. Uncapped per ticker (small-caps'
-    low-premium prints are kept). Cached 60s. Powers the Discord /flow command."""
+    low-premium prints are kept). Cached 60s. PLAIN function (no FastAPI Query
+    defaults) so in-process callers (the image preview, tests) work too — the
+    /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
+    top_n = int(top_n or 15)
     sym = (symbol or "").strip().upper()
     if not sym:
         return {"ok": False, "error": "no symbol"}
@@ -4408,6 +4406,17 @@ def ticker_flow(
     return result
 
 
+@router.get("/ticker-flow")
+def ticker_flow(
+    symbol: str = Query(..., description="Underlying ticker, e.g. DPRO."),
+    days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
+    source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
+    top_n: int = Query(default=15, ge=1, le=40, description="Max contracts in the table (net uses ALL qualifying contracts)."),
+):
+    """Single-ticker options-flow summary (see _compute_ticker_flow). Powers /flow."""
+    return _compute_ticker_flow(symbol, days, source, int(top_n))
+
+
 @router.get("/ticker-flow/image")
 def ticker_flow_image(symbol: str = Query(...), days: str = Query(default="1"),
                       source: str = Query(default="stocks"),
@@ -4416,7 +4425,7 @@ def ticker_flow_image(symbol: str = Query(...), days: str = Query(default="1"),
     Discord /flow command posts it. No post. Returns image/png."""
     from fastapi.responses import Response
     from api.flow_ticker_card import render_ticker_flow_card
-    data = ticker_flow(symbol=symbol, days=days, source=source)
+    data = _compute_ticker_flow(symbol, days, source)
     return Response(content=render_ticker_flow_card(data), media_type="image/png")
 
 
