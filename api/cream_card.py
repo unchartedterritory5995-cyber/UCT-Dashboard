@@ -67,8 +67,10 @@ def run_cream_eod(*, target_date=None, force: bool = False, post: bool = True) -
             if not wh:
                 detail = "no webhook configured"
             else:
-                content = f"**Top Flow — {date_text}**  ·  the day's highest-conviction builds"
-                posted, detail = _post_discord_image(wh, png, content, filename="top_flow.png")
+                # No message text — the webhook bot name already reads
+                # "UCT Intelligence · Top Flow" and the card itself carries the
+                # date + net-flow read, so a content line is redundant.
+                posted, detail = _post_discord_image(wh, png, "", filename="top_flow.png")
         return {"ok": True, "posted": posted, "detail": detail, "date": today,
                 "bull": len(bull), "bear": len(bear), "png_bytes": len(png),
                 "params": data.get("params")}
