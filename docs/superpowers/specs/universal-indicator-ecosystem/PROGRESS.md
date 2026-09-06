@@ -390,6 +390,41 @@ by direct PID kill at session end; TradingView was not used this session (its st
 vendor-parity tranche is unchanged). **Per the explicit stop condition: Stoch, the ADX-family, and any
 remediation of the findings above were NOT begun.**
 
+**2026-09-06 (same day, second follow-up) — HMA/MACD review ACCEPTED (expanded re-issue); Public Script
+Compatibility Layer C recovery + taxonomy synthesis COMPLETE.** Owner re-issued the Public Script
+Compatibility Harness authorization in expanded form: recover current harness state first (verify, do
+not restart, completed work), verify — not assume — TradingView's restored-to-baseline claim, and
+re-express Checkpoint 02's findings under a fuller failure taxonomy with an explicit ENGINE/SCHEMA-vs-
+BUILDER/IMPORT-exposure classification per finding. **No new browser script-import testing was
+performed** — this session's own work is recovery and synthesis only, per "do not restart completed
+work." Recovery: confirmed the full commit chain (Lane 2's 6-level ladder → Checkpoint 01 → Vendor
+Parity Tranche 2 → Checkpoint 02) via `git log`; read Lane 2's own Level 4 fixture JSON in full and
+found its bands/fill findings are schema/Node-mutation-test evidence ONLY — `chart_render` is
+`ENVIRONMENT_BLOCKED` (RISK-027) and `persistence_save`/`persistence_reload` are both `"PARTIAL — not
+exercised live"` — correcting any prior overstatement of Lane 2 as "fully complete with live evidence."
+Preserved RISK-027 (FontNotSettledError, harness defect, root cause undiagnosed) and RISK-029 ("engine
+can, builder cannot": bands/fill/colorMode/composite arithmetic, explicitly not a mandate to build UI)
+verbatim, unchanged. **TradingView verification found and fixed a real discrepancy**: the Pine Editor
+panel still held an unsaved "Untitled script" (the `uct-hma-macd-parity-v1` leftover test source from
+the HMA/MACD vendor-capture batch) that had never been cleared — confirmed via a zoomed object-tree
+screenshot that the 5-item chart baseline itself was intact, but the stray editor draft was real and
+was closed this session (never saved, so no persistence risk existed). **Taxonomy synthesis's key
+correction**: composite arithmetic/nested function composition — bundled by the owner's message
+alongside bands/fill/colorMode as one set of "already discovered latent capabilities" — is actually
+**already fully builder-exposed**, not a gap at all: Checkpoint 02's own STRESS01 fixture independently
+proves the real Formula tab can author nested composite expressions today. Only bands, `fill`, and
+`colorMode` remain genuine builder-exposure gaps (schema: yes; UI control: no). Cross-referencing all
+8 real scripts against the expanded taxonomy: every failure this program has found clusters in
+`EXECUTION_BLOCKED` (translator/engine layer) — zero `DATA_BLOCKED`/`VISUAL_BLOCKED`/
+`VENDOR_AMBIGUOUS`/`HARNESS_DEFECT` results, and **zero real-script evidence, across all 8 sampled
+scripts, that bands/fill/colorMode are needed** — the five actual remediation-worthy gaps (boolean-
+input-in-conditional, the Layer-A/real-import fidelity gap, QQE's `accum()` dual-variable ratchet, the
+silent no-op on Save, the Formula-tab custom-input binding convention) are unchanged from Checkpoint
+02's own ranking and all sit in the engine/translator layer, not the builder-exposure layer. Full
+21-item return in `PUBLIC_SCRIPT_LAYER_C_TAXONOMY_SYNTHESIS.md`. **No product code changed, no new
+RISK_REGISTER entry needed (RISK-027/029/037 all already correctly capture the underlying facts). Per
+the explicit stop condition: no remediation, no Stoch, no ADX-family were begun.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
