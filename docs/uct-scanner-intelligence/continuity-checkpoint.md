@@ -2372,4 +2372,160 @@ finding (closing a stale-docstring defect does not open any new
 surface). No further pattern_join.py work is queued unless the owner
 identifies a different concrete gap.
 
+## OWNER ACCEPTANCE — PATTERN_JOIN GAP DISPROVEN; NEXT UNBLOCKED SCANNER PACKAGE REVIEW (2026-09-06)
+
+Owner accepted the finding above verbatim as **"pattern_join.py CANONICAL
+PERSISTENCE/SERVING GAP — DISPROVEN AGAINST CURRENT CODE"** and directed:
+freeze the docstring fix (kept, unmerged, per the section above — no
+further action needed there), remove the disproven item from the 8G-C
+blocker list, rebuild that list from current code/durable state, then
+run a fresh next-package dependency pass across candidates A-F and
+proceed with ONE recommended package if clearly local-only.
+
+### 1-2. Corrected 8G-C blocker list / items disproven as blockers
+
+Rebuilt from actual code (not the 2026-09-06 readiness dossier's own
+prose, which — checked this pass — was ITSELF written off `cbe687024`,
+a commit that already had Package 8G-B's wiring on it; the dossier
+quoted the Phase-7/8C characterization instead of re-deriving against
+its own base commit, the identical mistake `canonical_adapter.py`'s two
+docstrings made):
+
+**DISPROVEN as blockers** (the readiness dossier's Part 1 §7 "missing
+plumbing" list, checked item by item):
+- ~~"pattern_join.py doesn't even SELECT eligibility_json yet"~~ — the
+  READ path that matters (`read_pattern_fields_canonical_shadow`) already
+  selects it; the unconditional legacy path correctly never will (D6).
+- ~~"No round-trip parity test exists yet"~~ — `tests/pattern_engine/
+  test_detail_response.py` already covers exactly this: raw PEG rows
+  (event/gate_trace reconstruct without eligibility), adapted PEG/HTF
+  rows (full round trip incl. `anchor_roles`/`eligibility`), an
+  out-of-scope family (bull_flag: empty explanation, no
+  event/eligibility — the isolation proof), and determinism across
+  repeated reads.
+- ~~"No admin-auth test proving the proof surface is unreachable by a
+  non-admin"~~ — `tests/test_patterns_canonical_detail_admin.py` already
+  covers 401 (no session) / 403 (member role) / 404 (unknown id) / 200
+  (admin) on `GET /api/patterns/admin/canonical-detail/{id}`.
+
+**Genuinely still real, confirmed by fresh code inspection this pass:**
+- **PEG anchor-timestamp geometry quirk** — real on current MASTER (the
+  fix is frozen, unmerged, on `uct-dashboard-peg-geometry`). A
+  DEPLOYMENT-HELD LOCAL FIX, not an unstarted blocker.
+- **No admin-only RENDERED proof surface existed** — the ONE item that
+  was genuinely still open. `detail_response.build_canonical_detail`
+  produces the full JSON proof already; nothing turned it into an
+  admin-viewable chart. **This is what this pass closed** (§7-9 below).
+
+### 3. Deployment-held local fixes (frozen, technically approved, awaiting release condition)
+
+1. Scan completeness / redeploy reliability — `uct-dashboard-scan-completeness`, `baf541526`.
+2. PEG geometry anchor-timestamp fix — `uct-dashboard-peg-geometry`, `40c8e578f`.
+3. pattern_join.py stale-docstring correction — `uct-dashboard-pattern-join`, `1891b1499` (no hold ceremony needed — zero behavior change — but left unmerged alongside the others for a clean single release event).
+4. **NEW** 8G-C admin-only canonical proof surface — `uct-dashboard-8gc-proof`, `400b537e0` (this pass).
+
+None of the four touch each other's worktrees. All four wait on the
+same release condition (8G-B closes, OR a separately-authorized
+deployment needs a push and bundling is explicitly authorized, OR
+explicit owner override).
+
+### 4. True remaining blockers (real, unstarted, unblocked-by-8G-B)
+
+- **8G-C activation itself** — the readiness work (this package +
+  the frozen PEG fix) makes 8G-C's admin proof PRODUCIBLE; actually
+  producing/recording the proof and deciding to advance past "admin
+  proof exists" to any broader exposure remains a separate, later,
+  explicit owner decision. Not started, not authorized here.
+- **Remaining-family canonical adaptation** (Bull Flag, Engulfing,
+  O'Neil Flat Base, VCP, Pullback-to-50-SMA, Episodic Pivot) — 5 of 7
+  rows / 6 of 7 detector files still unadapted. Real, unstarted, and
+  explicitly NOT blocked by 8G-B (pure local `canonical_adapter.py`
+  additions + fixtures, same shape as the two adapters already done).
+- **VCP freshness-gate mismatch** (`_MAX_FINAL_LOW_AGE=15` bars vs
+  `base_catalog`'s own VCP ceiling of 60 bars for nominally the same
+  pattern) — a real, documented, still-unfixed correctness bug,
+  structurally identical in shape to the PEG anchor-timestamp bug
+  just fixed. Not on the owner's A-F candidate list this pass, so not
+  started — flagged here as a genuine finding for a future pass.
+- **8G-B final live acceptance** — separately tracked, the standing
+  top-priority item; not a code blocker, a natural-load-evidence
+  blocker (Tuesday 2026-09-08 RTH).
+
+### 5-6. Candidate next packages — dependency status (owner's A-F)
+
+| Candidate | Current state | Already implemented? | Blocked by 8G-B? | Local-only possible? | Needs merge/deploy? | Category | Evidence it's unresolved |
+|---|---|---|---|---|---|---|---|
+| A. 8G-C admin-only render-entry-point | No admin-viewable proof existed | No | No | **Yes — done this pass** | Yes, eventually (frozen for now) | Readiness | Verified: no route, no component, `ChartToolbar.jsx` toggle confirmed dead |
+| B. Broader Pkg-8C round-trip parity evidence | Fully covered already | **Yes** (`test_detail_response.py` + `test_patterns_canonical_detail_admin.py`) | N/A | N/A | N/A | — | Disproven this pass — reading the test files directly, not inferring |
+| C. Next single remaining family (Bull Flag/Engulfing) | Not started | No | No | Yes | No (pure adapter + fixtures) | Correctness/readiness | `canonical_adapter.py` has exactly 2 adapter fns; confirmed no 3rd exists |
+| D. HTF live canonical writer validation | Adapter runs today whenever `PATTERN_CANONICAL_ADAPT_ENABLED=1` (confirmed ON) | Partially — writer runs, no one has looked at its output | No (read-only) | Yes | No | Evidence-gathering | Would need a `railway ssh` read against prod `patterns.db` — lower value than A, deferred |
+| E. Scanner reliability follow-on, no-deploy | scan-completeness already covers the known gap | Mostly (frozen, held) | No | — | Yes, eventually | Reliability | No second reliability gap found this pass beyond VCP's freshness mismatch (§4) |
+| F. Stale-durable-docs cleanup | The 2026-09-06 readiness dossier itself is now stale (see §1-2) | Partially — this checkpoint entry IS that correction | No | Yes | No | Documentation debt | Confirmed: dossier's Part 1 §1/§7 describe a pre-8G-B state as current |
+
+### 7. Recommended single next package
+
+**A — 8G-C admin-only render-entry-point.** Implemented this pass.
+
+### 8. Why higher-value than the alternatives
+
+It was the ONLY candidate that was (a) a real, confirmed-open gap (B is
+disproven, D is low-value diagnostic-only, E has no second target
+beyond VCP which wasn't on the candidate list) and (b) directly
+requested/pre-authorized by the owner's own §5 ("if 8G-C admin-only
+render proof is the next real item... you may do readiness/local-only
+work... if an admin-only entry point can be added purely locally and
+remains inert until explicit activation, you may design it"). C is
+real and legitimate but lower-priority: it advances canonical breadth,
+not the concrete 8G-C proof deliverable the owner has been steering
+toward across three prior packages this session.
+
+### 9. Exact local-only scope of the implemented package
+
+Worktree `C:\Users\Patrick\uct-dashboard-8gc-proof`, branch
+`feat/8gc-admin-canonical-proof`, off current `origin/master@090d9b7fd`
+(NOTE: origin/master moved since this session's earlier worktrees were
+cut — `ef2747618`/`090d9b7fd` are a different, legitimate parallel
+session's Notebook Wave-4 readiness docs, "Track B, no shipping",
+confirmed unrelated and harmless). HEAD now `400b537e0`.
+
+- **Backend: ZERO changes.** Both endpoints read
+  (`GET /api/admin/patterns/recent`, `GET /api/patterns/admin/
+  canonical-detail/{id}`) already existed, already `require_admin`-gated.
+- **Frontend, additive only:**
+  - `StockChart.jsx`: two new props, `forcedDetections=null` /
+    `forcedShowPatterns=false`. Every existing caller passes neither,
+    so `patternDetections = forcedDetections ?? livePatternDetections`
+    and `patternOverlayEnabled = !!forcedShowPatterns || showPatterns`
+    both resolve to the exact prior behavior when unset.
+  - New `app/src/pages/admin/PatternCanonicalProof.jsx` +
+    `.module.css` + `.test.jsx` — a page reachable ONLY via
+    `/admin/pattern-canonical-proof` (not linked from any menu/nav),
+    gated the same way every sibling `/admin/*` page is.
+- **Never touched:** `ChartToolbar.jsx`'s dead toggle,
+  `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED`, the frozen
+  scan-completeness/PEG-geometry/pattern-join worktrees, any scheduler,
+  any production config.
+
+### 10-11. Production code vs tests-only
+
+Production code WAS needed here (tests alone could not close this —
+the gap was "no rendered proof exists", which is by definition a UI
+gap, not a test-coverage gap). The change is deliberately the smallest
+production-code surface that closes it: 2 additive StockChart props +
+1 new admin-only page, zero backend, zero shared-component mutation.
+
+### 12. Exact owner gate before any merge/deploy
+
+Identical structure to the three other frozen packages: (A) 8G-B
+observation formally closes and its diagnostic is removed/cleaned, or
+(B) a separately-authorized deployment already needs a push and the
+owner explicitly authorizes bundling this in, or (C) explicit owner
+override. **None has occurred.** No merge, no push, no deploy. Do not
+merge scan-completeness, PEG-geometry, pattern-join, or this package
+without a fresh explicit owner instruction naming which package(s) to
+release.
+
+Four packages now frozen on identical hold, zero cross-contamination,
+8G-B observation cadence uninterrupted throughout this pass.
+
 Continuing the relaxed observation cadence toward Tuesday's open.
