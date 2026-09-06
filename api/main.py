@@ -452,6 +452,11 @@ def _run_patterns_universe_scan():
     _run_patterns_leaders_scan for intraday freshness.
     """
     _plog = logging.getLogger(__name__)
+    # Scan-run receipt state (Package: scan-completeness / redeploy-
+    # reliability, 2026-09-06) -- set to a real value only once a run
+    # actually starts (past the cap_universe.json existence check below),
+    # so the except-branch below knows whether there is a row to mark failed.
+    _scan_run_as_of = None
     try:
         leader_tickers = _load_patterns_leader_universe(_plog)
         leader_set = {t for t in leader_tickers if isinstance(t, str)}
@@ -479,7 +484,34 @@ def _run_patterns_universe_scan():
 
         # Leaders first (tagged), then the rest of the universe.
         ordered = list(leader_tickers) + [s for s in cap_tickers if s not in leader_set]
+
+        # Scan-completeness receipt (Package: scan-completeness / redeploy-
+        # reliability, 2026-09-06) -- observability only, never gates the
+        # scan itself. `as_of` is computed ONCE here and threaded through to
+        # the completion/failure call below so a run that happened to cross
+        # local midnight can't update the wrong day's row. Defensively
+        # wrapped: a bug in this bookkeeping must never block the actual
+        # scan, mirroring this file's own memory_probe/contention-trace
+        # instrumentation pattern elsewhere.
+        _scan_run_as_of = int(datetime.now(_ET).strftime("%Y%m%d"))
+        try:
+            from api.services.pattern_engine import memory as _pm_runs
+            _pm_runs.start_scan_run(
+                "patterns_universe_scan", _scan_run_as_of,
+                symbols_intended=len(ordered),
+            )
+        except Exception as run_log_err:
+            _plog.debug("[patterns] scan-run receipt start failed (non-fatal): %s", run_log_err)
+
         scanned, stored = _scan_patterns_daily(ordered, leader_set, _plog)
+
+        try:
+            _pm_runs.complete_scan_run(
+                "patterns_universe_scan", _scan_run_as_of,
+                symbols_scanned=scanned, symbols_stored=stored,
+            )
+        except Exception as run_log_err:
+            _plog.debug("[patterns] scan-run receipt complete failed (non-fatal): %s", run_log_err)
 
         _plog.info(
             "[patterns] universe_scan: scanned %d symbols (full universe, leaders=%d), stored %d",
@@ -492,6 +524,12 @@ def _run_patterns_universe_scan():
     except Exception as e:
         _plog.exception("[patterns] universe_scan failed: %s", e)
         print(f"[patterns] universe_scan failed: {e}")
+        if _scan_run_as_of is not None:
+            try:
+                from api.services.pattern_engine import memory as _pm_runs
+                _pm_runs.fail_scan_run("patterns_universe_scan", _scan_run_as_of, str(e))
+            except Exception as run_log_err:
+                _plog.debug("[patterns] scan-run receipt fail-record failed (non-fatal): %s", run_log_err)
 
 
 def _run_patterns_prune():
