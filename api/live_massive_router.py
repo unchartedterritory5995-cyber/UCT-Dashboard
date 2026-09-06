@@ -3997,6 +3997,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "spot": a.get("spot"), "dte": a.get("dte"),
                 "moneynessPct": a.get("moneynessPct"), "moneynessLabel": a.get("moneynessLabel"),
                 "total_premium": 0.0, "total_volume": 0,
+                "agg_ask_prem": 0.0, "agg_ask_vol": 0,   # ask-accumulation aggregate (incl. dropped blank sweeps)
                 "bull_premium": 0.0, "bear_premium": 0.0,
                 "sides": {"A": 0, "AA": 0, "B": 0, "BB": 0, "none": 0},
                 "types": set(), "grades": [], "max_oi": 0,
@@ -4012,6 +4013,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
         g["total_volume"] += vol
+        # Ask-accumulation aggregate: the session ask premium/volume the ledger
+        # assigns to EVERY print of this contract (blank-side sweeps included, even
+        # ones _row_to_alert drops). A surviving print carries the whole contract's
+        # figure, so MAX recovers the full total (PPTA 35C: $485K block → $1.21M).
+        _aap = a.get("aggAskPremium") or 0.0
+        if _aap > g["agg_ask_prem"]:
+            g["agg_ask_prem"] = _aap
+        _aav = a.get("aggAskVolume") or 0
+        if _aav > g["agg_ask_vol"]:
+            g["agg_ask_vol"] = _aav
         _tk = a.get("_tierKey") or "algo"     # which tier chip this print belongs to
         g["tier_prem"][_tk] = g["tier_prem"].get(_tk, 0.0) + prem
         d = a.get("_direction")
@@ -4155,6 +4166,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "is_intraday_burst": is_intraday_burst,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
+            "agg_ask_premium": round(g["agg_ask_prem"]), "agg_ask_volume": g["agg_ask_vol"],
             "bull_premium": round(bull), "bear_premium": round(bear),
             "direction": direction, "consistency": consistency,
             "sided_pct": sided_pct, "sided_premium": round(sided),
@@ -4427,10 +4439,28 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             return any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
                        for t in (c.get("types") or []))   # fallback if raw lookup missed
         contracts = [c for c in contracts if _has_sweep(c)]
-    bull = sum((c.get("bull_premium") or 0) for c in contracts)
-    bear = sum((c.get("bear_premium") or 0) for c in contracts)
+    # Effective premium/volume = the ASK-ACCUMULATION aggregate when it exceeds the
+    # surviving-prints total (recovers blank-side sweeps the classifier drops) — the
+    # same figure LiveMassive's By-Contract view shows (PPTA 35C: $485K → $1.21M).
+    def _eff_prem(c):
+        return max((c.get("total_premium") or 0), (c.get("agg_ask_premium") or 0))
+
+    def _eff_vol(c):
+        return max((c.get("total_volume") or 0), (c.get("agg_ask_volume") or 0))
+
+    bull = bear = 0.0
+    for c in contracts:
+        d, e = (c.get("direction") or ""), _eff_prem(c)
+        if d == "Bull":
+            bull += e
+        elif d == "Bear":
+            bear += e
+        elif d == "Mixed":
+            bull += (c.get("bull_premium") or 0)
+            bear += (c.get("bear_premium") or 0)
+        # "Unclear" carries no clean side → excluded from the net read
     net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
-    top = sorted(contracts, key=lambda c: -(c.get("total_premium") or 0))[:int(top_n)]
+    top = sorted(contracts, key=lambda c: -_eff_prem(c))[:int(top_n)]
     spot = next((c.get("spot") for c in contracts if c.get("spot")), None)
     # Window span from the contracts' active dates.
     _dates = set()
@@ -4477,7 +4507,7 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
         slim.append({
             "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
             "exp": c.get("exp"), "dte": c.get("dte"),
-            "premium": c.get("total_premium"), "volume": c.get("total_volume"),
+            "premium": _eff_prem(c), "volume": _eff_vol(c),
             "oi": _loi if _loi is not None else c.get("max_oi"),  # LATEST OI (fallback flow-time)
             "voi": c.get("cum_voi"),
             "direction": c.get("direction"),
