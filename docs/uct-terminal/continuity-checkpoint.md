@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-Alert
-Return-to-Research Consistency V1 merge/deploy/production-verification).
+**Last verified:** 2026-09-05/06, against live git + Railway state (post-Temporal
+/ Freshness Truth Convergence V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -32,8 +32,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `c27c95c50be1ad56396013b4fa4a24d5f92d8745`
-  (Alert Return-to-Research Consistency V1 merge — this file's own update is a
+- **origin/master (last verified):** `94dd2bb5e73aef73dc084097bdddc92ebe0cdb5a`
+  (Temporal / Freshness Truth Convergence V1 merge — this file's own update is a
   docs-only branch cut fresh from this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -173,6 +173,50 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   keyboard-inaccessible today for every alert type including the already-live
   S7 rows, unchanged by this V1 since zero frontend files were touched. See
   the new debt entry below.
+- **Temporal / Freshness Truth Convergence V1** — IMPLEMENTED + ACCEPTED +
+  LIVE, merge `94dd2bb5e`, deployed + production-verified 2026-09-05/06.
+  Phase A found S11 already owns a real, holiday/half-day-aware canonical
+  session clock (`app/src/lib/marketClock/marketClock.js::sessionState()`
+  backed by `nyseCalendar.js::holidayOn`/`earlyCloseOn`/`hasCoverage`) that
+  `app/src/utils/marketSession.js` never consumed — its
+  `expectedLatestDailySessionET()` skipped only weekends and used a hardcoded
+  16:00 ET close threshold, so a real NYSE holiday evening (or a real
+  early-close day) could misreport "the last closed session." The proven,
+  dated defect: `useBrokerMarkPreference.js` pairs a correctly holiday-aware
+  `sessionClosed` with the holiday-blind date, so on every full NYSE holiday
+  evening the inflated date could silently SUPPRESS a correct broker-mark
+  preference across 7 named Journal 2.0 surfaces (never wrongly activate one
+  early — the `>` comparison direction makes the bug one-sided). V1 converges
+  exactly two functions in `app/src/utils/marketSession.js`
+  (`expectedLatestDailySessionET`, `isDailyTodayCloseProvisionalForPaint`) to
+  consume S11's existing `holidayOn`/`earlyCloseOn`/`hasCoverage` exports —
+  zero new S11 contract, zero backend changes, degrades exactly to the prior
+  weekday-only/16:00 behavior outside `nyseCalendar.js`'s covered years
+  (2026 only). Every other consumer (`isDailyTailStale`,
+  `isDailyTailStaleForPaint`, `expectedDailyTailForPaintET`,
+  `isIntradayTailStale`, `StockChart.jsx`, `barsIDB.js`, `prefetchBars.js`,
+  `useBrokerMarkPreference.js`) inherited the fix automatically by reference —
+  none needed a direct edit. 17 new/extended fixed-clock tests (holiday,
+  day-after-holiday, real early-close, weekend+adjacent-holiday, outside-
+  calendar-coverage), all passing; adjacent regression 105/106 (the one
+  failure — a bare-`useSWR`-site census drift in
+  `pollingSites.rail.test.js` naming unrelated files `useFloor.js`/
+  `useWatchlistIntelligence.js` — confirmed pre-existing/concurrent drift,
+  not touched by this diff). Explicitly DEFERRED, see DEFERRED below:
+  Watchlist Attention freshness hardening (hardcoded `"fresh"` on price-move/
+  earnings-proximity facts in `watchlist_intelligence.py`), Portfolio/
+  Position Attention freshness parity (facts computed but their
+  freshness/source not rendered on `PortfolioAttentionBanner.jsx`/
+  `PositionDetailPage.jsx`), duplicated weekend-only walk-back loops in
+  `app/src/utils/extSession.js` (drives the pre/post-market toggle on every
+  chart — larger blast radius than `marketSession.js` itself, needs its own
+  Phase A trace before any fix) and `LiveFlow.jsx`/`LiveFlow_admin.jsx` (the
+  latter partner-owned, no edit without ack), and dual NYSE holiday-table
+  consolidation (`nyseCalendar.js`'s `COVERED_YEARS=[2026]` table vs
+  `api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` covering 2025-2027 —
+  currently byte-identical on all 10 of 2026's dates but two independently
+  hand-maintained authorities, not one by construction; zero observed live
+  defect today, a real architecture decision, not a bounded V1).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -224,8 +268,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Alert Return-to-Research
-  Consistency V1 (the prior active program) is now ACCEPTED + LIVE — see
+- **None — requires new explicit authorization.** Temporal / Freshness Truth
+  Convergence V1 (the prior active program) is now ACCEPTED + LIVE — see
   "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
   that program's authorization ("Then STOP. Do not automatically begin
   another Terminal program."), no next Terminal program has been
@@ -235,8 +279,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
   TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
   Return-to-Research Consistency V1's own deferred families
-  (`ai_deep_report`/`ai_briefing`/`exposure_gate`) — those are candidate
-  lists, not authorizations.
+  (`ai_deep_report`/`ai_briefing`/`exposure_gate`), nor from Temporal /
+  Freshness Truth Convergence V1's own deferred candidates (Watchlist/
+  Portfolio/Position Attention freshness hardening, the `extSession.js`/
+  `LiveFlow.jsx` duplicated walk-back loops, the dual NYSE holiday-table
+  consolidation) — those are candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -286,19 +333,40 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   robust (`to_polygon_symbol()` accepts both). Not urgent — documented in
   `journal_two.py`'s own docstring as a known, accepted limitation. Fix shape:
   a normalization shim or a second seeded alias, NOT a data migration.
-- **Seam 2 — holiday-blind session helper (CROSS-SYSTEM TEMPORAL DEFECT).**
-  `app/src/utils/marketSession.js::expectedLatestDailySessionET()` decrements
-  only for Sat/Sun, never for an NYSE holiday — on a holiday evening it
-  returns the holiday's own date as "the last closed session." `useMarketOpen.js`
-  is correctly holiday-aware (backed by S11's real `nyseCalendar.js`), so
-  `useBrokerMarkPreference.js` combines a holiday-aware `sessionClosed` with a
-  holiday-blind `lastClosedSessionET` — an inconsistent pairing that can
-  misclassify which valuation basis (broker mark vs. live feed) six
-  member-visible surfaces show (OpenPositionsTab, TodayMarketLead,
-  PositionDetailPage, JournalSnapshotTile, BrokerAccountHero, PositionsTable).
-  ~9 holidays/year, self-corrects at next sync/render. S11 already exposes the
-  missing primitive: `holidayOn(isoDate)` in `nyseCalendar.js` — a one-function
-  reuse fix, do NOT build a new calendar framework.
+- **Seam 2 — holiday-blind session helper — RESOLVED by Temporal / Freshness
+  Truth Convergence V1, merge `94dd2bb5e`, 2026-09-05/06.**
+  `app/src/utils/marketSession.js::expectedLatestDailySessionET()` and
+  `isDailyTodayCloseProvisionalForPaint()` now consume S11's existing
+  `nyseCalendar.js::holidayOn`/`earlyCloseOn`/`hasCoverage` exports instead of
+  weekend-only/hardcoded-16:00 date math — the fix described here (a
+  one-function reuse, no new calendar framework) is exactly what shipped. Kept
+  as a record; do not re-open unless a concrete regression is found.
+- **Seam 6 — duplicated weekend-only walk-back date loops beyond
+  `marketSession.js` (surfaced by Temporal / Freshness Truth Convergence V1's
+  Phase A, 2026-09-05/06).** The same structural defect class Seam 2 had
+  (skip weekends only, never NYSE holidays) also exists independently in
+  `app/src/utils/extSession.js::_prevTradingDay()` — which drives the
+  pre/post-market toggle on EVERY chart in the app, a materially larger blast
+  radius than `marketSession.js` itself — and in
+  `app/src/pages/LiveFlow.jsx`/`LiveFlow_admin.jsx::mostRecentMarketDay()`
+  (the latter is Ravi's partner-owned surface — no edit without ack). Neither
+  received the exhaustive per-scenario proof this program ran on
+  `marketSession.js`, so neither is a responsible V1 candidate yet — needs its
+  own Phase A-style trace first. Not urgent (no demonstrated live defect
+  found for either in this program's bounded check).
+- **Seam 7 — two independently hand-maintained NYSE holiday tables (surfaced
+  by Temporal / Freshness Truth Convergence V1's Phase A, 2026-09-05/06).**
+  `app/src/lib/marketClock/nyseCalendar.js` (`COVERED_YEARS=[2026]` only) and
+  `api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` (2025-2027) are two
+  separate, differently-shaped authorities (a bundled frontend JS table vs. a
+  backend table reached over `GET /api/market-calendar` →
+  `useMarketCalendar.js` → `useSessionState.js`, the Dashboard session pill) —
+  verified byte-for-byte identical on all 10 of 2026's real dates today, but
+  that agreement is coincidence, not construction: nothing enforces the two
+  stay in sync if either is ever tuned. Zero observed live defect. Fix shape
+  is a real cross-stack architecture decision (which authority wins; whether
+  the frontend should fetch the calendar instead of bundling it) — explicitly
+  out of scope for a bounded V1, not urgent.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -316,6 +384,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
 - Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
 - Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
+- Watchlist Attention freshness hardening (Temporal / Freshness Truth Convergence V1 Phase A — `watchlist_intelligence.py`'s price-move and earnings-proximity facts hardcode `freshness="fresh"` rather than deriving it from real source/S8 metadata; the analyst-action fact already does this correctly via `meta.get("freshnessClass")` and is the reference pattern. Real gap, ranked candidate B, not chosen for V1 — needs a real backend-contract change, LARGE implementation, PARTIAL existing contract)
+- Portfolio/Position Attention freshness parity (Temporal / Freshness Truth Convergence V1 Phase A — `PortfolioAttentionBanner.jsx`/`PositionDetailPage.jsx` compute but do not render each fact's `freshness`/`source`, and lack the error/`isLoading` handling `useWatchlistIntelligence.js` already added for the sibling Watchlists hook. Real, small, low-risk, ranked candidate C, not chosen for V1 because it sits on the S8/watchlist_intelligence seam, not the S11/calendar seam this V1 converged — natural next pick after this V1)
+- `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 6 above; needs its own Phase A trace first)
+- Dual NYSE holiday-table consolidation (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 7 above; a real cross-stack architecture decision, zero live defect today)
 - D2 broad canonical data model
 - D5 corporate actions
 - Generalized workflow/integration-bus architecture
@@ -341,16 +413,18 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `GET /api/alerts/taxonomy/fires` for the production predicate, or the
    `alert_fires` table directly.
 5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`), Attention
-   Signal Propagation V1 (merge `5e07b8150`), and Alert Return-to-Research
-   Consistency V1 (merge `c27c95c50`) are all ACCEPTED + LIVE as of this
+   Signal Propagation V1 (merge `5e07b8150`), Alert Return-to-Research
+   Consistency V1 (merge `c27c95c50`), and Temporal / Freshness Truth
+   Convergence V1 (merge `94dd2bb5e`) are all ACCEPTED + LIVE as of this
    checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
-   Consistency, or the Whole-Product Convergence Review from scratch — their
-   findings above are current as of this checkpoint; verify against live
-   code only where something here looks stale.
+   Consistency, Temporal / Freshness Truth Convergence, or the Whole-Product
+   Convergence Review from scratch — their findings above are current as of
+   this checkpoint; verify against live code only where something here looks
+   stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
