@@ -188,6 +188,25 @@ def _ratings_comparison_evidence(sym: str, side: str, ratings: dict) -> list[dic
 
 def _analyst_comparison_evidence(sym: str, side: str, analyst: dict) -> list[dict]:
     out = []
+    # Seam 29 (2026-09-06): a real live source outage for this leg used to
+    # collapse to the same empty `analyst` dict as "no analyst coverage" --
+    # silently indistinguishable to the grounded comparison. `outage` is
+    # threaded from comparison.py::_side()'s own outage_out call (this
+    # adapter's own rule is to source EVERYTHING from get_comparison()'s
+    # output, never a second fetch -- see the module docstring).
+    if analyst.get("outage"):
+        out.append({
+            "type": "comparison_data_gap",
+            "date": "now",
+            "source": "UCT Analyst Ratings",
+            "text": f"{sym}: analyst ratings data is temporarily unavailable "
+                    f"(a live source outage) -- this is NOT a statement that "
+                    f"{sym} has no analyst coverage.",
+            "url": None,
+            "sym": sym,
+            "side": side,
+        })
+        return out
     con = analyst.get("consensus") or {}
     if con:
         meta = analyst.get("consensus_meta") or {}
@@ -328,7 +347,11 @@ _SYSTEM_PROMPT = (
     "as needed), \"answer_with_caveat\" (covers it but with a real named "
     "limitation -- e.g. fundamentals may not be the same fiscal reporting "
     "period for both securities, or a rating's fundamentals/ownership legs "
-    "have no individually surfaced as-of date), \"partially_answer\" (some "
+    "have no individually surfaced as-of date, or a \"comparison_data_gap\" "
+    "typed evidence item says a source is TEMPORARILY unavailable for one "
+    "side -- that is a live outage, never evidence that security has no "
+    "coverage; never restate it as \"no analyst coverage\" or similar), "
+    "\"partially_answer\" (some "
     "of the question is covered, some genuinely is not -- answer the "
     "supported part and name the gap in `caveat`), \"ask_for_clarification\" "
     "(genuinely, materially ambiguous -- a narrow escape hatch, not a "

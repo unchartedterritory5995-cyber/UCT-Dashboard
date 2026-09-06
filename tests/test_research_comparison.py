@@ -64,11 +64,15 @@ def _patch_all_ok(monkeypatch, fund_a=None, fund_b=None):
         "sym": sym, "composite": 88 if sym == "AAPL" else 75,
         "components": {"eps": 90, "rs": 80}, "price_as_of": "2026-09-04",
     })
-    monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {
-        "sym": sym,
-        "consensus": {"label": "Buy", "_meta": {"freshnessClass": "fresh"}},
-        "price_target": {"consensus": 250.0, "_meta": {"freshnessClass": "fresh"}},
-    })
+    def _fake_ratings(sym, *, outage_out=None):
+        if outage_out is not None:
+            outage_out["outage"] = False
+        return {
+            "sym": sym,
+            "consensus": {"label": "Buy", "_meta": {"freshnessClass": "fresh"}},
+            "price_target": {"consensus": 250.0, "_meta": {"freshnessClass": "fresh"}},
+        }
+    monkeypatch.setattr(comp, "get_analyst_ratings", _fake_ratings)
 
 
 class TestGetComparisonRequestValidation:
@@ -97,7 +101,7 @@ class TestGetComparisonShape(object):
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
         out = comp.get_comparison("nvda", "amd")
         assert out["a"]["sym"] == "NVDA"
         assert out["b"]["sym"] == "AMD"
@@ -111,7 +115,7 @@ class TestGetComparisonShape(object):
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
         out = comp.get_comparison("BRK-B", "JPM")
         assert out["a"]["sym"] == "BRK-B"
         assert "BRK-B" in seen and "BRK.B" not in seen
@@ -136,12 +140,56 @@ class TestGetComparisonShape(object):
         ))
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
 
         out = comp.get_comparison("AAPL", "NOTATICKERXYZ")
         assert "error" not in out
         assert out["b"]["entity"]["status"] == "not_found"
         assert "error" in out["b"]["fundamentals"]
+
+
+class TestAnalystOutageSignal:
+    """Seam 29 (2026-09-06): a genuine live analyst-data outage must be
+    distinguishable from "this ticker has no analyst coverage" -- both used
+    to collapse to the same empty `analyst` leg."""
+
+    def test_a_genuine_outage_sets_the_outage_flag(self, monkeypatch):
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+
+        def _outage_ratings(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = True
+            return {}
+        monkeypatch.setattr(comp, "get_analyst_ratings", _outage_ratings)
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is True
+        assert out["b"]["analyst"]["outage"] is True
+
+    def test_genuine_no_coverage_does_not_set_the_outage_flag(self, monkeypatch):
+        _patch_all_ok(monkeypatch)  # sets outage=False via _fake_ratings
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is False
+
+    def test_an_exception_from_the_call_does_not_set_the_outage_flag_either(self, monkeypatch):
+        # An unhandled exception is a DIFFERENT failure mode from a
+        # declared outage_out signal -- _side() already logs+degrades it
+        # to an empty `ana` dict; outage must default False, never True by
+        # accident, since a raised exception never populates outage_out.
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+
+        def _boom(sym, *, outage_out=None):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(comp, "get_analyst_ratings", _boom)
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is False
 
 
 class TestSameEntityDifferentSpelling:
@@ -177,7 +225,7 @@ class TestEstimatesAlignment:
         monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
 
         def fake_estimates(sym):
             if sym == "AAPL":

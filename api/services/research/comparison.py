@@ -69,8 +69,15 @@ def _side(sym: str) -> dict:
         _logger.warning("comparison: ratings failed for %s: %s", sym, exc)
 
     ana: dict = {}
+    # Seam 29 (2026-09-06): `outage_out` distinguishes "the analyst-data
+    # provider genuinely failed this round" from "this ticker has no
+    # analyst coverage" -- both used to collapse to the same empty `ana`
+    # dict, silently misrepresenting a real source outage as "nothing to
+    # report" for the AI Compare leg below (watchlist_intelligence.py's own
+    # S9 fix made this distinction for its surface; never threaded here).
+    ana_outage: dict = {}
     try:
-        ana = get_analyst_ratings(sym) or {}
+        ana = get_analyst_ratings(sym, outage_out=ana_outage) or {}
     except Exception as exc:  # noqa: BLE001
         _logger.warning("comparison: analyst ratings failed for %s: %s", sym, exc)
 
@@ -96,6 +103,9 @@ def _side(sym: str) -> dict:
             # than reading as equally current.
             "consensus_meta": (ana.get("consensus") or {}).get("_meta"),
             "price_target_meta": (ana.get("price_target") or {}).get("_meta"),
+            # Seam 29: True only on a genuine live source outage this call --
+            # never set for a ticker that simply has no analyst coverage.
+            "outage": bool(ana_outage.get("outage")),
         },
     }
 

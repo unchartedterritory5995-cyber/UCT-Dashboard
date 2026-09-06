@@ -81,6 +81,25 @@ class TestAnalystComparisonEvidence:
     def test_missing_legs_produce_no_evidence(self):
         assert cai._analyst_comparison_evidence("XYZ", "a", {}) == []
 
+    def test_a_source_outage_produces_an_honest_data_gap_not_empty_evidence(self):
+        # Seam 29 (2026-09-06): comparison.py::_side() threads `outage` from
+        # its own outage_out call -- this must surface as a real, disclosed
+        # evidence item, never as silent absence.
+        out = cai._analyst_comparison_evidence("XYZ", "a", {"outage": True})
+        assert len(out) == 1
+        assert out[0]["type"] == "comparison_data_gap"
+        assert out[0]["sym"] == "XYZ" and out[0]["side"] == "a"
+        assert "temporarily unavailable" in out[0]["text"]
+        assert "NOT a statement" in out[0]["text"]
+
+    def test_an_outage_suppresses_consensus_evidence_even_if_present(self):
+        # A defensive control: outage must win over any stray data that
+        # somehow accompanied it, so the model never sees mixed signals.
+        analyst = {"outage": True, "consensus": {"label": "Buy", "total": 5}}
+        out = cai._analyst_comparison_evidence("XYZ", "a", analyst)
+        assert len(out) == 1
+        assert out[0]["type"] == "comparison_data_gap"
+
 
 class TestEstimatesComparisonEvidence:
     def test_emits_one_item_per_security_per_populated_period(self):
