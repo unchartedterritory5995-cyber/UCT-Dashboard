@@ -3395,3 +3395,130 @@ OWNER REVIEW.**
 one's acceptance). 8G-B observation cadence uninterrupted throughout — no
 diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH remains the
 next real evidence window.
+
+---
+
+## VCP GEOMETRY SHAPE-CONTRACT ADJUDICATION (priority interrupt, ahead of
+## EP/Pullback family adaptation) — 2026-09-06
+
+Worktree `C:\Users\Patrick\uct-dashboard-vcp-geometry`, branch
+`fix/vcp-geometry-shape-contract`, base `origin/master@47df3a902` (same tip
+as the Flat Base worktree). Committed `a1942b164`. **Renderer-only. No
+`adapt_vcp()`. No detector/canonical-adapter/base_catalog file touched.**
+
+**The finding, traced end-to-end (not inferred from names):**
+`vcp.py::_build_detection` emits `geometry.shape = "trendline_pair"` (the
+same shape string as HTF and all 11 classical flag/wedge/triangle/rectangle/
+channel detectors) with anchors `[start_high, low_0, low_1, …, low_{n-1},
+pivot]` — length `n_contractions + 2`, confirmed empirically via
+`detect_vcp()` against the real fixtures (`boundary_2_contractions` → 4
+anchors, `clean_3_contractions` → 5, `clean_4_contractions` → 6).
+`pivot_idx = contractions[-1]["high_idx"]` — the pivot anchor is ALWAYS the
+final contraction's own HIGH, which chronologically PRECEDES that same
+contraction's LOW (one array position earlier) — confirmed on every tested
+fixture (`anchors[-1].t < anchors[-2].t`, always true). This is real,
+deliberate VCP semantics (the pivot is the entry-trigger PRICE LEVEL, which
+happens to equal an earlier bar's high), not a fixture artifact.
+
+`TrendlinePair.jsx` (the renderer every "trendline_pair"-shaped detection
+routes to) destructured `[a,b,c,d] = anchors` unconditionally. Proven
+pre-fix behavior: at 2 contractions (4 anchors, no anchors dropped) "line 2"
+ran backward in time (pivot's timestamp < the point drawn before it in the
+line); at 3+ contractions (5+ anchors) the pivot was silently DROPPED
+entirely and "line 2" connected two non-adjacent zigzag points, skipping the
+true intervening point. Every other "trendline_pair" family (HTF + 11
+classical detectors, all re-verified by direct read of their own anchor-
+construction code) emits EXACTLY 4 anchors — VCP is the only family whose
+anchor count varies with a real structural property (contraction count).
+
+**Phase-7 canonical architecture spec had ALREADY analyzed this exact
+mismatch** (its own Section 10, independently re-read this package) and
+prescribed `anchor_roles`/`semantic_subtype` as the eventual detector-side
+fix — but also recorded (Section 448, an independent Claude↔ChatGPT relay
+review) that this is a known, already-approved renderer consequence, not a
+new architectural question requiring reopened discovery.
+
+**Classification: Category B/D hybrid — renderer contract too narrow, a
+narrow correction to the existing "trendline_pair" primitive (not a new
+shape, not a schema change, not a new generalized multi-segment renderer).**
+Categories A/C were rejected: VCP's shape label is not wrong (Phase-7 itself
+treats `trendline_pair` as the right family for a fitted-line geometry), and
+a new VCP-specific primitive is unnecessary — the fix needed is entirely
+inside the existing renderer's own interpretation of the anchors it already
+receives.
+
+**The fix (`TrendlinePair.jsx` only):** detections where
+`anchors.length > 4` OR `pattern_id === 'vcp'` (VCP's own 4-anchor minimum,
+2-contraction case, needed the SAME correction and would otherwise have
+silently stayed on the untouched 4-anchor path purely by anchor-count
+coincidence with the flag family — this dispatch mirrors the established
+`CandleMark.jsx` precedent of a shape-renderer special-casing one
+`pattern_id`, e.g. its existing `pattern_id === 'swing_pivots'` branch) now
+render as ONE connected polyline through every anchor, sorted by real
+timestamp, no polygon fill (undefined for a zigzag of more/fewer than 2
+lines). Every other "trendline_pair" family's exactly-4-anchor path is
+completely untouched — no re-sort, no new branch, byte-identical code.
+`anchors[:4]` truncation was explicitly NOT used anywhere.
+
+**Incidental finding from the pre-interrupt investigation, INITIALLY
+BELIEVED TRUE, THEN DISPROVEN ON DIRECT VERIFICATION — record this
+correction, do not carry the wrong version forward:** the working memory
+entering this package (from context predating a compaction) held that
+`power_earnings_gap.py` also emits 5 anchors under shape `"trendline_pair"`
+and would share this exact defect. **Direct re-read of the live
+`power_earnings_gap.py` this package (line ~635) shows its real shape is
+`"candle_mark"`, not `"trendline_pair"`** — confirmed independently by its
+own real canonical fixture (`peg_detection.json`, already present in
+`__fixtures__/` from earlier PEG geometry work) and by the fact
+`canonical_adapter.py`'s `adapt_power_earnings_gap` never overrides shape.
+PEG routes to `CandleMark.jsx`, which already handles arbitrary-length
+anchor arrays safely by construction (`anchors.slice(0, -1)` dots + last-
+anchor trigger badge — no truncation, no count assumption). **PEG is NOT
+affected by this defect and required no incidental disclosure of a real
+problem** — the prior belief was simply wrong, corrected here rather than
+carried into the report as a finding. Grep confirmed the full roster of
+`"trendline_pair"`-emitting detectors (`vcp.py`, `high_tight_flag.py`,
+`major_trendlines.py` — always <4 anchors, already renders null, unaffected
+either way — plus all 11 classical detectors): every one but `vcp.py`
+constructs a literal 4-element list.
+
+**Test matrix (8-item, all satisfied):** 3 real `detect_vcp()`-generated
+fixtures committed at `app/src/components/chart/patternShapes/__fixtures__/
+vcp_{2,3,4}_contractions.json` (2/3/4 contractions → 4/5/6 anchors) plus 12
+new test cases in `TrendlinePair.test.jsx` covering: anchor-count-per-
+contraction sanity; the pivot-precedes-final-low property as a real
+detector fact (not a fixture artifact); 2-contraction chronological-order
+correction (pivot now renders before the final low, not after); 3-
+contraction no-drop/no-mispair proof (all 5 points present); 4-contraction
+variable-length proof (6 points, not capped); timestamp+price fidelity
+(every rendered point traces to a real detector anchor); position-
+independence (shuffling the raw anchor array renders byte-identical output,
+proving the fix keys on real timestamp, not array position); role-absence
+fallback (VCP has no `anchor_roles` today — falls back to the generic
+pattern-name label exactly like any other unlabeled family, zero new
+frontend TA logic); off-screen fail-safe; and an explicit non-regression
+case proving a non-VCP 4-anchor detection still renders the original 2-
+line+fill shape, never the zigzag path.
+
+**Regression:** frontend full suite 14,554 passed, 8 pre-existing failures
+in files this package never touched (`floor2`/community orphan-module
+census, `jsonFetcher`/`pollingSites` bare-site census drift, pine-corpus
+accepted-count, `ImportBox.thinkscript`, `ThemeTrackerPage.chartmount` —
+all confirmed by re-running them in isolation and by diff scope: this
+package's diff touches exactly 2 files plus 3 new fixture JSONs, none of
+which any of the 8 failing tests import). Backend: 250 passed
+(`test_vcp.py` + `test_canonical_adapter.py` + `test_explanation_builder.py`)
+— expected to be a pure no-op since zero backend files were touched.
+
+**Verdict: VCP GEOMETRY CONTRACT DEFECT CONFIRMED AND FIXED LOCALLY — READY
+FOR OWNER REVIEW.**
+
+**Frozen, no merge/deploy.** `adapt_vcp()` was NOT implemented — the VCP
+canonical family remains on the readiness-ranking backlog behind Episodic
+Pivot/Pullback-to-50-SMA, unaffected by this package. The permanent 15-vs-
+60 VCP age-gate distinction and every prior VCP detector-selection decision
+were not reopened, read, or referenced beyond the two constant names already
+on record. 8G-B observation cadence uninterrupted throughout — no
+diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH remains the
+next real evidence window. Thirteen packages now frozen total (pending this
+one's acceptance).
