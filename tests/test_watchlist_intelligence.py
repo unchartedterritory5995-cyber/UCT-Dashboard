@@ -62,6 +62,39 @@ class TestAnalystFact:
         assert out["NVDA"]["status"] in ("partial", "unavailable")
         assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
 
+    def test_an_outage_flavored_miss_degrades_status_not_a_silent_ok(self):
+        """S9 (2026-09-06): before this fix, a total analyst-provider outage
+        collapsed to the exact same {"items": [], ...} shape as a ticker with
+        genuinely no analyst coverage -- no exception, so `sources_failed`
+        never incremented and `status` stayed "ok". `get_analyst_ratings`
+        now reports this via its `outage_out` side channel."""
+        def _outage_flavored(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = True
+            return {"recent_actions": {"items": [], "_meta": None}}
+
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
+                    side_effect=_outage_flavored):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        assert out["NVDA"]["status"] in ("partial", "unavailable")
+        assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
+
+    def test_a_genuine_no_coverage_miss_stays_ok(self):
+        """The counterpart to the outage test above -- `outage_out` reporting
+        False (or never being populated) must NOT degrade status; this is
+        the existing `test_no_recent_actions_does_not_fire` scenario,
+        reconfirmed against the new outage-aware code path."""
+        def _no_coverage(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = False
+            return {"recent_actions": {"items": [], "_meta": None}}
+
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
+                    side_effect=_no_coverage):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        assert out["NVDA"]["status"] == "ok"
+        assert all(f["kind"] != "analyst_action" for f in out["NVDA"]["facts"])
+
 
 class TestFilingFact:
     def test_a_filing_within_the_recency_window_fires(self):
@@ -97,9 +130,9 @@ class TestEarningsProximityFact:
         tomorrow = today + datetime.timedelta(days=1)
 
         def fake_reporters(date_str):
-            return {"NVDA"} if date_str == tomorrow.isoformat() else set()
+            return ({"NVDA"}, True) if date_str == tomorrow.isoformat() else (set(), True)
 
-        with _patch("api.services.calendar_alerts._get_reporters_for_date", side_effect=fake_reporters):
+        with _patch("api.services.calendar_alerts._get_reporters_for_date_with_status", side_effect=fake_reporters):
             out = wi.get_intelligence_for_symbols(["NVDA"])
         facts = [f for f in out["NVDA"]["facts"] if f["kind"] == "earnings_proximity"]
         assert len(facts) == 1
@@ -110,11 +143,50 @@ class TestEarningsProximityFact:
         far = datetime.date.today() + datetime.timedelta(days=wi._EARNINGS_PROXIMITY_DAYS + 5)
 
         def fake_reporters(date_str):
-            return {"NVDA"} if date_str == far.isoformat() else set()
+            return ({"NVDA"}, True) if date_str == far.isoformat() else (set(), True)
 
-        with _patch("api.services.calendar_alerts._get_reporters_for_date", side_effect=fake_reporters):
+        with _patch("api.services.calendar_alerts._get_reporters_for_date_with_status", side_effect=fake_reporters):
             out = wi.get_intelligence_for_symbols(["NVDA"])
         assert all(f["kind"] != "earnings_proximity" for f in out["NVDA"]["facts"])
+
+
+class TestEarningsSourceIntegrity:
+    """S9 (2026-09-06): `_get_reporters_for_date`'s 3-leg fallback (cache ->
+    Finnhub -> FMP) never raises by design, so `_earnings_facts()`'s own
+    try/except around it was unreachable dead code -- a total outage on any
+    window day was indistinguishable from a genuinely quiet week, and
+    `status` never degraded. These pin the fix: a day whose lookup could not
+    be trusted must degrade every requested symbol's status, and a day that
+    ran cleanly (even with an empty answer) must not."""
+
+    def test_a_failed_window_day_degrades_every_requested_symbol(self):
+        def fake_reporters(date_str):
+            return set(), False  # every day: leg ran, but not trustworthily
+
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
+                    return_value={"recent_actions": {"items": [], "_meta": None}}), \
+             _patch("api.services.sec_filings.recent_filings", return_value={"filings": []}), \
+             _patch("api.services.calendar_alerts._get_reporters_for_date_with_status",
+                    side_effect=fake_reporters):
+            out = wi.get_intelligence_for_symbols(["NVDA", "AAPL"])
+        for sym in ("NVDA", "AAPL"):
+            # Analyst and filing legs above are stubbed healthy-empty, so
+            # ANY degradation here is provably attributable to the earnings
+            # leg alone -- the fact this fix specifically addresses.
+            assert out[sym]["status"] == "partial", sym
+            assert all(f["kind"] != "earnings_proximity" for f in out[sym]["facts"]), sym
+
+    def test_a_genuinely_quiet_week_stays_ok(self):
+        def fake_reporters(date_str):
+            return set(), True  # every day: leg ran cleanly, legitimately empty
+
+        with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
+                    return_value={"recent_actions": {"items": [], "_meta": None}}), \
+             _patch("api.services.sec_filings.recent_filings", return_value={"filings": []}), \
+             _patch("api.services.calendar_alerts._get_reporters_for_date_with_status",
+                    side_effect=fake_reporters):
+            out = wi.get_intelligence_for_symbols(["NVDA"])
+        assert out["NVDA"]["status"] == "ok"
 
 
 class TestNotableIsAPlainOr:
@@ -122,7 +194,7 @@ class TestNotableIsAPlainOr:
         with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
                     return_value={"recent_actions": {"items": [], "_meta": None}}), \
              _patch("api.services.sec_filings.recent_filings", return_value={"filings": []}), \
-             _patch("api.services.calendar_alerts._get_reporters_for_date", return_value=set()):
+             _patch("api.services.calendar_alerts._get_reporters_for_date_with_status", return_value=(set(), True)):
             out = wi.get_intelligence_for_symbols(["NVDA"], {"NVDA": 0.1})
         assert out["NVDA"]["notable"] is False
         assert out["NVDA"]["facts"] == []
@@ -154,7 +226,7 @@ class TestBatchShape:
         with _patch("api.services.research.analyst_ratings.get_analyst_ratings",
                     return_value={"recent_actions": {"items": [], "_meta": None}}), \
              _patch("api.services.sec_filings.recent_filings", return_value={"filings": []}), \
-             _patch("api.services.calendar_alerts._get_reporters_for_date", return_value=set()):
+             _patch("api.services.calendar_alerts._get_reporters_for_date_with_status", return_value=(set(), True)):
             out = wi.get_intelligence_for_symbols(["nvda", "NVDA", " nvda "])
         assert list(out.keys()) == ["NVDA"]
 

@@ -22,24 +22,34 @@ retirement deferred, not part of this slice).
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from api.services.analyst_grades import get_analyst_grades
 from api.services.research.entity_resolution import resolve_entity
 
 _EMPTY_ACTIONS = {"items": [], "_meta": None}
 
 
-def get_analyst_ratings(sym: str) -> dict:
+def get_analyst_ratings(sym: str, *, outage_out: Optional[dict] = None) -> dict:
     """Always a dict, never None -- `entity` is resolved independently of
     whether analyst data exists so a genuinely-uncovered ticker (a real,
-    common outcome, not a failure) still shows correct canonical identity."""
+    common outcome, not a failure) still shows correct canonical identity.
+
+    `outage_out` (S9, 2026-09-06) passes straight through to
+    `get_analyst_grades()` -- see its docstring. This wrapper's own return
+    shape is unchanged either way (no new key is added to the returned
+    dict); a caller that needs the outage signal must read it back from
+    the same `outage_out` dict it supplied."""
     sym = (sym or "").upper().strip()
     if not sym:
+        if outage_out is not None:
+            outage_out["outage"] = False
         return {"sym": sym, "entity": None, "consensus": None,
                 "price_target": None, "recent_actions": dict(_EMPTY_ACTIONS)}
 
     entity, _fmp_symbol = resolve_entity(sym)
 
-    grades = get_analyst_grades(sym)
+    grades = get_analyst_grades(sym, outage_out=outage_out)
     if not grades:
         return {"sym": sym, "entity": entity, "consensus": None,
                 "price_target": None, "recent_actions": dict(_EMPTY_ACTIONS)}
