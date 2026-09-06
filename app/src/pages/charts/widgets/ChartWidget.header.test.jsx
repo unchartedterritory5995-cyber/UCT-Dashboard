@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 
@@ -65,9 +66,11 @@ function Wrap({ opts = {}, onOptsChange = () => {} }) {
     activeChartRef: { current: null },
   }
   return (
-    <WorkspaceContext.Provider value={value}>
-      <ChartWidget color="A" opts={opts} onOptsChange={onOptsChange} />
-    </WorkspaceContext.Provider>
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={value}>
+        <ChartWidget color="A" opts={opts} onOptsChange={onOptsChange} />
+      </WorkspaceContext.Provider>
+    </MemoryRouter>
   )
 }
 
