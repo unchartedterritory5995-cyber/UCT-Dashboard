@@ -570,6 +570,30 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-06 — Wave 2 shipped: Ask Current Note (P0-5), and the sandbox invariant's first real-world payoff
+
+**Decision:** Wave 2 is exactly the plan's "AI Foundation: Ask Current Note" slice — no more, no less. A member asks a question about the note they're currently looking at and gets a grounded, cited answer sourced only from that note's own content. Implementation copies `ai_search_personal.py`'s `assemble() → SYNTH_SYSTEM() → synthesize()` shape verbatim (architecture spec §8.1), deliberately excluding its Freshness Firewall clause — Notebook needs the opposite contract, since a note's stated fact is a historical claim that must never be silently corrected by newer data.
+
+**What shipped:** `api/services/note_ask.py` (own `reserve_ask`/`refund_ask` cost-cap counters, not shared with `ai_search_personal`'s budget) + `POST /api/j2/notes/{note_id}/ask/stream` in `api/routers/journal_two.py` (its own locally-defined `require_paid`, per the shipped per-router-gate convention — never imported from a sibling, railed by `test_user_definitions_auth.py`) + `NoteAskPanel.jsx` (collapsible panel, real SSE streaming, citation-verification click-to-jump per architecture §8.5, using a pure DOM `TreeWalker` rather than ProseMirror position math).
+
+**Evidence the plan matched reality (Wave 2's own "verify before building" pass, per this program's now-twice-burned discipline):** independently confirmed `ai_search_personal.py`'s exact function shape and `reserve_synth`/`refund_synth` pattern; confirmed `get_note(user_id, note_id)`'s `WHERE id = ? AND user_id = ?` ownership check; confirmed zero AI/LLM infrastructure references `j2_notes` today (the one non-AI hit, `user_playbook`'s soft note-linking, has no LLM call anywhere in it — verified, not assumed); confirmed nothing already implements "Ask Current Note" anywhere in the codebase. No material contradiction found — proceeded without stopping.
+
+**A genuine, unplanned side-effect: the fail-closed E2E sandbox caught a real upstream gap on its first real use since Wave 1.** Starting the sandbox for Wave 2's real-browser E2E, it correctly REFUSED — `api/services/screener/contention_trace_temp.py` (an unrelated, explicitly-temporary screener diagnostic merged from master during Wave 1) hardcoded 3 `/data/*.db` paths with no env override, so a local backend would still have reached the live shared root through it. Fixed with the minimal, behavior-preserving change the sandbox's own error message prescribes (wrap each in `os.environ.get(VAR, literal)`, matching the existing pin convention; the screener entry now also reads the same `SCREENER_DB_PATH` the rest of the app already uses instead of a separate hardcoded copy). Zero behavior change in production; the file remains read-only and still scheduled for removal by its owning team. This is exactly the payoff the sandbox invariant was recorded for at Wave 1 close: catching a real gap before it mattered, not a hypothetical one.
+
+**Real-browser E2E, not just component tests:** ran against a fully isolated local sandbox (own throwaway SQLite DB under a fresh temp root, real `ANTHROPIC_API_KEY` injected via `railway run` for a genuine Claude Sonnet 5 call, `COMING_SOON_MODE=0` set only in that one throwaway process's environment per explicit owner authorization scoped to exactly this — never touching Railway/production config). Created a note, asked a grounded question and got an accurate cited answer, clicked a citation chip and watched it jump/flash cleanly with zero console errors, asked an adversarial question about a fact NOT in the note (a price target) and got a correct refusal naming exactly what was and wasn't there rather than a fabrication, verified the empty-question guard. Sandbox and its throwaway files torn down after.
+
+**Alternatives considered:** Share `ai_search_personal`'s `reserve_synth`/`refund_synth` counters directly (rejected — conflates two different features' spend under one budget, and the architecture note only asked to reuse the *pattern*, not the literal counters); import `ai_search.py`'s `require_paid` (rejected outright — the shipped convention is one gate per router with its own message, confirmed by the AST-based rail test that would have failed had this been done).
+
+**Rationale:** Same discipline as Wave 1 throughout — verify "already shipped" claims against current code before building on them, keep AI feature scope exactly at its named level (Ask Current Note, never accidentally Ask Notebook), and treat the sandbox as permanent infrastructure whose job is to catch exactly this class of gap.
+
+**Consequences:** `contention_trace_temp.py`'s 3 new env vars (`CONTENTION_TRACE_BARS_DB_PATH`, `CONTENTION_TRACE_PATTERNS_DB_PATH`, `CONTENTION_TRACE_DARKPOOL_DB_PATH`) exist in case the screener team wants them for their own reasons before the file is retired, but nothing in production needs to set them. Future Wave 6 (Ask Notebook, corpus-wide) must NOT reuse this wave's single-note code path as-is — it explicitly has no cross-row retrieval story, by design.
+
+**Reversibility:** Fully reversible — feature-flagged by nothing beyond the existing paid gate; disabling would mean removing the router endpoint + frontend panel, no schema to roll back (this wave added no tables).
+
+**Reconsider if:** Wave 6 (Ask Notebook) needs to reuse any part of this wave's cost-cap or system-prompt scaffolding — re-derive the tenant-isolation story from scratch per architecture §8.2 rather than assuming this wave's single-note simplicity carries over.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
