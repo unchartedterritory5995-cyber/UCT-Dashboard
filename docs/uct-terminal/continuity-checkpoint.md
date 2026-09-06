@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-Universal
-Ticker Actions Convergence V1 merge/deploy/production-verification).
+**Last verified:** 2026-09-05/06, against live git + Railway state (post-Attention
+Signal Propagation V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -32,10 +32,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `dee56d7def0a38235921e3a7bb01395f095102c9`
-  (Universal Ticker Actions Convergence V1 merge — this file's own update is a
-  docs-only branch cut from this SHA; drift since then is unrelated concurrent
-  work — re-check overlap before trusting this SHA is still current).
+- **origin/master (last verified):** `5e07b81500471649792a79bf19cc691f4764e304`
+  (Attention Signal Propagation V1 merge — this file's own update is a
+  docs-only branch cut fresh from this SHA; drift since then is unrelated
+  concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -91,10 +91,41 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   got its own local inline Compare-picker code (not factored into a shared
   hook — an acceptable one-time duplication per the authorization), and
   TradeDetailPage got the single compact overflow trigger rather than three
-  more inline buttons. Explicitly NOT done: the `position_id` sentinel/join
-  defect, `HistorySection.jsx` click-through, `PortfolioAttentionBanner.jsx`
-  card click-through, Seam 1/Seam 2 fixes below, any multi-security AI work —
-  all remain open, unauthorized candidates for a future program.
+  more inline buttons. Explicitly NOT done at the time: the `position_id`
+  sentinel/join defect, `HistorySection.jsx` click-through,
+  `PortfolioAttentionBanner.jsx` card click-through (closed by Attention
+  Signal Propagation V1, below), Seam 1/Seam 2 fixes below, any
+  multi-security AI work.
+- **Attention Signal Propagation V1** — IMPLEMENTED + ACCEPTED + LIVE, merge
+  `5e07b8150`, deployed + production-verified 2026-09-05/06. Propagated the
+  existing deterministic attention contract
+  (`watchlist_intelligence.get_intelligence_for_symbols`, already live on
+  Watchlists and Journal 2.0 Open Positions) into two more Journal 2.0
+  surfaces, zero backend changes: (1) `PositionDetailPage.jsx` gained a
+  compact Attention card between the Universal Ticker Actions cross-link row
+  and the chart, calling `useJ2PositionsAttention()` directly (the same
+  account-scoped batch hook `PortfolioAttentionBanner.jsx` already uses — no
+  new endpoint, no new single-symbol call), reusing the banner's exact
+  vocabulary (notable dot, status pill for partial/unavailable, fact list
+  with evidence `as_of` dates, "Nothing notable" fallback); (2)
+  `PortfolioAttentionBanner.jsx` cards became `Link`s into
+  `/journal-2-0/position/{sym}` (closing the click-through gap), so a
+  notable flag on Open Positions now carries through to the same facts on
+  the detail page instead of disappearing on click. Phase A's audit
+  (10-agent workflow) explicitly scored and DEFERRED: TradeDetailPage/
+  TradeDrawer (temporal risk — no closed-trade recency gate exists, so
+  showing "today's attention" beside a possibly-months-old closed decision
+  would misleadingly imply present relevance), TickerPopup/TickerHubSheet
+  (NOT V1 — ~31 mostly free-reachable call sites, no entitlement/plan-check
+  wiring exists yet for this signal, would need a new contract), and Research
+  (redundant by construction — every fact the contract computes is already
+  shown there at greater depth via the identical underlying service calls).
+  Scoped deliberately to the two already-paid-gated Journal 2.0 surfaces
+  because the shared attention endpoints check only login, not plan — any
+  future extension to a free-reachable surface needs an explicit
+  `require_plan` added to those endpoints first (a Phase A bounded
+  condition, resolved as an implementation constraint, not a blocker: no new
+  endpoint/hook was invented, and no free-reachable surface was touched).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -146,15 +177,41 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None.** Universal Ticker Actions Convergence V1 (the prior active program)
-  is now ACCEPTED + LIVE — see "CURRENT ACCEPTED" above. Per the owner's
-  explicit closing instruction on that program's authorization, no candidate
-  #2 or other Terminal program has been automatically begun. The next Terminal
-  program requires a new, explicit owner authorization. Do not infer one from
-  the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below — those are
+- **None.** Attention Signal Propagation V1 (the prior active program) is now
+  ACCEPTED + LIVE — see "CURRENT ACCEPTED" above. Per the owner's explicit
+  closing instruction on that program's authorization ("Then STOP. Do not
+  automatically begin the next candidate."), no next Terminal program has been
+  automatically begun. The next Terminal program requires a new, explicit
+  owner authorization. Do not infer one from the "NEWLY IDENTIFIED DEBT" or
+  "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
+  explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
+  TickerPopup/TickerHubSheet Attention, Research Attention) — those are
   candidate lists, not authorizations.
 
-## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06)
+## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
+
+- **Seam 3 — price-move threshold duplicated, not shared (surfaced by Attention
+  Signal Propagation V1's Phase A, 2026-09-05/06).**
+  `watchlist_intelligence.py:23-26` defines `_PRICE_MOVE_THRESHOLD_PCT = 3.0`
+  with an in-file comment claiming it "matches `massive.py::get_movers()`'s own
+  gap-filter threshold" — but it is a second hand-typed `3.0`, not imported.
+  `massive.py` separately hardcodes `3.0` at 4 locations (lines ~1676, 1687,
+  1813, 1814). Nothing enforces the two stay in sync if either is ever tuned.
+  Fix shape: one shared constant, imported by both.
+- **Seam 4 — earnings-proximity window reimplemented, not shared (surfaced by
+  Attention Signal Propagation V1's Phase A, 2026-09-05/06).**
+  `watchlist_intelligence.py:102-131` (`_earnings_facts`) and
+  `api/services/awareness/engine.py:97-134` (`_collect_earnings_window`) both
+  independently walk the calendar day-by-day via the same
+  `calendar_alerts._get_reporters_for_date`, keeping the earliest date per
+  symbol — a deliberate mirror per `watchlist_intelligence.py`'s own docstring
+  ("rather than importing that module's private, engine-owned memoization"),
+  but the two have already diverged: `awareness/engine.py`'s copy is memoized
+  with a TTL + partial-failure flag; `watchlist_intelligence.py`'s has neither.
+  The default window (3 days) is ALSO independently declared twice as separate
+  literals (`_EARNINGS_PROXIMITY_DAYS` vs `EARNINGS_PROXIMITY_DEFAULT_DAYS`).
+  Fix shape: extract the shared walk+earliest-date logic into one function both
+  modules call; not urgent (both currently correct, just duplicated).
 
 - **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT).**
   Manual J2 entry (`positions.py`/`options.py`) does bare `.strip().upper()`;
@@ -193,6 +250,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Watchlist filing-watch creation action
 - Alert Return-to-Research Consistency (capability S — only S7 document-arrival alerts populate `research_url`; every other alert family is a click dead end) — real gap, ranked #3 candidate, not chosen for this program
 - S8 Freshness Presentation Consistency (several freshness values in `watchlist_intelligence.py` are hardcoded `"fresh"` rather than S8-derived) — ranked #4 candidate, not chosen
+- Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
+- Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
+- Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
 - D2 broad canonical data model
 - D5 corporate actions
 - Generalized workflow/integration-bus architecture
@@ -217,14 +277,16 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 4. Check whether a genuinely newer NVDA filing has landed (S7 Stage 2) —
    `GET /api/alerts/taxonomy/fires` for the production predicate, or the
    `alert_fires` table directly.
-5. Universal Ticker Actions Convergence V1 is ACCEPTED + LIVE (merge
-   `dee56d7de`) as of this checkpoint — do not re-implement it or treat it as
-   pending; confirm via `git log` only if something here looks stale.
+5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`) and Attention
+   Signal Propagation V1 (merge `5e07b8150`) are both ACCEPTED + LIVE as of
+   this checkpoint — do not re-implement either or treat them as pending;
+   confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
-   Convergence, or the Whole-Product Convergence Review from scratch — their
-   findings above are current as of this checkpoint; verify against live code
-   only where something here looks stale.
+   Convergence, Attention Signal Propagation, or the Whole-Product
+   Convergence Review from scratch — their findings above are current as of
+   this checkpoint; verify against live code only where something here looks
+   stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
