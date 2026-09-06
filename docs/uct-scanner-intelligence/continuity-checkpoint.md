@@ -1526,3 +1526,104 @@ remaining natural windows. Observation cadence continues unchanged,
 tightening to ~20-30 min as each window approaches. No implementation, no
 architecture decision, no pilot reactivation — all remain explicitly
 deferred pending real evidence.
+
+## Owner direction accepted; deployment boundary verified; live_tier writer model deepened offline (2026-09-05 ~20:20 ET)
+
+**Deployment boundary.** The unrelated deploy that was BUILDING settled
+(went through 2 more revisions in quick succession — other sessions
+pushing concurrently — final tip observed `da91a07d0`). Verified clean
+before treating anything as one continuous runtime: `railway status
+--json` → `SUCCESS`; `/api/health` uptime reset (210s, fresh process);
+`git diff` from the last-verified git tip (`9a47d8477`) to the new
+`origin/master` tip scoped to the 4 instrumented files → empty (no
+overlap); `railway logs` → 203 wrapped-job lines, zero "contention trace
+instrumentation failed" lines. Instrumentation confirmed intact across the
+transition. Pilot OFF/unset and `PATTERN_CANONICAL_ADAPT_ENABLED=1` are
+unaffected by anything in this whole natural-load package (untouched files).
+
+**`screener_live_tier`'s internal structure, read directly from
+`api/services/screener/live_tier.py:786-935` (own code, not secondhand) —
+this precisely answers the owner's Section 7/8 questions:**
+
+`run_sweep()` (`t0` = cycle start) → session check (returns early,
+`skipped_reason="not_regular_session"`, if not RTH — this is ALL that has
+fired since deploy, confirmed live: `[screener-live] cycle skipped:
+not_regular_session` at 00:18:03/00:19:03/00:20:03 UTC, exactly 60.0s
+apart, zero drift) → `_ensure_schema()` (once per PROCESS only, explicitly
+placed BEFORE the lock so it never inflates `held_lock_ms`) →
+**`snapshot_builder._BUILD_LOCK.acquire(blocking=False)`** (non-blocking —
+a busy lock means this cycle immediately gives up with
+`skipped_reason="build_in_flight"`, it NEVER queues/waits; `lock_wait_ms`
+is therefore always ~0 in practice, not a real wait metric) → inside the
+lock, `_sweep_locked()` runs, in order: (1) `_read_anchor_rows()` — a
+separate read-only connection; (2) `scan_volume.full_market_snapshot()` —
+a 30s-cached in-memory read, not necessarily a fresh DB hit; (3) a pure-
+Python pass computing `sanity_reason` per row (no DB); (4) an abort check;
+(5) a second pure-Python pass calling `derive_row()` per matched row,
+building `out_rows` (no DB); (6) **`snapshot_db.upsert_live_rows(out_rows)`
+— the actual write: ONE `executemany` INSERT OR REPLACE covering the
+WHOLE matched universe in a single call, then one `commit()`**; (7)
+**`snapshot_db.prune_live_rows(ymd)` — a second, small, bounded DELETE +
+commit.** The lock releases in a `finally` right after step 7.
+
+**The critical, precise finding: `held_lock_ms` (measured median 122ms,
+121-140ms range, per the code's own 2026-08-23 comment) covers ALL SEVEN
+steps above — steps 1-5 (Python-only, no DB) plus steps 6-7 (the two
+actual DB writes). The code does NOT separately time steps 6-7 from 1-5.**
+This means: **the real SQLite write/commit duration is a currently-
+unmeasured SUBSET of 122ms, not the whole 122ms** — the bulk of that
+window is almost certainly the two O(n) Python passes over up to 3,745
+rows (`sanity_reason`/`derive_row`), not the two SQL statements, but this
+codebase does not itself distinguish them further. **Stating this
+limitation explicitly, per instruction:** neither the existing receipt
+fields nor the existing log line separate "Python compute time" from
+"SQLite write time" within a cycle — only their ORDER (compute always
+precedes both writes) and STRUCTURE (exactly 2 commits, always, never
+chunked/batched differently) are knowable from code alone.
+
+**Directly answers several of the owner's specific sub-questions:**
+- *Whether one run can overlap the next:* No — `screener_live_tier` is
+  registered with `max_instances=1` (confirmed, `main.py:1798-1801`), and
+  122ms << the 60s interval, so overlap is structurally near-impossible
+  absent a severe stall.
+- *Whether writes are idempotent:* Yes — `INSERT OR REPLACE` both times.
+- *Whether failures leave transactions open:* No — both writers use bare
+  `with _WRITE_LOCK, connect() as conn: ...; conn.commit()` (no explicit
+  `BEGIN`), so Python's own `with conn:` protocol rolls back automatically
+  on any exception; nothing is left dangling.
+- *Whether `_BUILD_LOCK` is what would cause reader contention:* **No —
+  important distinction.** `_BUILD_LOCK` is a pure Python
+  `threading.Lock()` that only serializes `screener_live_tier` against the
+  (rare, 03:00-ET-only) nightly builder and admin refresh — `run_scan`
+  (the READ path) never touches `_BUILD_LOCK` at all. If
+  `screener_live_tier`'s writes DO slow down scanner reads, the mechanism
+  would have to be pure SQLite/WAL-level (busy_timeout waits, checkpoint
+  stalls, OS page-cache churn from the write) — not this Python lock. Do
+  not conflate "held_lock_ms" with "time the reader could be blocked."
+
+**Section 3/4 (real-cycle observation) is DEFERRED, honestly, until
+Monday.** `screener_live_tier` is RTH-gated at the FIRST check inside
+`run_sweep()` — every cycle since deploy has hit the early-return
+`not_regular_session` path and done NONE of steps 1-7 above. Tonight's
+02:00-05:10 ET nightly window will NOT include a single real
+`screener_live_tier` execution (market stays closed) — this job's first
+real, non-skipped cycle, and therefore the first chance to observe actual
+overlap with scanner reads, is **Monday's regular session (~9:30 AM ET)**.
+This is stated plainly rather than implied — the between-window analysis
+above is the offline/code-level deepening the owner authorized in place of
+that; it is not a substitute for it.
+
+**Section 9 (other screener.db writers — same-model comparison) already
+covered by the prior report's writer-trace findings, not repeated here**:
+nightly builder (03:00 ET, ~20 chunked 200-row commits), scan-definition
+sweep (05:00 ET, 2 small commits per definition), screen_alerts (05:10 ET,
+2 connections per delivered alert, the one path NOT using `_WRITE_LOCK`),
+live scan sweep (`screener_scan_sweep_live`, confirmed unconditionally
+registered, explicit `BEGIN IMMEDIATE`/COMMIT per definition per cycle,
+pre-computed values only inside the transaction). All preserved from the
+prior section; cross-referenced, not re-derived.
+
+C1-C6 remain fully open. No implementation, no fix, no schedule change, no
+instrumentation change. Continuing natural observation toward tonight's
+nightly window (other writers, cross-DB darkpool/patterns candidates) and
+Monday's market open (the `screener_live_tier` correlation itself).
