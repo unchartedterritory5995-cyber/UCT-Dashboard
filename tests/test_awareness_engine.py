@@ -131,10 +131,10 @@ def test_collect_earnings_window_returns_earliest_date_per_symbol(monkeypatch):
     from api.services.awareness import engine as eng
 
     def fake_reporters(d_str):
-        return {"2026-07-02": {"AAPL"}, "2026-07-03": {"AAPL", "MSFT"}}[d_str]
+        return ({"2026-07-02": {"AAPL"}, "2026-07-03": {"AAPL", "MSFT"}}[d_str], True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     out = eng._collect_earnings_window(date(2026, 7, 2), 1)
     assert out == {"AAPL": "2026-07-02", "MSFT": "2026-07-03"}
@@ -148,10 +148,10 @@ def test_collect_earnings_window_is_memoized(monkeypatch):
 
     def fake_reporters(d_str):
         calls.append(d_str)
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     r1 = eng._collect_earnings_window(date(2026, 7, 2), 1)
     n_after_first = len(calls)
@@ -165,10 +165,16 @@ def test_collect_earnings_window_is_memoized(monkeypatch):
 # ── window-incomplete result for the full 1h TTL ────────────────────────────
 
 def test_collect_earnings_window_partial_day_failure_uses_short_memo_ttl(monkeypatch):
-    """One day's `_get_reporters_for_date` raises -- the resulting window is
-    missing that day's reporters. Must self-heal in minutes, not sit
-    memoized for a full hour (silencing R5 earnings-proximity awareness for
-    any symbol reporting on the failed day)."""
+    """One day's lookup reports a genuine source failure (ok=False) -- the
+    resulting window is missing that day's reporters. Must self-heal in
+    minutes, not sit memoized for a full hour (silencing R5 earnings-
+    proximity awareness for any symbol reporting on the failed day).
+
+    Uses (set(), False) rather than an actually-raised exception --
+    `_get_reporters_for_date_with_status` reports failure through its
+    return value, never by raising (S10, 2026-09-06). A test that instead
+    made the lookup raise would pass without ever exercising the real
+    production failure mode, exactly the gap this program exists to close."""
     import time as _time
     from api.services.awareness import engine as eng
 
@@ -176,11 +182,11 @@ def test_collect_earnings_window_partial_day_failure_uses_short_memo_ttl(monkeyp
 
     def fake_reporters(d_str):
         if d_str == "2026-07-03":
-            raise RuntimeError("Finnhub down")
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+            return (set(), False)
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     out = eng._collect_earnings_window(date(2026, 7, 2), 1)
     assert out == {"AAPL": "2026-07-02"}  # the day that DID resolve is still served
@@ -201,16 +207,39 @@ def test_collect_earnings_window_all_days_ok_uses_full_hour_memo_ttl(monkeypatch
     eng._reset_earnings_memo()
 
     def fake_reporters(d_str):
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     eng._collect_earnings_window(date(2026, 7, 2), 1)
 
     key = (date(2026, 7, 2).isoformat(), 1)
     _, _, was_partial = eng._EARNINGS_MEMO[key]
     assert was_partial is False
+    eng._reset_earnings_memo()
+
+
+def test_collect_earnings_window_all_sources_fail_marks_partial_with_empty_window(monkeypatch):
+    """Every day's lookup fails (ok=False everywhere) -- the window comes
+    back empty but MUST still be flagged partial so it retries in minutes,
+    not silently memoized as a genuinely quiet week for a full hour."""
+    from api.services.awareness import engine as eng
+
+    eng._reset_earnings_memo()
+
+    def fake_reporters(d_str):
+        return (set(), False)
+
+    monkeypatch.setattr(
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
+    )
+    out = eng._collect_earnings_window(date(2026, 7, 2), 1)
+    assert out == {}
+
+    key = (date(2026, 7, 2).isoformat(), 1)
+    _, _, was_partial = eng._EARNINGS_MEMO[key]
+    assert was_partial is True
     eng._reset_earnings_memo()
 
 

@@ -99,7 +99,13 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
     calendar days. Reuses calendar_alerts' per-date reporter lookup
     (calendar_weekly cache, Finnhub fallback) -- one call per day in the
     (small) window, never per-ticker. Memoized per (today, days) for
-    _EARNINGS_MEMO_TTL to bound Finnhub calls across scan cycles."""
+    _EARNINGS_MEMO_TTL to bound Finnhub calls across scan cycles.
+
+    Uses the `_with_status` sibling (not the plain lookup, which never
+    raises) so a real source failure on any day is distinguishable from a
+    genuinely quiet day -- S10, 2026-09-06. Without it `any_failed` could
+    never become True and the partial-TTL branch below was permanently
+    dead, even though it was already fully wired."""
     import time as _time
     key = (today.isoformat(), int(days))
     hit = _EARNINGS_MEMO.get(key)
@@ -110,7 +116,7 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
         if (now - fetched_at) < ttl:
             return dict(value)  # copy — callers must not mutate the cache
 
-    from api.services.calendar_alerts import _get_reporters_for_date
+    from api.services.calendar_alerts import _get_reporters_for_date_with_status
 
     out: dict[str, str] = {}
     any_failed = False
@@ -118,11 +124,13 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
         d = today + timedelta(days=offset)
         d_str = d.isoformat()
         try:
-            reporters = _get_reporters_for_date(d_str)
-        except Exception as e:  # noqa: BLE001
+            reporters, ok = _get_reporters_for_date_with_status(d_str)
+        except Exception as e:  # noqa: BLE001 -- defensive backstop
             _log.debug("[awareness] earnings lookup failed for %s: %s", d_str, e)
             any_failed = True
             continue
+        if not ok:
+            any_failed = True
         for sym in reporters:
             if sym not in out:  # keep the EARLIEST date per symbol
                 out[sym] = d_str
