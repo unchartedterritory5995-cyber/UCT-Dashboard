@@ -3235,3 +3235,163 @@ load manufactured; Tuesday 2026-09-08 RTH remains the next real evidence
 window. Per the owner's own Section 16, this closes the known
 anchor-timestamp defect-class series unless something new turns up
 incidentally.
+
+---
+
+## OWNER ACCEPTANCE — PENNANT FROZEN; DEFECT-CLASS SERIES CLOSED (Bull Flag,
+## Bear Flag, Pennant); CANONICAL FAMILY PROGRESSION RESUMED
+
+Owner accepted the Pennant package verbatim (classification: **PENNANT
+ANCHOR TIMESTAMP CORRECTION — OWNER TECHNICAL APPROVAL GRANTED**). Frozen:
+worktree `uct-dashboard-pennant-ts-fix`, branch `fix/pennant-anchor-timestamps`,
+HEAD `c68a57886`. The known anchor-timestamp defect-class series is now
+CLOSED for Bull Flag / Bear Flag / Pennant — no further broad sweep unless a
+new case appears incidentally during authorized work.
+
+**Correction accepted**: `uct-dashboard-peg-geometry` (branch
+`fix/peg-geometry-anchor-timestamps`, HEAD `40c8e578f`) is NOT a stray/
+unrelated worktree — it is the already-frozen **PEG GEOMETRY ANCHOR-TIMESTAMP
+CORRECTION** package, recorded earlier in this same checkpoint (see the
+"PEG GEOMETRY FIX — TECHNICALLY APPROVED, MERGE/DEPLOY HOLD" entry above).
+It was not re-reviewed and not touched.
+
+### Frozen-package inventory reconciled from actual state (worktrees +
+### continuity-checkpoint + local commits — not from an old count)
+
+1. Scan completeness / redeploy reliability — `uct-dashboard-scan-completeness`, `baf541526`
+2. PEG geometry anchor-timestamp correction — `uct-dashboard-peg-geometry`, `40c8e578f`
+3. `pattern_join.py` canonical persistence/serving gap — research-only, no code gap found, no dedicated worktree
+4. 8G-C admin-only canonical proof surface — `uct-dashboard-8gc-proof`, `400b537e0`
+5. VCP freshness-gate adjudication — `uct-dashboard-vcp-freshness`, closed, no code change
+6. Bullish Engulfing canonical adaptation (Package 8F) — `uct-dashboard-bullish-engulfing`, `43e5ca4dd`
+7. Bearish Engulfing canonical adaptation (Package 8G) — `uct-dashboard-bearish-engulfing`, `15d992f29`
+8. Bull Flag canonical adaptation (Package 8H) — `uct-dashboard-bull-flag`, `5a629be54`
+9. Bull Flag anchor-timestamp correction — `uct-dashboard-bull-flag-ts-fix`, `b3e2dc2b4`
+10. Bear Flag anchor-timestamp correction — `uct-dashboard-bear-flag-ts-fix`, `bb05a7332`
+11. Pennant anchor-timestamp correction — `uct-dashboard-pennant-ts-fix`, `c68a57886`
+
+Eleven frozen packages, all local, none merged/pushed/deployed. Nothing in
+this reconciliation pass touched any of them.
+
+### Remaining canonical family readiness ranking (Flat Base, Episodic Pivot,
+### VCP, Pullback-to-50-SMA) — grounded in current code, not the prior
+### 2026-09-06 readiness dossier alone
+
+Re-verified directly against each detector's own current file
+(`api/services/pattern_engine/detectors/uct/{flat_base,episodic_pivot,vcp,
+pullback_to_50sma}.py` on fresh `origin/master`) rather than trusting the
+dossier's Part 2 matrix wholesale:
+
+- **Flat Base** — 4 clean anchors (`prior_advance_low`, `base_start_high`,
+  `base_end_high`, `base_end_low`), ALL independently re-verified as real
+  bar timestamps (built from `bars[idx]["t"]` directly — no bar-index leak
+  of the Bull/Bear-Flag/Pennant kind). No per-family freshness gate. No
+  event concept. Full scoring symmetry with HTF/Bull Flag
+  (`compute_structure_quality`/`hl_result`/`ma_result`,
+  `_can_slim_score_adjustment`, `_dcr_score_adjustment` all present). Has
+  its own settled two-engines split vs `base_catalog.py`'s `flat-base`
+  structure (owner-decided 2026-08-31, rail-tested
+  `test_no_second_authority_across_axes.py`) — same shape as VCP's, not a
+  blocker. **Zero open questions.**
+- **Pullback-to-50-SMA** — no freshness gate, no event concept, but a
+  genuine geometry-completeness gap: only ONE anchor is emitted (current
+  SMA reading), not a real "touch bar ↔ current" pair — the same class of
+  disclosed-not-fixed gap as Bull Flag's own "pole never anchored" finding.
+- **VCP** — anchors are correct (real timestamps, no bar-index defect), but
+  variable-length (start + N contraction lows + pivot, 3–8 anchors
+  depending on contraction count) under `"shape": "trendline_pair"` — the
+  SAME shape string bull_flag/bear_flag/pennant use for a FIXED 4-anchor
+  contract. **New finding, incidental to this readiness check, reported
+  separately below** — not fixed, not blocking family selection since VCP
+  was not chosen. Settled 15-vs-60-bar age-gate split vs
+  `base_catalog.py`'s `VCP_MAX_AGE_BARS=60` reconfirmed as a genuine,
+  owner-ruled-off-limits distinct-semantics boundary (screener asks "still
+  in the base", pattern_engine asks "is the final contraction low recent"),
+  not to be normalized.
+- **Episodic Pivot** — cleanest anchors of the four (3, all real), own
+  freshness gate (`_MAX_EP_AGE=5`), but genuinely NO event-provenance field
+  anywhere in the file — closing this gap honestly would require either
+  shipping `event: unavailable` (safe, but doesn't close the gap the
+  2026-09-06 dossier flagged) or real new event-tracing infrastructure
+  (out of scope for a narrow adapter package per the owner's own Section 13
+  rule against manufacturing event provenance).
+
+**Selected: Flat Base** — the only one of the four with literally zero open
+questions (no completeness gap to disclose, no shape ambiguity, no
+provenance judgment call). Pullback-to-50-SMA is the closest second (one
+disclosed completeness gap); VCP and Episodic Pivot both carry real,
+non-trivial design surface (shape-contract mismatch; event-provenance
+scope decision) inappropriate for a "select and proceed now" package.
+
+**⚠️ Incidental finding, NOT acted on** — VCP's `"shape": "trendline_pair"`
+is the same shape string the flag/pennant families use for a fixed 2-line/
+4-anchor contract, but VCP's own anchor array is variable-length (a zigzag
+walk: start → each contraction low → pivot). `TrendlinePair.jsx` destructures
+`const [a, b, c, d] = anchors` unconditionally — a VCP detection with >2
+contractions would render two lines connecting semantically wrong points
+(not a safe silent-non-render like the anchor-timestamp bug; a worse
+failure mode, since it would draw something, just the wrong thing). Current
+blast radius is the SAME "strongly limited by the dead default-off
+`ChartToolbar.jsx` pattern toggle" classification already established for
+every other geometry finding this session — PatternOverlay is not reachable
+from the default UI state. Reported here per the owner's own "report
+incidental findings separately, don't fix, don't expand scope" instruction;
+not fixed, not part of the Flat Base package, no action taken.
+
+### FLAT BASE CANONICAL ADAPTATION — PACKAGE 8I (2026-09-06)
+
+Worktree `uct-dashboard-flat-base`, branch `feat/canonical-flat-base`, fresh
+base `origin/master@47df3a902`, committed `5e86d5418`.
+
+**`adapt_flat_base()`**: minimal shape (eligibility + labeled geometry
+only), mirroring the already-proven HTF/Bull Flag adapter almost verbatim —
+independently re-verified this is the correct shape from `flat_base.py`'s
+own current code (no per-family freshness gate, no event concept), not
+assumed from HTF's precedent. `event`/`criteria`/`gate_trace` deliberately
+absent. Anchor roles: `prior_advance_low`, `base_start_high`,
+`base_end_high`, `base_end_low`, semantic_subtype `base_and_pivot` — all 4
+independently re-verified as real bar timestamps against
+`_build_detection`'s actual anchor order (no anchor-timestamp defect in
+this family at all).
+
+**Two-engines boundary explicitly preserved, not touched**: `flat_base.py`'s
+own header STOP comment records a real, owner-decided (2026-08-31) split
+with `base_catalog.py`'s parallel `flat-base` structure (identity vs
+where-to-enter authority, rail-tested
+`tests/test_no_second_authority_across_axes.py`). This adapter does not
+reconcile it, add `criteria`/`gate_trace` to paper over it, or touch either
+engine.
+
+**explanation_builder.py**: Flat Base added to `_IN_SCOPE_FAMILIES` (now
+three: HTF, PEG, Flat Base). `_flat_base_why_it_matched_facts` reads
+`prior_advance_pct`/`base_depth_pct`/`volume_contraction_pct` from
+`geometry.extras`, each citing the detector's own real threshold constant
+(`_MIN_PRIOR_ADVANCE`, `_MAX_BASE_DEPTH`, `_MAX_VOL_LATTER_RATIO`). Added to
+`_FAMILY_CONTEXT_FNS` (`_dcr_score_adjustment`/`_can_slim_score_adjustment`,
+confirmed present and same-shape as HTF's) and `_FAMILY_PHRASE_FNS`
+(confirmed single-arg `context`-only signatures matching HTF's shape, not
+the bidirectional flag families' `(context, direction)` shape).
+
+**Tests added**: extended `test_canonical_adapter.py` (parity, event/
+criteria/gate_trace omission, eligibility shape, eligible-false-outside-
+window, non-mutation, anchor-role/order verification against real fixture
+geometry, scanner-summary status/eligibility separation) and
+`test_explanation_builder.py` (why-it-matched facts against real geometry
+extras, no event section, warnings disclose the absent sections) mirroring
+HTF's own test shape exactly — both existing files extended in place, per
+this program's own established convention (Bull Flag did the same).
+
+**Regression**: targeted (331 passed). Full `tests/pattern_engine/`: 2716
+passed, 9 xfailed (same pre-existing xfails as every prior package this
+session). Two-engines rail re-run standalone: 23 passed, 1 failed — the
+same pre-existing, unrelated `test_the_shipped_thresholds_have_not_moved`
+drift, confirmed unrelated (zero touches to `base_catalog.py`/Trend-Template
+files in this worktree).
+
+**Verdict: FLAT BASE CANONICAL ADAPTATION COMPLETE LOCALLY — READY FOR
+OWNER REVIEW.**
+
+**Frozen, no merge/deploy.** Twelve packages now frozen total (pending this
+one's acceptance). 8G-B observation cadence uninterrupted throughout — no
+diagnostic touched, no load manufactured; Tuesday 2026-09-08 RTH remains the
+next real evidence window.
