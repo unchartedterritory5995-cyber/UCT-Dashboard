@@ -6,7 +6,8 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Identity Normalization Hardening V1 merge/deploy/production-verification).
+Technical Ask AI — Grounding + Convergence V1 Phase A, BLOCKED on Pattern
+Vision acceptance -- zero product-code changes made).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -31,13 +32,24 @@ Convergence V1** → **#3 (closed) Search/Command Convergence V1** → **#4
 (closed) Event/News/Calendar → Research convergence V1** → **#5 (just
 closed) Identity normalization hardening V1** (write-time symbol
 canonicalization + Compare self-exclusion — see "CURRENT ACCEPTED" below for
-what actually closed vs. what remains open debt) → **#6 Technical Ask AI**
-(next candidate as of this checkpoint — Pattern Vision has NOT yet reached
-LIVE + ACCEPTED, so Technical Research release has not interrupted the queue;
-re-check `railway variables --service web --kv` and the "CURRENT LIVE
-OBSERVATION" section before assuming this is still current) → #7 one shared
+what actually closed vs. what remains open debt) → **#6 Technical Ask AI —
+Phase A run 2026-09-06, BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (a full 9th-
+domain implementation is fully specified and buildable today, but its sole
+trustworthy evidence source -- Pattern Vision confirmed verdicts -- is under
+the SAME live, in-flight, time-boxed acceptance trial gating Technical
+Research release above; see "CURRENT PARKED" below for the complete,
+ready-to-resume Phase A spec — do NOT re-run Phase A from scratch once
+Pattern Vision clears, resume from that spec) → #7 one shared
 multi-security grounding architecture for Comparison/Watchlist/Portfolio AI
 (do not build three separate systems).
+
+**Both #1 (Technical Research release) and #6 (Technical Ask AI) are now
+gated on the identical event** — Pattern Vision's classification, due after
+the Tue 9/8 / Wed 9/9 evidence window. When it resolves to LIVE + ACCEPTED or
+LIVE WITH CONDITIONS, both become eligible simultaneously; neither requires
+the other to ship first (confirmed independent by Technical Ask AI's Phase A
+dependency investigation — the parked Technical Research branch adds zero
+backend code and shares no contract with a Technical Ask AI composer).
 
 ## North star (do not lose this)
 
@@ -651,6 +663,85 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `feat/s7-stage4-5-filing-watch-ui`, HEAD `01a89834771e6b0c3c5b7177ba93640c03c5d466`.
   Implemented + tested, NOT deployed. Do not reconcile until S7 Stage 2 closes
   naturally and release is explicitly authorized.
+- **Technical Ask AI — Grounding + Convergence V1, Phase A ONLY (2026-09-06,
+  worktree `technical-ask-ai`, branch `feat/technical-ask-ai`, base
+  `2940f557b` — ZERO product-code changes made; a 3-agent Workflow audit +
+  synthesis only).** BLOCKED_ON_PATTERN_VISION_ACCEPTANCE. Full spec below —
+  resume implementation FROM THIS, do not re-run Phase A.
+  - **What's cleared, definitively:** the parked `feat/terminal-technical-
+    convergence` branch (Technical Research, `6555d6df5`) is NOT a dependency
+    — `git diff` against its own merge-base (== current master) is EMPTY for
+    the entire `api/` tree; it adds zero backend code, only a UI tab
+    re-consuming the already-shipped, unmodified `GET /api/patterns/{sym}`.
+    The real integration surface for Technical Ask AI —
+    `api/services/ticker_explain.py`'s 8-composer grounding architecture —
+    is completely untouched by that branch and shares no schema with it.
+    **Both #1 (Technical Research release) and #6 (Technical Ask AI) are
+    gated on the SAME event (Pattern Vision acceptance) but are otherwise
+    fully independent — releasing one never requires the other.**
+  - **What's blocking:** the only trustworthy technical evidence source for
+    an AI grounding domain is `pattern_vision.store.get_confirmed()`
+    (confirmed pattern verdicts) — structurally sound (a hard SQL predicate
+    on a `confirmed` column, no leak path from the raw feed found), but
+    Pattern Vision itself is mid a live, time-boxed re-enablement (retired
+    2026-08-30 at 15.7% precision, re-armed, classification due after the
+    Tue 9/8 / Wed 9/9 evidence window: LIVE+ACCEPTED / LIVE WITH CONDITIONS /
+    ROLLED BACK). The raw/unconfirmed feed (`confirmed_only=false`,
+    ~16%-precision) is explicitly NOT TRUSTWORTHY and excluded from any V1.
+  - **The fully-specified V1 (buildable NOW, activate only after 9/9
+    resolves favorably):** a 9th evidence domain, "technical," in
+    `ticker_explain.py`, sourced ONLY from confirmed pattern verdicts
+    (`setup`, `asof_date`, `vision_confidence`, `raw_confidence`, `key_level`,
+    `rationale`, `checks`) — mirrors the `earnings_ai_adapter.py` precedent
+    exactly:
+    - New `api/services/research/technical_pattern_adapter.py` exposing
+      `get_technical_pattern_ai_evidence(sym, tf="D")` — the ONE
+      owner-approved composer allowed to call `pattern_vision.store`; adds a
+      staleness disclosure computed from `asof_date` (the store itself
+      applies ZERO staleness filter — no age cutoff, no LIMIT — so a
+      months-old confirmed row returns exactly like a fresh one unless this
+      adapter filters/discloses it).
+    - New fetcher `_fetch_technical(sym)` + assembler `_technical_evidence()`
+      (mirrors `_fetch_earnings`/earnings assembler) registered in
+      `_DOMAIN_FETCHERS`.
+    - New `_DOMAIN_RE["technical"]` regex entry + one append to
+      `_DOMAIN_ORDER` (both already domain-name-generic elsewhere in the
+      file — no other code changes needed for history/truncation/carry-
+      forward).
+    - New guard `_technical_grounding_flags()`: a raw_confidence-vs-vision_
+      confidence misread guard (they are different numbers on the same row
+      and nothing stops the model conflating them), a staleness-overclaim
+      guard (block "forming right now" language when `asof_date` isn't
+      recent), reuse of the existing evidence-id/numeric gate for
+      `key_level` citations.
+    - New system-prompt block mirroring the rating/earnings blocks:
+      "no confirmed pattern" must render as "no UCT-confirmed occurrence
+      available," NEVER as proof the pattern doesn't exist (rejected
+      verdicts are a real, stored, distinct state — `confirmed=0` with a
+      real rationale — but NO non-admin read path exposes them today, so
+      that ambiguity is a genuine, un-closeable-by-V1 gap, not an oversight).
+    - Ship behind a new default-off, ledger-declared flag (e.g.
+      `TECHNICAL_ASK_AI_PATTERN_DOMAIN_ENABLED`); flip on only after 9/9
+      resolves to LIVE+ACCEPTED or LIVE WITH CONDITIONS.
+    - **Explicitly OUT of this V1:** non-pattern technical indicators
+      (SMA/RSI/RS-rank/Stage — real, already live and already grounding AI
+      *Search* via `ai_search.py::_ctx_posture`, but structurally absent
+      from `ticker_explain.py`'s domain architecture; would need its own new
+      fetcher/assembler plus a freshness fix — a real 10th-domain follow-on,
+      not part of the smallest safe slice); the raw/unconfirmed feed; full
+      entry/stop/target anchor sets (only exist on the raw table); rejected-
+      verdict surfacing; any UI change; the parked Technical Research branch.
+  - **New production-adjacent findings this Phase A surfaced (see Seams
+    23-25 below)** — none caused by this program (zero code changed), but
+    real, current-state facts worth preserving: AI Search's `_ctx_patterns`
+    unconditionally narrates the raw ~16%-precision feed into live answers
+    today (Seam 23); rejected Vision verdicts have no non-admin read path
+    (Seam 24); `_ctx_posture`'s technical snapshot exposes no freshness
+    marker despite the underlying columns existing (Seam 25).
+  - Per-domain investigation detail (regex patterns, exact line numbers,
+    the full trust matrix, the eighth-domain-precedent code shape) lives in
+    this session's Workflow transcript, task `w0eic26xo`, if deeper recall
+    is ever needed before a fresh audit would otherwise be re-run.
 
 ## CURRENT WAITING ON EXTERNAL EVENT
 
@@ -670,21 +761,26 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Identity Normalization
-  Hardening V1 (the prior active program) is now ACCEPTED + LIVE — see
-  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
-  that program's authorization ("Then STOP. Do NOT automatically begin
-  Technical Ask AI or Technical Research release."), no next Terminal
-  program has been automatically begun. **Per the 2026-09-06 Strategic
-  Re-Anchor above, the next candidate in the stated priority stack is #6 —
-  Technical Ask AI — unless Pattern Vision reaches LIVE + ACCEPTED first
-  (which makes Technical Research release the immediate #1 interrupt; NOT
-  yet true as of this checkpoint — classification is not due until after the
-  Tue 9/8 / Wed 9/9 two-session evidence window) or a genuine S7 NVDA filing
-  event fires.** Either way, the next Terminal program still requires a new,
-  explicit owner authorization — do not self-start any program from this
-  pointer alone. Do not infer a program from the "NEWLY IDENTIFIED DEBT" or
-  "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
+- **None — requires new explicit authorization.** Technical Ask AI —
+  Grounding + Convergence V1 (the prior active program) ran its Phase A audit
+  2026-09-06 and returned **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** — see
+  "CURRENT PARKED" above for the complete, ready-to-resume spec. Per the
+  authorization's own Section XXII ("If blocked: make ZERO production-code
+  changes... Do not bypass the gate"), NO code was written — the worktree
+  `technical-ask-ai` has zero diff against its base. Per the owner's explicit
+  closing instruction on that program's authorization ("Do NOT automatically
+  begin Shared Multi-Security Grounding"), no next Terminal program has been
+  automatically begun. **Per the 2026-09-06 Strategic Re-Anchor above, both
+  #1 (Technical Research release) and #6 (Technical Ask AI, now fully specced
+  and merely waiting) share the identical release trigger — Pattern Vision
+  reaching LIVE + ACCEPTED or LIVE WITH CONDITIONS, due after the Tue 9/8 /
+  Wed 9/9 evidence window (NOT yet true as of this checkpoint) — or a genuine
+  S7 NVDA filing event fires.** Either way, resuming EITHER program still
+  requires a new, explicit owner authorization — do not self-start from this
+  pointer alone, and do not re-run Technical Ask AI's Phase A from scratch;
+  resume from the spec recorded under "CURRENT PARKED" above. Do not infer a
+  program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below, nor
+  from Attention Signal Propagation V1's own
   explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
   TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
   Return-to-Research Consistency V1's own deferred families
@@ -1043,6 +1139,51 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   reuse; explicitly out of scope for any bounded V1 until a specific member
   workflow demands it.
 
+- **Seam 23 — AI Search narrates the RAW, unconfirmed (~16%-precision)
+  pattern feed into live answers unconditionally (surfaced by Technical Ask
+  AI's Phase A, 2026-09-06, NOT fixed, pre-existing and already live in
+  production -- not caused or worsened by this program, which made zero code
+  changes).** `api/routers/ai_search.py::_ctx_patterns()` (~808-816) is
+  called for the first two resolved symbols in EVERY AI Search answer,
+  unconditionally (not intent-gated), and reads
+  `pattern_engine.memory.get_active_detections()` -- the SAME raw rule-engine
+  table `confirmed_only=false` reads, the exact feed whose universe-wide page
+  was retired 2026-08-26 for its 16% Opus-confirmation rate. It never touches
+  `pattern_vision.store` at all. A member asking AI Search about "active
+  setups" today is receiving unconfirmed geometry narrated as fact, with no
+  disclosure that Vision was never consulted. Fix shape: either gate
+  `_ctx_patterns` behind the same confirmed-only trust standard Technical Ask
+  AI V1 will use, or add an explicit "unconfirmed, not vision-reviewed"
+  disclosure to its narration -- real product-trust work, independent of
+  whether/when Technical Ask AI itself ships.
+- **Seam 24 — Rejected Pattern Vision verdicts have no non-admin read path
+  (surfaced by Technical Ask AI's Phase A, 2026-09-06, NOT fixed, explicitly
+  out of V1 scope).** `pattern_verdicts` rows with `confirmed=0` are real,
+  stored, and carry a genuine Opus rationale (`store.get_verdict`/
+  `get_recent_verdicts`) -- rejection is a distinct, inspectable state from
+  "never evaluated." But only the admin review surface
+  (`GET /api/patterns/admin/review`) can read it; `/api/patterns/{sym}` and
+  `/api/patterns/confirmed/{sym}` both hard-filter `confirmed=1`. This means
+  any future Ask AI grounding on confirmed verdicts can only ever say "no
+  confirmed occurrence available" -- genuinely ambiguous between "never
+  looked" and "looked and said no" -- until a new, paid-safe read of
+  `get_verdict`/`get_recent_verdicts` is added. Fix shape: a new read-only,
+  paid-gated endpoint exposing rejection + rationale by symbol; real V2 work
+  for Technical Ask AI, not V1.
+- **Seam 25 — the nightly technical snapshot AI Search already grounds on
+  carries no freshness disclosure to the model (surfaced by Technical Ask
+  AI's Phase A, 2026-09-06, NOT fixed).** `screener_rows` (via
+  `snapshot_db.get_row`) has real freshness columns (`snapshot_date`,
+  `bars_asof`, `built_at`), but `ai_search.py::_ctx_posture()` -- the
+  function that actually surfaces SMA%/RSI/RS-rank/Stage/etc. into an AI
+  Search answer -- renders none of them, labeling the whole block only "UCT
+  nightly snapshot." If the nightly build job ever fails silently, the model
+  (and the member) has no way to know the data is stale. Fix shape: thread
+  `built_at`/`bars_asof` into `_ctx_posture`'s rendered string, mirroring how
+  Pattern Vision's `asof_date`/`judged_at` are at least present (even though
+  currently unfiltered -- see the Technical Ask AI Phase A spec under
+  "CURRENT PARKED" above) on confirmed verdicts.
+
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
 - Technical grounded Ask AI (Phase C)
@@ -1122,14 +1263,16 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Freshness Propagation, Attention Source-Integrity Hardening, Awareness
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
    Convergence, Search / Command Convergence, Event / News / Calendar →
-   Research Convergence, Identity Normalization Hardening, or the
-   Whole-Product Convergence Review from scratch — their findings above are
-   current as of this checkpoint; verify against live code only where
-   something here looks stale.
+   Research Convergence, Identity Normalization Hardening, Technical Ask AI,
+   or the Whole-Product Convergence Review from scratch — their findings
+   above are current as of this checkpoint (Technical Ask AI's full Phase A
+   spec is under "CURRENT PARKED" — resume from it once unblocked, do not
+   re-audit); verify against live code only where something here looks stale.
 7. **No Terminal program is currently authorized.** Per the 2026-09-06
-   Strategic Re-Anchor at the top of this file, the stated next candidate is
-   #6 — Technical Ask AI — unless Pattern Vision reaches LIVE + ACCEPTED
-   first (Technical Research release becomes the immediate #1 interrupt; NOT
-   yet true as of this checkpoint) or S7 fires — but do not begin
-   implementation of ANY candidate, including that one, without a new,
+   Strategic Re-Anchor at the top of this file, BOTH Technical Research
+   release (#1) and Technical Ask AI (#6, Phase A complete, fully specced,
+   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE) are waiting on the identical trigger
+   — Pattern Vision reaching LIVE + ACCEPTED or LIVE WITH CONDITIONS (NOT yet
+   true as of this checkpoint) — or S7 fires — but do not begin
+   implementation of EITHER, or any other candidate, without a new,
    explicit owner authorization naming the program.
