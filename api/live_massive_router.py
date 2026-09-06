@@ -560,17 +560,23 @@ def _qualifies_curated(alert: dict, thresholds: dict,
     if tier == "algo":
         return False
 
-    # Ask Accumulation: own path, evaluated BEFORE the hide_sizeless / hide_block_only
-    # heuristics. The tier is assigned in _derive_alert_name ONLY after the contract's
-    # SESSION ask aggregate crossed the floor and passed the near-money + contract-
-    # level conviction gates — it is a proven block+SWEEP build, so the lone-block
-    # filter must not hide its (often BLOCK) anchor row, and it is never direction-
-    # unconfirmed. Require only a real direction. Its floor is an ASK-only session
-    # aggregate that contract_totals (all-side, this scan's rows) can't reconstruct,
-    # so re-checking a premium floor here would use the wrong basis and wrongly reject
-    # it. (Was below hide_block_only until 2026-09-05, which HID the PPTA block anchor
+    # Ask Accumulation AND Alpha LEAPS: own path, evaluated BEFORE the hide_sizeless /
+    # hide_block_only heuristics. Both are AGGREGATE tiers — assigned in
+    # _derive_alert_name ONLY after the contract's SESSION ask aggregate crossed the
+    # floor ($1M / $3M) and passed the near-money + conviction gates — so they are
+    # proven block+SWEEP builds: the lone-block filter must not hide the (often BLOCK)
+    # anchor row, and they are never direction-unconfirmed. Require only a real
+    # direction. Their floor is an ASK-only session aggregate that contract_totals
+    # (all-side, this scan's rows) can't reconstruct, so re-checking a premium floor
+    # here would use the wrong basis and wrongly reject it.
+    #   ⚠️ alpha_leaps was NOT listed here (only ask_accum) until 2026-09-05 — so it
+    #   fell through to the `tier not in (...)` reject below and was DROPPED from the
+    #   Curated feed entirely. Since curated defaults ON, Alpha LEAPS builds (e.g. the
+    #   IREN 65C 3/19/27 $7.07M) were invisible in the default view since the tier
+    #   launched (2026-08-11). ask_accum worked only because it had this own-path.
+    # (Was below hide_block_only until 2026-09-05, which HID the PPTA block anchor
     # because the contract_types map didn't register its blank-side sweeps.)
-    if tier == "ask_accum":
+    if tier in ("ask_accum", "alpha_leaps"):
         return not alert.get("_directionUnconfirmed")
 
     # Optional (2026-07-21): hide direction-unconfirmed "UCT Size" (keep-as-Size)
