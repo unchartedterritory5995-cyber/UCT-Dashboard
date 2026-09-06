@@ -9,13 +9,15 @@
  * Hosts the "Tell me about this trade" Compass review surface.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import CaptureMenu from './CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
+import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
@@ -32,6 +34,87 @@ function tradeChartWindow(trade) {
   const fromMs = entry - 5 * DAY_SECONDS * 1000
   const toMs = (Number.isFinite(exit) ? exit : entry) + 5 * DAY_SECONDS * 1000
   return { from: Math.floor(fromMs / 1000), to: Math.floor(toMs / 1000) }
+}
+
+const _menuItemStyle = {
+  display: 'flex', alignItems: 'center', width: '100%',
+  padding: '7px 12px', background: 'none', border: 'none',
+  color: 'var(--text-bright)', fontSize: 12, textAlign: 'left', cursor: 'pointer',
+}
+
+/**
+ * Compact header trigger — Full Research / Ask AI / Compare for this trade's
+ * symbol, opening a small local dropdown rather than three more icon buttons
+ * beside Save-to-Notebook/Close. Same canonical /research/:sym contracts as
+ * TickerPopup's goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91);
+ * Compare reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
+ */
+function TradeResearchTrigger({ symbol }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  if (!symbol) return null
+
+  const close = () => { setOpen(false); setShowCompare(false) }
+  const goToResearch = () => { navigate(`/research/${symbol}`); close() }
+  const goToAskAi = () => { navigate(`/research/${symbol}?section=ai`); close() }
+  const goToCompare = (comparator) => { navigate(`/research/${symbol}/compare/${comparator.toUpperCase()}`); close() }
+
+  return (
+    <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Research actions"
+        title="Full Research / Ask AI / Compare"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          background: 'transparent', border: 'none',
+          color: 'var(--text-muted)', cursor: 'pointer',
+          lineHeight: 1, padding: '2px 6px', display: 'flex', alignItems: 'center',
+        }}
+      >
+        <UIcon name="book" size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute', top: '100%', right: 0, zIndex: 20, minWidth: 190,
+            background: 'var(--bg-surface, #161b22)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '6px 0', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <button type="button" style={_menuItemStyle} onClick={goToResearch}>
+            <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+          </button>
+          <button type="button" style={_menuItemStyle} onClick={goToAskAi}>
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+          </button>
+          {!showCompare ? (
+            <button type="button" style={_menuItemStyle} onClick={() => setShowCompare(true)}>
+              <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {symbol} with...
+            </button>
+          ) : (
+            <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  )
 }
 
 const _excFetcher = (url) =>
@@ -156,6 +239,7 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
             >
               <UIcon name="journal" size={16} />
             </button>
+            <TradeResearchTrigger symbol={trade.symbol} />
             <button
               type="button"
               onClick={onClose}

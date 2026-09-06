@@ -58,6 +58,29 @@
   text-align: right;
 }
 
+/* ── Cross-link actions (Full Research / Ask AI / Compare) ────────────── */
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border, #2a2a2e);
+  background: var(--surface-1, #101013);
+  color: var(--text, #e8e6e1);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+}
+
+.actionBtn:hover { border-color: var(--accent, #dcbb5e); }
+
 .price {
   font-size: 26px;
   font-weight: 800;

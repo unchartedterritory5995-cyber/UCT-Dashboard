@@ -16,6 +16,16 @@ vi.mock('../../hooks/useTickerTweets', () => ({ default: () => ({ data: [] }) })
 // so stubbing it here still covers the pane's inner chart.
 vi.mock('../StockChart', () => ({ default: () => <div data-testid="stock-chart" /> }))
 vi.mock('../voice/CompassAssistButton', () => ({ default: ({ label }) => <button>{label}</button> }))
+// The canonical SymbolSearch component has its own dedicated coverage
+// elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
+// action can be exercised without its real dropdown/fetch machinery. The
+// stub deliberately hands back a LOWERCASE comparator so these tests pin
+// the sheet's own uppercasing, not SymbolSearch's.
+vi.mock('../chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+  ),
+}))
 
 import { TickerHubProvider, useTickerHub } from './TickerHubContext'
 import TickerHubSheet from './TickerHubSheet'
@@ -92,6 +102,23 @@ test('Ask AI action navigates to the same route with ?section=ai, never a second
   fireEvent.click(screen.getByText('open AAPL'))
   fireEvent.click(screen.getByText('Ask AI'))
   expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+})
+
+test('Compare action reveals the "+ Compare" symbol picker', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  expect(screen.getByRole('button', { name: '+ Compare' })).toBeInTheDocument()
+})
+
+test('picking a comparator navigates to the exact canonical compare route (uppercased) and closes the sheet', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+  // Sheet closes after navigating — same go() helper Research/Ask AI use.
+  expect(screen.queryByText('AAPL')).toBeNull()
 })
 
 test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form, unconverted', () => {
