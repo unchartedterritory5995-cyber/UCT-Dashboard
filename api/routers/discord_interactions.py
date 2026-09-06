@@ -174,16 +174,32 @@ def _flow_window_phrase(w: dict) -> str:
     return f"last {req} trading days" if req and req != "1" else "today"
 
 
+def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -> tuple[bool, str]:
+    """POST a PNG to a Discord webhook (public, in the webhook's channel). No
+    username override → the message uses the webhook's own name + avatar. Returns
+    (ok, detail); never raises."""
+    try:
+        import httpx
+        payload = {"content": content[:1900], "allowed_mentions": {"parse": []}}
+        r = httpx.post(webhook, data={"payload_json": json.dumps(payload)},
+                       files={"files[0]": (filename, png, "image/png")}, timeout=20.0)
+        return (r.is_success, f"discord {r.status_code}")
+    except Exception as e:  # noqa: BLE001
+        return (False, f"post error: {e}")
+
+
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
-                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
-    """Background job for /flow: fetch the ticker's flow summary from the
-    FLOW-WORKER (which owns flow.db), render the card, and PATCH it onto the
-    deferred PUBLIC reply. Never raises (a background job must not) — a data
-    error or empty window edits an honest note instead of a false zero, the same
-    ethic as the Search tab's reconnecting state."""
+                      *, fetch_fn=None, render_fn=None, edit_fn=None, post_fn=None) -> None:
+    """Background job for /flow. Fetch the ticker's flow summary from the
+    FLOW-WORKER (which owns flow.db), render the card, and POST it PUBLICLY to the
+    channel via FLOW_CMD_WEBHOOK_URL (the bot has no post rights in that channel —
+    the webhook does). The interaction reply is the requester's PRIVATE ack, edited
+    to a confirmation / honest error. Never raises (a background job must not); an
+    empty or errored read stays private (no false zero in the public channel)."""
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
-    edit = edit_fn or di.edit_original
+    ack = edit_fn or di.edit_original            # edits the EPHEMERAL ack (requester-only)
+    post = post_fn or _post_image_webhook        # posts the PUBLIC card to the channel
     data = None
     try:
         if fetch_fn is not None:
@@ -197,20 +213,19 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
                               timeout=30.0)
                 data = r.json() if r.is_success else None
             else:
-                # Single-service / local fallback: compute in-process.
-                from api import live_massive_router as lmr
+                from api import live_massive_router as lmr   # single-service fallback
                 data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
         data = None
 
     if not data or not data.get("ok"):
-        edit(app_id, token,
-             content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
+        ack(app_id, token,
+            content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
         return
     win = _flow_window_phrase(data.get("window") or {})
     if not (data.get("contracts") or []):
-        edit(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
+        ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
         return
     net = data.get("net") or {}
     header = (f"**{ticker} Flow** · {win} · net {net.get('dir', '')} "
@@ -219,9 +234,20 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
-        edit(app_id, token, content=header)   # numbers still land, just no image
+        ack(app_id, token, content="Couldn't render the card — try again in a moment.")
         return
-    edit(app_id, token, content=header, png=png, filename=f"{ticker}_flow.png")
+    webhook = (os.environ.get("FLOW_CMD_WEBHOOK_URL") or "").strip()
+    if not webhook:
+        # No channel webhook configured → fall back to a bot post (works only where
+        # the bot itself can attach files). Better than nothing in a dev server.
+        di.edit_original(app_id, token, content=header, png=png, filename=f"{ticker}_flow.png")
+        return
+    ok, detail = post(webhook, png, header, f"{ticker}_flow.png")
+    if ok:
+        ack(app_id, token, content=f"✓ Posted **{ticker}** flow to the channel.")
+    else:
+        log.warning("[flow] webhook post failed %s: %s", ticker, detail)
+        ack(app_id, token, content=f"Couldn't post the card right now ({detail}). Try again in a moment.")
 
 
 def breadth_adjust(req, prefs: dict):
@@ -398,7 +424,11 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(run_flow_card_job, app_id, token, tkr, days)
-        return {"type": 5}   # PUBLIC deferred reply — the card posts in-channel
+        # EPHEMERAL defer: the requester gets a private "thinking…" that resolves to a
+        # confirmation; the PUBLIC card is posted to the channel via FLOW_CMD_WEBHOOK_URL
+        # (the bot has no post rights in that channel). Flags go on the DEFER, not the
+        # follow-up (Discord fixes visibility at defer time).
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
