@@ -6,7 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-AI Search Raw-Pattern Trust Adjudication V1 merge/deploy/production-
+Shared Multi-Security Grounding Architecture V1 merge/deploy/production-
 verification -- a continuous-execution program under the owner's 2026-09-06
 CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
 
@@ -40,9 +40,12 @@ trustworthy evidence source -- Pattern Vision confirmed verdicts -- is under
 the SAME live, in-flight, time-boxed acceptance trial gating Technical
 Research release above; see "CURRENT PARKED" below for the complete,
 ready-to-resume Phase A spec — do NOT re-run Phase A from scratch once
-Pattern Vision clears, resume from that spec) → #7 one shared
-multi-security grounding architecture for Comparison/Watchlist/Portfolio AI
-(do not build three separate systems).
+Pattern Vision clears, resume from that spec) → **#7 (just closed) Shared
+Multi-Security Grounding Architecture V1** — the Comparison leg only
+(cross-security grounded AI on top of the already-accepted Comparison V1
+contract); Watchlist/Portfolio multi-security AI remain explicitly
+deferred, each needing its own new grounding contract (see "CURRENT
+ACCEPTED" below for what shipped and DEFERRED for what didn't).
 
 **Both #1 (Technical Research release) and #6 (Technical Ask AI) are now
 gated on the identical event** — Pattern Vision's classification, due after
@@ -76,9 +79,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `d46f35a6820250b8cb2f701c5a9dbb85e79e2711`
-  (Event / News / Calendar → Research Convergence V1 merge — this file's own
-  update is a docs-only branch cut fresh from this SHA; drift since then is
+- **origin/master (last verified):** `4c8b24c743a40aa3ef1a68641c0b64f800495906`
+  (Shared Multi-Security Grounding Architecture V1 merge — this file's own
+  update is a docs-only blob-swap on top of this SHA; drift since then is
   unrelated concurrent work — re-check overlap before trusting this SHA is
   still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -683,6 +686,95 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   touched, no promotion into this or any other member-facing role); the
   parked Technical Research/Technical Ask AI specs (unrelated, both still
   wait on the same Pattern Vision gate).
+- **Shared Multi-Security Grounding Architecture V1 (#7, Comparison leg)** —
+  IMPLEMENTED + ACCEPTED + LIVE, merge `271f79664` (code) /
+  `4c8b24c743a40aa3ef1a68641c0b64f800495906` (merge-to-master), deployed +
+  production-verified 2026-09-06. Phase A verdict READY_WITH_CONDITIONS
+  (2 parallel investigation agents + synthesis). Ships the SMALLEST
+  trustworthy step from single-security grounded Ask AI to a genuine
+  multi-security answer: exactly TWO member-chosen securities, built
+  entirely on the already-accepted deterministic Comparison V1 contract
+  (`comparison.get_comparison`) as the SOLE evidence source — never a
+  second independent fetch, so the AI can never cite a number that
+  disagrees with what the deterministic `/research/:sym/compare/:comparator`
+  page shows for the same two securities.
+  - New file `api/services/research/comparison_ai_adapter.py`:
+    `build_comparison_evidence(sym_a, sym_b)` flattens `get_comparison()`'s
+    fundamentals/ratings/analyst/estimates legs into citable evidence items
+    tagged with the real `sym`/`side` ("a"/"b") each belongs to (ids stamped
+    centrally, mirroring `ticker_explain._build_evidence`'s own `f"E{i}"`
+    loop). `explain_comparison(sym_a, sym_b, question)` reuses
+    `ticker_explain.py`'s `_grounding_flags` (evidence-id validity, numeric
+    grounding, decisive-language ban, cross-fact consistency), `_RESPONSE_
+    STATES`, `_wrap_evidence_block`, and `_get_client` UNCHANGED (confirmed
+    safe: the two single-security-only domain-specific extensions inside
+    `_grounding_flags` — `_rating_grounding_flags`/`_earnings_grounding_
+    flags` — gate strictly on a `rating_field`/`earnings_field` key this
+    adapter's evidence items never set, so both remain a correct no-op here
+    exactly as they are for the six other pre-existing single-security
+    domains). A NEW comparison-specific system prompt + `COMPARISON_SCHEMA`
+    were required (NOT ticker_explain.py's `_SYSTEM_PROMPT`/`EXPLAIN_
+    SCHEMA` reused verbatim) — that prompt explicitly frames "explaining
+    ONE security" and carries Composite-Rating/Earnings-Events rules for
+    domains this adapter never fetches, so reusing it would have been
+    actively wrong, not merely unnecessary.
+  - **The one genuinely new grounding mechanism:** `COMPARISON_SCHEMA`
+    requires a `sym` field on every `key_facts` item (vs. `EXPLAIN_SCHEMA`'s
+    `statement`/`evidence_id` only), and a new `_attribution_flags` check
+    mechanically verifies it matches the REAL `sym` tag on the cited
+    evidence item — the same "verify the machine-checkable field, never
+    trust the free text to be self-consistent" idiom the Composite-Rating/
+    Earnings-Events slices already established. This closes the one failure
+    mode single-security grounding never needed to solve: a model citing a
+    genuinely real `evidence_id` (so the existing id-validity check passes)
+    while writing the fact about the WRONG security. Proven end-to-end by a
+    dedicated test (`test_a_misattributed_key_fact_is_rejected_then_
+    honestly_refused`), not just unit-tested in isolation.
+  - New route `POST /api/research/compare/{sym}/{comparator}/explain`
+    (auth-required, mirrors `/api/research/explain/{sym}`'s own auth-gate
+    pattern exactly), own cost-guard surface `"comparison_explain"`
+    (env `COMPARISON_EXPLAIN_MODEL`/`COMPARISON_EXPLAIN_COST_CAP_DAILY`) —
+    deliberately separate from `ticker_explain.py`'s `"ticker_explain"`
+    surface so neither feature's daily budget can silently cap the other.
+  - New minimal "Ask AI" `TileCard` panel on `ResearchComparePage.jsx`
+    (`components/ComparisonAskAi.jsx`), reusing `ResearchPage.module.css`'s
+    existing `explain*` classes verbatim (zero new CSS beyond one
+    `.aiSection` margin wrapper) — single-turn only, no history plumbing:
+    Phase A confirmed no existing frontend surface carries a two-ticker
+    conversation, and weakening `ticker_explain._clean_history`'s
+    single-symbol isolation to retrofit one was explicitly out of scope.
+  - **Explicitly deferred (Phase A synthesis, unchanged from the
+    authorization):** N-ary (>2) comparison (the 2-arg cap is deliberate
+    architecture at every layer of `comparison.py`, not a V1 shortcut);
+    Watchlist multi-security AI (`get_intelligence_for_symbols`'s freshness
+    is fabricated for 3 of 4 fact kinds — Seam 8 — grounding an LLM on a
+    fabricated freshness field was rejected); Portfolio AI / LLM-computed
+    P&L (confirmed net-new — no day-over-day delta/change-detection
+    aggregate exists anywhere in the codebase, and no server-side P&L field
+    exists to ground against); entitlement/plan-based ticker-count gating
+    (`entitlements.Limits.max_symbols` is currently inert, wired only to
+    Screener paths — the pricing decision is still open); free-text
+    second-ticker extraction into single-security Ask AI (would require
+    weakening `_clean_history`'s deliberate entity-isolation boundary).
+  - **Tests:** 29 new backend tests (`tests/test_comparison_ai_adapter.py`
+    — evidence builders, id stamping, the new attribution check in
+    isolation AND end-to-end, full orchestration incl. retry-then-refuse/
+    cost-cap/stop_reason=refusal/unparseable-JSON/decisive-language-
+    rejection, route auth+shape+exception-degradation) + 6 new frontend
+    tests (`ComparisonAskAi.test.jsx`). Full adjacent regression green:
+    370 backend tests across all `research`-router-adjacent + `ticker_
+    explain`/`comparison` suites, 103 frontend tests across all `pages/
+    research/**` suites (19 files), full `npm run build` clean, `api.main`
+    app-boot sanity check clean (1246 routes, new route present).
+  - **Production verification:** exact commit match
+    (`RAILWAY_GIT_COMMIT_SHA=4c8b24c743a40aa3ef1a68641c0b64f800495906`),
+    new adapter file present on the pod, new route returns `401` unauth'd
+    (proves live + correctly auth-gated without spending a real LLM call),
+    existing deterministic `/api/research/compare/{sym}/{comparator}` route
+    still returns `200` with real data (no regression from the shared
+    `research.py` import change). Clean startup log aside from one
+    PRE-EXISTING, UNRELATED defect newly observed during this verification
+    — see the new debt entry below; not touched, not this program's to fix.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -813,20 +905,32 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **#7 Shared Multi-Security Grounding Architecture — Phase A in progress.**
-  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is now
-  standing authorization: routine, bounded, independently-safe Terminal
-  programs no longer require a stop-and-wait between each one (see Section
-  II of that directive; the 10 owner-required stop conditions in its Section
-  III remain absolute). Sequence so far under this directive: Technical Ask
-  AI Phase A → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT
-  PARKED" — zero code written, per Section XXII's explicit "if blocked, zero
-  changes" instruction) → per the directive's own priority interrupt (Section
-  V), AI Search Raw-Pattern Trust Adjudication V1 was adjudicated FIRST
-  (Seam 23, a live material production-trust defect the Technical Ask AI
-  audit surfaced) — now ACCEPTED + LIVE, merge `897e53cc5` (see "CURRENT
-  ACCEPTED" above) → per the directive's Section XIV, proceeding directly
-  into #7 without a stop. **Technical Ask AI and Technical Research (#1) are
+- **Whole-Product Strategic Re-Anchor — about to run, no program mid-flight.**
+  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing
+  authorization: routine, bounded, independently-safe Terminal programs no
+  longer require a stop-and-wait between each one (see Section II of that
+  directive; the 10 owner-required stop conditions in its Section III remain
+  absolute). Sequence so far under this directive: Technical Ask AI Phase A
+  → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT PARKED" — zero
+  code written, per Section XXII's explicit "if blocked, zero changes"
+  instruction) → per the directive's own priority interrupt (Section V), AI
+  Search Raw-Pattern Trust Adjudication V1 was adjudicated FIRST (Seam 23, a
+  live material production-trust defect the Technical Ask AI audit
+  surfaced) — ACCEPTED + LIVE, merge `897e53cc5` → per the directive's
+  Section XIV, proceeded directly into **#7 Shared Multi-Security Grounding
+  Architecture V1** — now ALSO ACCEPTED + LIVE, merge `271f79664`/
+  `4c8b24c74` (see "CURRENT ACCEPTED" above) → per the directive's Section
+  XXIII ("after Shared Multi-Security Grounding is accepted or cleanly
+  blocked: DO NOT STOP. Run a fresh Whole-Product Strategic Re-Anchor..."),
+  the re-anchor is the immediate next step, not yet run as of this
+  checkpoint write. **If you are resuming this session: run that re-anchor
+  now** (current code + current continuity, rank actual remaining gaps by
+  member trust/correctness → broken core workflows → professional-terminal
+  capability → member frequency → interconnected leverage → UX friction →
+  implementation cost/risk, per Section XXIII), then continue into the
+  highest-priority UNBLOCKED program it identifies — do not treat "no
+  program is currently active" as a stop condition; it is not one of the 10
+  in Section III. **Technical Ask AI and Technical Research (#1) are
   UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
   waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
   from its recorded spec under "CURRENT PARKED", never from scratch.** Do
@@ -860,8 +964,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   AddPositionModal/AddTradeModal autocomplete UI — Seam 17's original
   framing — see the new debt entries below), nor from AI Search Raw-Pattern
   Trust Adjudication V1's own deferred item (Compass Chat/Voice's parallel
-  raw-feed exposure — Seam 26, unaudited) — those are candidate lists, not
-  authorizations.
+  raw-feed exposure — Seam 26, unaudited), nor from Shared Multi-Security
+  Grounding Architecture V1's own deferred items (N-ary comparison,
+  Watchlist multi-security AI, Portfolio AI/LLM-computed P&L, entitlement-
+  based ticker-count gating, multi-turn comparison history — see "DEFERRED"
+  below) — those are candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1258,11 +1365,55 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   currently unfiltered -- see the Technical Ask AI Phase A spec under
   "CURRENT PARKED" above) on confirmed verdicts.
 
+- **Seam 27 — `get_breadth_history`'s `anchor` param is a live FastAPI
+  `Query` sentinel when called directly as a Python function (newly
+  observed during Shared Multi-Security Grounding Architecture V1's
+  production verification, 2026-09-06, NOT fixed, unrelated to that
+  program).** Production startup log shows `[dashboard-warm] breadth
+  failed` every boot: `api/main.py`'s `_breadth()` warm-cache task calls
+  `get_breadth_history(days=90)` directly (bypassing FastAPI's request
+  pipeline/dependency injection), and `anchor`'s function-signature default
+  is a `Query(...)` object, not a plain value — `_resolve_anchor_merged`
+  then does `bisect_right(all_dates, end)` where `end` is literally that
+  `Query` instance, raising `TypeError: '<' not supported between
+  instances of 'Query' and 'str'`. Non-fatal (the warm task is wrapped in
+  try/except in `main.py::_warm`; the real request-path endpoint, called
+  through FastAPI, resolves `anchor` correctly and is unaffected) — but the
+  breadth-history cache never gets pre-warmed on boot, so the first real
+  request after every deploy pays the full cold-compute cost this warm
+  pass exists to avoid. Confirmed pre-existing (predates this program;
+  `git log` shows the last touch to `breadth_monitor.py`/`main.py` was
+  `6a15ed587`, unrelated to anything in this session) — not this program's
+  file, not fixed here. Fix shape: the warm-task call site should pass a
+  concrete default (e.g. `None`) rather than relying on the FastAPI
+  `Query` default resolving outside a request context.
+
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
 - Technical grounded Ask AI (Phase C)
-- Comparison multi-security AI (needs a new two-symbol evidence-isolation grounding contract)
-- Watchlist multi-security AI summary (needs a new N-symbol grounding contract)
+- Comparison multi-security AI — RESOLVED. Shared Multi-Security Grounding
+  Architecture V1 (merge `271f79664`/`4c8b24c74`, see "CURRENT ACCEPTED"
+  above) shipped exactly this: the new two-symbol evidence-isolation
+  grounding contract (`comparison_ai_adapter.py`'s `sym`/`side`-tagged
+  evidence + the new attribution check). N-ary (>2) comparison remains
+  deferred below — that is a different, larger scope this V1 deliberately
+  did not attempt.
+- N-ary (>2) comparison AI (Shared Multi-Security Grounding Architecture V1
+  Phase A — the 2-arg cap is deliberate architecture at every layer of
+  `comparison.py`, not a V1 shortcut; generalizing means solving
+  entity-dedup-by-group and multi-symbol evidence tagging before the
+  2-ary envelope is even proven in production)
+- Multi-turn history for Comparison AI (Shared Multi-Security Grounding
+  Architecture V1 — no existing frontend plumbing carries a two-ticker
+  conversation; would also require either a second history contract
+  alongside `ticker_explain._clean_history`'s single-symbol one, or
+  weakening that one's entity-isolation boundary — deliberately not
+  attempted ahead of a real consumer)
+- Watchlist multi-security AI summary (needs a new N-symbol grounding
+  contract; also blocked on Seam 8 — `get_intelligence_for_symbols`'s
+  freshness is fabricated for 3 of 4 fact kinds, so grounding an LLM on it
+  today risks confidently-wrong claims — reconfirmed by Shared
+  Multi-Security Grounding Architecture V1's Phase A)
 - Portfolio-wide AI (needs a new grounding contract; study `portfolio_heat.py`/`grade_watchlist.py` first, not `ticker_explain.py`)
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
@@ -1327,9 +1478,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Convergence V1 (merge `701ca7319`), Search / Command Convergence V1
    (merge `e36ca0eb5`), Event / News / Calendar → Research Convergence
    V1 (merge `d46f35a68`), Identity Normalization Hardening V1 (merge
-   `9c1bff81f`), and AI Search Raw-Pattern Trust Adjudication V1 (merge
-   `897e53cc5`) are all ACCEPTED + LIVE as of this checkpoint — do
-   not re-implement any of them or treat them as pending; confirm via
+   `9c1bff81f`), AI Search Raw-Pattern Trust Adjudication V1 (merge
+   `897e53cc5`), and Shared Multi-Security Grounding Architecture V1 (merge
+   `271f79664`/`4c8b24c74`) are all ACCEPTED + LIVE as of this checkpoint —
+   do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
@@ -1339,11 +1491,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
    Convergence, Search / Command Convergence, Event / News / Calendar →
    Research Convergence, Identity Normalization Hardening, Technical Ask AI,
-   AI Search Raw-Pattern Trust Adjudication, or the Whole-Product Convergence
-   Review from scratch — their findings above are current as of this
-   checkpoint (Technical Ask AI's full Phase A spec is under "CURRENT
-   PARKED" — resume from it once unblocked, do not re-audit); verify against
-   live code only where something here looks stale.
+   AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
+   Architecture (Comparison leg), or the Whole-Product Convergence Review
+   from scratch — their findings above are current as of this checkpoint
+   (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
+   from it once unblocked, do not re-audit); verify against live code only
+   where something here looks stale.
 7. **A CONTINUOUS EXECUTION DIRECTIVE (2026-09-06) is standing
    authorization** for routine, bounded, independently-safe Terminal
    programs to proceed one after another without a stop-and-wait — see
