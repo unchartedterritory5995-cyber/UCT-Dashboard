@@ -1894,3 +1894,20 @@ so far (screener.db, not a cross-database candidate) — genuinely the
 best opportunity for a C1 test if a scanner request occurs while it's
 still running. Continuing to watch closely for either the build's
 completion or an owner-supplied sample.
+
+**Update, 03:20 ET — still running, ~20 minutes elapsed, still no
+redeploy.** New data point: `03:15:03.868 ET` — `ERROR ...
+snapshot_builder: "[screener] share_band__inst_pct fired on more than 200
+rows — NOT withholding further; this is an upstream change, not 201 bad
+rows"`. Read at face value from the message itself: this is a self-aware,
+designed data-quality guard (not a crash) that fires when a specific
+withholding condition trips on more than its expected threshold, and
+explicitly logs at ERROR for visibility while continuing rather than
+halting. Its presence confirms the build was still actively executing at
+03:15 ET. **No `"[screener] build done..."` completion line has appeared
+by 03:20 ET (~20 minutes elapsed since 03:00:01 start).** Git tip and
+Railway deployment id both still unchanged — confirmed no redeploy has
+interrupted this run. `railway logs ... --filter "contention"` over the
+same 25-minute window returns nothing — confirmed no scanner traffic and
+no contention-trace sample (expected, since `record()` only ever fires in
+response to an actual request). Continuing to watch.
