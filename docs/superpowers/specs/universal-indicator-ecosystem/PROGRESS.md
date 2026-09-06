@@ -264,6 +264,33 @@ RISK-032 (RESOLVED)/RISK-033 (RECORDED). **Parity baseline confirmed clean enoug
 SMA/EMA. SMA/EMA itself is NOT started by this entry — awaiting separate authorization, per the
 explicit stop condition.**
 
+**2026-09-06 (same day, follow-up) — Vendor Parity Tranche 2, Lane A, second batch (SMA + EMA)
+COMPLETE.** Owner authorized exactly `sma`/`ema`, bounded, after RISK-032's closure. Captured the
+widest real-vendor window this program has taken: 2,031 SPY Daily bars, 2018-08-07..2026-09-04. Both
+functions VERIFIED against `tools/vendor_parity_compare.py`: **SMA → VENDOR-PARITY VERIFIED — MULTI-BAR
+with ZERO seed-convergence-lag exclusion** (a memoryless finite-window filter — 2,012 bars compared, 0
+disagreements, no margin needed beyond the true 19-bar period-warmup, confirmed structurally rather than
+assumed). **EMA → VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + INITIALIZATION CANDIDATE-VERIFIED**
+— reused the existing general `recursive-smoother-cold-start-in-a-finite-capture` divergence row for
+its own smaller, faster-converging seed-lag (measured boundary: bar 92 of 2,031), then, per the explicit
+instruction to investigate initialization/seeding rather than trust the steady-state formula alone,
+directly measured a real gap: a "seed with the first value instead of SMA(20)" mutation STILL PASSED
+the steady-state check (0/1,931 disagreements) because a bounded seed error decays at the filter's own
+fixed rate regardless of which bounded seed produced it — kept as a permanent, intentionally-passing
+regression documenting that boundary, not silently patched over. The real initialization proof required
+a separate check directly on the 81 excluded early bars: UCT's actual seeding convention beat the
+wrong-seed alternative against real vendor values on 81 of 81 (100%) early bars. One real operational
+hazard hit and disclosed: this machine runs more than one active session and the OS clipboard is shared
+— a concurrent, unrelated session's clipboard write silently no-op'd one paste attempt mid-capture
+(caught immediately via the standing verify-before-paste discipline; no corruption, no wrong data used);
+recovered by re-verifying and switching to non-batched tool calls for the paste sequence, which fixed it
+cleanly. Full evidence: `VENDOR_PARITY_TRANCHE_2_LANE_A_SMA_EMA_REPORT.md`; permanent regression:
+`tests/test_vendor_parity_sma_ema.py` (17 tests). `RISK_REGISTER.md` RISK-034,
+`VALIDATION_COVERAGE_MAP.md`, `PHASE_TWO_PLAN.md` §2 updated. RISK-033 (stale conformance snapshot)
+re-checked per owner request and left unactioned, per the explicit "without reopening scope"
+instruction. **Per the explicit stop condition: the next Lane A batch was NOT started (rma, hma, macd,
+stoch, adx-family, wma remain candidates for a future, separately-authorized tranche).**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

@@ -172,7 +172,9 @@ classified KNOWN SCOPED LIMITATION INCORRECTLY TESTED and fixed test-file-only (
 changed, no Lane B parity status invalidated) — see `RISK_REGISTER.md` RISK-032 and the RSI/ATR
 report's §15 addendum. A third, related monitoring-coverage gap (RISK-033, a stale dual-kernel
 conformance snapshot for the 4 Lane B functions) was found but explicitly left unfixed, out of scope.
-**Parity baseline confirmed clean enough to proceed to SMA/EMA — SMA/EMA itself remains NOT started.**
+**Parity baseline confirmed clean enough to proceed to SMA/EMA — done same day.**
+
+**Second batch (2026-09-06): `sma`/`ema` DONE** — SMA is VENDOR-PARITY VERIFIED — MULTI-BAR (zero seed-convergence-lag, a memoryless filter); EMA is VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR + INITIALIZATION CANDIDATE-VERIFIED (a real, measured finding that a steady-state-only check cannot discriminate a wrong seeding convention, closed via a separate real-early-bar candidate-discrimination check, 81/81). See `RISK_REGISTER.md` RISK-034 and `VENDOR_PARITY_TRANCHE_2_LANE_A_SMA_EMA_REPORT.md`. Functions #5-10 (rma, hma, macd, stoch, adx-family, wma) remain **NOT started**, per the explicit stop-condition instruction.
 
 Derived from: full 64-function manifest read (`closedTable.json`), real corpus-frequency counts
 (regex function-call counts across all 123 `.pine`/`.ts`/PCF fixture files), `RISK_REGISTER.md`'s
