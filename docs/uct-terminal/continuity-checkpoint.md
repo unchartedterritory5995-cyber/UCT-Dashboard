@@ -6,8 +6,9 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Technical Ask AI — Grounding + Convergence V1 Phase A, BLOCKED on Pattern
-Vision acceptance -- zero product-code changes made).
+AI Search Raw-Pattern Trust Adjudication V1 merge/deploy/production-
+verification -- a continuous-execution program under the owner's 2026-09-06
+CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -632,6 +633,57 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     (Seam 17's original framing), and all Event/News/Calendar debt (Seams
     18-22) from the prior program.
 
+- **AI Search Raw-Pattern Trust Adjudication V1** — IMPLEMENTED + ACCEPTED +
+  LIVE, merge `897e53cc5`, deployed + production-verified 2026-09-06.
+  Continuous-execution follow-on immediately after Technical Ask AI's Phase A
+  surfaced Seam 23 as a live, material production trust defect (not a
+  planned program). Read-only audit first, per the adjudication's own
+  instruction not to assume the Phase A finding was automatically correct:
+  independently re-traced the live path from scratch and confirmed it
+  precisely — `api/routers/ai_search.py::_ctx_patterns()` called
+  `voice_tool_impls._find_patterns_on_ticker()` → the raw rule-engine table
+  (`pattern_engine.memory.get_active_detections()`, `confirmed_only=false`
+  equivalent, the SAME ~16%-Opus-confirmation-rate feed whose universe-wide
+  page was retired 2026-08-26), unconditionally, for the first two resolved
+  symbols in EVERY AI Search answer — narration included fabricated-reading
+  confidence percentages and concrete entry/stop/target price levels, all
+  wrapped inside a system-prompt block explicitly labeled "UCT DESK CONTEXT
+  (internal desk data — authoritative..." with zero confirmation or
+  freshness disclosure, indistinguishable from genuinely trustworthy blocks
+  (live price, regime). Classified MATERIAL PRODUCTION TRUST DEFECT per the
+  adjudication's own rule (raw/unconfirmed detection ≠ member-facing fact).
+  **Fix (remediation option B, "remove until the confirmed source is
+  accepted" — the safest of the four options offered, per explicit
+  instruction NOT to promote still-unaccepted Pattern Vision into this role
+  as a workaround):** `_ctx_patterns()` and its unconditional call site
+  deleted entirely. A member explicitly asking about a setup/pattern (new
+  `_SETUP_RE` intent gate: `setups?|chart pattern|technical pattern|vcp|cup
+  and handle|flag pattern|breakout pattern|forming a base/flag/pattern`) now
+  gets an honest declared `"confirmed technical setup"` gap via the
+  pre-existing, already-tested DESK GAPS mechanism (`grounding_gaps`) —
+  never fabricated data, never a silent omission that reads as "nothing to
+  say" either. Seam 25 (posture-block freshness) and Seam 24 (rejected-
+  verdict read path) were explicitly left deferred per the adjudication's
+  own instruction (neither is a small direct part of the raw-pattern fix).
+  **Tests:** updated 4 test files that encoded the OLD "patterns always ride
+  along" contract as passing assertions (`test_ai_search_topic_matrix.py`'s
+  `test_price_check`/`test_why_moving`/`test_setup_questions`/
+  `test_short_interest_questions`, `test_ai_search_limits.py`'s dedicated
+  flow-and-patterns wiring test) — each now asserts the CORRECTED behavior
+  (no raw pattern claim ever; a declared gap ONLY for genuine setup-intent
+  questions) rather than being silently broken or loosened. New test
+  `test_setup_question_declares_a_gap_not_the_raw_pattern_feed` pins the
+  core fix directly. Full `ai_search`-family regression (1008 tests across
+  32 files) green; module import + full `api.main` app-boot sanity check
+  clean. Zero frontend changes (backend-only fix).
+  **Deliberately NOT touched:** `voice_tool_impls.py::_find_patterns_on_ticker`
+  itself (still live, still reads the same raw table — Compass Chat/Voice's
+  OWN use of it is a separate, unaudited surface, recorded as new Seam 26,
+  not silently expanded into this V1's scope); Pattern Vision (no code
+  touched, no promotion into this or any other member-facing role); the
+  parked Technical Research/Technical Ask AI specs (unrelated, both still
+  wait on the same Pattern Vision gate).
+
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
 - **Pattern Vision** — `PATTERN_VISION_ENABLED=1`. Safety defaults locked:
@@ -761,26 +813,26 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Technical Ask AI —
-  Grounding + Convergence V1 (the prior active program) ran its Phase A audit
-  2026-09-06 and returned **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** — see
-  "CURRENT PARKED" above for the complete, ready-to-resume spec. Per the
-  authorization's own Section XXII ("If blocked: make ZERO production-code
-  changes... Do not bypass the gate"), NO code was written — the worktree
-  `technical-ask-ai` has zero diff against its base. Per the owner's explicit
-  closing instruction on that program's authorization ("Do NOT automatically
-  begin Shared Multi-Security Grounding"), no next Terminal program has been
-  automatically begun. **Per the 2026-09-06 Strategic Re-Anchor above, both
-  #1 (Technical Research release) and #6 (Technical Ask AI, now fully specced
-  and merely waiting) share the identical release trigger — Pattern Vision
-  reaching LIVE + ACCEPTED or LIVE WITH CONDITIONS, due after the Tue 9/8 /
-  Wed 9/9 evidence window (NOT yet true as of this checkpoint) — or a genuine
-  S7 NVDA filing event fires.** Either way, resuming EITHER program still
-  requires a new, explicit owner authorization — do not self-start from this
-  pointer alone, and do not re-run Technical Ask AI's Phase A from scratch;
-  resume from the spec recorded under "CURRENT PARKED" above. Do not infer a
-  program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below, nor
-  from Attention Signal Propagation V1's own
+- **#7 Shared Multi-Security Grounding Architecture — Phase A in progress.**
+  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is now
+  standing authorization: routine, bounded, independently-safe Terminal
+  programs no longer require a stop-and-wait between each one (see Section
+  II of that directive; the 10 owner-required stop conditions in its Section
+  III remain absolute). Sequence so far under this directive: Technical Ask
+  AI Phase A → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT
+  PARKED" — zero code written, per Section XXII's explicit "if blocked, zero
+  changes" instruction) → per the directive's own priority interrupt (Section
+  V), AI Search Raw-Pattern Trust Adjudication V1 was adjudicated FIRST
+  (Seam 23, a live material production-trust defect the Technical Ask AI
+  audit surfaced) — now ACCEPTED + LIVE, merge `897e53cc5` (see "CURRENT
+  ACCEPTED" above) → per the directive's Section XIV, proceeding directly
+  into #7 without a stop. **Technical Ask AI and Technical Research (#1) are
+  UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
+  waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
+  from its recorded spec under "CURRENT PARKED", never from scratch.** Do
+  not infer a program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED"
+  sections below beyond what the directive itself authorizes, nor from
+  Attention Signal Propagation V1's own
   explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
   TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
   Return-to-Research Consistency V1's own deferred families
@@ -806,7 +858,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Watchlists/Attention/Alerts read-side alias resolution for existing
   dot-spelled data, historical position/trade migration, and
   AddPositionModal/AddTradeModal autocomplete UI — Seam 17's original
-  framing — see the new debt entries below) — those are candidate lists, not
+  framing — see the new debt entries below), nor from AI Search Raw-Pattern
+  Trust Adjudication V1's own deferred item (Compass Chat/Voice's parallel
+  raw-feed exposure — Seam 26, unaudited) — those are candidate lists, not
   authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
@@ -1139,23 +1193,43 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   reuse; explicitly out of scope for any bounded V1 until a specific member
   workflow demands it.
 
-- **Seam 23 — AI Search narrates the RAW, unconfirmed (~16%-precision)
-  pattern feed into live answers unconditionally (surfaced by Technical Ask
-  AI's Phase A, 2026-09-06, NOT fixed, pre-existing and already live in
-  production -- not caused or worsened by this program, which made zero code
-  changes).** `api/routers/ai_search.py::_ctx_patterns()` (~808-816) is
-  called for the first two resolved symbols in EVERY AI Search answer,
-  unconditionally (not intent-gated), and reads
-  `pattern_engine.memory.get_active_detections()` -- the SAME raw rule-engine
-  table `confirmed_only=false` reads, the exact feed whose universe-wide page
-  was retired 2026-08-26 for its 16% Opus-confirmation rate. It never touches
-  `pattern_vision.store` at all. A member asking AI Search about "active
-  setups" today is receiving unconfirmed geometry narrated as fact, with no
-  disclosure that Vision was never consulted. Fix shape: either gate
-  `_ctx_patterns` behind the same confirmed-only trust standard Technical Ask
-  AI V1 will use, or add an explicit "unconfirmed, not vision-reviewed"
-  disclosure to its narration -- real product-trust work, independent of
-  whether/when Technical Ask AI itself ships.
+- **Seam 23 — RESOLVED by AI Search Raw-Pattern Trust Adjudication V1, merge
+  `897e53cc5`, 2026-09-06.** Was: AI Search narrated the RAW, unconfirmed
+  (~16%-precision) pattern feed into live answers unconditionally
+  (`api/routers/ai_search.py::_ctx_patterns()`, called for the first two
+  resolved symbols in EVERY answer, wrapped in a system-prompt block
+  explicitly labeled "authoritative" desk data, with fabricated-reading
+  confidence % and concrete entry/stop/target levels, zero confirmation/
+  freshness disclosure). Fix: `_ctx_patterns()` and its unconditional call
+  site DELETED entirely (not gated, not disclosed-and-kept — the owner
+  adjudication's own preferred order ranked "remove until the confirmed
+  source is accepted" above "label as unconfirmed," since there was no
+  standing product authorization for exposing raw detector candidates as
+  member-facing narrated fact). A member explicitly asking about a setup/
+  pattern (new `_SETUP_RE` intent gate) now gets an honest declared
+  `"confirmed technical setup"` gap via the pre-existing DESK GAPS mechanism
+  — never fabricated data, never silent omission either. Deliberately did
+  NOT repoint AI Search at Pattern Vision confirmed verdicts instead —
+  Pattern Vision is itself still under its own live acceptance trial
+  (classification due after the Tue 9/8 / Wed 9/9 window), and doing so
+  would have promoted an unaccepted system into member-facing authority
+  through a side door. `voice_tool_impls.py::_find_patterns_on_ticker`
+  (the underlying raw-feed reader Compass Chat/Voice also call) was
+  deliberately NOT touched — that is a separate, unaudited surface; see
+  Seam 26 below.
+- **Seam 26 — Compass Chat/Voice's pattern-engine bridge tools may carry the
+  SAME raw-feed trust gap as Seam 23 did, unaudited (surfaced while fixing
+  Seam 23, 2026-09-06, NOT fixed, deliberately out of that V1's bounded
+  scope).** `find_patterns_on_ticker`/`scan_active_patterns` (the CLAUDE.md
+  "Pattern Engine bridge") read the identical
+  `pattern_engine.memory.get_active_detections()` raw table, registered as
+  live tools in BOTH Compass voice and Compass text chat. Whether Compass's
+  own system prompt already frames these results honestly (unconfirmed,
+  raw) was not checked — Seam 23's adjudication was explicitly scoped to
+  "AI SEARCH Raw-Pattern Trust," not Compass. Fix shape, if a defect is
+  confirmed: same pattern as Seam 23 (declare a gap or add an explicit
+  unconfirmed-disclosure clause to Compass's own prompt), scoped to Compass's
+  actual architecture — audit before assuming the same fix shape applies.
 - **Seam 24 — Rejected Pattern Vision verdicts have no non-admin read path
   (surfaced by Technical Ask AI's Phase A, 2026-09-06, NOT fixed, explicitly
   out of V1 scope).** `pattern_verdicts` rows with `confirmed=0` are real,
@@ -1252,8 +1326,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Hardening V1 (merge `f2d96ce11`), Journal / Trade Lifecycle
    Convergence V1 (merge `701ca7319`), Search / Command Convergence V1
    (merge `e36ca0eb5`), Event / News / Calendar → Research Convergence
-   V1 (merge `d46f35a68`), and Identity Normalization Hardening V1 (merge
-   `9c1bff81f`) are all ACCEPTED + LIVE as of this checkpoint — do
+   V1 (merge `d46f35a68`), Identity Normalization Hardening V1 (merge
+   `9c1bff81f`), and AI Search Raw-Pattern Trust Adjudication V1 (merge
+   `897e53cc5`) are all ACCEPTED + LIVE as of this checkpoint — do
    not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
@@ -1264,15 +1339,22 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
    Convergence, Search / Command Convergence, Event / News / Calendar →
    Research Convergence, Identity Normalization Hardening, Technical Ask AI,
-   or the Whole-Product Convergence Review from scratch — their findings
-   above are current as of this checkpoint (Technical Ask AI's full Phase A
-   spec is under "CURRENT PARKED" — resume from it once unblocked, do not
-   re-audit); verify against live code only where something here looks stale.
-7. **No Terminal program is currently authorized.** Per the 2026-09-06
-   Strategic Re-Anchor at the top of this file, BOTH Technical Research
-   release (#1) and Technical Ask AI (#6, Phase A complete, fully specced,
-   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE) are waiting on the identical trigger
-   — Pattern Vision reaching LIVE + ACCEPTED or LIVE WITH CONDITIONS (NOT yet
-   true as of this checkpoint) — or S7 fires — but do not begin
-   implementation of EITHER, or any other candidate, without a new,
-   explicit owner authorization naming the program.
+   AI Search Raw-Pattern Trust Adjudication, or the Whole-Product Convergence
+   Review from scratch — their findings above are current as of this
+   checkpoint (Technical Ask AI's full Phase A spec is under "CURRENT
+   PARKED" — resume from it once unblocked, do not re-audit); verify against
+   live code only where something here looks stale.
+7. **A CONTINUOUS EXECUTION DIRECTIVE (2026-09-06) is standing
+   authorization** for routine, bounded, independently-safe Terminal
+   programs to proceed one after another without a stop-and-wait — see
+   "CURRENT ACTIVE PROGRAM" above for the live sequence and the directive's
+   own 10 owner-required stop conditions (destructive migration, financial-
+   record merging, auth semantics, irreversible data changes, multi-valid
+   product-policy decisions, ambiguous security identity, provider-licensing
+   choices, a protected-parallel-program conflict, no independent work left,
+   or a trust/safety regression needing an owner tradeoff). Technical
+   Research release (#1) and Technical Ask AI (#6, Phase A complete, fully
+   specced) remain BLOCKED_ON_PATTERN_VISION_ACCEPTANCE regardless of this
+   directive — that gate is external, not something continuous execution can
+   route around; resume either only from its recorded spec once Pattern
+   Vision resolves.
