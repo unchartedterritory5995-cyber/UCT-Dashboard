@@ -12,11 +12,18 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // stub it to a minimal control that exposes onSymbolChange directly, mirroring
 // how other header tests in this app isolate SymbolSearch (it already has its
 // own dedicated test coverage elsewhere).
+//
+// Identity Normalization Hardening V1: the two instances are distinguished by
+// `displayLabel` (exactly how the real component tells them apart to decide
+// what the trigger button shows), NOT by `sym` truthiness -- both instances
+// now receive the same real, current `sym` (the Compare picker used to get
+// sym={null}, which defeated SymbolSearch's own self-exclusion guard).
 vi.mock('../../components/chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
     <button
-      data-testid={sym ? 'symbol-search-primary' : 'symbol-search-compare'}
-      onClick={() => onSymbolChange(sym ? 'TSLA' : 'MSFT')}
+      data-testid={displayLabel ? 'symbol-search-compare' : 'symbol-search-primary'}
+      data-sym={sym == null ? '' : String(sym)}
+      onClick={() => onSymbolChange(displayLabel ? 'MSFT' : 'TSLA')}
     >
       {displayLabel || sym || 'search'}
     </button>
@@ -40,6 +47,16 @@ describe('ResearchHeader — Compare entry point', () => {
     )
     fireEvent.click(screen.getByTestId('symbol-search-compare'))
     expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+  })
+
+  it('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+    // Passing sym={null} to the Compare instance used to defeat SymbolSearch's
+    // own `clean !== sym` self-exclusion guard and shipped a literal
+    // "null — click to search" tooltip.
+    renderWithProviders(
+      <ResearchHeader sym="AAPL" meta={{}} live={{}} ratings={null} onSymbolChange={() => {}} />,
+    )
+    expect(screen.getByTestId('symbol-search-compare')).toHaveAttribute('data-sym', 'AAPL')
   })
 
   it('the primary symbol search still calls onSymbolChange, not the compare navigator', () => {

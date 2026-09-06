@@ -113,6 +113,21 @@ def get_comparison(sym_a: str, sym_b: str) -> dict:
     if sym_a == sym_b:
         return {"error": "choose two different securities to compare"}
 
+    # Identity Normalization Hardening V1: the raw-string check above only
+    # catches an exact-spelling self-comparison. Two different SPELLINGS of
+    # the same security (e.g. BRK.B vs BRK-B) would otherwise pass this gate
+    # and render a full two-column comparison of one real security against
+    # itself. Resolved BEFORE the expensive per-side fetches below (each
+    # `_side()` call hits live fundamentals/estimates/ratings/analyst
+    # providers) so a same-entity request short-circuits cheaply instead of
+    # paying for both legs first.
+    entity_a, _ = resolve_entity(sym_a)
+    entity_b, _ = resolve_entity(sym_b)
+    entity_id_a = entity_a.get("entityId")
+    entity_id_b = entity_b.get("entityId")
+    if entity_id_a and entity_id_b and entity_id_a == entity_id_b:
+        return {"error": "choose two different securities to compare"}
+
     a = _side(sym_a)
     b = _side(sym_b)
 

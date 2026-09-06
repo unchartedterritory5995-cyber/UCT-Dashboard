@@ -14,10 +14,14 @@ export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChang
   const navigate = useNavigate()
   // Entry point for Cross-Security Comparison V1 (owner authorization). Reuses
   // the same canonical security search this header already uses for its own
-  // symbol switch -- no second ticker-search implementation (B2). The picker
-  // itself carries no symbol (sym=null) so it never shows a stale/misleading
-  // ticker of its own; selecting a comparator navigates straight to the
-  // canonical compare route, never mutating state in this header.
+  // symbol switch -- no second ticker-search implementation (B2). Selecting a
+  // comparator navigates straight to the canonical compare route, never
+  // mutating state in this header. The picker's own trigger button always
+  // shows displayLabel ("+ Compare"), never the sym prop, so passing the real
+  // current sym below does not reintroduce a stale ticker in the button --
+  // it activates SymbolSearch's own clean !== sym self-exclusion guard
+  // (Identity Normalization Hardening V1: previously always sym=null, so a
+  // member could select the current security as its own comparator).
   const goToCompare = (comparator) => {
     if (comparator && sym) navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`)
   }
@@ -53,7 +57,7 @@ export default function ResearchHeader({ sym, meta, live, ratings, onSymbolChang
         </div>
       </div>
       <div className={styles.hdrCompare} data-testid="research-compare-entry">
-        <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+        <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
       </div>
       <div className={styles.hdrRatings}>
         <RatingBadges ratings={ratings} />

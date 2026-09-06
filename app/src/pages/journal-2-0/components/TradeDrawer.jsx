@@ -109,7 +109,7 @@ function TradeResearchTrigger({ symbol }) {
             </button>
           ) : (
             <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
             </div>
           )}
         </div>

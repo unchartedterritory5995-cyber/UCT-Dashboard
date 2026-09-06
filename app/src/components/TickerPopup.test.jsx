@@ -27,11 +27,17 @@ vi.mock('./StockChart', () => ({
 // uses) has its own dedicated coverage elsewhere; stub it here exactly as
 // ResearchHeader.test.jsx does so the Compare action can be exercised without
 // its real dropdown/fetch machinery.
+//
+// Identity Normalization Hardening V1: TickerPopup has only ONE SymbolSearch
+// call site (the "+ Compare" picker), and it now passes the real activeSym
+// (previously sym={null}) -- so the instance is identified by `displayLabel`,
+// not by `sym` truthiness (a truthy sym no longer means "the primary search").
 vi.mock('./chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
     <button
-      data-testid={sym ? 'symbol-search-primary' : 'symbol-search-compare'}
-      onClick={() => onSymbolChange(sym ? 'TSLA' : 'MSFT')}
+      data-testid="symbol-search-compare"
+      data-sym={sym == null ? '' : String(sym)}
+      onClick={() => onSymbolChange('MSFT')}
     >
       {displayLabel || sym || 'search'}
     </button>
@@ -191,6 +197,13 @@ describe('Compare action (Portfolio/Position Intelligence Convergence V1 Part A1
     await user.click(screen.getByTestId('symbol-search-compare'))
     expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA/compare/MSFT')
     expect(screen.queryByTestId('chart-modal')).not.toBeInTheDocument()
+  })
+
+  test('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TickerPopup sym="NVDA" />)
+    await user.click(screen.getByTestId('ticker-NVDA'))
+    expect(screen.getByTestId('symbol-search-compare')).toHaveAttribute('data-sym', 'NVDA')
   })
 
   test('the Compare picker follows activeSym after switching ticker via the header search', async () => {

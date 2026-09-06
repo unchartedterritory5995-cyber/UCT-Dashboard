@@ -107,7 +107,7 @@ class TestGetComparisonShape(object):
         as-is -- no dot-notation guessing in this module (Phase A finding: provider
         symbol conversion belongs in adapters, never here)."""
         seen = []
-        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (seen.append(sym) or _entity(), sym))
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (seen.append(sym) or _entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
@@ -144,9 +144,37 @@ class TestGetComparisonShape(object):
         assert "error" in out["b"]["fundamentals"]
 
 
+class TestSameEntityDifferentSpelling:
+    """Identity Normalization Hardening V1: comparing two different spellings
+    of the same security must be caught as a self-comparison once Entity
+    Master resolves both spellings to the same entityId -- not just an
+    exact raw-string match. Partial coverage, by design: this only fires
+    when BOTH spellings are already-seeded S3 aliases of the same entity
+    (S3's alias-seeding itself is out of scope for this V1)."""
+
+    def test_two_spellings_resolving_to_the_same_entity_is_rejected(self, monkeypatch):
+        monkeypatch.setattr(
+            comp, "resolve_entity",
+            lambda sym: (_entity(entity_id="ent_brk_b"), sym),
+        )
+        out = comp.get_comparison("BRK.B", "BRK-B")
+        assert out == {"error": "choose two different securities to compare"}
+
+    def test_unresolved_symbols_are_not_treated_as_the_same_entity(self, monkeypatch):
+        """entityId=None on one or both sides must never satisfy the
+        equality guard (None == None would otherwise false-positive)."""
+        _patch_all_ok(monkeypatch)
+
+        def fake_resolve(sym):
+            return {"status": "not_found", "entityId": None}, sym
+        monkeypatch.setattr(comp, "resolve_entity", fake_resolve)
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert "error" not in out
+
+
 class TestEstimatesAlignment:
     def test_estimates_align_by_period_label_not_position(self, monkeypatch):
-        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(), sym))
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
         monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})

@@ -16,6 +16,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.symbol_normalize import normalize_symbol
 
 
 class PositionValidationError(ValueError):
@@ -209,7 +210,7 @@ def _validate_create_payload(payload: dict[str, Any]) -> dict[str, Any]:
             )
 
     return {
-        "symbol": symbol.strip().upper(),
+        "symbol": normalize_symbol(symbol),
         "side": side,
         "entryDate": entry_dt.astimezone(timezone.utc).isoformat(),
         "shares": float(shares),

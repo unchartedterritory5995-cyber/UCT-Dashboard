@@ -37,6 +37,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from api.services.journal_two.symbol_normalize import normalize_symbol
+
 # ── Sanitization (§15.9) ─────────────────────────────────────────────────────
 
 # Cells beginning with any of these are potential formula-injection vectors
@@ -230,7 +232,7 @@ def parse_pre_matched(headers: list[str], rows: list[list[str]]) -> ParseResult:
                 return ""
             return (row[idx] or "").strip()
 
-        symbol = get("symbol").upper()
+        symbol = normalize_symbol(get("symbol"))
         if not symbol:
             errors.append(ParseError(i, "symbol is required"))
 
@@ -460,7 +462,7 @@ def parse_schwab(headers: list[str], rows: list[list[str]]) -> ParseResult:
         if action_raw not in ("Buy", "Sell"):
             continue
 
-        symbol = get(row, "symbol").upper()
+        symbol = normalize_symbol(get(row, "symbol"))
         if not symbol:
             result.errors.append(ParseError(i, "symbol missing on Buy/Sell row"))
             continue
@@ -514,7 +516,7 @@ def parse_etrade(headers: list[str], rows: list[list[str]]) -> ParseResult:
         if sec_type and sec_type not in ("eq", "stock", ""):
             continue
 
-        symbol = get(row, "symbol").upper()
+        symbol = normalize_symbol(get(row, "symbol"))
         if not symbol:
             result.errors.append(ParseError(i, "symbol missing on Bought/Sold row"))
             continue
@@ -565,7 +567,7 @@ def parse_ibkr(headers: list[str], rows: list[list[str]]) -> ParseResult:
         if asset_class and asset_class not in ("STK", "STOCK", ""):
             continue
 
-        symbol = get(row, "symbol").upper()
+        symbol = normalize_symbol(get(row, "symbol"))
         if not symbol:
             result.errors.append(ParseError(i, "symbol missing on IBKR row"))
             continue
@@ -670,7 +672,7 @@ def _parse_trade_level(fmt: str, headers: list[str], rows: list[list[str]]) -> P
             continue
         errors: list[ParseError] = []
 
-        symbol = cell(row, _TL_SYMBOL).upper()
+        symbol = normalize_symbol(cell(row, _TL_SYMBOL))
         if not symbol:
             errors.append(ParseError(i, "symbol is required"))
 
@@ -783,7 +785,7 @@ def parse_tradervue(headers: list[str], rows: list[list[str]]) -> ParseResult:
         if all(not (c or "").strip() for c in row):
             continue
 
-        symbol = g(row, ("symbol", "ticker")).upper()
+        symbol = normalize_symbol(g(row, ("symbol", "ticker")))
         if not symbol:
             result.errors.append(ParseError(i, "symbol missing on fill row"))
             continue

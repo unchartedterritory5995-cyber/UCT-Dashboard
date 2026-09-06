@@ -244,7 +244,7 @@ export default function PositionDetailPage() {
             <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare
           </button>
         ) : (
-          <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+          <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
         )}
       </div>
 
