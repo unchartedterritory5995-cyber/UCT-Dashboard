@@ -590,6 +590,19 @@ def test_ask_accum_curated_survives_hide_block_only():
                                 contract_types={}) is False
 
 
+def test_alpha_leaps_auto_push_own_toggle():
+    # Alpha LEAPS auto-push now has its OWN toggle (was riding alpha_gold). Grade B
+    # so the grade_a path can't confound the tier gate.
+    a = {"_tierKey": "alpha_leaps", "alertName": "UCT Alpha LEAPS Bull", "grade": "B"}
+    assert m.should_auto_push(a, {"alpha_leaps": True, "grade_a": False}) is True
+    assert m.should_auto_push(a, {"alpha_leaps": False, "grade_a": False}) is False
+    # decoupled from alpha_gold: gold ON but leaps OFF → no push
+    assert m.should_auto_push(a, {"alpha_gold": True, "alpha_leaps": False,
+                                  "grade_a": False}) is False
+    # default ON when the key is absent
+    assert m.should_auto_push(a, {"grade_a": False}) is True
+
+
 def test_alpha_leaps_curated_survives():
     # Alpha LEAPS is an AGGREGATE tier and must pass Curated — curated defaults ON in
     # the UI, and alpha_leaps had no own-path, so it fell through the `tier not in
