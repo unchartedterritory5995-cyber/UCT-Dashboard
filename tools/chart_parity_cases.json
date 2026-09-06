@@ -4327,6 +4327,175 @@
       "expectManifestChange": true,
       "_expectFrom": "chart_parity.py --base-a http://localhost:5231 --same-build --repeat 5 --include-placeholders --cases ast_user_formula_sma20 on build 9b7a6dfc8d8a (dev, engine source: present) -- 140925 px, 5/5 runs, zero variance, exit 0. Fail-proof: --perturb-b-instances '{\"color\": \"#ff00ff\", \"lineWidth\": 4}' -> 141551, 5/5, zero variance (+626, all of it in osc_strip).",
       "_regionsFrom": "gen_parity_regions.py -- bands a05c314d8ca0 panes 29d3d39aa247: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61] -- REUSED VERBATIM by `ast_user_formula_sma20` (Phase D Task 16), and the two build identities above are the ones the RECTANGLES were derived from, which is what this stamp is for. The reuse is legitimate and CHECKED, not assumed: this case produces exactly that geometry pair, verified against its own `window.__paneManifest` on build 9b7a6dfc8d8a -- `panes_a=[414, 117]`, `panes_b=[352, 117, 61]`, stackTop 40, separatorPx 1. `gen_parity_regions.py` is a TWO-BUILD tool (it takes a `bands` URL and a `panes` URL) and this is a same-build engine rehearsal, so there is no cutover to point it at; the alternative was hand-drawing boxes, which is the exact defect this rail exists to refuse. The five `expect` values were MEASURED on this case, not copied from the template: they are 0/28719/61883/50323/0 and they sum to 140925 exactly, where the template reads 0/0/0/11169/0."
+    },
+    {
+      "name": "ast_user_formula_multiplot_rsi",
+      "status": "placeholder",
+      "why": "Compatibility Harness Lane 2, Level 2 fixture -- a genuine two-row AST multi-plot document (rsi(close,14) + rsi(close,28)) with a [70,30] hlines guide plot, built through the real buildDefinition() door (same function BuilderSheet.jsx Save calls) and confirmed to install cleanly through validateUserDefinitions with NO browser (see compatHarness.level2Fixture.test.js). PENDING LIVE PIXEL MEASUREMENT: RISK-027 (this session) found a reproducible FontNotSettledError blocking chart_parity.py --same-build against a local dev server, root cause undiagnosed. Deliberately carries no `expect`/`regions` so a future run does not silently compare against a guessed number -- run `chart_parity.py --base-a <url> --same-build --cases ast_user_formula_multiplot_rsi` once the font issue is resolved or shown unrelated, then record the measured `expect`/`regions` here the same way ast_user_formula_sma20 recorded its own.",
+      "settings": {},
+      "instancesB": [
+        {
+          "instanceId": "inst:u_1e4e120002ab:0",
+          "defId": "u_1e4e120002ab",
+          "defVersion": 1,
+          "inputs": {},
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ],
+      "userDefs": [
+        {
+          "schemaVersion": 1,
+          "id": "u_1e4e120002ab",
+          "version": 1,
+          "compute": {
+            "kind": "ast",
+            "fn": "sha256:1c11f25fae2ac009e67b22871a4d162a562511f845090eb657fbcea0e646476d",
+            "rev": 1,
+            "ast": {
+              "type": "call",
+              "name": "rsi",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 14
+                }
+              ]
+            },
+            "source": "rsi(close, 14)",
+            "trees": {
+              "fast": {
+                "type": "call",
+                "name": "rsi",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 14
+                  }
+                ]
+              },
+              "slow": {
+                "type": "call",
+                "name": "rsi",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 28
+                  }
+                ]
+              }
+            },
+            "treesHash": "sha256:1abb4c47755b861f5b37c12fe1c4b429ef8da8a1b89daf8008c43018a901190d",
+            "scanPlot": "fast",
+            "sources": {
+              "fast": "rsi(close, 14)",
+              "slow": "rsi(close, 28)"
+            }
+          },
+          "meta": {
+            "name": "RSI 14 vs RSI 28",
+            "shortName": "RSI 14 vs",
+            "category": "Custom",
+            "description": "the 14-bar RSI of close",
+            "tags": [
+              "custom"
+            ],
+            "tier": "premium",
+            "repaint": "non-repainting",
+            "freshness": "live"
+          },
+          "placement": {
+            "target": "pane",
+            "pane": {
+              "height": 0.15
+            }
+          },
+          "inputs": [
+            {
+              "key": "color",
+              "type": "color",
+              "label": "Color",
+              "default": "#c9a84c"
+            },
+            {
+              "key": "lineWidth",
+              "type": "int",
+              "label": "Line width",
+              "default": 1,
+              "min": 1,
+              "max": 4,
+              "step": 1
+            },
+            {
+              "key": "slowColor",
+              "type": "color",
+              "label": "slow colour",
+              "default": "#c9a84c"
+            },
+            {
+              "key": "slowWidth",
+              "type": "int",
+              "label": "slow width",
+              "default": 1,
+              "min": 1,
+              "max": 4,
+              "step": 1
+            }
+          ],
+          "plots": [
+            {
+              "key": "fast",
+              "label": "RSI 14 vs",
+              "style": "line",
+              "color": "$color",
+              "width": "$lineWidth",
+              "role": "primary",
+              "legend": {
+                "decimals": 2
+              }
+            },
+            {
+              "key": "slow",
+              "label": "slow",
+              "style": "line",
+              "color": "$slowColor",
+              "width": "$slowWidth",
+              "role": "secondary",
+              "legend": {
+                "decimals": 2
+              }
+            },
+            {
+              "key": "levels",
+              "label": "Levels",
+              "style": "hlines",
+              "levels": [
+                70,
+                30
+              ],
+              "color": "rgba(255,255,255,0.12)",
+              "width": 1,
+              "lineStyle": "largeDashed",
+              "role": "context"
+            }
+          ]
+        }
+      ],
+      "priceLine": false
     }
   ]
 }
