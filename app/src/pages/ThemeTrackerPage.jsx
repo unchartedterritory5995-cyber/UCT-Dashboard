@@ -683,15 +683,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     persist(next)
   }, [themeOrder, removedMap, addedMap, customThemes, persist])
 
-  // Jump the tracker to a just-added theme: open it, highlight it, and arm the bottom bar's
-  // "adding tickers" hint. New themes go to the TOP of the order so they're never buried.
+  // Jump the tracker to a just-added theme: open it, highlight it, and arm the command bar's
+  // "adding tickers" hint. The list is sorted A→Z while editing, so the new theme lands in its
+  // alphabetical slot and this scroll+highlight is what makes it easy to find.
   const jumpToTheme = useCallback((key, name) => {
     if (!key) return
     setOpenTheme(key); setFlashKey(key); setAddingTo({ key, name })
   }, [])
   const addThemeToSet = useCallback((slug) => {
     const order = materializeOrder()
-    applyEdit({ themeOrder: [slug, ...order.filter(s => s !== slug)] })
+    if (!order.includes(slug)) applyEdit({ themeOrder: [...order, slug] })
     const base = allIndex[slug]
     if (base) jumpToTheme(base.ticker, base.name)
   }, [materializeOrder, applyEdit, allIndex, jumpToTheme])
@@ -728,7 +729,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const createCustomTheme = useCallback((name) => {
     const key = 'custom:' + Date.now().toString(36)
     const nm = (name || '').trim() || 'My Theme'
-    applyEdit({ customThemes: [{ key, name: nm, members: [] }, ...customThemes] })
+    applyEdit({ customThemes: [...customThemes, { key, name: nm, members: [] }] })
     jumpToTheme(key, nm)
   }, [customThemes, applyEdit, jumpToTheme])
   // Reset the whole draft back to the UCT default (clears every add/remove/custom). For a named
@@ -781,8 +782,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const holdings = (c.members || []).map(mk)
       return { ticker: 'INDEX', name: c.name, sector: 'Custom', is_custom: true, custom_key: c.key, holdings, group_return: { [activeKey]: avgReturn(holdings, activeKey) } }
     })
-    // Your own themes sit at the TOP so a freshly-created one is right there (not buried).
-    return [...customs, ...owner]
+    // Edit mode lists every theme (owner + custom) A→Z so the set is easy to scan and a
+    // just-added theme lands in a predictable spot (we also scroll+highlight it). Adding a
+    // stock never reorders (theme names don't change), so the list stays stable while editing.
+    return [...owner, ...customs].sort((a, b) =>
+      (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()))
   }, [editing, themeOrder, data, allIndex, symIndex, removedMap, addedMap, customThemes, activeKey])
   editDisplayRef.current = editDisplayThemes   // keep the optimistic-Done source current
 
@@ -1265,6 +1269,40 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         ) : (
           <ThemeSearchBox onDebounced={setDebouncedSearch} />
         )}
+        {/* While editing, the command bar REPLACES the header row (same slot at the top of the
+            list): "＋ Add theme", Reset, and the save-as-preset input (Default) / auto-save hint
+            (preset) / "adding tickers" hint. Reverts to the normal header when editing ends. */}
+        {editing && themeSetsEnabled && (
+          <div className={styles.editBar}>
+            <AddThemePicker
+              palette={themePalette}
+              inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
+              onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
+            />
+            <button className={styles.editBarReset} onClick={resetToDefault} title="Reset back to the UCT default">Reset</button>
+            <span className={styles.editBarSpacer} />
+            {addingTo ? (
+              <div className={styles.editBarAdding}>
+                <span className={styles.editBarAddingLabel}>Adding to <b>{addingTo.name}</b> ↓</span>
+                <button className={styles.editBarDone} onClick={() => setAddingTo(null)}>Done</button>
+              </div>
+            ) : activeSet ? (
+              <span className={styles.editBarHint}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'} · saved automatically</span>
+            ) : (
+              <div className={styles.editBarSaveAs}>
+                <input
+                  className={styles.editBarSaveInput}
+                  placeholder="Name to save as preset…"
+                  value={saveName}
+                  onChange={e => setSaveName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && saveName.trim()) saveAsPreset(saveName) }}
+                />
+                <button className={styles.editBarSaveGo} disabled={!saveName.trim()} onClick={() => saveAsPreset(saveName)}>Save preset</button>
+              </div>
+            )}
+          </div>
+        )}
+        {!editing && (
         <div className={styles.tableHeader}>
           <span className={styles.themeCol}>
             <span className={styles.thMark} aria-hidden="true">◆</span>
@@ -1311,6 +1349,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             </button>
           )}
         </div>
+        )}
 
         <div className={styles.tableBody}>
           {/* Skeleton ONLY when there's genuinely nothing to show yet. With cached/fallback data
@@ -1324,7 +1363,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <p className={styles.loading}>No theme data — run the morning wire engine to populate.</p>
           )}
           {editing && renderThemes.length === 0 && (
-            <p className={styles.loading}>No themes yet — use ＋ Add theme below to build your list.</p>
+            <p className={styles.loading}>No themes yet — use ＋ Add theme above to build your list.</p>
           )}
           {renderThemes.map(theme => {
             const tk = theme.custom_key || theme.ticker   // custom themes share ticker "INDEX"
@@ -1342,44 +1381,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         </div>
       </div>
 
-      {/* ── Edit command bar — the taller bottom bar shown ONLY while editing. Holds
-          "＋ Add theme", Reset, and either the save-as-preset input (editing Default) or
-          the auto-save hint (editing a preset); flips to an "adding tickers" hint after a
-          theme is added (the actual ticker input is inline in the highlighted theme above). ── */}
-      {editing && themeSetsEnabled && (
-        <div className={styles.editBar}>
-          <AddThemePicker
-            up
-            palette={themePalette}
-            inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
-            onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
-          />
-          <button className={styles.editBarReset} onClick={resetToDefault} title="Reset back to the UCT default">Reset</button>
-          <span className={styles.editBarSpacer} />
-          {addingTo ? (
-            <div className={styles.editBarAdding}>
-              <span className={styles.editBarAddingLabel}>Adding to <b>{addingTo.name}</b> ↑</span>
-              <button className={styles.editBarDone} onClick={() => setAddingTo(null)}>Done</button>
-            </div>
-          ) : activeSet ? (
-            <span className={styles.editBarHint}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'} · saved automatically</span>
-          ) : (
-            <div className={styles.editBarSaveAs}>
-              <input
-                className={styles.editBarSaveInput}
-                placeholder="Name to save as preset…"
-                value={saveName}
-                onChange={e => setSaveName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && saveName.trim()) saveAsPreset(saveName) }}
-              />
-              <button className={styles.editBarSaveGo} disabled={!saveName.trim()} onClick={() => saveAsPreset(saveName)}>Save preset</button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ── Footer (embedded widget only): stock count · last-updated · manual refresh ── */}
-      {embedded && !editing && (
+      {embedded && (
         <div className={styles.ttFooter}>
           <span className={styles.ttFooterCount}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'}</span>
           {(data?.live_as_of || data?.generated_at) && (

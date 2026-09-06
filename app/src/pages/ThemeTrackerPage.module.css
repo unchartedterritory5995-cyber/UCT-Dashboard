@@ -1082,13 +1082,19 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 12px;                 /* taller than the view-mode footer (5px) */
-  min-height: 46px;
+  gap: 7px;
+  padding: 6px 12px;
+  min-height: 40px;
   box-sizing: border-box;
   font-family: var(--font-sans);
-  border-top: 2px solid var(--tt-accent, var(--ut-gold));   /* the "taller bottom border" cue */
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.10));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  /* A GENTLE, controlled gold wash over the solid elevated header bg — layered as a fixed
+     overlay (not --tt-accent-bg, which a theme can crank up) so the tint stays light and the
+     input + Save button below it stay readable. Gold left-edge matches the normal header. */
+  background:
+    linear-gradient(rgba(220, 187, 94, 0.06), rgba(220, 187, 94, 0.06)),
+    var(--tt-elev, var(--bg-elevated));
+  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold, #c9a84c));
   white-space: nowrap;
   overflow: hidden;
 }
@@ -1149,35 +1155,41 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.editBarSaveAs { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.editBarSaveAs { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .editBarSaveInput {
   font-family: var(--font-sans);
   font-size: calc(11px * var(--tt-font-scale, 1));
-  padding: 5px 8px;
+  padding: 6px 9px;
   min-width: 0;
-  width: 150px;
+  width: 168px;
   max-width: 46vw;
-  border: 1px solid var(--tt-divider, var(--border));
+  /* SOLID canvas-colored field (not translucent) with a clear border, so it reads as a real
+     input over the gold-tinted header instead of a dark smudge. */
+  border: 1px solid var(--tt-divider-strong, rgba(255, 255, 255, 0.22));
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tt-bg, var(--bg));
   color: var(--tt-sym, var(--text-bright, #e4e6ea));
   outline: none;
 }
+.editBarSaveInput::placeholder { color: var(--tt-text, var(--text-secondary, #aab2bd)); opacity: 0.95; }
 .editBarSaveInput:focus { border-color: var(--tt-accent, var(--ut-gold)); }
 .editBarSaveGo {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 700;
-  padding: 6px 11px;
+  padding: 7px 13px;
   border: none;
   border-radius: 5px;
-  background: var(--tt-accent, var(--ut-gold));
-  color: var(--tt-accent-fg, #1a1206);
+  /* Full-strength gold with near-black text — a clearly readable primary button, not the muted
+     accent-over-tint it read as before. */
+  background: var(--ut-gold, #c9a84c);
+  color: #181203;
   cursor: pointer;
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.editBarSaveGo:disabled { opacity: 0.4; cursor: default; }
+.editBarSaveGo:hover:not(:disabled) { filter: brightness(1.08); }
+.editBarSaveGo:disabled { opacity: 0.6; cursor: default; }
 
 /* Pulse-highlight a just-added theme so the eye lands on it after the jump-scroll. */
 .groupFlash { animation: ttGroupFlash 1.8s ease-out 1; }
