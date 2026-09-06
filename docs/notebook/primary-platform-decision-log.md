@@ -508,6 +508,32 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-05 — Wave 1 final certification: P0-3 architecture, deferred scope, and the safe-sandbox invariant
+
+**Decision:** Close Wave 1 with the following as the durable record of what P0-3 actually became, what was deliberately deferred, and what testing infrastructure is now a permanent project invariant — not an ambiguous checkbox in any of these three areas.
+
+**(B) Final P0-3 architecture, as shipped:** an explicit `j2_note_mentions(note_id, user_id, symbol, created_at)` table, PK `(note_id, symbol)`, synced via the same delete+insert idiom as `j2_note_embeds` on every note-body-writing call site (create, update, import-batch create/update, widget-embed append). Detection is cashtag-tier-only (`buzz_extract.extract()` filtered to `tier == "cashtag"`), local and synchronous with the note write (no network call — see the "note-save reliability" invariant below). The reverse index (`get_symbol_backlinks()` and the notes-list `embed_symbol` filter) UNIONs `j2_note_embeds` ∪ `j2_note_mentions`, deduplicated by note id, so a note containing both an accepted `$NVDA` chart embed and the prose cashtag `$NVDA` appears exactly once — proven by a dedicated coexistence test in both directions (embed added to a mention-only note; mention added to an embed-only note).
+
+**(C) Earnings-window join: deferred, not forgotten.** The existing `ticker_meta.get_ticker_meta()` cache (24h TTL, yfinance→FMP→Finnhub fallback) supplies `sector`/`industry`/`theme` for the reverse index's read-time enrichment, wrapped in try/except degrading to null. It does **not** supply an earnings-window field — the codebase's only earnings-window sources (`earnings_intel.py`'s calendar/intel endpoints, the calendar enrichment batch) are shaped for a per-symbol lookup keyed to a specific date range and a UI card, not for a bulk reverse-index annotation call, and building a new source-agnostic earnings-window primitive was not required for the P0 member outcome ("does a note mentioning a ticker show up when I look that ticker up" — answered fully by sector/industry/theme + the mention/embed union). Deferred to a future wave if a real member outcome needs it, not implemented speculatively.
+
+**(D) Theme/sector outcome, exactly:** sector and industry come directly from `ticker_meta`. Theme comes from that same cache's `_primary_theme()` helper, which reuses the existing `groups.resolve_primary_theme()` — no new theme-resolution logic was written. All three degrade to `null` independently (a `ticker_meta` failure for one symbol never blocks the notes list itself — verified by an enrichment-failure test that asserts the note list still returns while enrichment fields are null).
+
+**(E) The fail-closed Notebook E2E sandbox (Wave 1 Slice 1) is now a PERMANENT project testing invariant, not a one-slice tool.** `tools/audit_sandbox_env.py` + `tools/audit_shared_root_probe.py` (strict mode) + `tools/e2e_sandbox_launcher.py`, railed by `tests/test_e2e_sandbox_guard.py` (13 tests, including probes that watch the guard actually fire against throwaway pretend roots — a guard nobody has seen fire is not a guard). All future local browser/server E2E work in this project should launch through this sandbox rather than reconstructing per-environment-variable DB isolation by hand. This was born from a real, disclosed near-miss (a local E2E run touched real `C:\data\flow.db`/`darkpool.db` via env vars `DATA_DIR` alone doesn't cover) and is the standing answer to that class of risk going forward, not a Wave-1-scoped mitigation.
+
+**(F) Note-save reliability re-confirmed at Wave 1 close (Step 8), not merely assumed from Slice 2:** re-read `_sync_note_mentions` directly — it calls `buzz_extract.extract()` (pure regex + local JSON-set membership against `cap_universe.json`), zero network calls, so there is no external-provider failure mode to guard against in the DETECTION path at all. It runs inside the same DB transaction as the note write (no separate commit), which is the correct design: mentions are transactionally consistent with note content, not an eventually-consistent side write that could drift. The genuinely provider-dependent step — sector/industry/theme enrichment via `ticker_meta.get_ticker_meta()` — lives only in the read-time reverse-index path (`get_symbol_backlinks()`), wrapped in try/except degrading every field to null, confirmed never to reach note create/update/delete.
+
+**Evidence:** Direct code reads of `api/services/journal_two/notes.py` (`_sync_note_mentions`, `get_symbol_backlinks`, all 5 call sites), `api/services/buzz_extract.py`, `api/services/journal_two/db.py`'s schema block, and `api/services/ticker_meta.py`'s `_primary_theme()`. Cross-checked against the existing test suite (`test_notes.py`'s embed+prose coexistence tests both directions, the enrichment success/failure tests, the deterministic no-corpus-rescan spy test).
+
+**Rationale:** The user's explicit instruction was "do not leave an ambiguous checkbox implying it was forgotten" for the earnings-window item, and to record the safe sandbox as a durable invariant rather than let it read as scoped-to-one-slice. This entry is that record.
+
+**Consequences:** Future work needing an earnings-window join on the reverse index should build a bulk-shaped primitive rather than repurposing the per-symbol calendar endpoints; future local E2E work should default to `tools/e2e_sandbox_launcher.py` rather than re-deriving environment isolation.
+
+**Reversibility:** The architecture choices (B, D, F) are the shipped implementation, revertible only by a future re-scoping decision with new evidence. The deferral (C) is fully reversible — build it whenever a real member outcome requires it. The sandbox invariant (E) is a standing policy, not reversible by omission (a future E2E script that skips it and touches `C:\data` reopens the exact risk it exists to prevent).
+
+**Reconsider if:** (C) a member-facing feature needs earnings-window data joined into the reverse index specifically; (E) a future architecture change genuinely replaces the sandbox mechanism wholesale (not merely inconveniences it).
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
