@@ -3652,3 +3652,151 @@ Pullback-to-50-SMA remain deferred, not started in parallel. 8G-B
 observation cadence uninterrupted throughout — no diagnostic touched, no
 load manufactured; Tuesday 2026-09-08 RTH remains the next real evidence
 window.
+
+---
+
+## PULLBACK-TO-50-SMA CANONICAL ADAPTATION (Package 8K) — 2026-09-06
+
+Worktree `C:\Users\Patrick\uct-dashboard-pullback-50sma`, branch
+`feat/canonical-pullback-50sma`, base `origin/master@0bd531e57` (master had
+advanced past the VCP-canonical package's `2940f557b` — routine
+parallel-session drift, labeled per standing instruction, does not affect
+either package). Committed `58dfc8094`.
+
+**Owner-required readiness/geometry adjudication done FIRST, before any
+implementation, per this package's own authorization.**
+
+**Detector authority — genuinely different from VCP/HTF.** Grepped
+`base_catalog.py` directly for any `pullback_to_50sma`/"second buy
+point"/50sma-named structure: zero hits. Unlike VCP/HTF, this family has NO
+parallel base_catalog engine at all — no other engine to defer criteria/
+provenance to. Its own two volume-ratio gates (`test_volume_ratio<=1.3`,
+`reclaim_volume_ratio>=0.9`) are bare inline literals in
+`_build_detection`, never named module constants — reconstructing a
+gate_trace against them would restate an un-named literal, the exact
+duplication-drift risk this program has repeatedly flagged elsewhere. The
+honest, narrow choice: no gate_trace/criteria at all (mirrors HTF's shape,
+for a materially different reason).
+
+**Freshness — Phase-7's own prior classification confirmed by direct
+re-derivation, not merely trusted.** Phase-7 spec Section 140 (re-read
+directly) already classifies `pullback_to_50sma` — alongside bull_flag/
+high_tight_flag/the engulfing pair — as having "no freshness/recency
+concept of their own at all." Verified independently against the real code:
+`_PULLBACK_LOOKBACK=5` bounds the SEARCH ITSELF (`for back in
+range(5): idx=n-1-back; ... break` on first qualifying touch) — it is NOT a
+separate reject-if-stale gate applied after an otherwise-unbounded search
+the way VCP's own `_MAX_FINAL_LOW_AGE` is. Every firing Detection is
+therefore maximally fresh by construction; there is no distinct ceiling to
+represent. `freshness_bars`/`freshness_window_bars` both `None`, same as
+HTF — genuinely no gate, not an unreconstructable one (contrast VCP).
+
+**Geometry — the central question, and the one requiring the most care.**
+`pullback_to_50sma.py::_build_detection` (verified by direct read) emits
+EXACTLY ONE anchor: `{"t": last_bar.t, "price": sma50}` — the CURRENT
+50-SMA reading as of the current/last bar, `shape="horizontal_line"`. Never
+the touch (pullback) bar, never the reclaim bar. Phase-7 spec Section 284
+(re-read directly) already documents this exact limitation and recommends
+a Phase-8 fix — but frames it as the DETECTOR itself needing to "emit" a
+second anchor (`anchors=[{t: pullback_bar.t, price: sma50}, {t: last_bar.t,
+price: sma50}]`, `anchor_roles=["ma_touch","ma_current"]`), i.e. a change
+to `pullback_to_50sma.py`'s own `_build_detection` — explicitly OUT OF
+SCOPE for this package ("do NOT add touch-bar inference... if
+detector-side geometry must change: STOP").
+
+The touch bar's real timestamp is NOT lost by the detector — it survives
+elsewhere on the raw Detection, in `pivot_ts[0]` (set on the same line as
+`pivot_ts[1]==end_t`) — but promoting it into `geometry.anchors` here would
+mean this ADAPTER inventing the family's own geometric contract from a
+*different* already-emitted field, rather than merely labeling what the
+detector itself already put in `anchors`. That is precisely the kind of
+silent architectural expansion this package must not perform. **Classified
+as Category A (owner's own classification menu): valid but minimal
+semantic geometry** — adapted honestly with a role name describing exactly
+what the single anchor is (`"current_sma_reading"`, `semantic_subtype
+"ma_reference_point"`) — never labeled `"touch_bar"`, which would
+misrepresent it. The richer 2-anchor representation remains a real,
+already-recorded, NOT-yet-authorized detector-side enhancement — reported
+here, not actioned.
+
+**explanation_builder.py**: `pullback_to_50sma` added to
+`_IN_SCOPE_FAMILIES` (now HTF, PEG, VCP, Pullback). `why_it_matched` facts
+read `geometry.extras` (`prior_advance_pct`, `sma_50_slope_pct_over_20`,
+`test_volume_ratio`, `reclaim_volume_ratio`) citing ONLY this family's own
+named constant (`_MIN_PRIOR_ADVANCE_PCT`) — the two bare-literal
+volume-ratio thresholds are never restated, only the observed ratios are
+cited, mirroring the detector's own restraint (its own narrative never
+states the 1.3x/0.9x figures as rules either). The reclaim-volume fact
+deliberately reuses the detector's own `reclaim_vol_ratio >= 1.0` "is this
+actually an expansion" boolean — the settled Phase 2B/3A narrative
+correction already live in the file's own header comment (a reclaim ratio
+below 1.0 is BELOW average, so calling it "expansion" would be a literal
+contradiction) — so this explanation layer cannot reintroduce that removed
+claim. Pinned by a dedicated regression test.
+
+**Phrase-function wiring required NEW care, not present in any prior
+package this session.** `pullback_to_50sma.py` imports its stage/MA/RS
+phrase functions from the SHARED `narrative_helpers` module
+(`trend_stage_description`, `ma_alignment_phrase`, `rs_trend_phrase`) —
+unlike HTF/PEG/VCP, which each define their own LOCAL, family-private
+copies. Verified by direct read of `narrative_helpers.py`: those shared
+functions take a single already-extracted SCALAR (`Optional[int]`/
+`Optional[str]`), not the full `context` dict every other registered
+family's phrase functions take. Three thin wrapper functions in
+`explanation_builder.py` extract the right scalar before calling — the
+shared `_current_stage_facts` dispatch itself (which calls every
+registered triple uniformly as `fn(context)`) is completely UNCHANGED, and
+no other family's behavior is affected. This is exactly the kind of
+signature mismatch the owner's own Section-8 instruction anticipated
+("Trace the actual scoring components... do not manufacture a
+structure-quality helper if none exists") — verified rather than assumed
+identical to VCP's shape.
+
+**Also confirmed, not fixed (out of scope, matches HTF/VCP's own
+`compute_structure_quality`/`structure_extras` shared-helper usage):**
+`pullback_to_50sma.py` calls the SAME shared `narrative_helpers_structure.py`
+helper (`compute_structure_quality`/`structure_extras`) VCP/HTF do — the
+`hl_result`/`ma_result`/`higher_low`/`aligned_ma` extras fields exist here
+too, but — matching the existing precedent that NEITHER HTF's nor VCP's
+own `why_it_matched` facts surface these fields — this package does not
+newly wire them either, avoiding an invented consumption pattern with no
+prior precedent.
+
+**Tests added**: extended `test_canonical_adapter.py` (parity, minimal-shape
+event/criteria/gate_trace absence, eligibility shape with the
+no-per-family-gate freshness reasoning, exact one-anchor geometry
+re-verification against every real firing fixture, an explicit pin that
+the touch bar's real timestamp survives via `pivot_ts[0]` but is never
+promoted into `anchors`, non-mutation) and `test_explanation_builder.py`
+(why_it_matched facts against real extras, the
+never-calls-a-below-average-reclaim-an-expansion regression pin, no event
+section, warnings, extended into the shared HTF+PEG family-agnostic test
+set) — both existing files extended in place, per this program's own
+established convention.
+
+**Regression**: targeted (339 passed, `test_canonical_adapter.py` +
+`test_explanation_builder.py` combined). Full `tests/pattern_engine/`: 2724
+passed, 9 xfailed (same pre-existing xfails as every prior package this
+session). Two-engines rail (`tests/test_two_engines_do_not_agree.py`): 23
+passed, 1 failed — the same pre-existing, unrelated
+`test_the_shipped_thresholds_have_not_moved` drift on VCP's Trend-Template
+SMA constants, confirmed unrelated (zero touches to `vcp.py` or
+`base_catalog.py` in this branch).
+
+**No detector correctness or completeness DEFECT found** — the one-anchor
+geometry is valid, honest, minimal evidence (Category A), not a bug. The
+richer 2-anchor enhancement Phase-7 already recommends remains a real,
+separate, NOT-yet-authorized detector-side change — explicitly reported
+here, not actioned, per this package's own hard boundary.
+
+**Verdict: PULLBACK-TO-50-SMA CANONICAL ADAPTATION COMPLETE LOCALLY — READY
+FOR OWNER REVIEW.**
+
+**Frozen, no merge/deploy.** Fifteen packages now frozen total (pending
+this one's acceptance). Episodic Pivot remains the last family on the
+readiness backlog, deliberately not started in parallel — its
+event-provenance question (real external-event linkage vs. explicit
+unavailable provenance) was not touched or answered incidentally by this
+package. 8G-B observation cadence uninterrupted throughout — no diagnostic
+touched, no load manufactured; Tuesday 2026-09-08 RTH remains the next
+real evidence window.
