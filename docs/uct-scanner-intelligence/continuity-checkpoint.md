@@ -3800,3 +3800,144 @@ unavailable provenance) was not touched or answered incidentally by this
 package. 8G-B observation cadence uninterrupted throughout — no diagnostic
 touched, no load manufactured; Tuesday 2026-09-08 RTH remains the next
 real evidence window.
+
+---
+
+## EPISODIC PIVOT CANONICAL ADAPTATION (Package 8L) — 2026-09-06
+
+**Worktree:** `C:\Users\Patrick\uct-dashboard-episodic-pivot`, branch
+`feat/canonical-episodic-pivot`, base `origin/master@3d32f47da` ("Continuity:
+Shared Multi-Security Grounding Architecture V1 ACCEPTED (#7)"). HEAD after
+this package: `77572261e`. Local only — no merge/push/deploy.
+
+**Owner authorized this as the FINAL family in the current canonical
+sequence**, with a new, explicit requirement not present in any prior
+package: an event-provenance A/B/C/D adjudication (real available / real-
+but-lost / none-exists / ambiguous) BEFORE any adapter implementation,
+mirroring the geometry A/B/C/D framework already established for VCP/
+Pullback.
+
+**Detector traced fresh, in full (651 lines), not inferred from the family
+name.** `detect_episodic_pivot`'s `context` parameter is read for exactly 7
+keys — `trend_stage`, `ma_alignment`, `rs_trend`, `regime`,
+`can_slim_grade`, `can_slim_score`, `dcr_signature`, `recent_dcr_avg` — every
+one a technical/market-structure fact. No earnings/news/filing/corporate-
+action field is read anywhere, and no such module is imported. The
+permanent 4% gap-identity threshold (`_MIN_GAP_PCT=0.04`) was re-confirmed
+present and untouched — not reopened, not re-benchmarked.
+
+**Event provenance: Category C** (no real event provenance exists; price/
+volume phenomenon only). Independently re-derived from the code, then
+cross-checked against the Phase-7 spec's own pre-existing finding
+(S11/S24/S26: "PEG only (Phase 6 fix); EP none" — framed there as a future
+Phase-8 BUILD item, not as lost/dropped upstream data). The classification
+turns on more than an absent field: EP's own pattern identity (Bonde/
+Kullamägi, cited in-file) never requires or implies a SPECIFIC external
+cause — an Episodic Pivot is explicitly a general-purpose "something big
+happened, the tape doesn't say why" signature — structurally unlike PEG
+(Power EARNINGS Gap), whose identity criteria REQUIRE an earnings link by
+definition. So even though `context` is the SAME shared dict PEG receives
+(and could, in principle, also carry `days_to_earnings_hint`), reading that
+field for EP would not be "recovering lost provenance" — nothing EP-
+specific was ever produced upstream to lose. It would be the ADAPTER
+inventing a causal link the detector's own identity criteria never verify
+— the forbidden "a gap is not event provenance" pattern, generalized. Not
+classified B: real provenance existing-upstream-but-lost requires there be
+something real, EP-specific, and upstream to lose in the first place; there
+isn't. `event` is emitted PRESENT (EP IS a gap/event family per Phase-7's
+own S24/S26 grouping, unlike HTF's genuine no-event-concept omission) but
+deliberately EMPTY — `{"verification_status": "unavailable"}` only, every
+other `EventProvenance` field genuinely omitted rather than guessed.
+
+**Geometry: Category A (valid, schema-conformant).** 3 fixed anchors —
+`base_ceiling_start`/`base_ceiling_end` (both priced at `base_high`, a
+ceiling LEVEL across the whole pre-EP base segment, not either specific
+bar's own high — the same "level, not per-bar extreme" convention flat_base
+and VCP's own boundary anchors already use) and `ep_bar` (priced at the EP
+bar's own exact close). Confirmed against all 9 real firing fixtures: every
+anchor timestamp is a real bar timestamp, the EP-bar anchor's price is
+byte-exact to that bar's own `c`. `semantic_subtype="gap_breakout_bar"`.
+
+**Freshness (`_MAX_EP_AGE=5`): real gate, Pullback-shape, not
+reconstructable post-hoc.** Re-derived from the code (not assumed from
+memory) that this bounds `range(_MAX_EP_AGE)` in the detector's own search
+loop — i.e. it bounds WHICH bar can be TRIED as the EP-bar candidate in the
+first place, not a separate reject-if-stale check re-applied to an
+already-otherwise-valid candidate (VCP's `_MAX_FINAL_LOW_AGE` shape).
+Confirmed empirically: appending trailing bars to a real firing fixture
+leaves the true EP bar's own anchor timestamp unchanged while only `end_t`
+advances — detection still fires as long as the EP bar stays within the
+5-bar window. Not reconstructable as an exact bar count from a persisted
+Detection alone (only Unix timestamps survive; a timestamp delta needs the
+timeframe's bar spacing to become a bar count, and `tf` is blank at
+detector-build time) — same treatment as VCP's own `_MAX_FINAL_LOW_AGE`:
+`freshness_bars`/`freshness_window_bars` both stay `None`. Disclosed as a
+real, pre-existing schema ambiguity (the current `Eligibility` shape can't
+distinguish "no gate at all" from "real gate, not reconstructable" — both
+read as `None`), not something this canonical-adapter-only package is
+authorized to fix (would need a schema change, out of scope).
+
+**Quality/confidence scoring: structurally identical to HTF/VCP/Pullback/
+PEG** (0.40 geometry + 0.25 volume + 0.20 context + 0.15 historical, floor
+50.0, `historical_score` hardcoded 50.0) — re-verified directly against the
+code and the Phase-7 spec's own S12/S13 findings; no asymmetry requiring
+special handling.
+
+**Implementation** (`adapt_episodic_pivot`, `canonical_adapter.py`):
+eligibility (freshness None, per above) + labeled geometry (anchor_roles=
+`["base_ceiling_start","base_ceiling_end","ep_bar"]`) + a reconstructed
+7-gate `gate_trace` (`_ep_gate_trace`) mirroring PEG's own shape — EP has NO
+bare-literal problem (unlike Pullback): every threshold (`_MIN_GAP_PCT`,
+`_MIN_RANGE_RATIO`, `_MIN_VOLUME_RATIO`, `_MIN_CLOSE_STRENGTH`,
+`_MAX_BASE_DEPTH`, `_MIN_BASE_BARS`/`_MAX_BASE_BARS`) is already a named
+module constant, plus the close-above-base-high identity check. `event` set
+exactly as adjudicated above. `reconstruct_persisted_evidence` (Package 8F's
+PEG-only helper) was deliberately NOT extended to EP — outside this
+package's explicit scope, flagged as a trivial future follow-up, not an
+oversight.
+
+**Explanation layer** (`explanation_builder.py`): `_IN_SCOPE_FAMILIES`
+extended to 3 families. `_ep_why_it_matched_facts` mirrors PEG's
+gate-trace-to-facts shape exactly (kept separate from PEG's own function
+rather than shared, to avoid touching already-tested code). EP's own local
+phrase functions (`_trend_stage_description`/`_ma_alignment_phrase`/
+`_rs_trend_phrase`, VCP-style single-arg `context` shape, no bridge wrapper
+needed) registered directly into `_FAMILY_CONTEXT_FNS`/`_FAMILY_PHRASE_FNS`.
+**The one real, necessary edit to previously-shared code:** `_event_facts`
+was PEG-only in its wording (hardcoded "earnings"/"catalyst" phrasing in
+every branch) — feeding EP's `verification_status="unavailable"` through it
+unchanged would have produced a misleading earnings-flavored sentence for a
+family with no earnings concept at all. Added an early, additive,
+pid-gated EP branch before PEG's existing verified/contradicted/else chain,
+which is byte-unchanged. This is the package's single most important
+regression test (`test_ep_event_section_is_present_but_never_implies_earnings`).
+
+**Tests added**: extended `test_canonical_adapter.py` (parity, gate_trace
+pass + recompute against every real firing fixture, exact anchor-role/
+geometry re-verification, freshness-left-None-despite-real-gate pin,
+scanner-summary event-note never says "earnings", non-mutation) and
+`test_explanation_builder.py` (gate-trace-mirror why_it_matched, the
+event-never-implies-earnings negative test, no double-reported event-
+absence warning, EP added to every existing family-agnostic shared
+parametrized test) — both existing files extended in place.
+
+**Regression**: targeted (141 passed in `test_canonical_adapter.py`, 226
+passed in `test_explanation_builder.py`). Full `tests/pattern_engine/`: 2752
+passed, 9 xfailed (same pre-existing xfails as every prior package this
+session). Two-engines rail (`tests/test_two_engines_do_not_agree.py`): 23
+passed, 1 failed — the same pre-existing, unrelated
+`test_the_shipped_thresholds_have_not_moved` drift on VCP's Trend-Template
+SMA constants, confirmed unrelated (zero touches to `vcp.py` in this
+branch).
+
+**No detector correctness defect found.**
+
+**Verdict: EPISODIC PIVOT CANONICAL ADAPTATION COMPLETE LOCALLY — READY FOR
+OWNER REVIEW.**
+
+**Frozen, no merge/deploy.** Sixteen packages now frozen total (pending
+this one's acceptance). This closes the current canonical-adapter family
+sequence (HTF, PEG, VCP, Pullback-to-50-SMA, Episodic Pivot — five families
+adapted). 8G-B observation cadence uninterrupted throughout — no diagnostic
+touched, no load manufactured; Tuesday 2026-09-08 RTH remains the next real
+evidence window.
