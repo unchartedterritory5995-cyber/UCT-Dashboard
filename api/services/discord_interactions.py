@@ -356,10 +356,10 @@ def parse_flow_command(interaction: dict) -> tuple:
 
 _FLOW_DAY_PRESETS = [
     ("Today", "1"),
-    ("Last 5 days · ~1 week", "5"),
-    ("Last 20 days · ~1 month", "20"),
-    ("Last 60 days · ~3 months", "60"),
-    ("Last 90 days", "90"),
+    ("7 days", "7"),
+    ("30 days", "30"),
+    ("3 months", "63"),     # ~21 trading days/month
+    ("6 months", "126"),
     ("All history", "all"),
 ]
 
