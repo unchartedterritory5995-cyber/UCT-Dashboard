@@ -24,10 +24,51 @@ Design:
 import json
 import logging
 import os
+import re
 import threading
 import time
 
 logger = logging.getLogger(__name__)
+
+# ── Dot/hyphen share-class identity (Seam 16) ───────────────────────────────
+#
+# Massive's own /v3/reference/tickers feed returns class-share tickers in DOT
+# notation ('BRK.B'), but this codebase's canonical form is HYPHEN ('BRK-B')
+# everywhere else (cap_universe.json, FMP, yfinance, Watchlists, Journal --
+# massive.py::to_polygon_symbol()'s own docstring: "storage/cache keys ...
+# keep the canonical hyphen form"). Without re-keying, cap_universe's
+# 'BRK-B' and Massive's own 'BRK.B' union onto TWO DIFFERENT dict keys in
+# `_collect_rows()` for one real instrument -- entity_master_seed.py's
+# `_massive_reference_rows()` already hit and fixed this EXACT defect at
+# Entity Master's own seeding time (Checkpoint 6: "confirmed on real data:
+# 13 of cap_universe's 14 hyphenated symbols had a live Massive dot-form
+# row and were double-entitied this way"). This index independently sources
+# from the same `massive.list_reference_tickers()` feed and never received
+# the same fix, so it still carries the duplicate: a rich, well-named row
+# keyed 'BRK.B' (whose entity_id resolves to None -- Entity Master's alias
+# table only has the hyphen spelling) sitting alongside a blank,
+# cap_universe-sourced 'BRK-B' row that DOES resolve. `_canonical_massive_
+# ticker` mirrors that already-validated re-keying verbatim so the two
+# sources coalesce onto the one canonical key here too, exactly as they
+# already do in Entity Master.
+def _canonical_massive_ticker(raw: str) -> str:
+    return raw.replace(".", "-") if "." in raw else raw
+
+
+# The query-side half: a member typing the literal dot spelling ('BRK.B')
+# must still find the now-single, canonically-hyphenated row. Narrowly
+# scoped to the real share-class shape (a short alpha root, a literal dot,
+# then 1-2 letters -- matching every real example in cap_universe.json:
+# BRK-A/BRK-B, BF-A/BF-B, CRD-A/CRD-B, AKO-A/AKO-B, HEI-A, MOG-A, CWEN-A,
+# UHAL-B, PBR-A, NWAX-U) so an unrelated query containing a period is never
+# silently reinterpreted (Seam 16 authorization's explicit dot/hyphen safety
+# requirement -- this is NOT a blanket "every dot == every hyphen" rule).
+_SHARE_CLASS_DOT_RE = re.compile(r"^([A-Z]{1,5})\.([A-Z]{1,2})$")
+
+
+def _share_class_alias(q: str) -> str | None:
+    m = _SHARE_CLASS_DOT_RE.match(q)
+    return f"{m.group(1)}-{m.group(2)}" if m else None
 
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 _SNAP_PATH = os.environ.get(
@@ -89,7 +130,13 @@ def _collect_rows() -> list[dict]:
     out: dict[str, dict] = {}
 
     def _put(sym, name, asset_type, exch, *, overwrite_ok=True, ref: dict | None = None):
-        sym = (sym or "").strip().upper()
+        # Seam 16: re-key any dot-containing ticker (Massive's own class-
+        # share spelling) to this codebase's canonical hyphen form BEFORE it
+        # becomes a dict key -- a no-op for every already-hyphenated or
+        # plain ticker (cap_universe's own rows never contain a literal
+        # "."), so this affects only the two Massive-sourced call sites in
+        # practice. See `_canonical_massive_ticker`'s own docstring for why.
+        sym = _canonical_massive_ticker((sym or "").strip().upper())
         if not sym:
             return
         prev = out.get(sym)
@@ -290,6 +337,12 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
         return []
     ql = q.lower()
     qu = q.upper()
+    # Seam 16: a member who types the literal dot spelling ('BRK.B') must
+    # still find the now-single, canonically-hyphenated row (see
+    # `_share_class_alias`'s own docstring for the narrow scoping rule).
+    # `None` when the query doesn't match the share-class shape at all --
+    # every branch below guards on that before using it.
+    qa = _share_class_alias(qu)
     with _LOCK:
         idx = _INDEX
     scored: list[tuple[int, int, dict]] = []
@@ -298,11 +351,11 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
             continue
         sym = r["sym"]
         rank = None
-        if sym == qu:
+        if sym == qu or (qa and sym == qa):
             rank = 0
-        elif sym.startswith(qu):
+        elif sym.startswith(qu) or (qa and sym.startswith(qa)):
             rank = 1
-        elif qu in sym:
+        elif qu in sym or (qa and qa in sym):
             rank = 2
         else:
             nlc = r["name_lc"]
