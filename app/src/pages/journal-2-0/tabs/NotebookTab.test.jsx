@@ -75,6 +75,12 @@ beforeEach(() => {
     total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false,
   }))
   global.fetch = vi.fn((url, opts) => {
+    // Stage A telemetry (notebook_tab_visit, fired on every mount) is a
+    // fire-and-forget side channel, not part of the flow these tests
+    // exercise — never record it as "the" POST under test.
+    if (String(url) === '/api/j2/telemetry') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })
+    }
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })
@@ -93,9 +99,22 @@ function renderTab(entry = '/journal') {
 }
 
 const lastPost = () => {
-  const call = global.fetch.mock.calls.find(([, opts]) => opts?.method === 'POST')
+  const call = global.fetch.mock.calls.find(
+    ([u, opts]) => opts?.method === 'POST' && String(u) !== '/api/j2/telemetry',
+  )
   return call ? { url: String(call[0]) } : null
 }
+
+describe('NotebookTab — Stage A member-validation instrumentation', () => {
+  it('fires notebook_tab_visit telemetry once on mount', async () => {
+    renderTab()
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find(([u]) => String(u) === '/api/j2/telemetry')
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ event: 'notebook_tab_visit' })
+    })
+  })
+})
 
 describe('NotebookTab — template picker', () => {
   it('empty notebook renders the picker inline with all families', () => {

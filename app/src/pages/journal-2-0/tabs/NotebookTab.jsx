@@ -33,9 +33,24 @@ function SidebarToggleIcon() {
   )
 }
 
+// Stage A member-validation instrumentation (decision-log "Stage A→B gate"
+// entry, 2026-09-06) — fired once per mount, best-effort, never blocks or
+// throws into the render path. The validation report derives "first" vs.
+// "repeat" visit from this event's own timestamps; no separate event type.
+function _logNotebookVisit() {
+  fetch('/api/j2/telemetry', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'notebook_tab_visit' }),
+  }).catch(() => {})
+}
+
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
+
+  useEffect(() => { _logNotebookVisit() }, [])
 
   const [folderId, setFolderId] = useState(null)
   const [tag, setTag] = useState(null)

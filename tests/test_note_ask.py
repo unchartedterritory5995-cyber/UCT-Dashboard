@@ -84,7 +84,14 @@ def client(tmp_path, monkeypatch):
     db_path = str(tmp_path / "j2_notes_ask_single.db")
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    conn.executescript(auth_db._SCHEMA)  # users/activity_log (Stage A telemetry)
     ensure_schema(conn)
+    conn.execute(
+        "INSERT INTO users (id, email, password_hash, display_name, role, created_at)"
+        " VALUES (?,?,?,?,?,datetime('now'))",
+        (PAID["id"], PAID["email"], "x", "U1", "member"),
+    )
+    conn.commit()
     conn.close()
     monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
     monkeypatch.setattr(note_ask, "synthesize", _fake_ok_synthesize)
@@ -273,3 +280,27 @@ def test_isolation_does_not_leak_via_error_message(two_user_clients):
     r = c2.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q"})
     assert "secret thesis" not in r.text
     assert "NVDA" not in r.text
+
+
+# ── Stage A member-validation instrumentation (decision-log "Stage A→B
+# gate" entry, 2026-09-06) ─────────────────────────────────────────────────
+
+def test_a_successful_ask_logs_the_stage_a_validation_event(client):
+    from api.services import auth_db
+    note = client.post("/api/j2/notes", json={"title": "margins note"}).json()["note"]
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "what happened to margins"})
+    assert r.status_code == 200
+
+    conn = sqlite3.connect(auth_db._DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT action, details FROM activity_log"
+        " WHERE user_id = ? AND action = 'j2:notebook_ask_current_note_used'",
+        (PAID["id"],),
+    ).fetchall()
+    conn.close()
+    assert len(rows) == 1
+    details = json.loads(rows[0]["details"])
+    assert details == {"settled": True, "hadAnswer": True}
+    # Privacy contract: never the question text or the note content.
+    assert "margins" not in rows[0]["details"]

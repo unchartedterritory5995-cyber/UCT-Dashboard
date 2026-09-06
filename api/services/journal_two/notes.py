@@ -22,6 +22,23 @@ from api.services.auth_db import get_connection
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
+# Stage A member-validation instrumentation (implementation-plan.md §6):
+# aggregate usage signal only — event name + a tiny non-content details blob,
+# reusing the existing platform-wide activity_log (auth_service.log_activity,
+# already never-raises). NEVER log note bodies, search query text, Ask
+# Current Note questions, or any other private research content — see
+# decision-log "Stage A→B gate" entry for the instrumentation scope this
+# implements. Lazy import (auth_service, not auth_db) avoids a module-load
+# cycle; failure is swallowed by log_activity itself, never blocks the
+# member-facing action that triggered it.
+def _log_notebook_event(user_id: str, event: str, details: dict | None = None) -> None:
+    try:
+        from api.services.auth_service import log_activity
+        log_activity(user_id, f"j2:{event}", json.dumps(details or {})[:500])
+    except Exception:  # noqa: BLE001 — analytics must never break the real action
+        pass
+
+
 MAX_TITLE_CHARS = 300
 MAX_SUBTITLE_CHARS = 500
 MAX_BODY_JSON_BYTES = 1_000_000  # 1MB
@@ -834,7 +851,14 @@ def list_notes(
         sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
-        return [_row_to_note_summary(r) for r in rows]
+        results = [_row_to_note_summary(r) for r in rows]
+        if q and not deleted:
+            # Stage A validation signal only (never the query text itself).
+            # Debounced client-side (~250ms) but not deduped server-side, so
+            # this over-counts vs. "search sessions" -- acceptable at
+            # validation-cohort scale; see the Wave 4 prep doc.
+            _log_notebook_event(user_id, "notebook_search_used", {"hasResults": len(results) > 0})
+        return results
     finally:
         if owned:
             conn.close()
@@ -1256,6 +1280,9 @@ def create_note(
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
         ).fetchone()
+        _log_notebook_event(user_id, "notebook_note_created")
+        if "thesis" in tags:
+            _log_notebook_event(user_id, "notebook_thesis_note_created")
         return _row_to_note(row)
     finally:
         if owned:
@@ -1573,7 +1600,10 @@ def delete_note(
             (_now_iso(), note_id, user_id),
         )
         conn.commit()
-        return cur.rowcount > 0
+        ok = cur.rowcount > 0
+        if ok:
+            _log_notebook_event(user_id, "notebook_note_trashed")
+        return ok
     finally:
         if owned:
             conn.close()
@@ -1600,6 +1630,7 @@ def restore_note(
         conn.commit()
         if not cur.rowcount:
             return None
+        _log_notebook_event(user_id, "notebook_note_restored")
         return get_note(user_id, note_id, conn=conn)
     finally:
         if owned:
