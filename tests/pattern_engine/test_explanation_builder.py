@@ -27,6 +27,7 @@ from api.services.pattern_engine.canonical_adapter import (
     adapt_flat_base,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
+    adapt_pullback_to_50sma,
     adapt_vcp,
 )
 from api.services.pattern_engine.detectors.candlestick.bearish_engulfing import (
@@ -39,6 +40,7 @@ from api.services.pattern_engine.detectors.classical.bull_flag import detect_bul
 from api.services.pattern_engine.detectors.uct.flat_base import detect_flat_base
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import detect_power_earnings_gap
+from api.services.pattern_engine.detectors.uct.pullback_to_50sma import detect_pullback_to_50sma
 from api.services.pattern_engine.detectors.uct.vcp import detect_vcp
 from api.services.pattern_engine.explanation_builder import BUILDER_VERSION, build_explanation
 from api.services.pattern_engine.primitives.context import build_context
@@ -65,6 +67,7 @@ BRE_ADAPTED = _adapted_detections("bearish_engulfing", detect_bearish_engulfing,
 BULL_FLAG_ADAPTED = _adapted_detections("bull_flag", detect_bull_flag, adapt_bull_flag)
 FLAT_BASE_ADAPTED = _adapted_detections("flat_base", detect_flat_base, adapt_flat_base)
 VCP_ADAPTED = _adapted_detections("vcp", detect_vcp, adapt_vcp)
+P50_ADAPTED = _adapted_detections("pullback_to_50sma", detect_pullback_to_50sma, adapt_pullback_to_50sma)
 
 
 def _sections(explanation) -> dict:
@@ -518,16 +521,72 @@ def test_flat_base_warnings_flag_the_absent_sections_it_actually_lacks(name, det
     assert by_id["event_absent"]["claim_type"] == "qualified"
 
 
+# ─── semantic fixture tests — Pullback to 50-SMA ───────────────────────────
+
+@pytest.mark.parametrize("name,detection", P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_why_it_matched_reflects_real_geometry_extras(name, detection):
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    extras = detection["geometry"]["extras"]
+
+    by_id = {f["fact_id"]: f for f in facts}
+    adv_fact = by_id["p50_prior_advance"]
+    assert adv_fact["claim_type"] == "direct"
+    assert adv_fact["supporting_evidence"] == "geometry.extras.prior_advance_pct"
+    assert f"{extras['prior_advance_pct']:.0f}%" in adv_fact["label"]
+    assert str(extras["prior_advance_bars"]) in adv_fact["label"]
+
+    slope_fact = by_id["p50_sma_rising"]
+    assert f"{extras['sma_50_slope_pct_over_20']:.2f}%" in slope_fact["label"]
+
+    vol_fact = by_id["p50_test_reclaim_volume"]
+    assert f"{extras['test_volume_ratio'] * 100:.0f}%" in vol_fact["label"]
+    assert f"{extras['reclaim_volume_ratio'] * 100:.0f}%" in vol_fact["label"]
+
+
+@pytest.mark.parametrize("name,detection", P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_never_calls_a_below_average_reclaim_an_expansion(name, detection):
+    """The settled Phase 2B/3A narrative correction (pullback_to_50sma.py's
+    own header comment): a reclaim volume ratio below 1.0 is BELOW average,
+    so calling it "expansion" would be a literal contradiction the detector's
+    own narrative deliberately avoids. This explanation layer must not
+    reintroduce that removed claim."""
+    extras = detection["geometry"]["extras"]
+    exp = build_explanation(detection)
+    vol_fact = next(f for f in _sections(exp)["why_it_matched"] if f["fact_id"] == "p50_test_reclaim_volume")
+    if extras["reclaim_volume_ratio"] < 1.0:
+        assert "expansion" not in vol_fact["label"].lower()
+        assert vol_fact["polarity"] == "neutral"
+    else:
+        assert vol_fact["polarity"] == "supports"
+
+
+@pytest.mark.parametrize("name,detection", P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_has_no_event_section(name, detection):
+    exp = build_explanation(detection)
+    assert "event" not in _sections(exp)
+
+
+@pytest.mark.parametrize("name,detection", P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_p50_warnings_flag_the_absent_sections_it_actually_lacks(name, detection):
+    warnings = _sections(build_explanation(detection))["warnings"]
+    by_id = {f["fact_id"]: f for f in warnings}
+    assert "gate_trace_absent" in by_id
+    assert by_id["gate_trace_absent"]["claim_type"] == "qualified"
+    assert "event_absent" in by_id
+    assert by_id["event_absent"]["claim_type"] == "qualified"
+
+
 # ─── current_stage / scanner_eligibility ───────────────────────────────────
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_current_stage_status_fact_matches_detection_status(name, detection):
     facts = _sections(build_explanation(detection))["current_stage"]
     status_fact = next(f for f in facts if f["fact_id"] == "detection_status")
     assert detection["status"] in status_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_market_context_never_says_moving_average_twice(name, detection):
     """Regression (found against real market-shaped data, Package 8F, not
     the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
@@ -541,7 +600,7 @@ def test_market_context_never_says_moving_average_twice(name, detection):
     assert "moving-average moving-average" not in context_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")
@@ -573,7 +632,7 @@ def test_raw_unadapted_detection_never_fabricates_an_eligibility_boolean(name, d
     assert not facts[0]["label"].startswith("Scanner eligibility: ")
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detection):
     exp = build_explanation(detection)
     # "win rate" may appear ONLY inside the neutral-prior disclaimer itself
@@ -594,7 +653,7 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         assert "50" not in neutral_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_no_fact_anywhere_references_rejected_candidates(name, detection):
     """The 'why matched, never why others failed' boundary — a rail, not
     just a docstring claim. `gate_trace_scope`/`gate_trace_absent` are the
@@ -612,7 +671,7 @@ def test_no_fact_anywhere_references_rejected_candidates(name, detection):
             assert term not in low, f"fact {fact['fact_id']!r} references rejected candidates: {fact['label']!r}"
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED + FLAT_BASE_ADAPTED + VCP_ADAPTED + P50_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_context_strength_and_weakness_never_both_claim_the_same_signal(name, detection):
     sections = _sections(build_explanation(detection))
     strength_ids = {f["fact_id"] for f in sections.get("strengths", [])}
