@@ -9,7 +9,7 @@
  * Hosts the "Tell me about this trade" Compass review surface.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
@@ -18,6 +18,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
+import { sendCaptureToJournal } from '../lib/sendToJournal'
 
 const _excFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -52,6 +53,16 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
     resetReview()
   }, [trade?.id, resetReview])
 
+  // Phase 4D-4C.2: "Save trade to notebook" — a short-lived local toast,
+  // same pattern as ChartWidget's ctxToast (the only other real caller of
+  // sendCaptureToJournal in the app).
+  const [captureToast, setCaptureToast] = useState(null)
+  useEffect(() => {
+    if (!captureToast) return undefined
+    const t = setTimeout(() => setCaptureToast(null), 2400)
+    return () => clearTimeout(t)
+  }, [captureToast])
+
   // ESC key closes
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
@@ -60,6 +71,33 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
   }, [onClose])
 
   if (!trade) return null
+
+  // Explicit user intent only: this fires ONLY on the button click below,
+  // never merely because the drawer is open (Section 5's distinction —
+  // opening a trade != creating a note about it). `trade.tradeRef` is the
+  // SAME id:/ext: identity trade_ref_for_row already computes server-side
+  // (equity via _row_to_trade, options via _row_to_strategy) — never
+  // recomputed here, and never a ticker+date guess.
+  const handleSaveToNotebook = async () => {
+    // `trade.symbol` is a synthesized display label for options ("SPY Oct 16
+    // $110C") — never a valid chart/bars-API ticker. `trade.underlying` is
+    // the real one (equity rows have no `underlying`, so `symbol` is correct
+    // there).
+    const chartSymbol = trade.underlying || trade.symbol
+    const msg = await sendCaptureToJournal('chart', {
+      symbol: chartSymbol,
+      tf: 'D',
+      to: trade.exitDate || undefined,
+    }, {
+      target: 'newNote',
+      label: `${trade.symbol} trade`,
+      extra: {
+        tradeRef: trade.tradeRef || null,
+        caption: `${trade.symbol}${trade.side ? ` — ${trade.side}` : ''} trade`,
+      },
+    })
+    setCaptureToast(msg)
+  }
 
   const net = trade.pnlDollarNet ?? trade.pnlDollar
   const isWin = (net ?? 0) > 0
@@ -193,6 +231,27 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               </div>
             ))}
           </div>
+
+          {/* Phase 4D-4C.2: explicit capture, not an AI-cost feature —
+              available to every user, not gated on isPaid. */}
+          <button
+            type="button"
+            onClick={handleSaveToNotebook}
+            style={{
+              width: '100%', padding: '7px 14px', fontSize: 12, fontWeight: 600,
+              background: 'transparent', color: 'var(--text-muted)',
+              border: '1px solid var(--border)', borderRadius: 6,
+              cursor: 'pointer', marginTop: 10,
+            }}
+          >
+            <UIcon name="camera" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+            Save trade to notebook
+          </button>
+          {captureToast && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, textAlign: 'center' }}>
+              {captureToast}
+            </div>
+          )}
         </div>
 
         {/* Compass review section — paid-only (AI-cost feature) */}

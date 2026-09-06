@@ -982,6 +982,11 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
             row["analytics_excluded_reason"]
             if "analytics_excluded_reason" in keys else None
         ),
+        # Phase 4D-4C.2: the SAME stable identity get_trade_detail already
+        # exposed at the detail layer, now on every list row too — so a
+        # capture action anywhere a trade list renders (TradeDrawer included)
+        # never needs a second fetch just to learn its own trade's tradeRef.
+        "tradeRef": trade_ref_for_row(row),
     }
 
 
@@ -1157,7 +1162,9 @@ def get_trade_detail(
                     # Older DBs / column drift — provenance is best-effort.
                     activities = []
 
-        trade_ref = trade_ref_for_row(row)
+        # trade["tradeRef"] (from _row_to_trade) IS this — one computation,
+        # not a second authority restating the same value.
+        trade_ref = trade["tradeRef"]
         return {
             "trade": trade,
             "tradeRef": trade_ref,

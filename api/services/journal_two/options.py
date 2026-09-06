@@ -27,6 +27,7 @@ from typing import Any
 from api.services.auth_db import get_connection
 from api.services.journal_two.filters import FilterSpec
 from api.services.journal_two.timeutil import compute_trading_day_et
+from api.services.journal_two.trade_refs import trade_ref_for_row
 
 
 # ── Allowed strategy types (matches frontend StrategyTemplates.js keys) ──────
@@ -380,6 +381,11 @@ def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, 
             if "broker_current_value_prev_session" in keys else None
         ),
         "legs": legs,
+        # Phase 4D-4C.2: the SAME stable identity scheme trades already carry
+        # (trade_ref_for_row reads only id/source/external_id, generic across
+        # both tables) — an option strategy is never collapsed into its
+        # underlying ticker, it gets its own real identity here.
+        "tradeRef": trade_ref_for_row(row),
     }
 
 

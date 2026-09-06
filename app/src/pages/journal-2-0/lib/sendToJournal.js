@@ -14,9 +14,11 @@ import { CAPTURE_TARGETS } from './captureTargets'
 
 /** Build the frozen embed attrs for a capture (+ fire the bars warm for
  *  charts). Split out so a caller that wants to offer a TARGET MENU can build
- *  once and route to any target, instead of re-capturing per destination. */
-export function buildCapture(widgetId, capture) {
-  const attrs = buildWidgetEmbedAttrs(widgetId, capture)
+ *  once and route to any target, instead of re-capturing per destination.
+ *  `extra` passes straight through to buildWidgetEmbedAttrs (e.g. tradeRef,
+ *  caption) — every existing caller omits it and is byte-identical. */
+export function buildCapture(widgetId, capture, extra = {}) {
+  const attrs = buildWidgetEmbedAttrs(widgetId, capture, extra)
   // Bars-history warm is a chart concept; other widget types have no
   // (ticker, tf) to deep-fill.
   if (widgetId === 'chart') kickSnapshotWarm(attrs.params)
@@ -27,9 +29,11 @@ export function buildCapture(widgetId, capture) {
  *  toast surface. `label` names the capture in toasts (a symbol, a date…);
  *  `target` selects a captureTargets entry and defaults to the historical
  *  behavior (current note, inbox fallback), so every existing door is
- *  byte-identical without passing anything. */
-export async function sendCaptureToJournal(widgetId, capture, { label, target = 'note' } = {}) {
-  const attrs = buildCapture(widgetId, capture)
+ *  byte-identical without passing anything. `extra` (Phase 4D-4C.2) carries an
+ *  explicit tradeRef through to the embed — the SAME wire every widget
+ *  capture already uses, not a second capture path. */
+export async function sendCaptureToJournal(widgetId, capture, { label, target = 'note', extra } = {}) {
+  const attrs = buildCapture(widgetId, capture, extra)
   const name = label || attrs.params?.symbol || widgetId
   const t = CAPTURE_TARGETS[target] || CAPTURE_TARGETS.note
   try {
