@@ -136,6 +136,26 @@ def test_unsizable_setup_forces_skip():
     assert out["size_pct"] is None
 
 
+def test_quote_unavailable_downgrades_to_hold_not_a_silent_go(monkeypatch):
+    # Seam 28 (2026-09-06): a failed quote used to compute last=0, which made
+    # `extended` silently resolve to False -- the exact answer that clears
+    # the way for a GO. This must now read as genuinely unknown, not as a
+    # confirmed "not extended".
+    out = _call(quote_fn=lambda sym: {})
+    assert out["verdict"] == "HOLD"
+    assert "quote_unavailable" in out["hard_flags"]
+    assert "extended" not in out["hard_flags"]  # never fabricate the OTHER answer either
+
+
+def test_quote_unavailable_does_not_override_a_harder_skip_flag():
+    # regime_red still wins outright -- quote_unavailable must not soften an
+    # existing SKIP down to HOLD.
+    out = _call(regime_fn=_regime("RED"), quote_fn=lambda sym: {})
+    assert out["verdict"] == "SKIP"
+    assert "regime_red" in out["hard_flags"]
+    assert "quote_unavailable" in out["hard_flags"]
+
+
 def test_default_size_fn_converts_brain_fraction_to_percent(monkeypatch):
     # the real brain returns max_position_pct as a 0-1 FRACTION (0.2 = 20%);
     # _default_size_fn must normalize it to PERCENT so the basis reads "20.0%".
