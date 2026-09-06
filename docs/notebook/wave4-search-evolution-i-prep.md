@@ -16,6 +16,13 @@ platform-wide scale (architecture §7 Stage 0); date-range filter;
 Wave 1's entity layer. Non-goal: semantic/vector search (evidence-gated,
 deferred).
 
+**2026-09-06 checkpoint — this document is the initial verification pass.**
+For query correctness proof, deeper benchmarking, full snippet/UX/ranking
+design, the test matrix, and the migration/rollback plan, see
+`wave4-implementation-readiness.md` (same directory) — that file is the
+implementation-ready continuation, current as of the "finish Wave 4 prep"
+checkpoint.
+
 ---
 
 ## 1. Current reality, directly verified (not assumed from the plan)

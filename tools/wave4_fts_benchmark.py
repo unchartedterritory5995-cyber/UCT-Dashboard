@@ -35,6 +35,13 @@ if "DATA_DIR" not in os.environ:
         "default ('/data') is the real shared production root on this box. "
         "See this file's own module docstring."
     )
+# Defensive, even though this script never calls the notes.py service layer
+# today (only raw SQL against j2_notes/j2_notes_fts): a future edit that
+# calls list_notes()/create_note() would otherwise silently resolve
+# auth_db.get_connection() to the real C:\data\auth.db on this box (that
+# module-level path is independent of DATA_DIR entirely) -- see the real
+# near-miss recorded in wave4_search_correctness_matrix.py's history.
+os.environ.setdefault("AUTH_DB_PATH", os.path.join(os.environ["DATA_DIR"], "auth_scratch.db"))
 
 from api.services.journal_two.db import ensure_schema  # noqa: E402
 from api.services.journal_two.notes_search import fts_match_expr  # noqa: E402
@@ -59,6 +66,8 @@ BENCHMARK_QUERIES = [
     "NVDA",
     "semiconductor capex",
     "earnings",
+    "revenue",
+    "guidance",
     "risk to gross margin",
     "AI datacenter demand",
     "thesis invalidation",

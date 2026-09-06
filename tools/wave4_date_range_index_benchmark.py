@@ -32,6 +32,13 @@ if "DATA_DIR" not in os.environ:
         "default ('/data') is the real shared production root on this box. "
         "See this file's own module docstring."
     )
+# Defensive, even though this script never calls the notes.py service layer
+# today (only raw SQL against j2_notes): a future edit that calls
+# list_notes()/create_note() would otherwise silently resolve
+# auth_db.get_connection() to the real C:\data\auth.db on this box (that
+# module-level path is independent of DATA_DIR entirely) -- see the real
+# near-miss recorded in wave4_search_correctness_matrix.py's history.
+os.environ.setdefault("AUTH_DB_PATH", os.path.join(os.environ["DATA_DIR"], "auth_scratch.db"))
 
 from api.services.journal_two.db import ensure_schema  # noqa: E402
 
@@ -112,6 +119,26 @@ def run_scale(scale, target_user_notes_frac=0.02):
     r_before = bench(conn, DATE_RANGE_SQL, params)
     print(f"   median={r_before['median_ms']}ms p95={r_before['p95_ms']}ms")
 
+    insert_sql = (
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags,"
+        " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)"
+    )
+
+    def _bench_inserts(prefix):
+        times = []
+        for i in range(200):
+            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            t0 = time.perf_counter()
+            conn.execute(insert_sql, (
+                f"{prefix}-{i}", user_id, "t", '{"type":"doc","content":[]}', "x", "[]", now, now,
+            ))
+            conn.commit()
+            times.append((time.perf_counter() - t0) * 1000)
+        return statistics.median(times)
+
+    insert_before = _bench_inserts("write-bench-noidx")
+    print(f"   INSERT median WITHOUT the index: {insert_before:.3f}ms (200 single-row inserts)")
+
     conn.execute("CREATE INDEX idx_j2_notes_user_created ON j2_notes(user_id, created_at)")
     conn.commit()
 
@@ -125,6 +152,15 @@ def run_scale(scale, target_user_notes_frac=0.02):
     used_index = any("idx_j2_notes_user_created" in row["detail"] for row in plan_after)
     speedup = (r_before["median_ms"] / r_after["median_ms"]) if r_after["median_ms"] else float("inf")
     print(f"   index used by planner: {used_index} | speedup: {speedup:.1f}x")
+
+    insert_after = _bench_inserts("write-bench-idx")
+    delta = insert_after - insert_before
+    print(f"   INSERT median WITH the index present: {insert_after:.3f}ms"
+          f" (200 single-row inserts) -- delta vs without: {delta:+.3f}ms")
+
+    db_size_estimate_bytes = total * 24  # ~(user_id TEXT + created_at TEXT) per b-tree entry, rough
+    print(f"   estimated additional index size at this scale: ~{db_size_estimate_bytes/1024:.1f} KB"
+          f" (rough: {total} rows x ~24 bytes/entry for a (user_id, created_at) b-tree entry)")
 
     conn.close()
 
