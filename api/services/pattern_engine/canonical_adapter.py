@@ -162,6 +162,27 @@ def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> d
     return geometry
 
 
+# Phase 8 Package 8G. `bearish_engulfing._build_detection` (verified by direct
+# read) emits exactly 2 anchors -- the prior (engulfed) bar's close and the
+# engulfing bar's close, in that order -- the SAME shape and order as
+# `bullish_engulfing` (Package 8F). Confirmed by an owner-required semantic
+# diff BEFORE this adapter was written (not assumed from the family's name):
+# anchor count/order/shape, geometry shape, levels/quality/confidence
+# structure, and the reversal-context gate concept are all a faithful mirror.
+# The ONLY genuine differences are (a) 3 of the 12 `geometry.extras` keys are
+# DIRECTIONALLY RENAMED, not merely re-signed -- `at_swing_high`/
+# `above_50sma`/`recent_advance_pct` here vs `at_swing_low`/`below_50sma`/
+# `recent_decline_pct` on the bullish side -- and (b) the DCR confirmation
+# direction is INVERTED: a LOW `curr_bar_dcr` (close near the bar's own low)
+# is this family's bullish-for-the-short-thesis signal, the opposite of
+# bullish_engulfing's high-DCR signal. `dcr_strength()` itself is
+# direction-unaware (a "weak" label just means DCR<=0.30, verified against
+# its own docstring) -- reusing bullish_engulfing's "strong DCR = good"
+# framing here would misdescribe the pattern.
+_BEARISH_ENGULFING_ANCHOR_ROLES = ["prior_bar_close", "engulfing_bar_close"]
+_BEARISH_ENGULFING_SEMANTIC_SUBTYPE = "engulfing_pair"
+
+
 def adapt_high_tight_flag(detection: Detection, *, now: Optional[int] = None) -> Detection:
     """High Tight Flag: eligibility + (Package 8D) semantic geometry labels.
     `event`/`criteria`/`gate_trace` are deliberately absent — this family has
@@ -207,6 +228,23 @@ def adapt_power_earnings_gap(detection: Detection, *, now: Optional[int] = None)
     }
     out["event"] = event
     out["gate_trace"] = _peg_gate_trace(extras)
+    return out
+
+
+def adapt_bearish_engulfing(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Bearish Engulfing: eligibility + semantic geometry labels only --
+    the same minimal shape as `adapt_bullish_engulfing` (Package 8F), because
+    the two families are a verified faithful mirror on every dimension this
+    adapter touches (see the module-level note above the anchor-role
+    constants). No event concept (a 2-bar candlestick reversal has no
+    addressable calendar event) and no per-family freshness gate in-file --
+    `event`/`criteria`/`gate_trace` are deliberately, honestly ABSENT.
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(
+        detection, _BEARISH_ENGULFING_ANCHOR_ROLES, _BEARISH_ENGULFING_SEMANTIC_SUBTYPE
+    )
     return out
 
 
