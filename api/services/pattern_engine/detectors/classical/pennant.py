@@ -508,6 +508,28 @@ def _pennant_volume_ratio(bars: List[Bar], c: dict) -> float:
     return pennant_avg / pole_avg
 
 
+def _anchor_bar_t(bars: List[Bar], pivot_t) -> int:
+    """Translate a converging-trendline endpoint's `t` back into a real bar
+    timestamp.
+
+    `_fit_pennant_lines` builds its own inline pivots with
+    `"t": start_idx + i` — an absolute bar INDEX, not a unix-second timestamp
+    (the same pivot-construction shortcut `bull_flag.py`/`bear_flag.py` take
+    for their own parallel-channel pivots; here it feeds the converging upper/
+    lower trendlines instead). `fit_trendline` copies that index straight
+    through into `p1["t"]`/`p2["t"]` unchanged, so by the time a caller reads
+    the fitted line's endpoints, `.t` is still a bar index. This is the ONLY
+    site the anchor-construction boundary needs: `bars[index]["t"]` is the
+    real timestamp of that same bar. The internal regression fit itself
+    (bar-index x-space, log-price y-space) is untouched — re-fitting on real
+    calendar timestamps would distort the channel across weekend/holiday
+    gaps, and translating only at this output boundary changes no fitted
+    price, slope, or score (see the anchor-timestamp fix packages for
+    bull_flag/bear_flag for the full proof).
+    """
+    return int(bars[int(pivot_t)]["t"])
+
+
 def _build_detection(bars, c, confidence, context, direction,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     last_bar = bars[-1]
@@ -786,10 +808,10 @@ def _build_detection(bars, c, confidence, context, direction,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": [
-                {"t": int(c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
-                {"t": int(c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
-                {"t": int(c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
-                {"t": int(c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
+                {"t": _anchor_bar_t(bars, c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
+                {"t": _anchor_bar_t(bars, c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
+                {"t": _anchor_bar_t(bars, c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
+                {"t": _anchor_bar_t(bars, c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
             ],
             "extras": {
                 "pole_pct": round(c["pole_pct"] * 100, 2),
