@@ -2,7 +2,6 @@
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
-import { mutate as swrMutate } from 'swr'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
@@ -79,6 +78,16 @@ function retClass(val, styles) {
 // Slug for the thematic-ETF index endpoint — must match the backend _slugify.
 function themeSlug(name) {
   return (name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+// Auto-name for a preset forged by "Customize": "My Themes", then "My Themes 2", 3, … so a
+// second customize never collides with the first.
+function nextPresetName(sets) {
+  const base = 'My Themes'
+  const taken = new Set((sets || []).map(s => s.name))
+  if (!taken.has(base)) return base
+  for (let i = 2; i < 999; i++) { const n = `${base} ${i}`; if (!taken.has(n)) return n }
+  return `${base} ${Date.now()}`
 }
 
 function avgReturn(holdings, periodKey) {
@@ -383,22 +392,24 @@ const TrashIcon = () => (
 
 // Set picker + Edit toggle (rides the search row). Create / rename / delete all happen
 // IN-WIDGET (inline inputs, 2-click delete confirm) — no browser prompt/confirm dialogs.
-function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, onDelete, editing, onToggleEdit }) {
+function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, editing, onToggleEdit }) {
   const [open, setOpen] = useState(false)
-  const [newName, setNewName] = useState('')
   const [renamingId, setRenamingId] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const btnRef = useRef(null)
-  const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null); setNewName('') }
+  const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null) }
   return (
     <div className={styles.setPicker}>
       <button ref={btnRef} className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a preset">
         {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
       </button>
-      {/* Edit always available — editing UCT Default builds a draft you can save as a new preset. */}
+      {/* Default is read-only → "Customize" (forks an auto-saving preset on first edit); a preset
+          is editable in place → "Edit". "Done" just exits — nothing is ever discarded. */}
       <button className={`${styles.setEditBtn} ${editing ? styles.setEditBtnActive : ''}`}
-        onClick={onToggleEdit} title={activeSet ? 'Edit this preset' : 'Customize — then save as a preset'}>{editing ? 'Done' : 'Edit'}</button>
+        onClick={onToggleEdit}
+        title={editing ? 'Finish editing (already saved)' : activeSet ? 'Edit this preset' : 'Make your own editable copy of Default'}>
+        {editing ? 'Done' : activeSet ? 'Edit' : 'Customize'}</button>
       {open && (
         <FloatingMenu anchorRef={btnRef} onClose={close} width={230}>
           <button className={`${styles.setMenuName} ${!themeSetId ? styles.setMenuActive : ''}`} onClick={() => { onSelect(null); close() }}>UCT Default</button>
@@ -429,13 +440,8 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onCreate, onRename, 
               )}
             </div>
           ))}
-          <div className={styles.setMenuSep} />
-          <div className={styles.setNewRow}>
-            <input className={styles.setInline} placeholder="New preset name…" value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) { onCreate(newName.trim()); close() } }} />
-            <button className={styles.setNewGo} disabled={!newName.trim()} onClick={() => { if (newName.trim()) { onCreate(newName.trim()); close() } }}>＋ New</button>
-          </div>
+          {sets.length > 0 && <div className={styles.setMenuSep} />}
+          <div className={styles.setMenuTip}>Pick <b>UCT Default</b> and hit <b>Customize</b> to build a new preset.</div>
         </FloatingMenu>
       )}
     </div>
@@ -549,11 +555,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const [removedMap, setRemovedMap] = useState({})     // {slug:[sym]} per-theme stock removes
   const [addedMap, setAddedMap] = useState({})         // {slug:[sym]} per-theme stock adds
   const [customThemes, setCustomThemes] = useState([]) // [{key,name,members}]
-  // Bottom edit-bar flow: which theme we're actively adding tickers to (jumped to on add),
-  // the "save as preset" name, and a highlight for the just-added theme.
+  // Command-bar flow: which theme we're actively adding tickers to (jumped to on add) + a
+  // highlight for the just-added theme.
   const [addingTo, setAddingTo] = useState(null)       // { key, name } or null
-  const [saveName, setSaveName] = useState('')
   const [flashKey, setFlashKey] = useState(null)
+  // "Customize" a read-only Default: the moment the user makes their FIRST edit we auto-create an
+  // auto-saving preset for them (no upfront naming, no Save button, no discard-on-Done trap).
+  const [pendingCustomize, setPendingCustomize] = useState(false)  // editing Default, no preset yet
+  const [barRenaming, setBarRenaming] = useState(false)            // inline rename of the active preset
+  const [barRenameText, setBarRenameText] = useState('')
+  const justCreatedIdRef = useRef(null)   // a preset WE just forged → skip the def reload (local draft wins)
+  const draftRef = useRef(null)           // latest diff, so auto-create persists in-flight edits too
   const groupRefs = useRef({})                         // theme-group row refs, for scroll-into-view
   // Accordion open-theme state lives up HERE (not by the other view state further down) so the
   // edit ops below can jump the tracker to a freshly-added theme without a TDZ reference.
@@ -566,12 +578,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [themeSetId, themeSetsEnabled, sets, patchOpts])
   const activeSet = themeSetId ? sets.find(s => s.id === themeSetId) : null
   const selectSet = useCallback((id) => {
-    setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false)
+    setThemeSetId(id); patchOpts({ themeSetId: id }); setEditing(false); setPendingCustomize(false)
   }, [patchOpts])
   // Load the active set's diff into editor state.
   useEffect(() => {
     let cancel = false
     if (themeSetId) {
+      // A preset WE just auto-created from the current draft: our local editor state IS the
+      // source of truth, so skip the reload (it would clobber the in-progress edit with the
+      // still-propagating server def).
+      if (justCreatedIdRef.current === themeSetId) { justCreatedIdRef.current = null; return () => { cancel = true } }
       getSetDef(themeSetId).then(d => {
         if (cancel || !d) return
         setThemeOrder(Array.isArray(d.themes) ? d.themes : null)
@@ -659,16 +675,39 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Done: show the edited set INSTANTLY (optimistic), save, then revalidate for exact numbers —
   // so the finished view never shows the pre-edit state (the "have to refresh" bug).
   const stopEditing = useCallback(async () => {
-    // Only a saved preset keeps its edited view optimistically; an unsaved Default draft is
-    // discarded on Done (the revalidate below restores the real default) — matches Breadth.
+    // A saved preset keeps its edited view optimistically; Default (no preset yet — the user
+    // customized but changed nothing) just exits with nothing created. Everything already saved.
     const edited = editDisplayRef.current
     if (themeSetId && edited && data) mutate({ ...data, themes: edited }, { revalidate: false })
-    setEditing(false); setAddingTo(null); setFlashKey(null)
+    setEditing(false); setPendingCustomize(false); setBarRenaming(false); setAddingTo(null); setFlashKey(null)
     await flushPersist()
     mutate()
   }, [themeSetId, data, flushPersist, mutate])
+  // "Customize"/"Edit" entry. On a preset → just edit (auto-saves). On UCT Default → enter a
+  // customize draft; the first actual change forks an auto-saving preset (see autoCreateFromDraft).
+  const startEditing = useCallback(() => {
+    if (!themeSetId) setPendingCustomize(true)
+    setEditing(true)
+  }, [themeSetId])
   const materializeOrder = useCallback(() =>
     themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)), [themeOrder, data])
+  // First edit while customizing Default → silently create an auto-saving preset ("My Themes"),
+  // seed it with the current draft (draftRef captures anything typed during the async create),
+  // and switch to it. From here on every edit auto-persists like any preset.
+  const autoCreateFromDraft = useCallback(async () => {
+    setPendingCustomize(false)   // guard against a second create while this one is in flight
+    const name = nextPresetName(sets)
+    const s = await createSet(name)
+    if (!s) { setPendingCustomize(true); return }   // creation failed — let the next edit retry
+    justCreatedIdRef.current = s.id
+    const d = draftRef.current || {}
+    await putSetDef(s.id, {
+      name: s.name || name,
+      themes: d.themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)),
+      removed: d.removedMap || {}, added: d.addedMap || {}, custom: d.customThemes || [],
+    })
+    setThemeSetId(s.id); patchOpts({ themeSetId: s.id })
+  }, [sets, createSet, data, patchOpts])
   const applyEdit = useCallback((patch) => {
     const next = {
       themeOrder: 'themeOrder' in patch ? patch.themeOrder : themeOrder,
@@ -680,8 +719,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (patch.removedMap) setRemovedMap(patch.removedMap)
     if (patch.addedMap) setAddedMap(patch.addedMap)
     if (patch.customThemes) setCustomThemes(patch.customThemes)
-    persist(next)
-  }, [themeOrder, removedMap, addedMap, customThemes, persist])
+    draftRef.current = next
+    if (themeSetId) persist(next)              // existing preset → debounced auto-save
+    else if (pendingCustomize) autoCreateFromDraft()   // first change on Default → fork a preset
+  }, [themeOrder, removedMap, addedMap, customThemes, persist, themeSetId, pendingCustomize, autoCreateFromDraft])
 
   // Jump the tracker to a just-added theme: open it, highlight it, and arm the command bar's
   // "adding tickers" hint. The list is sorted A→Z while editing, so the new theme lands in its
@@ -732,30 +773,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     applyEdit({ customThemes: [...customThemes, { key, name: nm, members: [] }] })
     jumpToTheme(key, nm)
   }, [customThemes, applyEdit, jumpToTheme])
-  // Reset the whole draft back to the UCT default (clears every add/remove/custom). For a named
-  // preset this also persists the cleared diff; for Default it just resets the local draft.
+  // "Start over from Default": clear every add/remove/custom back to the UCT baseline. On a preset
+  // this persists the cleared diff; while customizing Default (no preset yet) it just resets the
+  // local draft — resetting alone never creates a preset (only real edits do).
   const resetToDefault = useCallback(() => {
     setThemeOrder(null); setRemovedMap({}); setAddedMap({}); setCustomThemes([])
     setAddingTo(null); setFlashKey(null)
     persist({ themeOrder: null, removedMap: {}, addedMap: {}, customThemes: [] })
   }, [persist])
-  // Save the current Default draft as a NEW named preset, then switch to it (Breadth-style).
-  const saveAsPreset = useCallback(async (name) => {
-    const nm = (name || '').trim(); if (!nm) return
-    const order = themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name))
-    const edited = editDisplayRef.current   // the full edited view (customs + owner), with holdings
-    const s = await createSet(nm)
-    if (!s) return
-    await putSetDef(s.id, { name: nm, themes: order, removed: removedMap, added: addedMap, custom: customThemes })
-    setSaveName('')
-    // Seed the new preset's SWR cache with the edited view so the switch shows the full set
-    // INSTANTLY — a brand-new set's first read can momentarily miss the just-written def
-    // (showing an empty "No theme data" flash). revalidate then swaps in the exact numbers.
-    if (edited && data) {
-      try { swrMutate(`/api/theme-performance?set=${encodeURIComponent(s.id)}`, { ...data, themes: edited, status: 'ok' }, { revalidate: true }) } catch { /* best-effort seed */ }
-    }
-    selectSet(s.id)   // switch to (and stop editing) the freshly-saved preset
-  }, [themeOrder, data, removedMap, addedMap, customThemes, createSet, selectSet])
+  // Rename the active preset from the command bar (commits on Enter/blur).
+  const commitBarRename = useCallback(() => {
+    const nm = barRenameText.trim()
+    if (themeSetId && nm && nm !== activeSet?.name) renameSet(themeSetId, nm)
+    setBarRenaming(false)
+  }, [barRenameText, themeSetId, activeSet, renameSet])
 
   // Locally-built, fixed-order display for edit mode (owner themes in set order, then customs).
   const editDisplayThemes = useMemo(() => {
@@ -1259,10 +1290,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <SetPicker
               sets={sets} themeSetId={themeSetId} activeSet={activeSet}
               onSelect={selectSet}
-              onCreate={async (name) => { const s = await createSet(name); if (s) selectSet(s.id) }}
               onRename={renameSet}
               onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
-              editing={editing} onToggleEdit={() => editing ? stopEditing() : setEditing(true)}
+              editing={editing} onToggleEdit={() => editing ? stopEditing() : startEditing()}
             />
             <ThemeSearchBox onDebounced={setDebouncedSearch} />
           </div>
@@ -1270,8 +1300,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           <ThemeSearchBox onDebounced={setDebouncedSearch} />
         )}
         {/* While editing, the command bar REPLACES the header row (same slot at the top of the
-            list): "＋ Add theme", Reset, and the save-as-preset input (Default) / auto-save hint
-            (preset) / "adding tickers" hint. Reverts to the normal header when editing ends. */}
+            list): "＋ Add theme", "Start over from Default", and the auto-save status — the
+            editable preset name + "Saves automatically" (or an "adding tickers" hint). Everything
+            here auto-saves; there is no Save button and Done never discards. */}
         {editing && themeSetsEnabled && (
           <div className={styles.editBar}>
             <AddThemePicker
@@ -1279,7 +1310,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
               onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
             />
-            <button className={styles.editBarReset} onClick={resetToDefault} title="Reset back to the UCT default">Reset</button>
+            <button className={styles.editBarReset} onClick={resetToDefault} title="Clear all changes back to the UCT default">Start over</button>
             <span className={styles.editBarSpacer} />
             {addingTo ? (
               <div className={styles.editBarAdding}>
@@ -1287,20 +1318,28 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                 <button className={styles.editBarDone} onClick={() => setAddingTo(null)}>Done</button>
               </div>
             ) : activeSet ? (
-              <span className={styles.editBarHint}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'} · saved automatically</span>
-            ) : (
-              <div className={styles.editBarSaveAs}>
-                <input
-                  className={styles.editBarSaveInput}
-                  placeholder="Name to save as preset…"
-                  value={saveName}
-                  onChange={e => setSaveName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && saveName.trim()) saveAsPreset(saveName) }}
-                />
-                <button className={styles.editBarSaveGo} disabled={!saveName.trim()} onClick={() => saveAsPreset(saveName)}>Save preset</button>
+              <div className={styles.editBarStatus}>
+                {barRenaming ? (
+                  <input autoFocus className={styles.editBarNameInput} value={barRenameText}
+                    onChange={e => setBarRenameText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') commitBarRename(); if (e.key === 'Escape') setBarRenaming(false) }}
+                    onBlur={commitBarRename} />
+                ) : (
+                  <button className={styles.editBarName} title="Rename this preset"
+                    onClick={() => { setBarRenameText(activeSet.name); setBarRenaming(true) }}>
+                    {activeSet.name} <PencilIcon />
+                  </button>
+                )}
+                <span className={styles.editBarSaved}>✓ Saved</span>
               </div>
+            ) : (
+              <span className={styles.editBarHint}>New preset · saves automatically</span>
             )}
           </div>
+        )}
+        {/* One-line orientation while editing (hidden once you're mid-add). */}
+        {editing && themeSetsEnabled && !addingTo && (
+          <div className={styles.editHintRow}>Add a theme, then tap it to add tickers.</div>
         )}
         {!editing && (
         <div className={styles.tableHeader}>

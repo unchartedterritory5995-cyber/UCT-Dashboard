@@ -1155,41 +1155,71 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.editBarSaveAs { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.editBarSaveInput {
+/* Auto-save status cluster: the editable preset name + a "✓ Saved" reassurance. */
+.editBarStatus { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.editBarName {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--font-sans);
   font-size: calc(11px * var(--tt-font-scale, 1));
-  padding: 6px 9px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
+  cursor: pointer;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editBarName svg { color: var(--text-secondary, #aab2bd); flex: 0 0 auto; }
+.editBarName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); border-color: var(--tt-divider, var(--border)); }
+.editBarNameInput {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 5px 8px;
   min-width: 0;
-  width: 168px;
-  max-width: 46vw;
-  /* SOLID canvas-colored field (not translucent) with a clear border, so it reads as a real
-     input over the gold-tinted header instead of a dark smudge. */
-  border: 1px solid var(--tt-divider-strong, rgba(255, 255, 255, 0.22));
+  width: 150px;
+  max-width: 40vw;
+  border: 1px solid var(--tt-accent, var(--ut-gold));
   border-radius: 5px;
   background: var(--tt-bg, var(--bg));
   color: var(--tt-sym, var(--text-bright, #e4e6ea));
   outline: none;
 }
-.editBarSaveInput::placeholder { color: var(--tt-text, var(--text-secondary, #aab2bd)); opacity: 0.95; }
-.editBarSaveInput:focus { border-color: var(--tt-accent, var(--ut-gold)); }
-.editBarSaveGo {
-  font-family: var(--font-sans);
-  font-size: calc(10px * var(--tt-font-scale, 1));
-  font-weight: 700;
-  padding: 7px 13px;
-  border: none;
-  border-radius: 5px;
-  /* Full-strength gold with near-black text — a clearly readable primary button, not the muted
-     accent-over-tint it read as before. */
-  background: var(--ut-gold, #c9a84c);
-  color: #181203;
-  cursor: pointer;
+.editBarSaved {
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  color: var(--tt-accent, var(--ut-gold));
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.editBarSaveGo:hover:not(:disabled) { filter: brightness(1.08); }
-.editBarSaveGo:disabled { opacity: 0.6; cursor: default; }
+/* Slim orientation line under the command bar while editing. */
+.editHintRow {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  font-family: var(--font-sans);
+  font-size: calc(9.5px * var(--tt-font-scale, 1));
+  color: var(--text-secondary, #aab2bd);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Helper tip at the bottom of the preset dropdown. */
+.setMenuTip {
+  padding: 7px 10px 4px;
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  line-height: 1.35;
+  color: var(--text-secondary, #aab2bd);
+}
+.setMenuTip b { color: var(--tt-sym, var(--text-bright, #e4e6ea)); font-weight: 600; }
 
 /* Pulse-highlight a just-added theme so the eye lands on it after the jump-scroll. */
 .groupFlash { animation: ttGroupFlash 1.8s ease-out 1; }
