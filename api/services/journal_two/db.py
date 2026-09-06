@@ -776,6 +776,35 @@ CREATE TABLE IF NOT EXISTS j2_note_mentions (
 CREATE INDEX IF NOT EXISTS idx_j2_note_mentions_user_sym
     ON j2_note_mentions(user_id, symbol);
 
+-- ── Wave D (Internal Links / Backlinks / Knowledge Relationships) ──────────
+-- One row per `noteLink` node in a note's body_json -- same "rebuildable
+-- projection, never edited directly" contract as j2_note_embeds/
+-- j2_note_mentions above, kept in sync by notes._sync_note_links at the
+-- SAME call sites those two already use (create/update/import/restore).
+-- `target_note_id` is the ONLY durable identity a link carries (never a
+-- frozen title) -- see the noteLink node's own docstring for why renaming
+-- the target requires zero writes here or to any other note's content.
+CREATE TABLE IF NOT EXISTS j2_note_links (
+    note_id        TEXT NOT NULL,             -- the note DOING the linking
+    user_id        TEXT NOT NULL,
+    position       INTEGER NOT NULL,          -- document order of the link
+    target_note_id TEXT NOT NULL,             -- the note being linked TO
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_links_target
+    ON j2_note_links(user_id, target_note_id);
+-- Symmetric cascade: cleans up this note's own outgoing links (note_id side,
+-- matching j2_note_versions' own AFTER DELETE trigger just above) AND any
+-- OTHER note's now-dangling link INTO this one (target_note_id side) --
+-- stricter than j2_note_embeds/j2_note_mentions, which only clean the first
+-- direction. Not load-bearing for correctness (a dangling target_note_id
+-- resolves as an honest "unavailable" state at read time either way, same as
+-- a trashed/purged target) -- this is pure tidiness, avoiding an
+-- accumulation of permanently-dead rows with no cleanup path.
+CREATE TRIGGER IF NOT EXISTS j2_notes_links_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_links WHERE note_id = old.id OR target_note_id = old.id;
+END;
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note

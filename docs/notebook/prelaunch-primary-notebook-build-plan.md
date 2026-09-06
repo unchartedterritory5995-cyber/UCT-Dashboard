@@ -949,11 +949,23 @@ not foreseeable at the checkpoint above.
    version out of NoteFind/Ask-this-note (separate `useEditor` instance).
 9. **History panel/preview/diff components are covered by unit tests with
    `NoteVersionPreview` (and thus real TipTap) mocked out, not by RTL-mounting
-   the real editor.** Matches this codebase's own existing convention —
-   `NoteEditorPage.jsx` and `SharedNotePage.jsx`, the only two other
-   components that mount `useEditor`+`EditorContent` directly, have zero RTL
-   test files; TipTap-mounting surfaces are verified via real-browser E2E in
-   this codebase, not jsdom.
+   the real editor.**
+   ⚠️ **Correction (Wave D, caught while adding a Wave D test to the SAME
+   suite this claim was about):** this said `NoteEditorPage.jsx` and
+   `SharedNotePage.jsx` "have zero RTL test files" — false.
+   `NoteEditorPage.jsx` has an extensive real-editor-mount RTL suite
+   (`NoteEditorPage.waveB.test.jsx`, `.rails.test.jsx`, `.loaderror.test.jsx`,
+   `.saveerror.test.jsx`, `.video.test.jsx`, and now
+   `.noteLinks.test.jsx`) — proven doubly wrong the hard way: reusing that
+   exact suite's convention for a new Wave D test caught a real crash
+   ("Adding different instances of a keyed plugin (suggestion$)") from two
+   `Suggestion()` extensions colliding, something a mocked-TipTap unit test
+   structurally cannot catch. `SharedNotePage.jsx` was NOT re-checked and
+   may or may not have its own tests. The underlying Wave C decision (mock
+   `NoteVersionPreview` in `NoteHistoryPanel.test.jsx` rather than mounting
+   real TipTap there) doesn't change — that was a reasonable scoping choice
+   on its own merits — but its stated justification was wrong and is
+   corrected here rather than left standing.
 
 ---
 

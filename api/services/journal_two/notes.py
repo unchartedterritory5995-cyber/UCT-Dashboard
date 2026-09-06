@@ -211,6 +211,30 @@ def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
     return rows
 
 
+def _extract_note_links(doc: dict[str, Any] | None) -> list[str]:
+    """Every `noteLink` node's target id, in document order (Wave D). A note
+    linking to the same target twice keeps BOTH occurrences (position is part
+    of the sidecar's primary key) -- directive §64 wants the backlink UI to
+    show one relationship per SOURCE note, not one row per occurrence, and
+    that de-dup happens at the QUERY layer (get_note_backlinks), not here, so
+    this stays a faithful, ungrouped projection of what the document actually
+    contains."""
+    ids: list[str] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "noteLink":
+            attrs = node.get("attrs")
+            target = attrs.get("noteId") if isinstance(attrs, dict) else None
+            if isinstance(target, str) and target:
+                ids.append(target)
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return ids
+
+
 def _sync_note_embeds(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None,
@@ -254,6 +278,32 @@ def _sync_note_mentions(
             "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
             " VALUES (?,?,?,?)",
             [(note_id, user_id, sym, now) for sym in symbols])
+
+
+# ── Internal note-link sidecar (j2_note_links, Wave D) ───────────────────────
+
+def _sync_note_links(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_links projection inside the caller's
+    transaction (no commit here) -- same delete+insert idiom as
+    _sync_note_embeds/_sync_note_mentions. A `noteLink` node's target id is
+    NEVER validated against j2_notes here: a link to a note that doesn't
+    exist (foreign tenant, already deleted, malformed id typed via direct API
+    use) still gets a sidecar row -- resolving whether that target is real,
+    owned, trashed, or purged is the READ path's job (get_note_backlinks /
+    the node view's own title lookup), which re-verifies ownership on every
+    call. Persisting an unresolvable row here is harmless (directive §33's
+    'never silently delete source content' cuts the other way too -- this
+    sync must never REJECT a save because a link target looks wrong)."""
+    conn.execute("DELETE FROM j2_note_links WHERE note_id = ?", (note_id,))
+    target_ids = _extract_note_links(body_json)
+    if target_ids:
+        conn.executemany(
+            "INSERT INTO j2_note_links (note_id, user_id, position, target_note_id)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, i, tid) for i, tid in enumerate(target_ids)])
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -589,6 +639,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                              updated_at, row["id"], user_id))
                         _sync_note_embeds(conn, user_id, row["id"], body_json)
                         _sync_note_mentions(conn, user_id, row["id"], body_plain)
+                        _sync_note_links(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
                     else:
@@ -603,6 +654,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                              source, key, h, media_pending, now, created_at, updated_at))
                         _sync_note_embeds(conn, user_id, new_id, body_json)
                         _sync_note_mentions(conn, user_id, new_id, body_plain)
+                        _sync_note_links(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         created.append(item)
@@ -1322,6 +1374,95 @@ def get_symbol_backlinks(
             conn.close()
 
 
+def get_note_backlinks(
+    user_id: str, note_id: str, limit: int = 50, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """"Which of my other notes link TO this one?" (Wave D) -- the reverse
+    of j2_note_links' own forward (source -> target) rows. Mirrors
+    get_symbol_backlinks' shape one entity level up: note-to-note instead of
+    note-to-symbol, including its own "count vs. returned rows" split so the
+    UI can show '+N more' past the cap. Deduplicated by SOURCE note
+    (directive §64: a note linking here five times is one relationship, not
+    five identical rows), with the occurrence count folded in via COUNT(*).
+
+    Deliberately does NOT gate on whether `note_id` ITSELF is trashed --
+    "who links here" is a fact about the LINKING notes, independent of
+    whatever state the target is currently in (a member browsing Trash may
+    still want to see this). Only the SOURCE notes are trash-excluded,
+    matching every other "list of my notes" convention in this file."""
+    out: dict[str, Any] = {"count": 0, "notes": []}
+    if not note_id:
+        return out
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        count_row = conn.execute(
+            "SELECT COUNT(DISTINCT l.note_id) AS c FROM j2_note_links l"
+            " JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
+            " WHERE l.user_id = ? AND l.target_note_id = ? AND n.deleted_at IS NULL",
+            (user_id, note_id),
+        ).fetchone()
+        out["count"] = int(count_row["c"] or 0) if count_row else 0
+        if not out["count"]:
+            return out
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.updated_at, COUNT(*) AS refs"
+            " FROM j2_note_links l"
+            " JOIN j2_notes n ON n.id = l.note_id AND n.user_id = l.user_id"
+            " WHERE l.user_id = ? AND l.target_note_id = ? AND n.deleted_at IS NULL"
+            " GROUP BY n.id"
+            " ORDER BY n.updated_at DESC"
+            " LIMIT ?",
+            (user_id, note_id, max(1, min(limit, 200))),
+        ).fetchall()
+        out["notes"] = [{
+            "id": r["id"], "title": r["title"] or "Untitled",
+            "updatedAt": r["updated_at"], "refs": int(r["refs"] or 0),
+        } for r in rows]
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def resolve_note_link_targets(
+    user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Batch-resolve `noteLink` target ids to their CURRENT display state
+    (Wave D) -- `{id: {"title": str, "status": "active" | "trashed"}}` for
+    every id that resolves to a note this user owns. An id that does NOT
+    resolve (foreign tenant, never existed, permanently purged) is simply
+    ABSENT from the returned dict -- the caller (the noteLink node view)
+    renders a missing key as "unavailable" identically in every one of those
+    cases, so this can never leak WHICH case it was (directive §23/§61: an
+    unowned id must read exactly like a nonexistent one).
+
+    Batched by design, not per-id (directive §37/§65's own performance
+    concern) -- a note with 20 different links must cost ONE request, not 20."""
+    out: dict[str, dict[str, Any]] = {}
+    ids = [i for i in dict.fromkeys(note_ids) if isinstance(i, str) and i]
+    if not ids:
+        return out
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        placeholders = ",".join("?" for _ in ids)
+        rows = conn.execute(
+            f"SELECT id, title, deleted_at FROM j2_notes"
+            f" WHERE user_id = ? AND id IN ({placeholders})",
+            (user_id, *ids),
+        ).fetchall()
+        for r in rows:
+            out[r["id"]] = {
+                "title": r["title"] or "Untitled",
+                "status": "trashed" if r["deleted_at"] else "active",
+            }
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
 def resolve_sector_theme_symbols(
     user_id: str,
     *,
@@ -1491,6 +1632,7 @@ def create_note(
         )
         _sync_note_embeds(conn, user_id, new_id, body_json)
         _sync_note_mentions(conn, user_id, new_id, body_plain)
+        _sync_note_links(conn, user_id, new_id, body_json)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -1816,6 +1958,7 @@ def update_note(
         if "bodyJson" in patch:
             _sync_note_embeds(conn, user_id, note_id, bj)
             _sync_note_mentions(conn, user_id, note_id, bp)
+            _sync_note_links(conn, user_id, note_id, bj)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -1871,6 +2014,7 @@ def append_widget_embed(
         )
         _sync_note_embeds(conn, user_id, note_id, body_json)
         _sync_note_mentions(conn, user_id, note_id, body_plain)
+        _sync_note_links(conn, user_id, note_id, body_json)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)

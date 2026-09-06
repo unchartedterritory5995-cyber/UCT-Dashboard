@@ -17,6 +17,8 @@ import { WidgetEmbed } from './widgetEmbedNode'
 import { Callout } from './calloutNode'
 import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
 import { NoteFind } from './noteFindExtension'
+import { NoteLink } from './noteLinkNode'
+import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -67,6 +69,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // (see noteFindExtension.js's own header for why that's structural, not
     // a convention).
     NoteFind,
+    // Wave D: internal note-to-note links. Same "never remove" rule as
+    // WidgetEmbed above -- TipTap drops unknown node types at parse time.
+    NoteLink,
+    NoteLinkMenuExtension,
   ]
 }
 
