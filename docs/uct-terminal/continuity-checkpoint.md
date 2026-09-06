@@ -5,8 +5,8 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-05/06, against live git + Railway state (post-Temporal
-/ Freshness Truth Convergence V1 merge/deploy/production-verification).
+**Last verified:** 2026-09-05/06, against live git + Railway state (post-S8 /
+Attention Freshness Propagation V1 merge/deploy/production-verification).
 
 ## North star (do not lose this)
 
@@ -217,6 +217,40 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   currently byte-identical on all 10 of 2026's dates but two independently
   hand-maintained authorities, not one by construction; zero observed live
   defect today, a real architecture decision, not a bounded V1).
+- **S8 / Attention Freshness Propagation V1** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `0d1c1d5bf`, deployed + production-verified 2026-09-05/06. Phase A
+  audited the full `get_intelligence_for_symbols()` fact/status contract and
+  found the analyst-action fact was the one correctly S8-derived pattern
+  (`meta.get("freshnessClass")`/`sourceObservedAt`), while Watchlists rendered
+  each fact's `source`/`freshness` but Portfolio (`PortfolioAttentionBanner.jsx`)
+  and Position Detail (`PositionDetailPage.jsx`) silently discarded those same
+  already-fetched fields, and both consumers collapsed a total fetch failure
+  into the same rendered-nothing state as "no open positions" — a real outage
+  read as reassuring silence. V1 (Candidate B: propagate existing fields,
+  frontend-only, zero backend changes) fixed exactly that gap across 3
+  component files: `PortfolioAttentionBanner.jsx` and `PositionDetailPage.jsx`
+  now render each fact's `source`/`freshness` inline and show a distinct "Could
+  not check for updates" state on a hook `error` instead of returning `null`;
+  `Watchlists.jsx`'s attention-column degraded-indicator check was broadened
+  from the literal `status === 'unavailable'` to any non-`'ok'` status (a
+  `'partial'` status with nothing notable previously fell through to the same
+  blank cell as a fully-clean row). Zero backend files touched, zero new
+  endpoints/hooks — `useJ2PositionsAttention.js`'s `error` was already reliable
+  across both SWR-key shapes, verified by direct read before implementing. 26
+  new/extended focused tests + 17/17 on the broader Watchlists regression
+  suite, all passing; clean build. Phase A additionally surfaced (NOT fixed by
+  this V1 — see NEWLY IDENTIFIED DEBT below): `_price_move_fact()`'s `as_of`
+  uses `datetime.date.today()` (a wall-clock call, violating the file's own
+  no-wall-clock rule); `_analyst_fact()`'s and `_earnings_facts()`'s total-
+  source-outage paths both incorrectly leave `status="ok"` (analyst_action's
+  outage is masked because `get_analyst_ratings()` is documented "never raise";
+  earnings_proximity's `_earnings_facts()` runs entirely outside the per-symbol
+  try/except with no exception handling of its own at all — FLAGGED TO STOP,
+  not touched, because closing it requires changing
+  `calendar_alerts._get_reporters_for_date()`'s return contract and Phase A did
+  not confirm whether other callers of that private helper exist);
+  `research/ratings.py::get_ratings()`'s real `price_as_of` field is computed
+  but discarded by `_rating_context()` before it ever reaches a fact.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -268,8 +302,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Temporal / Freshness Truth
-  Convergence V1 (the prior active program) is now ACCEPTED + LIVE — see
+- **None — requires new explicit authorization.** S8 / Attention Freshness
+  Propagation V1 (the prior active program) is now ACCEPTED + LIVE — see
   "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
   that program's authorization ("Then STOP. Do not automatically begin
   another Terminal program."), no next Terminal program has been
@@ -280,10 +314,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
   Return-to-Research Consistency V1's own deferred families
   (`ai_deep_report`/`ai_briefing`/`exposure_gate`), nor from Temporal /
-  Freshness Truth Convergence V1's own deferred candidates (Watchlist/
-  Portfolio/Position Attention freshness hardening, the `extSession.js`/
-  `LiveFlow.jsx` duplicated walk-back loops, the dual NYSE holiday-table
-  consolidation) — those are candidate lists, not authorizations.
+  Freshness Truth Convergence V1's own deferred candidates (the
+  `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops, the dual NYSE
+  holiday-table consolidation — Watchlist/Portfolio/Position Attention
+  freshness parity was closed by S8, above), nor from S8's own newly-surfaced,
+  explicitly-deferred findings (`_price_move_fact()`'s wall-clock `as_of`, the
+  analyst_action/earnings_proximity total-outage status-integrity bugs — the
+  latter FLAGGED TO STOP, `composite_rating`'s discarded `price_as_of`) — those
+  are candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -367,6 +405,33 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   is a real cross-stack architecture decision (which authority wins; whether
   the frontend should fetch the calendar instead of bundling it) — explicitly
   out of scope for a bounded V1, not urgent.
+- **Seam 8 — `_price_move_fact()`'s evidence date is wall-clock, not source-
+  derived (surfaced by S8 / Attention Freshness Propagation V1's Phase A,
+  2026-09-05/06).** `watchlist_intelligence.py`'s `_price_move_fact()` sets
+  `as_of = datetime.date.today().isoformat()` — a direct wall-clock call,
+  violating the file's own top-of-file rule ("never `datetime.now()`/
+  `date.today()`"). A price-move fact's displayed evidence date is therefore
+  always "today" regardless of when the underlying price data was actually
+  observed. Not fixed by S8 (that V1 propagated existing fields; this needs a
+  real backend change plumbing a source timestamp through `massive.py`/
+  `live_prices.py`/`journal_two.py`). Fix shape: derive `as_of` from the same
+  snapshot timestamp the price move itself was computed from.
+- **Seam 9 — analyst-action and earnings-proximity total-source-outage paths
+  leave `status="ok"` (surfaced by S8 / Attention Freshness Propagation V1's
+  Phase A, 2026-09-05/06) — MATERIAL TRUST BUG class, not touched.**
+  `get_analyst_ratings()`/`get_analyst_grades()` are documented "never raise",
+  so a total analyst-data-provider outage collapses to the same empty shape as
+  genuine no-coverage and `status` incorrectly stays `"ok"` — a real but
+  plausibly-small additive fix, deferred because it needs its own testing.
+  `_earnings_facts(symbols)` runs entirely OUTSIDE the per-symbol
+  try/except loop with no try/except of its own at all, so a total
+  earnings-calendar outage silently blanks every symbol in the batch with zero
+  accounting — **FLAGGED TO STOP**, not touched: closing it requires changing
+  `calendar_alerts._get_reporters_for_date()`'s return contract, and Phase A
+  did not confirm whether other callers of that private helper exist. Fix
+  shape (earnings side): a caller-graph investigation of
+  `_get_reporters_for_date()` first, then a contract change that lets a total
+  outage increment `sources_failed` instead of returning silently.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -377,15 +442,30 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
 - Watchlist filing-watch creation action
-- S8 Freshness Presentation Consistency (several freshness values in `watchlist_intelligence.py` are hardcoded `"fresh"` rather than S8-derived) — ranked #4 candidate, not chosen
+- S8 Freshness Presentation Consistency — price-move and earnings-proximity source-side freshness derivation (Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped and re-surfaced the still-open half as Seam 8 (price-move `as_of`) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity) above — those two seams are the current, precise form of this deferred item; still needs a real backend-contract change, not chosen for any V1 to date)
 - `research_url` for `ai_deep_report`/`ai_briefing` (Alert Return-to-Research Consistency V1 Phase A) — both hardcode/fall back to the literal placeholder symbol `"AI"`, which collides with the real NYSE ticker for C3.ai, Inc.; wiring a route here would silently misroute to a wrong real company. `ai_briefing` additionally has split identity (`r['sym'] or 'AI'`) with no field to distinguish a real per-ticker briefing from the placeholder after the fact.
 - `research_url` for `exposure_gate` (Alert Return-to-Research Consistency V1 Phase A) — `exposure_gate_watch.py` bypasses `deliver_alert_payload` entirely via a direct `add_alert` call; feature-flag OFF by default (`EXPOSURE_GATE_WATCH_ENABLED='0'`); syntactically a real tradable ETF ticker but semantically a macro gate-level alert, not a personal-security signal — a product-scope decision, not a technical blocker.
 - Reactivating `stop_hit`/`scanner_match` or implementing `ep_resolved` (Alert Return-to-Research Consistency V1 Phase A) — all three are dead/nonexistent code (zero live callers, or no implementation at all); out of scope regardless of research-routing.
 - Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
 - Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
 - Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
-- Watchlist Attention freshness hardening (Temporal / Freshness Truth Convergence V1 Phase A — `watchlist_intelligence.py`'s price-move and earnings-proximity facts hardcode `freshness="fresh"` rather than deriving it from real source/S8 metadata; the analyst-action fact already does this correctly via `meta.get("freshnessClass")` and is the reference pattern. Real gap, ranked candidate B, not chosen for V1 — needs a real backend-contract change, LARGE implementation, PARTIAL existing contract)
-- Portfolio/Position Attention freshness parity (Temporal / Freshness Truth Convergence V1 Phase A — `PortfolioAttentionBanner.jsx`/`PositionDetailPage.jsx` compute but do not render each fact's `freshness`/`source`, and lack the error/`isLoading` handling `useWatchlistIntelligence.js` already added for the sibling Watchlists hook. Real, small, low-risk, ranked candidate C, not chosen for V1 because it sits on the S8/watchlist_intelligence seam, not the S11/calendar seam this V1 converged — natural next pick after this V1)
+- Watchlist Attention freshness hardening — see Seam 8/Seam 9 above (S8 / Attention Freshness Propagation V1 Phase A superseded and precisely re-scoped this item from Temporal / Freshness Truth Convergence V1 Phase A's original framing)
+- Portfolio/Position Attention freshness parity — RESOLVED by S8 / Attention
+  Freshness Propagation V1, merge `0d1c1d5bf`, 2026-09-05/06.
+  `PortfolioAttentionBanner.jsx`/`PositionDetailPage.jsx` now render each
+  fact's `freshness`/`source` and show a distinct error state instead of
+  silently rendering nothing on a fetch failure — the fix described here (pure
+  frontend propagation of already-fetched fields, zero new contract) is
+  exactly what shipped. Kept as a record; do not re-open unless a concrete
+  regression is found.
+- `research/ratings.py::get_ratings()`'s `price_as_of` field discarded before
+  reaching a fact (surfaced by S8 / Attention Freshness Propagation V1 Phase A,
+  2026-09-05/06) — `_rating_context()` in `watchlist_intelligence.py` reads
+  `composite_rating`/`rs_rank` from `get_ratings()` but drops its real
+  `price_as_of` field; `context` is explicitly outside the fact/status system
+  by the module's own docstring (informational only), so this is a MINOR
+  DISCLOSURE GAP, not a trust bug — not fixed, out of scope for S8's selected
+  V1 candidate.
 - `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 6 above; needs its own Phase A trace first)
 - Dual NYSE holiday-table consolidation (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 7 above; a real cross-stack architecture decision, zero live defect today)
 - D2 broad canonical data model
@@ -414,17 +494,18 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `alert_fires` table directly.
 5. Universal Ticker Actions Convergence V1 (merge `dee56d7de`), Attention
    Signal Propagation V1 (merge `5e07b8150`), Alert Return-to-Research
-   Consistency V1 (merge `c27c95c50`), and Temporal / Freshness Truth
-   Convergence V1 (merge `94dd2bb5e`) are all ACCEPTED + LIVE as of this
+   Consistency V1 (merge `c27c95c50`), Temporal / Freshness Truth
+   Convergence V1 (merge `94dd2bb5e`), and S8 / Attention Freshness
+   Propagation V1 (merge `0d1c1d5bf`) are all ACCEPTED + LIVE as of this
    checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
-   Consistency, Temporal / Freshness Truth Convergence, or the Whole-Product
-   Convergence Review from scratch — their findings above are current as of
-   this checkpoint; verify against live code only where something here looks
-   stale.
+   Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
+   Freshness Propagation, or the Whole-Product Convergence Review from
+   scratch — their findings above are current as of this checkpoint; verify
+   against live code only where something here looks stale.
 7. **No Terminal program is currently authorized.** Do not begin
    implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
    without a new, explicit owner authorization naming that program.
