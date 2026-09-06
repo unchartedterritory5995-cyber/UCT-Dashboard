@@ -590,6 +590,19 @@ def test_ask_accum_curated_survives_hide_block_only():
                                 contract_types={}) is False
 
 
+def test_alpha_leaps_curated_survives():
+    # Alpha LEAPS is an AGGREGATE tier and must pass Curated — curated defaults ON in
+    # the UI, and alpha_leaps had no own-path, so it fell through the `tier not in
+    # (...)` reject and was DROPPED from the default view since the tier launched
+    # (the IREN 65C 3/19/27 $7.07M build was invisible until this fix).
+    a = {"_tierKey": "alpha_leaps", "_type": "SWEEP", "_direction": "Bull",
+         "ticker": "IREN", "cp": "C", "strike": "65", "exp": "3/19/2027"}
+    th = {"hide_block_only": True, "hide_sizeless": True}
+    assert m._qualifies_curated(a, th, contract_types={}) is True
+    assert m._qualifies_curated(dict(a, _directionUnconfirmed=True), th,
+                                contract_types={}) is False
+
+
 def test_ask_accum_grades_on_aggregate_not_anchor(monkeypatch):
     # The row must grade on the $1.21M / 7,277-vol BUILD, not the $484K anchor print
     # (which alone graded C). aggAskPremium carries the build for display.
