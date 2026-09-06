@@ -851,16 +851,27 @@ favorite front-matter completeness closing G-092.
    are never separately versioned by construction (they re-derive from whatever
    body content is current on every write).
 2. **A design mistake was found and corrected DURING implementation, not at
-   checkpoint time**: the original checkpoint (`prelaunch-primary-notebook-build-
-   plan.md` §11 as first written) specified a note-header overflow menu + a
-   command-palette entry as the single-note export entry point. Neither an
-   overflow menu nor a command palette exists anywhere in this codebase. Building
-   either from scratch to host one button would have been new-surface scope creep
-   — the exact failure mode directive §112 warns against, just relocated. Corrected
-   to the actual minimal-clutter placement: a third "Markdown" button inside the
-   pre-existing PNG/Print export button group. The checkpoint doc's own §11/§12 was
-   updated in place to record this correction rather than silently diverging from
-   what was written.
+   checkpoint time — and the FIRST correction was itself wrong on one fact,
+   caught and fixed the same day.** The original checkpoint
+   (`prelaunch-primary-notebook-build-plan.md` §11 as first written) specified
+   a note-header overflow menu + a command-palette entry as the single-note
+   export entry point. The first correction pass claimed "neither an overflow
+   menu nor a command palette exists anywhere in this codebase" — the overflow
+   menu half was true, the command-palette half was not: `CommandPalette.jsx`
+   is real and app-wide, and Notebook already has entries in it (New Note,
+   Open Notebook, Search Notebook, Open Trash) since Wave B. Re-verified
+   directly by reading `CommandPalette.jsx`'s `selectRow()`: every row's only
+   behavior is `navigate(row.to)` — the palette is a pure router with no
+   mechanism for a contextual, side-effecting command bound to "whichever
+   note is currently open" (export needs a specific `noteId` the palette has
+   no way to know). Extending it to support that would itself be new,
+   disproportionate capability work to host one button — the same §112
+   scope-creep concern, reached via the correct reasoning this time.
+   Corrected to the actual minimal-clutter placement: a third "Markdown"
+   button inside the pre-existing PNG/Print export button group, which
+   already has `noteId` in scope. The checkpoint doc's own §11/§12 and its
+   Decision Log item 4 were updated in place to record both corrections
+   rather than let the wrong claim stand.
 3. **The diff tokenizer went through two iterations, both caught by its own test
    suite before either shipped**: gluing whitespace to its own separate token
    fragmented an unrelated-sentence replacement into an alternating wall of

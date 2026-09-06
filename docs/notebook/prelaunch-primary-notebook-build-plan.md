@@ -756,14 +756,20 @@ member exporting one simple note expects, per the competitor research's own
 "Obsidian: a note already IS a portable .md file" baseline) when the note has no
 attachments; a `.zip` (note.md + attachments/) when it does — both paths share
 one code path, branching only on attachment count. **Entry point, corrected
-during implementation:** neither a note-header overflow menu nor a command
-palette exists anywhere in this codebase today, and building either
-subsystem from scratch to host one button would itself be new-surface scope
-creep — the exact thing §112 warns against, just relocated. The actual
-minimal-clutter placement is a third button ("Markdown") inside the EXISTING
-PNG/Print export button group in the editor toolbar — that group is already
-the note's "export formats" cluster; this adds one more format to it rather
-than opening a new UI region.
+during implementation, then corrected again (this section had the wrong
+reason the first time — see the Decision Log's item 4 for the full
+correction record):** no note-header overflow menu exists in this codebase.
+A command palette (`CommandPalette.jsx`) DOES exist and Notebook already
+participates in it (Wave B) — but it is a pure router (every row's only
+behavior is `navigate(row.to)`), with no mechanism for a contextual,
+side-effecting command bound to "whichever note is currently open." Adding
+that capability would itself be new-surface scope creep — the thing §112
+warns against, via the correct mechanism this time. The actual minimal-
+clutter placement is a third button ("Markdown") inside the EXISTING
+PNG/Print export button group in the editor toolbar, which already has
+`noteId` in scope — that group is already the note's "export formats"
+cluster; this adds one more format to it rather than opening a new UI
+region or extending the palette's row model.
 
 **13. Full-export contract fixes** — three silent-drop gaps closed: (a)
 `tradeRef`/`tradeRefType` resolved via the EXISTING `note_trade_links.resolve_trade_ref`
@@ -885,11 +891,25 @@ not foreseeable at the checkpoint above.
    fixed by what comes BEFORE it, which an append never changes.
 4. **Single-note export entry point is a third button in the EXISTING
    PNG/Print toolbar group, not a new overflow menu or command-palette
-   entry.** The original checkpoint (§12 above) called for the latter, but
-   neither an overflow menu nor a command palette exists anywhere in this
-   codebase — building either from scratch to host one button would be the
-   exact new-surface scope creep §112 warns against, just relocated. See the
-   corrected §12 text above.
+   entry.** The original checkpoint (§12 above) called for the latter.
+   ⚠️ **Correction (this claim was checked twice and was wrong the first
+   time):** an initial pass at this correction claimed "neither an overflow
+   menu nor a command palette exists anywhere in this codebase" — false. A
+   real, app-wide `CommandPalette.jsx` exists, and Notebook already has real
+   entries in it since Wave B (New Note, Open Notebook, Search Notebook,
+   Open Trash). No overflow menu exists (that half was correct). The actual
+   reason the palette is the wrong door for THIS action: `selectRow()` in
+   `CommandPalette.jsx` is a pure router — every row's only behavior is
+   `navigate(row.to)` (verified by reading the function directly). There is
+   no mechanism for a contextual, side-effecting command bound to "whatever
+   note is currently open" — export needs to fetch and download a blob for
+   a specific `noteId` the palette has no way to know. Adding that
+   capability to the palette would itself be new, disproportionate work to
+   host one button — a real instance of the same scope-creep concern §112
+   warns about, just via the correct mechanism this time. The existing
+   PNG/Print toolbar group lives directly inside the open note's own
+   component tree with `noteId` already in scope, which is why it remains
+   the right door.
 5. **Full-export completeness fields (`favorite`, `related_tickers`,
    `linked_trades`, `import_source`/`imported_at`) are new YAML front-matter
    keys, omitted entirely when falsy/empty (never emitted blank).** Verified
