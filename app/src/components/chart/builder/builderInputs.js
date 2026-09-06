@@ -146,6 +146,21 @@ export const FOLDED_INPUT_TYPES = Object.freeze({ 'input.int': 'int', 'input.flo
  *  scan — a `bool` read as arithmetic 1/0, a `source` read as the number 1 — so
  *  they refuse by name rather than resolving to the neighbour.
  *
+ *  ⛔⛔ `input.bool` STAYS REFUSED, EVEN THOUGH `pine.js::resolveInput` FOLDS IT
+ *  BYTE-IDENTICALLY TO BARE `input(true/false, …)` (confirmed directly:
+ *  `18-minervini-trend-template.pine`'s `show_52_week_high_low` — an explicit
+ *  `input.bool` — reads back and saves cleanly the moment this entry moves to
+ *  `FOLDED_INPUT_TYPES`, mapped to `'int'`, exactly as a bare `input()` boolean
+ *  already does). NOT SHIPPED, on purpose: `pine.js::PARAM_MANIFEST_ELIGIBLE_
+ *  KINDS`'s own comment records an explicit owner instruction — "Track F's v1
+ *  scope is int/float only" — and `pine.paramManifestEligibility.test.js` pins
+ *  the two lists to name the same kinds specifically so one cannot widen without
+ *  the other. Admitting `bool` here without the same decision on that list would
+ *  be exactly the silent scope-widening that pin exists to catch. TO UNBLOCK:
+ *  an explicit owner decision to extend Track F's v1 scope to include `bool` —
+ *  recorded as a classified, deferred finding
+ *  (Compatibility Remediation Tranche 1, 2026-09-06), not implemented here.
+ *
  *  ⭐ THE FRAGMENT COMPLETES "`input.bool` …", so the token is named by the
  *  caller and never re-typed inside the reason. */
 export const FOLDED_INPUT_INEXPRESSIBLE = Object.freeze({

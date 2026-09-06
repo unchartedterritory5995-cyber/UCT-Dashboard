@@ -28,6 +28,7 @@ import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { declaredInputs } from '../engine/ast/lint'
 import { buildParamManifest } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree } from '../engine/ast/parse'
@@ -92,6 +93,26 @@ function splitFoldedInputs(out) {
   return { pasteInputs: settable, fixedInputs: [...fixed, ...others] }
 }
 
+/** The scope `evaluateFormula` needs to read back a Pine candidate's OWN
+ *  declared inputs by name, not only the chrome every document carries.
+ *
+ *  🔴🔴 WITHOUT THIS, EVERY CANDIDATE THAT DECLARES ANY INPUT REFUSED AT
+ *  `sentence:name` — not a boolean-specific defect, a `BUILDER_INPUT_SCOPE`-only
+ *  one. `memberInputTranslation` already computes `out.memberInputs` (Track F's
+ *  own machinery, proven live for numeric knobs) two lines above every call site
+ *  that reads it below; the downstream verdict simply never saw it. A script
+ *  whose only declared inputs land in a WINDOW slot (folded back to a literal —
+ *  `pd` in `03-cm-williams-vix-fix.pine`) never surfaced this, because no bare
+ *  name from `BUILDER_INPUT_SCOPE`'s complement ever reached the tree — a
+ *  boolean toggle, used as a GATE rather than a length, almost always does.
+ *  Measured directly against the real corpus: `hp`/`sd` in
+ *  `03-cm-williams-vix-fix.pine` and `show_52_week_high_low` in
+ *  `18-minervini-trend-template.pine` all read back cleanly once this scope is
+ *  merged in, with no other change anywhere in the translator. */
+function downstreamScopeFor(out) {
+  return { ...BUILDER_INPUT_SCOPE, ...declaredInputs({ inputs: out?.memberInputs }) }
+}
+
 export function inspectPine(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
@@ -107,7 +128,7 @@ export function inspectPine(source, opts = undefined) {
     vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
-    downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
+    downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
   }))
   // ⭐ `ignored` IS THE ONE NAME THE UI READS. `notes` is kept because it is this
   // function's published shape and other callers read it; the alias is what lets
@@ -179,7 +200,7 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       ...splitFoldedInputs(out),
       vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
       refusal: stamp(out.refusal),
-      downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
+      downstream: out.formula ? evaluateFormula(out.formula, downstreamScopeFor(out)) : null,
     }))
     return {
       ok: t.ok,

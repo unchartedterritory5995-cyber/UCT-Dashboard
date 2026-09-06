@@ -335,6 +335,7 @@ export default function FormulaField({
   value,
   onChange,
   onEvaluated,
+  onPendingChange,
   debounceMs = FORMULA_DEBOUNCE_MS,
   result = null,
   inputId = 'uct-formula',
@@ -345,6 +346,8 @@ export default function FormulaField({
 }) {
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
+  const onPendingChangeRef = useRef(onPendingChange)
+  onPendingChangeRef.current = onPendingChange
   const inputRef = useRef(null)
   const [Editor, setEditor] = useState(null)
   const editorRef = useRef(null)
@@ -370,8 +373,23 @@ export default function FormulaField({
   // OBJECT. `BuilderSheet` exports one module-level scope for exactly that
   // reason: a fresh object per render would restart the 250 ms timer on every
   // render and the box would never settle.
+  //
+  // 🔴🔴 `onPendingChange` NAMES THE GAP A SILENT SAVE NO-OP WAS HIDING IN
+  // (Compatibility Remediation Tranche 1, 2026-09-06). `result`/`canSave` in
+  // the caller reflect the LAST SETTLED evaluation, not the current `value` —
+  // for up to `debounceMs` after a paste or a keystroke, `Save` can still be
+  // showing yesterday's verdict, `disabled` and all. A member who types then
+  // clicks fast lands the click on a disabled button, which fires no `onClick`
+  // at all: no toast, no error, no persisted row — indistinguishable from
+  // broken (reproduced directly on a hand-typed formula: the first click did
+  // nothing, an identical second click, after the timer fired, saved cleanly).
+  // This does not change what Save DOES — it lets the caller say "still
+  // checking" instead of silently doing nothing, satisfying "Save must either
+  // persist or clearly refuse" without touching persistence or translation.
   useEffect(() => {
+    onPendingChangeRef.current?.(true)
     const id = setTimeout(() => {
+      onPendingChangeRef.current?.(false)
       onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
     }, debounceMs)
     return () => clearTimeout(id)
@@ -379,6 +397,7 @@ export default function FormulaField({
 
   /** `Mod-Enter`: apply the draft NOW — the settle's own evaluation, without the wait. */
   const applyNow = useCallback(() => {
+    onPendingChangeRef.current?.(false)
     onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
   }, [value, inputs, dialect])
 

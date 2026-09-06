@@ -970,6 +970,15 @@ export default function BuilderSheet({
   // gate below.
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
+  // 🔴🔴 Compatibility Remediation Tranche 1 (2026-09-06) — see
+  // `FormulaField.jsx`'s `onPendingChange` docblock for the full defect this
+  // closes. `result`/`canSave` reflect the LAST SETTLED (debounced)
+  // evaluation; `pending` is true for the up-to-250ms window after `source`
+  // changes and before that evaluation lands, so the Save button can say
+  // "still checking" instead of silently swallowing a click that landed on a
+  // stale `disabled` state — never a silent no-op, per plot 1 only (the
+  // primary, single-formula authoring path this was reproduced on).
+  const [pending, setPending] = useState(false)
   // RISK-012 (Phase One Track B, 2026-09-04). `saving`/`canSave` are STATE —
   // `setSaving(true)` schedules a re-render, it does not retroactively change
   // the `canSave` a click handler already closed over. Two clicks fired before
@@ -1350,6 +1359,10 @@ export default function BuilderSheet({
     formula: canSaveFormula(result, plot0.acknowledged),
     named: name.trim() !== '',
     idle: !saving,
+    // ⛔ NOT MERGED INTO `idle` — a member reading "Saving…" mid-debounce would
+    // be told a request is in flight when none has been sent yet, which is a
+    // wrong sentence, not a missing one. See `pending`'s own declaration.
+    settled: !pending,
     // ⛔ THE INPUT GATE BELONGS HERE, NOT BESIDE `save()`. Checking it only in the
     // handler would leave the button ENABLED while the save silently returned —
     // a dead control, and a second authority over one decision, which is the
@@ -1369,28 +1382,43 @@ export default function BuilderSheet({
       && plotRows.every((r, i) => plotKeyProblem(r.key, i + 1) === null
         && canSaveFormula(r.result, r.acknowledged))
       && !levelsProblem,
-  }), [result, plot0.acknowledged, name, saving, inputsValid,
+  }), [result, plot0.acknowledged, name, saving, pending, inputsValid,
     plotKeyProblem, plot0.key, plotRows, levelsProblem])
 
+  // ⛔ `settled` DELIBERATELY DOES NOT GATE `canSave`. Adding it would change
+  // WHEN the button is clickable — a real behavior change with its own,
+  // larger blast radius (every existing test that asserts the button's
+  // enabled state synchronously after a change) — for a finding whose
+  // reported symptom was a swallowed click, not a wrong save. It is
+  // surfaced ONLY as the `saveHint` message below: informational, additive,
+  // and reverts to exactly today's gating the moment `pending` clears.
   const canSave = saveGates.formula && saveGates.named && saveGates.idle
     && saveGates.inputs && saveGates.plots
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
   // would be a second voice for a fact the member can already see.
-  const saveHint = (saveGates.idle && saveGates.formula && !saveGates.named)
-    ? 'Give it a name to save.'
-    // An input problem already names itself on its own row, so this points at
-    // WHICH gate is shut without restating the reason a second time.
-    : (saveGates.idle && saveGates.formula && saveGates.named && !saveGates.inputs)
-      ? 'Fix the input names above to save.'
-      // Same rule as the line above it: every plot problem already names itself
-      // on its own row (a key sentence, or its own refusal chip), so this points
-      // at WHICH gate is shut without restating the reason a second time.
-      : (saveGates.idle && saveGates.formula && saveGates.named && saveGates.inputs
-        && !saveGates.plots)
-        ? 'Fix the plots above to save.'
-        : null
+  //
+  // ⛔ `settled` IS CHECKED FIRST, BEFORE `formula`. `result` is stale by
+  // definition while `pending` is true, so reading `saveGates.formula` here
+  // would show whatever the PREVIOUS formula's verdict happened to be —
+  // exactly the confusing-message failure mode this hint exists to prevent.
+  const saveHint = (saveGates.idle && !saveGates.settled)
+    ? 'Checking your formula…'
+    : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
+      ? 'Give it a name to save.'
+      // An input problem already names itself on its own row, so this points at
+      // WHICH gate is shut without restating the reason a second time.
+      : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
+        && !saveGates.inputs)
+        ? 'Fix the input names above to save.'
+        // Same rule as the line above it: every plot problem already names itself
+        // on its own row (a key sentence, or its own refusal chip), so this points
+        // at WHICH gate is shut without restating the reason a second time.
+        : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
+          && saveGates.inputs && !saveGates.plots)
+          ? 'Fix the plots above to save.'
+          : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -1986,6 +2014,7 @@ export default function BuilderSheet({
             value={source}
             onChange={setSource}
             onEvaluated={handleEvaluated}
+            onPendingChange={setPending}
             result={result}
             autoFocus
             inputs={inputScope}

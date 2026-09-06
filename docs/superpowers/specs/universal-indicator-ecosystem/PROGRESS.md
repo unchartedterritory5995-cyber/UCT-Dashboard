@@ -425,6 +425,40 @@ silent no-op on Save, the Formula-tab custom-input binding convention) are uncha
 RISK_REGISTER entry needed (RISK-027/029/037 all already correctly capture the underlying facts). Per
 the explicit stop condition: no remediation, no Stoch, no ADX-family were begun.**
 
+**2026-09-06 (same day, third follow-up) — Compatibility Remediation Tranche 1 COMPLETE.** Owner
+authorized one bounded remediation tranche over the synthesis's own evidence-based gap set, ranked by
+silent-failure risk, generality, and blast radius rather than by acceptance percentage. Root-caused all
+five findings via direct code reading plus minimal reductions (not assumption): **the "boolean-input-
+in-conditional" finding turned out not to be about booleans at all** — `PineBox.jsx`'s own downstream-
+verdict call never merged a Pine candidate's own declared inputs (already computed by
+`memberInputTranslation`, two lines above) into the scope it read back against, so ANY declared input
+referenced by bare name failed, not just booleans; booleans dominated the corpus sample only because a
+numeric length gets window-folded away while a boolean gate almost never does. Shipped a narrow
+`downstreamScopeFor(out)` merge in `PineBox.jsx`, confirmed live to fully resolve CM Williams Vix Fix's
+`hp`/`sd` and Pocket Pivot Breakout's `gapcandle` columns with zero other change anywhere in the
+translator. A SECOND fix (moving `input.bool` into the same eligible-kinds list, which would ALSO have
+closed Minervini's and Support Resistance Channels' identical gaps — verified working) was deliberately
+**reverted before commit**: it collides with an explicit, in-code owner instruction ("Track F's v1 scope
+is int/float only") protected by a dedicated cross-file parity test built specifically to catch that
+kind of silent scope-widening — classified and left for an explicit future owner decision instead.
+The "silent Save no-op" finding split into two: the readback-error case was found to be **not a defect
+at all** (the Save button is already correctly disabled via `canSaveFormula`, and a disabled button never
+fires a click); the "first click didn't persist, second did" case was real, root-caused to the Formula
+box's 250ms evaluation debounce leaving the button's disabled state stale for up to 250ms after any edit
+— fixed with a "Checking your formula…" hint surfaced through the existing hint paragraph, deliberately
+NOT touching the Save button's own gating (an earlier version that did was reverted after it broke
+several unrelated existing tests' label/timing assumptions — the smallest-safe-fix discipline catching
+itself). QQE MOD's ratchet limit was reclassified via a minimal reduction: it is NOT "two mutually-
+referencing accumulators" (that exact shape translates fine) — the real trigger is a lagged self-
+reference used directly inside a `min`/`max` arm, which the translator's convergence-soundness gate
+refuses by design, backed by a pinned adversarial counterexample; left untouched, since closing it would
+mean altering a soundness proof under an explicit dual-ownership reopening rule. Full regression sweep:
+3,745 tests, 3,742 passing, all 3 failures independently confirmed pre-existing via `git stash` isolation
+against a clean baseline. Two new regression test files (7 tests total, none mocked on the path under
+test). Filed RISK-038; full adjudication, before/after 8-script corpus matrix, and non-vacuity evidence
+in `COMPATIBILITY_REMEDIATION_TRANCHE_1.md`. **Per explicit instruction: no further tranche begun —
+Stoch, ADX-family, Track F v2, and BuilderSheet visual exposure (bands/fill/colorMode) remain untouched.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
