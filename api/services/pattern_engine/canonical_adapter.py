@@ -107,6 +107,21 @@ helpers, so `explanation_builder.py` can build real strengths/weaknesses for
 it (a genuine departure from both Engulfing families, which lack separable
 context-scoring functions).
 
+Later packages added `flat_base`, `vcp` (geometry shape-contract + canonical
+adaptation), and `pullback_to_50sma` (minimal, one-anchor Category-A
+geometry) -- see each adapter's own docstring below for its family-specific
+adjudication.
+
+Episodic Pivot (`adapt_episodic_pivot`, below) was added in a later,
+separately-authorized package: a third gap/event family, event-provenance-
+adjudicated as Category C (no real event provenance exists in the current
+detector -- price/volume phenomenon only; see that function's own docstring
+for the full adjudication) rather than extended from PEG's Category-A/partial
+shape. Its gate_trace mirrors PEG's own (7 named-constant identity gates,
+all reconstructable from `geometry.extras`); its `event` section is present
+but deliberately empty (`verification_status="unavailable"`, every other
+field genuinely omitted -- never a guessed earnings linkage).
+
 KNOWN, DISCLOSED LIMITATION: because this adapter runs AFTER a Detection
 already exists (post-hoc, on the single surviving candidate a detector ever
 returns), it can only reconstruct gate evaluations for gates that candidate
@@ -125,6 +140,7 @@ from typing import Optional
 
 from api.services.pattern_engine import memory as _memory
 from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag
+from api.services.pattern_engine.detectors.uct import episodic_pivot as _ep
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.detectors.uct import pullback_to_50sma as _p50
@@ -307,6 +323,21 @@ def _vcp_anchor_roles(n_anchors: int) -> list:
 # enhancement -- reported, not actioned, in this package's own report.
 _P50_ANCHOR_ROLES = ["current_sma_reading"]
 _P50_SEMANTIC_SUBTYPE = "ma_reference_point"
+
+# episodic_pivot._build_detection (verified by direct, fresh read for this
+# package) emits exactly 3 anchors: {base_start_bar.t, base_high}, {base_end_
+# bar.t, base_high}, {ep_bar.t, ep_close}. The first two anchors share the
+# SAME price (base_high, the max high across the whole base segment) -- this
+# is a deliberate horizontal ceiling-line representation (the base's
+# resistance level, drawn from the base's first bar to its last), not a claim
+# that base_start_bar's or base_end_bar's OWN high equals base_high (it may
+# not -- the segment max can occur at any interior bar). This is the same
+# "level, not per-bar extreme" convention flat_base's rectangle and VCP's
+# "start_high" anchor already use elsewhere in this engine -- not a new
+# pattern. The third anchor's price (ep_close) IS an exact, verified field of
+# that specific bar (`ep_bar["c"]`), same rigor as PEG's own anchors.
+_EP_ANCHOR_ROLES = ["base_ceiling_start", "base_ceiling_end", "ep_bar"]
+_EP_SEMANTIC_SUBTYPE = "gap_breakout_bar"
 
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
@@ -580,6 +611,84 @@ def adapt_pullback_to_50sma(detection: Detection, *, now: Optional[int] = None) 
     return out
 
 
+def adapt_episodic_pivot(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Episodic Pivot: eligibility + labeled geometry + a reconstructed gate
+    trace for the 7 named, sourced identity gates in `episodic_pivot.py`'s
+    own `_try_extract` that this surviving candidate cleared (same shape as
+    PEG's own gate_trace -- EP has no bare-literal problem, every threshold
+    here is already a named module constant). `event` is present but
+    deliberately EMPTY (`verification_status="unavailable"`, every other
+    field genuinely omitted) -- see the adjudication below.
+
+    EVENT PROVENANCE ADJUDICATION (owner-mandated A/B/C/D framework; traced
+    fresh against the CURRENT `episodic_pivot.py`, 651 lines, read in full
+    this package -- not inferred from the family name or PEG's precedent):
+
+    `detect_episodic_pivot`'s `context` parameter is read for exactly 7
+    keys: `trend_stage`, `ma_alignment`, `rs_trend`, `regime`,
+    `can_slim_grade`, `can_slim_score`, `dcr_signature`, `recent_dcr_avg` --
+    every one a technical/market-structure fact. No earnings/news/filing/
+    corporate-action field is read anywhere in the file, and no such module
+    is imported (only `narrative_helpers_structure` for shared quality
+    scoring). This is the Phase-7 spec's own independently-recorded finding
+    too (S11/S24/S26): "PEG only (Phase 6 fix); EP none" -- re-derived here
+    from the code itself, not taken on the spec's word.
+
+    More fundamentally, EP's own pattern identity (Bonde/Kullamägi, cited
+    in-file) never requires or implies a SPECIFIC external cause -- an
+    Episodic Pivot is explicitly a general-purpose "something big happened,
+    the tape doesn't say why" signature (gap + range + volume + close-
+    strength only). This is structurally unlike PEG (Power EARNINGS Gap),
+    whose identity criteria REQUIRE an earnings link by definition. So even
+    though `context` is the SAME shared dict PEG receives (and could, in
+    principle, also carry `days_to_earnings_hint`), reading that field here
+    would not be "recovering lost provenance" -- there is nothing EP-
+    specific being lost, because EP's own detector never establishes that an
+    earnings date (or any other single external cause) is what made THIS
+    candidate an EP. Treating a coincidental nearby earnings date as this
+    gap's "event" would be the adapter INVENTING a causal link the
+    detector's own identity criteria never verify -- exactly the forbidden
+    "a gap is not event provenance" / "never infer an event" pattern.
+
+    Classification: **C** -- no real event provenance exists; EP's pattern
+    identity is price/volume-derived in the current detector; causal
+    external-event provenance is unavailable. Not B: nothing upstream is
+    lost, because nothing EP-specific was ever produced upstream to lose.
+
+    FRESHNESS (owner-mandated re-derivation, "same epistemic standard as
+    VCP"): `_MAX_EP_AGE=5` bounds `range(_MAX_EP_AGE)` in
+    `detect_episodic_pivot`'s own search loop -- it bounds WHICH bar can be
+    tried as the EP-bar candidate in the first place, not a separate reject-
+    if-stale check re-applied to an already-otherwise-valid candidate
+    (Pullback-shape, not VCP's separate-gate shape). By construction, a
+    Detection can never exist with an EP bar more than 4 bars before
+    `end_t` -- confirmed empirically this package (appending trailing bars
+    to a real firing fixture: the true EP bar's own anchor timestamp never
+    moves, only `end_t` advances, and detection still fires while the EP bar
+    stays within the window). Real gate, genuinely bounds every emitted
+    Detection -- but NOT reconstructable post-hoc as an exact bar count from
+    the persisted object alone: only Unix timestamps survive
+    (`anchors[2].t` for the EP bar, `end_t` for "now"), and converting a
+    timestamp delta into a bar count needs the timeframe's bar spacing,
+    which `tf` (blank at detector-build time) does not reliably supply.
+    Same treatment as VCP's `_MAX_FINAL_LOW_AGE`: `freshness_bars`/
+    `freshness_window_bars` stay `None`. DISCLOSED LIMITATION: the current
+    `Eligibility` shape cannot distinguish "no per-family freshness gate at
+    all" (true for HTF/PEG) from "real gate, not reconstructable" (true for
+    VCP and EP) -- both read as `freshness_bars=None`. That ambiguity is a
+    pre-existing schema characteristic (`types.py`'s own docstring already
+    states the "no gate" reading), not something this canonical-adapter-only
+    package is authorized to resolve (would need a schema change).
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(detection, _EP_ANCHOR_ROLES, _EP_SEMANTIC_SUBTYPE)
+    out["event"] = {"verification_status": "unavailable"}
+    out["gate_trace"] = _ep_gate_trace(detection["geometry"]["extras"])
+    return out
+    return out
+
+
 def build_scanner_summary(detection: Detection) -> ScannerSummary:
     """Phase 8 Package 8C — the canonical scanner-facing projection (Phase-7
     spec §16 / this authorization's §6). Operates on an already-adapted
@@ -747,5 +856,76 @@ def _peg_gate_trace(extras: dict) -> list[GateEvaluation]:
             post_gap_bars, [_peg._MIN_POST_GAP_BARS, _peg._MAX_POST_GAP_BARS],
             "within_range", "bars", "eligibility",
             _peg._MIN_POST_GAP_BARS <= post_gap_bars <= _peg._MAX_POST_GAP_BARS,
+        ),
+    ]
+
+
+def _ep_gate_trace(extras: dict) -> list[GateEvaluation]:
+    """Reconstructs the 7 real identity gates in `episodic_pivot._try_extract`
+    from `geometry.extras` -- every threshold sourced from the detector
+    module's own named constant (never restated as a duplicate literal).
+    `gap_pct` and `base_depth_pct` are stored in extras as *100 (narrative-
+    display convention, same as PEG's `gap_pct`) -- divided back to a
+    fraction here to compare against the detector's own fraction-typed
+    constants."""
+    gap_pct = extras["gap_pct"] / 100.0
+    base_depth_pct = extras["base_depth_pct"] / 100.0
+    range_ratio = extras["ep_range_ratio"]
+    volume_ratio = extras["ep_volume_ratio"]
+    close_strength = extras["close_strength"]
+    base_bars = extras["base_bars"]
+    ep_close = extras["ep_close"]
+    base_high = extras["base_high"]
+
+    def _gate(criterion_id, name, observed, expected, operator, unit, role, passed):
+        return {
+            "criterion_id": criterion_id,
+            "criterion_name": name,
+            "observed_value": observed,
+            "expected_value": expected,
+            "operator": operator,
+            "unit": unit,
+            "role": role,
+            "required": True,
+            "result": "pass" if passed else "fail",
+            "criterion_ref": None,
+            "definition_version": None,
+        }
+
+    return [
+        _gate(
+            "ep_gap_pct_floor", "opening gap vs. floor",
+            round(gap_pct, 4), _ep._MIN_GAP_PCT, ">=", "fraction", "identity",
+            gap_pct >= _ep._MIN_GAP_PCT,
+        ),
+        _gate(
+            "ep_range_ratio_floor", "EP-bar range vs. 20-bar average range",
+            round(range_ratio, 3), _ep._MIN_RANGE_RATIO, ">=", "ratio", "identity",
+            range_ratio >= _ep._MIN_RANGE_RATIO,
+        ),
+        _gate(
+            "ep_volume_ratio_floor", "EP-bar volume vs. 20-bar average volume",
+            round(volume_ratio, 3), _ep._MIN_VOLUME_RATIO, ">=", "ratio", "identity",
+            volume_ratio >= _ep._MIN_VOLUME_RATIO,
+        ),
+        _gate(
+            "ep_close_strength_floor", "close location within the EP bar's own range",
+            round(close_strength, 4), _ep._MIN_CLOSE_STRENGTH, ">=", "fraction", "identity",
+            close_strength >= _ep._MIN_CLOSE_STRENGTH,
+        ),
+        _gate(
+            "ep_base_depth_ceiling", "pre-EP base depth vs. ceiling",
+            round(base_depth_pct, 4), _ep._MAX_BASE_DEPTH, "<=", "fraction", "identity",
+            base_depth_pct <= _ep._MAX_BASE_DEPTH,
+        ),
+        _gate(
+            "ep_base_bars_range", "pre-EP base length within the accepted window",
+            base_bars, [_ep._MIN_BASE_BARS, _ep._MAX_BASE_BARS], "within_range", "bars", "eligibility",
+            _ep._MIN_BASE_BARS <= base_bars <= _ep._MAX_BASE_BARS,
+        ),
+        _gate(
+            "ep_close_above_base_high", "EP close breaks above the entire pre-EP base range",
+            ep_close, base_high, ">", "price", "identity",
+            ep_close > base_high,
         ),
     ]

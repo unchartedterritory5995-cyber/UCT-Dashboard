@@ -4,12 +4,20 @@ Converts an already-canonical (adapted — see `canonical_adapter.py`)
 `Detection` into an `Explanation`: a deterministic set of structured facts
 answering WHY this detection matched, what currently strengthens or weakens
 it, what stage it's in, and whether the scanner currently considers it
-eligible. Five families (`high_tight_flag`, `power_earnings_gap`,
-`bullish_engulfing` — Package 8F, `bearish_engulfing` — Package 8G, and
-`bull_flag` — Package 8H, the last two mirroring HTF's own eligibility-only
-shape), per this package's authorization — every other `pattern_id` gets an
-Explanation with an empty `sections` list, not a crash and not fabricated
-facts.
+eligible. Nine families now (`high_tight_flag`, `power_earnings_gap`,
+`bullish_engulfing` — Package 8F, `bearish_engulfing` — Package 8G,
+`bull_flag` — Package 8H, `flat_base` — Package 8I, `vcp`, `pullback_to_50sma`,
+and `episodic_pivot` — the last added in a later, separately-authorized
+package) — every other `pattern_id` gets an Explanation with an empty
+`sections` list, not a crash and not fabricated facts.
+
+`episodic_pivot`'s `event` section is a real, deliberate case of "HONEST
+ABSENCE" (rule 5 below): its detector carries no event-provenance data of any
+kind (event-provenance-adjudicated Category C — see
+`canonical_adapter.adapt_episodic_pivot`'s own docstring), so `_event_facts`
+gives it its OWN branch rather than falling through PEG's earnings-flavored
+wording, which would otherwise imply an earnings hypothesis this family's
+detector never makes.
 
 GOVERNING RULES (this package's authorization; directly motivated by a
 historical Phase-4A defect where a narrative layer stated things the
@@ -71,6 +79,7 @@ from __future__ import annotations
 from api.services.pattern_engine.detectors.candlestick import bearish_engulfing as _bre
 from api.services.pattern_engine.detectors.candlestick import bullish_engulfing as _be
 from api.services.pattern_engine.detectors.classical import bull_flag as _bf
+from api.services.pattern_engine.detectors.uct import episodic_pivot as _ep
 from api.services.pattern_engine.detectors.uct import flat_base as _flat_base
 from api.services.pattern_engine.detectors.uct import high_tight_flag as _htf
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
@@ -82,7 +91,7 @@ BUILDER_VERSION = "phase8.8e.1"
 
 _IN_SCOPE_FAMILIES = (
     _htf._PATTERN_ID, _peg._PATTERN_ID, _be._PATTERN_ID, _bre._PATTERN_ID, _bf._PATTERN_ID,
-    _flat_base._PATTERN_ID, _vcp._PATTERN_ID, _p50._PATTERN_ID,
+    _flat_base._PATTERN_ID, _vcp._PATTERN_ID, _p50._PATTERN_ID, _ep._PATTERN_ID,
 )
 
 
@@ -150,6 +159,8 @@ def _why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
         return _vcp_why_it_matched_facts(detection)
     if pid == _p50._PATTERN_ID:
         return _p50_why_it_matched_facts(detection)
+    if pid == _ep._PATTERN_ID:
+        return _ep_why_it_matched_facts(detection)
     return []
 
 
@@ -530,6 +541,26 @@ def _p50_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
     return facts
 
 
+def _ep_why_it_matched_facts(detection: Detection) -> list[ExplanationFact]:
+    """One fact per `gate_trace` entry -- same shape as PEG's own, above
+    (reads the identical gate_trace `canonical_adapter.adapt_episodic_pivot`
+    built from `geometry.extras`; kept as a separate function rather than
+    shared with PEG's to avoid touching that already-tested code)."""
+    gate_trace = detection.get("gate_trace") or []
+    facts: list[ExplanationFact] = []
+    for i, gate in enumerate(gate_trace):
+        polarity = _GATE_RESULT_POLARITY.get(gate.get("result"), "neutral")
+        criterion_id = gate.get("criterion_id", str(i))
+        facts.append(_fact(
+            f"ep_gate_{criterion_id}", "identity", "direct",
+            f"{gate.get('criterion_name', 'gate')}: observed "
+            f"{gate.get('observed_value')} vs. required {gate.get('operator', '')} "
+            f"{gate.get('expected_value')} — {gate.get('result')}.",
+            f"gate_trace[criterion_id={criterion_id}]", polarity, i + 1,
+        ))
+    return facts
+
+
 # ─── strengths / weaknesses — DERIVED, by calling the detector's own separable
 #     context-scoring helpers on the Detection's own stored context ─────────
 
@@ -542,6 +573,7 @@ _FAMILY_CONTEXT_FNS = {
     ),
     _vcp._PATTERN_ID: (_vcp._dcr_score_adjustment, _vcp._can_slim_score_adjustment),
     _p50._PATTERN_ID: (_p50._dcr_score_adjustment, _p50._can_slim_score_adjustment),
+    _ep._PATTERN_ID: (_ep._dcr_score_adjustment, _ep._can_slim_score_adjustment),
 }
 
 
@@ -662,6 +694,9 @@ _FAMILY_PHRASE_FNS = {
     _p50._PATTERN_ID: (
         _p50_trend_stage_description, _p50_ma_alignment_phrase, _p50_rs_trend_phrase,
     ),
+    _ep._PATTERN_ID: (
+        _ep._trend_stage_description, _ep._ma_alignment_phrase, _ep._rs_trend_phrase,
+    ),
 }
 
 
@@ -752,6 +787,25 @@ def _event_facts(detection: Detection) -> list[ExplanationFact]:
     event = detection.get("event")
     if event is None:
         return []
+
+    if detection.get("pattern_id") == _ep._PATTERN_ID:
+        # EP's "unavailable" is NOT "we don't have earnings data for this
+        # candidate yet" (PEG's meaning, below) -- EP's own identity
+        # criteria are price/volume-only and never establish any external
+        # cause at all (canonical_adapter.adapt_episodic_pivot's own
+        # EVENT PROVENANCE ADJUDICATION). Falling through to PEG's
+        # earnings-flavored wording here would imply an earnings hypothesis
+        # this family's detector never makes -- exactly the "a gap is not
+        # event provenance" mistake this whole package exists to avoid.
+        return [_fact(
+            "event_absent_by_design", "event", "qualified",
+            "Episodic Pivot's own identity criteria are price/volume-derived "
+            "only (gap, range expansion, volume expansion, close strength) — "
+            "the detector carries no external-event data of any kind, so "
+            "causal provenance (why the gap happened) is unavailable and is "
+            "not inferred from the gap itself.",
+            "event.verification_status", "neutral", 1,
+        )]
 
     verification = event.get("verification_status")
     days = event.get("days_from_event")

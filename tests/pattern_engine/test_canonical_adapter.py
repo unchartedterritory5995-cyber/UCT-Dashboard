@@ -27,6 +27,7 @@ from api.services.pattern_engine.canonical_adapter import (
     adapt_bearish_engulfing,
     adapt_bullish_engulfing,
     adapt_bull_flag,
+    adapt_episodic_pivot,
     adapt_flat_base,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
@@ -42,6 +43,16 @@ from api.services.pattern_engine.detectors.candlestick.bullish_engulfing import 
     detect_bullish_engulfing,
 )
 from api.services.pattern_engine.detectors.classical.bull_flag import detect_bull_flag
+from api.services.pattern_engine.detectors.uct.episodic_pivot import (
+    _MAX_BASE_BARS,
+    _MAX_BASE_DEPTH,
+    _MIN_BASE_BARS,
+    _MIN_CLOSE_STRENGTH,
+    _MIN_GAP_PCT as _EP_MIN_GAP_PCT,
+    _MIN_RANGE_RATIO,
+    _MIN_VOLUME_RATIO as _EP_MIN_VOLUME_RATIO,
+    detect_episodic_pivot,
+)
 from api.services.pattern_engine.detectors.uct.flat_base import detect_flat_base
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import (
@@ -81,6 +92,7 @@ BULL_FLAG_DETECTIONS = _fired_detections("bull_flag", detect_bull_flag)
 FLAT_BASE_DETECTIONS = _fired_detections("flat_base", detect_flat_base)
 VCP_DETECTIONS = _fired_detections("vcp", detect_vcp)
 P50_DETECTIONS = _fired_detections("pullback_to_50sma", detect_pullback_to_50sma)
+EP_DETECTIONS = _fired_detections("episodic_pivot", detect_episodic_pivot)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -760,6 +772,86 @@ def test_p50_anchor_role_labeling_never_mutates_the_original_geometry_dict():
     assert "anchor_roles" in adapted["geometry"]
 
 
+# ─── Episodic Pivot: eligibility + labeled geometry + reconstructed gate_trace;
+#     event PRESENT but explicitly empty (Category C -- no event concept) ────
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_episodic_pivot(detection)
+    _assert_parity(detection, adapted, {"eligibility", "event", "gate_trace"})
+
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_adapter_event_is_present_but_deliberately_empty(name, detection):
+    """Category-C event-provenance adjudication: EP's detector carries no
+    external-event data of any kind, so `event` must be present (not
+    HTF-style entirely absent -- EP IS a gap/event family per Phase-7 §24/§26)
+    but carry ONLY `verification_status='unavailable'` -- never a guessed
+    `event_type`, never a fabricated `source`, never any PEG-style earnings
+    field this detector never computes."""
+    adapted = adapt_episodic_pivot(detection)
+    assert adapted["event"] == {"verification_status": "unavailable"}
+
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_adapter_gate_trace_all_pass_and_recompute_correctly(name, detection):
+    """Every gate in a SURVIVING detection's trace must independently
+    recompute to 'pass' against the detector's own real constants -- if this
+    ever fails, either the adapter's reconstruction or the detector's own
+    output has drifted."""
+    adapted = adapt_episodic_pivot(detection)
+    trace = adapted["gate_trace"]
+    ids = {g["criterion_id"] for g in trace}
+    assert ids == {
+        "ep_gap_pct_floor", "ep_range_ratio_floor", "ep_volume_ratio_floor",
+        "ep_close_strength_floor", "ep_base_depth_ceiling", "ep_base_bars_range",
+        "ep_close_above_base_high",
+    }
+    for gate in trace:
+        assert gate["result"] == "pass", f"{gate['criterion_id']} did not pass on a firing detection: {gate}"
+        for required_key in ("observed_value", "expected_value", "operator", "role", "required"):
+            assert required_key in gate
+
+    extras = detection["geometry"]["extras"]
+    by_id = {g["criterion_id"]: g for g in trace}
+    assert by_id["ep_gap_pct_floor"]["expected_value"] == _EP_MIN_GAP_PCT
+    assert by_id["ep_range_ratio_floor"]["expected_value"] == _MIN_RANGE_RATIO
+    assert by_id["ep_volume_ratio_floor"]["expected_value"] == _EP_MIN_VOLUME_RATIO
+    assert by_id["ep_close_strength_floor"]["expected_value"] == _MIN_CLOSE_STRENGTH
+    assert by_id["ep_base_depth_ceiling"]["expected_value"] == _MAX_BASE_DEPTH
+    assert by_id["ep_base_bars_range"]["expected_value"] == [_MIN_BASE_BARS, _MAX_BASE_BARS]
+    assert abs(by_id["ep_gap_pct_floor"]["observed_value"] - extras["gap_pct"] / 100.0) < 1e-6
+    assert by_id["ep_base_bars_range"]["observed_value"] == extras["base_bars"]
+    assert by_id["ep_close_above_base_high"]["observed_value"] == extras["ep_close"]
+
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_adapter_eligibility_freshness_left_none_despite_a_real_gate(name, detection):
+    """`_MAX_EP_AGE=5` is a REAL per-family freshness gate (re-derived fresh
+    from episodic_pivot.py, confirmed by the Phase-7 spec's own S26 matrix
+    row) -- but it bounds WHICH bar can be tried as the EP-bar candidate
+    (Pullback-shape: bounds the search), not a separate reject-if-stale
+    check on an already-valid candidate (VCP-shape). It is not reconstructable
+    post-hoc as an exact bar count from a persisted Detection (only Unix
+    timestamps survive; converting a delta to a bar count needs the
+    timeframe's bar spacing, which isn't reliably available). Same treatment
+    as VCP's own `_MAX_FINAL_LOW_AGE`: both stay None."""
+    adapted = adapt_episodic_pivot(detection)
+    elig = adapted["eligibility"]
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+
+
+def test_ep_adapter_does_not_mutate_its_input():
+    assert EP_DETECTIONS
+    _, detection = EP_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_episodic_pivot(detection)
+    assert detection == snapshot
+
+
 def test_fixture_coverage_is_nonzero():
     """A silent zero-fixture run would make every test above vacuously pass —
     guard against that."""
@@ -771,6 +863,7 @@ def test_fixture_coverage_is_nonzero():
     assert len(FLAT_BASE_DETECTIONS) >= 3, "expected several firing Flat Base fixtures"
     assert len(VCP_DETECTIONS) >= 3, "expected several firing VCP fixtures"
     assert len(P50_DETECTIONS) >= 3, "expected several firing pullback_to_50sma fixtures"
+    assert len(EP_DETECTIONS) >= 3, "expected several firing EP fixtures"
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────
@@ -830,6 +923,19 @@ def test_peg_scanner_summary_surfaces_event_note_not_just_a_gap(name, detection)
     summary = build_scanner_summary(adapted)
     assert "event_note" in summary
     assert summary["event_note"] == f"earnings linkage: {adapted['event']['verification_status']}"
+    assert "no event provenance for this family" not in summary["warnings"]
+    assert "no gate-evaluation trace available for this family" not in summary["warnings"]
+
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_scanner_summary_reports_event_unavailable_never_earnings(name, detection):
+    """EP's event_note must read as a genuinely empty/unavailable linkage --
+    never fall back to PEG's 'earnings linkage' wording (there is no
+    event_type on EP's EventProvenance to format one from)."""
+    adapted = adapt_episodic_pivot(detection)
+    summary = build_scanner_summary(adapted)
+    assert summary["event_note"] == "event linkage: unavailable"
+    assert "earnings" not in summary["event_note"]
     assert "no event provenance for this family" not in summary["warnings"]
     assert "no gate-evaluation trace available for this family" not in summary["warnings"]
 
@@ -979,6 +1085,26 @@ def test_bull_flag_flag_channel_anchor_t_is_now_a_real_unix_timestamp(name, dete
     # geometry-order finding) -- now correctly equal to end_t, not a bar index.
     assert upper_end["t"] == end_t
     assert lower_end["t"] == end_t
+
+
+@pytest.mark.parametrize("name,detection", EP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_anchor_roles_match_the_detectors_real_anchor_order(name, detection):
+    """Re-verifies the exact anchor order episodic_pivot.py::_build_detection
+    emits (base_start, base_end, ep_bar). anchors[0]/[1] share the SAME price
+    (base_high, a ceiling LEVEL across the whole base segment, not either
+    bar's own high) -- re-verified directly, not assumed; anchors[2]'s price
+    IS ep_bar's own close exactly."""
+    adapted = adapt_episodic_pivot(detection)
+    geometry = adapted["geometry"]
+    assert geometry["semantic_subtype"] == "gap_breakout_bar"
+    assert geometry["anchor_roles"] == ["base_ceiling_start", "base_ceiling_end", "ep_bar"]
+    assert len(geometry["anchor_roles"]) == len(geometry["anchors"]) == 3
+    assert geometry["anchors"][0]["price"] == geometry["anchors"][1]["price"]
+    assert geometry["anchors"][2]["price"] == detection["geometry"]["extras"]["ep_close"]
+    # the EP-bar anchor's timestamp must be a real bar timestamp AND, since
+    # detect_episodic_pivot only searches the last _MAX_EP_AGE bars, must not
+    # be older than the detection's own end_t.
+    assert geometry["anchors"][2]["t"] <= detection["end_t"]
 
 
 def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():
