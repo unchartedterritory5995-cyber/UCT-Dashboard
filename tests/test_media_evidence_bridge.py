@@ -115,6 +115,56 @@ def test_session_time_naive_start_time_assumed_utc(env):
     assert out["start_time_utc"] == "2026-06-24T13:30:00+00:00"
 
 
+# ── Phase 4D-4C.3: durable provenance takes priority over the job table ─────
+
+def test_session_time_prefers_durable_recording_file_over_job_table(env):
+    """Even with a LIVE job row present, the durable BEST-tier value wins —
+    consumers should not care whether the job row still exists."""
+    jobs.enqueue("uuid-both", "Live Trading", "2026-06-24T13:05:00Z", "http://dl", "tok")
+    vid = _make_video(meeting_uuid="uuid-both")
+    edu.set_media_provenance(vid, "2026-06-24T13:00:07Z", "zoom_recording_file", "file-xyz")
+    out = bridge.get_session_time(vid)
+    assert out["provenance"] == "zoom_recording_file"
+    assert out["source_recording_file_id"] == "file-xyz"
+    assert out["start_time_utc"] == "2026-06-24T13:00:07+00:00"  # NOT the job row's 13:05:00
+    assert out["confidence"] == "authoritative"
+
+
+def test_session_time_durable_survives_a_pruned_job_row(env):
+    """No job row at all (pruned) — the durable value alone is enough. This is
+    the exact scenario this phase exists to fix."""
+    vid = _make_video(meeting_uuid="uuid-pruned")
+    edu.set_media_provenance(vid, "2026-06-24T13:00:00Z", "recovered_job_metadata")
+    out = bridge.get_session_time(vid)
+    assert out["confidence"] == "authoritative"
+    assert out["provenance"] == "recovered_job_metadata"
+    assert out["start_time_utc"] == "2026-06-24T13:00:00+00:00"
+
+
+def test_session_time_falls_back_to_job_table_when_no_durable_value_yet(env):
+    """A video processed before this phase (or before insights ran) has no
+    durable field — the pre-existing job-table path must still work byte-
+    identically (this is exactly the existing authoritative-chain test)."""
+    jobs.enqueue("uuid-old", "Live Trading", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    vid = _make_video(meeting_uuid="uuid-old")
+    out = bridge.get_session_time(vid)
+    assert out["provenance"] == "zoom_webhook"
+    assert out["confidence"] == "authoritative"
+
+
+def test_session_time_corrupt_durable_value_falls_back_to_job_table(env):
+    """An unparseable durable value (shouldn't happen, but never trust
+    storage blindly) falls through to a real job-table row rather than
+    reporting unknown when a genuine answer is still reachable."""
+    jobs.enqueue("uuid-corrupt", "Live Trading", "2026-06-24T13:30:00Z", "http://dl", "tok")
+    vid = _make_video(meeting_uuid="uuid-corrupt")
+    edu.set_media_provenance(vid, "not-a-real-timestamp", "zoom_recording_file", "file-bad")
+    out = bridge.get_session_time(vid)
+    assert out["provenance"] == "zoom_webhook"
+    assert out["confidence"] == "authoritative"
+    assert out["start_time_utc"] == "2026-06-24T13:30:00+00:00"
+
+
 # ── get_trade_linkage ────────────────────────────────────────────────────────
 
 def _seed_trades(user_id: str) -> dict[str, str]:

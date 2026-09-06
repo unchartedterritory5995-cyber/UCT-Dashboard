@@ -103,3 +103,22 @@ class ZoomClient:
             params={"action": "trash"}, timeout=20)
         if resp.status_code not in (200, 204):
             raise ZoomApiError(f"delete {resp.status_code}: {resp.text[:200]}")
+
+
+def select_largest_mp4(recording_files: list[dict] | None) -> dict | None:
+    """The ONE MP4-selection rule, shared by the webhook (desk_zoom_webhook.py,
+    working off the webhook's own inline recording_files array) and the
+    session-insights pass (desk_session_insights.py, working off a fresh
+    GET /meetings/{uuid}/recordings fetch) — a second hand-written copy of
+    this selection is how the two could silently pick DIFFERENT files.
+    Largest MP4 wins: a stop/restart mid-webinar yields multiple MP4
+    segments, and the tiny first clip must not shadow the real recording.
+    Files without a file_size rank lowest, so an all-sizeless payload keeps
+    first-MP4 order. Returns the whole file dict (download_url, id,
+    recording_start, recording_end, ...) — never just one field, so a caller
+    needing more than the URL doesn't re-implement the selection."""
+    mp4s = [f for f in (recording_files or [])
+            if (f.get("file_type") or "").upper() == "MP4" and f.get("download_url")]
+    if not mp4s:
+        return None
+    return max(mp4s, key=lambda f: f.get("file_size") or 0)

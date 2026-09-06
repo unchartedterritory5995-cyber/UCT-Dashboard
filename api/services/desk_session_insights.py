@@ -21,7 +21,8 @@ import os
 import re
 import time
 
-from api.services import education_service
+from api.services import desk_session_jobs, education_service
+from api.services.zoom_client import select_largest_mp4
 
 # ── Observability (2026-07-02) ───────────────────────────────────────────────────
 # Per-video failures used to only print — logs are flooded, so a failing pass is
@@ -743,6 +744,43 @@ def generate_ticker_moments(title: str, cues: list[dict]) -> list[dict]:
     return _filter_ticker_moments(moments, cues)
 
 
+# ── Phase 4D-4C.3: durable media-time provenance ─────────────────────────────────
+# Captured HERE because this is the last moment Zoom's own recording metadata
+# is reachable before mark_zoom_cleaned/trash — desk_session_jobs is a QUEUE
+# table (only ~20 rows survive in practice), not a durable archive, so this
+# must land on edu_videos before that row can disappear.
+
+def _capture_media_provenance(vid: int, uuid: str, rec: dict | None) -> None:
+    """BEST: the selected (largest-MP4) recording_file's own recording_start —
+    the specific video file's real start, stronger than the meeting-level one.
+    FALLBACK: the meeting-level start_time from this SAME fresh REST response
+    (rec is not None here, so it's available even if desk_session_jobs' row is
+    already gone). RECOVERED: rec is None (Zoom has already trashed the
+    recording entirely) but a desk_session_jobs row still exists — its
+    start_time is all that's left. Never raises; a failure here must not
+    block chapters/trashing."""
+    try:
+        if rec is not None:
+            selected = select_largest_mp4(rec.get("recording_files"))
+            file_start = (selected or {}).get("recording_start")
+            if file_start:
+                education_service.set_media_provenance(
+                    vid, file_start, "zoom_recording_file", selected.get("id"),
+                )
+                return
+            meeting_start = rec.get("start_time")
+            if meeting_start:
+                education_service.set_media_provenance(vid, meeting_start, "zoom_meeting_start")
+                return
+        # rec is None (recording already gone) or carried no start_time at all —
+        # last resort: the queue row, if it hasn't been pruned yet.
+        job = desk_session_jobs.get_job(uuid) if uuid else None
+        if job and job.get("start_time"):
+            education_service.set_media_provenance(vid, job["start_time"], "recovered_job_metadata")
+    except Exception as e:  # noqa: BLE001 — cosmetic, never blocks insights/trashing
+        print(f"[session-insights] media provenance capture failed (non-fatal): {e}")
+
+
 # ── Recording-file selection ─────────────────────────────────────────────────────
 
 def _find_transcript_file(recording_json: dict):
@@ -913,6 +951,7 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
     has_chapters = bool((v.get("chapters") or "").strip() not in ("", "[]"))
     age = now - int(v.get("created_at") or now)
     rec = zoom.get_recording_files(uuid)
+    _capture_media_provenance(vid, uuid, rec)
     if rec is None:  # recording already gone — nothing to fetch
         education_service.mark_zoom_cleaned(vid)
         if not has_chapters:

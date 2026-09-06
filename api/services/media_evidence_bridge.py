@@ -2,13 +2,16 @@
 
 Two narrow, additive facts uct-clips cannot derive on its own:
 
-1. `get_session_time(video_id)` — the authoritative Zoom wall-clock start for a
-   published Desk session video, joining `edu_videos.meeting_uuid` (education
-   service) to `desk_session_jobs.start_time` (the raw Zoom webhook payload).
-   FAILS CLOSED: a video with no `meeting_uuid`, or a `meeting_uuid` with no
-   matching job row (job pruned, or the video predates job-queue tracking),
-   returns `confidence: "unknown"` rather than guessing — never substitutes
-   `now()` the way `desk_daily_session._to_et` does for thumbnail cosmetics.
+1. `get_session_time(video_id)` — the authoritative wall-clock start for a
+   published Desk session video. Phase 4D-4C.3: prefers the DURABLE
+   `edu_videos.media_started_at` (captured by desk_session_insights at
+   processing time — survives `desk_session_jobs` being pruned, which it
+   reliably is: only ~20 rows persist there in practice), falling back to
+   the job-table lookup (`desk_session_jobs.start_time`) only for videos
+   processed before this durable capture existed. FAILS CLOSED: a video with
+   no `meeting_uuid` and no durable value and no matching job row returns
+   `confidence: "unknown"` rather than guessing — never substitutes `now()`
+   the way `desk_daily_session._to_et` does for thumbnail cosmetics.
 
 2. `get_trade_linkage(...)` — a read-only slice of one user's J2 trades/
    positions/option strategies, annotated with the SAME stable `trade_ref`
@@ -46,19 +49,34 @@ def _parse_zoom_iso(raw: str | None) -> datetime | None:
     return dt
 
 
+# Phase 4D-4C.3: edu_videos.media_started_at_source values, in the ORDER this
+# function prefers them. 'zoom_webhook' is the pre-4D-4C.3 job-table fallback
+# path, kept last — a real value from any durable source always wins over it.
+_DURABLE_SOURCE_PRIORITY = ("zoom_recording_file", "zoom_meeting_start", "recovered_job_metadata")
+
+
 def get_session_time(video_id: int) -> dict:
     """Returns:
     {
       ok: bool,
       video_id, youtube_id, title,
       meeting_uuid: str | None,
-      start_time_raw: str | None,       # exactly what Zoom sent
+      start_time_raw: str | None,       # exactly what the source reported
       start_time_utc: str | None,       # ISO 8601 UTC
       start_time_et: str | None,        # ISO 8601 America/New_York
-      provenance: "zoom_webhook" | None,
+      provenance: "zoom_recording_file" | "zoom_meeting_start" |
+                  "recovered_job_metadata" | "zoom_webhook" | None,
+      source_recording_file_id: str | None,  # BEST tier only
       confidence: "authoritative" | "unknown",
     }
-    `confidence: "unknown"` whenever the chain breaks anywhere — no partial
+    Phase 4D-4C.3: prefers the DURABLE `edu_videos.media_started_at` (captured
+    by desk_session_insights at processing time, so it survives
+    desk_session_jobs being pruned) over the job-table lookup. Consumers no
+    longer need to care whether the job row still exists once the durable
+    value has landed — the job-table path (`provenance: "zoom_webhook"`) is
+    kept ONLY as a fallback for videos processed before this durable capture
+    existed, or where a genuine gap left it unpopulated.
+    `confidence: "unknown"` whenever the chain breaks everywhere — no partial
     guess is ever returned as if it were real."""
     video = education_service.get_video(int(video_id))
     if not video:
@@ -75,8 +93,26 @@ def get_session_time(video_id: int) -> dict:
         "start_time_utc": None,
         "start_time_et": None,
         "provenance": None,
+        "source_recording_file_id": None,
         "confidence": "unknown",
     }
+
+    durable_raw = video.get("media_started_at")
+    durable_source = video.get("media_started_at_source")
+    if durable_raw and durable_source in _DURABLE_SOURCE_PRIORITY:
+        dt = _parse_zoom_iso(durable_raw)
+        if dt is not None:
+            out["start_time_raw"] = durable_raw
+            out["start_time_utc"] = dt.astimezone(timezone.utc).isoformat()
+            out["start_time_et"] = dt.astimezone(_ET).isoformat()
+            out["provenance"] = durable_source
+            out["source_recording_file_id"] = video.get("source_recording_file_id")
+            out["confidence"] = "authoritative"
+            return out
+        # Durable field is present but corrupt/unparseable — fall through to
+        # the job-table path rather than reporting unknown when a real (if
+        # stale) job row might still answer.
+
     if not meeting_uuid:
         return out
 
