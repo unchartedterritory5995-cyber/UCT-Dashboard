@@ -21,9 +21,11 @@ import copy
 import pytest
 
 from api.services.pattern_engine.canonical_adapter import (
+    adapt_episodic_pivot,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
 )
+from api.services.pattern_engine.detectors.uct.episodic_pivot import detect_episodic_pivot
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import detect_power_earnings_gap
 from api.services.pattern_engine.explanation_builder import BUILDER_VERSION, build_explanation
@@ -46,6 +48,7 @@ def _adapted_detections(family, detect_fn, adapt_fn):
 
 HTF_ADAPTED = _adapted_detections("high_tight_flag", detect_high_tight_flag, adapt_high_tight_flag)
 PEG_ADAPTED = _adapted_detections("power_earnings_gap", detect_power_earnings_gap, adapt_power_earnings_gap)
+EP_ADAPTED = _adapted_detections("episodic_pivot", detect_episodic_pivot, adapt_episodic_pivot)
 
 
 def _sections(explanation) -> dict:
@@ -166,16 +169,65 @@ def test_peg_event_section_present_and_matches_verification_status(name, detecti
         assert fact["claim_type"] == "qualified" and fact["polarity"] == "neutral"
 
 
+# ─── semantic fixture tests — Episodic Pivot ───────────────────────────────
+
+@pytest.mark.parametrize("name,detection", EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_why_it_matched_mirrors_gate_trace_exactly(name, detection):
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    gate_trace = detection["gate_trace"]
+
+    assert len(facts) == len(gate_trace)
+    for fact, gate in zip(facts, gate_trace):
+        assert fact["supporting_evidence"] == f"gate_trace[criterion_id={gate['criterion_id']}]"
+        assert fact["claim_type"] == "direct"
+        assert str(gate["observed_value"]) in fact["label"]
+        assert gate["criterion_name"] in fact["label"]
+        assert fact["polarity"] == "supports"  # every gate on a surviving detection passed
+
+
+@pytest.mark.parametrize("name,detection", EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_event_section_is_present_but_never_implies_earnings(name, detection):
+    """Category-C event-provenance: EP's own `event` section must exist (it
+    IS a gap/event family, unlike HTF) but must say only that provenance is
+    unavailable BY DESIGN -- never fall through to PEG's earnings-flavored
+    wording, which would fabricate a causal hypothesis EP's detector never
+    makes. This is the single most important negative test in this package."""
+    exp = build_explanation(detection)
+    facts = _sections(exp)["event"]
+    assert len(facts) == 1
+    fact = facts[0]
+    assert fact["fact_id"] == "event_absent_by_design"
+    assert fact["claim_type"] == "qualified"
+    assert fact["polarity"] == "neutral"
+    low = fact["label"].lower()
+    assert "earnings" not in low
+    assert "catalyst" not in low
+    assert "price/volume" in low
+
+
+@pytest.mark.parametrize("name,detection", EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_ep_warnings_do_not_double_report_event_absence(name, detection):
+    """EP's `event` key IS present (unlike HTF's genuine omission), so the
+    generic 'event_absent' warning (meant for a family with NO event concept
+    at all) must not also fire -- the dedicated event-section fact above is
+    the one and only place this gets reported."""
+    warnings = _sections(build_explanation(detection))["warnings"]
+    ids = {f["fact_id"] for f in warnings}
+    assert "event_absent" not in ids
+    assert "gate_trace_scope" in ids  # EP DOES have a real gate_trace to scope-disclose
+
+
 # ─── current_stage / scanner_eligibility ───────────────────────────────────
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_current_stage_status_fact_matches_detection_status(name, detection):
     facts = _sections(build_explanation(detection))["current_stage"]
     status_fact = next(f for f in facts if f["fact_id"] == "detection_status")
     assert detection["status"] in status_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_market_context_never_says_moving_average_twice(name, detection):
     """Regression (found against real market-shaped data, Package 8F, not
     the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
@@ -189,7 +241,7 @@ def test_market_context_never_says_moving_average_twice(name, detection):
     assert "moving-average moving-average" not in context_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")
@@ -221,7 +273,7 @@ def test_raw_unadapted_detection_never_fabricates_an_eligibility_boolean(name, d
     assert not facts[0]["label"].startswith("Scanner eligibility: ")
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detection):
     exp = build_explanation(detection)
     # "win rate" may appear ONLY inside the neutral-prior disclaimer itself
@@ -242,7 +294,7 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         assert "50" not in neutral_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_no_fact_anywhere_references_rejected_candidates(name, detection):
     """The 'why matched, never why others failed' boundary — a rail, not
     just a docstring claim. `gate_trace_scope`/`gate_trace_absent` are the
@@ -260,7 +312,7 @@ def test_no_fact_anywhere_references_rejected_candidates(name, detection):
             assert term not in low, f"fact {fact['fact_id']!r} references rejected candidates: {fact['label']!r}"
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + EP_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_context_strength_and_weakness_never_both_claim_the_same_signal(name, detection):
     sections = _sections(build_explanation(detection))
     strength_ids = {f["fact_id"] for f in sections.get("strengths", [])}
