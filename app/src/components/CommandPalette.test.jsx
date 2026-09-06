@@ -27,7 +27,7 @@ function PaletteWithExternalTrigger() {
 
 function RouteSpy() {
   const location = useLocation()
-  return <div data-testid="route-spy">{location.pathname}</div>
+  return <div data-testid="route-spy">{location.pathname}{location.search}</div>
 }
 
 function renderPalette() {
@@ -206,6 +206,59 @@ describe('CommandPalette — search + selection', () => {
     fireEvent.click(row)
     await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT'))
     expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+  })
+
+  // Search / Command Convergence V1 — the palette's own documented gap
+  // ("navigation only") for the single highest-value CONTINUE destination.
+  // Strictly additive: bare Enter/click above is completely unchanged.
+  describe('Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI', () => {
+    it('Ctrl+Enter on the typed value opens /research/:sym?section=ai, not Research', async () => {
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'nvda' } })
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA?section=ai'))
+    })
+
+    it('Ctrl+Enter on an arrow-selected row opens that row\'s Ask AI, not the typed value\'s', async () => {
+      searchResults = [
+        { ticker: 'AAPL', name: 'Apple Inc.' },
+        { ticker: 'APPS', name: 'Digital Turbine' },
+      ]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'APP' } })
+      await screen.findByText('Digital Turbine')
+      fireEvent.keyDown(input, { key: 'ArrowDown' }) // AAPL (idx 0) -> APPS (idx 1)
+      fireEvent.keyDown(input, { key: 'Enter', metaKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/APPS?section=ai'))
+    })
+
+    it('Ctrl+click a result opens Ask AI for that symbol, not Research', async () => {
+      searchResults = [{ ticker: 'MSFT', name: 'Microsoft Corp' }]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'MSFT' } })
+      const row = await screen.findByText('Microsoft Corp')
+      fireEvent.click(row, { ctrlKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT?section=ai'))
+      expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+    })
+
+    it('bare Enter and bare click are unaffected — still Research, no ?section=ai', async () => {
+      searchResults = [{ ticker: 'MSFT', name: 'Microsoft Corp' }]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'MSFT' } })
+      const row = await screen.findByText('Microsoft Corp')
+      fireEvent.click(row)
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT'))
+      expect(screen.getByTestId('route-spy')).not.toHaveTextContent('section=ai')
+    })
   })
 
   it('shows an empty-state hint before typing, and a no-match note when nothing found', async () => {

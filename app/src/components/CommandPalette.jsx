@@ -169,6 +169,18 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     close()
   }
 
+  // Secondary action (Ctrl/Cmd+Enter or Ctrl/Cmd+click) — the same canonical
+  // /research/:sym?section=ai route TickerActions.jsx's "Ask AI about {sym}"
+  // already uses (entry-point convergence), closing this palette's own
+  // documented gap ("navigation only" — 2026-09-03 narrow-slice
+  // authorization) for the single highest-value CONTINUE destination.
+  // Strictly additive: bare Enter/click is completely unchanged.
+  const goToAskAi = (row) => {
+    if (!row) return
+    navigate(`/research/${encodeURIComponent(row.ticker)}?section=ai`)
+    close()
+  }
+
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -183,10 +195,14 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       if (isHelp) return
       // Zero-network-wait guarantee: unless the user explicitly arrowed to a
       // different row, Enter always goes to the typed value directly.
-      if (navByArrowRef.current && displayRows[activeIdx]) {
-        selectRow(displayRows[activeIdx])
-      } else if (qUpper) {
-        selectRow({ ticker: qUpper })
+      const target = (navByArrowRef.current && displayRows[activeIdx])
+        ? displayRows[activeIdx]
+        : (qUpper ? { ticker: qUpper } : null)
+      if (!target) return
+      if (e.metaKey || e.ctrlKey) {
+        goToAskAi(target)
+      } else {
+        selectRow(target)
       }
     }
   }
@@ -234,7 +250,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page.</p>
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
-                <li><kbd>↵</kbd> open the selected or typed symbol</li>
+                <li><kbd>↵</kbd> open the selected or typed symbol&apos;s research page</li>
+                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
               </ul>
@@ -254,7 +271,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               aria-selected={i === activeIdx}
               className={`${styles.resultRow} ${i === activeIdx ? styles.resultActive : ''}`}
               onMouseEnter={() => setActiveIdx(i)}
-              onClick={() => selectRow(r)}
+              onClick={(e) => { (e.metaKey || e.ctrlKey) ? goToAskAi(r) : selectRow(r) }}
+              aria-label={r._typed ? undefined : `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`}
             >
               {r._typed ? (
                 <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
@@ -278,6 +296,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         <div className={styles.dialogFoot}>
           <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
           <span><kbd>↵</kbd> open</span>
+          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI</span>
           <span><kbd>Esc</kbd> close</span>
         </div>
       </div>
