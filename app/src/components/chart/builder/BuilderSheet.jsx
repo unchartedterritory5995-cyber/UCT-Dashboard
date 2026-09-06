@@ -87,7 +87,10 @@ import { freshnessFor } from '../engine/ast/freshness'
 // ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
-import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor } from './builderInputs'
+import {
+  BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor,
+  formulaNameRoles, formulaTabWindowRefusal,
+} from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
 // ⛔ THE TWO BADGE AGGREGATORS, IMPORTED FROM THE ONE MODULE THAT OWNS THEM.
 // `nativeRegistry.validateAstLane` RE-MEASURES `meta.repaint` and
@@ -944,8 +947,6 @@ export default function BuilderSheet({
     setTarget('pane'); setLevelsText('')
   }, [])
 
-  const inputsValid = memberInputs.every((spec, i) => inputKeyProblem(spec.key, i) === null)
-
   const addInput = useCallback(() => {
     setMemberInputs((prev) => [...prev, { key: '', type: 'int', label: '', default: 14, min: 1, max: 500 }])
   }, [])
@@ -959,6 +960,26 @@ export default function BuilderSheet({
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
+
+  /** ⭐⭐ FORMULA-TAB WINDOW-ARGUMENT PRE-CHECK (message parity with Pine
+   *  import). A hand-typed formula can bind a member input to a WINDOW slot
+   *  (`sma(close, period)` with `period` declared below) exactly as a pasted
+   *  Pine script can — and until this check existed, `inputKeyProblem` only
+   *  verified the KEY's spelling, so Save stayed enabled, the document saved,
+   *  and the member met `resolve:window` only later, on a real chart, with no
+   *  attribution back to the input that caused it. `formulaNameRoles` is the
+   *  SAME detector the Pine-import door already uses for the identical
+   *  question (`builderInputs.js`'s own header: two readers of one fact must
+   *  not disagree) — reused here, not re-implemented, and re-run on every
+   *  settled evaluation so a member fixing the formula (moving `period` out
+   *  of the window slot) sees the message disappear on its own. */
+  const windowBoundMemberInputKeys = useMemo(
+    () => (result && result.ast ? formulaNameRoles(result.ast).literalOnly : new Set()),
+    [result],
+  )
+  const inputsValid = memberInputs.every((spec, i) =>
+    inputKeyProblem(spec.key, i) === null && !windowBoundMemberInputKeys.has(spec.key))
+
   // ⛔ NO SHEET-WIDE `acknowledged` STATE (FIX ROUND 1, IMPORTANT #3) — it lived
   // here as one flag for the whole sheet while the badge above it was already
   // the WORST row's, which a mutation could not discriminate because every
@@ -2064,7 +2085,12 @@ export default function BuilderSheet({
               </p>
             )}
             {memberInputs.map((spec, i) => {
+              // ⭐⭐ NAME LEGALITY FIRST, THEN THE WINDOW PRE-CHECK — the most
+              // specific true sentence wins, exactly the order rule
+              // `builderInputs.js::inputsFromFolded`'s own header states for
+              // the Pine-import door's identical two-question shape.
               const problem = inputKeyProblem(spec.key, i)
+                || (windowBoundMemberInputKeys.has(spec.key) ? formulaTabWindowRefusal(spec.key) : null)
               return (
                 <div className={styles.inputRow} key={`member-input-${i}`} data-testid={`member-input-${i}`}>
                   <input

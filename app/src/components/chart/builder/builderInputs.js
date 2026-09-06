@@ -271,6 +271,38 @@ function windowRefusal(key, entry) {
         + 'task may grant it alone.' }
 }
 
+/** The Formula-tab's OWN pre-check message for the identical fact
+ *  `windowRefusal` names — SAME detector (`formulaNameRoles`'s `literalOnly`
+ *  set, read by the caller), DIFFERENT reader.
+ *
+ *  ⛔⛔ `windowRefusal`'s OWN WORDING DOES NOT FIT HERE. Its closing sentence
+ *  ("The default stays folded into the formula, so the column is still
+ *  right") describes what happens on the PINE-IMPORT door specifically: the
+ *  input is silently skipped and the LITERAL the script already had keeps
+ *  computing. On the Formula tab nothing folds anything — a member typed the
+ *  window argument as a bare identifier themselves, there is no frozen
+ *  literal standing in for it, and the formula as typed genuinely CANNOT be
+ *  computed (`resolve:window`, verified against the same `windowLiteral`
+ *  gate). A message claiming "the column is still right" would be false on
+ *  this door specifically. This is why a MESSAGE gets its own function while
+ *  the DETECTOR (`formulaNameRoles`) stays the one and only place that
+ *  question is answered — reusing the detector and not the words is the
+ *  correct amount of sharing, not a missed opportunity to share more.
+ *
+ *  ⛔ NO NEW SYNTAX, NO NEW SEMANTICS: this function only ever narrates a
+ *  refusal `interpret.js::windowLiteral` was already going to make; it
+ *  cannot make an invalid formula valid, and it changes nothing about which
+ *  formulas compute. */
+export function formulaTabWindowRefusal(key) {
+  return `\`${key}\` lands in a WINDOW, and this engine cannot take a window from an `
+    + 'input: `interpret.js::windowLiteral` refuses any window argument that is not a '
+    + 'whole-number literal (`resolve:window`). Measured: `sma(close, len)` answers '
+    + `*"a window must be a whole-number literal"* when \`len\` is a declared input rather `
+    + `than a number. Declaring \`${key}\` here would save a formula this engine can never `
+    + `compute — type the number directly in that position instead of \`${key}\`, or use `
+    + `\`${key}\` somewhere in the formula that is not a window argument.`
+}
+
 /** Why this candidate key cannot be a member input of THIS formula, or `null`.
  *  Built once per call, so the formula is read exactly once however many
  *  candidates there are. */

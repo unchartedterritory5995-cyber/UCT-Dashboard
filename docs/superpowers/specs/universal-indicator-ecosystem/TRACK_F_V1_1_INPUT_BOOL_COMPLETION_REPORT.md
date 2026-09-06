@@ -285,22 +285,42 @@ original RSI/`length` golden journey) passes unchanged.
 
 ## 13. Full relevant test-suite result
 
-- `app/src/components/chart/builder/` + `app/src/components/chart/engine/`:
-  **5,588 passed**, 4 skipped, 4 failed — all 4 failures independently
-  confirmed pre-existing and unrelated via `git status` showing zero local
-  changes to their own files (`BuilderSheet.pine.test.jsx`'s own
-  byte-identical test, a pre-existing CRLF flake in
-  `ImportBox.thinkscript.test.jsx`, `pine.blindCorpus.test.js`'s own
-  27-vs-27 count, and `flipCRecord.test.js`'s own 52-vs-53 count — the last
-  two are counting-drift assertions in files this tranche never touched).
+⚰️ **THIS SECTION ORIGINALLY SAID** *"`app/src/components/chart/builder/` +
+`app/src/components/chart/engine/`: 5,588 passed, 4 skipped, 4 failed"* — a
+SCOPED run over two directories, not the full app suite, and the number
+carried into the chat reply as "5,588/5,596 ... 4 failures" without the "4
+skipped" qualifier, which does not arithmetically reconcile on its own
+(5596 − 5588 = 8, not 4) even though the underlying scoped run did
+(5588 + 4 + 4 = 5596). Corrected below with the FULL suite, the exact
+per-status breakdown the owner asked for, and each of the 6 failures
+individually isolated against the pre-Track-F-v1.1 source rather than
+classified by inspection alone — see §16.
+
+- **Full `app/src` suite** (`npx vitest run`, final run 2026-09-06, after
+  §16.3's and §16.4's new test files were added): **Test Files: 993 passed,
+  6 failed, 1 skipped (1,000 total). Tests: 14,249 passed, 6 failed, 9
+  skipped (14,264 total). Errors: 1 unhandled** (a pre-existing
+  `lightweight-charts` mock gap in `StockChart.smoke.test.jsx`, unrelated to
+  Pine/Track F, counted separately from the 6 failed tests per vitest's own
+  reporting). All 6 failures **individually isolated** against the
+  pre-Track-F-v1.1 source (by temporarily reverting exactly the 5 non-test
+  JS files this tranche changed and re-running each failing file) —
+  **every one fails identically with or without this tranche's changes**.
+  Full detail, including the ones not previously named
+  (`pollingSites.rail.test.js`, `screener/reachable.test.js`, and
+  `BuilderSheet.pine.test.jsx`), is in §16.
 - `tests/test_param_manifest.py` + `tests/test_user_definitions.py`
-  (Python): **71 passed**, 0 failed.
+  (Python): **71 passed**, 0 failed. Re-verified unchanged.
 - New tests added this tranche: 2 (`pine.paramManifest.test.js`) + 2
   (`builderInputs.test.js`, repurposed) + 2 (`paramEdit.test.js`) + 4
   (`ParamControls.test.jsx`) + 3 (`test_param_manifest.py`) + 3
   (`BuilderSheet.boolParamReopen.test.jsx`, new file) + 1
   (`pineBoxDownstreamScope.test.jsx`, repurposed) = 17 new/repurposed
-  assertions, all passing.
+  assertions, all passing — **plus, from the reconciliation review (§16):**
+  4 (`BuilderSheet.boolMemberInputReopen.test.jsx`, new file — the direct-
+  conditional/memberInputs mechanism) + 2
+  (`BuilderSheet.formulaTabWindowPreCheck.test.jsx`, new file — the
+  Formula-tab pre-check) = 6 further new assertions, all passing.
 
 ## 14. Updated RISK-013 / Track F status
 
@@ -322,12 +342,254 @@ in §12/§13.
 
 ---
 
+## 16. Reconciliation Addendum (2026-09-06, owner review)
+
+The owner accepted §§1-15 in principle but required one final evidence
+reconciliation before closing Track F v1.1, covering the JS test-count
+arithmetic, a precise statement of the `input.bool` canonical-representation
+contract, and permanent evidence for the direct-conditional case beyond the
+window-bound fixture. All three are resolved below. **No code from §§1-15
+changed as a result** — §§1-11 stand as originally shipped; this section adds
+evidence and one narrow, separately-authorized UX fix (§16.4).
+
+### 16.1 — The JS test-count reconciliation
+
+The full `app/src` suite, not the scoped `builder/`+`engine/` subset §13
+originally reported. Final run (after §16.3's and §16.4's new test files —
+`BuilderSheet.boolMemberInputReopen.test.jsx` and `BuilderSheet.
+formulaTabWindowPreCheck.test.jsx` — were added; an earlier pass mid-review
+measured 998 files/14,258 tests with the identical 6 failures, before those
+2 files existed):
+
+| | Test Files | Tests |
+|---|---|---|
+| Passed | 993 | 14,249 |
+| Failed | 6 | 6 |
+| Skipped | 1 | 9 |
+| **Total** | **1,000** | **14,264** |
+| Errors (unhandled, separate) | — | 1 |
+
+14,249 + 6 + 9 = 14,264 — this reconciles exactly. The 1 "Errors" line is
+vitest's own separate category for an UNCAUGHT exception that does not
+resolve to a specific test's pass/fail outcome (here: `StockChart.smoke.
+test.jsx` triggers `[vitest] No "LineType" export is defined on the
+"lightweight-charts" mock` — a pre-existing incomplete mock, unrelated to
+Pine/Track F, that predates this tranche and touches no file this tranche
+changed).
+
+**The 6 failing tests, each individually isolated** (temporarily reverted
+`ParamControls.jsx`, `ParamControls.module.css`, `builderInputs.js`,
+`paramEdit.js`, and `pine.js` — the 5 non-test JS source files this tranche
+changed — back to their pre-Track-F-v1.1 (`d1e64a3d8`) content, re-ran each
+failing file in isolation, then restored via `git checkout HEAD`):
+
+| Test | Failure | Isolated result |
+|---|---|---|
+| `hooks/pollingSites.rail.test.js` | a new bare `useSWR` polling site in `app/src/floor2/hooks/useFloor.js`, not in the 2026-08-09 census | **Fails identically** against pre-Track-F-v1.1 source |
+| `components/screener/reachable.test.js` | 15 `floor2`/`community` modules unreachable from any route | **Fails identically** |
+| `components/chart/builder/BuilderSheet.pine.test.jsx` | `TypeError: Cannot read properties of undefined (reading 'id')` at its own line 214, a pre-existing defect in the test's own fixture wiring | **Fails identically** |
+| `components/chart/builder/ImportBox.thinkscript.test.jsx` | `\n` vs `\r\n` line-ending mismatch (the CRLF flake already named in §13's original text) | **Fails identically** |
+| `components/chart/engine/ast/pine.blindCorpus.test.js` | `expected 27 to be greater than 27` (the corpus's own accepted-vs-passing floor, already named in §13's original text) | **Fails identically** |
+| `components/chart/engine/__tests__/flipCRecord.test.js` | `expected length 52 but got 53` (already named in §13's original text) | **Fails identically** |
+
+All 6 are confirmed pre-existing and unrelated to this tranche BY DIRECT
+ISOLATION, not by inspection or by "no file in this tranche's diff matches."
+`pollingSites.rail.test.js` and `reachable.test.js` were not previously
+named (they fall outside `builder/`+`engine/`, the originally-scoped run) —
+both concern `app/src/floor2`/`app/src/pages/community`, a feature this
+tranche never touched, opened, or imported from.
+
+### 16.2 — The `input.bool` canonical-representation contract, stated precisely
+
+The proposed contract in the request — Pine `true`/`false` → trusted `bool`
+type → canonical `1`/`0` execution encoding → checkbox UI, with strict
+rejection of anything else — is **exactly correct for ONE of two separate
+mechanisms, and does not extend to the other.** §§1-11 described the first
+mechanism fully and correctly but did not sufficiently distinguish it from
+the second, which is the one that actually produced the Minervini/Support
+Resistance Channels corpus fix. Both are disclosed here precisely rather
+than letting the narrower claim stand in for the broader one:
+
+**Mechanism A — Track F's own `compute.paramManifest`/`ParamControls`/
+`param_manifest.py`** (used ONLY when a boolean feeds a position that cannot
+become a named identifier — a window slot; §§3-5 describe this one):
+- `pine.js::PARAM_MANIFEST_ELIGIBLE_KINDS` tags the literal with a genuine
+  `type: 'bool'` locator.
+- `param_manifest.py::_type_ok`'s `'bool'` branch and `paramEdit.js::
+  validateValue`'s `'bool'` branch BOTH require the value to be exactly `0`
+  or `1` — any other integer, float, string, or JSON boolean is REJECTED,
+  never coerced.
+- The user-facing control is a real checkbox (`ParamControls.jsx`).
+- **In practice this mechanism's editable-bool case is narrow to the point
+  of vacuity**: per the disclosed structural boundary in §6.5, a boolean
+  reaching this mechanism is by definition bound to a window slot, and
+  `interpret.js::windowLiteral`'s universal `>=1` floor means `false` (→ `0`)
+  can never be a VALID toggle target for such a binding — the mechanism is
+  complete and correctly guards against corruption, but no script in the
+  current corpus exercises a genuinely useful toggle through it.
+
+**Mechanism B — `builderInputs.js`'s `memberInputTranslation`/
+`inputsFromFolded` (pre-existing, W1b.9, NOT new to this tranche)** — the
+mechanism that actually fixed Minervini's `show_52_week_high_low` and both
+of Support Resistance Channels' gates, all three of which gate a ternary
+CONDITION directly, not a window slot:
+- Maps a folded `input.bool` to `document.inputs[]`'s `type: 'int'` —
+  **deliberately, not a genuine `'bool'` type** (`FOLDED_INPUT_TYPES`'s own
+  header comment: byte-identical to the already-shipped bare
+  `input(true/false)`).
+- `defSchema.validateInputValue`'s `'int'` case requires only that the value
+  be an integer — **it carries no `{0,1}` domain restriction**, and
+  `inputsFromFolded` never sets `min`/`max` for a plain `input.bool()` (Pine's
+  bool has no `minval`/`maxval` to carry forward). A member CAN set this
+  value to any integer via a placed chart instance's settings
+  (`instanceControls.js::coerce`'s `'int'` case is unbounded).
+- This is **not a gap introduced by this tranche** — it is the same behavior
+  the already-shipped bare `input(true/false)` mapping has always had, kept
+  identical on purpose for byte-for-byte parity.
+- At the EXECUTION layer (verified by reading `interpret.js` directly):
+  `const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))` — ANY
+  nonzero number is Pine's own "true," exactly `0` is "false." This is
+  Pine's native NUMERIC truthiness convention, not a JS string/object
+  coercion: the value is a genuine JS `number` end to end, at every layer of
+  this mechanism, never a string and never a JS boolean. **No truthy/falsy
+  STRING coercion exists anywhere in either mechanism** — that half of the
+  original claim holds universally. The half that does NOT hold universally
+  is "numbers other than the exact allowed 0/1 encoding are rejected" —
+  true for Mechanism A, false for Mechanism B.
+
+**So: intentional canonical encoding — yes, confirmed, for Mechanism A.**
+Mechanism B's `type:'int'` choice is ALSO intentional (documented, reasoned,
+byte-identical to prior shipped behavior) but is a DIFFERENT, wider
+contract — a plain integer knob whose origin happened to be a Pine boolean,
+not a domain-restricted boolean parameter. Neither mechanism performs
+generic truthy/falsy coercion of the JS kind (strings, objects, arrays are
+never accepted as an input value by either); the distinction is specifically
+about which INTEGERS beyond `{0,1}` are accepted.
+
+### 16.3 — Direct-conditional bool evidence (Mechanism B), beyond the window-bound fixture
+
+New permanent test file: `BuilderSheet.boolMemberInputReopen.test.jsx` (4
+tests, all passing), using the minimal reduction of Minervini's own shape:
+
+```
+showit = input.bool(true, "Show It")
+level = close - 1
+plot(showit ? level : na, title="Gated Level")
+```
+
+- **Default true / default false**: `pineMemberInputs` declares `{key:
+  'showit', type:'int', label:'Show It', default:1}` / `default:0`
+  respectively; `skipped` is empty in both cases (not window-refused).
+- **Direct conditional use**: the printed formula stays `showit ? close - 1
+  : 0 / 0` — SYMBOLIC (`showit` remains a bound identifier; Pine's `na`
+  compiles to `0/0`, this engine's NaN literal). `level`, an ordinary `let`
+  with no input semantics, is inlined — only input-bound names survive
+  translation as identifiers.
+- **True branch / false branch, proven against the REAL compute path, not
+  the BuilderSheet preview**: `evaluateFormula`'s own scope (read directly
+  in `lint.js::declaredInputs`) is a "this name is declared" flag map, not a
+  value binding, so BuilderSheet's live preview never computes a real
+  number. This test instead builds a real `compute.kind:'ast'` definition
+  from the translated AST and calls `nativeRegistry.computeFor(def, bars)`
+  directly — the SAME function a real chart calls. With the declared default
+  (`showit=1`): `computeFor(def, bars)` → `[9, 10, 11]` (the true branch,
+  `close - 1`, over 3 bars of close 10/11/12). Overriding the identical AST's
+  input to `0` (exactly what toggling the memberInput's default and
+  re-saving does): `computeFor(def, bars, {showit: 0})` → all `NaN` (the
+  false branch, `na`). Same tree, same interpreter, only the input value
+  differs — this is the "changed canonical/executable behavior" proof,
+  direct rather than inferred.
+- **Save → reopen → toggle → persisted state**, through the real "Your
+  formulas" door (mirroring `BuilderSheet.paramReopen.test.jsx`'s stateful-
+  fetch pattern exactly): import shows a plain NUMBER field (NOT a
+  checkbox — confirmed distinct from Mechanism A's UI) at default `1` under
+  "Inputs you can change later" (no "Adjustable parameters" heading, no
+  `param-input-*` testid) → save persists `document.inputs[]` with `{key:
+  'showit', type:'int', default:1}` → close, reopen through the real Edit
+  door restores the same row → the formula TEXT does not change on toggle
+  (unlike Mechanism A's astPath rewrite, this mechanism's knob is
+  `document.inputs[].default`, not the AST) → editing the default to `0` and
+  clicking "Save changes" PUTs `{key:'showit', type:'int', default:0}` →
+  closing and reopening a second time confirms `0` persisted, not just the
+  create-time default.
+- **Window-bound boundary preserved, unweakened**: `BuilderSheet.
+  boolParamReopen.test.jsx` (Mechanism A, unchanged from §6) still proves
+  `sma(close, useLong)` toggled to `0` correctly disables Save rather than
+  producing an invalid `sma(close, 0)` formula — `windowLiteral`'s `>=1`
+  floor was not touched, weakened, or worked around anywhere in this
+  reconciliation.
+
+### 16.4 — Formula-tab window-argument pre-check (message parity, separately authorized)
+
+**Gap found and closed.** The Formula tab's OWN hand-authoring path (a
+member typing a formula directly, not importing Pine) had NO pre-check for
+this exact class of problem: declaring a member input whose key lands in a
+window slot of the CURRENT formula (`sma(close, period)` with `period`
+declared) showed no message and left Save ENABLED — `inputKeyProblem`
+checked only the key's spelling. The document would save; the member would
+meet `resolve:window` for the first time on a real chart, with no
+attribution back to which input caused it.
+
+**Fix, narrowly scoped exactly as authorized:**
+- **Reuses the existing detector**, `builderInputs.js::formulaNameRoles` —
+  the SAME function the Pine-import door's own `positionVerdict` already
+  calls for the identical question (that file's own header: "two readers of
+  one fact must not disagree"). No second semantic validator was written;
+  `BuilderSheet.jsx` now computes `formulaNameRoles(result.ast).literalOnly`
+  once per settled evaluation (`windowBoundMemberInputKeys`, a `useMemo`)
+  and checks each member input's key against it.
+- **One new, narrowly-scoped message function**, `builderInputs.js::
+  formulaTabWindowRefusal(key)` — NOT a reuse of the Pine-import door's own
+  `windowRefusal`, because that function's closing sentence ("the default
+  stays folded into the formula, so the column is still right") is TRUE on
+  the Pine door and FALSE here (nothing folds a hand-typed identifier away;
+  the formula as typed genuinely cannot compute). Reusing the detector and
+  not the wording is the correct amount of sharing.
+- **`inputsValid`** (which already gates the Save button, unchanged
+  otherwise) now also requires `!windowBoundMemberInputKeys.has(spec.key)`
+  for every declared member input.
+- **No syntax expansion, no runtime semantic change, no way for an invalid
+  formula to become valid** — the fix only narrates a refusal
+  `interpret.js::windowLiteral` was already going to make; `windowLiteral`
+  itself is untouched.
+- **Pine-import behavior is unaffected** — this fix touches only
+  `BuilderSheet.jsx`'s own hand-authoring member-input rendering/validation;
+  `PineBox.jsx`'s own door and `inputsFromFolded`'s own skip/refuse list are
+  untouched.
+
+**Permanent, non-vacuous regression**: new file `BuilderSheet.
+formulaTabWindowPreCheck.test.jsx` (2 tests, both passing):
+1. Typing `sma(close, period)` and declaring `period` shows the message
+   (matching `/lands in a WINDOW/` and `/resolve:window/`), marks the input
+   `aria-invalid`, and disables Save — asserted directly that no POST/PUT
+   ever fires.
+2. Editing the SAME formula to `sma(close, 20) * period` (the identical
+   input, moved out of the window slot) makes the message disappear ON ITS
+   OWN, re-enables Save, and a real save persists `{key:'period',
+   default:14}` correctly.
+
+**Non-vacuity proven by mutation**: temporarily reverted `BuilderSheet.jsx`
+to its pre-fix (`HEAD`) content and re-ran this file — both tests fail RED
+(`getByTestId('member-input-problem-0')` finds nothing; Save stays enabled),
+confirming the test genuinely exercises the fix rather than something
+already true. The fix was then restored and reconfirmed green.
+
+**Relevant compatibility fixtures re-run after this fix**: the full
+`BuilderSheet`/`builderInputs`/`ParamControls`/`paramEdit`/
+`pineBoxDownstreamScope`/`pine.paramManifest` test family (130 tests across
+13 files) — 129 passed, 1 failed (the same pre-existing, isolated
+`BuilderSheet.pine.test.jsx` failure from §16.1). The 8-script corpus
+(`pineBoxDownstreamScope.test.jsx`) is unaffected, as expected — this fix
+touches only the Formula tab's hand-authoring validation, never the
+Pine-import path the corpus scripts go through.
+
+---
+
 ## Recommendation for the next issue only
 
-If a future tranche is separately authorized: the Formula tab's own
-"+ Add an input" window-argument binding message (kept deliberately
-un-folded into this tranche, per explicit instruction) is the smallest,
-most self-contained remaining item — a UX-message parity fix, not a new
-mechanism, mirroring `builderInputs.js::windowRefusal`'s existing, clear
-sentence for the Pine-import door. **Not started here. No other Track F
+⚰️ **THIS SECTION ORIGINALLY DEFERRED** the Formula tab's own window-argument
+pre-check message to "a future tranche" — the owner separately authorized it
+during the §16 reconciliation review, and §16.4 records it as DONE (not
+merely recommended). With that item now closed, there is no further
+self-contained item this report identifies as ready. **No other Track F
 input type, Stoch, or the ADX-family is recommended or started either.**

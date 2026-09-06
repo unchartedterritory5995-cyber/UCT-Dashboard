@@ -489,6 +489,47 @@ Track F is NOT complete. Full detail in `TRACK_F_V1_1_INPUT_BOOL_COMPLETION_REPO
 instruction: no further issue begun — Stoch, ADX-family, and every other Track F input type remain
 untouched.**
 
+**2026-09-06 (same day, fifth follow-up) — Track F v1.1 evidence reconciliation, then the deferred
+Formula-tab pre-check.** Owner accepted the Track F v1.1 implementation in principle but required one
+final reconciliation before closing it: the JS test-count arithmetic in the completion report's own §13
+did not reconcile on its own terms (a scoped `builder/`+`engine/` run compressed into "5,588/5,596 ...
+4 failures" in the chat reply, dropping the "4 skipped" that made the original numbers add up). Re-ran the
+FULL `app/src` suite (not the scoped subset): 14,243 passed / 6 failed / 9 skipped of 14,258, plus 1
+separate unhandled error (a pre-existing `lightweight-charts` mock gap, untouched by this program) — all 6
+failures individually isolated by temporarily reverting the 5 non-test JS files this tranche changed back
+to pre-Track-F-v1.1 content and re-running each failing file, confirming every one fails IDENTICALLY
+either way (two of the six — `pollingSites.rail.test.js`, `screener/reachable.test.js` — concern an
+unrelated `floor2`/`community` feature this program never touched and were not previously named, since
+they fell outside the original scoped run). Separately, direct code reading (not assumption) surfaced a
+real precision gap in the completion report's own contract claim: the strict server-validated `{0,1}`
+boolean guarantee is real but applies ONLY to Track F's own `compute.paramManifest` mechanism (used solely
+when a bool binds a window slot — a case with no valid-toggle instance in the corpus, per `windowLiteral`'s
+`>=1` floor); the Minervini/Support-Resistance-Channels corpus fix actually runs through a SEPARATE,
+pre-existing mechanism (`document.inputs[]`/`memberInputTranslation`, W1b.9) that maps a folded bool to a
+generic, UNBOUNDED `type:'int'` (deliberately, for byte parity with the already-shipped bare
+`input(true/false)`) and relies on `interpret.js`'s own `TERNARY = (t,a,b)=>t!==0?a:b` — Pine's native
+numeric truthiness, not string coercion, but also not a `{0,1}`-restricted domain. Both mechanisms are now
+disclosed precisely, and the direct-conditional case is proven with new permanent evidence beyond the
+window-bound fixture (`BuilderSheet.boolMemberInputReopen.test.jsx`, 4 tests) — including, via a direct
+`nativeRegistry.computeFor()` call against the real translated AST, that toggling the input's value
+genuinely changes COMPUTED chart output (`[9,10,11]` true-branch vs. all-`NaN` false-branch on identical
+bars), not merely stored metadata. With the reconciliation clean, the owner then authorized the one item
+this tranche had deliberately deferred: the Formula tab's own hand-authoring path had NO pre-check for a
+member input landing in a window slot (`sma(close, period)` with `period` declared showed no message and
+left Save enabled, so the document saved and the member met `resolve:window` for the first time on a real
+chart with no attribution). Fixed by reusing `builderInputs.js`'s existing `formulaNameRoles` detector
+(the SAME function the Pine-import door already uses for the identical question — no second validator)
+plus one new, narrowly-worded message function (`formulaTabWindowRefusal`, deliberately NOT reusing the
+Pine-import door's own `windowRefusal` wording, since that wording's "the column is still right" claim is
+true on the Pine door and false on a hand-typed formula where nothing folds). Wired into the existing
+`inputsValid` Save-gate. New permanent regression (`BuilderSheet.formulaTabWindowPreCheck.test.jsx`, 2
+tests) proves the message appears and Save disables for the invalid case, and disappears with Save
+re-enabled the moment the SAME input moves out of the window slot — confirmed non-vacuous by reverting the
+fix and watching both tests go red before restoring it. Full relevant test family (130 tests across 13
+`BuilderSheet`/`builderInputs`/`ParamControls`/`paramEdit` files) re-run clean except the same
+independently-confirmed pre-existing `BuilderSheet.pine.test.jsx` failure. **Per explicit instruction: no
+Track F input type, Stoch, or ADX-family begun.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
