@@ -93,8 +93,10 @@ def render_ticker_flow_card(data: dict) -> bytes:
     bh = 20; by = 100; ly = by - 18
     txt(x0, ly, f"▲ {_fmt_prem(bull)} Bull", f_hdr, _BULL)
     net_d = bull - bear
-    ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))}  ·  {net.get('dir', '')}"
-    txt((x0 + x1) / 2 - tw(ctext, f_hdr) / 2, ly, ctext, f_hdr, _GOLD)
+    _ndir = (net.get("dir") or "").upper()
+    _ncol = _BULL if _ndir == "BULL" else (_BEAR if _ndir == "BEAR" else _GOLD)
+    ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))} · {_ndir}"
+    txt((x0 + x1) / 2 - tw(ctext, f_hdr) / 2, ly, ctext, f_hdr, _ncol)
     txt(x1, ly, f"{_fmt_prem(bear)} Bear ▼", f_hdr, _BEAR, "r")
     bx = x0 + int((x1 - x0) * (bull / tot))
     d.rounded_rectangle([s(x0), s(by), s(max(bx - 1, x0)), s(by + bh)], radius=s(4), fill=_BULL)
