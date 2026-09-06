@@ -5,6 +5,7 @@ import useComparison from './hooks/useComparison'
 import TileCard from '../../components/TileCard'
 import UIcon from '../../components/ui/UIcon'
 import PaywallTeaser from './PaywallTeaser'
+import ComparisonAskAi from './components/ComparisonAskAi'
 import styles from './ResearchComparePage.module.css'
 
 // Cross-Security Comparison V1 (owner authorization, Phase B). Deterministic
@@ -158,6 +159,12 @@ export default function ResearchComparePage() {
               As of: {sym} {a?.ratings?.price_as_of || '—'} · {comparator} {b?.ratings?.price_as_of || '—'}
             </div>
           )}
+        </TileCard>
+      </div>
+
+      <div className={styles.aiSection}>
+        <TileCard title="Ask AI" icon="sparkle">
+          <ComparisonAskAi symA={sym} symB={comparator} />
         </TileCard>
       </div>
     </div>
