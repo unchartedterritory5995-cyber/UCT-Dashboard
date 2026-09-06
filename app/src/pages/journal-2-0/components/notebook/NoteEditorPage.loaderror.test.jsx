@@ -39,6 +39,8 @@ vi.mock('../../hooks/useJ2Notes', () => ({
     }
     return { note: NOTE, isLoading: false, error: null, update: vi.fn(), refresh: vi.fn() }
   },
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
 }))
 
 async function renderEditor(props = {}) {

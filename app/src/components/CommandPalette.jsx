@@ -3,9 +3,42 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
+import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
+
+// Wave B: Notebook joins the ONE existing command palette rather than
+// growing a second, Notebook-specific one (directive §12) — a small static
+// action list matched against the same query box a ticker search uses.
+// Every `to` is a route that genuinely exists today (verified against
+// App.jsx's route table + NotebookTab.jsx's deep-link handling — no
+// dead/future commands per §13). "Create Thesis" was evaluated and dropped:
+// with no trade/strategy already in context, there is no genuine
+// context-free destination for it yet.
+const NOTEBOOK_COMMANDS = [
+  { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
+    to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
+  { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
+    to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open'] },
+  { id: 'nb-search', kind: 'command', label: 'Search Notebook', icon: 'search',
+    to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
+  { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
+    to: '/journal/notebook?folder=__trash__', keywords: ['trash', 'deleted', 'notebook', 'note'] },
+]
+// Natural-terminology matching (§14): a 2-character floor avoids a bare
+// letter matching half the keyword list, and `.includes()` (not an exact
+// match) lets a partial word like "note" or "thesis" surface the right
+// command without requiring the user to type the full label.
+function commandMatches(cmd, q) {
+  if (q.length < 2) return false
+  if (cmd.label.toLowerCase().includes(q)) return true
+  return cmd.keywords.some((k) => k.includes(q))
+}
+const RECENT_FAVORITE_KEYWORDS = ['recent', 'favorite', 'favourite']
+function notebookNoteRowsMatch(q) {
+  return q.length >= 2 && RECENT_FAVORITE_KEYWORDS.some((k) => k.startsWith(q))
+}
 
 /**
  * Global Ctrl/Cmd+K command palette — S2's first slice (security/company
@@ -38,7 +71,6 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const abortRef = useRef(null)
   const debounceRef = useRef(null)
   const reqIdRef = useRef(0)
-  const navByArrowRef = useRef(false)
 
   useEffect(() => { openRef.current = open }, [open])
 
@@ -113,7 +145,6 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   //    backend, no chip filter (defaults to all types). ──────────────────
   useEffect(() => {
     if (!open) return undefined
-    navByArrowRef.current = false
     setActiveIdx(0)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const q = query.trim()
@@ -152,12 +183,56 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const trimmedQuery = query.trim()
   const isHelp = trimmedQuery === '?'
   const qUpper = trimmedQuery.toUpperCase()
-  const displayRows = useMemo(() => {
+  const qLower = trimmedQuery.toLowerCase()
+
+  // Wave B: Notebook note rows (Favorites/Recents) only fetch once the
+  // query actually asks for them — this component is mounted app-wide for
+  // the ENTIRE session, so "the palette is merely open" is not a narrow
+  // enough gate (it would fire on every ticker search too, incl. the help
+  // ("?") screen, which must stay network-silent — see the existing test
+  // for that contract).
+  const wantsNoteRows = notebookNoteRowsMatch(qLower)
+  const { notes: favoriteNotes } = useJ2Favorites({ enabled: open && wantsNoteRows })
+  const { notes: recentNotes } = useJ2Recents({ enabled: open && wantsNoteRows })
+
+  const notebookCommandRows = useMemo(() => {
+    if (isHelp || !qLower) return []
+    return NOTEBOOK_COMMANDS.filter((cmd) => commandMatches(cmd, qLower))
+      .map((cmd) => ({ kind: 'command', ...cmd }))
+  }, [isHelp, qLower])
+
+  const notebookNoteRows = useMemo(() => {
+    if (isHelp || !wantsNoteRows) return []
+    const seen = new Set()
+    const rows = []
+    for (const n of favoriteNotes) {
+      if (seen.has(n.id)) continue
+      seen.add(n.id)
+      rows.push({ kind: 'note', id: n.id, title: n.title?.trim() || 'Untitled', badge: 'Favorite', icon: 'star-fill' })
+    }
+    for (const n of recentNotes) {
+      if (seen.has(n.id)) continue // already listed as a favorite above
+      seen.add(n.id)
+      rows.push({ kind: 'note', id: n.id, title: n.title?.trim() || 'Untitled', badge: 'Recent', icon: 'clock' })
+    }
+    return rows.slice(0, 8)
+  }, [isHelp, wantsNoteRows, favoriteNotes, recentNotes])
+
+  const tickerRows = useMemo(() => {
     if (!qUpper) return []
     const hasExact = results.some(r => String(r.ticker).toUpperCase() === qUpper)
-    if (hasExact || !TICKER_LIKE.test(qUpper)) return results
-    return [...results, { ticker: qUpper, name: null, _typed: true }]
+    const base = (hasExact || !TICKER_LIKE.test(qUpper)) ? results : [...results, { ticker: qUpper, name: null, _typed: true }]
+    return base.map((r) => ({ kind: 'ticker', ...r }))
   }, [results, qUpper])
+
+  // Notebook rows first — matching "trash"/"note"/"recent" etc. is a far
+  // more deliberate signal than an incidental ticker-name substring match,
+  // so a command a member clearly asked for should never be buried below
+  // ticker noise.
+  const displayRows = useMemo(
+    () => [...notebookCommandRows, ...notebookNoteRows, ...tickerRows],
+    [notebookCommandRows, notebookNoteRows, tickerRows],
+  )
 
   useEffect(() => {
     setActiveIdx(i => Math.min(i, Math.max(0, displayRows.length - 1)))
@@ -165,25 +240,42 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
 
   const selectRow = (row) => {
     if (!row) return
-    navigate(`/research/${encodeURIComponent(row.ticker)}`)
+    if (row.kind === 'command') {
+      navigate(row.to)
+    } else if (row.kind === 'note') {
+      navigate(`/journal/notebook?note=${encodeURIComponent(row.id)}`)
+    } else {
+      navigate(`/research/${encodeURIComponent(row.ticker)}`)
+    }
     close()
   }
 
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      navByArrowRef.current = true
       setActiveIdx(i => Math.min(displayRows.length - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      navByArrowRef.current = true
       setActiveIdx(i => Math.max(0, i - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (isHelp) return
-      // Zero-network-wait guarantee: unless the user explicitly arrowed to a
-      // different row, Enter always goes to the typed value directly.
-      if (navByArrowRef.current && displayRows[activeIdx]) {
+      // The highlighted row wins -- notebook command/note rows render
+      // FIRST (see displayRows above) and activeIdx defaults to 0, so a
+      // matched command opens on a bare Enter with no arrow-navigation
+      // required. This still keeps the original zero-network-wait
+      // guarantee for a plain ticker query with no notebook match: before
+      // the debounced search even resolves, tickerRows already carries the
+      // synthetic `{ticker: qUpper, _typed: true}` row (computed
+      // synchronously from `results`, not from a fetch), so
+      // `displayRows[0]` IS the typed value in that case -- selecting it
+      // produces the identical `/research/<TICKER>` navigation as before.
+      // Found live: an earlier version of this logic ignored the
+      // highlighted row entirely unless the user had explicitly arrowed,
+      // so typing "new note" and pressing Enter 404'd to a literal
+      // "/research/NEW NOTE" ticker page instead of opening the command
+      // sitting right there, highlighted, at the top of the list.
+      if (displayRows[activeIdx]) {
         selectRow(displayRows[activeIdx])
       } else if (qUpper) {
         selectRow({ ticker: qUpper })
@@ -231,7 +323,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         <div className={styles.resultList} id={listboxId} role="listbox" aria-label="Search results">
           {isHelp && (
             <div className={styles.helpPanel}>
-              <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page.</p>
+              <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page. Type <strong>note</strong>, <strong>trash</strong>, <strong>recent</strong>, or <strong>favorite</strong> to reach Notebook.</p>
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
                 <li><kbd>↵</kbd> open the selected or typed symbol</li>
@@ -248,7 +340,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
           )}
           {!isHelp && displayRows.map((r, i) => (
             <button
-              key={`${r.ticker}-${i}`}
+              key={r.kind === 'ticker' ? `tk-${r.ticker}-${i}` : `${r.kind}-${r.id || r.label}-${i}`}
               id={`uct-cmdk-row-${i}`}
               role="option"
               aria-selected={i === activeIdx}
@@ -256,7 +348,22 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               onMouseEnter={() => setActiveIdx(i)}
               onClick={() => selectRow(r)}
             >
-              {r._typed ? (
+              {r.kind === 'command' ? (
+                <>
+                  <span className={styles.resultLogo}><UIcon name={r.icon} size={16} /></span>
+                  <span className={styles.resultMain}>
+                    <span className={styles.resultSym}>{r.label}</span>
+                  </span>
+                </>
+              ) : r.kind === 'note' ? (
+                <>
+                  <span className={styles.resultLogo}><UIcon name={r.icon} size={15} gold={r.badge === 'Favorite'} /></span>
+                  <span className={styles.resultMain}>
+                    <span className={styles.resultName}>{r.title}</span>
+                  </span>
+                  <span className={styles.resultExch}>{r.badge}</span>
+                </>
+              ) : r._typed ? (
                 <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
               ) : (
                 <>

@@ -524,6 +524,42 @@ CREATE TABLE IF NOT EXISTS j2_note_folders (
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
     ON j2_note_folders(user_id, sort_order);
 
+-- ── Wave B (High-Frequency Notebook UX) — Favorites + Recents ──────────────
+-- Both intentionally minimal: no note content duplicated, composite PK makes
+-- both idempotent (re-favoriting / re-opening is a no-op write), and both are
+-- populated-conditional in the UI (row absent from the sidebar until >=1
+-- exists). Trash-awareness lives in the READ query (join j2_notes, exclude
+-- deleted_at IS NOT NULL) -- the rows themselves are NOT deleted when a note
+-- is trashed, so Restore silently un-hides them again with no extra state to
+-- reconcile. Cascade-cleaned on hard delete via trigger (not per-writer call)
+-- -- same rationale as the FTS triggers above: j2_notes has multiple hard-
+-- delete call sites (purge sweep, account deletion, import dedup) and a
+-- trigger cannot be forgotten on a new one.
+CREATE TABLE IF NOT EXISTS j2_note_favorites (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_favorites_user
+    ON j2_note_favorites(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS j2_note_recents (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    opened_at   TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_recents_user
+    ON j2_note_recents(user_id, opened_at DESC);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_favorites_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_favorites WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_notes_recents_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_recents WHERE note_id = old.id;
+END;
+
 -- ── Note Connectors ─────────────────────────────────────────────────────────
 -- Account-connected background sync of external note libraries (Roam/Craft/
 -- Notion/Dropbox) into the Notebook. Spec: docs/superpowers/specs/

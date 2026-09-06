@@ -20,6 +20,8 @@ const NOTE = {
 
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
 }))
 // NoteEditorPage reads useAuth (admin-only Share button) — these tests
 // render it outside the app shell, so stub the provider read.

@@ -29,10 +29,17 @@ const useJ2NoteFolderCountsMock = vi.fn(() => ({
   counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
 }))
 const useJ2NotesByFoldersMock = vi.fn(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
+// Wave B: Favorites/Recents. Default empty (isLoading: false) so the
+// populated-conditional sections stay absent unless a test opts in — mirrors
+// every other "still loading vs. genuinely empty" default above.
+const useJ2FavoritesMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+const useJ2RecentsMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
   useJ2NoteFolderCounts: (...args) => useJ2NoteFolderCountsMock(...args),
   useJ2NotesByFolders: (...args) => useJ2NotesByFoldersMock(...args),
+  useJ2Favorites: (...args) => useJ2FavoritesMock(...args),
+  useJ2Recents: (...args) => useJ2RecentsMock(...args),
 }))
 
 // The tag cloud's honest, whole-library counts (final-review C5). Default
@@ -55,6 +62,10 @@ beforeEach(() => {
   }))
   useJ2NotesByFoldersMock.mockReset()
   useJ2NotesByFoldersMock.mockImplementation(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2FavoritesMock.mockReset()
+  useJ2FavoritesMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2RecentsMock.mockReset()
+  useJ2RecentsMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 })
 
 describe('folder tree', () => {
@@ -160,17 +171,20 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
     expect(afterDebounce.q).toBe('sndk')
   })
 
-  it('shows "Searching…" while the debounce is pending — never a bare "no results" moment', () => {
+  it('shows a Searching skeleton while the debounce is pending — never a bare "no results" moment', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     typeQuery('sndk')
     // Debounce hasn't fired yet — nothing resolved, so this must read as
-    // "still working", not as an answer of zero.
-    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    // "still working", not as an answer of zero. Wave B: the text hint was
+    // replaced with a skeleton-row placeholder (G-106 adoption) — the
+    // accessible name on the status role carries the same "Searching…"
+    // signal a screen reader announces.
+    expect(screen.getByRole('status')).toHaveAccessibleName('Searching…')
     expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
   })
 
-  it('shows "Searching…" while the server request itself is in flight, after the debounce settles', () => {
+  it('shows a Searching skeleton while the server request itself is in flight, after the debounce settles', () => {
     useJ2NotesMock.mockImplementation((opts) => ({
       notes: [],
       isLoading: Boolean(opts?.enabled),
@@ -181,7 +195,7 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
                           activeTag={null} onSelectTag={() => {}} />)
     typeQuery('sndk')
     settle()
-    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    expect(screen.getByRole('status')).toHaveAccessibleName('Searching…')
     expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
   })
 
@@ -340,7 +354,6 @@ describe('folder delete error surfacing', () => {
   it('alerts with the server-provided detail when deleting a folder fails, instead of an unhandled rejection', async () => {
     const detail = 'cannot delete: a folder named \'Setups\' already exists at the destination — rename it first'
     removeMock.mockRejectedValueOnce(new Error(detail))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
 
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
@@ -348,9 +361,53 @@ describe('folder delete error surfacing', () => {
 
     const journalButton = screen.getByText('Journal').closest('button')
     fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    // Wave B: native confirm() replaced with ConfirmModal -- confirm the
+    // dialog before the mutation fires.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
     expect(removeMock).toHaveBeenCalledWith('c')
+  })
+})
+
+describe('folder delete uses ConfirmModal, not native confirm() (Wave B, G-103)', () => {
+  beforeEach(() => {
+    removeMock.mockReset()
+  })
+
+  it('does not call remove() until the modal is confirmed, and cancel leaves the folder intact', async () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+
+    expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Delete folder "Journal"?')).not.toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
+  })
+
+  it('confirming the modal calls remove() with the folder id', async () => {
+    removeMock.mockResolvedValueOnce(undefined)
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('c'))
+  })
+
+  it('Escape closes the modal without deleting', async () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByText('Delete folder "Journal"?')).not.toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
   })
 })
 
@@ -774,5 +831,75 @@ describe('search panel — Wave 4 date/sector/theme filters', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'NVDA' } })
     settle()
     expect(screen.getByText('Matched ticker: NVDA')).toBeInTheDocument()
+  })
+})
+
+// ── Wave B (High-Frequency Notebook UX) — Favorites + Recents sidebar
+// sections. Both populated-conditional: absent from the DOM entirely with
+// zero items. ────────────────────────────────────────────────────────────
+
+describe('Favorites + Recents sidebar sections (Wave B)', () => {
+  it('renders neither section when both lists are empty (populated-conditional)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.queryByText('Favorites')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recents')).not.toBeInTheDocument()
+  })
+
+  it('renders a Favorites section with its notes and opens one on click', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    expect(screen.getByText('Favorites')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Favorited Thesis'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'f1', title: 'Favorited Thesis' })
+  })
+
+  it('renders a Recents section with its notes and opens one on click', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    expect(screen.getByText('Recents')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Recently Opened'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+  })
+
+  it('collapsing a section hides its rows without removing the section header', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Favorited Thesis')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Collapse Favorites'))
+    expect(screen.queryByText('Favorited Thesis')).not.toBeInTheDocument()
+    expect(screen.getByText('Favorites')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Expand Favorites'))
+    expect(screen.getByText('Favorited Thesis')).toBeInTheDocument()
+  })
+
+  it('highlights the active note row inside Favorites/Recents', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} activeNoteId="f1" />)
+    const row = screen.getByText('Favorited Thesis').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('an untitled favorited/recent note falls back to "Untitled"', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: '' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Untitled')).toBeInTheDocument()
   })
 })

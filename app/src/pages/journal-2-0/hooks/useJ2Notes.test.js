@@ -3,8 +3,20 @@
 // honest `total` from the server (never `notes.length`) and offset-based
 // "Load more" pagination that appends without dropping or duplicating rows.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createElement } from 'react'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import useJ2Notes from './useJ2Notes'
+import { SWRConfig } from 'swr'
+import useJ2Notes, {
+  useJ2Favorites, useJ2Recents, setNoteFavorite, recordNoteOpened,
+} from './useJ2Notes'
+
+// A fresh Map-backed cache per test -- these hooks use STABLE URLs
+// (/api/j2/notes/favorites, /api/j2/notes/recents), so without an isolated
+// provider one test's cached response would leak into the next. Plain
+// `createElement` (this is a .js file, not .jsx -- no JSX transform here).
+function freshCacheWrapper({ children }) {
+  return createElement(SWRConfig, { value: { provider: () => new Map() } }, children)
+}
 
 function noteRange(start, count) {
   return Array.from({ length: count }, (_, i) => ({ id: `n${start + i}`, title: `Note ${start + i}` }))
@@ -181,5 +193,74 @@ describe('useJ2Notes — Wave 4 (Search Evolution I) params', () => {
     const secondCallUrl = new URL(global.fetch.mock.calls[1][0], 'http://localhost')
     expect(secondCallUrl.searchParams.get('dateFrom')).toBe('2026-03-01')
     expect(secondCallUrl.searchParams.get('sector')).toBe('Technology')
+  })
+})
+
+describe('useJ2Favorites / useJ2Recents (Wave B)', () => {
+  it('useJ2Favorites fetches /api/j2/notes/favorites and returns the notes array', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, json: () => Promise.resolve({ notes: [{ id: 'n1', title: 'Fav' }] }),
+    }))
+    const { result } = renderHook(() => useJ2Favorites(), { wrapper: freshCacheWrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/favorites')
+    expect(result.current.notes).toEqual([{ id: 'n1', title: 'Fav' }])
+  })
+
+  it('useJ2Favorites returns an empty array (never undefined) before data resolves oddly shaped', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+    const { result } = renderHook(() => useJ2Favorites(), { wrapper: freshCacheWrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.notes).toEqual([])
+  })
+
+  it('useJ2Recents fetches /api/j2/notes/recents and returns the notes array', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, json: () => Promise.resolve({ notes: [{ id: 'n2', title: 'Recent' }] }),
+    }))
+    const { result } = renderHook(() => useJ2Recents(), { wrapper: freshCacheWrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/recents')
+    expect(result.current.notes).toEqual([{ id: 'n2', title: 'Recent' }])
+  })
+})
+
+describe('setNoteFavorite (Wave B)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('POSTs to favorite when isFavorite=true and returns the server value', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, json: () => Promise.resolve({ isFavorite: true }),
+    }))
+    const result = await setNoteFavorite('n1', true)
+    expect(result).toBe(true)
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/n1/favorite')
+    expect(global.fetch.mock.calls[0][1].method).toBe('POST')
+  })
+
+  it('DELETEs to unfavorite when isFavorite=false', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, json: () => Promise.resolve({ isFavorite: false }),
+    }))
+    await setNoteFavorite('n1', false)
+    expect(global.fetch.mock.calls[0][1].method).toBe('DELETE')
+  })
+
+  it('throws on a failed response so the caller can revert its optimistic state', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: false, status: 404, json: () => Promise.resolve({ detail: 'note not found' }),
+    }))
+    await expect(setNoteFavorite('ghost', true)).rejects.toThrow('note not found')
+  })
+})
+
+describe('recordNoteOpened (Wave B)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('POSTs the opened beacon and never throws even on failure', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('network down')))
+    expect(() => recordNoteOpened('n1')).not.toThrow()
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/j2/notes/n1/opened')
+    expect(global.fetch.mock.calls[0][1].method).toBe('POST')
   })
 })

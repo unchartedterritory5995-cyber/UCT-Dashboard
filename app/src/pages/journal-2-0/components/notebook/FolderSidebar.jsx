@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
-import useJ2Notes, { useJ2NoteFolderCounts, useJ2NotesByFolders } from '../../hooks/useJ2Notes'
+import useJ2Notes, {
+  useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
+} from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import UIcon from '../../../../components/ui/UIcon'
+import ConfirmModal from '../ConfirmModal'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -124,6 +128,53 @@ function NoteIcon() {
       <path d="M13.5 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M8.5 12h7M8.5 15.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
+  )
+}
+
+// Wave B: Favorites + Recents sidebar sections. Both populated-conditional
+// (the whole section is absent from the DOM until the member has >=1 note in
+// it — Notion's pattern, the strongest single finding of the competitor
+// research: Evernote's overflow-menu-only entry point and Obsidian's
+// no-native-recents-panel are the two things this deliberately does NOT
+// copy) and both collapsible (local, unpersisted expand state — Recents is
+// system-derived and capped small enough that collapsing rarely matters;
+// Favorites can grow, so the affordance is there for a member who wants it
+// out of the way without leaving the section itself invisible).
+function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
+  const [expanded, setExpanded] = useState(true)
+  if (!notes.length) return null
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${label}`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name={icon} size={12} gold={false} />
+          {label}
+        </span>
+      </div>
+      {expanded && notes.map((note) => (
+        <div key={note.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
+            onClick={() => onOpenNote(note)}
+            title={note.title?.trim() || 'Untitled'}
+          >
+            <NoteIcon />
+            <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+          </button>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -419,6 +470,12 @@ export default function FolderSidebar({
   // deleted=true view.
   const { total: trashTotalFromServer } = useJ2Notes({ deleted: true, limit: 1 })
 
+  // Wave B: Favorites + Recents. Both trash-aware server-side (see
+  // notes_service.list_favorites/list_recents) — no client-side filtering
+  // needed here.
+  const { notes: favoriteNotes } = useJ2Favorites()
+  const { notes: recentNotes } = useJ2Recents()
+
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
   // it client-side silently misses anything past that on a migrated library,
@@ -577,8 +634,14 @@ export default function FolderSidebar({
     setEditingId(null)
   }
 
-  const onDelete = async (id, name) => {
-    if (!confirm(`Delete folder "${name}"? Subfolders and notes move up one level.`)) return
+  // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
+  // request opens the modal (holding which folder), confirm performs the
+  // actual mutation.
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name } | null
+  const onDeleteRequest = (id, name) => setDeleteTarget({ id, name })
+  const onDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
     try {
       await remove(id)
       if (activeFolderId === id) onSelectFolder(null)
@@ -711,7 +774,14 @@ export default function FolderSidebar({
           {!trimmedQuery && !hasActiveFilters ? (
             <div className={styles.searchHint}>Search titles and content by word, or match an exact tag or ticker.</div>
           ) : searching ? (
-            <div className={styles.searchHint} role="status">Searching…</div>
+            <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching…">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className={styles.searchResultSkeletonRow}>
+                  <SkeletonLine width="70%" height={12} />
+                  <SkeletonLine width="90%" height={10} />
+                </div>
+              ))}
+            </div>
           ) : searchError ? (
             <div className={styles.searchEmpty}>Search failed — try again.</div>
           ) : serverSearchResults.length ? (
@@ -778,6 +848,20 @@ export default function FolderSidebar({
         </div>
       ) : (
         <>
+          <RecencySection
+            label="Favorites"
+            icon="star-fill"
+            notes={favoriteNotes}
+            activeNoteId={activeNoteId}
+            onOpenNote={onOpenNote}
+          />
+          <RecencySection
+            label="Recents"
+            icon="clock"
+            notes={recentNotes}
+            activeNoteId={activeNoteId}
+            onOpenNote={onOpenNote}
+          />
           <div className={styles.section}>
             <div className={styles.rowWrap}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
@@ -838,7 +922,7 @@ export default function FolderSidebar({
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 submitRename={submitRename}
-                onDelete={onDelete}
+                onDelete={onDeleteRequest}
                 onStartAddChild={startAddChild}
                 addForm={addForm}
                 notesByFolder={notesByFolder}
@@ -910,6 +994,16 @@ export default function FolderSidebar({
             </div>
           )}
         </>
+      )}
+      {deleteTarget && (
+        <ConfirmModal
+          title={`Delete folder "${deleteTarget.name}"?`}
+          body="Subfolders and notes move up one level. This does not delete any notes."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={onDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </aside>
   )

@@ -296,3 +296,149 @@ describe('CommandPalette — "?" in-box help mode (P10, IA §8.3/§17.4)', () =>
     await waitFor(() => expect(listbox.textContent).toMatch(/type a ticker or company name.*\?.*for help/i))
   })
 })
+
+describe('CommandPalette — Wave B: Notebook joins the palette (§12-15)', () => {
+  it('typing "trash" surfaces "Open Trash" and navigating to it goes to the Trash deep link', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'trash' } })
+    const row = await screen.findByText('Open Trash')
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByTestId('route-spy'))
+      .toHaveTextContent('/journal/notebook'))
+  })
+
+  it('typing "note" surfaces both "New Note" and "Open Notebook"', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'note' } })
+    expect(await screen.findByText('New Note')).toBeInTheDocument()
+    expect(screen.getByText('Open Notebook')).toBeInTheDocument()
+  })
+
+  it('clicking "New Note" navigates to the blank-note deep link', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'new note' } })
+    const row = await screen.findByText('New Note')
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByTestId('route-spy'))
+      .toHaveTextContent('/journal/notebook'))
+  })
+
+  it('a single character never matches a notebook command (avoids matching half the keyword list)', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'n' } })
+    expect(screen.queryByText('New Note')).not.toBeInTheDocument()
+    expect(screen.queryByText('Open Notebook')).not.toBeInTheDocument()
+  })
+
+  it('typing "?" (help mode) never fetches favorites/recents or shows notebook commands', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: '?' } })
+    await screen.findByText(/global search/i)
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(screen.queryByText('Open Notebook')).not.toBeInTheDocument()
+  })
+
+  it('typing "recent" fetches and lists recent notes, badged "Recent"', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/notes/recents')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [{ id: 'n1', title: 'Q3 Thesis' }] }) })
+      }
+      if (String(url).includes('/notes/favorites')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'recent' } })
+    const row = await screen.findByText('Q3 Thesis')
+    expect(row.closest('button').textContent).toContain('Recent')
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByTestId('route-spy'))
+      .toHaveTextContent('/journal/notebook'))
+  })
+
+  it('typing "favorite" fetches and lists favorited notes, badged "Favorite"', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/notes/favorites')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [{ id: 'f1', title: 'Core Thesis' }] }) })
+      }
+      if (String(url).includes('/notes/recents')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'favorite' } })
+    const row = await screen.findByText('Core Thesis')
+    expect(row.closest('button').textContent).toContain('Favorite')
+  })
+
+  it('a note that is BOTH favorited and recent renders once, as Favorite (no duplicate row)', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/notes/favorites')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [{ id: 'dup1', title: 'Dual Note' }] }) })
+      }
+      if (String(url).includes('/notes/recents')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [{ id: 'dup1', title: 'Dual Note' }] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'recent' } })
+    await screen.findByText('Dual Note')
+    expect(screen.getAllByText('Dual Note')).toHaveLength(1)
+  })
+
+  it('Enter with NO arrow-navigation opens a matched notebook command directly -- found live: an earlier build ignored the highlighted row here and 404\'d to a literal ticker page instead', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    // "trash" itself is TICKER_LIKE and also matches "Open Trash" -- the
+    // command (rendered first, highlighted by default) must win over the
+    // ticker interpretation without requiring the user to arrow to it.
+    fireEvent.change(input, { target: { value: 'trash' } })
+    await screen.findByText('Open Trash')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy'))
+      .toHaveTextContent('/journal/notebook'))
+  })
+
+  it('Enter still preserves zero-network-wait for a plain ticker query with no notebook match', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    // Fire Enter well before the 150ms debounce would even issue a request
+    // -- the synthetic typed-ticker row is what's highlighted at index 0.
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA'))
+  })
+
+  it('arrow-navigating past a notebook command to the ticker fallback and pressing Enter opens THAT instead', async () => {
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'trash' } })
+    await screen.findByText('Open Trash')
+    // "Open Trash" (idx 0) -> "Go to TRASH" ticker fallback (idx 1).
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/TRASH'))
+  })
+})

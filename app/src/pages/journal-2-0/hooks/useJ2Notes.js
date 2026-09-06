@@ -1,6 +1,6 @@
 /** Notebook notes SWR hook. */
 import { useCallback, useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -187,6 +187,80 @@ export function useJ2NoteFolderCounts() {
     error,
     refresh: () => mutate(),
   }
+}
+
+// ── Wave B (High-Frequency Notebook UX): Favorites + Recents ────────────────
+// Both use the STABLE, no-limit URL as their SWR key (server-side default
+// caps apply — FAVORITES_DEFAULT_LIMIT=50 / RECENTS_DEFAULT_LIMIT=8) so every
+// caller (sidebar section, command palette) shares one cache entry and a
+// single favorite/opened write invalidates every consumer at once via the
+// global `mutate` calls below — no manual refresh wiring needed at each
+// call site.
+const FAVORITES_URL = '/api/j2/notes/favorites'
+const RECENTS_URL = '/api/j2/notes/recents'
+
+/** Populated-conditional by design at the CALLER (sidebar hides the whole
+ * section when `notes` is empty) — this hook itself always returns an array,
+ * never undefined, so "no favorites yet" and "still loading" are told apart
+ * via `isLoading`, matching every other hook in this file.
+ *
+ * `enabled` (default true) skips the fetch entirely via SWR's null-key
+ * convention — the command palette is mounted app-wide and passes
+ * `enabled: open` so this never fires on every page load, only while the
+ * palette is actually open. */
+export function useJ2Favorites({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? FAVORITES_URL : null, fetcher, {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+  })
+  return {
+    notes: data?.notes ?? [],
+    isLoading,
+    error,
+    refresh: () => mutate(),
+  }
+}
+
+export function useJ2Recents({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? RECENTS_URL : null, fetcher, {
+    revalidateOnFocus: true,
+    shouldRetryOnError: false,
+  })
+  return {
+    notes: data?.notes ?? [],
+    isLoading,
+    error,
+    refresh: () => mutate(),
+  }
+}
+
+/** Toggle a note's favorite state. Throws on failure (a star click is a
+ * deliberate user action, unlike the opened-beacon below, so the caller
+ * shows/reverts the optimistic state rather than swallowing the error). */
+export async function setNoteFavorite(noteId, isFavorite) {
+  const res = await fetch(`/api/j2/notes/${noteId}/favorite`, {
+    method: isFavorite ? 'POST' : 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const err = new Error(body.detail || `${res.status}`)
+    err.status = res.status
+    throw err
+  }
+  const body = await res.json()
+  globalMutate(FAVORITES_URL)
+  globalMutate(`/api/j2/notes/${noteId}`)
+  return body.isFavorite
+}
+
+/** Fire-and-forget recency beacon — never awaited, never throws into the
+ * caller. Mirrors the backend endpoint's own "must never break note
+ * viewing" contract. */
+export function recordNoteOpened(noteId) {
+  fetch(`/api/j2/notes/${noteId}/opened`, { method: 'POST', credentials: 'include' })
+    .then(() => globalMutate(RECENTS_URL))
+    .catch(() => {})
 }
 
 /** The actual note rows for a set of (in practice: currently-expanded)

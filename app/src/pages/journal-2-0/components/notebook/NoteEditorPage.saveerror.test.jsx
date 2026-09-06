@@ -20,6 +20,8 @@ const NOTE = {
 const updateMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))

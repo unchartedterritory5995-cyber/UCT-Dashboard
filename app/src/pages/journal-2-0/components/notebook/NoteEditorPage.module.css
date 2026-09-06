@@ -182,6 +182,20 @@
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */
 .proseEditor > :first-child { margin-top: 0; }
+/* Wave B find-in-note: ProseMirror decorations set a RAW (unhashed) class
+   name directly in the DOM — same reason the widget-embed guard above uses
+   `:global()`, a bare `.uct-find-match` here would hash to something the
+   decoration's own `class` string can never match. Ephemeral by
+   construction (a Decoration, never doc content) — nothing here can leak
+   into saved note HTML. */
+.proseEditor :global(.uct-find-match) {
+  background: rgba(220, 187, 94, 0.32);
+  border-radius: 2px;
+}
+.proseEditor :global(.uct-find-match-active) {
+  background: rgba(220, 187, 94, 0.7);
+  color: #14161b;
+}
 /* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
    Every rule below targets a BARE ELEMENT, so it reaches by descent into the
    node views too — and a widget embed is not prose: it mounts a whole app
@@ -405,8 +419,10 @@
 }
 .loading {
   display: flex;
-  justify-content: center;
-  padding: 60px;
+  flex-direction: column;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 60px 24px;
   color: var(--color-text-muted, #98a0aa);
 }
 
@@ -629,5 +645,12 @@
 @media (max-width: 1024px) {
   .toolBtn {
     min-height: var(--tap-min, 44px);
+  }
+  /* Wave B: the new Favorites star reuses .chromeBtn (Share / Ask this
+     note already render here too, un-sized for touch before this pass --
+     fixed for all three since they share one class, not just the new one). */
+  .chromeBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
   }
 }

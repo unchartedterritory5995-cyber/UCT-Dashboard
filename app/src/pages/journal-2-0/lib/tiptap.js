@@ -16,6 +16,7 @@ import { AttachmentChip } from './attachmentChip'
 import { WidgetEmbed } from './widgetEmbedNode'
 import { Callout } from './calloutNode'
 import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
+import { NoteFind } from './noteFindExtension'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -62,6 +63,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // WidgetEmbed above once notes containing these exist.
     Callout,
     Toggle, ToggleSummary, ToggleContent,
+    // Wave B: find-in-note. Decorations only -- never touches doc content
+    // (see noteFindExtension.js's own header for why that's structural, not
+    // a convention).
+    NoteFind,
   ]
 }
 

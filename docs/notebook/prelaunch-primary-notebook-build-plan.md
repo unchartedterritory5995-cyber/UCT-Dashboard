@@ -66,6 +66,18 @@ definition, tenant isolation/security/deletion-lifecycle discipline, and the per
 vertical-slice + certify + stop-and-report discipline (§129 of the governing directive
 — autonomy applies WITHIN a wave, not across the whole remaining roadmap).
 
+**Process correction, 2026-09-06 (recorded at Wave A→B checkpoint):** Wave A's own
+certification report deferred all competitor-experience comparison to the future Stage C
+formal switching/parity certification. The owner corrected this: Stage C remains the
+large, formal certification, but **every major pre-launch wave must now perform a small,
+task-specific competitor-experience comparison scoped to that wave's own workflows**
+(what does the incumbent user expect / how many steps / how discoverable / what does UCT
+currently do / is UCT's interaction competitive). This is NOT a new giant research
+program per wave — it is a bounded task matrix over the 2-4 workflows that wave actually
+touches. Wave A is NOT reopened to retroactively add this; the correction applies from
+Wave B forward. See Wave B's §7 (Competitor Target) and the Competitor Task Matrix in
+this document's Wave B section for the first application of this rule.
+
 ---
 
 ## 3. Current Verified State (2026-09-06)
@@ -439,12 +451,163 @@ session — zero drift found). Four slices:
 Each slice: unit → integration → real-browser E2E in the fail-closed sandbox →
 re-benchmark → deploy → production verify, matching every prior wave's discipline.
 
-### Wave B — High-frequency Notebook UX / power-user foundation [NEXT]
+### Wave B — High-frequency Notebook UX / power-user foundation — IN PROGRESS 2026-09-06
 
-Command palette registration (`CommandPalette.jsx` — new note, search-focus,
-jump-to-note, create-thesis, open-trash), native `confirm()` → shared modal, favorites,
-recents, find-in-note, shared loading-skeleton component, folder-sidebar direct
-re-verification, live mobile/responsive re-pass with alternate tooling.
+**Entry checkpoint (directive §73), recorded before implementation began:**
+
+**1. Verified current state** — see the two recon passes below (architecture inventory +
+competitor task matrix), both dispatched as fresh, context-free general-purpose agents
+(deliberately not forks, to structurally avoid the inherited-autonomy failure mode
+recorded in the decision log's Process Incident #2 — a fresh agent has nothing to
+misapply). Findings materially changed cost estimates for 3 of the 6 core-scope items:
+- `ConfirmModal.jsx` (`app/src/pages/journal-2-0/components/ConfirmModal.jsx`) already
+  exists, already used for Position delete — Wave B's destructive-dialog item is wiring
+  (2 call sites: `FolderSidebar.jsx:581`, `NoteEditorPage.jsx:863`), not building.
+- `Skeleton.jsx` (`app/src/components/Skeleton.jsx`) already exists app-wide (68 files) —
+  Wave B's loading-state item is adoption into Notebook, not construction.
+- `JournalLayout.jsx`'s chord-shortcut system (`g n` already routes to Notebook) +
+  `ShortcutCheatSheet.jsx` already exist — Wave B adds a "Notebook" section + in-note
+  shortcuts to an existing extension point, not a new system.
+- `CommandPalette.jsx` (`app/src/components/CommandPalette.jsx`, Ctrl/Cmd+K, mounted in
+  `Layout.jsx`) is real but is a single-purpose ticker-search dialog with **no command
+  registry** — adding Notebook actions means extending the component's own logic
+  (adding an action-result type alongside ticker results), not registering into an
+  existing extensibility point. This is the one item pricier than the source docs
+  implied.
+- Favorites and Recents are genuinely greenfield — no note-scoped analog exists (the
+  Watchlist "Flagged" list is ticker-scoped, pattern precedent only, no reusable code).
+  `UIcon` already has unused `star`/`star-fill`/`clock` glyphs ready for this.
+- Find-in-note: confirmed absent entirely (no editor-level keydown handling in
+  `NoteEditorPage.jsx`, no find extension in `lib/tiptap.js`'s `buildExtensions()`).
+
+**2. Command-palette architecture** — extend `CommandPalette.jsx` itself with a small
+static Notebook action list (New Note, Search Notebook, Open Trash, Create Thesis, Open
+Recent [top 5], Open Favorite [top 5]) shown alongside ticker results, filtered by the
+same query box using natural terms (note/notebook/research/thesis/search/trash/
+recent/favorite). This is "join the existing system," not "build a parallel one" — there
+is only one Cmd+K surface in the app and it stays that way.
+
+**3. Favorites data design** — new table `j2_note_favorites(user_id, note_id,
+created_at)`, composite PK `(user_id, note_id)` (idempotent — re-favoriting is a no-op,
+not an error). Trash-aware: the favorite row is NOT deleted when a note is trashed (so
+restore silently un-hides it in the Favorites list again); the Favorites list query joins
+against `j2_notes` and excludes `deleted_at IS NOT NULL`, mirroring the existing
+trash-exclusion predicate used everywhere else in `notes.py`. Permanent purge and account
+deletion explicitly delete the row (added to `account_purge.py` + the note hard-delete
+path). No note content is duplicated.
+
+**4. Recents data design** — new table `j2_note_recents(user_id, note_id, opened_at)`,
+composite PK `(user_id, note_id)`, upserted (`INSERT ... ON CONFLICT DO UPDATE`) on note
+open — system-derived, zero user maintenance, capped at the 8 most-recent by
+`opened_at DESC` at read time (not stored capped, so a re-open of an old note correctly
+resurfaces it). Same trash-exclusion join as Favorites. The "open" beacon
+(`POST /api/j2/notes/{id}/opened`) is fire-and-forget from the frontend — never blocks
+note rendering, never surfaces an error to the user on failure.
+
+**5. Find-in-note design** — Ctrl/Cmd+F scoped to the note editor only when it has focus
+(checked via `document.activeElement`/a ref on the editor container, never a global
+listener that could hijack browser find elsewhere in the app). Ephemeral highlight via a
+ProseMirror decoration set (TipTap plugin) — ephemeral means never written into
+`content_html`/`content_json`, confirmed via a test that saves while find is open and
+asserts stored content is unchanged. Match counter + Enter/Shift+Enter next/prev +
+Escape closes and clears decorations.
+
+**6. Target sidebar IA** — `FolderSidebar.jsx`'s Folders-mode list gains two new
+sections above the existing "All notes / Unfiled / Trash" rows: **Favorites**
+(populated-conditional — entirely absent from the DOM until the user has ≥1 favorite,
+per the competitor research's strongest finding: Notion hides Favorites the same way)
+and **Recents** (always-present once the user has ≥1 note, capped at 5 visible rows with
+no "show all" — recents are a glance-back aid, not a list to manage). Both collapsible,
+state persisted the same way the existing Tags section persists its expand state.
+Existing Folders/Tags sections unchanged in position or behavior.
+
+**7. Destructive-dialog design** — reuse `ConfirmModal.jsx` verbatim (already
+accessible: Escape, focus-trap, backdrop-click-cancel, danger tone). Folder delete and
+note delete both route through Trash today (reversible), so copy stays proportional
+("Move to Trash?" / "Restore from Trash" language, not "permanently"), matching the
+directive's own "do not make the dialog melodramatic" guidance.
+
+**8. Loading-state plan** — adopt `Skeleton.jsx` (`SkeletonLine`/`SkeletonBlock`) for
+the note-list loading state in `FolderSidebar.jsx` (replacing the plain "Loading…" text)
+and the note-body loading state in `NoteEditorPage.jsx`. Scoped to these two
+high-frequency structural loads only — not a sweep of every spinner in Notebook.
+
+**9. Responsive plan** — real-browser re-verification (not CSS-source inspection) at
+phone (390px)/tablet (820px)/desktop (1280px) in the fail-closed sandbox, covering the
+new Favorites/Recents sidebar sections, command-palette on touch, find-in-note on touch,
+and the destructive dialog on touch — plus a regression check that Wave A's search
+filter panel still behaves correctly at each width.
+
+**10. Keyboard-shortcut plan** — deliberately small: Ctrl/Cmd+K (existing, global,
+unchanged), Ctrl/Cmd+F (new, note-editor-scoped, find-in-note), Escape (closes find or
+the command palette, whichever is open — never both), plus the existing `g n` chord
+(unchanged). A "Notebook" section is added to `ShortcutCheatSheet.jsx` documenting all
+of these. No bare-letter global shortcuts are added (avoids collision with editor typing
+and any future note titled starting with a shortcut letter).
+
+**11. Accessibility plan** — `ConfirmModal.jsx` and `CommandPalette.jsx` already carry
+`role="dialog"`/focus-trap/Escape (verified during wiring, not re-invented); the new
+Favorites/Recents rows and the find-in-note bar get explicit `aria-label`s and are
+included in the same keyboard-tab-order verification pass as the rest of Wave B's
+real-browser E2E. This is a defensible baseline, not a WCAG certification claim.
+
+**12. Competitor task matrix** — see the dedicated competitor-research pass below;
+synthesis: match Notion's exact favorite/recents/Cmd+K ergonomics (highest
+discoverability, hides-until-populated, unified palette), match all three apps'
+identical Ctrl+F-scoped-to-document convention exactly (zero differentiation value in
+deviating), and explicitly avoid two named anti-patterns — Evernote's overflow-menu-only
+favorite entry point, and Obsidian's siloed non-integrated sidebar tabs.
+
+**13. Vertical slices** — the directive's suggested 6-slice decomposition fits the
+actual dependency shape and is used as-is: Slice 1 (Command Palette + keyboard entry
+points), Slice 2 (Favorites + Recents + sidebar IA), Slice 3 (Find-in-Note), Slice 4
+(destructive dialog + loading skeleton + small visual-consistency fixes on touched
+surfaces), Slice 5 (responsive + accessibility verification / local remediation), Slice
+6 (integrated real-browser power-user E2E + regression + deploy + certify).
+
+**14. Test matrix** — unit (backend favorites/recents CRUD, trash/purge lifecycle,
+tenant isolation; frontend find-in-note match logic, command-palette filtering) →
+integration (router-level, real HTTP) → real-browser E2E in the fail-closed sandbox
+(5 workflows per directive §64–68) → regression (full existing journal_two +
+journal-2-0 suites) → production verification.
+
+**15. Migration/rollback plan** — both new tables are additive (no ALTER on
+`j2_notes`); rollback is dropping the two tables + removing the two new endpoints +
+reverting the frontend diff, none of which touches existing note content or Wave A's
+search contract. Command-palette and shortcut-cheat-sheet changes are additive entries
+in existing files, trivially revertable via `git revert`.
+
+**No material contradiction found requiring a decision — proceeding autonomously into
+Slice 1.**
+
+---
+
+#### Wave B recon — architecture inventory (fresh general-purpose agent, read-only)
+
+EXISTS as reusable precedent, confirmed by direct code inspection: `ConfirmModal.jsx`,
+`Skeleton.jsx`, `JournalLayout.jsx` chord-shortcuts + `ShortcutCheatSheet.jsx`, `UIcon`
+`star`/`star-fill`/`clock` glyphs (registered, unused in Notebook today), `Sheet.jsx`
+(already used inside `journal-2-0/components/notebook/` for other dialogs — import
+wizard, export dialog, template picker, connector modals). DOES NOT EXIST: any
+note-scoped favorite/recent table or hook, any find-in-note capability, any command
+registry on `CommandPalette.jsx`. PARTIAL: responsive JS-hook usage in Notebook (only
+`ImportWizard.jsx` uses `useIsTouch`; `FolderSidebar.jsx`/`NoteEditorPage.jsx` use none —
+CSS-level `@media` handling is unverified line-by-line this pass but no contradicting
+evidence surfaced). Every native `confirm()` call site in `journal-2-0/` in scope for
+Wave B: `FolderSidebar.jsx:581` (delete folder), `NoteEditorPage.jsx:863` (delete note).
+
+#### Wave B recon — scoped competitor task matrix (fresh general-purpose agent, web research)
+
+Convergence findings used directly in the design above: all three apps use identical
+Ctrl/Cmd+F-scoped-to-document semantics (copy exactly); all three surface recents by
+default in an empty-query quick-switcher (implement as the floor, plus a persistent
+capped sidebar section since Obsidian's own users cite the lack of one as a real gap);
+Notion's single unified Cmd+K with grouped result sections is the right-sized command-
+palette model for a smaller product (vs. Obsidian's two-tool split, which its own users
+request merging). Named anti-patterns to avoid: Evernote's favorite entry point buried in
+an overflow menu (low discoverability — use a persistent header star instead, Notion's
+pattern); Obsidian's non-integrated sidebar tabs (File Explorer/Search/Bookmarks/Tags as
+separate silos — keep one nested tree instead, Notion's pattern).
 
 ### Wave C onward
 
