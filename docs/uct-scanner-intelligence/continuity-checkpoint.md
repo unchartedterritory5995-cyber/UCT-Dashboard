@@ -1936,3 +1936,23 @@ night. This is an honest, disappointing-but-real gap — not filled
 artificially. The nightly writer window (`screener_scan_sweep` ~05:00 ET,
 `screener_screen_alerts` ~05:10 ET) and Monday's market open
 (`screener_live_tier`) remain the next opportunities.
+
+## screener_scan_sweep completed cleanly — real, fast natural runtime (2026-09-06 05:00-05:01 ET)
+
+**Real, complete evidence, no interruption.** `[scan] sweep done
+as_of=20260904 handed=4 distinct=4 swept=4 refused=0 duplicate=0
+unswept=0 stopped_early=False hits=1278 recorded=9 elapsed=54.2s
+deadline=2026-09-06T09:00:00-04:00` at `09:00:54.239 UTC = 05:00:54.239
+ET` — fired at 05:00:00 ET (per the log's own `deadline` field), **total
+elapsed 54.2 seconds** (self-reported, matches the timestamp math).
+Immediately followed by `"[scan] sweep receipts read back: 4 of 4
+definitions carry a scan_coverage row for as_of=20260904"` — a clean,
+fully-successful, self-verified run. Git tip and deployment id confirmed
+unchanged throughout — no interruption. Much shorter than the ~20.6-minute
+snapshot builder (expected — per-definition small commits vs. a full
+~3,745-ticker rebuild).
+
+**Scanner-correlation result: zero, again.** `railway logs --filter
+"contention"` over the same window returns nothing — no natural or
+owner-initiated scanner request occurred during this writer's active
+second either. `screener_screen_alerts` (~05:10 ET) is next, imminent.
