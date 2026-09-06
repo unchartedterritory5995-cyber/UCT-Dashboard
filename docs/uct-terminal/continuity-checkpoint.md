@@ -5,13 +5,15 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state, post a full
-owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent
-current-state review + synthesis, ~3.9M subagent tokens, 699 tool calls,
-zero lens failures) -- this superseded the lighter-weight ledger-ranking
-re-anchors this session had been running between programs. Full report
-delivered to the owner in-conversation; this doc keeps only the load-bearing
-conclusions, not the full 30-section report.
+**Last verified:** 2026-09-06, against live git + Railway state, post
+Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)
+merge/deploy/production-verification -- the top-ranked MUST-FIX from the
+same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens
+multi-agent current-state review + synthesis, ~3.9M subagent tokens, 699
+tool calls, zero lens failures). Full re-anchor report delivered to the
+owner in-conversation; this doc keeps only the load-bearing conclusions,
+not the full 30-section report. Seam 29 is next, per the standing
+directive's instruction to continue directly down the priority stack.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -34,20 +36,24 @@ islands.** Product stage: **COMPLETION-HARDENING**, not mid-build.
 
 **Two MATERIAL TRUST/CORRECTNESS defects were found live in production,
 neither previously on the ledger, both now numbered:**
-- **Seam 28 — `grade_ticker` + Compass pattern-bridge raw-feed trust defect.**
+- **Seam 28 — RESOLVED same day, merge `efe64acfb`/`c3128e010`.**
   `grade_ticker`'s GO/HOLD/SKIP verdict (AI Search's `_ctx_verdict`/
   `_ctx_list_verdict` fast lane, the AI Search agent lane, and Compass
-  voice+chat's unconditional core tool set) sources the raw, ~16%-precision
-  pattern-detector table and narrates it as "deterministic... the firm's
+  voice+chat's unconditional core tool set) sourced the raw, ~16%-precision
+  pattern-detector table and narrated it as "deterministic... the firm's
   computed read" with concrete entry/stop/size/account-risk numbers —
   `ticker_explain.py` already excludes this exact table as "D9-unsafe" for
   Research's own Ask AI; that judgment was never applied to AI Search or
-  Compass. This is the SAME defect class the owner already formally
-  adjudicated hours earlier this session as Seam 23 (raw pattern feed
-  narrated as authoritative) — same fix shape, same precedent ("remove
-  until the confirmed source is accepted" beat "label as unconfirmed").
-  Absorbs and upgrades the old "Seam 26 (unaudited)" entry to CONFIRMED.
-- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare.**
+  Compass. Same defect class the owner already formally adjudicated hours
+  earlier this session as Seam 23 (raw pattern feed narrated as
+  authoritative) — fixed at the shared root (`grade_ticker.py::
+  _default_patterns_fn` now returns no detections until Pattern Vision is
+  accepted), so all 5 real consumers (3 named + `grade_watchlist.py` +
+  Compass chat) inherit it automatically. Absorbed and closed the old
+  "Seam 26 (unaudited)" entry too (its own tools now disclose "unconfirmed"
+  structurally). See "CURRENT ACCEPTED" for full detail.
+- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare —
+  NOT YET FIXED, now the active program.**
   `outage_out` (the analyst source-integrity signal added by Attention
   Source-Integrity Hardening V1) reaches `watchlist_intelligence.py` but
   NOT `ticker_explain.py` (line ~941) or `research/comparison.py` (line
@@ -136,11 +142,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `7e9770dae8be4126a941623a83bcff43cfcf8e50`
-  (the prior continuity commit, i.e. the tip immediately BEFORE this file's own
-  current update -- this file's own update is a docs-only blob-swap on top of
-  this SHA; drift since then is unrelated concurrent work -- re-check overlap
-  before trusting this SHA is still current).
+- **origin/master (last verified):** `c3128e0108a4b3aaf2f35a9880bd46a7e0486dc6`
+  (Seam 28's own merge -- this file's own update is a docs-only blob-swap on
+  top of this SHA; drift since then is unrelated concurrent work -- re-check
+  overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -1148,6 +1153,95 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     (`handleItemClick` itself, unchanged), the failures/`delivery-health`
     section, sound/browser-notification logic, identity-scoping bookkeeping,
     or any other Terminal seam.
+- **Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)**
+  — IMPLEMENTED + ACCEPTED + LIVE, merge `efe64acfb` (code) / `c3128e010`
+  (merge-to-master), deployed 2026-09-06. Selected as the top-ranked
+  MUST-FIX by the fresh Whole-Product Strategic Re-Anchor (see the
+  top-of-file section) — a MATERIAL TRUST/CORRECTNESS defect, the same
+  class already adjudicated hours earlier this session as Seam 23.
+  - **Root cause, confirmed by direct code read across all three named
+    surfaces before writing any fix (per the re-anchor's own instruction not
+    to assume one fix shape fits all three):** `grade_ticker.py`'s ENTIRE
+    decisive GO/HOLD/SKIP verdict was gated on `_default_patterns_fn()`,
+    which called `pattern_engine.memory.get_active_detections()` — the
+    exact raw, ~16%-Opus-confirmed rule-engine feed whose universe-wide page
+    was already retired 2026-08-26 for this exact trust reason, and which
+    `ticker_explain.py` had already excluded as "D9-unsafe" for Research's
+    own Ask AI. `grade_ticker` had NO alternative, pattern-independent
+    grading path — every consumer's decisive verdict depended on this one
+    function. Five real call sites share it (only three were named in the
+    seam): AI Search's `_ctx_verdict`/`_ctx_list_verdict` fast lane, AI
+    Search's agent lane (`ai_search_agent.py`'s `_AGENT_ALLOWED`), Compass
+    voice (`voice_tool_impls.py::_grade_ticker`), Compass chat
+    (`coach_chat_tools.py::_exec_grade_ticker`), and `grade_watchlist.py`
+    (bonus — not originally named, discovered during Phase A).
+  - **Fix, at the ONE shared root, zero per-consumer changes needed** (same
+    "fix once at the shared boundary" convention as Seam 16/Seam 10):
+    `_default_patterns_fn` now returns `[]` unconditionally, with an
+    extensive docstring explaining why and exactly what unblocks a future
+    re-enablement. `grade_ticker` already had a correct, pre-existing honest
+    fallback for "no usable setup" (`SKIP`/`no_setup`, `basis="No clean,
+    tradable setup on {sym} right now"`) — this fix simply routes every
+    real call through that existing honest path instead of a
+    fabricated-confidence one. **Deliberately does NOT re-point at Pattern
+    Vision's own confirmed verdicts** (`pattern_vision.store.get_confirmed`)
+    — Pattern Vision is itself still under its own live, time-boxed
+    acceptance trial (see "CURRENT LIVE OBSERVATION" below), and doing so
+    would be exactly the "quietly promote an unaccepted system into a
+    member-facing authority" move Seam 23's own adjudication forbids. All 5
+    consumers inherit the fix automatically.
+  - **Seam 26 (the standalone `find_patterns_on_ticker`/
+    `scan_active_patterns` raw-detection-listing tools, NOT routed through
+    grade_ticker) got its own, separate fix** — the re-anchor's menu of
+    "remove the raw sourcing or add an explicit unconfirmed-disclosure
+    clause, per surface" was resolved as disclosure here (these tools have
+    genuine standalone value — "what patterns are forming on X" is a
+    different, legitimate question from "should I buy X" — so outright
+    removal, unlike grade_ticker's fix, was not the right call). Both
+    functions now bake `"unconfirmed rule-engine detection, not Opus-
+    vision-verified — historically only ~16% of these hold up"` directly
+    into their own returned `narration` string (BEFORE any specific
+    entry/stop/target numbers) plus a new structural `confirmed: false`
+    field, plus their registered `voice_tool` `description` text (defense
+    in depth — the calling model sees the caveat even before invoking the
+    tool). This travels with the data to every current AND future caller
+    (Compass voice, Compass chat, AI Search's agent lane all read the same
+    two functions) — never dependent on a prompt instruction a future
+    prompt edit could silently drop.
+  - **Folded in one minor aggravating bug found in the same file, same
+    cycle:** `grade_ticker.py`'s quote-fetch failure used to silently
+    compute `extended=False` (via `last=0`) — indistinguishable from a
+    genuinely confirmed "not extended," which is exactly the answer that
+    clears the way for a GO. Now tracks `quote_available` explicitly,
+    surfaces a new `quote_unavailable` hard flag, and downgrades to HOLD
+    (never silently fabricates the other answer either) — verified it does
+    NOT soften an existing harder SKIP flag (e.g. `regime_red`) back to
+    HOLD.
+  - **Tests:** 13 new/updated tests across `test_grade_ticker.py` (the new
+    `quote_unavailable` HOLD behavior + its non-override-of-SKIP control)
+    and `test_grade_ticker_integration.py` (a NEW test exercises the REAL,
+    unmonkeypatched `_default_patterns_fn` directly, plus a full end-to-end
+    `grade_ticker()` call with only regime+quote injected — proving the
+    actual production wiring, not a test double, is safe) + a new 7-test
+    `test_voice_pattern_bridge_disclosure.py` (disclosure present with and
+    without results, for both tools; levels still surfaced alongside the
+    disclosure — the fix doesn't swallow real data; tool-description text
+    itself carries the disclosure). All pre-existing tests in every touched
+    file remain green. Full adjacent regression run and confirmed green,
+    zero failures: `test_grade_watchlist.py`, the AI Search agent lane +
+    topic matrix + wave2-packs suites (550 tests, including
+    `test_ctx_verdict_narrates_computed_answer`/`_surfaces_hard_flags`),
+    `test_compass_pattern_bridge.py` (real-DB-backed, substring assertions
+    only — confirmed NOT silently broken by the narration change),
+    `test_voice_tools.py`/`test_voice_dispatch.py`, Compass's
+    `coach_chat_audit_corpus`/`rung45_chat_tools`/`rung45_protocol_prompt`,
+    and `compass_eval/test_checks.py` (the report-card mechanical checks) —
+    700+ tests total. Clean `api.main` app-boot.
+  - **Explicitly did NOT touch:** Pattern Vision's own model/scoring
+    internals, the parked Technical Research/Technical Ask AI branches,
+    8G-B/Scanner, `ai_search.py`/`ai_search_agent.py`/`coach_chat_tools.py`/
+    `voice_agents.py` themselves (all inherit the fix with zero changes),
+    or Compass's own `COMPASS_MENTOR_MODE`/report-card gating.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1278,18 +1372,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Seam 28 — Verdict & Pattern-Bridge Trust Adjudication — STARTING NOW**,
-  per the owner's own explicit Section XX/XXV instruction: the fresh
-  Whole-Product Strategic Re-Anchor (below) found this as the top-ranked
-  MUST-FIX, unblocked, bounded, and confirmed to trip none of the 10
-  standing stop conditions — so the directive requires proceeding directly
-  into it rather than stopping merely because the re-anchor report was
-  delivered. See the new Seam 28 debt-ledger entry above for full scope
-  (three call sites: AI Search's `_ctx_verdict`/`_ctx_list_verdict`, the AI
-  Search agent lane, and Compass voice+chat's core tool set = Seam 26).
-  **Bounded Phase A required before any fix**: read all three call sites'
-  actual current architecture (do not assume Seam 23's exact fix shape
-  transfers unmodified to all three) before writing code.
+- **Seam 28 (closes Seam 26) — DONE, ACCEPTED + LIVE. Seam 29 — Outage-
+  Integrity Threading — STARTING NOW**, continuing directly down the
+  re-anchor's own priority stack per the standing directive (no new
+  ledger-scan needed — the re-anchor already did that scan; see below).
+  See the new Seam 28/Seam 29 debt-ledger entries above for full scope.
   Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
   before this point, in order: Technical Ask AI Phase A →
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE (zero code) → AI Search Raw-Pattern
@@ -1302,22 +1389,31 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   → AlertBell Keyboard Accessibility (Seam 5, merge `1eff7c83b`/`296517d80`)
   → a **fresh, owner-authorized 13-lens Whole-Product Strategic Re-Anchor**
   (multi-agent workflow, full report delivered in-conversation 2026-09-06;
-  see the new top-of-file section for the load-bearing conclusions) → now
-  Seam 28.
-  **Next in the priority stack after Seam 28** (all independent of Pattern
-  Vision's gate): Seam 29 (outage-integrity threading) → Awareness
-  Reachability Restoration V1 (⚠️ has an owner-required monetization/
-  entitlement question attached — see the re-anchor section above, do not
-  resolve it unilaterally) → Alert Durability V1 → Watchlists/PositionsTable
-  Keyboard Accessibility V1 → Compare Coverage V1 → Calendar TickerActions
-  Reuse V2 → Feature-Flag Governance Sweep (incl. an owner confirm-or-
-  rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`).
+  see the top-of-file section for the load-bearing conclusions) →
+  **Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)**
+  — ACCEPTED + LIVE, merge `efe64acfb`/`c3128e010` (see "CURRENT ACCEPTED"
+  above) → now Seam 29.
+  **Bounded Phase A required before Seam 29's fix**: re-verify
+  `ticker_explain.py` (~line 941) and `research/comparison.py` (~line 73)
+  actually call `get_analyst_ratings(sym)` with no `outage_out` threaded
+  through, and confirm `watchlist_intelligence.py`'s own call site as the
+  precedent for how the signal should be threaded, before writing code —
+  the re-anchor's line numbers are approximate, re-read the real code.
+  **Next in the priority stack after Seam 29** (all independent of Pattern
+  Vision's gate): Awareness Reachability Restoration V1 (⚠️ has an
+  owner-required monetization/entitlement question attached — see the
+  re-anchor section above, do not resolve it unilaterally) → Alert
+  Durability V1 → Watchlists/PositionsTable Keyboard Accessibility V1 →
+  Compare Coverage V1 → Calendar TickerActions Reuse V2 → Feature-Flag
+  Governance Sweep (incl. an owner confirm-or-rollback on live
+  `BROKER_BALANCE_HISTORY_ENABLED=1`).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-Seam-
-  28, treat it as the priority interrupt the standing directive describes —
-  stop at a safe checkpoint, record it, do not fabricate or accelerate it.
-  Do not treat "no program is currently active" as a stop condition.
+  29 or later, treat it as the priority interrupt the standing directive
+  describes — stop at a safe checkpoint, record it, do not fabricate or
+  accelerate it. Do not treat "no program is currently active" as a stop
+  condition.
   The prior "nor from X's own deferred items" enumeration that used to live
   here is superseded by the re-anchor's own seam-ledger reclassification
   table (§15 of the delivered report, mirrored into the debt ledger below)
@@ -1661,35 +1757,44 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (the underlying raw-feed reader Compass Chat/Voice also call) was
   deliberately NOT touched — that is a separate, unaudited surface; see
   Seam 26 below.
-- **Seam 26 — CONFIRMED (upgraded from "unaudited") by the 2026-09-06
-  Whole-Product Strategic Re-Anchor — MUST FIX BEFORE PRODUCT COMPLETION,
-  folded into Seam 28 below.** Three independent lenses (trust,
-  capability-b, technical-scanner), all with matching file:line citations,
-  confirmed `find_patterns_on_ticker`/`scan_active_patterns` are in
-  Compass's UNCONDITIONAL core tool set (both voice and text chat), reading
-  the identical raw, unconfirmed pattern table, with zero disclosure
-  anywhere in the prompts. Live-confirmed `BRAIN_TOOLS_ENABLED=1` +
-  `COMPASS_AUTOMATION_ENABLED=1` on Railway. See Seam 28.
-- **Seam 28 — `grade_ticker` + Compass pattern-bridge raw-feed trust defect
-  (surfaced by the 2026-09-06 Whole-Product Strategic Re-Anchor, NOT YET
-  FIXED — this is the recommended next active program).** `grade_ticker`'s
-  GO/HOLD/SKIP verdict is sourced from the raw, ~16%-precision
-  pattern-detector table and injected as "deterministic... the firm's
-  computed read" (with concrete entry/stop/size/account-risk numbers) into
-  three live, member-reachable surfaces: AI Search's `_ctx_verdict`/
-  `_ctx_list_verdict` fast lane, the AI Search agent lane, and Compass
-  voice+chat's unconditional tool set (= Seam 26 above, same root cause).
-  `ticker_explain.py` already excludes this exact table as "D9-unsafe" for
-  Research's own Ask AI — that judgment was never applied here. This is the
-  SAME defect class the owner already formally adjudicated hours earlier
-  this session as Seam 23 — same fix shape available (remove the raw
-  sourcing or add an explicit unconfirmed-disclosure clause, per surface;
-  audit each of the three call sites' actual architecture before assuming
-  one fix shape fits all three). Fold in a minor aggravating bug found in
-  the same file: `grade_ticker.py`'s quote-fetch failure silently resolves
-  to "not extended" instead of a disclosed gap. **MUST FIX BEFORE PRODUCT
-  COMPLETION** — directly unblocks completion criteria B (no material trust
-  defect) and C (single-security AI trustworthy).
+- **Seam 26 — RESOLVED as a consequence of Seam 28, merge
+  `efe64acfb`/`c3128e010`, 2026-09-06.** `find_patterns_on_ticker`/
+  `scan_active_patterns` now disclose their unconfirmed status structurally
+  (see the Seam 28 entry below for the full fix). Kept as a record; do not
+  re-open unless a concrete regression is found.
+- **Seam 28 — RESOLVED by Verdict & Pattern-Bridge Trust Adjudication, merge
+  `efe64acfb`/`c3128e010`, 2026-09-06.** Fixed at the shared root rather
+  than per-surface, so all named + bonus consumers inherit it automatically
+  (matches this session's own "fix once at the shared boundary" convention
+  — see Seam 16/Seam 10 above for the same pattern): `grade_ticker.py::
+  _default_patterns_fn` now returns no detections until Pattern Vision
+  reaches LIVE + ACCEPTED, so every real call routes through the
+  pre-existing, honest "no clean, tradable setup" SKIP branch instead of a
+  fabricated-confidence GO/HOLD. Deliberately does NOT re-point at Pattern
+  Vision's own confirmed verdicts either — that trial is itself still in
+  flight, and doing so would be the same "quietly promote an unaccepted
+  system" move Seam 23's own adjudication forbade. Covers AI Search's fast
+  lane (`_ctx_verdict`/`_ctx_list_verdict`), AI Search's agent lane, Compass
+  voice+chat's `grade_ticker` tool, AND `grade_watchlist.py` (bonus, not
+  originally named) — all five share this one function, zero per-consumer
+  changes needed. Separately, `find_patterns_on_ticker`/
+  `scan_active_patterns` (Seam 26, the standalone raw-detection-listing
+  tools, not routed through grade_ticker) now bake an "unconfirmed
+  rule-engine detection... historically only ~16% hold up" disclosure
+  directly into their own returned narration + a new `confirmed: false`
+  field + their registered tool descriptions — travels with the data to
+  every caller, not dependent on a prompt instruction. Also folded in the
+  minor aggravating bug: a failed quote now surfaces `quote_unavailable` →
+  HOLD instead of silently computing a fabricated "not extended". 25 new/
+  updated tests across `test_grade_ticker.py`, `test_grade_ticker_
+  integration.py` (a NEW test exercises the REAL, unmonkeypatched default —
+  not just an injected fake), and a new `test_voice_pattern_bridge_
+  disclosure.py`; full adjacent regression green (grade_watchlist, AI
+  Search agent lane + topic matrix + wave2 packs, Compass pattern bridge,
+  voice tools/dispatch, coach chat audit corpus, compass_eval checks — 700+
+  tests total, zero failures). Directly unblocks completion criteria B and
+  C from the re-anchor. **Seam 26 also closes as a consequence** (same root
+  cause, same fix).
 - **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare
   (surfaced by the 2026-09-06 Whole-Product Strategic Re-Anchor, NOT YET
   FIXED).** `outage_out` (the analyst source-integrity signal added by
