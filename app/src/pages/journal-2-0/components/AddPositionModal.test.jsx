@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddPositionModal from './AddPositionModal'
 import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
@@ -163,5 +163,151 @@ describe('AddPositionModal', () => {
     render(<AddPositionModal settings={BASE_SETTINGS} onSave={vi.fn()} onClose={onClose} />)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+// Wave 3 (Thesis-Trade Link) — the pre-trade thesis flow: CREATE/SELECT
+// THESIS NOTE -> CREATE THE POSITION -> obtain its real id -> attach the
+// typed reference. No fake tradeRef is ever written before the position's
+// real id exists (onSave's resolved value is the only source of that id).
+describe('AddPositionModal — pre-trade thesis flow (Wave 3)', () => {
+  beforeEach(() => {
+    usePreTradeVerdict.mockReturnValue(NO_VERDICT)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function fillRequiredFields(user) {
+    await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'nvda')
+    const inputs = screen.getAllByRole('spinbutton')
+    await user.type(inputs[0], '100')
+    await user.type(inputs[1], '500')
+  }
+
+  it('creates a new thesis note, then links it to the position using its real persisted id', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ id: 'pos-1', symbol: 'NVDA' })
+    const onClose = vi.fn()
+    const fetchMock = vi.fn(async (url, opts) => {
+      if (url === '/api/j2/notes' && opts?.method === 'POST') {
+        return { ok: true, json: async () => ({ note: { id: 'note-1', title: 'My thesis' } }) }
+      }
+      if (url === '/api/j2/notes/note-1/embeds' && opts?.method === 'POST') {
+        return { ok: true, json: async () => ({ note: {} }) }
+      }
+      return { ok: true, json: async () => ({}) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} />)
+    await fillRequiredFields(user)
+
+    await user.type(screen.getByPlaceholderText('Search your notes, or type a new title…'), 'My thesis')
+    await user.click(await screen.findByText('+ Create new note: "My thesis"'))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+
+    const noteCall = fetchMock.mock.calls.find(([u]) => u === '/api/j2/notes')
+    expect(JSON.parse(noteCall[1].body)).toEqual({ title: 'My thesis', tags: ['thesis'] })
+
+    const embedCall = fetchMock.mock.calls.find(([u]) => u === '/api/j2/notes/note-1/embeds')
+    expect(embedCall).toBeTruthy()
+    const embedAttrs = JSON.parse(embedCall[1].body).attrs
+    expect(embedAttrs.tradeRef).toBe('pos-1')
+    expect(embedAttrs.tradeRefType).toBe('position')
+    expect(embedAttrs.widgetId).toBe('chart')
+    expect(embedAttrs.params.symbol).toBe('NVDA')
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('links an EXISTING selected note without creating a new one', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ id: 'pos-2', symbol: 'NVDA' })
+    const onClose = vi.fn()
+    const fetchMock = vi.fn(async (url, opts) => {
+      if (url.startsWith('/api/j2/notes?')) {
+        return { ok: true, json: async () => ({ notes: [{ id: 'note-9', title: 'Existing research' }] }) }
+      }
+      if (url === '/api/j2/notes/note-9/embeds' && opts?.method === 'POST') {
+        return { ok: true, json: async () => ({ note: {} }) }
+      }
+      return { ok: true, json: async () => ({}) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} />)
+    await fillRequiredFields(user)
+
+    await user.type(screen.getByPlaceholderText('Search your notes, or type a new title…'), 'Existing')
+    await user.click(await screen.findByText('Existing research'))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    // No note CREATE — only the search GET and the embed POST touch /api/j2/notes*.
+    expect(fetchMock.mock.calls.some(([u, o]) => u === '/api/j2/notes' && o?.method === 'POST')).toBe(false)
+    const embedCall = fetchMock.mock.calls.find(([u]) => u === '/api/j2/notes/note-9/embeds')
+    expect(embedCall).toBeTruthy()
+  })
+
+  it('a link failure preserves the saved position and offers Retry without re-submitting it', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ id: 'pos-3', symbol: 'NVDA' })
+    const onClose = vi.fn()
+    let embedAttempts = 0
+    const fetchMock = vi.fn(async (url, opts) => {
+      if (url === '/api/j2/notes' && opts?.method === 'POST') {
+        return { ok: true, json: async () => ({ note: { id: 'note-3', title: 'Flaky note' } }) }
+      }
+      if (url === '/api/j2/notes/note-3/embeds' && opts?.method === 'POST') {
+        embedAttempts += 1
+        if (embedAttempts === 1) return { ok: false, status: 500, json: async () => ({}) }
+        return { ok: true, json: async () => ({ note: {} }) }
+      }
+      return { ok: true, json: async () => ({}) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} />)
+    await fillRequiredFields(user)
+    await user.type(screen.getByPlaceholderText('Search your notes, or type a new title…'), 'Flaky note')
+    await user.click(await screen.findByText('+ Create new note: "Flaky note"'))
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+
+    // The position save already happened; only the link failed.
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/linking your thesis note failed/)
+    expect(screen.getByRole('button', { name: 'Retry linking' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry linking' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+
+    // Retrying links — it must NOT create a second position.
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(embedAttempts).toBe(2)
+  })
+
+  it('with no thesis note involved, behaves exactly as before (no /api/j2/notes* calls at all)', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue({ id: 'pos-4', symbol: 'NVDA' })
+    const onClose = vi.fn()
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AddPositionModal settings={BASE_SETTINGS} onSave={onSave} onClose={onClose} />)
+    await fillRequiredFields(user)
+    await user.click(screen.getByRole('button', { name: 'Add Position' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    // Other background hooks (account/regime/interventions) legitimately call
+    // fetch on their own — the thesis-flow contract is that NONE of them are
+    // /api/j2/notes* when no thesis note was selected.
+    expect(fetchMock.mock.calls.some(([u]) => typeof u === 'string' && u.startsWith('/api/j2/notes'))).toBe(false)
   })
 })

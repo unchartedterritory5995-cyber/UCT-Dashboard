@@ -197,13 +197,17 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
       || selectedAccountId
       || accounts[0]?.id
       || null
-    await jsonFetch('/api/j2/positions', 'POST', { ...payload, accountId: acctId })
+    const created = await jsonFetch('/api/j2/positions', 'POST', { ...payload, accountId: acctId })
     await refreshPositions()
     const acctName = accounts.find((a) => a.id === acctId)?.name
     showToast(
       `Added ${payload.symbol} ${payload.side.toLowerCase()} to ${acctName || 'account'}`,
       'success',
     )
+    // Wave 3 (Thesis-Trade Link): AddPositionModal's post-create linking step
+    // needs the real persisted position id, which only exists after this
+    // resolves — see AddPositionModal.jsx's handleSave.
+    return created
   }, [refreshPositions, showToast, selectedAccountId, accounts])
 
   const handleUpdate = useCallback(async (position, patch) => {
