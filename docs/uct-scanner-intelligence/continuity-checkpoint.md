@@ -2674,3 +2674,46 @@ PEG-geometry, pattern-join docs, 8G-C admin-proof, VCP adjudication, Bullish
 Engulfing canonical adapter), zero cross-contamination, 8G-B observation
 cadence uninterrupted throughout this pass. Tuesday 2026-09-08 RTH remains
 the key `screener_live_tier` live-acceptance window.
+
+---
+
+## CORRECTION — Bullish Engulfing final report wording (2026-09-06)
+
+Owner-flagged: the Package 8F report's item 14 said "no request-path wiring
+exists for any family yet" — too broad, and it conflicts with previously
+verified current code (Package 8C's `/api/patterns/admin/canonical-detail/{id}`
++ the frozen 8G-C admin proof surface DO read canonical fields for HTF/PEG
+today, even though nothing is wired into the LIVE scanner/member path).
+
+**Corrected statement:** Bullish Engulfing itself has no request-path wiring
+in this package and remains shadow/local-only. Existing canonical admin/
+detail paths for previously adapted families (HTF, PEG) remain unchanged —
+not touched, not extended, not reduced by this package.
+
+**Owner decision recorded:** BULLISH ENGULFING CANONICAL ADAPTATION — OWNER
+TECHNICAL APPROVAL GRANTED. Frozen at `uct-dashboard-bullish-engulfing`,
+branch `feat/canonical-bullish-engulfing`, HEAD `43e5ca4dd`. No merge/push/
+deploy. Joins the existing hold set.
+
+## 8G-B CHECK (2026-09-06, ~14:45 UTC, quiet Sunday)
+
+Verified without manufacturing any load:
+- `contention_trace_temp.py` present at current `origin/master` tip
+  (`dc5dbe0c9`) — confirmed via `git show origin/master:api/services/
+  screener/contention_trace_temp.py`. Only one follow-up commit since it
+  landed (`b5fda5db9`, an env-override fix to its watched DB paths) — no
+  revert, no removal.
+- `railway logs --service web`: service healthy, `instrument_scheduler`
+  wrapping active, `[mem] rss_mb=.../threads=57` telemetry lines present
+  (the diagnostic's own "cheap process context" logging convention),
+  `[screener-live] cycle skipped: not_regular_session (session=post_market)`
+  — correct weekend behavior.
+- `GET /api/health`: `{"status":"ok","uptime_seconds":1294,"thread_count":57,
+  "rss_mb":1202.3}` — healthy, consistent with the logs.
+- **Zero contention log samples today** — expected, not concerning: the
+  diagnostic only fires on an actual `/api/screener/scan` request, and a
+  quiet Sunday has none. Tuesday 2026-09-08 RTH (Monday 9/7 is Labor Day)
+  remains the next real evidence window.
+
+Next family authorized: **Bearish Engulfing**, new isolated worktree, own
+package. Bullish/bearish semantic diff required BEFORE any code is copied.
