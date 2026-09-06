@@ -465,6 +465,25 @@ def _start_flow_schedulers():
                 log.info("[startup] Alpha Gold EOD summary cron registered (16:05 ET weekdays)")
             else:
                 log.info("[startup] Alpha Gold EOD summary disabled (ALPHA_GOLD_EOD_ENABLED != 1)")
+
+            # ── Cream of the Crop EOD (2026-09-05): the day's highest-conviction
+            # AGGREGATE builds, curation-free — the blind spot Top Flow (single prints)
+            # and the hand-curated Watchlist both had. Registered DARK: scheduled_cream_
+            # eod self-gates on CREAM_EOD_ENABLED, so it builds + posts NOTHING until
+            # armed. 16:10 ET, 5 min after Alpha Gold so the two don't race the tape.
+            # ⚠ SAME DEPLOY GOTCHA as alpha_gold_eod: api/cream_card.py is NOT in the
+            # flow-worker watch paths — edits to it must piggyback on THIS file (or
+            # live_massive_router.py, where compute_cream lives).
+            from apscheduler.triggers.cron import CronTrigger as _CRCron
+            from api import cream_card as _cream
+            sched.add_job(_cream.scheduled_cream_eod,
+                          trigger=_CRCron(day_of_week="mon-fri", hour=16, minute=10,
+                                          timezone=ZoneInfo("America/New_York")),
+                          id="cream_eod", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] Cream of the Crop EOD cron registered (16:10 ET weekdays; "
+                     "dark until CREAM_EOD_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
 

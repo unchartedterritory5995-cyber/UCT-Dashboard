@@ -4232,40 +4232,46 @@ def compute_cream(today: str, top_n=None, min_voi=None,
     excl_bo = (os.getenv("CREAM_EXCLUDE_BLOCK_ONLY", "1") == "1") if exclude_block_only is None else bool(exclude_block_only)
 
     meta = _cream_contract_meta(today)
-    # ONE full-day scan (tier=None), then keep only the aggregate tiers.
-    alerts, _ = _compute_recent_core(today, 100000, "F", "premium", None, False)
+    # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
+    # "latest N" window, which crowds the rare aggregate tiers out (measured 9/4: 5
+    # alpha_leaps vs 61 with a per-tier scan); the tier-scoped fetch is tier-aware
+    # and returns the whole day's rows for that tier.
     best: dict = {}
-    for a in alerts:
-        if a.get("_tierKey") not in _CREAM_TIERS:
-            continue
-        if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
-            continue
-        d = a.get("_direction")
-        if d not in ("Bull", "Bear"):
-            continue
-        wk, swp = meta.get(_cream_meta_key(a), (False, True))
-        if excl_wk and wk:
-            continue
-        if excl_bo and not swp:
-            continue
-        oi = a.get("priorOI") or 0
-        av = a.get("aggAskVolume") or 0
-        fresh = (oi <= 0 and av > 0)
-        if not fresh and (oi <= 0 or (av / oi) <= min_voi):
-            continue
-        agg = a.get("aggAskPremium") or a.get("alertPremium") or 0
-        tk = a.get("ticker")
-        cur = best.get(tk)
-        if cur is None or agg > cur["_agg"]:
-            best[tk] = {
-                "sym": tk, "cp": a.get("cp"), "strike": a.get("strike"),
-                "exp": a.get("exp"), "prem": float(agg), "vol": int(av),
-                "oi": int(oi) if oi else 0,
-                "voi": (None if fresh else round(av / oi, 1)),
-                "grade": (a.get("grade") or "").replace(" \U0001F680", ""),
-                "dte": a.get("dte"), "tier": a.get("_tierKey"),
-                "_dir": d, "_agg": float(agg),
-            }
+    seen_ids = set()
+    for _tier in _CREAM_TIERS:
+        alerts, _ = _compute_recent_core(today, 100000, "F", "premium", _tier, False)
+        for a in alerts:
+            if a.get("id") in seen_ids:
+                continue
+            seen_ids.add(a.get("id"))
+            if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
+                continue
+            d = a.get("_direction")
+            if d not in ("Bull", "Bear"):
+                continue
+            wk, swp = meta.get(_cream_meta_key(a), (False, True))
+            if excl_wk and wk:
+                continue
+            if excl_bo and not swp:
+                continue
+            oi = a.get("priorOI") or 0
+            av = a.get("aggAskVolume") or 0
+            fresh = (oi <= 0 and av > 0)
+            if not fresh and (oi <= 0 or (av / oi) <= min_voi):
+                continue
+            agg = a.get("aggAskPremium") or a.get("alertPremium") or 0
+            tk = a.get("ticker")
+            cur = best.get(tk)
+            if cur is None or agg > cur["_agg"]:
+                best[tk] = {
+                    "sym": tk, "cp": a.get("cp"), "strike": a.get("strike"),
+                    "exp": a.get("exp"), "prem": float(agg), "vol": int(av),
+                    "oi": int(oi) if oi else 0,
+                    "voi": (None if fresh else round(av / oi, 1)),
+                    "grade": (a.get("grade") or "").replace(" \U0001F680", ""),
+                    "dte": a.get("dte"), "tier": a.get("_tierKey"),
+                    "_dir": d, "_agg": float(agg),
+                }
     rows = list(best.values())
     bull = sorted([r for r in rows if r["_dir"] == "Bull"], key=lambda r: -r["_agg"])[:top_n]
     bear = sorted([r for r in rows if r["_dir"] == "Bear"], key=lambda r: -r["_agg"])[:top_n]
@@ -4282,6 +4288,18 @@ def cream_preview(target_date: str = Query(default=None)):
     ttl = 60 if today == _today_mdyyyy() else _HISTORICAL_TTL
     return _cached_single_flight(_cream_cache, today, _cream_lock, ttl,
                                  lambda: compute_cream(today))
+
+
+@router.post("/cream/post")
+def cream_post(target_date: str = Query(default=None),
+               post: bool = Query(default=True, description="false = dry-run (render only, no Discord)"),
+               _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card and (post=true) push it to the
+    configured webhook — which falls back to the Alpha-Gold-EOD / LiveFlow ADMIN
+    webhook, never a public channel. `post=false` = dry-run (render + summary only).
+    force=True is implied so a manual trigger always renders even on an empty day."""
+    from api.cream_card import run_cream_eod
+    return run_cream_eod(target_date=target_date, force=True, post=post)
 
 
 @router.get("/by-contract")

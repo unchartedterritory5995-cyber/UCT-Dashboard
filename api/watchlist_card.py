@@ -133,14 +133,15 @@ _D_COLS = [("TICKER", 36, "l"), ("EXP", 350, "l"), ("STRIKE", 500, "r"),
            ("OI", 920, "r"), ("V/OI", 1000, "r"), ("GRADE", 1068, "l")]
 
 
-def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
+def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                    title="Watchlist", section="WATCHLIST") -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
     def s(v):
         return int(v * _SS)
 
-    sections = [("BULL WATCHLIST", bull, _BULL), ("BEAR WATCHLIST", bear, _BEAR)]
+    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
     body_h = sum(_D_SECH + max(1, len(rows)) * _D_ROWH for _, rows, _ in sections)
     H = _D_TOP + body_h + 54
     img = Image.new("RGB", (s(_D_W), s(H)), _BG)
@@ -155,7 +156,7 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes
     _logo(Image, img, 32, 18, 48)
     tx = 94
     tx += txt(tx, 24, "UCT Intelligence", f_title, _GOLD) + 12
-    tx += txt(tx, 24, "· Watchlist", f_title, _GOLD_DIM) + 12
+    tx += txt(tx, 24, "· " + title, f_title, _GOLD_DIM) + 12
     txt(tx, 32, "— " + date_text, f_date, _DIM)
     for hdr, x, al in _D_COLS:
         txt(x, _D_TOP - 30, hdr, f_hdr, _DIM, al)
@@ -203,14 +204,15 @@ def _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes
 _M_W, _M_ROWH, _M_TOP, _M_SECH, _M_L, _M_R = 560, 34, 90, 30, 20, 540
 
 
-def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
+def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text,
+                   title="Watchlist", section="WATCHLIST") -> bytes:
     def font(n, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, n), int(pt * _SS))
 
     def s(v):
         return int(v * _SS)
 
-    sections = [("BULL WATCHLIST", bull, _BULL), ("BEAR WATCHLIST", bear, _BEAR)]
+    sections = [(f"BULL {section}", bull, _BULL), (f"BEAR {section}", bear, _BEAR)]
     body_h = sum(_M_SECH + max(1, len(rows)) * _M_ROWH for _, rows, _ in sections)
     H = _M_TOP + body_h + 44
     img = Image.new("RGB", (s(_M_W), s(H)), _BG)
@@ -226,7 +228,7 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
     _logo(Image, img, 20, 16, 40)
     hx = 70
     hx += txt(hx, 20, "UCT Intelligence", f_title, _GOLD) + 8
-    txt(hx, 25, "· Watchlist", f_title, _GOLD_DIM)
+    txt(hx, 25, "· " + title, f_title, _GOLD_DIM)
     txt(70, 48, date_text, f_sub, _DIM)
     d.rectangle([s(20), s(_M_TOP - 14), s(_M_W - 20), s(_M_TOP - 14) + 1], fill=_DIV)
 
@@ -269,11 +271,14 @@ def _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text) -> bytes:
 
 
 # ── public entry ────────────────────────────────────────────────────────────
-def render_watchlist_card(bull, bear, date_text, mobile: bool = False) -> bytes:
+def render_watchlist_card(bull, bear, date_text, mobile: bool = False,
+                          title: str = "Watchlist", section: str = "WATCHLIST") -> bytes:
     """Render one PNG (Bull section + Bear section). mobile=True → narrow one-line
-    layout; else the wide desktop table. Rows sorted by premium descending."""
+    layout; else the wide desktop table. Rows sorted by premium descending. `title`
+    fills the header ("· <title>") and `section` the row-group labels ("BULL <section>")
+    so the same renderer serves the Watchlist and the Cream of the Crop cards."""
     from PIL import Image, ImageDraw, ImageFont
     bull, bear = _by_premium(bull), _by_premium(bear)
     if mobile:
-        return _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text)
-    return _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text)
+        return _render_mobile(Image, ImageDraw, ImageFont, bull, bear, date_text, title, section)
+    return _render_desktop(Image, ImageDraw, ImageFont, bull, bear, date_text, title, section)
