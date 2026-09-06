@@ -1282,8 +1282,15 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       }}>
         {alert.volumeOIRatio ? `${alert.volumeOIRatio.toFixed(1)}x` : "—"}
       </span>
-      <span style={{ color: premColor, fontWeight: premWeight, textAlign: "center" }}>
-        {fmtPremium(alert.alertPremium)}
+      <span style={{ color: premColor, fontWeight: premWeight, textAlign: "center" }}
+            title={((alert._tierKey === "ask_accum" || alert._tierKey === "alpha_leaps")
+                    && (alert.aggAskPremium || 0) > (alert.alertPremium || 0))
+                   ? `Session ask BUILD on this contract (sweeps + blocks). Anchor print: ${fmtPremium(alert.alertPremium)}`
+                   : undefined}>
+        {((alert._tierKey === "ask_accum" || alert._tierKey === "alpha_leaps")
+          && (alert.aggAskPremium || 0) > (alert.alertPremium || 0))
+          ? <>{fmtPremium(alert.aggAskPremium)}<span style={{ color: P.dm, fontSize: 9, verticalAlign: "super", marginLeft: 2 }}>∑</span></>
+          : fmtPremium(alert.alertPremium)}
       </span>
       <span style={{
         color: alert.grade?.startsWith("A") ? P.ac :

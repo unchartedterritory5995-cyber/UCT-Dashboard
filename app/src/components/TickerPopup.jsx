@@ -15,6 +15,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
+import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerPopup.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -82,6 +83,12 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   // TickerHubSheet's own go() helper.
   const goToResearch = () => { closeModal(); navigate(`/research/${activeSym}`) }
   const goToAskAi = () => { closeModal(); navigate(`/research/${activeSym}?section=ai`) }
+  // Compare entry point (closes the BROKEN dead end — Portfolio/Position
+  // Intelligence Convergence V1 Part A1). Same canonical route + picker
+  // ResearchHeader's own "+ Compare" uses; NOT the compareSymbol/
+  // onCompareChange on-chart overlay further down (that's a separate,
+  // unrelated mechanism and is left untouched).
+  const goToCompare = (comparator) => { closeModal(); navigate(`/research/${activeSym}/compare/${comparator.toUpperCase()}`) }
 
   // Fetch live price only when modal is open
   const { prices } = useRealtimePrices(modalOpen && activeSym ? [activeSym] : [])
@@ -236,6 +243,9 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 >
                   <UIcon name="sparkle" size={14} />
                 </button>
+                <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
+                  <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+                </span>
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}

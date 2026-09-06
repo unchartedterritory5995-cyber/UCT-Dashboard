@@ -28,10 +28,19 @@
   min-height: 0;
 }
 
-/* Period bar (TODAY/1W/1M/3M/1Y/YTD) wraps when narrow. */
-@container (max-width: 320px) {
-  .pageEmbedded .periodBar { flex-wrap: wrap; gap: 2px; padding: 6px 8px; }
-  .pageEmbedded .periodTab { padding: 2px 6px; font-size: 9px; }
+/* Period bar keeps everything on ONE row. As the widget narrows we HIDE the extra buttons
+   (notebook first, then the gear) so the timeframes stay full-size — only if it's still too
+   tight after both are gone do the tabs shrink (last resort). */
+@container (max-width: 330px) {
+  .pageEmbedded .periodBar { gap: 3px; padding: 0 8px; }
+  .pageEmbedded .journalBtn { display: none; }   /* 1) drop the notebook button */
+}
+@container (max-width: 290px) {
+  .pageEmbedded .periodBar { gap: 2px; padding: 0 6px; }
+  .pageEmbedded .gearBtn { display: none; }        /* 2) then the gear → just the timeframes */
+}
+@container (max-width: 250px) {
+  .pageEmbedded .periodTab { padding: 2px 5px; font-size: calc(8.5px * var(--tt-font-scale, 1)); letter-spacing: 0.4px; }
 }
 
 /* ── Period rank tabs ───────────────────────────────────────────────────── */
@@ -40,7 +49,7 @@
    the default look. */
 .periodBar {
   display: flex;
-  flex-wrap: wrap;   /* narrow widget → tabs that don't fit stack onto the next row */
+  flex-wrap: nowrap;   /* keep ONE row — tabs shrink via the container queries above */
   align-items: center;
   gap: 4px;
   padding: 0 12px;
@@ -57,6 +66,7 @@
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
+  white-space: nowrap;   /* never wrap "3M ↑" onto 2 lines mid-resize (grows the gold outline) */
   padding: 3px 10px;
   border-radius: 3px;
   border: 1px solid transparent;
@@ -99,7 +109,8 @@
   padding: 2px 7px;
   border: none;
   background: transparent;
-  color: var(--tt-text, var(--text-muted));
+  /* Same cool near-white as the 1W/1M/… period tabs (not the dim muted grey). */
+  color: var(--text-bright, #e4e6ea);
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
@@ -286,19 +297,16 @@
   transition: opacity 0.12s ease;
 }
 
-/* Today column header = the Close|Open basis switch + the sort caret. Sized to its content
-   and right-aligned; it overflows left into the empty header space so it needs NO extra
-   header height and stays aligned above the % values. */
+/* Today column header = the Close|Open basis switch + the clickable "1D" sort label. Sized
+   to its content and right-aligned; it overflows left into the empty header space so it needs
+   NO extra header height and stays aligned above the % values. The gap gives the pill a bit of
+   room from the 1D label. */
 .headerBasis {
   justify-self: end;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   white-space: nowrap;
-}
-.headerSortCaret {
-  padding: 0 1px;
-  min-width: 0;
 }
 
 /* Scrollable rows area */
@@ -743,8 +751,8 @@
 }
 @media (max-width: 640px) {
   .leftPanel { max-height: 40vh; }
-  .periodBar { flex-wrap: wrap; gap: 2px; padding: 6px 8px; }
-  .periodTab { font-size: 10px; padding: 6px 8px; }
+  .periodBar { flex-wrap: nowrap; gap: 3px; padding: 4px 8px; }
+  .periodTab { font-size: 10px; padding: 4px 7px; }
   .searchInput { font-size: 16px; }
   .chartPeriodTabs { position: static; transform: none; justify-content: center; margin-top: 4px; }
   .chartPeriodBtn { padding: 6px 8px; font-size: 10px; }
@@ -793,4 +801,447 @@
     display: inline-flex;
     align-items: center;
   }
+}
+
+
+/* ── Personal theme SETS UI (flag-gated; absent for default users) ──────────── */
+.setBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+/* inline-flex + gap gives the Edit button the SAME breathing room from the set-name button
+   as there is between the Edit button and the search bar (the .searchRow gap). */
+.setPicker { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.setPickerBtn {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setCaret { opacity: 0.7; font-size: 9px; margin-left: 2px; }
+.setMenuBackdrop { position: fixed; inset: 0; z-index: 40; }
+.setMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 41;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+}
+.setMenu button {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.setMenu button:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuActive { color: var(--tt-accent, var(--ut-gold)) !important; font-weight: 700; }
+.setMenuSep { height: 1px; background: var(--tt-divider, var(--border)); margin: 4px 2px; }
+.setMenuDanger { color: var(--color-danger, #f87171) !important; }
+.setEditBtn, .setAddBtn {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 3px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setEditBtn:hover, .setAddBtn:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setEditBtnActive {
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
+  border-color: var(--accent);
+}
+.hiddenBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+.hiddenLabel { font-size: calc(9px * var(--tt-font-scale, 1)); color: var(--tt-text, var(--text-muted)); text-transform: uppercase; letter-spacing: 0.6px; }
+.hiddenChip {
+  font-family: var(--font-sans);
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  padding: 2px 7px;
+  border: 1px dashed var(--tt-divider, var(--border));
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.hiddenChip:hover { border-style: solid; color: var(--tt-accent, var(--ut-gold)); }
+
+/* Custom-theme badge + edit affordances on rows */
+.customBadge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 1px 4px;
+  margin-left: 6px;
+  border-radius: 3px;
+  color: var(--tt-accent, var(--ut-gold));
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.14));
+}
+.editRemove {
+  border: none;
+  background: transparent;
+  color: var(--color-danger, #f87171);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+.editRemove:hover { opacity: 1; background: rgba(248, 113, 113, 0.14); }
+.addStockRow { cursor: default; }
+.addStockInput {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 3px 8px;
+  border: 1px dashed var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+}
+.addStockInput:focus { border-style: solid; border-color: var(--tt-accent, var(--ut-gold)); }
+.addStockGo {
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 3px 9px;
+  margin-left: 6px;
+  border: none;
+  border-radius: 4px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+}
+
+
+/* ── Theme SETS v2: search-row picker + in-widget create/rename/delete + edit toolbar ── */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* No vertical padding — the fixed height keeps this row the SAME height as the period bar
+     (34px) so both header rows line up with the chart widget's title + timeframe rows. */
+  padding: 0 10px;
+  height: 34px;
+  box-sizing: border-box;
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+/* The search box (ThemeSearchBox) sheds its own row chrome when it rides the search row. */
+.searchRow .searchBar {
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  min-height: auto;
+  flex: 1;
+  min-width: 0;
+}
+/* Match the search input's height to the set-name / Edit buttons (compact, centered). */
+.searchRow .searchInput {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.setPickerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 4px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  /* White, matching the rest of the tracker (was gold). */
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setCaret { opacity: 0.7; font-size: 9px; }
+
+.setMenuName {
+  flex: 1;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setMenuName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.setRowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 5px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);   /* brighter than the old muted grey */
+  opacity: 0.7;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.setRowBtn:hover { opacity: 1; color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.setRowTrash:hover { color: var(--color-danger, #f87171); background: rgba(248, 113, 113, 0.12); }
+.setRowConfirm {
+  color: var(--color-danger, #f87171) !important;
+  background: rgba(248, 113, 113, 0.18);
+  opacity: 1;
+}
+.setInline {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 5px 8px;
+  border: 1px solid var(--tt-accent, var(--ut-gold));
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+}
+.setNewRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+.setNewGo {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 5px 9px;
+  border: none;
+  border-radius: 4px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.16));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.setNewGo:disabled { opacity: 0.4; cursor: default; }
+
+/* Edit toolbar — contextual, only in edit mode */
+.editToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.08));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  flex-shrink: 0;
+}
+.editTool {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.editTool:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.editToolDanger {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-danger, #f87171);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.editToolDanger:hover { background: rgba(248, 113, 113, 0.12); }
+.editHint {
+  margin-left: auto;
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  color: var(--text-secondary, #aab2bd);   /* brighter than muted so it reads on dark */
+  font-style: italic;
+}
+
+/* Add-theme search picker */
+.addThemeWrap { position: relative; }
+.addThemeMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 41;
+  width: 260px;
+  max-width: 80vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+}
+.addThemeSearch {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-bright, #e4e6ea);
+  outline: none;
+  margin-bottom: 4px;
+}
+.addThemeSearch:focus { border-color: var(--tt-accent, var(--ut-gold)); }
+.addThemeList {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.addThemeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+}
+.addThemeItem:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
+.addThemeName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.addThemeMark { color: var(--tt-accent, var(--ut-gold)); flex-shrink: 0; }
+.addThemeItemIn { opacity: 0.55; cursor: default; }
+.addThemeItemIn:hover { background: transparent; }
+.addThemeEmpty { padding: 10px; font-size: 11px; color: var(--tt-text, var(--text-muted)); text-align: center; }
+
+
+/* ── v3: floating (portal) dropdown + brighter placeholder text ────────────── */
+/* Rendered in a body portal so the widget's overflow:hidden can never clip it — it floats
+   on top and spills past the widget edge when the widget is thin. */
+.floatBackdrop { position: fixed; inset: 0; z-index: 9998; }
+.floatMenu {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14161a);
+  border: 1px solid var(--menu-border, var(--tt-divider, var(--border)));
+  border-radius: 6px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+/* Brighter placeholders — the muted grey was hard to read on a dark canvas. */
+.setInline::placeholder,
+.addThemeSearch::placeholder,
+.addStockInput::placeholder {
+  color: var(--text-secondary, #a8b0bd);
+  opacity: 1;
+}
+
+/* Delete-set inline confirm (replaces the non-discoverable 2-click trash). */
+.setConfirmRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+}
+.setConfirmLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  color: var(--text-bright, #e4e6ea);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setConfirmYes {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-danger, #f87171);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.setConfirmNo {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  padding: 4px 9px;
+  border: 1px solid var(--tt-divider, var(--border));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-bright, #e4e6ea);
+  cursor: pointer;
+  flex-shrink: 0;
 }

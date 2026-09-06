@@ -17,6 +17,7 @@ from api.services.research.ownership import get_ownership
 from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
+from api.services.research.comparison import get_comparison
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -251,6 +252,17 @@ def research_ratings(sym: str):
     except Exception as exc:
         _logger.warning("research ratings failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}
+
+
+@router.get("/api/research/compare/{sym}/{comparator}")
+def research_compare(sym: str, comparator: str):
+    """Cross-Security Comparison V1 (owner authorization) -- deterministic
+    side-by-side, no AI. See api/services/research/comparison.py for scope."""
+    try:
+        return get_comparison(sym, comparator)
+    except Exception as exc:
+        _logger.warning("research compare failed for %s vs %s: %s", sym, comparator, exc)
+        return {"error": "comparison temporarily unavailable"}
 
 
 @router.post("/api/research/snapshot-batch")

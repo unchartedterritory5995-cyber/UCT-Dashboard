@@ -66,6 +66,12 @@ const Subscribe = lazy(() => import('./pages/Subscribe'))
 const Dashboard = lazyPage('/dashboard', () => import('./pages/Dashboard'))
 const MorningWire = lazyPage('/morning-wire', () => import('./pages/MorningWire'))
 const ResearchPage = lazyPage('/research', () => import('./pages/research/ResearchPage'))
+// Plain lazy(), not lazyPage() -- lazyPage's `path` is a Map KEY used to
+// prefetch the CURRENT boot route's chunk; reusing '/research' here would
+// silently overwrite ResearchPage's own prefetch entry. Per lazyPage's own
+// comment, omitting the accelerator is always safe (chunk just starts after
+// auth like any other unregistered route).
+const ResearchComparePage = lazy(() => import('./pages/research/ResearchComparePage'))
 const UCT20 = lazyPage('/uct-20', () => import('./pages/UCT20'))
 const Breadth = lazyPage('/breadth', () => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
@@ -449,6 +455,7 @@ export default function App() {
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/research/:sym" element={<ResearchPage />} />
+                <Route path="/research/:sym/compare/:comparator" element={<ResearchComparePage />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />

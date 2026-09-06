@@ -50,13 +50,52 @@ def _read_bars(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 400) or []
 
 
+def _evidence_bar(bars):
+    """The last CLOSED bar (bars[-2]), not the developing candle (bars[-1],
+    which mutates every hour during a live session) -- the single source of
+    truth for both the signals hash and the evidence date, so the two can
+    never disagree about which bar is actually being judged."""
+    if len(bars) >= 2:
+        return bars[-2]
+    if bars:
+        return bars[-1]
+    return None
+
+
+def _evidence_date(bars) -> str:
+    """The actual session date the evidence bar represents -- NOT wall-clock
+    today. `bars_sqlite.get_bars`'s own docstring: daily/weekly/monthly `ts`
+    is a YYYYMMDD int, so this is a direct read, no timezone math. Falls back
+    to today only when there are no bars at all (candidates_for already
+    returns [] in that case, so this branch is defensive, not load-bearing).
+
+    Fixes a real defect (owner-authorized, 2026-09-05): asof_date used to be
+    datetime.date.today().isoformat(), so on a weekday market holiday (no new
+    session, the evidence bar unchanged from the prior real trading day) the
+    calendar date still advanced, minting a dedup key that never matched the
+    prior verdict -- causing a real paid re-judgment of unchanged evidence,
+    persisted under a misleading holiday date. The dedup contract must follow
+    evidence identity (this bar), not scheduler wall-clock date.
+    """
+    bar = _evidence_bar(bars)
+    if not bar:
+        return datetime.date.today().isoformat()
+    ts = bar[0]
+    s = str(int(ts))
+    if len(s) == 8:  # YYYYMMDD -- daily/weekly/monthly bars (this orchestrator's only tf)
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    # Defensive: an intraday tf's ts is unix seconds, not YYYYMMDD -- convert
+    # from the bar's own timestamp rather than guessing a format that doesn't apply.
+    return datetime.datetime.fromtimestamp(int(ts), tz=datetime.timezone.utc).date().isoformat()
+
+
 def _signals_hash(ticker, setup, bars) -> str:
     # Key off the last CLOSED bar (bars[-2]), not the developing candle:
     # bars[-1] mutates every hour during the session, and hashing it made every
     # hourly run re-judge every open candidate (~8x daily Opus spend for the
     # same setup). A candidate is judged once when it first appears (no prior
     # verdict) and again only when a new bar actually closes.
-    tail = bars[-2] if len(bars) >= 2 else (bars[-1] if bars else ())
+    tail = _evidence_bar(bars) or ()
     return hashlib.sha1(f"{ticker}|{setup}|{tail}".encode()).hexdigest()[:16]
 
 
@@ -80,7 +119,7 @@ def candidates_for(ticker, tf="D") -> list[dict]:
         log.warning("[pv] candidates_for %s failed: %s", ticker, e)
         return []
     best = {}
-    today = datetime.date.today().isoformat()
+    asof = _evidence_date(bars)
     for d in raw:
         sid = d.get("pattern_id")
         if sid not in FOCUSED_SETUPS:
@@ -88,7 +127,7 @@ def candidates_for(ticker, tf="D") -> list[dict]:
         conf = float(d.get("confidence") or 0)
         key_level = (d.get("levels") or {}).get("entry")
         if sid not in best or conf > best[sid]["raw_confidence"]:
-            best[sid] = {"setup": sid, "raw_confidence": conf, "asof_date": today,
+            best[sid] = {"setup": sid, "raw_confidence": conf, "asof_date": asof,
                          "key_level": key_level}
     return list(best.values())
 

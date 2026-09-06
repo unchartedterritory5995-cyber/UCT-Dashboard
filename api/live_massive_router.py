@@ -315,6 +315,9 @@ DEFAULT_THRESHOLDS = {
     "ask_accum_max_otm_pct": 50.0,
     "ask_accum_require_unusual": True,     # apply the contract-conviction guard
     "ask_accum_min_contract_voi": 1.0,     # session ask vol / contract OI floor (NEW-build test)
+    "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
+                                             # options (0/unknown mktcap); 0 disables. Replaced
+                                             # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -1230,15 +1233,22 @@ def _ask_accum_conviction(oi, agg_ask_volume: float, thresholds: dict) -> bool:
 
 
 def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
-                         agg_ask_volume: float, oi, thresholds: dict) -> bool:
+                         agg_ask_volume: float, oi, mktcap, thresholds: dict,
+                         apply_mktcap: bool = True) -> bool:
     """The SINGLE definition of "this row is a UCT Ask Accumulation build": an
-    ask-side row on a contract whose SESSION ask aggregate clears the floor, is
-    near-the-money, and shows contract-level NEW-build conviction. Used by BOTH the
-    classifier gates (_derive_alert_name promotion + tier) AND the deep-OTM lottery
-    EXEMPTION in _row_to_alert — a $1M+/high-V/OI build is conviction, not the
-    retail lottery the OTM noise filter is meant to drop, and without the exemption
-    the row is discarded before it can ever be classified (the deepest PPTA
-    blocker: the 35C is ~41% OTM vs spot, past the 30%-block lottery bar)."""
+    ask-side row on a NON-megacap contract whose SESSION ask aggregate clears the
+    floor, is near-the-money, and shows contract-level NEW-build conviction. Used by
+    BOTH the classifier gates (_derive_alert_name promotion + tier) AND the deep-OTM
+    lottery EXEMPTION in _row_to_alert.
+
+    ⚠️ The market-cap ceiling is the PRIMARY noise guard (replaced name-dormancy
+    2026-09-05). On a mega-cap or INDEX option, a whole session's ask prints on one
+    contract sum past its OI as ROUTINE churn, not conviction — measured on 9/4, the
+    aggregate-V/OI test alone classified 275 contracts of which 258 were mega/index
+    (SPX, NDX, AAPL, NVDA...). A $50B ceiling left 17, PPTA ($2.98B) among them.
+    Dormancy tried to encode the same "quiet name" idea but excluded PPTA (it alerts
+    almost daily); market cap is the criterion PPTA passes. Index options report
+    mktcap 0/unknown and are excluded. Set ask_accum_max_mktcap=0 to disable."""
     if not thresholds.get("ask_accum_enabled", True):
         return False
     if (side or "").strip().upper() not in ("A", "AA"):
@@ -1247,6 +1257,18 @@ def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
         return False
     if money_pct is None or abs(money_pct) > thresholds.get("ask_accum_max_otm_pct", 50.0):
         return False
+    # apply_mktcap=False for the deep-OTM lottery exemption: that filter is about
+    # "is this a retail lottery ticket," which a large aggregate ask build never is
+    # regardless of cap — so a mega-cap deep-OTM Alpha LEAPS build ($3M+) must still
+    # be exempted from the drop even though the ask_accum TIER itself excludes megacaps.
+    _cap_ceil = thresholds.get("ask_accum_max_mktcap", 50_000_000_000)
+    if apply_mktcap and _cap_ceil:
+        try:
+            _mc = float(mktcap or 0)
+        except (TypeError, ValueError):
+            _mc = 0.0
+        if not (0 < _mc < float(_cap_ceil)):   # 0/unknown (index) or >= ceiling → out
+            return False
     if (thresholds.get("ask_accum_require_unusual", True)
             and not _ask_accum_conviction(oi, agg_ask_volume, thresholds)):
         return False
@@ -1308,6 +1330,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     dte = _parse_int(row["Dte"])
     volume = _parse_int(row["Volume"])
     oi = _parse_int(row["OI"])
+    mktcap = _parse_int(row.get("MktCap"))   # Ask Accumulation mega-cap ceiling
     v_oi = (volume / oi) if oi > 0 else 0
 
     # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
@@ -1397,7 +1420,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_pth = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, _aa_pth):
+                                agg_ask_volume, oi, mktcap, _aa_pth):
             color = "MAGENTA"
 
     if color == "MAGENTA":
@@ -1512,7 +1535,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         except Exception:
             _aa_th = DEFAULT_THRESHOLDS
         if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                agg_ask_volume, oi, _aa_th):
+                                agg_ask_volume, oi, mktcap, _aa_th):
             return (f"UCT Ask Accumulation {direction}", "ask_accum",
                     TIER_PRIORITY["ask_accum"])
         # LEAPS
@@ -1884,7 +1907,9 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     except Exception:
         _aa_otm_th = DEFAULT_THRESHOLDS
     _aa_otm_exempt = _ask_accum_qualifies(side, money_pct, agg_ask_premium,
-                                          agg_ask_volume, oi, _aa_otm_th)
+                                          agg_ask_volume, oi,
+                                          _parse_int(row.get("MktCap")), _aa_otm_th,
+                                          apply_mktcap=False)
     if spot > 0 and dte < 365 and not _aa_otm_exempt:
         try:
             _t_otm = _aa_otm_th
@@ -1961,8 +1986,24 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     alert_name, tier_key, tier_priority = result
     is_leaps = dte >= 180
 
+    # Aggregate-graded tiers (Ask Accumulation / Alpha LEAPS) represent a BUILD —
+    # sweeps + blocks on ONE contract — not a single print, so grade on the session
+    # ask aggregate (agg_ask_premium) so the grade reflects the whole position and
+    # matches the Watchlist (PPTA graded C on the $484K anchor vs A-tier on the real
+    # $1.21M build). alertPremium (the field) stays the single print so the Market
+    # Read bull/bear math isn't double-counted against the build's constituent prints;
+    # the aggregate is carried separately in aggAskPremium (what the row DISPLAYS).
+    _grade_prem, _grade_vol = premium, volume
+    if tier_key in ("ask_accum", "alpha_leaps"):
+        if agg_ask_premium:
+            _grade_prem = max(premium, int(agg_ask_premium or 0))
+        if agg_ask_volume:
+            # OI-break on the BUILD's session ask volume (7,277 vs 2,321 OI = 3.1x
+            # for PPTA), not the anchor print's, so the grade sees the real position.
+            _grade_vol = max(volume, int(agg_ask_volume or 0))
+
     score, grade = _compute_conviction(
-        premium=premium, oi=oi, volume=volume,
+        premium=_grade_prem, oi=oi, volume=_grade_vol,
         tier_priority=tier_priority, moneyness_label=money_label,
         moneyness_pct=money_pct, is_leaps=is_leaps,
     )
@@ -3889,6 +3930,36 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         finally:
             conn.close()
 
+    # Per-(contract, session) ask ledgers so the AGGREGATE tiers (Ask Accumulation /
+    # Alpha LEAPS) classify in the By-Contract view too — mirrors _compute_recent_core.
+    # Built from a SEPARATE full-session query (every sided print incl. blank-side
+    # sweeps) per source+date, keyed by the globally-unique row id, so a contract's
+    # aggregate is per-DAY (not summed across the whole lookback window). Without this
+    # the rollup classified each print in isolation and those tiers — whose signal IS
+    # the aggregate, not any single print — could never appear here (2026-09-05).
+    _ask_prem_led, _ask_vol_led = {}, {}
+    if sources and (thresholds.get("alpha_leaps_enabled", True)
+                    or thresholds.get("ask_accum_enabled", True)):
+        _presume = bool(thresholds.get("sweep_empty_side_as_ask", True))
+        _lconn = sqlite3.connect(DB_PATH, timeout=10)
+        _lconn.row_factory = sqlite3.Row
+        try:
+            for _src in sources:
+                for _dt in target_dates:
+                    _lq = ("SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, "
+                           "Volume, Premium, Type FROM flow WHERE source=? AND CreatedDate=? "
+                           "AND (Side IN ('A','AA','B','BB') OR (COALESCE(Side,'')='' "
+                           "AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))")
+                    _lp = [_src, _dt]
+                    if only_ticker:
+                        _lq += " AND Symbol=?"
+                        _lp.append(only_ticker.strip().upper())
+                    _lrows = _lconn.execute(_lq, _lp).fetchall()
+                    _ask_prem_led.update(_build_session_ask_premium_ledger(_lrows, presume_sweep_ask=_presume))
+                    _ask_vol_led.update(_build_session_ask_volume_ledger(_lrows, presume_sweep_ask=_presume))
+        finally:
+            _lconn.close()
+
     # Group by contract
     contracts: dict = {}
     for r in rows:
@@ -3896,7 +3967,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # accumulation, even ones the tape drops for unclassifiable side. The
         # rollup's thesis is repetition; direction is derived from the sided
         # subset and shown as bull/bear/mixed with a sided-% for honesty.
-        a = _row_to_alert(dict(r), require_direction=False)
+        a = _row_to_alert(dict(r), require_direction=False,
+                          agg_ask_premium=_ask_prem_led.get(r["id"], 0.0),
+                          agg_ask_volume=_ask_vol_led.get(r["id"], 0.0))
         if a is None:
             continue
         if exclude_algo and a.get("_tierKey") == "algo":
@@ -5607,6 +5680,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "ask_accum_max_otm_pct",             # near-the-money bound (abs moneyness %)
         "ask_accum_require_unusual",         # apply the contract-conviction guard (_ask_accum_conviction)
         "ask_accum_min_contract_voi",        # session ask vol / contract OI floor (NEW-build test)
+        "ask_accum_max_mktcap",              # mega-cap/index ceiling (primary noise guard)
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side

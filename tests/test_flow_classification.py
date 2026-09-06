@@ -301,6 +301,7 @@ _AATH = {"ask_accum_enabled": True,
          "ask_accum_max_otm_pct": 50.0,
          "ask_accum_require_unusual": True,
          "ask_accum_min_contract_voi": 1.0,
+         "ask_accum_max_mktcap": 50_000_000_000,
          "fresh_strike_min_volume": 100}
 
 
@@ -309,7 +310,8 @@ def _accrow(**over):
     # single print so NOT Alpha Gold); ask side. Real PPTA 35C shape: OI 2321,
     # contract session ask volume ~7277 → V/OI ~3.1 (a NEW build).
     r = {"Color": "MAGENTA", "Type": "SWEEP", "Premium": "679865", "Side": "A",
-         "Dte": "133", "Volume": "4000", "OI": "2321", "Symbol": "PPTA"}
+         "Dte": "133", "Volume": "4000", "OI": "2321", "Symbol": "PPTA",
+         "MktCap": "2977000000"}   # ~$2.98B — under the mega-cap ceiling
     r.update(over)
     return r
 
@@ -374,6 +376,27 @@ def test_ask_accum_yellow_churn_not_promoted(monkeypatch):
     res = m._derive_alert_name(
         r, "Bull", money_pct=-28.6,
         agg_ask_premium=_PPTA_PREM, agg_ask_volume=900)
+    assert res is None or res[1] != "ask_accum"
+
+
+def test_ask_accum_excludes_megacap(monkeypatch):
+    # A liquid MEGA-CAP ($1T) with the same $1.21M / 3x-OI aggregate is routine ATM
+    # churn, not conviction — the mega-cap ceiling (primary noise guard) drops it.
+    # On 9/4 the aggregate-V/OI test alone let 258 mega/index contracts through.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    r = _accrow(MktCap="1000000000000")   # $1T
+    res = m._derive_alert_name(r, "Bull", money_pct=-28.6,
+                               agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
+    assert res is None or res[1] != "ask_accum"
+
+
+def test_ask_accum_excludes_index_unknown_mktcap(monkeypatch):
+    # Index options (SPX/NDX) report mktcap 0/unknown — the biggest 9/4 noise
+    # ($98M SPX puts). Excluded by the ceiling's 0-lower-bound.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _AATH)
+    r = _accrow(MktCap="0")
+    res = m._derive_alert_name(r, "Bull", money_pct=-28.6,
+                               agg_ask_premium=_PPTA_PREM, agg_ask_volume=_PPTA_VOL)
     assert res is None or res[1] != "ask_accum"
 
 
@@ -565,6 +588,21 @@ def test_ask_accum_curated_survives_hide_block_only():
     # a direction-unconfirmed aggregate is still rejected (never auto-fire that)
     assert m._qualifies_curated(dict(a, _directionUnconfirmed=True), th,
                                 contract_types={}) is False
+
+
+def test_ask_accum_grades_on_aggregate_not_anchor(monkeypatch):
+    # The row must grade on the $1.21M / 7,277-vol BUILD, not the $484K anchor print
+    # (which alone graded C). aggAskPremium carries the build for display.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: dict(m.DEFAULT_THRESHOLDS))
+    a = m._row_to_alert(_ppta_full_row(), agg_ask_premium=1_210_952, agg_ask_volume=7277)
+    assert a["_tierKey"] == "ask_accum"
+    assert a["grade"][0] in ("A", "B")          # lifted off C by the aggregate
+    assert a["aggAskPremium"] == 1_210_952       # the value the row displays
+    # grading the anchor print alone (the old behaviour) would be strictly worse
+    anchor = m._compute_conviction(premium=484532, oi=2321, volume=3000,
+                                   tier_priority=m.TIER_PRIORITY["ask_accum"],
+                                   moneyness_label="OTM", moneyness_pct=-29.1, is_leaps=False)
+    assert anchor[1][0] == "C"                   # anchor-only would be C
 
 
 def test_alpha_gold_beats_ask_accum(monkeypatch):
