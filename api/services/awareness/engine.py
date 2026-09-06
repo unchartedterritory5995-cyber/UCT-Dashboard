@@ -142,13 +142,47 @@ def _collect_earnings_window(today: date, days: int) -> dict[str, str]:
     return out
 
 
+def _compute_regime_component() -> dict:
+    """R4 (regime-flip)'s ENTIRE input, isolated as its own failure domain --
+    Seam 10 / Awareness Scan-Abort Hardening V1. `rule_stop_watch` (R1/R2,
+    keys off `live_prices` only) and `rule_earnings_proximity` (R5, keys off
+    `earnings_by_symbol` only) never read this dict's contents; R4 is the
+    ONLY rule that does. Before this fix, a failure anywhere in here (the
+    classifier's own fetch/classify, or either raw `regime_snapshots` SQLite
+    call -- neither had a try/except of its own) propagated uncaught out of
+    `_build_market_scan_ctx`, which had no try/except either, aborting the
+    ENTIRE cycle before the per-user rule loop even started: stop-watch and
+    earnings-proximity insights for EVERY user were silently lost that
+    cycle too, even though neither one touches regime data at all.
+
+    A missing/None `label` already reads as "nothing to report" to
+    `rule_regime_flip` (`if not label or not prev_label or label ==
+    prev_label: return []`) -- so degrading to that same shape on failure is
+    not a new code path, it is the rule's own pre-existing safe default,
+    reached one way instead of two."""
+    from api.services.voice_regime_classifier import get_current_regime
+
+    try:
+        prev_label = regime_snapshots.get_last_label()
+        current = get_current_regime()
+        label = current.get("regime")
+        confidence = current.get("confidence", 0.5)
+        if label:
+            regime_snapshots.record_snapshot(label, confidence)
+        return {"label": label, "confidence": confidence, "prev_label": prev_label,
+                "degraded": False}
+    except Exception as e:  # noqa: BLE001 -- R4's own failure domain only
+        _log.warning("[awareness] regime component failed, degrading R4 "
+                     "(stop-watch + earnings-proximity unaffected): %s", e)
+        return {"label": None, "confidence": 0.5, "prev_label": None, "degraded": True}
+
+
 def _build_market_scan_ctx(user_ctxs: dict) -> dict:
     """The ONE shared market-wide computation per cycle: regime (+ prior
     label from the durable snapshot ledger), an earnings window, and cached
     live prices for every symbol any user currently holds. No per-user or
     per-position network fetches happen here."""
     from api.routers.live_prices import cache as _px_cache, _px_key
-    from api.services.voice_regime_classifier import get_current_regime
 
     all_syms: set[str] = set()
     for ctx in user_ctxs.values():
@@ -163,12 +197,7 @@ def _build_market_scan_ctx(user_ctxs: dict) -> dict:
         if price:
             live_prices[sym] = float(price)
 
-    prev_label = regime_snapshots.get_last_label()
-    current = get_current_regime()
-    label = current.get("regime")
-    confidence = current.get("confidence", 0.5)
-    if label:
-        regime_snapshots.record_snapshot(label, confidence)
+    regime = _compute_regime_component()
 
     today = date.today()
     try:
@@ -179,7 +208,7 @@ def _build_market_scan_ctx(user_ctxs: dict) -> dict:
 
     return {
         "live_prices": live_prices,
-        "regime": {"label": label, "confidence": confidence, "prev_label": prev_label},
+        "regime": regime,
         "earnings_by_symbol": earnings_by_symbol,
         # rule_earnings_proximity reads this so its cutoff always matches the
         # collection window above (env-tunable end to end, not half-wired).
@@ -261,4 +290,5 @@ def run_awareness_scan() -> dict:
                 _log.warning("[awareness] fire failed user=%s kind=%s: %s",
                              user_id, candidate.kind, e)
 
-    return {"enabled": True, "scanned_users": len(user_ctxs), "fired": fired}
+    return {"enabled": True, "scanned_users": len(user_ctxs), "fired": fired,
+            "regime_degraded": bool(scan_ctx.get("regime", {}).get("degraded"))}
