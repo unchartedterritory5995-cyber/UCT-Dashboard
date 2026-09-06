@@ -5,55 +5,112 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state (post-
-AlertBell Keyboard Accessibility (Seam 5) merge/deploy/production-
-verification -- a continuous-execution program under the owner's 2026-09-06
-CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
+**Last verified:** 2026-09-06, against live git + Railway state, post a full
+owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent
+current-state review + synthesis, ~3.9M subagent tokens, 699 tool calls,
+zero lens failures) -- this superseded the lighter-weight ledger-ranking
+re-anchors this session had been running between programs. Full report
+delivered to the owner in-conversation; this doc keeps only the load-bearing
+conclusions, not the full 30-section report.
 
-## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
+## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
+## stack below; read this FIRST before selecting any future program
 
-The Terminal program is NOT primarily a defect-elimination/repo-cleanup/
-architecture-hardening project. The original objective: build UCT into ONE
-COHERENT professional AI-native financial intelligence workstation —
-DISCOVER → UNDERSTAND → RESEARCH → COMPARE → ASK → MONITOR → RECEIVE
-INTELLIGENCE → RETURN TO UPDATED RESEARCH, feeling like one system with many
-entry points, not many features with loose links. **Permanent course-
-correction rule:** do NOT automatically promote every newly discovered seam
-into the next program — a new issue becomes the next priority only if it is
-a MATERIAL TRUST/CORRECTNESS defect, blocks a CORE MEMBER WORKFLOW, blocks a
-HIGH-VALUE capability release, or would propagate a serious defect through a
-shared canonical contract. Otherwise: record it, classify it, preserve it in
-the debt ledger, continue the product plan. Priority stack as of this
-checkpoint (2026-09-06, post Identity Normalization Hardening V1): **#1
-Technical Research release** (blocked only by Pattern Vision reaching LIVE +
-ACCEPTED — classification is not due until after the Tue 9/8 / Wed 9/9
-two-session evidence window; when it happens, interrupt the queue safely and
-release it immediately) → **#2 (closed) Journal / Trade Lifecycle
-Convergence V1** → **#3 (closed) Search/Command Convergence V1** → **#4
-(closed) Event/News/Calendar → Research convergence V1** → **#5 (just
-closed) Identity normalization hardening V1** (write-time symbol
-canonicalization + Compare self-exclusion — see "CURRENT ACCEPTED" below for
-what actually closed vs. what remains open debt) → **#6 Technical Ask AI —
-Phase A run 2026-09-06, BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (a full 9th-
-domain implementation is fully specified and buildable today, but its sole
-trustworthy evidence source -- Pattern Vision confirmed verdicts -- is under
-the SAME live, in-flight, time-boxed acceptance trial gating Technical
-Research release above; see "CURRENT PARKED" below for the complete,
-ready-to-resume Phase A spec — do NOT re-run Phase A from scratch once
-Pattern Vision clears, resume from that spec) → **#7 (just closed) Shared
-Multi-Security Grounding Architecture V1** — the Comparison leg only
-(cross-security grounded AI on top of the already-accepted Comparison V1
-contract); Watchlist/Portfolio multi-security AI remain explicitly
-deferred, each needing its own new grounding contract (see "CURRENT
-ACCEPTED" below for what shipped and DEFERRED for what didn't).
+Owner-authorized, NOT a re-ranking of the existing ledger: a 13-lens parallel
+multi-agent review (core workflow, capability audit A+B, trust/provenance,
+AI grounding, portfolio/journal, monitoring, search/command, technical/
+scanner (read-only), mobile/UX, architecture, production reliability,
+competitive parity) plus one synthesis pass, all grounded in direct code
+reads + verified live state against `7e9770dae8be4126a941623a83bcff43cfcf8e50`.
+Full 30-section report delivered to the owner in-conversation; this doc
+keeps only what changes the standing plan.
 
-**Both #1 (Technical Research release) and #6 (Technical Ask AI) are now
-gated on the identical event** — Pattern Vision's classification, due after
-the Tue 9/8 / Wed 9/9 evidence window. When it resolves to LIVE + ACCEPTED or
-LIVE WITH CONDITIONS, both become eligible simultaneously; neither requires
-the other to ship first (confirmed independent by Technical Ask AI's Phase A
-dependency investigation — the parked Technical Research branch adds zero
-backend code and shares no contract with a Technical Ask AI composer).
+**Headline conclusion: the deterministic spine (identity/routing/comparison/
+attention/alerting) that this session's ~16 prior programs converged is now
+essentially coherent. The remaining gap is NOT missing capability — it is
+(a) trust-boundary inconsistency across already-built AI surfaces and
+(b) reachability of already-built capabilities that are effectively
+islands.** Product stage: **COMPLETION-HARDENING**, not mid-build.
+
+**Two MATERIAL TRUST/CORRECTNESS defects were found live in production,
+neither previously on the ledger, both now numbered:**
+- **Seam 28 — `grade_ticker` + Compass pattern-bridge raw-feed trust defect.**
+  `grade_ticker`'s GO/HOLD/SKIP verdict (AI Search's `_ctx_verdict`/
+  `_ctx_list_verdict` fast lane, the AI Search agent lane, and Compass
+  voice+chat's unconditional core tool set) sources the raw, ~16%-precision
+  pattern-detector table and narrates it as "deterministic... the firm's
+  computed read" with concrete entry/stop/size/account-risk numbers —
+  `ticker_explain.py` already excludes this exact table as "D9-unsafe" for
+  Research's own Ask AI; that judgment was never applied to AI Search or
+  Compass. This is the SAME defect class the owner already formally
+  adjudicated hours earlier this session as Seam 23 (raw pattern feed
+  narrated as authoritative) — same fix shape, same precedent ("remove
+  until the confirmed source is accepted" beat "label as unconfirmed").
+  Absorbs and upgrades the old "Seam 26 (unaudited)" entry to CONFIRMED.
+- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare.**
+  `outage_out` (the analyst source-integrity signal added by Attention
+  Source-Integrity Hardening V1) reaches `watchlist_intelligence.py` but
+  NOT `ticker_explain.py` (line ~941) or `research/comparison.py` (line
+  ~73) — both call `get_analyst_ratings(sym)` with no outage signal, so a
+  real provider outage during either flagship grounded AI answer is
+  silently indistinguishable from "no coverage." Smallest, most mechanical
+  of the newly-found MUST-FIX items.
+
+**Next priority stack (all unblocked by, independent of, Pattern Vision's
+gate):** Seam 28 → Seam 29 → Awareness Reachability Restoration V1 → Alert
+Durability V1 (non-S7 alerts are fully lost on every redeploy — no durable
+storage, and this pod redeploys multiple times/day; the fix pattern already
+exists in this codebase as S7's durable-receipts bridge) → Watchlists/
+PositionsTable Keyboard Accessibility V1 (Seam 5's sequel — AlertBell's fix
+was real but genuinely isolated; `PositionsTable.jsx`/`Watchlists.jsx`/
+`TradesTable.jsx` are all still keyboard-inaccessible on higher-traffic,
+paid-core surfaces) → Compare Coverage V1 (canonical Compare page has ZERO
+price/technical data — a named north-star pillar can't answer "which one's
+the stronger stock"; also reconcile/retire the disconnected
+`ComparisonPicker.jsx`) → Calendar TickerActions Reuse V2 (Seams 19/20) →
+Feature-Flag Governance Sweep (the flag-ledger test is RED on master; 3
+undeclared live-armed flags found, one money-adjacent —
+`BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner confirm-or-rollback).
+
+**Seam ledger reclassifications worth remembering** (full table in the
+30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
+one commit stale, not the code); Seam 11's scope is wider than recorded
+(also covers CSV-imported trades, not just broker sync); Seam 13's "fully
+ABSENT" framing is STALE — a separate, uncoordinated notebook-platform
+ledger already shipped `LinkedNotesPanel` on `PositionDetailPage.jsx`
+(commit `37d608967`) — **two independent program ledgers now cover
+overlapping product surface without cross-referencing each other, worth a
+process fix, not just a doc fix**; Seam 18 reclassified OBSOLETE-OR-
+SUPERSEDED (fixing dead News surfaces serves no member — pick TapeFeed as
+canonical, then delete); Seams 3/4/27 confirmed LOW-PRIORITY, stop
+escalating them.
+
+**Two items explicitly flagged for OWNER decision (not stop conditions on
+Seam 28/29, which need none):**
+1. **Awareness Engine reachability** — restoring a visible destination is
+   bounded engineering, but deciding whether the free-tier engine becomes
+   paid-gated (matching its current paid-only destination) or the
+   destination becomes free (matching the free-tier engine) is a
+   monetization/entitlement policy call.
+2. **`BROKER_BALANCE_HISTORY_ENABLED=1`** is live on Railway, money-adjacent,
+   with zero recorded rationale anywhere this session's ledger can find —
+   flagged for a quick owner confirm-or-rollback, not treated as broken.
+
+**Do NOT re-run this full 13-lens sweep again soon** — the standing
+obligation it discharges is now satisfied; the next several programs should
+come directly off the priority stack above, with only the lighter-weight
+bounded re-checks (as done between every program this session) in between,
+until evidence goes stale or a priority interrupt fires (Pattern Vision
+classification, a genuine new S7 filing).
+
+### Prior priority stack (2026-09-06, pre-re-anchor) — superseded, kept for history
+#1 Technical Research release (blocked on Pattern Vision) → #2-#5 (closed:
+Journal/Trade Lifecycle, Search/Command, Event/Calendar→Research, Identity
+Normalization) → #6 Technical Ask AI (same Pattern Vision gate, confirmed
+independent of #1 — neither needs the other to ship first) → #7 (closed)
+Shared Multi-Security Grounding Architecture V1. All #2/#3/#4/#5/#7 closures
+and the #1/#6 gate logic remain accurate; superseded only in the sense that
+the NEXT program is now Seam 28, not a re-derivation of this list.
 
 ## North star (do not lose this)
 
@@ -79,11 +136,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `296517d80d3f0c1a002d8bfb8add922f1fca879c`
-  (AlertBell Keyboard Accessibility's own merge — this file's own update
-  is a docs-only blob-swap on top of this SHA; drift since then is unrelated
-  concurrent work — re-check overlap before trusting this SHA is still
-  current).
+- **origin/master (last verified):** `7e9770dae8be4126a941623a83bcff43cfcf8e50`
+  (the prior continuity commit, i.e. the tip immediately BEFORE this file's own
+  current update -- this file's own update is a docs-only blob-swap on top of
+  this SHA; drift since then is unrelated concurrent work -- re-check overlap
+  before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -1221,114 +1278,52 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **No program mid-flight — Seam 5 shipped; the ledger was re-checked against
-  the course-correction bar and nothing else auto-qualifies (see below).**
-  Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing
-  authorization: routine, bounded, independently-safe Terminal programs no
-  longer require a stop-and-wait between each one (see Section II of that
-  directive; the 10 owner-required stop conditions in its Section III remain
-  absolute). Sequence so far under this directive:
-  Technical Ask AI Phase A → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see
-  "CURRENT PARKED" — zero code written) → AI Search Raw-Pattern Trust
-  Adjudication V1 (Seam 23) — ACCEPTED + LIVE, merge `897e53cc5` →
-  **#7 Shared Multi-Security Grounding Architecture V1** — ACCEPTED + LIVE,
-  merge `271f79664`/`4c8b24c74` → **Journal ↔ Research Return-Context +
-  Notes Draft-Loss Fix (Seam 12)** — ACCEPTED + LIVE, merge
-  `d6a99c708`/`119908685` → a bounded reconvergence review (owner
-  instruction) re-verified 4 ledgered candidates against CURRENT code +
-  live Railway state and ranked Seam 10 #1, implementing **Awareness
-  Scan-Abort Hardening V1 (Seam 10)** — ACCEPTED + LIVE, merge
-  `b48200739`/`7e2dec405`, alongside a ~36GB disk-hygiene pass (109
-  fully-merged, clean worktrees removed — see that entry above for the full
-  accounting) → per the owner's own explicit priority order, implemented
-  **Ticker Search Identity Convergence V1 (Seam 16)** — ACCEPTED + LIVE,
-  merge `8ebb6f076`/`910eca619` → per the owner's own explicit "after Seam
-  16, do Seam 5 next" instruction (Section XXIII), implemented **AlertBell
-  Keyboard Accessibility (Seam 5)** — now ACCEPTED + LIVE, merge
-  `1eff7c83b`/`296517d80` (see "CURRENT ACCEPTED" above).
-  **Seam 1 was confirmed OPEN, not narrowed, by Seam 16** — see the
-  updated Seam 1 entry above for the precise reasoning (Seam 16's fix never
-  touches Entity Master's own alias data).
-  **Ledger re-check performed before selecting a next program (bounded, not
-  a fresh multi-agent sweep): every remaining open item in "NEWLY IDENTIFIED
-  DEBT" was re-read against the course-correction bar (MATERIAL TRUST/
-  CORRECTNESS defect, blocks a CORE MEMBER WORKFLOW, blocks a HIGH-VALUE
-  capability release, or propagates a defect through a shared canonical
-  contract) and none qualifies for auto-promotion:** Seam 1's remaining
-  read-side half needs a real S3 schema/alias-seeding decision, not a
-  bounded V1; Seam 3/4 are duplicated constants that are each currently
-  correct, just unshared (no member-visible defect); Seam 6/7/8/9/13/14/17/
-  18/19/20/21/22/26 are each the explicitly-deferred remainder of a program
-  that already drew its own scope line on purpose (re-opening any of them
-  without new authorization would relitigate a closed decision, not resolve
-  new evidence); Seam 11 needs its own dedicated architecture/product
-  decision (broker-sync `position_id` sentinel), not a bounded fix; Seam 24/
-  25 are downstream of Pattern Vision's own still-in-flight acceptance
-  trial; Seam 27 was triaged DEGRADED PERFORMANCE (not a trust/correctness
-  defect) and deliberately left unfixed twice already. **Conclusion: no
-  ledger-recorded, already-audited candidate remains eligible — the
-  standing obligation for a genuine fresh Whole-Product Strategic Re-Anchor
-  (a new multi-agent Phase-A-style sweep of current code, not a re-ranking
-  of the existing ledger) is now DUE.** This bounded re-check discharges
-  the ledger-scan step for this single decision point only, per the
-  standing rule that lighter-weight re-anchors don't discharge the
-  obligation permanently. **If you are resuming this session: the next
-  action is either (a) Pattern Vision's classification landing (see
-  "CURRENT LIVE OBSERVATION" — not due until after the Tue 9/8 / Wed 9/9
-  evidence window, at which point Technical Research and Technical Ask AI
-  both become eligible immediately, from their recorded specs, never from
-  scratch), or (b) if the owner authorizes it, launching the fresh
-  Whole-Product Strategic Re-Anchor described above — do NOT launch that
-  sweep unilaterally without checking in first, given its scale relative to
-  every program this session has run so far.** Do not treat "no program is
-  currently active" as a stop condition; it is not one of the 10 in
-  Section III. **Technical Ask AI and Technical Research (#1) are
-  UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
-  waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
-  from its recorded spec under "CURRENT PARKED", never from scratch.** Do
-  not infer a program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED"
-  sections below beyond what the directive itself authorizes, nor from
-  Attention Signal Propagation V1's own
-  explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
-  TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
-  Return-to-Research Consistency V1's own deferred families
-  (`ai_deep_report`/`ai_briefing`/`exposure_gate`), nor from Temporal /
-  Freshness Truth Convergence V1's own deferred candidates (the
-  `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops, the dual NYSE
-  holiday-table consolidation — Watchlist/Portfolio/Position Attention
-  freshness parity was closed by S8), nor from Attention Source-Integrity
-  Hardening V1's own remaining deferred item (Seam 8's full per-ticker
-  timestamp threading — the earnings/analyst status-integrity bugs it also
-  surfaced are now CLOSED, above), nor from Awareness Source-Integrity Audit
-  + Hardening V1's own out-of-scope finding (the regime-classifier
-  whole-cycle scan-abort risk), nor from Journal / Trade Lifecycle
-  Convergence V1's own deferred items (the broker-sync position↔trade
-  linkage gap, Research→Journal return-context, Position→Notes continuity),
-  nor from Search / Command Convergence V1's own deferred duplicated-search
-  and identity findings, nor from Event / News / Calendar → Research
-  Convergence V1's own deferred items (the orphaned News surfaces, the
-  bounded TickerActions-reuse gap on Board/Table/Wire calendar views, event
-  context preservation, the WireView/MyStocksHub-Insights dead ends), nor
-  from Identity Normalization Hardening V1's own deferred items (S3 schema/
-  alias-seeding, search-index dot/hyphen dedup — Seam 16, Research/
-  Watchlists/Attention/Alerts read-side alias resolution for existing
-  dot-spelled data, historical position/trade migration, and
-  AddPositionModal/AddTradeModal autocomplete UI — Seam 17's original
-  framing — see the new debt entries below), nor from AI Search Raw-Pattern
-  Trust Adjudication V1's own deferred item (Compass Chat/Voice's parallel
-  raw-feed exposure — Seam 26, unaudited), nor from Shared Multi-Security
-  Grounding Architecture V1's own deferred items (N-ary comparison,
-  Watchlist multi-security AI, Portfolio AI/LLM-computed P&L, entitlement-
-  based ticker-count gating, multi-turn comparison history — see "DEFERRED"
-  below), nor from Awareness Scan-Abort Hardening V1's own bounded
-  reconvergence review (Seam 27 breadth warm-cache — triaged DEGRADED
-  PERFORMANCE, deliberately not fixed twice now), nor from Ticker Search
-  Identity Convergence V1's own explicitly-out-of-scope items (Seam 14
-  broad search-implementation consolidation, Seam 11 broker position↔trade
-  linkage, any Entity Master schema/alias change), nor from AlertBell
-  Keyboard Accessibility's own explicitly-out-of-scope items (any other
-  Notification Center change) — those are candidate lists, not
-  authorizations.
+- **Seam 28 — Verdict & Pattern-Bridge Trust Adjudication — STARTING NOW**,
+  per the owner's own explicit Section XX/XXV instruction: the fresh
+  Whole-Product Strategic Re-Anchor (below) found this as the top-ranked
+  MUST-FIX, unblocked, bounded, and confirmed to trip none of the 10
+  standing stop conditions — so the directive requires proceeding directly
+  into it rather than stopping merely because the re-anchor report was
+  delivered. See the new Seam 28 debt-ledger entry above for full scope
+  (three call sites: AI Search's `_ctx_verdict`/`_ctx_list_verdict`, the AI
+  Search agent lane, and Compass voice+chat's core tool set = Seam 26).
+  **Bounded Phase A required before any fix**: read all three call sites'
+  actual current architecture (do not assume Seam 23's exact fix shape
+  transfers unmodified to all three) before writing code.
+  Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
+  before this point, in order: Technical Ask AI Phase A →
+  BLOCKED_ON_PATTERN_VISION_ACCEPTANCE (zero code) → AI Search Raw-Pattern
+  Trust Adjudication V1 (Seam 23, merge `897e53cc5`) → Shared Multi-Security
+  Grounding Architecture V1 (merge `271f79664`/`4c8b24c74`) → Journal ↔
+  Research Return-Context + Notes Draft-Loss Fix (Seam 12, merge
+  `d6a99c708`/`119908685`) → Awareness Scan-Abort Hardening V1 (Seam 10,
+  merge `b48200739`/`7e2dec405`, + a ~36GB disk-hygiene pass) → Ticker
+  Search Identity Convergence V1 (Seam 16, merge `8ebb6f076`/`910eca619`)
+  → AlertBell Keyboard Accessibility (Seam 5, merge `1eff7c83b`/`296517d80`)
+  → a **fresh, owner-authorized 13-lens Whole-Product Strategic Re-Anchor**
+  (multi-agent workflow, full report delivered in-conversation 2026-09-06;
+  see the new top-of-file section for the load-bearing conclusions) → now
+  Seam 28.
+  **Next in the priority stack after Seam 28** (all independent of Pattern
+  Vision's gate): Seam 29 (outage-integrity threading) → Awareness
+  Reachability Restoration V1 (⚠️ has an owner-required monetization/
+  entitlement question attached — see the re-anchor section above, do not
+  resolve it unilaterally) → Alert Durability V1 → Watchlists/PositionsTable
+  Keyboard Accessibility V1 → Compare Coverage V1 → Calendar TickerActions
+  Reuse V2 → Feature-Flag Governance Sweep (incl. an owner confirm-or-
+  rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`).
+  **Technical Ask AI and Technical Research remain UNCHANGED** — still both
+  BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
+  Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-Seam-
+  28, treat it as the priority interrupt the standing directive describes —
+  stop at a safe checkpoint, record it, do not fabricate or accelerate it.
+  Do not treat "no program is currently active" as a stop condition.
+  The prior "nor from X's own deferred items" enumeration that used to live
+  here is superseded by the re-anchor's own seam-ledger reclassification
+  table (§15 of the delivered report, mirrored into the debt ledger below)
+  — that table is now the single authority on what remains open vs. closed
+  vs. deliberately out of scope; do not re-derive it from scratch again
+  soon.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1482,6 +1477,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   an explicit product decision that broker positions simply never show a
   "resulting trade." Both are real architecture/product decisions, not a
   bounded V1 — needs its own dedicated audit + authorization before any fix.
+  **Scope CONFIRMED WIDER by the 2026-09-06 Whole-Product Strategic
+  Re-Anchor: `bulk_insert_trades(..., source="csv")` is not gated by
+  source, so CSV-imported trades carry the identical inert sentinel — this
+  is not broker-sync-specific.** Reclassified ARCHITECTURE DECISION (was
+  ABSENT_NO_SAFE_INFERENCE); still not a bounded V1.
 - **Seam 12 — RESOLVED by Journal ↔ Research Return-Context + Notes
   Draft-Loss Fix, merge `d6a99c708`/`119908685`, 2026-09-06.** The fix
   described here (a `from=trade:{id}`/`from=position:{sym}` query marker on
@@ -1490,17 +1490,23 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   unmount, not just blur) is exactly what shipped — see "CURRENT ACCEPTED"
   above. Kept as a record; do not re-open unless a concrete regression is
   found.
-- **Seam 13 — Position → Notes continuity is fully ABSENT (surfaced by
-  Journal / Trade Lifecycle Convergence V1's Phase A, 2026-09-06, NOT
-  fixed — a separate MEDIUM-cost candidate V1 the audit declined to select
-  this round in favor of the narrower click-through fix).** `j2_notes.ticker`
+- **Seam 13 — Position → Notes continuity, PARTIALLY resolved by a SEPARATE,
+  uncoordinated ledger — narrower remaining scope than originally recorded
+  (corrected by the 2026-09-06 Whole-Product Strategic Re-Anchor).** The
+  original "fully ABSENT" framing (surfaced by Journal / Trade Lifecycle
+  Convergence V1's Phase A, 2026-09-06) is STALE: `PositionDetailPage.jsx`
+  already renders `LinkedNotesPanel tradeRefType="position"`, shipped by the
+  `docs/notebook/*` program ledger's Wave 3 "Thesis-Trade Link" (commit
+  `37d608967`), confirmed live. **Process note: two independent program
+  ledgers now cover overlapping product surface without cross-referencing
+  each other — worth a process fix (cross-link the two ledgers), not just
+  this doc fix.** What genuinely remains open, narrower than before:
+  passive ticker-based note surfacing is still absent — `j2_notes.ticker`
   is an already-indexed (`idx_j2_notes_user_ticker`), already-populated,
-  nullable column — a genuine, non-inferred link — but nothing on
-  `PositionDetailPage.jsx` surfaces notes for the symbol being viewed
-  (trade↔note links already exist via `NoteLinkedTradeChips`; there is no
-  position-scoped equivalent). Fix shape: reuse the same read-only chip
-  pattern already shipped for trade↔note links, keyed on `j2_notes.ticker`,
-  no new schema, no trade/position inference.
+  nullable column with no consumer on `PositionDetailPage.jsx` (the shipped
+  panel links via explicit trade/position references, not the ticker
+  column). Fix shape: reuse the same read-only chip pattern, keyed on
+  `j2_notes.ticker`, no new schema. Reclassified FOLLOW-UP ENHANCEMENT.
 - **Seam 14 — duplicated ticker-search implementations across the app
   (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
   scored HIGH, deliberately NOT consolidated this round).** At least 7
@@ -1655,19 +1661,49 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (the underlying raw-feed reader Compass Chat/Voice also call) was
   deliberately NOT touched — that is a separate, unaudited surface; see
   Seam 26 below.
-- **Seam 26 — Compass Chat/Voice's pattern-engine bridge tools may carry the
-  SAME raw-feed trust gap as Seam 23 did, unaudited (surfaced while fixing
-  Seam 23, 2026-09-06, NOT fixed, deliberately out of that V1's bounded
-  scope).** `find_patterns_on_ticker`/`scan_active_patterns` (the CLAUDE.md
-  "Pattern Engine bridge") read the identical
-  `pattern_engine.memory.get_active_detections()` raw table, registered as
-  live tools in BOTH Compass voice and Compass text chat. Whether Compass's
-  own system prompt already frames these results honestly (unconfirmed,
-  raw) was not checked — Seam 23's adjudication was explicitly scoped to
-  "AI SEARCH Raw-Pattern Trust," not Compass. Fix shape, if a defect is
-  confirmed: same pattern as Seam 23 (declare a gap or add an explicit
-  unconfirmed-disclosure clause to Compass's own prompt), scoped to Compass's
-  actual architecture — audit before assuming the same fix shape applies.
+- **Seam 26 — CONFIRMED (upgraded from "unaudited") by the 2026-09-06
+  Whole-Product Strategic Re-Anchor — MUST FIX BEFORE PRODUCT COMPLETION,
+  folded into Seam 28 below.** Three independent lenses (trust,
+  capability-b, technical-scanner), all with matching file:line citations,
+  confirmed `find_patterns_on_ticker`/`scan_active_patterns` are in
+  Compass's UNCONDITIONAL core tool set (both voice and text chat), reading
+  the identical raw, unconfirmed pattern table, with zero disclosure
+  anywhere in the prompts. Live-confirmed `BRAIN_TOOLS_ENABLED=1` +
+  `COMPASS_AUTOMATION_ENABLED=1` on Railway. See Seam 28.
+- **Seam 28 — `grade_ticker` + Compass pattern-bridge raw-feed trust defect
+  (surfaced by the 2026-09-06 Whole-Product Strategic Re-Anchor, NOT YET
+  FIXED — this is the recommended next active program).** `grade_ticker`'s
+  GO/HOLD/SKIP verdict is sourced from the raw, ~16%-precision
+  pattern-detector table and injected as "deterministic... the firm's
+  computed read" (with concrete entry/stop/size/account-risk numbers) into
+  three live, member-reachable surfaces: AI Search's `_ctx_verdict`/
+  `_ctx_list_verdict` fast lane, the AI Search agent lane, and Compass
+  voice+chat's unconditional tool set (= Seam 26 above, same root cause).
+  `ticker_explain.py` already excludes this exact table as "D9-unsafe" for
+  Research's own Ask AI — that judgment was never applied here. This is the
+  SAME defect class the owner already formally adjudicated hours earlier
+  this session as Seam 23 — same fix shape available (remove the raw
+  sourcing or add an explicit unconfirmed-disclosure clause, per surface;
+  audit each of the three call sites' actual architecture before assuming
+  one fix shape fits all three). Fold in a minor aggravating bug found in
+  the same file: `grade_ticker.py`'s quote-fetch failure silently resolves
+  to "not extended" instead of a disclosed gap. **MUST FIX BEFORE PRODUCT
+  COMPLETION** — directly unblocks completion criteria B (no material trust
+  defect) and C (single-security AI trustworthy).
+- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare
+  (surfaced by the 2026-09-06 Whole-Product Strategic Re-Anchor, NOT YET
+  FIXED).** `outage_out` (the analyst source-integrity signal added by
+  Attention Source-Integrity Hardening V1) reaches
+  `watchlist_intelligence.py` but NOT `ticker_explain.py` (~line 941) or
+  `research/comparison.py` (~line 73) — both call `get_analyst_ratings(sym)`
+  with no outage signal threaded through, so a real provider outage during
+  either flagship grounded AI answer is silently indistinguishable from "no
+  coverage." Independently re-verified via direct grep by the synthesis
+  agent itself, not just the architecture lens. Smallest, most mechanical of
+  the newly-found MUST-FIX items — a real Evolving Interconnection Principle
+  failure (an upstream contract improved, two programs ago in this same
+  ledger, and its two flagship downstream consumers were never updated).
+  **MUST FIX BEFORE PRODUCT COMPLETION.**
 - **Seam 24 — Rejected Pattern Vision verdicts have no non-admin read path
   (surfaced by Technical Ask AI's Phase A, 2026-09-06, NOT fixed, explicitly
   out of V1 scope).** `pattern_verdicts` rows with `confirmed=0` are real,
