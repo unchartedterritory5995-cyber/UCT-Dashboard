@@ -1356,3 +1356,173 @@ documentation only); (5) an extended repo-precedent catalog. Findings to
 follow in a BETWEEN-WINDOW SCANNER CONTENTION PREPARATION REPORT once
 back. Observation cadence (hourly Railway log/deploy checks) continues
 unchanged and takes priority over this research whenever it's due.
+
+## MAJOR FINDING — confirmed production flags: SCREENER_LIVE_TIER is armed, not dark (2026-09-05 ~20:07 ET)
+
+3 of 5 research agents complete so far (repo precedent catalog; scan/
+snapshot completeness contract; screener.db writer full trace — 2 still
+running: job/thread→DB inventory, bars/patterns/darkpool writer analysis).
+The screener.db writer trace surfaced that THREE of screener.db's six
+writer paths are gated by flags that **default OFF in code**
+(`SCAN_SWEEP_ENABLED`, `SCAN_LIVE_SWEEP_ENABLED`, `SCREENER_LIVE_TIER_
+ENABLED`), so their actual production state had to be checked, not
+assumed. Checked via the established safe method (`railway variable list
+--service web --json` grepped for these exact non-secret feature-flag key
+names only — no value dump, no secret exposure):
+
+- **`SCAN_SWEEP_ENABLED=1`** — confirmed (matches the 2026-08-09 memory
+  note). The nightly scan-definitions sweep (05:00 ET) IS live: 2 small
+  write transactions per distinct definition (`scan_store.record_hits` +
+  `record_coverage`), each fast/pre-computed, but N definitions × 2 =
+  potentially many discrete commits across the 05:00 ET window.
+- **`SCREENER_LIVE_TIER_ENABLED=1`** — **confirmed armed, NOT dark.** This
+  is new information this session. `live_tier.sweep_job()` fires every
+  **60 seconds during the regular market session** (internally
+  session-gated, not cron-gated — the job registers unconditionally and
+  checks session state per tick) and does ONE large `executemany`+commit
+  writing the ENTIRE matched universe (~3,745 rows) to the `screener_live`
+  overlay table. It runs under `snapshot_builder._BUILD_LOCK` — the SAME
+  Python lock the nightly full builder holds — with a source-code-
+  documented measured `held_lock_ms` median of **122ms** (121-140ms range)
+  for a synthetic full-universe pass. **This is now the single strongest
+  CONFIRMED (not merely plausible) C1 candidate**: a real, frequent,
+  full-universe write to screener.db, active specifically during the hours
+  members actually use the scanner — Monday's market-hours window is now a
+  much higher-value observation target than it looked a few hours ago.
+  LIVE-CONFIRMED still firing on schedule: production logs show
+  `[screener-live] cycle skipped: not_regular_session (session=post_market)`
+  ticking every ~60s right now (market closed) — the job is real and
+  running, just correctly idle outside RTH.
+- `SCAN_LIVE_SWEEP_ENABLED` did not appear in the grepped output — read as
+  unset/OFF, consistent with its code default. Not re-verified beyond
+  absence-from-grep.
+
+**Also newly established (from the writer-trace agent, static-code
+findings, not yet production-verified beyond the two flags above):**
+- Six independent writer paths hit screener.db on four different cadences
+  (nightly 02:00-05:10 ET block; the confirmed-armed 60s live_tier; the
+  possibly-armed 300s live scan sweep; on-demand admin refresh /
+  user subscribe-unsubscribe).
+- Every writer's expensive work (network reads, AST evaluation, bar
+  fetches) happens BEFORE its connection opens — connections are held only
+  for pre-computed `executemany`+commit, never across I/O/computation.
+  This weighs against "a writer's OWN transaction is slow because of what
+  it's doing inside the transaction" and toward "if writers matter, it's
+  about FREQUENCY of short write windows, not duration of any one write."
+  the live_tier one is the exception worth watching precisely because it's
+  both frequent (60s) AND the largest single batch (~3,745 rows/commit).
+- `scan_store.prune()` (the `scan_hits`/`scan_coverage` reaper) has **zero
+  production callers** — those tables grow unbounded. Separate,
+  longer-horizon finding, not a latency-spike cause by itself, but real and
+  worth carrying forward to the reliability workstream.
+- `screen_alerts.py`'s writes skip the shared `_WRITE_LOCK` entirely
+  (relies on SQLite's own `busy_timeout` only) — a real asymmetry vs. every
+  other writer, though its write volume is small (≤6 alerts/user/night).
+
+Scan/snapshot completeness contract findings (documentation only, for the
+separately-open reliability workstream, NOT acted on): the nightly pattern-
+universe scan (`_run_patterns_universe_scan`, 01:00 ET) has no scan ID, no
+persisted progress, no completion flag — a killed run produces no log line
+at all. `screener_rows` itself has real, shipped staleness *description*
+(median-`snapshot_date` + `mixed` flag, computed from the SAME where/from
+that produced the served rows — already a genuinely good mechanism) but
+**no publication gate** — a half-rebuilt table is immediately visible to
+live readers the instant each ≤200-row batch commits, with nothing
+stopping `query.run_scan` from serving it as-is.
+
+Repo precedent catalog (for a possible future architecture; not started):
+best generation/version-metadata precedent is `api/services/barspack.py`
+(shards-then-manifest-last publication + content-addressed generations +
+retention pruning) — a better structural fit than `brain_sync.py` (also
+cataloged: directory-swap + marker-file + integrity-check-before-swap +
+on-install callback hook) for "a versioned screener.db publication."
+Confirmed a FOURTH existing Railway service role beyond web/worker
+(`flow_worker_main.py`, narrowly-scoped, own volume) as a direct precedent
+for "a fifth dedicated scanner-serving service" being a one-line addition
+to the existing `railway.json` dispatcher, not novel infrastructure. Full
+catalog (atomic publish idiom used ~55+ places; two internal proxy
+patterns; two durable-retry/idempotent-job patterns; the `/api/ready`
+readiness framework INCLUDING an already-registered `"scanner"` gate, and
+its own documented "never let this gate the Railway healthcheck itself"
+outage lesson) preserved for the eventual architecture-design package.
+
+Still awaiting: job/thread→DB inventory (broadest one, ~90 jobs + ~35
+threads), bars/patterns/darkpool writer analysis. Observation cadence
+continues unchanged in parallel; no code/production change made from any
+of this — read-only research + one safe flag-presence check only.
+
+## BETWEEN-WINDOW SCANNER CONTENTION PREPARATION REPORT (2026-09-05, ~20:09 ET)
+
+All 5 read-only research agents complete. Full raw findings from each are
+preserved verbatim in this session's transcript (job/thread→DB inventory;
+screener.db writer deep trace; bars/patterns/darkpool writer analysis;
+scan/snapshot completeness contract; repo precedent catalog) — this
+section is the consolidated synthesis. **This is NOT the final
+SCREENER SQLITE NATURAL-LOAD CONTENTION ATTRIBUTION REPORT** — no live
+evidence has arrived yet; C1-C6 remain fully open.
+
+### Second production flag check (same safe method — targeted grep of
+### non-secret feature-flag keys only, no value dump)
+Confirmed ARMED in production: `DARKPOOL_EOD_ENABLED=1`,
+`DARKPOOL_FLATFILE_ENABLED=1`, `DARKPOOL_INTRADAY_ENABLED=1`,
+`DARKPOOL_INTRADAY_TIERED_ENABLED=1`, `DARKPOOL_MASSIVE_INGEST_ENABLED=1`,
+`USE_REMOTE_BARS=1`. **Every darkpool ingest job the writer-analysis agent
+found "gated off by default in code" is in fact fully armed in
+production** — the entire darkpool intraday family (3/5/12-min cadence,
+`hour="7-16"` ET) is real, active, confirmed, not merely plausible.
+`USE_REMOTE_BARS=1` also resolves an open caveat from that same agent:
+`_s3_pull_loop` (bars.db merge, confirmed continuous 20-min cadence) IS
+armed on web; `bars_prewarm.run_prewarmer_forever`'s full continuous
+historical-prewarm loop is gated OFF on web when `USE_REMOTE_BARS=1` (runs
+on the separate worker volume instead) — so bars_prewarm itself is likely
+NOT a same-volume factor for screener.db, contrary to the earlier loose
+hypothesis; `_s3_pull_loop` remains the confirmed bars.db-on-web writer.
+
+### THE SINGLE MOST IMPORTANT NEW FINDING — a SAME-FILE writer, not just same-volume
+The job/thread→DB inventory agent (cross-checked independently against the
+screener-writer-trace agent, both arrived at the same numbers separately)
+confirms: **`screener_live_tier` and `screener_scan_sweep_live` are BOTH
+registered UNCONDITIONALLY in `api/main.py`** (the flag only gates their
+per-tick behavior internally, not their scheduler registration) and **both
+write directly into `screener.db` itself** — the exact file
+`/api/screener/scan` reads. `screener_live_tier`'s own source comment
+self-documents **"~1.5M overlay row-writes per session"** — one
+`executemany` of the ENTIRE matched universe (~3,745 rows) every ~60s
+throughout the whole regular session (1.5M ÷ 3,745 ≈ 400 batches ≈ 400
+min ≈ 6.7h, consistent with one trading day). This is a stronger,
+more-direct candidate than any cross-database hypothesis: it is the same
+physical file, hit every single minute, all session, confirmed armed
+(`SCREENER_LIVE_TIER_ENABLED=1`, confirmed earlier this checkpoint) —
+**and confirmed still actively ticking in live logs** (`[screener-live]
+cycle skipped: not_regular_session` firing every ~60s right now, correctly
+idle post-market). Monday's market-hours window is now the clear
+highest-value observation target, specifically for THIS writer, ahead of
+any cross-database hypothesis.
+
+### Prioritized watch list for the next live evidence (ranked, not proven)
+1. **`screener_live_tier`** (60s, same-file, ~3,745-row batch/commit, confirmed armed + confirmed ticking) — top candidate for C1.
+2. **`screener_scan_sweep_live`** (continuous interval, same-file, unconditionally registered) — second C1 candidate.
+3. **darkpool.db intraday family** (`_dp_intraday_run` */3min, `_dp_scan_run` */5min, `_dp_warm_run` */12min — ALL confirmed armed, `hour="7-16"` ET) — top C2 (cross-database, same-volume) candidate; the writer-analysis agent independently ranked this #2 by code-characteristics alone, now upgraded from "if armed" to confirmed.
+4. **patterns.db per-detection writers** — `_run_patterns_universe_scan` (01:00 ET, worst connection discipline found: one fresh connection + one full-fsync commit PER INDIVIDUAL DETECTION ROW, potentially hundreds-thousands per run) is off-hours and unlikely to overlap live scanner traffic, but `_run_patterns_track_outcomes` (every 4h, **NOT calendar-anchored — drifts with every redeploy/restart**) can land during market hours unpredictably and does TWO fresh-connection round trips per resolved detection. Neither patterns.db nor darkpool.db has a dedicated WAL checkpointer (bars.db got one specifically because unbounded WAL growth was already a measured problem there) — both rely on SQLite's default autocheckpoint, which can fire unpredictably mid-batch.
+5. **`_s3_pull_loop`** (confirmed armed, 20-min cadence, unconditional, bars.db) — real but bursty (one large fsync-class commit per cycle, `synchronous` left at default FULL on this specific connection, unlike the rest of `bars_sqlite.py` which explicitly sets `synchronous=NORMAL`).
+6. **`bars_nightly_refresh`→`bars-nightly` thread** (16:15 ET, right after close) — a genuine third "job body spawns an untracked thread" blind spot (same shape as `_s3_pull_loop`), full-universe bars.db rewrite, but timing (right after close) makes overlap with intraday scanner traffic unlikely; could matter for the *evening* tail of any post-close scanner usage.
+7. **Four more bars.db-continuous loops started via a module's own `.start()`** (not a `threading.Thread(` literal in `main.py`, so invisible to ANY instrumentation keyed off main.py's literal thread call-sites too, not just `add_job`): `bars_wal_checkpointer` (20s), `bars_reconciliation` (30min, real DELETEs), `indicator_alert_evaluator` (60s, no env gate found — always on), `bars_continuous_audit` (tiered 5min/1h/24h). Lower priority (bars.db, not screener.db; but broadens the known blind-spot list beyond the original single `_s3_pull_loop` example).
+
+### Scan/snapshot completeness contract (documentation only, separately-open reliability workstream — NOT this package's to fix)
+- `_run_patterns_universe_scan` has no scan ID, no persisted progress, no completion flag; a killed run produces no log line at all, indistinguishable from "never fired."
+- `screener_rows` has real, shipped, good staleness *description* (median-`snapshot_date` + `mixed` flag, computed from the exact same WHERE/FROM that produced the served rows) but **no publication gate** — a half-rebuilt table (nightly build commits in ≤200-row batches) is immediately visible to live HTTP readers mid-build, with nothing stopping `query.run_scan` from serving it as-is.
+- `scan_evaluator._assert_snapshot_is_current` is a real completeness GATE, but it protects only the nightly scan-definition sweep's own written receipts — it does not gate what `query.run_scan` serves to a browser.
+- `scan_store.prune()` (the `scan_hits`/`scan_coverage` reaper) has ZERO production callers — unbounded growth, a separate longer-horizon finding.
+
+### Repo precedent catalog (for a possible future architecture — nothing started)
+Best generation/version-metadata precedent: `api/services/barspack.py` (content-addressed generations, shards-uploaded-then-manifest-published-last, retention pruning) — a better structural fit than `brain_sync.py` (directory-swap + marker file + pre-swap integrity check + on-install callback, also cataloged) for "a versioned screener.db publication." A FOURTH existing Railway service role beyond web/worker/bars-api (`flow_worker_main.py`, narrowly-scoped, own volume, narrow GitHub watch-paths set in the Railway dashboard) is a direct precedent for "a fifth dedicated scanner-serving service" being a one-line dispatcher addition, not novel infrastructure. `/api/ready` readiness framework already has a registered `"scanner"` gate, and its own docstring records a real 2026-07-26 ~3-minute outage lesson: **never wire a warm-up gate into the Railway healthcheck itself** — any future "is my local snapshot copy ready" gate must be observability-only. Atomic tmp-then-`os.replace` publication is the house style (~55+ call sites); two internal proxy patterns exist (`flow_proxy.py` full-featured with auth-vouching+SSE, `bars.py`'s single-route lighter cousin with graceful local fallback); two durable-retry/idempotent-job patterns exist (`desk_session_jobs.py`'s claim-next+per-claim staleness, `flow_gap_autofill.py`'s heartbeat-sweep-at-start).
+
+### What remains for the actual attribution report
+No slow trace has fired yet (market closed since deploy). Tonight's
+02:00-05:10 ET nightly writer block and — much more importantly given the
+findings above — Monday's regular market session (specifically watching
+for `screener_live_tier`/`screener_scan_sweep_live` overlap) are the two
+remaining natural windows. Observation cadence continues unchanged,
+tightening to ~20-30 min as each window approaches. No implementation, no
+architecture decision, no pilot reactivation — all remain explicitly
+deferred pending real evidence.
