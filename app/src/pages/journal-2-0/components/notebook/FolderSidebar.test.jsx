@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import FolderSidebar, { buildFolderTree } from './FolderSidebar'
+import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
 
 const removeMock = vi.fn()
 
@@ -628,5 +628,151 @@ describe('Wave 0 trash: a "Trash" entry in the sidebar', () => {
                           activeTag={null} onSelectTag={() => {}} />)
     const trashRow = screen.getByText('Trash').closest('button')
     expect(trashRow.className).toMatch(/rowActive/)
+  })
+})
+
+// ── Wave 4 (Search Evolution I) — date/sector/theme filters, relevance
+// sort, and query-aware snippet rendering. ──────────────────────────────────
+
+describe('renderSnippetMarks (Wave 4 Slice 2)', () => {
+  it('splits a snippet() string into text + <mark> React children, never dangerouslySetInnerHTML', () => {
+    render(<div data-testid="out">{renderSnippetMarks('the <mark>capex</mark> thesis')}</div>)
+    const out = screen.getByTestId('out')
+    expect(out.querySelector('mark').textContent).toBe('capex')
+    expect(out.textContent).toBe('the capex thesis')
+  })
+
+  it('returns null for an empty/absent snippet', () => {
+    expect(renderSnippetMarks('')).toBeNull()
+    expect(renderSnippetMarks(undefined)).toBeNull()
+  })
+
+  it('a member\'s own literal "<" or ">" text renders as plain text, never as markup', () => {
+    // No <mark> delimiters at all here -- the whole string is untrusted
+    // member content and must render verbatim, as text.
+    render(<div data-testid="out">{renderSnippetMarks('if x < y and y > 0')}</div>)
+    expect(screen.getByTestId('out').textContent).toBe('if x < y and y > 0')
+    expect(screen.getByTestId('out').querySelector('script')).toBeNull()
+  })
+})
+
+describe('matchReasonFor (Wave 4 Slice 2)', () => {
+  it('explains an exact ticker match, stripping a leading cashtag like the backend fix does', () => {
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, '$NVDA')).toBe('Matched ticker: NVDA')
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, 'NVDA')).toBe('Matched ticker: NVDA')
+  })
+
+  it('explains an exact tag match', () => {
+    expect(matchReasonFor({ ticker: null, tags: ['thesis'] }, 'thesis')).toBe('Matched tag: thesis')
+  })
+
+  it('returns null when neither ticker nor tag matches (an FTS-only match)', () => {
+    expect(matchReasonFor({ ticker: 'AMD', tags: ['other'] }, 'NVDA')).toBeNull()
+  })
+
+  it('returns null for an empty query', () => {
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, '')).toBeNull()
+  })
+})
+
+describe('search panel — Wave 4 date/sector/theme filters', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('filters are collapsed by default -- a plain search never shows them', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText('Note created from')).not.toBeInTheDocument()
+  })
+
+  it('the filter toggle reveals date/sector/theme inputs', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.getByText('Note created from')).toBeInTheDocument()
+    expect(screen.getByText('Sector')).toBeInTheDocument()
+    expect(screen.getByText('Theme')).toBeInTheDocument()
+  })
+
+  it('setting a date filter alone (no typed query) enables the search fetch with dateFrom/dateTo and no q', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    // Select the date-from input by its wrapping label text.
+    const fromInput = screen.getByText('Note created from').parentElement.querySelector('input')
+    fireEvent.change(fromInput, { target: { value: '2026-03-01' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts && 'dateFrom' in opts).at(-1)[0]
+    expect(call.enabled).toBe(true)
+    expect(call.dateFrom).toBe('2026-03-01')
+    expect(call.q).toBeUndefined()
+  })
+
+  it('the search fetch requests sort="relevance"', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'nvda' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts?.q === 'nvda').at(-1)[0]
+    expect(call.sort).toBe('relevance')
+  })
+
+  it('Clear filters resets all four fields and is only shown while a filter is active', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+    const sectorInput = screen.getByPlaceholderText('e.g. Technology')
+    fireEvent.change(sectorInput, { target: { value: 'Technology' } })
+    expect(screen.getByText('Clear filters')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Clear filters'))
+    expect(screen.getByPlaceholderText('e.g. Technology')).toHaveValue('')
+    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+  })
+
+  it('a result with a body snippet renders the highlighted excerpt, never the old naive 120-char slice', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.q === 'capex') {
+        return {
+          notes: [{ id: 'n1', title: 'Thesis', bodySnippet: 'accelerating <mark>capex</mark> spend', ticker: null, tags: [] }],
+          isLoading: false, isValidating: false, error: null, total: 1,
+        }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'capex' } })
+    settle()
+    expect(screen.getByText('capex').tagName).toBe('MARK')
+  })
+
+  it('a tag/ticker-only match (no snippet) shows the "why matched" label instead of a blank excerpt', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.q === 'NVDA') {
+        return {
+          notes: [{ id: 'n1', title: 'Position note', ticker: 'NVDA', tags: [] }],
+          isLoading: false, isValidating: false, error: null, total: 1,
+        }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'NVDA' } })
+    settle()
+    expect(screen.getByText('Matched ticker: NVDA')).toBeInTheDocument()
   })
 })

@@ -1486,6 +1486,21 @@ from api.services.journal_two import notes as notes_service
 from api.services.journal_two.notes import NoteValidationError
 
 
+def _parse_search_date(value: str | None, param_name: str) -> str | None:
+    """Wave 4 Slice 1: `dateFrom`/`dateTo` must be `YYYY-MM-DD` or the
+    request is honestly rejected (400) at the boundary — never silently
+    ignored (which would look like "the filter did nothing") and never
+    allowed to reach SQLite unvalidated (a malformed string can still
+    string-compare against `created_at` without raising, just wrongly)."""
+    if not value:
+        return None
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{param_name} must be YYYY-MM-DD")
+    return value
+
+
 @router.get("/notes")
 def list_notes_endpoint(
     folder_id: str | None = None,
@@ -1498,16 +1513,35 @@ def list_notes_endpoint(
     limit: int = 100,
     offset: int = 0,
     deleted: bool = False,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    sector: str | None = None,
+    theme: str | None = None,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
     soft-deleted notes, everything else about the filter set unchanged.
     There is deliberately no "both" mode; every call asks one question or
-    the other (see `_notes_filter_sql`'s own docstring)."""
+    the other (see `_notes_filter_sql`'s own docstring).
+
+    Wave 4 (Search Evolution I): `dateFrom`/`dateTo` bound `created_at`
+    ("Note created" in the UI — see the design doc for why that's the
+    Stage 1 default, not "Updated"). `sector`/`theme` resolve to the
+    member's own bounded mentioned-symbol vocabulary (never a full-market
+    scan) via `notes_service.resolve_sector_theme_symbols` — computed ONCE
+    here and passed to both `list_notes` and `count_notes` as `symbol_in`
+    so a symbol-set resolution can never drift between the page and its
+    total, same discipline as every other filter in this endpoint."""
+    date_from = _parse_search_date(dateFrom, "dateFrom")
+    date_to = _parse_search_date(dateTo, "dateTo")
+    symbol_in = notes_service.resolve_sector_theme_symbols(
+        user["id"], sector=sector, theme=theme,
+    )
     rows = notes_service.list_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
         embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset, deleted=deleted,
+        date_from=date_from, date_to=date_to, symbol_in=symbol_in,
     )
     # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
     # never the length of `rows` — a migrated library of thousands of notes must
@@ -1517,6 +1551,7 @@ def list_notes_endpoint(
     total = notes_service.count_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
         embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
+        date_from=date_from, date_to=date_to, symbol_in=symbol_in,
     )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 

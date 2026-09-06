@@ -415,6 +415,16 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
+-- Wave 4 Slice 1 (Search Evolution I): backs the new dateFrom/dateTo filter
+-- (created_at range) — additive, idempotent, zero data change. Removes an
+-- O(n log n) temp-B-tree sort that scales with one member's TOTAL note
+-- count (an import-heavy member can arrive with thousands on day one),
+-- not with the filtered result size. Validated via
+-- tools/wave4_date_range_index_benchmark.py: negligible write overhead
+-- (indistinguishable from measurement noise), ~1.2MB at 50k platform-wide
+-- notes. Rollback: DROP INDEX IF EXISTS idx_j2_notes_user_created.
+CREATE INDEX IF NOT EXISTS idx_j2_notes_user_created
+    ON j2_notes(user_id, created_at);
 
 -- ── Notebook search index ───────────────────────────────────────────────────
 -- Standalone (NOT external-content) FTS5 mirror of the searchable columns.
