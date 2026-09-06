@@ -2212,4 +2212,76 @@ manufacture a deployment kill solely to prove it.
 
 **Do not continue coding on this package while it waits** — frozen at
 `baf541526` until the release condition above is met.
+
+## PEG GEOMETRY FIX — TECHNICALLY APPROVED, MERGE/DEPLOY HOLD (2026-09-06)
+
+**Owner classification: PEG GEOMETRY DEFECT CONFIRMED AND FIXED LOCALLY —
+OWNER TECHNICAL APPROVAL GRANTED.** Same hold reason and structure as the
+scan-completeness package above: the active 8G-B natural-load
+observation is protected, and any push would create a deployment/
+process boundary risking contamination of that evidence window.
+
+**Frozen state:** worktree `C:\Users\Patrick\uct-dashboard-peg-geometry`,
+branch `fix/peg-geometry-anchor-timestamps`, HEAD `40c8e578f`. `git
+status`: clean. Off `origin/master@5e3ff91d1` at branch time.
+
+**Accepted defect + fix, permanent unless superseded:**
+`power_earnings_gap.py::_build_detection` stamped the `post_gap_high`/
+`post_gap_low` geometry anchors with `last_bar["t"]` unconditionally
+instead of the real bar each extreme occurred on — detector-authored
+geometry, confirmed NOT canonical-adapter/persistence/frontend/
+timezone/event-identity/emphasis-mapping. `gap_open`/`gap_close`
+anchors (what the white-outline gap-candle emphasis, Package 8D,
+actually keys off) were always correct and remain untouched. Fix:
+compute `post_gap_high_idx` in `_try_extract` (mirrors the existing
+`post_gap_low_idx` pattern), use both real indices in
+`_build_detection`'s anchor construction. 27 insertions/3 deletions,
+one production file + 2 new test files, nothing else.
+
+**Test evidence (frozen — do not rerun merely to recreate it while on
+hold):** 5/5 new focused tests, 20/20 existing PEG battery, 86/86
+canonical adapter suite, `tests/pattern_engine/` full: 2621 passed, 9
+pre-existing xfails (unrelated). Re-run relevant regression only before
+eventual merge if master has materially moved.
+
+**Reinforced separation, now evidence-backed:** the geometry fix was
+fully implementable and testable without touching persistence or
+serving — confirms `pattern_join.py`'s canonical persistence/serving
+gap is correctly a SEPARATE package, not something that needed
+bundling here. `ChartToolbar.jsx`'s pattern-overlay toggle remains
+confirmed genuinely dead/unreachable (`{false && ...}`) and untouched;
+for a future 8G-C admin proof, that toggle is not admin-role-aware and
+a different, explicitly admin-gated entry point would be needed for the
+narrow proof step specifically — the general toggle's own eventual
+public-exposure sequencing (Phase-7 §37) is unaffected and unstarted.
+
+**8G-C remains HOLD overall** — the PEG geometry defect closing does
+NOT make 8G-C ready. Remaining blockers, unchanged: (1)
+`pattern_join.py` canonical persistence/serving gap (now the next
+targeted package, research-first per owner direction), (2) broader
+Package-8C round-trip parity coverage gap (only this narrow anchor fix
+has one today), (3) no admin-only render surface yet, (4) the dead
+general PatternOverlay toggle stays intentionally unavailable.
+
+**Release condition, identical structure to the scan-completeness
+package:** (A) 8G-B observation formally closes + diagnostic
+removed/cleaned, or (B) a separately-authorized deployment already
+requires a push and the owner explicitly authorizes bundling this in,
+or (C) explicit owner override. **None has occurred.** No merge, no
+push, no deploy. Merge scope at release time is this package only — no
+opportunistic pattern_join.py work folded in, no UI exposure, no
+canonical/detector changes beyond this one fix.
+
+**Next parallel package, owner-authorized, research-first:**
+`pattern_join.py` canonical persistence/serving gap for 8G-C. Per
+owner direction, a narrow source-grounded review (what canonical
+fields are omitted, what's currently selected, which Package-8C
+persisted fields aren't reconstructed, PEG-vs-HTF differences, which
+layer the fix belongs in, ordinary-user impact, admin/internal-only
+scoping, missing round-trip tests) must complete BEFORE any
+implementation, on a NEW isolated worktree — never touching the frozen
+scan-completeness or PEG-geometry branches. 8G-B observation remains
+top priority throughout; pause this work immediately if meaningful
+production evidence arrives, capture/classify it first, then resume.
+
 Continuing the relaxed observation cadence toward Tuesday's open.
