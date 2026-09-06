@@ -234,7 +234,7 @@ describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', (
           status: 'ok',
           notable: true,
           facts: [
-            { kind: 'price_move', label: 'Moving +5.2% today', as_of: '2026-09-05' },
+            { kind: 'price_move', label: 'Moving +5.2% today', as_of: '2026-09-05', source: 'live price', freshness: 'fresh' },
           ],
           context: { composite_rating: 92, rs_rank: 88 },
         },
@@ -245,6 +245,11 @@ describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', (
     expect(card).toHaveTextContent('Moving +5.2% today')
     expect(card).toHaveTextContent('2026-09-05')
     expect(screen.getByLabelText('AAPL notable')).toBeInTheDocument()
+    // S8 / Attention Freshness Propagation V1 — source/freshness are fetched
+    // by the hook already; this surface previously discarded them before
+    // render even though Watchlists.jsx's identical popover already showed them.
+    expect(card).toHaveTextContent('live price')
+    expect(card).toHaveTextContent('fresh')
   })
 
   it('shows "Nothing notable" for a non-notable held symbol, never fabricating a fact', () => {
@@ -269,9 +274,15 @@ describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', (
     expect(screen.getByTitle('Data partial')).toBeInTheDocument()
   })
 
-  it('renders nothing on a total fetch failure (mirrors PortfolioAttentionBanner\'s degrade-to-hidden, never a fabricated empty state)', () => {
+  // S8 / Attention Freshness Propagation V1 — a total fetch failure must NOT
+  // collapse into the same "section hidden" state as "no open position": a
+  // real outage previously read as reassuring silence, indistinguishable from
+  // the symbol simply not being held.
+  it('renders a distinct "could not check" state on a total fetch failure, never silence', () => {
     mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: new Error('500') })
     renderPage()
+    expect(screen.getByTestId('position-attention-unavailable')).toBeInTheDocument()
+    expect(screen.getByText('Could not check for updates')).toBeInTheDocument()
     expect(screen.queryByTestId('position-attention')).not.toBeInTheDocument()
   })
 

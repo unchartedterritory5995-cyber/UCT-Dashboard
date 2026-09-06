@@ -27,7 +27,24 @@ export default function PortfolioAttentionBanner() {
   const { attention, isLoading, error } = useJ2PositionsAttention()
   const symbols = Object.keys(attention || {})
 
-  if (isLoading || error || symbols.length === 0) return null
+  if (isLoading || (!error && symbols.length === 0)) return null
+
+  // S8 / Attention Freshness Propagation V1 — a total fetch failure previously
+  // collapsed into the same `null` as "no open positions," so a real outage
+  // read as reassuring silence. Distinguish it explicitly (Watchlist's
+  // useWatchlistIntelligence.js already does this per-symbol; this is the
+  // whole-banner analog for a hook that has no data to fall back on at all).
+  if (error) {
+    return (
+      <div className={styles.wrap} role="status" data-testid="portfolio-attention-banner">
+        <div className={styles.header}>
+          <UIcon name="sparkle" size={12} />
+          <span>Portfolio Attention</span>
+        </div>
+        <div className={styles.unavailable}>Could not check for updates</div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.wrap} role="status" data-testid="portfolio-attention-banner">
@@ -65,6 +82,17 @@ export default function PortfolioAttentionBanner() {
                       {/* Evidence timestamp from the fact itself — never a
                           rendered "now"/client clock. */}
                       {f.as_of && <span className={styles.factDate}> · {f.as_of}</span>}
+                      {/* Source/freshness — same fields Watchlists.jsx's
+                          AttentionFacts popover already renders; this hook
+                          fetched them unmodified from the identical backend
+                          shape, they were just never displayed here before. */}
+                      {(f.source || (f.freshness && f.freshness !== 'unknown')) && (
+                        <span className={styles.factMeta}>
+                          {' · '}
+                          {f.source || 'unknown source'}
+                          {f.freshness && f.freshness !== 'unknown' ? ` · ${f.freshness}` : ''}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

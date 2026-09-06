@@ -165,6 +165,11 @@
   color: var(--text-muted, #8a8a8a);
 }
 
+.attentionFactMeta {
+  color: var(--text-muted, #8a8a8a);
+  opacity: 0.8;
+}
+
 .attentionNoFacts {
   margin-top: 8px;
   font-size: 12.5px;

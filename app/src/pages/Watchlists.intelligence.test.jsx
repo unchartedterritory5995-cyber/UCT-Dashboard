@@ -7,6 +7,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 
+const mockIntelligence = vi.fn()
+
 // ── Heavy leaves that never render in embedded mode but cost real import time ──
 vi.mock('../components/StockChart', () => ({ default: () => null }))
 vi.mock('../components/CompanyLogo', () => ({ default: () => null }))
@@ -79,15 +81,7 @@ vi.mock('../hooks/useWatchlistThemes', () => ({ default: () => ({ themeData: {},
 // notable-first sort should produce, so the test can't pass by accident of
 // the original list order.
 vi.mock('../hooks/useWatchlistIntelligence', () => ({
-  default: () => ({
-    intelData: {
-      AAPL: { status: 'ok', notable: true, facts: [
-        { kind: 'analyst_action', label: 'Piper Sandler: Upgrade', as_of: '2026-09-01', source: 'FMP', freshness: 'fresh' },
-      ] },
-      TSLA: { status: 'ok', notable: false, facts: [] },
-    },
-    isLoading: false,
-  }),
+  default: () => mockIntelligence(),
 }))
 vi.mock('../hooks/useBreakpoint', () => ({
   useIsTouch: () => false, useIsPhone: () => false, useIsTablet: () => false, useIsDesktop: () => true,
@@ -102,10 +96,26 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => navigateMock }))
 
 const Watchlists = (await import('./Watchlists')).default
 
+// AAPL is notable (a fact fired); TSLA is not — this is the fixture most
+// tests depend on. Deliberately alphabetically "backwards" from what a
+// notable-first sort should produce, so the sort test can't pass by accident
+// of the original list order.
+const DEFAULT_INTEL = {
+  intelData: {
+    AAPL: { status: 'ok', notable: true, facts: [
+      { kind: 'analyst_action', label: 'Piper Sandler: Upgrade', as_of: '2026-09-01', source: 'FMP', freshness: 'fresh' },
+    ] },
+    TSLA: { status: 'ok', notable: false, facts: [] },
+  },
+  isLoading: false,
+}
+
 beforeEach(() => {
   mutateMine.mockClear()
   navigateMock.mockClear()
   localStorage.clear()
+  mockIntelligence.mockReset()
+  mockIntelligence.mockReturnValue(DEFAULT_INTEL)
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
 })
 afterEach(() => { vi.unstubAllGlobals() })
@@ -152,6 +162,24 @@ test('sorting by Attention puts the notable row first, deterministically', async
 
   const rows = screen.getAllByText(/^(AAPL|TSLA)$/).map(el => el.textContent)
   expect(rows.indexOf('AAPL')).toBeLessThan(rows.indexOf('TSLA'))
+})
+
+// S8 / Attention Freshness Propagation V1 — a 'partial' status with nothing
+// notable previously fell through to the same blank cell as a fully-clean
+// check, silently dropping the backend's own degradation signal. The
+// existing 'unavailable' muted-dash treatment must also cover 'partial'.
+test('a non-notable row with a "partial" status shows the degraded indicator, never the same blank as a clean row', async () => {
+  mockIntelligence.mockReturnValue({
+    intelData: {
+      AAPL: { status: 'ok', notable: true, facts: [{ kind: 'analyst_action', label: 'Upgrade', as_of: '2026-09-01' }] },
+      TSLA: { status: 'partial', notable: false, facts: [] },
+    },
+    isLoading: false,
+  })
+  renderWithAttentionColumn()
+  await screen.findByText('AAPL')
+  const tslaRow = screen.getByText('TSLA').closest('[data-watch-sym="TSLA"]')
+  expect(within(tslaRow).getByTitle('Data partial')).toBeInTheDocument()
 })
 
 test('the row menu offers Compare, and picking a comparator routes to the canonical Comparison V1 route', async () => {
