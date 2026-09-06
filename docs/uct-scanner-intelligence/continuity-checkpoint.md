@@ -2138,4 +2138,78 @@ exposure, no remaining-family mass-conversion, no 500ms-gate change. The
 natural-load observation loop (this file's own primary subject) was
 never paused or delayed to do this work and continues at its own
 cadence toward Tuesday 2026-09-08.
+
+## SCAN-COMPLETENESS PACKAGE — TECHNICALLY APPROVED, MERGE/DEPLOY HOLD (2026-09-06)
+
+**Owner classification: LOCAL PACKAGE REVIEW PASSED — OWNER TECHNICAL
+APPROVAL GRANTED.** The independent review (previous section) was
+accepted in full, including its one applied fix. **Merge/push/deploy is
+explicitly withheld** — reason given: pushing to master would trigger a
+Railway redeploy/process replacement, contaminating the protected 8G-B
+natural-load observation window. The package is frozen, not abandoned.
+
+**Frozen state, verified at freeze time:**
+- Worktree: `C:\Users\Patrick\uct-dashboard-scan-completeness`
+- Branch: `feat/scan-completeness-redeploy-reliability`
+- HEAD: `baf541526` (two commits: `38437b9b4` original implementation,
+  `baf541526` the review's `latest_complete_scan_run` correction)
+- `git status`: clean.
+- Merge-base with `origin/master`: `0fb917a9b` (the tip this branch was
+  cut from). `origin/master` has since advanced to `cbe687024` (8 commits
+  ahead of the merge-base) — **verified via `git diff --stat` that NONE
+  of those 8 commits touch `api/main.py`, `api/services/pattern_engine/`,
+  or `tests/pattern_engine/`** (all 8 are docs/continuity-checkpoint
+  commits plus one unrelated `ATTENTION SOURCE-INTEGRITY HARDENING V1`
+  fix, plus the Notebook Wave-4/Stage-A-gate docs from the earlier
+  misdirected-message episode — now confirmed real and merged as
+  docs-only). The branch's diff against current `origin/master` is still
+  clean/conflict-free as of this check; **re-verify at merge time, don't
+  trust this snapshot indefinitely** (owner's own instruction, Section
+  12 of the review request).
+
+**Accepted design, permanent unless superseded:** `pattern_scan_runs`
+additive table; `start_scan_run`/`complete_scan_run`/`fail_scan_run`;
+`latest_scan_run()` = latest ATTEMPT (regardless of completion);
+`latest_complete_scan_run()` = latest KNOWN-COMPLETE run, never shadowed
+by a newer unfinished attempt. Hard-process-death (SIGKILL/redeploy mid-
+scan) truthfully leaves `completed_at=NULL, error=NULL` — no synthetic
+FAIL transition is added for this case, by owner directive, since a dead
+process cannot truthfully execute one. Wired only into
+`patterns_universe_scan`; no scheduler, serving-path, or detector change.
+
+**Accepted-as-final gaps (do NOT close without a concrete new
+requirement):** no persisted STALE state/threshold/reclaim/watchdog/
+alerting (a consumer computes `now - started_at` itself if ever needed);
+no attempt UUID/counter/multi-attempt history/distributed locking (identity
+stays `PRIMARY KEY (job_id, as_of)`; normal-path overlap is already
+prevented by `max_instances=1`, confirmed still present and unchanged;
+the manual-trigger-vs-cron race is named, accepted, not fixed); no
+deployment SHA/hostname/container ID/`failed_at`/retry-count/checkpoint-
+cursor field.
+
+**Test evidence (frozen, from the review — do not rerun merely to
+recreate it while on hold):** `tests/pattern_engine/test_scan_runs.py`
+11 passed. `tests/pattern_engine/` 2627 passed, 9 pre-existing xfails
+(unrelated). Scheduler/import-adjacent (`test_patterns_intraday_scan.py`
++ `test_no_pattern_detector_raises.py` + `test_schedulers.py`) 22 passed.
+
+**Release condition (exactly one of):** (A) the active 8G-B natural-load
+observation formally closes and its temporary diagnostic is removed/
+cleaned up; (B) a separately-authorized deployment already requires a
+Railway push for another reason and the owner explicitly authorizes
+bundling this package into it; (C) the owner explicitly overrides the
+hold. **None of these has occurred.** Until then: no merge, no push, no
+deploy. Before an eventual merge: re-check `origin/master`, this
+branch's HEAD, `git status`, the merge-base, and specifically whether
+`memory.py`/`api/main.py`/the pattern-scan tests/`pattern_db.py`
+schema-init changed on master in the interim — do not assume today's
+clean diff stays clean. Merge scope at that time is the approved package
+only — no opportunistic resume/checkpoint work, no scheduler relocation,
+no worker service, no serving-path use of `latest_complete_scan_run`, no
+alerting/stale policy, no canonical/detector changes. A real future
+interruption may validate the unfinished-run state naturally — do not
+manufacture a deployment kill solely to prove it.
+
+**Do not continue coding on this package while it waits** — frozen at
+`baf541526` until the release condition above is met.
 Continuing the relaxed observation cadence toward Tuesday's open.
