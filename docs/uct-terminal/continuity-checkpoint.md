@@ -6,7 +6,31 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Awareness Source-Integrity Audit + Hardening V1 merge/deploy/production-verification).
+Journal / Trade Lifecycle Convergence V1 merge/deploy/production-verification).
+
+## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
+
+The Terminal program is NOT primarily a defect-elimination/repo-cleanup/
+architecture-hardening project. The original objective: build UCT into ONE
+COHERENT professional AI-native financial intelligence workstation —
+DISCOVER → UNDERSTAND → RESEARCH → COMPARE → ASK → MONITOR → RECEIVE
+INTELLIGENCE → RETURN TO UPDATED RESEARCH, feeling like one system with many
+entry points, not many features with loose links. **Permanent course-
+correction rule:** do NOT automatically promote every newly discovered seam
+into the next program — a new issue becomes the next priority only if it is
+a MATERIAL TRUST/CORRECTNESS defect, blocks a CORE MEMBER WORKFLOW, blocks a
+HIGH-VALUE capability release, or would propagate a serious defect through a
+shared canonical contract. Otherwise: record it, classify it, preserve it in
+the debt ledger, continue the product plan. Priority stack as of this
+checkpoint: **#1 Technical Research release** (blocked only by Pattern Vision
+reaching LIVE + ACCEPTED — when that happens, interrupt the queue safely and
+release it immediately) → **#2 (just closed) Journal / Trade Lifecycle
+Convergence V1** → **#3 Search/Command Convergence V1** (next, unless
+Pattern Vision/S7 interrupts) → #4 Event/News/Calendar → Research
+convergence → #5 Identity normalization hardening (BRK.B/BRK-B, Seam 1) →
+#6 Technical Ask AI (only after Technical Research is live/trusted) → #7 one
+shared multi-security grounding architecture for Comparison/Watchlist/
+Portfolio AI (do not build three separate systems).
 
 ## North star (do not lose this)
 
@@ -32,8 +56,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `f2d96ce1155146295e3a58229db556a47b6ef564`
-  (Awareness Source-Integrity Audit + Hardening V1 merge — this file's own update
+- **origin/master (last verified):** `701ca73190f7e53b111ef65360dafb6bcb3dfdf3`
+  (Journal / Trade Lifecycle Convergence V1 merge — this file's own update
   is a docs-only branch cut fresh from this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -336,6 +360,50 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `test_calendar_a5_modernization.py`/`test_alert_research_url_routing.py`.
   1 backend file changed (`api/services/awareness/engine.py`) + 1 test file
   extended; zero frontend files touched, zero public API contract changes.
+- **Journal / Trade Lifecycle Convergence V1** — IMPLEMENTED + ACCEPTED +
+  LIVE, merge `701ca7319`, deployed + production-verified 2026-09-06. A
+  4-agent Phase A workflow independently traced the real Journal 2.0 domain
+  model (not assumed from names) and CONFIRMED the prior review's flagged
+  `position_id` sentinel is still true today: `j2_trades.position_id` is a
+  genuine FK back to `j2_positions.id` ONLY for the manually-entered close
+  path (`trades.py::close_position`); every broker-synced closed trade gets
+  `position_id = f"manual-{uuid.uuid4()}"` (`trades.py::bulk_insert_trades`,
+  called from `broker/reconstruct.py`) — a structurally inert placeholder,
+  since broker sync is the dominant live population and the corresponding
+  OPEN `j2_positions` row is usually already DELETED by the time the trade
+  closes (`balances.py`). Classified `ABSENT_NO_SAFE_INFERENCE` — a genuine
+  "Position → Related (closing) Trades" feature was correctly NOT built
+  (would either silently omit most members' trades or require a forbidden
+  heuristic symbol+date match); recorded as new debt below, not fixed.
+  Instead selected the smallest V1 the audit found HIGH-value/LOW-cost/
+  zero-linkage-risk: `HistorySection.jsx` (PositionDetailPage) and
+  `DayTradesTable`/`OptionStrategiesSection` (Calendar `DayDetailPage.jsx`)
+  rendered every closed-trade/closed-option row with **zero click handler**
+  — confirmed by direct read (no onClick/Link/navigate anywhere in either
+  component), not inferred from the workflow's claim. Both now route through
+  the exact `onRowAction` pattern `TradeJournalTab.jsx` already ships:
+  equity rows (a real `j2_trades.id` in both surfaces — neither endpoint
+  ever unions in option strategies, confirmed via each backend query)
+  navigate to `/journal-2-0/trade/:id`; CLOSED option-strategy rows open the
+  existing `TradeDrawer` via `optionClosedToRow()`, moved out of
+  `TradeJournalTab.jsx` into the shared `lib/optionCalcs.js` (zero behavior
+  change, verified via the full pre-existing test suite) so both surfaces
+  can never diverge on how a raw strategy becomes a trade-drawer row.
+  Deliberately did NOT wire DayDetailPage's EXPIRING (still-open) option
+  strategies — `TradeDrawer.jsx`'s own docstring documents it as showing
+  "detail for a single **closed** trade," and passing an open strategy
+  through `optionClosedToRow()` (which reads `closedAt`/`exitPrice`/
+  `pnlDollar`, all null pre-close) would misuse the component outside its
+  designed contract; a regression test pins that an expiring strategy stays
+  inert. Zero backend changes, zero new endpoints, zero heuristic
+  trade↔position inference. 9 focused/regression tests added across
+  `DayDetailPage.test.jsx` (6, including the expiring-stays-inert control)
+  and `PositionDetailPage.test.jsx` (3); full adjacent frontend regression
+  (162 files / 1504 tests across all of `journal-2-0`) green; clean build;
+  2 pre-existing, unrelated lint findings noted (not introduced, not fixed —
+  `DayDetailPage.jsx`'s unused `useMemo` import, `PositionDetailPage.jsx`'s
+  `combinePositions` fast-refresh export warning — both present on master
+  before this program).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -387,14 +455,20 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Awareness Source-Integrity
-  Audit + Hardening V1 (the prior active program) is now ACCEPTED + LIVE —
-  see "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction
-  on that program's authorization ("Then STOP. Do not automatically start
-  another Terminal program."), no next Terminal program has been
-  automatically begun. The next Terminal program requires a new, explicit
-  owner authorization. Do not infer one from the "NEWLY IDENTIFIED DEBT" or
-  "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
+- **None — requires new explicit authorization.** Journal / Trade Lifecycle
+  Convergence V1 (the prior active program) is now ACCEPTED + LIVE — see
+  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
+  that program's authorization ("Then STOP. Do not automatically begin
+  Search/Command or another Terminal program."), no next Terminal program
+  has been automatically begun. **Per the 2026-09-06 Strategic Re-Anchor
+  above, the next candidate in the stated priority stack is Search/Command
+  Convergence V1 (#3) — unless Pattern Vision reaches LIVE + ACCEPTED first
+  (which makes Technical Research release the immediate #1 interrupt) or a
+  genuine S7 NVDA filing event fires.** Either way, the next Terminal
+  program still requires a new, explicit owner authorization — do not
+  self-start Search/Command or any other program from this pointer alone.
+  Do not infer a program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED"
+  sections below, nor from Attention Signal Propagation V1's own
   explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
   TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
   Return-to-Research Consistency V1's own deferred families
@@ -407,8 +481,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   timestamp threading — the earnings/analyst status-integrity bugs it also
   surfaced are now CLOSED, above), nor from Awareness Source-Integrity Audit
   + Hardening V1's own out-of-scope finding (the regime-classifier
-  whole-cycle scan-abort risk — see the new debt entry below) — those are
-  candidate lists, not authorizations.
+  whole-cycle scan-abort risk), nor from Journal / Trade Lifecycle
+  Convergence V1's own deferred items (the broker-sync position↔trade
+  linkage gap, Research→Journal return-context, Position→Notes continuity —
+  see the new debt entries below) — those are candidate lists, not
+  authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -549,6 +626,54 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Fix shape: wrap `_build_market_scan_ctx()`'s call (or just the regime read
   inside it) in its own try/except with a structured log, mirroring the
   per-user isolation pattern already used one line below it.
+- **Seam 11 — broker-synced closed trades carry an inert `position_id`
+  sentinel, so "Position → Related (closing) Trades" cannot be built safely
+  (surfaced by Journal / Trade Lifecycle Convergence V1's Phase A,
+  2026-09-06, classified ABSENT_NO_SAFE_INFERENCE, NOT fixed — deliberately
+  out of scope for that program's narrow V1).** `j2_trades.position_id` is a
+  genuine FK to `j2_positions.id` for the MANUAL close path
+  (`trades.py::close_position`) but a structurally random
+  `f"manual-{uuid.uuid4()}"` sentinel for every broker-synced trade
+  (`trades.py::bulk_insert_trades`, called from `broker/reconstruct.py`) —
+  confirmed by direct code read, matching the exact literal the router's own
+  comment (`journal_two.py:961`) documents. Compounding: the corresponding
+  OPEN `j2_positions` row is typically DELETED once the broker no longer
+  holds it (`balances.py::reconcile_positions`), not closed_at-stamped, so
+  by the time the trade exists there is often no position row left to link
+  to at all. Since broker sync is the dominant, live production path, this
+  makes a real "click into a position, see what it closed into" feature
+  impossible without either (a) a schema/behavior change at broker-sync
+  time — stop deleting `j2_positions` rows on close, stamp a real
+  `position_id` in `bulk_insert_trades` instead of a UUID sentinel — or (b)
+  an explicit product decision that broker positions simply never show a
+  "resulting trade." Both are real architecture/product decisions, not a
+  bounded V1 — needs its own dedicated audit + authorization before any fix.
+- **Seam 12 — Research → Journal return-context is genuinely lost, and one
+  concrete data-loss bug exists (surfaced by Journal / Trade Lifecycle
+  Convergence V1's Phase A, 2026-09-06, NOT fixed — a separate MEDIUM-cost
+  candidate V1 the audit explicitly declined to select this round because it
+  touches the shared, multi-consumer `ResearchPage.jsx`).** Clicking Full
+  Research/Ask AI/Compare from `TradeDetailPage.jsx`/`TradeDrawer.jsx`/
+  `PositionDetailPage.jsx` carries no state back — a member cannot return to
+  the trade/position they came from except via browser back. Additionally: a
+  Notes textarea's draft is flushed only `onBlur`, not on navigate-away, so
+  clicking a research action mid-edit silently discards the unsaved draft —
+  a real, confirmed data-loss bug, not a UX nicety. Fix shape (per the
+  audit): a lightweight `from=trade:{id}`/`from=position:{sym}` query param
+  on the existing `goToResearch`/`goToAskAi`/`goToCompare` calls + a small
+  "Back to Trade/Position" link on `ResearchPage.jsx` when present, plus
+  flushing the Notes draft on navigate-away instead of only blur.
+- **Seam 13 — Position → Notes continuity is fully ABSENT (surfaced by
+  Journal / Trade Lifecycle Convergence V1's Phase A, 2026-09-06, NOT
+  fixed — a separate MEDIUM-cost candidate V1 the audit declined to select
+  this round in favor of the narrower click-through fix).** `j2_notes.ticker`
+  is an already-indexed (`idx_j2_notes_user_ticker`), already-populated,
+  nullable column — a genuine, non-inferred link — but nothing on
+  `PositionDetailPage.jsx` surfaces notes for the symbol being viewed
+  (trade↔note links already exist via `NoteLinkedTradeChips`; there is no
+  position-scoped equivalent). Fix shape: reuse the same read-only chip
+  pattern already shipped for trade↔note links, keyed on `j2_notes.ticker`,
+  no new schema, no trade/position inference.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -614,8 +739,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Consistency V1 (merge `c27c95c50`), Temporal / Freshness Truth
    Convergence V1 (merge `94dd2bb5e`), S8 / Attention Freshness
    Propagation V1 (merge `0d1c1d5bf`), Attention Source-Integrity
-   Hardening V1 (merge `dc2cdc906`), and Awareness Source-Integrity Audit +
-   Hardening V1 (merge `f2d96ce11`) are all ACCEPTED + LIVE as of this
+   Hardening V1 (merge `dc2cdc906`), Awareness Source-Integrity Audit +
+   Hardening V1 (merge `f2d96ce11`), and Journal / Trade Lifecycle
+   Convergence V1 (merge `701ca7319`) are all ACCEPTED + LIVE as of this
    checkpoint — do not re-implement any of them or treat them as pending;
    confirm via `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
@@ -623,10 +749,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Convergence, Attention Signal Propagation, Alert Return-to-Research
    Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
    Freshness Propagation, Attention Source-Integrity Hardening, Awareness
-   Source-Integrity Audit + Hardening, or the Whole-Product Convergence
-   Review from scratch — their findings above are current as of this
-   checkpoint; verify against live code only where something here looks
-   stale.
-7. **No Terminal program is currently authorized.** Do not begin
-   implementation of any candidate from "NEWLY IDENTIFIED DEBT" or "DEFERRED"
-   without a new, explicit owner authorization naming that program.
+   Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
+   Convergence, or the Whole-Product Convergence Review from scratch —
+   their findings above are current as of this checkpoint; verify against
+   live code only where something here looks stale.
+7. **No Terminal program is currently authorized.** Per the 2026-09-06
+   Strategic Re-Anchor at the top of this file, the stated next candidate is
+   Search/Command Convergence V1 (#3 in the priority stack) unless Pattern
+   Vision reaches LIVE + ACCEPTED first (Technical Research release becomes
+   the immediate #1 interrupt) or S7 fires — but do not begin implementation
+   of ANY candidate, including that one, without a new, explicit owner
+   authorization naming the program.
