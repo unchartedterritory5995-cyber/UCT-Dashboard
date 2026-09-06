@@ -209,6 +209,32 @@ describe('PositionDetailPage', () => {
   })
 })
 
+describe('PositionDetailPage — History click-through (Journal / Trade Lifecycle Convergence V1)', () => {
+  beforeEach(() => {
+    navigateMock.mockClear()
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+  })
+
+  it('clicking the closed AAPL trade row navigates to its real j2_trades.id detail page', () => {
+    renderPage()
+    fireEvent.click(screen.getByText(/90\.00.*95\.00/))
+    expect(navigateMock).toHaveBeenCalledWith('/journal-2-0/trade/t1')
+  })
+
+  it('the OPEN position row is not clickable (no navigation on click)', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('OPEN'))
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('keyboard Enter on the closed-trade row also navigates', () => {
+    renderPage()
+    const row = screen.getByText(/90\.00.*95\.00/).closest('li')
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(navigateMock).toHaveBeenCalledWith('/journal-2-0/trade/t1')
+  })
+})
+
 describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', () => {
   beforeEach(() => {
     mockUseAttention.mockReset()

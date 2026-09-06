@@ -313,7 +313,19 @@ export default function PositionDetailPage() {
       <NewsSection items={newsData?.news} />
       <AnalystSection model={analyst} priceTarget={grades?.price_target} composite={snapshot?.composite} />
       <EarningsSection quarterly={earningsTable?.quarterly} />
-      <HistorySection trades={symTrades} positions={symPositions} />
+      <HistorySection
+        trades={symTrades}
+        positions={symPositions}
+        onRowAction={(action, trade) => {
+          if (action !== 'open') return
+          // symTrades is filtered from useJ2Trades(), whose backend route
+          // (GET /api/j2/trades) queries j2_trades only -- it never unions
+          // in option strategies (unlike TradeJournalTab.jsx, which
+          // separately fetches + unions closedStrategies) -- so every row
+          // reaching here is a real equity j2_trades.id, always navigable.
+          navigate(`/journal-2-0/trade/${trade.id}`)
+        }}
+      />
     </div>
   )
 }
