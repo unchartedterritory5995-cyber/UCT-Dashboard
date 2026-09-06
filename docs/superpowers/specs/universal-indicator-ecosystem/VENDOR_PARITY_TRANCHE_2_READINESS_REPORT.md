@@ -80,7 +80,7 @@ confirmed via `closedTable.json` — so implementation readiness is not what's g
 ## 5. Data/input strategy
 
 Same symbol/session as the existing Track A raw capture for continuity and to reuse the
-already-authenticated, already-Premium TradingView session: **SPY, Daily.** Real market data (not
+already-authenticated TradingView session (TV Plus tier, re-verified 2026-09-06 -- prior notes had assumed "Premium"; CSV export is confirmed available on Plus, which is what actually matters here): **SPY, Daily.** Real market data (not
 synthetic) — matching this program's own established preference for real vendor-runtime evidence
 over synthetic series, and because `atr`'s open question is specifically about bar-0 alignment on a
 real series, which a synthetic series would not exercise identically to production charts. Capture
@@ -91,7 +91,7 @@ enough into the series (200+) that the decay claim in `divergences.json` can be 
 
 Reuse `tools/track_a_ingest_vendor_capture.py`'s proven pattern exactly (cross-validation,
 control-value checks, raw-artifact preservation) — this is Track A's own stated mechanism for this
-generalization, not a new tool. CSV export via TradingView Premium (confirmed active), preserved
+generalization, not a new tool. CSV export via the account's TV Plus tier (confirmed active 2026-09-06), preserved
 verbatim under `tests/fixtures/vendor/raw_captures/`, referenced from each observation's
 `provenance.rawArtifact` exactly as the existing 4 Lane B observations already do.
 
@@ -156,15 +156,15 @@ Per-function, one deliberate perturbation proven to flip the check RED before it
   a seed/alignment difference near the warm-up and mis-classifying it as a calculation defect. This
   report's §7/§9 design (explicit warm-up flagging, deep-bar sampling, mutation controls) exists
   specifically to prevent repeating that already-once-made-and-reverted mistake.
-- TradingView Premium session state (rate limits, plan changes) — none currently known, but Track A's
-  capture already hit a Basic-plan 2-indicator cap once; the account is now Premium, so this specific
-  blocker is resolved but re-verify before capture.
+- TradingView session state (rate limits, plan changes) — none currently known, but Track A's
+  capture already hit a Basic-plan 2-indicator cap once; the account is now TV Plus (re-verified
+  2026-09-06, not "Premium" as earlier assumed), so this specific blocker is resolved.
 - No blocker to Lane B implementation — raw artifacts and semantic rulings already exist; the work is
   bounded to implementation + conformance + comparison + regression for exactly 4 named functions.
 
 ## 12. Proposed sequence
 
-1. Re-verify TradingView session/Premium status (cheap, first).
+1. Re-verify TradingView session/plan-tier status (cheap, first) -- DONE 2026-09-06: logged in, TV Plus confirmed, CSV export available via Table View, chart state unmodified.
 2. Capture `rsi(close,14)` and `atr(14)` on SPY Daily, preserving the raw artifact, reading both an
    early and a late bar.
 3. Ingest via the generalized `track_a_ingest_vendor_capture.py` pattern → two new observations.
