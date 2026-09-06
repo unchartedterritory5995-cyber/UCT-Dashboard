@@ -26,6 +26,7 @@ from api.services.pattern_engine.canonical_adapter import (
     ADAPTER_VERSION,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
+    adapt_vcp,
     build_scanner_summary,
     compute_default_eligibility,
 )
@@ -37,6 +38,7 @@ from api.services.pattern_engine.detectors.uct.power_earnings_gap import (
     _MIN_VOLUME_RATIO,
     detect_power_earnings_gap,
 )
+from api.services.pattern_engine.detectors.uct.vcp import detect_vcp
 from api.services.pattern_engine.primitives.context import build_context
 from tests.pattern_engine.detectors.fixture_loader import load_all_fixtures
 
@@ -56,6 +58,7 @@ def _fired_detections(family, detect_fn):
 
 HTF_DETECTIONS = _fired_detections("high_tight_flag", detect_high_tight_flag)
 PEG_DETECTIONS = _fired_detections("power_earnings_gap", detect_power_earnings_gap)
+VCP_DETECTIONS = _fired_detections("vcp", detect_vcp)
 
 
 _GEOMETRY_ENRICHMENT_KEYS = {"anchor_roles", "semantic_subtype"}
@@ -205,11 +208,68 @@ def test_peg_adapter_does_not_mutate_its_input():
     assert detection == snapshot
 
 
+# ─── VCP GEOMETRY SHAPE-CONTRACT + CANONICAL ADAPTATION: eligibility-only,
+#     event/criteria/gate_trace absent (same minimal shape as HTF, and for
+#     the same reason — see adapt_vcp's own docstring) ─────────────────────
+
+@pytest.mark.parametrize("name,detection", VCP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_vcp_adapter_preserves_every_existing_field(name, detection):
+    adapted = adapt_vcp(detection)
+    _assert_parity(detection, adapted, {"eligibility"})
+
+
+@pytest.mark.parametrize("name,detection", VCP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_vcp_adapter_omits_event_and_criteria(name, detection):
+    """vcp.py's own file defers criteria/provenance to base_catalog.py's
+    parallel `vcp` structure and has no event concept — these keys must be
+    genuinely ABSENT, not null/empty."""
+    adapted = adapt_vcp(detection)
+    assert "event" not in adapted
+    assert "criteria" not in adapted
+    assert "gate_trace" not in adapted
+
+
+@pytest.mark.parametrize("name,detection", VCP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_vcp_adapter_eligibility_shape(name, detection):
+    adapted = adapt_vcp(detection)
+    elig = adapted["eligibility"]
+    assert elig["eligibility_scope"] == "system_default"
+    assert elig["eligibility_version"] == ADAPTER_VERSION
+    assert elig["active_window_secs"] == memory.ACTIVE_WINDOW_SECS
+    # VCP DOES have a real per-family recency gate (_MAX_FINAL_LOW_AGE=15),
+    # but its bar-index inputs do not survive into the persisted Detection —
+    # both must honestly be None here, never a guessed bar count.
+    assert elig["freshness_bars"] is None
+    assert elig["freshness_window_bars"] is None
+    assert elig["eligible"] is True
+    assert any("within active window" in r for r in elig["eligibility_reasons"])
+
+
+def test_vcp_adapter_eligible_false_once_outside_active_window():
+    assert VCP_DETECTIONS, "need at least one firing VCP fixture"
+    _, detection = VCP_DETECTIONS[0]
+    stale = dict(detection)
+    stale["detected_at"] = int(time.time()) - memory.ACTIVE_WINDOW_SECS - 3600
+    adapted = adapt_vcp(stale)
+    assert adapted["eligibility"]["eligible"] is False
+    assert any("outside active window" in r for r in adapted["eligibility"]["eligibility_reasons"])
+
+
+def test_vcp_adapter_does_not_mutate_its_input():
+    assert VCP_DETECTIONS
+    _, detection = VCP_DETECTIONS[0]
+    import copy
+    snapshot = copy.deepcopy(detection)
+    adapt_vcp(detection)
+    assert detection == snapshot
+
+
 def test_fixture_coverage_is_nonzero():
     """A silent zero-fixture run would make every test above vacuously pass —
     guard against that."""
     assert len(HTF_DETECTIONS) >= 3, "expected several firing HTF fixtures"
     assert len(PEG_DETECTIONS) >= 3, "expected several firing PEG fixtures"
+    assert len(VCP_DETECTIONS) >= 3, "expected several firing VCP fixtures"
 
 
 # ─── compute_default_eligibility: family-agnostic freshness-gate path ─────
@@ -343,6 +403,76 @@ def test_anchor_role_labeling_never_mutates_the_original_geometry_dict():
     assert detection == snapshot  # original untouched
     assert "anchor_roles" not in detection["geometry"]  # only the ADAPTED copy gained it
     assert "anchor_roles" in adapted["geometry"]
+
+
+# ─── VCP: variable-length anchor_roles (the geometry shape-contract package's
+#     own canonical-adaptation follow-up) ────────────────────────────────────
+
+@pytest.mark.parametrize("name,detection", VCP_DETECTIONS, ids=lambda x: x if isinstance(x, str) else "")
+def test_vcp_anchor_roles_match_the_detectors_real_variable_length_anchor_order(name, detection):
+    """Re-verifies vcp.py::_build_detection's real anchor order — [start_high,
+    low_0, ..., low_{n-1}, pivot] — for THIS fixture's own real contraction
+    count, never assuming a fixed 4. If vcp.py's anchor construction ever
+    changes shape, this is what would catch it."""
+    adapted = adapt_vcp(detection)
+    geometry = adapted["geometry"]
+    n_anchors = len(geometry["anchors"])
+    n_contractions = geometry["extras"]["n_contractions"]
+    assert n_anchors == n_contractions + 2
+    assert geometry["semantic_subtype"] == "contraction_sequence"
+    assert geometry["anchor_roles"] == (
+        ["start_high"] + ["contraction_low"] * n_contractions + ["pivot"]
+    )
+    assert len(geometry["anchor_roles"]) == n_anchors
+
+
+def test_vcp_anchor_role_cardinality_genuinely_varies_across_real_fixtures():
+    """The whole point of this package: VCP's anchor count is NOT fixed at 4
+    like every other trendline_pair family. Prove at least two distinct
+    anchor counts actually occur across the real fixture set — a suite that
+    happened to sample only 2-contraction VCPs would let a regression to a
+    fixed-4 assumption pass silently."""
+    counts = {len(adapt_vcp(d)["geometry"]["anchors"]) for _, d in VCP_DETECTIONS}
+    assert len(counts) >= 2, f"expected varying anchor counts across fixtures, got only {counts}"
+    assert all(c >= 4 for c in counts)
+
+
+def test_vcp_anchor_roles_are_never_reordered_from_the_detectors_own_construction_order():
+    """The adapter must describe anchors by SEMANTIC (construction) order,
+    never chronological order — vcp.py's own pivot anchor is chronologically
+    EARLIER than the final contraction low that sits one position before it
+    in the array (verified directly, not assumed), so a chronologically
+    re-sorted role list would silently describe the wrong anchor."""
+    assert VCP_DETECTIONS
+    _, detection = VCP_DETECTIONS[0]
+    adapted = adapt_vcp(detection)
+    anchors = adapted["geometry"]["anchors"]
+    roles = adapted["geometry"]["anchor_roles"]
+    assert roles[0] == "start_high"
+    assert roles[-1] == "pivot"
+    # The real, on-record defect this geometry package fixed: the pivot
+    # (last anchor) is chronologically BEFORE the final contraction low
+    # (second-to-last anchor) — the adapter's role list must still describe
+    # anchors[-1] as "pivot" by POSITION, not by time.
+    assert anchors[-1]["t"] < anchors[-2]["t"]
+    assert roles[-2] == "contraction_low"
+
+
+def test_vcp_adapter_does_not_reconstruct_a_gate_trace_from_reconstructable_extras():
+    """Several vcp.py gates ARE numerically reconstructable from
+    geometry.extras.contraction_pcts alone (first/final contraction pct, the
+    0.85 tightening ratio) — this test pins that adapt_vcp deliberately does
+    NOT build a partial gate_trace from them, per its own docstring: a
+    gate_trace naming only the reconstructable subset while several other
+    real gates (prior-advance %, the volume-segment ratio, the Trend-Template
+    precondition) cannot be reconstructed would look like a complete receipt
+    while silently omitting real gates."""
+    assert VCP_DETECTIONS
+    _, detection = VCP_DETECTIONS[0]
+    extras = detection["geometry"]["extras"]
+    assert extras.get("contraction_pcts"), "fixture must carry reconstructable extras for this test to mean anything"
+    adapted = adapt_vcp(detection)
+    assert "gate_trace" not in adapted
 
 
 def test_labeled_geometry_falls_back_cleanly_on_a_cardinality_mismatch():
