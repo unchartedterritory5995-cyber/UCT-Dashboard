@@ -1956,3 +1956,58 @@ snapshot builder (expected — per-definition small commits vs. a full
 "contention"` over the same window returns nothing — no natural or
 owner-initiated scanner request occurred during this writer's active
 second either. `screener_screen_alerts` (~05:10 ET) is next, imminent.
+
+## screener_screen_alerts completed cleanly — trivial, real result (2026-09-06 05:10 ET)
+
+**Real, complete evidence.** `2026-09-06 09:10:00,012 INFO
+api.services.screener.screen_alerts: [screen-alerts]
+{'definitions': 0, 'compared': 0, 'no_previous': 0, 'sent': 0,
+'skipped_dedup': 0, 'skipped_quota': 0, 'skipped_quiet': 0, 'errors': 0}`
+at `09:10:00.012 UTC = 05:10:00.012 ET` — fired exactly on schedule.
+`definitions: 0` means there was nothing to compare/alert on tonight (no
+active alert-eligible definitions with a prior snapshot to diff against);
+`errors: 0` confirms a clean, non-degenerate run rather than a silent
+failure. Effectively instantaneous (0 work performed). Git tip and
+deployment id confirmed unchanged through this check — no interruption.
+
+**Scanner-correlation result: zero, again.** No natural or owner-initiated
+scanner traffic during this writer's active moment either.
+
+## Tonight's full nightly writer window (02:00–05:10 ET) — CLOSED OUT, zero scanner-correlation samples
+
+All four confirmed nightly screener.db-adjacent writers have now been
+observed for their full active window tonight, with real, natural evidence
+for each — never manufactured, never accelerated:
+
+| Writer | Window | Result | Scanner correlation |
+|---|---|---|---|
+| `patterns_universe_scan` | ~01:00 ET | STRONG NATURAL CIRCUMSTANTIAL EVIDENCE — long-running scan / redeploy interruption (not screener.db, separately tracked) | n/a |
+| `screener_snapshot_nightly` | 03:00:01.939–03:20:39.069 ET | Completed cleanly, 20m37.1s, no interruption | Zero |
+| `screener_scan_sweep` | 05:00:00–05:00:54.239 ET | Completed cleanly, 54.2s, no interruption | Zero |
+| `screener_screen_alerts` | 05:10:00.012 ET | Completed cleanly, trivial (0 definitions), no interruption | Zero |
+
+**Honest conclusion for this window: no scanner-traffic sample was
+captured against any confirmed screener.db writer tonight.** This is not a
+failure of the diagnostic — `record()` fired correctly (verified via the
+fast-control fallback path and via the diagnostic's own tests) and would
+have logged a `SLOW` sample immediately had a ≥300ms `/api/screener/scan`
+request occurred during any of these four windows. It simply never did —
+zero natural traffic and no owner-supplied sample was reported during the
+entire 02:00–05:10 ET window. Per owner direction, this gap is recorded
+plainly rather than papered over or filled artificially.
+
+**Plan shift: relaxed cadence toward Monday's market open.** The market is
+closed all weekend, so `screener_live_tier` (the strongest same-file writer
+candidate — runs every 60s, RTH-gated, real overlay writes) cannot produce
+its first genuine non-skipped cycle until Monday. No other nightly writer
+fires again before then. Continuing the observation loop at a relaxed
+30–60 minute cadence until Monday's open, watching for: (a) any natural
+scanner traffic overlapping any writer's active window (including a
+possible owner-supplied UI sample, to be labeled "NATURAL WRITER + BOUNDED
+OWNER SCANNER SAMPLE" if reported), (b) the diagnostic file for any further
+concurrent-session edits (narrow-verify only, per the established
+protocol), and (c) deployment/health for any material change. If Monday's
+session also passes without a usable slow-trace sample, the final report
+will honestly classify this as **C6 — CONTENTION ATTRIBUTION STILL
+INSUFFICIENT** rather than force a classification the evidence doesn't
+support.
