@@ -235,6 +235,37 @@ sizing context only, never as the gating population. If eligible-pool growth
 stalls, revisit `MULTI_USER_MIN` with the owner rather than silently
 lowering it.
 
+### 2026-09-06 — Bucket A experience-integrity remediation, baseline redefined
+
+Per the authorized "BUCKET A ONLY" UX remediation pass: two P0 defects (the
+thesis-trade link silently failing to create from 3 of 5 `AddPositionModal`
+entry points; note-load hanging on "Loading…" forever on any fetch failure)
+and two P1 defects (raw error-leak surfaces; `LinkedNotesPanel` absent from
+the open-position view) were fixed, tested (105 targeted + 1,532
+journal-2-0-suite tests, all green), and live-browser-verified end-to-end in
+the fail-closed sandbox against the real, unmocked code path — see
+`notebook-ux-ui-competitive-ledger.md` for the full certification report.
+
+**Baseline determination (per the authorizing directive's Case A/B logic):**
+the most recent recorded snapshot above (2026-09-06, pre-fix) shows
+**Activated (touched Notebook): 0** — zero real eligible member activity
+occurred before this fix, at any point in the instrumentation's existence.
+This is unambiguously **Case A**: no real behavioral evidence exists to
+invalidate or exclude, because none was ever collected. Per instruction:
+
+- The pre-fix Day 0 record above is **preserved verbatim** for chronology —
+  nothing is deleted or rewritten.
+- The **Stage A validation-eligible baseline is redefined as the moment of
+  this fix's production deployment** (deploy `d7b53b339`+Bucket-A-merge,
+  2026-09-06) — behavioral evidence collected from this point forward is
+  what counts toward the Early Signal Gate. Evidence collected before this
+  point does not exist (0 activations), so nothing is being excluded that
+  would otherwise have counted.
+- No reset "more than necessary": the six computable criteria, their
+  thresholds, and the cohort definition (§2–§4) are **unchanged** — only the
+  START of the clock moves, from "instrumentation went live" to
+  "instrumentation went live AND the experience it measures is honest."
+
 ---
 
 ## 8. Blockers
@@ -248,9 +279,17 @@ lowering it.
 ## 9. Gate status
 
 - **Early Signal Gate:** not yet met — see the live endpoint for current
-  criterion-by-criterion values.
-- **Full Stage A Validation:** in progress, day 1 of instrumentation.
+  criterion-by-criterion values. **Validation-eligible baseline: 2026-09-06,
+  post-Bucket-A-deploy** (see §7 — Case A, zero pre-fix activity, nothing
+  excluded, gate criteria/thresholds unchanged).
+- **Full Stage A Validation:** in progress, day 1 of the (redefined) honest
+  baseline.
 - **Wave 4 authorization:** NOT granted. Per the decision log, begins when
   the Early Signal Gate's six computable criteria pass AND the owner
   confirms criteria 7–8, OR the owner explicitly waives the gate based on
   new judgment.
+- **Bucket B UX debt:** deliberately NOT addressed this pass — remains
+  backlog per `notebook-ux-ui-competitive-ledger.md`'s remediation package
+  (command palette, native-confirm replacement, shared skeleton,
+  favorites/recents, zero-result search guidance, capture destination-menu +
+  4 uncovered surfaces, in-note keyboard shortcuts, mobile re-verification).

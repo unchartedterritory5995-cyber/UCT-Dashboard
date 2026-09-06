@@ -18,9 +18,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 // Spies shared with the hoisted module mocks below.
-const { mutateSpy, navigateSpy } = vi.hoisted(() => ({
+const { mutateSpy, navigateSpy, capturedPositionOnSaveRef } = vi.hoisted(() => ({
   mutateSpy: vi.fn(),
   navigateSpy: vi.fn(),
+  // P0-18 fix: exposes the real onSave TodaySurface hands to AddPositionModal,
+  // so a test can invoke it directly and inspect what it resolves to -- the
+  // stub button's onClick discards the return value, same as the pre-fix bug.
+  capturedPositionOnSaveRef: { current: null },
 }))
 
 // ── controllable hook state ──────────────────────────────────────────────────
@@ -126,11 +130,14 @@ vi.mock('../components/AddTradeModal', () => ({
   ),
 }))
 vi.mock('../components/AddPositionModal', () => ({
-  default: ({ onSave }) => (
-    <button type="button" data-testid="stub-save-position" onClick={() => onSave({ symbol: 'NVDA', side: 'long' })}>
-      save position
-    </button>
-  ),
+  default: ({ onSave }) => {
+    capturedPositionOnSaveRef.current = onSave
+    return (
+      <button type="button" data-testid="stub-save-position" onClick={() => onSave({ symbol: 'NVDA', side: 'long' })}>
+        save position
+      </button>
+    )
+  },
 }))
 
 // Spy on the SWR global mutate (the B1 revalidation) + on router navigation
@@ -346,6 +353,34 @@ describe('TodaySurface — B1 first-trade revalidation fix', () => {
     const predicates = mutateSpy.mock.calls.map((c) => c[0]).filter((f) => typeof f === 'function')
     expect(predicates.some((f) => f('/api/j2/accounts/comparison'))).toBe(true)
     expect(predicates.some((f) => f('/api/j2/accounts/a1/coach/overview'))).toBe(true)
+  })
+})
+
+describe('TodaySurface — AddPositionModal onSave (P0-18 fix)', () => {
+  it('returns the created position -- AddPositionModal.handleSave needs created.id to attach a thesis link', async () => {
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    account = { id: 'a1', name: 'Manual', balanceSource: 'manual' }
+    renderToday()
+    fireEvent.click(screen.getByRole('button', { name: /log a position/i }))
+    await waitFor(() => expect(capturedPositionOnSaveRef.current).not.toBeNull())
+
+    const created = await capturedPositionOnSaveRef.current({ symbol: 'NVDA', side: 'long' })
+
+    expect(created).toEqual({ id: 't1', symbol: 'NVDA' })
+  })
+
+  it('does not close the modal itself -- AddPositionModal owns when to close so its own retry-on-link-failure footer can stay visible', async () => {
+    market = { isOpen: true, isPremarket: false, isExtended: false }
+    account = { id: 'a1', name: 'Manual', balanceSource: 'manual' }
+    renderToday()
+    fireEvent.click(screen.getByRole('button', { name: /log a position/i }))
+    fireEvent.click(screen.getByTestId('stub-save-position'))
+
+    await waitFor(() => expect(mutateSpy).toHaveBeenCalled())
+    // Pre-fix, onSave called closeModal() itself, unmounting the modal the
+    // instant the position write resolved -- before AddPositionModal's own
+    // handleSave could even attempt the thesis-link POST.
+    expect(screen.getByTestId('stub-save-position')).toBeInTheDocument()
   })
 })
 

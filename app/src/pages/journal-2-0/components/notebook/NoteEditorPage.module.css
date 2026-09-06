@@ -410,6 +410,26 @@
   color: var(--color-text-muted, #98a0aa);
 }
 
+.loadError {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 60px 20px;
+  color: var(--color-text-primary, #e8eaed);
+}
+.loadErrorHint {
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 13px;
+  max-width: 360px;
+}
+.loadErrorActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 /* ── Phone: fullscreen FORM — 16px inputs (no iOS zoom), finger targets, and a
    non-sticky toolbar so it can't overlap a wrapped header. ── */
 @media (max-width: 640px) {

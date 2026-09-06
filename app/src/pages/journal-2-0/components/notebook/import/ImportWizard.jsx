@@ -180,7 +180,10 @@ const NOTE_HEADER_H_TOUCH = 44
 // error boundary — a conversion crash must not take down the Notebook tab
 // ---------------------------------------------------------------------------
 
-class ImportWizardBoundary extends Component {
+// Exported (only) so its P1-1 fallback copy has direct, isolated test
+// coverage without needing to force a real crash through the full wizard's
+// multi-step flow -- ImportWizard itself remains the only intended caller.
+export class ImportWizardBoundary extends Component {
   constructor(props) {
     super(props)
     this.state = { error: null }
@@ -200,8 +203,18 @@ class ImportWizardBoundary extends Component {
         <div className={styles.crash}>
           <UIcon name="warning" size={26} gold={false} className={styles.crashIcon} />
           <p>Something went wrong while importing.</p>
+          {/* P1-1 fix: this used to dump the raw JS exception (e.g. a bare
+              "TypeError: Cannot read properties of…") straight to the
+              member -- an implementation detail, never a useful one, since
+              a React render crash carries no backend-authored detail worth
+              preserving (unlike the save-error paths in NoteEditorPage.jsx).
+              Nothing was deleted by a crash here -- only the conversion UI
+              itself failed -- so the honest, actionable line is the same
+              recovery idiom this wizard already uses for partial imports. */}
           <p className={styles.crashDetail}>
-            {String(this.state.error?.message || this.state.error)}
+            Nothing was deleted. Check your Notebook for what came through,
+            then close this and re-run the import to catch anything that
+            didn't.
           </p>
           <button type="button" className="btn btn-secondary" onClick={this.props.onClose}>
             Close

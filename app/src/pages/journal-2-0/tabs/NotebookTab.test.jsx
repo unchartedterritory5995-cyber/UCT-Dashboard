@@ -280,6 +280,31 @@ describe('NotebookTab — pagination (Task 11: the browse path must survive a mi
   })
 })
 
+describe('NotebookTab — notes-load error sanitization (P1-1 fix)', () => {
+  function mockMainListError(error) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+  }
+
+  it('never shows the raw fetch error (bare HTTP status)', () => {
+    mockMainListError(new Error('500'))
+    renderTab()
+    expect(screen.queryByText(/500/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Couldn't load your notes/)).toBeInTheDocument()
+  })
+
+  it('offers a retry wired to the hook\'s own refresh -- not reimplemented', () => {
+    mockMainListError(new Error('500'))
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('NotebookTab — Wave 0 trash view', () => {
   it('selecting Trash from the sidebar fetches the deleted view, not the active folder/tag filters', () => {
     useJ2NotesMock.mockImplementation((opts) => {

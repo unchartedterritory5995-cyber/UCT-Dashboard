@@ -37,6 +37,26 @@ const AUTOSAVE_MS = 800
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 
+// P1-1 fix: `update()` (useJ2Notes.js) throws `new Error(body.detail ||
+// \`${res.status}\`)` -- a REAL backend-authored detail when the API
+// supplied one (preserve it verbatim; it's already meaningful, e.g. a
+// validation message), or just a bare numeric HTTP status code string
+// (e.g. "500") when it didn't -- which means nothing to a member and used
+// to render as-is ("Save failed: 500"). This only ever replaces the bare
+// code, never a real detail.
+function friendlySaveError(e, status, { retrying = false } = {}) {
+  const msg = e?.message
+  if (msg && !/^\d{3}$/.test(msg)) return msg
+  if (!status || status >= 500) {
+    return retrying
+      ? "Couldn't reach the server — your note is unchanged, retrying automatically."
+      : "Couldn't reach the server. Your note is unchanged — please try again."
+  }
+  if (status === 404) return 'This note could not be found.'
+  if (status === 403) return "You don't have permission to edit this note."
+  return 'Could not save. Please try again.'
+}
+
 // Wave 0 (P1-10) local draft safety net: the network autosave is debounced
 // 800ms behind the last keystroke, so a tab closed WHILE still typing (or
 // mid-backoff, offline) can lose everything after the last successful PUT —
@@ -288,7 +308,12 @@ export function NoteLinkedTradeChips({ noteId }) {
 }
 
 export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
-  const { note, isLoading, update, refresh } = useJ2Note(noteId)
+  const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
+  // Diagnostic only -- never surfaced to the member (see the !note render
+  // branch below for why raw fetch-error text doesn't belong in that UI).
+  useEffect(() => {
+    if (loadError) console.warn('note load failed', loadError)
+  }, [loadError])
   const { folders } = useJ2NoteFolders()
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
@@ -514,7 +539,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       clearDraftLocally()
     } catch (e) {
       setSaveStatus('error')
-      setSaveErrorMsg(e?.message || 'restore failed')
+      setSaveErrorMsg(friendlySaveError(e, e?.status))
     } finally {
       restoringDraftRef.current = false
     }
@@ -774,7 +799,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (!retryable) {
         console.error('autosave failed (non-retryable)', e)
         setSaveStatus('error')
-        setSaveErrorMsg(e?.message || `HTTP ${status}`)
+        setSaveErrorMsg(friendlySaveError(e, status))
         retryAttemptsRef.current = 0
         return
       }
@@ -783,7 +808,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
       setSaveStatus('reconnecting')
-      setSaveErrorMsg(e?.message || (status ? `HTTP ${status}` : 'Network error'))
+      setSaveErrorMsg(friendlySaveError(e, status, { retrying: true }))
       retryTimerRef.current = setTimeout(() => commitSaveRef.current(), delay)
     }
   }
@@ -850,8 +875,42 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     >{label}</button>
   )
 
-  if (isLoading || !note) {
+  if (isLoading) {
     return <div className={styles.loading}>Loading…</div>
+  }
+
+  // P0-2 fix: `error` is real and returned by useJ2Note, but was never
+  // consumed here -- so a failed fetch (transient network blip, a stale
+  // link to a deleted note, anything) left `note` permanently null while
+  // `isLoading` settled false, and the page hung on "Loading…" forever
+  // with no way forward. `noteId` is always truthy for every real mount of
+  // this component (NotebookTab only renders it once a note is selected),
+  // so once loading has settled, `!note` here always means the fetch
+  // failed -- never a normal transient state -- and is the right signal to
+  // branch on (unlike `loadError` alone, which SWR can also set on a LATER
+  // background revalidation failure while a perfectly good `note` from an
+  // earlier successful fetch is still on screen; that case must keep
+  // rendering the note, not this error card).
+  if (!note) {
+    return (
+      <div className={styles.loadError} role="alert">
+        <p>Couldn't load this note.</p>
+        <p className={styles.loadErrorHint}>
+          Nothing here has been changed or lost — this looks like a connection
+          problem, not a save problem.
+        </p>
+        <div className={styles.loadErrorActions}>
+          <button type="button" className="btn btn-primary" onClick={refresh}>
+            Try again
+          </button>
+          {showBack && (
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
+              ← Notebook
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

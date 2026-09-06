@@ -23,6 +23,7 @@ import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
 import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import AboutSection from './AboutSection'
 import StatsSection from './StatsSection'
 import NewsSection from './NewsSection'
@@ -69,6 +70,26 @@ export function combinePositions(rows) {
     })
   }
   return [...bySide.values()]
+}
+
+/**
+ * P1-19 fix — raw (pre-combinePositions) j2_positions.id list per side, for
+ * the given symbol. The thesis-trade link attaches to a RAW position id, but
+ * combinePositions() above merges same-side rows into one display block and
+ * keeps only the first row's id -- so a member who scaled into a side across
+ * two "Add Position" calls (two distinct ids, possibly two distinct thesis
+ * notes) would silently lose one link if the linked-notes lookup read off
+ * the merged model instead of this.
+ */
+export function idsBySide(rows, sym) {
+  const map = new Map()
+  for (const p of rows || []) {
+    if (p.symbol !== sym || p.id == null) continue
+    const arr = map.get(p.side) || []
+    if (!arr.includes(p.id)) arr.push(p.id)
+    map.set(p.side, arr)
+  }
+  return map
 }
 
 export default function PositionDetailPage() {
@@ -129,6 +150,9 @@ export default function PositionDetailPage() {
     () => combinePositions(positions.filter((p) => p.symbol === sym)),
     [positions, sym],
   )
+  // See idsBySide's own docstring (P1-19 fix) for why this reads the raw,
+  // pre-merge position list rather than symPositions/positionModels.
+  const rawIdsBySide = useMemo(() => idsBySide(positions, sym), [positions, sym])
   const symTrades = useMemo(
     () => trades.filter((t) => t.symbol === sym),
     [trades, sym],
@@ -303,7 +327,12 @@ export default function PositionDetailPage() {
         <section className={styles.section} aria-label="Your position">
           <h2 className={styles.sectionTitle}>Your Position</h2>
           {positionModels.map((m) => (
-            <YourPositionGrid key={m.side} model={m} />
+            <div key={m.side}>
+              <YourPositionGrid model={m} />
+              {(rawIdsBySide.get(m.side) || []).map((id) => (
+                <LinkedNotesPanel key={id} tradeRef={String(id)} tradeRefType="position" />
+              ))}
+            </div>
           ))}
         </section>
       )}
