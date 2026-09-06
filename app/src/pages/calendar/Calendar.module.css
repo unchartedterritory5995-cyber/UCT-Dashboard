@@ -1457,9 +1457,25 @@
 
 /* ── B3: EventCard (IPO / Dividend / Split) ──────────────────────────────── */
 
-/* Shared base — overlays on top of .card */
+/* Shared base — overlays on top of .card. Now a <button> (Event / News /
+   Calendar -> Research V1 click-through), so reset the browser button
+   chrome .card doesn't already cover (border/background/padding/cursor are
+   already set by .card and apply identically to a button element). */
 .evtCard {
   position: relative;
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.evtCard:disabled {
+  cursor: default;
+}
+
+.evtCard:disabled:hover {
+  transform: none;
 }
 
 /* IPO — subtle blue tint */
