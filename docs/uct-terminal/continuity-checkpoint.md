@@ -6,14 +6,16 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)
-merge/deploy/production-verification -- the top-ranked MUST-FIX from the
-same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens
-multi-agent current-state review + synthesis, ~3.9M subagent tokens, 699
-tool calls, zero lens failures). Full re-anchor report delivered to the
-owner in-conversation; this doc keeps only the load-bearing conclusions,
-not the full 30-section report. Seam 29 is next, per the standing
-directive's instruction to continue directly down the priority stack.
+Outage-Integrity Threading (Seam 29) merge/deploy -- the second-ranked
+MUST-FIX from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC
+RE-ANCHOR (13-lens multi-agent current-state review + synthesis, ~3.9M
+subagent tokens, 699 tool calls, zero lens failures). Full re-anchor report
+delivered to the owner in-conversation; this doc keeps only the load-
+bearing conclusions, not the full 30-section report. Both re-anchor
+MUST-FIX trust defects (Seam 28, Seam 29) are now closed. Alert Durability
+V1 is next; Awareness Reachability Restoration V1 is deliberately SKIPPED
+pending a genuine owner monetization/entitlement decision (see the
+top-of-file section) -- do not resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -52,15 +54,13 @@ neither previously on the ledger, both now numbered:**
   Compass chat) inherit it automatically. Absorbed and closed the old
   "Seam 26 (unaudited)" entry too (its own tools now disclose "unconfirmed"
   structurally). See "CURRENT ACCEPTED" for full detail.
-- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare —
-  NOT YET FIXED, now the active program.**
+- **Seam 29 — RESOLVED same day, merge `ec095a23d`/`0e690583b`.**
   `outage_out` (the analyst source-integrity signal added by Attention
-  Source-Integrity Hardening V1) reaches `watchlist_intelligence.py` but
-  NOT `ticker_explain.py` (line ~941) or `research/comparison.py` (line
-  ~73) — both call `get_analyst_ratings(sym)` with no outage signal, so a
-  real provider outage during either flagship grounded AI answer is
-  silently indistinguishable from "no coverage." Smallest, most mechanical
-  of the newly-found MUST-FIX items.
+  Source-Integrity Hardening V1) now threads into both
+  `ticker_explain.py::_fetch_analyst` and `research/comparison.py::_side()`
+  — a real provider outage during either flagship grounded AI answer now
+  discloses honestly via an evidence-pipeline `data_gap` item instead of
+  silently reading as "no coverage." See "CURRENT ACCEPTED" for full detail.
 
 **Next priority stack (all unblocked by, independent of, Pattern Vision's
 gate):** Seam 28 → Seam 29 → Awareness Reachability Restoration V1 → Alert
@@ -142,8 +142,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `c3128e0108a4b3aaf2f35a9880bd46a7e0486dc6`
-  (Seam 28's own merge -- this file's own update is a docs-only blob-swap on
+- **origin/master (last verified):** `0e690583b2f0958244a83f5bd2b4c9ba05660caf`
+  (Seam 29's own merge -- this file's own update is a docs-only blob-swap on
   top of this SHA; drift since then is unrelated concurrent work -- re-check
   overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -1242,6 +1242,70 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     8G-B/Scanner, `ai_search.py`/`ai_search_agent.py`/`coach_chat_tools.py`/
     `voice_agents.py` themselves (all inherit the fix with zero changes),
     or Compass's own `COMPASS_MENTOR_MODE`/report-card gating.
+- **Outage-Integrity Threading (Seam 29)** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `ec095a23d` (code) / `0e690583b` (merge-to-master), deployed
+  2026-09-06. Second-ranked MUST-FIX from the same re-anchor; smallest,
+  most mechanical of the newly-found items.
+  - **Root cause:** `get_analyst_ratings(sym, *, outage_out=None)` already
+    distinguishes a genuine live source outage from real no-coverage
+    (`watchlist_intelligence.py`'s own S9 fix already used this signal) —
+    but `ticker_explain.py::_fetch_analyst` and
+    `research/comparison.py::_side()` both called it WITHOUT `outage_out`,
+    so a real outage during either flagship grounded AI answer (Research's
+    Ask AI, Compare) silently read as "no coverage." A textbook Evolving
+    Interconnection Principle failure — the outage contract was added two
+    programs ago in this same ledger and its two flagship consumers were
+    never updated.
+  - **Fix:** threaded `outage_out` through both call sites. On outage, each
+    emits ONE honest evidence item (`type: "data_gap"` in
+    `ticker_explain.py`, `type: "comparison_data_gap"` in
+    `comparison_ai_adapter.py`) through the SAME evidence-list pipeline
+    every other domain already uses (`{type, date, source, text, url}`) —
+    deliberately NOT a new parallel "grounding_gaps" mechanism like
+    `ai_search.py`'s (that subsystem's own idiom; `ticker_explain.py` has
+    no equivalent and didn't need one built for this). Both system prompts
+    gained one explicit example clause under their existing
+    `answer_with_caveat` enumeration, alongside the pre-existing stale-
+    data/fiscal-quarter/13F-lag examples, naming the new `data_gap`/
+    `comparison_data_gap` types explicitly so the model never restates a
+    disclosed outage as "no coverage."
+  - **`comparison_ai_adapter.py` needed no new fetch call** — it already
+    sources every evidence item exclusively from `get_comparison()`'s own
+    output by explicit, documented architectural rule (no second,
+    independent fetch) — so the outage flag flows through automatically
+    once `comparison.py`'s own `analyst` leg carries it.
+  - **Also fixed a real regression the new keyword argument exposed:**
+    several pre-existing `get_analyst_ratings` test mocks (across
+    `test_research_comparison.py` and `test_ticker_explain.py`) used a bare
+    `lambda sym:` signature that raised `TypeError` on the new
+    `outage_out` kwarg — each caller's own defensive per-domain exception
+    handling silently swallowed it (matches the documented "one composer's
+    failure must not blank the others" contract), so those specific tests
+    would have passed for the WRONG reason (empty evidence looking
+    identical to "no coverage") had this program not actually run them and
+    caught the failure. Fixed all affected lambdas to accept `outage_out`.
+  - **Tests:** 8 new tests (genuine outage vs. genuine no-coverage vs. an
+    unhandled exception all distinguished; an outage flag suppresses any
+    stray accompanying data rather than mixing signals) across
+    `test_ticker_explain.py`, `test_research_comparison.py`, and
+    `test_comparison_ai_adapter.py`. Full adjacent regression green: all of
+    `test_ticker_explain.py` (195), `test_comparison_ai_adapter.py` (34),
+    `test_research_comparison.py` (16), `test_research_analyst_ratings.py`
+    (6, confirmed unaffected — a separate consumer,
+    `api/routers/research.py`, was checked and correctly left untouched,
+    out of this seam's named scope), `test_ticker_explain_eval.py` +
+    `test_ticker_explain_judge.py` (29) — 280+ tests. Clean `api.main`
+    app-boot.
+  - **Explicitly did NOT touch:** any OTHER domain's silent-empty-on-
+    failure behavior in either composer (financials/estimates/ownership/
+    filings/rating all still lack an equivalent outage signal — none of
+    them have an `outage_out`-shaped mechanism available today, unlike
+    analyst ratings; extending this pattern to them is new, separate scope,
+    not part of this seam), `api/routers/research.py`'s own direct
+    `get_analyst_ratings(sym)` call (a different, non-AI-grounding
+    consumer, out of this seam's named scope), and
+    `watchlist_intelligence.py` itself (already correct, the precedent this
+    fix copied).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1372,11 +1436,23 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Seam 28 (closes Seam 26) — DONE, ACCEPTED + LIVE. Seam 29 — Outage-
-  Integrity Threading — STARTING NOW**, continuing directly down the
+- **Seam 28 (closes Seam 26) + Seam 29 — BOTH DONE, ACCEPTED + LIVE.
+  Alert Durability V1 — STARTING NOW**, continuing directly down the
   re-anchor's own priority stack per the standing directive (no new
   ledger-scan needed — the re-anchor already did that scan; see below).
-  See the new Seam 28/Seam 29 debt-ledger entries above for full scope.
+  **Awareness Reachability Restoration V1 was DELIBERATELY SKIPPED OVER,
+  not forgotten** — the re-anchor's own §30 flags its core question
+  (should the free-tier Awareness engine become paid-gated to match its
+  current paid-only destination, or should the destination become free to
+  match the engine?) as a genuine owner-required monetization/entitlement
+  policy decision, one of the standing stop conditions (Section III/XX of
+  the directive). **Do not resolve that question unilaterally and do not
+  implement ANY version of Awareness Reachability Restoration until the
+  owner has answered it** — proceeding to the next unblocked item instead
+  (Alert Durability V1), exactly as the directive's own "no independent
+  work left" framing intends: work IS left, just not on that one item.
+  See the new Seam 28/Seam 29 debt-ledger entries above for full scope of
+  what shipped.
   Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
   before this point, in order: Technical Ask AI Phase A →
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE (zero code) → AI Search Raw-Pattern
@@ -1391,29 +1467,33 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (multi-agent workflow, full report delivered in-conversation 2026-09-06;
   see the top-of-file section for the load-bearing conclusions) →
   **Verdict & Pattern-Bridge Trust Adjudication (Seam 28, closes Seam 26)**
-  — ACCEPTED + LIVE, merge `efe64acfb`/`c3128e010` (see "CURRENT ACCEPTED"
-  above) → now Seam 29.
-  **Bounded Phase A required before Seam 29's fix**: re-verify
-  `ticker_explain.py` (~line 941) and `research/comparison.py` (~line 73)
-  actually call `get_analyst_ratings(sym)` with no `outage_out` threaded
-  through, and confirm `watchlist_intelligence.py`'s own call site as the
-  precedent for how the signal should be threaded, before writing code —
-  the re-anchor's line numbers are approximate, re-read the real code.
-  **Next in the priority stack after Seam 29** (all independent of Pattern
-  Vision's gate): Awareness Reachability Restoration V1 (⚠️ has an
-  owner-required monetization/entitlement question attached — see the
-  re-anchor section above, do not resolve it unilaterally) → Alert
-  Durability V1 → Watchlists/PositionsTable Keyboard Accessibility V1 →
-  Compare Coverage V1 → Calendar TickerActions Reuse V2 → Feature-Flag
-  Governance Sweep (incl. an owner confirm-or-rollback on live
-  `BROKER_BALANCE_HISTORY_ENABLED=1`).
+  — ACCEPTED + LIVE, merge `efe64acfb`/`c3128e010` →
+  **Outage-Integrity Threading (Seam 29)** — ACCEPTED + LIVE, merge
+  `ec095a23d`/`0e690583b` (see "CURRENT ACCEPTED" above for both) → now
+  Alert Durability V1 (Awareness Reachability Restoration V1 skipped, see
+  above).
+  **Bounded Phase A required before Alert Durability V1's implementation**:
+  re-read `api/services/watchlist_alert_service.py`'s current alert-storage
+  mechanism (the re-anchor's monitoring lens described it as "an in-process
+  TTLCache explicitly documented as resetting on redeploy" — verify this is
+  still accurate, find the exact cache/table), and re-read S7's own durable-
+  receipts bridge (`api/services/alert_taxonomy/receipts.py` per earlier
+  session context) as the precedent to reuse — do not invent a new
+  persistence mechanism if S7's existing one can be adapted; do not migrate
+  or delete any existing alert history in the process.
+  **Next in the priority stack after Alert Durability V1** (all independent
+  of Pattern Vision's gate, Awareness Reachability Restoration still
+  excluded pending owner input): Watchlists/PositionsTable Keyboard
+  Accessibility V1 → Compare Coverage V1 → Calendar TickerActions Reuse V2
+  → Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
+  live `BROKER_BALANCE_HISTORY_ENABLED=1`).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
-  Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-Seam-
-  29 or later, treat it as the priority interrupt the standing directive
-  describes — stop at a safe checkpoint, record it, do not fabricate or
-  accelerate it. Do not treat "no program is currently active" as a stop
-  condition.
+  Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
+  program or later, treat it as the priority interrupt the standing
+  directive describes — stop at a safe checkpoint, record it, do not
+  fabricate or accelerate it. Do not treat "no program is currently active"
+  as a stop condition.
   The prior "nor from X's own deferred items" enumeration that used to live
   here is superseded by the re-anchor's own seam-ledger reclassification
   table (§15 of the delivered report, mirrored into the debt ledger below)
@@ -1795,20 +1875,37 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   tests total, zero failures). Directly unblocks completion criteria B and
   C from the re-anchor. **Seam 26 also closes as a consequence** (same root
   cause, same fix).
-- **Seam 29 — outage-integrity signal not threaded into Ask AI / Compare
-  (surfaced by the 2026-09-06 Whole-Product Strategic Re-Anchor, NOT YET
-  FIXED).** `outage_out` (the analyst source-integrity signal added by
-  Attention Source-Integrity Hardening V1) reaches
-  `watchlist_intelligence.py` but NOT `ticker_explain.py` (~line 941) or
-  `research/comparison.py` (~line 73) — both call `get_analyst_ratings(sym)`
-  with no outage signal threaded through, so a real provider outage during
-  either flagship grounded AI answer is silently indistinguishable from "no
-  coverage." Independently re-verified via direct grep by the synthesis
-  agent itself, not just the architecture lens. Smallest, most mechanical of
-  the newly-found MUST-FIX items — a real Evolving Interconnection Principle
-  failure (an upstream contract improved, two programs ago in this same
-  ledger, and its two flagship downstream consumers were never updated).
-  **MUST FIX BEFORE PRODUCT COMPLETION.**
+- **Seam 29 — RESOLVED by Outage-Integrity Threading, merge
+  `ec095a23d`/`0e690583b`, 2026-09-06.** `outage_out` now threads through
+  both named call sites: `ticker_explain.py::_fetch_analyst` and
+  `research/comparison.py::_side()`'s `get_analyst_ratings()` calls. On a
+  genuine outage, each emits one honest evidence item (`data_gap` /
+  `comparison_data_gap`) through the SAME evidence pipeline every other
+  domain already uses — no new grounding-gap infrastructure — so the model
+  discloses the gap via `answer_with_caveat` instead of silently reading
+  "no evidence" as "no coverage." `comparison_ai_adapter.py` needed no new
+  fetch (it sources everything from `get_comparison()`'s own output by
+  explicit architectural rule) — the outage flag flows through
+  `comparison.py`'s analyst leg automatically. Both system prompts
+  (`ticker_explain.py`, `comparison_ai_adapter.py`) gained one explicit
+  example clause naming this pattern alongside the existing stale-data/
+  fiscal-quarter/13F-lag caveat examples. 8 new tests across
+  `test_ticker_explain.py`, `test_research_comparison.py`, and
+  `test_comparison_ai_adapter.py` (genuine outage vs. genuine no-coverage
+  vs. an unhandled exception are all distinguished; an outage flag
+  suppresses stray consensus data rather than mixing signals). **Also
+  fixed a real regression the new outage_out kwarg exposed**: several
+  `get_analyst_ratings` test mocks across `test_research_comparison.py`/
+  `test_ticker_explain.py` used a bare `lambda sym:` signature that broke
+  on the new keyword arg — each caller's own defensive per-domain
+  exception handling silently swallowed the resulting `TypeError`, so the
+  tests would have passed for the wrong reason (empty evidence looking
+  like "no coverage") had they not been run; fixed to accept `outage_out`.
+  Full adjacent regression green: all of `test_ticker_explain.py` (195),
+  `test_comparison_ai_adapter.py` (34), `test_research_comparison.py` (16),
+  `test_research_analyst_ratings.py` (6), `test_ticker_explain_eval.py` +
+  `test_ticker_explain_judge.py` (29) — 280+ tests. Clean `api.main`
+  app-boot. Directly unblocks the last piece of completion criterion B.
 - **Seam 24 — Rejected Pattern Vision verdicts have no non-admin read path
   (surfaced by Technical Ask AI's Phase A, 2026-09-06, NOT fixed, explicitly
   out of V1 scope).** `pattern_verdicts` rows with `confirmed=0` are real,
