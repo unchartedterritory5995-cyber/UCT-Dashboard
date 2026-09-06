@@ -30,7 +30,7 @@ from api.services.pattern_engine.detail_response import (
     DETAIL_CONTRACT_VERSION,
     build_canonical_detail,
 )
-from api.services.pattern_engine.detectors.classical.bull_flag import detect_bull_flag
+from api.services.pattern_engine.detectors.classical.double_bottom import detect_double_bottom
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import detect_power_earnings_gap
 from api.services.pattern_engine.pattern_db import init_db
@@ -136,12 +136,15 @@ def test_peg_adapted_row_carries_real_eligibility_alongside_reconstructed_event(
 
 
 def test_out_of_scope_family_returns_base_fields_with_empty_explanation():
-    d = _one_firing_detection("bull_flag", detect_bull_flag, "TESTBF1")
+    # Package 8H gave bull_flag its own adapter/explanation coverage, so it can
+    # no longer stand in as "genuinely out of scope" here — double_bottom has
+    # neither an adapter nor explanation_builder coverage as of this write.
+    d = _one_firing_detection("double_bottom", detect_double_bottom, "TESTDB1")
     memory.store_detection(d)
 
     detail = build_canonical_detail(d["id"])
     assert detail is not None
-    assert detail["pattern_id"] == "bull_flag"
+    assert detail["pattern_id"] == "double_bottom"
     assert detail["explanation"]["sections"] == []
     assert detail["event"] is None
     assert detail["eligibility"] is None

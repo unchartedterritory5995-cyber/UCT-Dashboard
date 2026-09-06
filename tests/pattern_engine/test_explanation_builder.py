@@ -23,6 +23,7 @@ import pytest
 from api.services.pattern_engine.canonical_adapter import (
     adapt_bearish_engulfing,
     adapt_bullish_engulfing,
+    adapt_bull_flag,
     adapt_high_tight_flag,
     adapt_power_earnings_gap,
 )
@@ -32,6 +33,7 @@ from api.services.pattern_engine.detectors.candlestick.bearish_engulfing import 
 from api.services.pattern_engine.detectors.candlestick.bullish_engulfing import (
     detect_bullish_engulfing,
 )
+from api.services.pattern_engine.detectors.classical.bull_flag import detect_bull_flag
 from api.services.pattern_engine.detectors.uct.high_tight_flag import detect_high_tight_flag
 from api.services.pattern_engine.detectors.uct.power_earnings_gap import detect_power_earnings_gap
 from api.services.pattern_engine.explanation_builder import BUILDER_VERSION, build_explanation
@@ -56,6 +58,7 @@ HTF_ADAPTED = _adapted_detections("high_tight_flag", detect_high_tight_flag, ada
 PEG_ADAPTED = _adapted_detections("power_earnings_gap", detect_power_earnings_gap, adapt_power_earnings_gap)
 BE_ADAPTED = _adapted_detections("bullish_engulfing", detect_bullish_engulfing, adapt_bullish_engulfing)
 BRE_ADAPTED = _adapted_detections("bearish_engulfing", detect_bearish_engulfing, adapt_bearish_engulfing)
+BULL_FLAG_ADAPTED = _adapted_detections("bull_flag", detect_bull_flag, adapt_bull_flag)
 
 
 def _sections(explanation) -> dict:
@@ -329,6 +332,49 @@ def test_bullish_and_bearish_engulfing_facts_never_cross_wire():
             assert f["fact_id"].startswith("bre_"), f"bearish detection produced non-bearish fact {f['fact_id']!r}"
 
 
+# ─── semantic fixture tests — Bull Flag (Package 8H) ───────────────────────
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_why_it_matched_reflects_real_geometry_extras(name, detection):
+    exp = build_explanation(detection)
+    facts = _sections(exp)["why_it_matched"]
+    extras = detection["geometry"]["extras"]
+
+    by_id = {f["fact_id"]: f for f in facts}
+    pole_fact = by_id["bull_flag_pole_advance"]
+    assert pole_fact["claim_type"] == "direct"
+    assert pole_fact["supporting_evidence"] == "geometry.extras.pole_pct"
+    assert f"{extras['pole_pct']:.1f}%" in pole_fact["label"]
+
+    retrace_fact = by_id["bull_flag_retrace"]
+    assert f"{extras['retrace_pct']:.1f}%" in retrace_fact["label"]
+    if extras.get("flag_bars") is not None:
+        assert str(extras["flag_bars"]) in retrace_fact["label"]
+
+    parallel_fact = by_id["bull_flag_channel_parallel"]
+    assert f"{extras['parallel_score']:.2f}" in parallel_fact["label"]
+
+    # every why_it_matched fact for Bull Flag supports (they're all
+    # pre-conditions the surviving detection already satisfied)
+    assert all(f["polarity"] == "supports" for f in facts)
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_has_no_event_section(name, detection):
+    exp = build_explanation(detection)
+    assert "event" not in _sections(exp)
+
+
+@pytest.mark.parametrize("name,detection", BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+def test_bull_flag_warnings_flag_the_absent_sections_it_actually_lacks(name, detection):
+    warnings = _sections(build_explanation(detection))["warnings"]
+    by_id = {f["fact_id"]: f for f in warnings}
+    assert "gate_trace_absent" in by_id
+    assert by_id["gate_trace_absent"]["claim_type"] == "qualified"
+    assert "event_absent" in by_id
+    assert by_id["event_absent"]["claim_type"] == "qualified"
+
+
 # ─── semantic fixture tests — PEG ──────────────────────────────────────────
 
 @pytest.mark.parametrize("name,detection", PEG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
@@ -382,14 +428,14 @@ def test_peg_event_section_present_and_matches_verification_status(name, detecti
 
 # ─── current_stage / scanner_eligibility ───────────────────────────────────
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_current_stage_status_fact_matches_detection_status(name, detection):
     facts = _sections(build_explanation(detection))["current_stage"]
     status_fact = next(f for f in facts if f["fact_id"] == "detection_status")
     assert detection["status"] in status_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_market_context_never_says_moving_average_twice(name, detection):
     """Regression (found against real market-shaped data, Package 8F, not
     the fixture suite): HTF's own `_ma_alignment_phrase` already returns a
@@ -403,7 +449,7 @@ def test_market_context_never_says_moving_average_twice(name, detection):
     assert "moving-average moving-average" not in context_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_scanner_eligibility_verdict_matches_the_real_eligibility_field(name, detection):
     facts = _sections(build_explanation(detection))["scanner_eligibility"]
     verdict = next(f for f in facts if f["fact_id"] == "eligibility_verdict")
@@ -435,7 +481,7 @@ def test_raw_unadapted_detection_never_fabricates_an_eligibility_boolean(name, d
     assert not facts[0]["label"].startswith("Scanner eligibility: ")
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detection):
     exp = build_explanation(detection)
     # "win rate" may appear ONLY inside the neutral-prior disclaimer itself
@@ -456,7 +502,7 @@ def test_historical_score_is_never_presented_as_a_measured_win_rate(name, detect
         assert "50" not in neutral_fact["label"]
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_no_fact_anywhere_references_rejected_candidates(name, detection):
     """The 'why matched, never why others failed' boundary — a rail, not
     just a docstring claim. `gate_trace_scope`/`gate_trace_absent` are the
@@ -474,7 +520,7 @@ def test_no_fact_anywhere_references_rejected_candidates(name, detection):
             assert term not in low, f"fact {fact['fact_id']!r} references rejected candidates: {fact['label']!r}"
 
 
-@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
+@pytest.mark.parametrize("name,detection", HTF_ADAPTED + PEG_ADAPTED + BE_ADAPTED + BRE_ADAPTED + BULL_FLAG_ADAPTED, ids=lambda x: x if isinstance(x, str) else "")
 def test_context_strength_and_weakness_never_both_claim_the_same_signal(name, detection):
     sections = _sections(build_explanation(detection))
     strength_ids = {f["fact_id"] for f in sections.get("strengths", [])}

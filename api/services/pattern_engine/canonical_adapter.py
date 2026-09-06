@@ -91,6 +91,22 @@ highest-readiness one — not the next alphabetically or most convenient:
     freshness gate — `event`/`criteria`/`gate_trace` are correctly,
     deliberately ABSENT, an exact mirror of HTF's own adapter shape.
 
+Package 8G added `bearish_engulfing` as a verified faithful mirror of
+Bullish Engulfing (same minimal shape).
+
+Package 8H added `bull_flag` — re-verified (not assumed) to have NO
+competing engine definition anywhere in the codebase: `base_catalog.py`
+has exactly one flag-related Structure (`HIGH_TIGHT_FLAG`, HTF's own already-
+documented pair) and no bull-flag/classic-flag counterpart, and neither
+standing two-engines regression rail (`test_two_engines_do_not_agree.py`,
+`test_no_second_authority_across_axes.py`) mentions this pattern_id at all.
+It follows HTF's minimal shape (eligibility + anchor labeling only) — it has
+no event concept and no per-family freshness gate — but, like HTF and PEG, it
+DOES have separable `_dcr_score_adjustment`/`_can_slim_score_adjustment`
+helpers, so `explanation_builder.py` can build real strengths/weaknesses for
+it (a genuine departure from both Engulfing families, which lack separable
+context-scoring functions).
+
 KNOWN, DISCLOSED LIMITATION: because this adapter runs AFTER a Detection
 already exists (post-hoc, on the single surviving candidate a detector ever
 returns), it can only reconstruct gate evaluations for gates that candidate
@@ -108,6 +124,7 @@ import time
 from typing import Optional
 
 from api.services.pattern_engine import memory as _memory
+from api.services.pattern_engine.detectors.classical import bull_flag as _bull_flag
 from api.services.pattern_engine.detectors.uct import power_earnings_gap as _peg
 from api.services.pattern_engine.types import (
     Detection, Eligibility, EventProvenance, GateEvaluation, ScannerSummary,
@@ -191,6 +208,23 @@ _PEG_SEMANTIC_SUBTYPE = "gap_event"
 # pole -- a separate, still-open geometry gap this package does not touch).
 _BE_ANCHOR_ROLES = ["prior_bar_close", "engulfing_bar_close"]
 _BE_SEMANTIC_SUBTYPE = "engulfing_pair"
+
+# Phase 8 Package 8H. `bull_flag._try_extract_pattern` (verified by direct
+# read, together with `trendlines.py::_fit_arithmetic`) emits exactly 4
+# anchors -- upper_line.p1, upper_line.p2, lower_line.p1, lower_line.p2 --
+# covering ONLY the flag channel. The pole segment (pole_base_idx ->
+# pole_top_idx) is never anchored: this is the "the pole is never anchored"
+# finding the HTF comment above names as being about bull_flag specifically
+# (re-confirmed here by direct read, not assumed) — a known, pre-existing
+# completeness gap in the detector's own anchor emission, not a correctness
+# defect this package is authorized to fix. `p1` is always the FIRST flag bar
+# and `p2` the LAST (== bars[-1], since flag_bars always runs to the end of
+# the series) -- so anchors[0]/[2] never land on the final bar while
+# anchors[1]/[3] always do, given the detector's own `_MIN_FLAG_BARS=3` floor.
+_BULL_FLAG_ANCHOR_ROLES = [
+    "flag_upper_start", "flag_upper_end", "flag_lower_start", "flag_lower_end",
+]
+_BULL_FLAG_SEMANTIC_SUBTYPE = "flag_channel"
 
 
 def _with_labeled_geometry(detection: Detection, roles: list, subtype: str) -> dict:
@@ -301,6 +335,25 @@ def adapt_bearish_engulfing(detection: Detection, *, now: Optional[int] = None) 
     out["eligibility"] = compute_default_eligibility(detection, now=now)
     out["geometry"] = _with_labeled_geometry(
         detection, _BEARISH_ENGULFING_ANCHOR_ROLES, _BEARISH_ENGULFING_SEMANTIC_SUBTYPE
+    )
+    return out
+
+
+def adapt_bull_flag(detection: Detection, *, now: Optional[int] = None) -> Detection:
+    """Bull Flag: eligibility + semantic geometry labels only — the same
+    minimal shape as High Tight Flag. `event`/`criteria`/`gate_trace` are
+    deliberately absent: this family has no event concept at all (a pure
+    price/volume continuation pattern, unlike PEG's earnings-gap linkage) and
+    no named public gate constants analogous to PEG's four. It also has no
+    per-family freshness gate (see `compute_default_eligibility`'s own
+    docstring) — its staleness is structurally bounded by re-scan aging a
+    candidate past `bull_flag._MAX_FLAG_BARS` rather than a stored age field,
+    same situation as HTF.
+    """
+    out: Detection = dict(detection)  # type: ignore[assignment]
+    out["eligibility"] = compute_default_eligibility(detection, now=now)
+    out["geometry"] = _with_labeled_geometry(
+        detection, _BULL_FLAG_ANCHOR_ROLES, _BULL_FLAG_SEMANTIC_SUBTYPE
     )
     return out
 
