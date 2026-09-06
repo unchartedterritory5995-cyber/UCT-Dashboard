@@ -44,7 +44,7 @@ is a well-known, independently-checkable computation.
 | 2. Detection | **PASS** | Import tab's own placeholder names Pine/thinkScript/TC2000 as accepted dialects; syntax-highlighted read-back rendered Pine-correct coloring (`study`, `input`, string literals) |
 | 3. Translation | **PASS, correct** | Clicking "Use this formula" produced canonical `rsi(close, 14)` — correctly resolved the `getBaseSource` indirection to its default branch (`srcInput="close"`) and inlined `length`'s default (14). Screenshot evidence captured. |
 | 4. Canonical representation | **PASS** | "THIS IS WHAT WILL BE COMPUTED: the 14-bar RSI of close — 3 nodes · 14-bar lookback · 1 series" plus an explicit "✓ Non-repainting" badge with a plain-English explanation — matches master-prompt §19's execution-requirement-contract concept and §41's "here's what UCT understood," live and correct, not aspirational |
-| 5. Validation | **PASS** | `LEVELS: 70, 30` auto-populated from the script's `obLevel`/`osLevel` defaults; `PLACEMENT: Own pane` correctly inferred for an oscillator |
+| 5. Validation | **PASS** | `PLACEMENT: Own pane` correctly inferred for an oscillator. ⚰️ This row said `LEVELS: 70, 30` auto-populated from the script's `obLevel`/`osLevel` defaults — corrected below (2026-09-05, Golden Journey #1-3 automation): that is not this door's behavior. |
 | 6. Preview | **PASS** | Live chart preview rendered inside the dialog before saving |
 | 7. Chart delivery | **PASS, semantically plausible** | Real subplot pane rendered on the live SPY chart, "RSI Import 55.34" legend label, line oscillating in a visually sane ~20–70 band given SPY's rendered price action. **Not independently recomputed to exact precision** — this is a directional/plausibility check, not a known-answer numeric match. Flagged as a gap, not claimed as more than it is. |
 | 8. Save/persistence | **PASS, with a real bug found (see Findings)** | "✓ Saved — version 1, rev 1." confirmation; entry appeared under "YOUR FORMULAS" |
@@ -52,6 +52,33 @@ is a well-known, independently-checkable computation.
 | 10. Screener reach | **PASS, correctly gated** | The pure-numeric `rsi(close,14)` artifact was correctly refused a screener role ("1 saved formula cannot be a screen yet") — see Findings for why this refusal is itself strong positive evidence |
 | 11. Screener execution | **ENVIRONMENT-BLOCKED, not a defect** | See "Screener execution" section below |
 | 12. Negative path | **PASS, correct refusal** | See "Negative-path test" below |
+
+## Correction — LEVELS does not auto-populate on a fresh import (documentation drift, not a defect)
+
+Step 5 above originally claimed a fresh Pine import auto-populates `LEVELS` from the script's own
+`obLevel`/`osLevel` defaults. **That is not what this door does, and no durable decision ever required it
+to.** Verified directly against `BuilderSheet.jsx` (Golden Journey #1-3 automation, 2026-09-05):
+`setLevelsText(guide.levels.join(', '))` fires only inside the sheet's REOPEN-an-already-saved-definition
+reconstruction, reading a persisted `hlines` guide plot off the stored document (`def.plots`) — there is no
+code path that seeds `levelsText` from `PineBox`'s `onPick` on a fresh paste. `git log -S "setLevelsText"`
+confirms this is how the feature was built from its origin (the Plots-editor commit that introduced levels
+as part of save/edit-restore), not a capability that regressed. `DECISIONS.md` has no entry on this; the one
+adjacent hit, RISK-013, is a downstream restatement of the same original (incorrect) observation about a
+different subject (Pine `input()` parameter adjustability), not an independent requirement. `pine.js`
+deliberately classifies a script's own `hline(...)` calls as a visual-only pragma — the same "lines a screen
+does not read" bucket as `bgcolor`/`barcolor`/`fill`/`alert` — never translated into a levels array at
+parse/import time.
+
+**Correct, current behavior, stated plainly:**
+- **Fresh import (this journey's scope):** `LEVELS` starts **blank**. A member who wants a levels guide on a
+  freshly-imported oscillator types it in themselves, same as authoring one from scratch. Nothing is lost —
+  the script's `obLevel=70`/`osLevel=30` already live as literals inside the translated formula's own read-back
+  and canonical AST (see step 3/4 above); only the separate `hlines` guide-plot convenience is unpopulated.
+- **Reopening an already-saved definition:** if that definition was saved with an `hlines` guide plot,
+  `LEVELS` correctly restores from it — this is real, tested, working behavior, just a different moment in
+  the lifecycle than step 5 originally implied.
+
+No product code was changed to manufacture agreement with the original claim.
 
 ## Typing vs. pasting — a real, if narrow, reliability finding
 

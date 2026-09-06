@@ -130,6 +130,28 @@ justified by actual corpus-frequency counts, `RISK_REGISTER.md` incident history
 `PHASE_ONE_PLAN.md` marked accepted/closed and preserved as history, mirroring the Phase Zero → Phase
 One precedent. Next: begin Journey #1-3 automation implementation per `PHASE_TWO_PLAN.md` §1.
 
+**2026-09-05 (same session, later still) — Journey #1-3 automation COMPLETE; gate item 8 closed;
+`HUMAN_TESTING_READINESS_REPORT.md` produced.** `tools/golden_journey_pine_thinkscript_pcf.py` drives a
+real headless Chromium through the full documented chain (paste/detect/translate/canonical/validation/
+save/reload/My-Formulas/screener-gate/negative-path) for all three journeys against a fresh, isolated,
+throwaway sandbox every run — no synthetic happy-path shortcut. Journey #3's PCF "1.00" assertion is now
+genuinely point-in-time deterministic: fetches SPY's real current bars, runs the actual browser-produced
+formula through the product's own JS interpreter in a real Node subprocess, cross-checks against an
+independent from-scratch pandas SMA computation — both agreed at `1.0` against real 2026-09-04 data, no
+hardcoded value. Found and fixed two real harness bugs (a Playwright label-locator ambiguity; a missing
+`/screener` navigation) and one real flaky race (the screener's saved-scans list resolving its fetch after
+`domcontentloaded` — fixed by polling for concrete DOM evidence instead of a fixed sleep). **3 consecutive
+clean runs** on the fixed code, each an independent fresh sandbox. One documentation correction made along
+the way, classified DOCUMENTATION DRIFT not a product defect (no durable decision ever required it, `git
+log -S` shows it was never fresh-import behavior, `pine.js` deliberately treats a script's own `hline()`
+as a visual-only pragma): `CORE_GOLDEN_JOURNEY_01`'s claim that `LEVELS` auto-populates on a fresh Pine
+import was corrected in place (append-style) to state the real behavior — blank on fresh import, restored
+only on reopening an already-saved definition — `PHASE_TWO_PLAN.md`'s mirrored claim corrected too. No
+product code changed. With item 8 closed, all 9 gate items are met; produced
+`HUMAN_TESTING_READINESS_REPORT.md` — verdict READY FOR LIMITED, ADVERSARIAL HUMAN QA, explicitly NOT
+broad acceptance testing (per both the gate's own vocabulary and DEC-013's more specific standing scope).
+Vendor Parity Tranche 2 not yet started.
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

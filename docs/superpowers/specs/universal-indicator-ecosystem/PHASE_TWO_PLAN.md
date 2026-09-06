@@ -83,12 +83,15 @@ own instruction: "use the existing Golden Journey evidence as the behavior speci
 **Journey #1 — Pine RSI** (`CORE_GOLDEN_JOURNEY_01_PINE_RSI_IMPORT.md`, 12 steps): paste
 `07-rsi.pine` into the Import tab → detect Pine dialect → translate to canonical `rsi(close, 14)`
 (assert the exact string) → canonical representation shows "3 nodes · 14-bar lookback · 1 series" +
-non-repainting badge → `LEVELS: 70, 30` auto-populated, `PLACEMENT: Own pane` → live preview renders
-→ save (assert "version 1, rev 1") → chart delivery (a real RSI subplot renders, value in a sane
-0-100 band) → full-page reload (assert the indicator reappears, value recomputes rather than staying
-cached) → screener reach (assert the exact refusal "1 saved formula cannot be a screen yet" for a
-pure-numeric artifact) → screener execution (assert ENVIRONMENT-BLOCKED status, not a silent skip) →
-negative path (`ta.cmf(20)`, assert exact refusal + Save no-op).
+non-repainting badge → `PLACEMENT: Own pane` correctly inferred (⚰️ this line said `LEVELS: 70, 30`
+auto-populates too — that claim was documentation drift in the source journey doc, corrected there
+2026-09-05: `LEVELS` starts blank on a fresh import by design, populating only when reopening an
+already-saved definition off its persisted `hlines` guide plot; the automation asserts placement only)
+→ live preview renders → save (assert "version 1, rev 1") → chart delivery (a real RSI subplot renders,
+value in a sane 0-100 band) → full-page reload (assert the indicator reappears, value recomputes rather
+than staying cached) → screener reach (assert the exact refusal "1 saved formula cannot be a screen yet"
+for a pure-numeric artifact) → screener execution (assert ENVIRONMENT-BLOCKED status, not a silent skip)
+→ negative path (`ta.cmf(20)`, assert exact refusal + Save no-op).
 
 **Journey #2 — thinkScript ADX/DMI** (`CORE_GOLDEN_JOURNEY_02_THINKSCRIPT_ADX.md`, 13 steps): paste
 `03-adx-dmi-lower.ts` → detect thinkScript → translate (assert the DI+ formula matches the
