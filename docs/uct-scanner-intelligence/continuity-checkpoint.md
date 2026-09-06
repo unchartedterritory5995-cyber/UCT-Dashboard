@@ -2284,4 +2284,92 @@ scan-completeness or PEG-geometry branches. 8G-B observation remains
 top priority throughout; pause this work immediately if meaningful
 production evidence arrives, capture/classify it first, then resume.
 
+## PATTERN_JOIN.PY CANONICAL PERSISTENCE/SERVING GAP — RESEARCH COMPLETE, NO CODE GAP FOUND (2026-09-06)
+
+Worktree `C:\Users\Patrick\uct-dashboard-pattern-join`, branch
+`fix/pattern-join-canonical-persistence`, off
+`origin/master@7a260271b`. HEAD now `1891b1499` (docs-only).
+
+**Verdict: the assumed gap was already closed by earlier packages; no
+narrow code fix was needed.** Read `pattern_join.py` (752 lines) in
+full, then `canonical_adapter.py`, `detail_response.py`,
+`admin_patterns.py`, `patterns.py`, and `memory.py`'s
+`store_detection`/`_row_to_detection`, plus `main.py`'s
+`_scan_patterns_daily` write path, to answer the owner's 8 questions
+against CURRENT code rather than the Phase-7 spec addendum's
+characterization (which was accurate when written, before Packages 8F
+and 8G-B shipped):
+
+- **(a) omitted from the live path:** `read_pattern_fields` (the
+  ONLY reader `snapshot_builder.py`'s universe-wide `screener_rows`
+  snapshot uses, unconditionally, for every user) still selects only
+  `sym, pattern_id, direction, confidence, levels_json, detected_at` —
+  `status`/`geometry_json`/`quality_json`/`narrative_json`/`eligibility_json`
+  are never read there. **By design** (D6's confidence-scale doctrine;
+  canonical fields must stay admin/pilot-gated) — not a gap.
+- **(b) legacy fields served:** `pattern_engine_ids`,
+  `pattern_engine_conf`, `pattern_engine_vcp`/`_flat_base` flags,
+  `pattern_engine_dir`, `pattern_entry_px`/`pattern_stop_px` (carriers,
+  discarded before `screener_rows`), `pattern_expectancy_r`.
+- **(c) Package-8C-persisted fields NOT reconstructed anywhere:
+  NONE.** `eligibility_json` and geometry-embedded
+  `anchor_roles`/`semantic_subtype` (written at scan-time by
+  `adapt_high_tight_flag`/`adapt_power_earnings_gap` when
+  `PATTERN_CANONICAL_ADAPT_ENABLED=1`, confirmed ON in prod) are
+  already reconstructed by THREE readers: (1)
+  `read_pattern_fields_canonical_shadow` → `build_scanner_summary` →
+  `ScannerSummary`, which — via `apply_canonical_pilot_overlay` called
+  from `query.py:1303` inside `/api/screener/scan` itself — IS a real,
+  live (if narrowly gated) request path today, not merely a shadow
+  proof; (2) `detail_response.build_canonical_detail`, the admin-only
+  `GET /api/patterns/admin/canonical-detail/{id}` proof endpoint
+  (`patterns.py:765`), already end-to-end DB-read-back; (3)
+  `memory.get_active_detections`/`_row_to_detection`, reachable via
+  `GET /api/patterns/{sym}` (paid, non-admin — the chart-overlay path),
+  which already serves raw `geometry` (incl. `anchor_roles` for
+  PEG/HTF) and `eligibility` when present — this is WHY Package 8D's
+  white-outline PEG gap-candle emphasis already works for ordinary
+  paid users today, unrelated to this review.
+- **(d) PEG vs HTF:** genuinely different, by design. HTF's adapter
+  emits ONLY `eligibility` + labeled geometry (no event concept — its
+  own file names `base_catalog.py` as the criteria/provenance owner).
+  PEG's adapter additionally emits `event` + a reconstructed
+  `gate_trace` (detector-authored `geometry.extras` fields, real for
+  every persisted PEG row). Both `build_scanner_summary` and
+  `detail_response.py` treat `event`/`gate_trace` as optional/absent
+  correctly — never fabricated for HTF.
+- **(e) which layer:** none — no SQL/reconstruction/DTO change is
+  needed. The one real defect found was **documentation**:
+  `canonical_adapter.py` carried two docstrings (module-level +
+  `build_scanner_summary`'s own) asserting "not wired into
+  `pattern_join.py` … or any live request path," which Package 8G-B
+  made false on 2026-09-05 by wiring the shadow reader into
+  `apply_canonical_pilot_overlay`/`query.py`. Corrected both in place
+  (commit `1891b1499`) — comment-only, zero behavior change, focused +
+  broader regression both green (`tests/pattern_engine/` +
+  `tests/test_screener_wave5_pattern_join_pilot.py`: 2635 passed, 9
+  xfailed, same xfail set as the PEG-geometry package's run).
+- **(f) ordinary-user impact:** none. Comment-only edit.
+- **(g) admin/internal-only scoping:** already correct, unchanged —
+  `apply_canonical_pilot_overlay` gates on
+  `PATTERN_CANONICAL_SCANNER_PILOT_ENABLED=1` (OFF/unset) + admin +
+  PEG-only match; `build_canonical_detail`'s endpoint is
+  `require_admin` directly. Nothing here needed broadening or
+  narrowing.
+- **(h) missing round-trip tests:** none identified — the existing
+  `tests/test_screener_wave5_pattern_join_pilot.py` (admin/PEG-gating +
+  non-mutation) and `tests/pattern_engine/test_detail_response.py`
+  (DB-read-back proof) already cover the round trip this review
+  checked; a documentation fix needs no new test.
+
+**No freeze/hold ceremony needed** (unlike the two prior packages) —
+this is a zero-behavior-change documentation correction, not a code
+change requiring merge/deploy authorization. Left locally committed on
+its own isolated worktree/branch regardless, per standing discipline.
+Never touched the frozen scan-completeness or PEG-geometry
+worktrees/branches. 8G-C remains HOLD overall, unaffected by this
+finding (closing a stale-docstring defect does not open any new
+surface). No further pattern_join.py work is queued unless the owner
+identifies a different concrete gap.
+
 Continuing the relaxed observation cadence toward Tuesday's open.
