@@ -1,4 +1,4 @@
-"""Verify the 4 pattern tables exist in the DEDICATED pattern DB (patterns.db,
+"""Verify the pattern tables exist in the DEDICATED pattern DB (patterns.db,
 not auth.db — moved 2026-07-16 to stop the universe scan starving broker syncs
 of auth.db's write lock), and that legacy auth.db rows migrate one-shot."""
 import os
@@ -27,6 +27,7 @@ def test_pattern_tables_exist_after_init(tmp_path, monkeypatch):
             "pattern_detections",
             "pattern_feedback",
             "pattern_outcomes",
+            "pattern_scan_runs",
             "pattern_stats",
         ]
     finally:

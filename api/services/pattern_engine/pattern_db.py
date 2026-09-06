@@ -92,6 +92,31 @@ _SCHEMA = """
       created_at    INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_pf_detection ON pattern_feedback(detection_id);
+
+    -- Package: scan-completeness / redeploy-reliability (2026-09-06). A durable
+    -- receipt per long-running scan attempt, mirroring scan_evaluator.py's own
+    -- scan_coverage idiom ("no row = it did not happen", never inferred). NOT a
+    -- cursor and NOT a serving gate -- pattern_detections keeps serving whatever
+    -- rows exist regardless of this table's contents (see memory.py's own
+    -- module docstring on this). `completed_at IS NULL` after the process has
+    -- clearly moved on to a later `as_of` means that run was interrupted before
+    -- it could call complete_scan_run/fail_scan_run -- a silent kill (redeploy,
+    -- OOM, crash), the same class Package 8G-A observed for
+    -- patterns_universe_scan. `error IS NOT NULL` with `completed_at IS NULL`
+    -- means a CAUGHT failure was recorded instead (the run's own except-branch
+    -- ran, but the scan still did not finish) -- these two incomplete states are
+    -- deliberately NOT collapsed into one "failed" status column.
+    CREATE TABLE IF NOT EXISTS pattern_scan_runs (
+      job_id            TEXT NOT NULL,
+      as_of             INTEGER NOT NULL,
+      started_at        INTEGER NOT NULL,
+      completed_at      INTEGER,
+      symbols_intended  INTEGER,
+      symbols_scanned   INTEGER,
+      symbols_stored    INTEGER,
+      error             TEXT,
+      PRIMARY KEY (job_id, as_of)
+    );
 """
 
 _TABLES = ("pattern_detections", "pattern_outcomes", "pattern_stats", "pattern_feedback")

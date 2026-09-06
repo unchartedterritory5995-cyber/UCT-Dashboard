@@ -272,6 +272,120 @@ def prune_old(retention_days: int = PRUNE_RETENTION_DAYS, batch: int = 50_000) -
         conn.close()
 
 
+# --- Scan-run receipts (scan-completeness / redeploy-reliability package,
+# 2026-09-06) --------------------------------------------------------------
+#
+# A long-running scheduled scan (e.g. the nightly patterns_universe_scan) can
+# be silently interrupted by an unrelated deploy/redeploy/crash mid-run, with
+# no trace left anywhere -- `_scan_patterns_daily` commits each detection in
+# its own transaction via `store_detection`, so partial progress is never
+# corrupted, but nothing records whether a given night's run went the full
+# distance. These three functions are a pure, additive observability layer:
+# they change no serving behavior (`get_active_detections`/`pattern_join.py`
+# are untouched) and no scheduling behavior. Mirrors
+# `api/services/screener/scan_evaluator.py`'s `scan_coverage` idiom: a run
+# that never reaches `complete_scan_run`/`fail_scan_run` simply leaves its row
+# as `completed_at IS NULL` forever -- that absence IS the signal, never
+# backfilled or inferred after the fact.
+#
+# The caller MUST hold onto the `as_of` value `start_scan_run` is given and
+# pass the SAME value to `complete_scan_run`/`fail_scan_run` -- never
+# recompute "today" independently at completion time, or a run that crosses
+# local midnight (rare, but the whole point of this package is to handle the
+# unlikely case honestly) would update the wrong day's row.
+
+
+def start_scan_run(job_id: str, as_of: int, *, symbols_intended: int) -> None:
+    """Record that `job_id`'s attempt for `as_of` (an ET YYYYMMDD int, the
+    caller's own concern -- this function is timezone-agnostic) has STARTED.
+
+    A second call for the same (job_id, as_of) -- e.g. a manual same-day
+    retry -- resets the row back to a fresh STARTED state rather than
+    appending a second row; PRIMARY KEY (job_id, as_of) makes at most one
+    attempt per calendar day the unit here, matching the job's own real
+    schedule (once/day, max_instances=1).
+    """
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO pattern_scan_runs (
+              job_id, as_of, started_at, completed_at,
+              symbols_intended, symbols_scanned, symbols_stored, error
+            ) VALUES (?, ?, ?, NULL, ?, NULL, NULL, NULL)
+            ON CONFLICT(job_id, as_of) DO UPDATE SET
+              started_at       = excluded.started_at,
+              completed_at     = NULL,
+              symbols_intended = excluded.symbols_intended,
+              symbols_scanned  = NULL,
+              symbols_stored   = NULL,
+              error            = NULL
+            """,
+            (job_id, as_of, int(time.time()), symbols_intended),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def complete_scan_run(job_id: str, as_of: int, *, symbols_scanned: int, symbols_stored: int) -> None:
+    """Record that `job_id`'s `as_of` attempt reached the end of its loop.
+    `completed_at` being non-NULL is the ONLY thing that means "this run went
+    the full distance" -- never inferred from a log line or from the presence
+    of fresh pattern_detections rows (those can come from a PARTIAL run too)."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE pattern_scan_runs
+               SET completed_at = ?, symbols_scanned = ?, symbols_stored = ?
+             WHERE job_id = ? AND as_of = ?
+            """,
+            (int(time.time()), symbols_scanned, symbols_stored, job_id, as_of),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def fail_scan_run(job_id: str, as_of: int, error: str) -> None:
+    """Record a CAUGHT failure. `completed_at` deliberately stays NULL --
+    a graceful, logged failure is still "this run did not finish", exactly
+    like a silent kill; `error` being non-NULL is what tells the two apart."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE pattern_scan_runs SET error = ? WHERE job_id = ? AND as_of = ?",
+            (str(error)[:2000], job_id, as_of),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def latest_scan_run(job_id: str) -> Optional[dict]:
+    """Most recent recorded attempt for `job_id`, or None if it has never
+    run under this mechanism. Read-only diagnostic -- never used to gate
+    serving behavior; a caller wanting "is there fresh data" should keep
+    reading pattern_detections directly, same as today."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT job_id, as_of, started_at, completed_at,
+                   symbols_intended, symbols_scanned, symbols_stored, error
+              FROM pattern_scan_runs
+             WHERE job_id = ?
+             ORDER BY as_of DESC
+             LIMIT 1
+            """,
+            (job_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 def track_outcomes(lookback_hours: int = TRACK_OUTCOMES_LOOKBACK_HOURS) -> int:
     """Walk forward bars to resolve open detections.
 
