@@ -18,6 +18,7 @@ from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
 from api.services.research.comparison import get_comparison
+from api.services.research.comparison_ai_adapter import explain_comparison
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -263,6 +264,29 @@ def research_compare(sym: str, comparator: str):
     except Exception as exc:
         _logger.warning("research compare failed for %s vs %s: %s", sym, comparator, exc)
         return {"error": "comparison temporarily unavailable"}
+
+
+@router.post("/api/research/compare/{sym}/{comparator}/explain")
+def research_compare_explain(sym: str, comparator: str, body: dict = Body(...),
+                             _user: dict = Depends(get_current_user)):
+    """Shared Multi-Security Grounding Architecture V1 (owner authorization,
+    Phase B) -- the comparison page's "Ask AI" panel. Auth-required, same as
+    /api/research/explain/{sym}: this makes a real, separately cost-guarded
+    LLM call (see comparison_ai_adapter.py's own narrative_cost_guard use),
+    so an anonymous caller must not be able to reach it. Single-turn only --
+    see comparison_ai_adapter.py's module docstring for why."""
+    question = str((body or {}).get("question") or "")[:500]
+    try:
+        return explain_comparison(sym, comparator, question)
+    except Exception as exc:
+        _logger.warning("comparison explain failed for %s vs %s: %s", sym, comparator, exc)
+        return {"sym_a": (sym or "").upper(), "sym_b": (comparator or "").upper(),
+                "entity_a": None, "entity_b": None, "response_state": "refuse",
+                "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
+                "clarification_question": "", "citations": [],
+                "insufficient_evidence": True,
+                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "model": None, "error": "internal error"}
 
 
 @router.post("/api/research/snapshot-batch")

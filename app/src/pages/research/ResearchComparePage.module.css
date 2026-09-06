@@ -16,6 +16,8 @@
 .columns2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 .stackPhone { display: flex; flex-direction: column; gap: 14px; }
 
+.aiSection { margin-top: 16px; }
+
 .notFound { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
 .caveat { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
 .footnote { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
