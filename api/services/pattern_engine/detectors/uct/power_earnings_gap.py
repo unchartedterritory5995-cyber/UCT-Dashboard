@@ -225,11 +225,20 @@ def _try_extract(bars: List[Bar], gap_idx: int) -> Optional[dict]:
     gap_range_pct = gap_range / gap_close * 100.0 if gap_close > 0 else 0.0
     gap_height = gap_close - prior_close  # absolute gap size in dollars
 
-    # Locate the absolute bar index of the lowest post-gap low (pullback low).
+    # Locate the absolute bar index of the lowest post-gap low (pullback low)
+    # and the highest post-gap high -- both a real, specific bar within the
+    # post-gap window, NOT necessarily the most recent bar (`_build_detection`
+    # geometry-anchor correctness depends on both of these; see that
+    # function's own comment).
     post_gap_low_idx = gap_idx + 1
     for i, b in enumerate(post_gap_segment):
         if b["l"] == min_post_gap_low:
             post_gap_low_idx = gap_idx + 1 + i
+            break
+    post_gap_high_idx = gap_idx + 1
+    for i, b in enumerate(post_gap_segment):
+        if b["h"] == post_gap_high:
+            post_gap_high_idx = gap_idx + 1 + i
             break
     sq = compute_structure_quality(bars, post_gap_low_idx, min_post_gap_low)
     return {
@@ -247,6 +256,7 @@ def _try_extract(bars: List[Bar], gap_idx: int) -> Optional[dict]:
         "avg_volume": avg_volume,
         "post_gap_bars": post_gap_bars,
         "post_gap_high": post_gap_high,
+        "post_gap_high_idx": post_gap_high_idx,
         "post_gap_low": min_post_gap_low,
         "post_gap_low_idx": post_gap_low_idx,
         "avg_post_gap_range": avg_post_gap_range,
@@ -517,12 +527,26 @@ def _build_detection(bars, c, confidence, context,
     gap_pct_pct = gap_pct * 100.0
 
     # Geometry anchors: prior_close, gap_open, gap_close, post_gap_high, post_gap_low
+    #
+    # PEG geometry correctness fix (2026-09-06): the post_gap_high/low anchors
+    # must be stamped with the REAL bar each extreme occurred on
+    # (`post_gap_high_idx`/`post_gap_low_idx`, both already computed in
+    # `_try_extract` -- the low index was computed but never used here; the
+    # high index did not previously exist). Previously both anchors were
+    # stamped with `last_bar["t"]` regardless of which bar actually carried
+    # the extreme -- correct only when the extreme happened to be the most
+    # recent bar, silently wrong (badge/setup-dot placed on the wrong candle
+    # in CandleMark.jsx) whenever it wasn't. gap_open/gap_close (anchors[1]/
+    # [2], what the white-outline gap-candle emphasis actually keys off) were
+    # never affected and are untouched by this fix.
+    post_gap_high_bar = bars[c["post_gap_high_idx"]]
+    post_gap_low_bar = bars[c["post_gap_low_idx"]]
     anchors = [
         {"t": int(prior_bar["t"]), "price": float(prior_close)},
         {"t": int(gap_bar["t"]), "price": float(gap_open)},
         {"t": int(gap_bar["t"]), "price": float(gap_close)},
-        {"t": int(last_bar["t"]), "price": float(post_gap_high)},
-        {"t": int(last_bar["t"]), "price": float(post_gap_low)},
+        {"t": int(post_gap_high_bar["t"]), "price": float(post_gap_high)},
+        {"t": int(post_gap_low_bar["t"]), "price": float(post_gap_low)},
     ]
 
     now = int(time.time())
