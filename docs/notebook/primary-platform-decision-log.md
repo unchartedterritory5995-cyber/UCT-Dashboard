@@ -645,6 +645,37 @@ D. Folder-count/search performance at hypothetical 50k+ scale (moot today at 89 
 
 ---
 
+### 2026-09-06 — WAVE 3 CERTIFICATION: Thesis-Trade Link — shipped, deployed, production-verified
+
+**Scope shipped (P1-4, exactly as directed, no more):**
+1. Typed reference contract — `tradeRef` + `tradeRefType` (`equity_trade` | `option_strategy` | `position`) as the note↔trade/strategy relationship identity, replacing Wave 1's untyped `tradeRef`. Additive schema (`j2_note_embeds.trade_ref_type`, `j2_capture_inbox.trade_ref_type`), idempotent migration, zero destructive rewrite.
+2. Deterministic resolver (`note_trade_links.py`) — a typed reference queries only its named table; a legacy untyped Wave-1 row infers only when unique to one table for that user (never guessed; ambiguous → preserved, not picked); tenant ownership re-verified on every path independent of the reference itself.
+3. `"position"` reference type + read-time graduation — the pre-trade thesis flow's only structural requirement (`AddPositionModal` has no trade id before creation); a position reference automatically resolves to its resulting closed trade once exactly one exists (`j2_trades.position_id` backpointer), never guesses across multiple partial closes.
+4. Cross-nav both directions — `NoteLinkedTradeChips` (note → trade/strategy, inert on ambiguous/unresolved) and `LinkedNotesPanel` (trade/strategy → notes, zero/one/many, never forced 1:1), mounted on `NoteEditorPage`, `TradeDetailPage`, `TradeDrawer`.
+5. Pre-trade thesis authoring in `AddPositionModal` — create/select a thesis note → create the position → obtain its real id → attach the typed reference; a link failure never re-submits the position or loses either object (Retry/Close-without-linking).
+6. Two real defects found and fixed via verification, not by construction: (a) `TradeJournalTab.jsx`'s `?openTrade=` matched by id alone across a merged equity+option array — fixed with an `isOption` guard, caught by the real-browser collision E2E; (b) a concurrent commit (`46c9bc302`) conflated this Wave's typed contract with the pre-existing stable broker/annotation-reference system on the exact same `<CaptureMenu>` prop — resolved in the master merge with a full source-trace proof neither system crosses the other.
+
+**Evidence, by category:**
+- **Backend unit/integration:** 36 tests (`test_note_trade_links.py`) — typed resolution (both types), the id-collision regression rail within one user and across two users, legacy untyped resolution (unique/ambiguous/nonexistent), position graduation (unique/multi-close-never-guessed), reverse lookup (single/multiple/ambiguous-excluded/tenant-scoped), HTTP-layer round trips, trash/restore, idempotency, degrade-not-fail validation.
+- **Frontend unit/integration:** `NoteLinkedTradeChips` (6), `LinkedNotesPanel` (5), `AddPositionModal` thesis-flow (4 new + 9 existing), `TradeJournalTab.openTrade` collision regression (2), plus the sharpened `TradeDrawer.test.jsx`/`TradeDetailPage.test.jsx` rails proving the merge-conflict resolution holds.
+- **Real-browser E2E (fail-closed sandbox, two seeded tenants, intentional id collision):** User A seeded with `j2_trades.id = j2_option_strategies.id = "123"` (NVDA / TSLA). Logged in as User A through the actual UI: the NVDA note's chip opened `/journal-2-0/trade/123` showing NVDA + its own "Linked research" panel; the TSLA note's chip opened the Trade Journal drawer showing "TSLA Jun 19 $200C" + its own linked-research panel — never cross-resolving. Logged in as User B: their own AMD note/trade round-tripped correctly, their notes list showed only their own note, and navigating directly to `/journal-2-0/trade/123` (User A's NVDA trade) rendered "This trade isn't available" rather than leaking anything. This pass is what caught defect (a) above; re-verified clean after the fix.
+- **Full regression (chunked, resource-disciplined):** frontend `journal-2-0` directory 161 files / 1492 tests, backend `journal_two/` + sandbox/shared-root/shadowed-definition guards 2042 tests, both green against the FINAL merged-with-master state (not just this branch in isolation).
+- **Production deployment:** merged into `master` via the established temp-branch pattern (`master` checked out elsewhere), pushed, Railway auto-deployed. Verified via `/api/health` uptime reset (2250s → 28s → climbing cleanly, no crash loop) and both new endpoints (`GET /notes/{id}/trade-ref/resolve`, `GET /notes/by-trade-ref`) returning 401 (mounted + auth-gated) rather than 404 to an unauthenticated request.
+
+**Residuals, all pre-existing and out of Wave 3 scope (discovered incidentally, not fixed — do not attribute to this Wave):**
+- `api/services/journal_two/test_obsidian_parity_fixtures.py::test_regeneration_is_byte_identical_to_the_committed_fixtures` — stale committed fixtures vs. the Obsidian parity generator; belongs to the CLOSED note_connectors project.
+- `tests/test_no_shadowed_definitions.py::test_no_module_shadows_its_own_definitions` — `api/services/ticker_explain.py` binds `_DOMAIN_FETCHERS` twice (lines 930/978); confirmed pre-existing on plain `origin/master`, unrelated file/feature, same defect shape as the `live_massive_router.py` `_parse_mdy` case already on record.
+- `api/services/journal_two/test_interventions.py::test_portfolio_loss_streak_fires_across_accounts` — failed once during the post-merge regression run; unrelated file (portfolio-tilt Compass rules), most likely a `datetime.now(timezone.utc)`-vs-ET-trading-day-boundary time-of-day flake given that file's own recent "count the trading day in ET, not UTC" fix history. Not investigated further — outside Wave 3's mandate and not reproducible on demand.
+- The pending "future cleanup" already on record from the design-decision entry above: legacy Wave-1 untyped rows have a working never-guess resolver but no backfill (measured: effectively zero candidates existed at implementation time).
+
+**Not proven (same standing gate as every prior wave, not new):** authenticated production-member click-through of the shipped UI. The real-browser E2E proved the full flow end-to-end in the fail-closed sandbox with a real intentional id collision; production verification proved the deploy is healthy and the new routes are live and auth-gated. Neither substitutes for the other, and per this program's own discipline, that distinction is stated here rather than blurred.
+
+**WAVE 3 — COMPLETE, DEPLOYED, AND PRODUCTION-VERIFIED. THE ID-COLLISION REGRESSION RAIL THAT JUSTIFIES THIS DESIGN IS PROVEN BOTH AT THE UNIT LEVEL AND THROUGH THE REAL MEMBER UI, INCLUDING TENANT ISOLATION. A DESIGN COLLISION WITH CONCURRENT, INDEPENDENTLY-AUTHORED WORK WAS FOUND, INVESTIGATED WITH A FULL SOURCE TRACE, AND RESOLVED WITHOUT REVERTING THE OTHER SESSION'S LEGITIMATE WORK.**
+
+**STOPPING HERE PER EXPLICIT INSTRUCTION. WAVE 4 NOT STARTED.**
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
