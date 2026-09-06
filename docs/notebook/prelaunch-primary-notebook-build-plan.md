@@ -633,11 +633,301 @@ an overflow menu (low discoverability — use a persistent header star instead, 
 pattern); Obsidian's non-integrated sidebar tabs (File Explorer/Search/Bookmarks/Tags as
 separate silos — keep one nested tree instead, Notion's pattern).
 
-### Wave C onward
+### Wave C — Version History / Trust / Export Completeness — IN PROGRESS 2026-09-06
 
-Design-before-build for each (directive §115) happens at the start of that wave, not
-speculatively now — per §129, this document reports and stops before beginning any
-wave past the currently-authorized one.
+**Entry checkpoint (directive §119), recorded before implementation began.** Three
+fresh, context-free general-purpose agents did the recon (same deliberate
+non-fork discipline as Wave B, for the same structural reason — no inherited
+context to misapply): note-lifecycle architecture, export architecture, and a
+scoped Notion/Evernote/Obsidian benchmark.
+
+**1. Current versioning reality** — confirmed **greenfield**: no version/revision/
+snapshot table or mechanism exists anywhere for Notebook. What DOES already exist
+and is directly reusable: `update_note` (`api/services/journal_two/notes.py:1507`)
+already has a **compare-and-set optimistic lock** — an optional `expected_updated_at`
+param that raises `NoteConflictError` (→ HTTP 409) when the row moved since the
+caller's baseline — wired end-to-end (frontend `commitSave` sends `baseUpdatedAt`,
+409 triggers `reconcileConflict()`). This is the exact mechanism Wave C's
+multi-tab/concurrency safety concern (§89-90) needs, already battle-tested, not
+invented fresh. Three distinct SQL write paths touch `j2_notes`
+(`create_note`/`update_note`, `import_confirm`'s bespoke SAVEPOINT-based upsert,
+`note_connectors/engine.py`'s raw UPDATE) — a version-creation hook placed only in
+`update_note` will NOT cover imports/connector-sync writes (see §6 below for the
+deliberate scope decision this drives).
+
+**2. Current export reality** — full-library export (`GET /api/j2/notes/export`,
+`api/services/journal_two/notes_export.py`) is real, well-engineered, disk-backed
+(not in-memory, avoiding an OOM class this codebase has hit before), attachment-
+bundling, and has genuine roundtrip proof (`exportRoundtrip.test.js` decodes and
+re-imports the real export output through the real importer). Confirmed gaps,
+all previously only suspected: **single-note export does not exist at all** (zero
+route, zero button beyond PNG/Print, which are not portable formats); the typed
+`tradeRef`/`tradeRefType` relationship is **silently dropped** with zero trace,
+not even a raw ID; `import_source`/`import_key` provenance is dropped;
+`j2_note_embeds`/`j2_note_mentions` entity data beyond the note's own `ticker`
+field is dropped. Favorites/Recents (Wave B, postdates this export code) are
+also absent — expected, and Recents should stay absent (ephemeral, per its own
+Wave B contract).
+
+**3-5. Notion/Evernote/Obsidian scoped benchmark** — full task matrix (tasks A-G)
+in the dedicated recon section below. Load-bearing findings used directly in this
+design: Obsidian's explicit **Restore vs. Copy** button pair is the clearest
+restore-safety UX of the three; Notion's written guarantee ("you can always go
+back... even after a restore") is the trust-language pattern to borrow;
+retention varies by plan tier for Notion/Obsidian (not applicable here — no
+plan-gating per §38's explicit instruction); none of the three do more than a
+basic diff (Notion's is brand-new); Notion's exported internal links breaking
+outside the platform is a named anti-pattern to avoid (not directly at risk here
+since Notebook has no native note-to-note link feature yet, but the underlying
+lesson — never export a bare internal ID with no recoverable semantics — directly
+shapes the trade-ref export fix in §12).
+
+**6. Version data model** — **full snapshots**, not deltas. At current production
+scale (~90 notes total, confirmed via the readiness scorecard) even a generous
+history depth is trivially small; deltas add real restore/preview/diff complexity
+(replay logic, corruption risk if one delta in a chain is ever lost) for a
+storage saving that doesn't matter yet. Matches the directive's own steer (§12:
+"simple correctness may be more valuable than clever storage optimization... but
+prove it" — proven via the storage-growth benchmark in Slice 1's test plan).
+
+**7. Versioned field contract** — **title, subtitle, body (json+plain) only.**
+`folder_id`/`ticker`/`tags` are classified USER-AUTHORED BUT SEPARATE LIFECYCLE:
+recon confirms they already save via independent, immediate PUTs outside the
+debounced content-autosave batch (no `baseUpdatedAt` on those either — a
+pre-existing, out-of-scope gap, not touched by Wave C). Versioning them would
+mean a content-only "Restore" surprisingly relocates or re-tags a note the
+member has since re-organized — exactly the inconsistency §14 warns against.
+Restore therefore never touches folder/ticker/tags. `j2_note_embeds`/
+`j2_note_mentions` (the Wave 1 entity/trade-relationship layer) are NOT
+separately versioned or restored — they are ALREADY re-derived fresh from
+`body_json` on every `update_note` call via the existing `_sync_note_embeds`/
+`_sync_note_mentions` calls, so routing Restore through the normal `update_note`
+path (see §9) makes relationship state correctly and automatically follow
+whatever body content is current, by construction — option C of §15 ("leave
+relationships outside raw note restore") is what happens for free, not something
+built specially.
+
+**8. Coalescing contract** — implemented in **Python inside `update_note`**, not a
+SQL trigger (triggers stay reserved for this codebase's established use —
+unconditional cascade-cleanup on delete — per the FTS/Favorites/Recents
+precedent; coalescing is conditional business logic, which belongs in the
+service layer). Rule: before applying a content change, capture the OLD
+(pre-this-edit) title/subtitle/body as a new version row IF AND ONLY IF (a) it
+differs from the most recently captured version's content (never a no-op
+duplicate), AND (b) no version exists yet for this note OR the most recent
+version is older than `J2_VERSION_COALESCE_MINUTES` (env-overridable, default
+30). This produces one meaningful checkpoint per editing session/window, never
+one row per autosave keystroke (§17's explicit concern), while leaving the
+authoritative note save completely unaffected in durability or latency (§18-19
+— version-row insert rides the SAME transaction/commit as the note UPDATE
+itself; a version-write failure cannot occur without the note UPDATE also
+failing, so there is no separate failure mode to design for).
+
+**9. Restore contract** — Restore is **not a bespoke write path**. It calls the
+existing `update_note(note_id, {title, subtitle, bodyJson: <old version's
+content>}, expected_updated_at=<current row's updated_at>)` — the exact same
+function every normal edit uses. This gets, for free, by construction: (a) the
+current pre-restore state is captured as a new version via the SAME coalescing
+hook (directive §20's "restore must not erase history" requirement, satisfied
+structurally, not by special-casing); (b) the SAME optimistic-lock 409 on a
+stale restore attempt (directive §89-90's multi-tab race — Tab B tries to
+restore while Tab A has newer unsaved changes elsewhere — is caught by the
+EXISTING mechanism, not a new one); (c) embeds/mentions re-derive correctly
+per §7. A version is never deleted or mutated by a restore — restoring to
+version A, then B, then back to A again all work, and all intermediate states
+stay in history (proven by a dedicated test — directive §93's "prove
+reversibility" workflow).
+
+**10. Retention contract** — **no automatic pruning in Wave C.** All versions kept
+indefinitely except when the note itself is hard-purged (Trash's existing
+30-day retention → `purge_expired_deleted_notes`) or the account is deleted.
+Honest (no "unlimited forever" UI claim needed since it would be true), avoids
+inventing an arbitrary number the directive explicitly warns against (§38), and
+cheap at current + realistically-projected scale. Flagged as a residual item to
+revisit once real storage-growth evidence exists, not deferred silently.
+
+**11. Relationship/version boundary** — see §7 (embeds/mentions re-derive from
+current body, never separately versioned/restored).
+
+**12. Single-note export contract** — new endpoint reuses the EXISTING per-note
+markdown-building + attachment-resolution logic in `notes_export.py` (extracted
+into a shared helper, not duplicated). Returns a bare `.md` file (matching what a
+member exporting one simple note expects, per the competitor research's own
+"Obsidian: a note already IS a portable .md file" baseline) when the note has no
+attachments; a `.zip` (note.md + attachments/) when it does — both paths share
+one code path, branching only on attachment count. **Entry point, corrected
+during implementation:** neither a note-header overflow menu nor a command
+palette exists anywhere in this codebase today, and building either
+subsystem from scratch to host one button would itself be new-surface scope
+creep — the exact thing §112 warns against, just relocated. The actual
+minimal-clutter placement is a third button ("Markdown") inside the EXISTING
+PNG/Print export button group in the editor toolbar — that group is already
+the note's "export formats" cluster; this adds one more format to it rather
+than opening a new UI region.
+
+**13. Full-export contract fixes** — three silent-drop gaps closed: (a)
+`tradeRef`/`tradeRefType` resolved via the EXISTING `note_trade_links.resolve_trade_ref`
+(already used by the Wave 3 trade-ref-resolve endpoint) into a human-readable
+inline summary (symbol/side/status) plus the raw ref retained as export
+metadata — never a bare opaque database ID with no recoverable semantics (the
+exact anti-pattern the Notion internal-link research flagged); (b)
+`import_source`/`import_key`/`imported_at` added to front matter; (c) a
+"Related tickers" line derived from `j2_note_embeds`/`j2_note_mentions` distinct
+symbols. Favorites: `favorite: true/false` added to front matter (cheap,
+directive §53's "likely yes if inexpensive" default). Recents: confirmed stays
+excluded (ephemeral, directive §54).
+
+**14. Version-export contract** — **out of scope for Wave C.** Both single-note
+and full export include only the CURRENT version; version history itself is
+viewable/restorable via the History panel but not bundled into export archives.
+Disclosed, deliberate (directive §58's own "do not automatically make every
+simple export gigantic" caution) — a follow-up item, not a silent gap.
+
+**15. Sidebar/header/IA design** — a "History" icon joins the note header's
+existing chrome (Favorite star, Ask this note, Share, Find — Wave B) — kept to
+one small icon, not a drawer permanently open, per §112's explicit "be careful
+adding History/Export" warning about clutter. Opens a right-side drawer/panel
+(reusing the `Sheet`/drawer convention already established elsewhere in this
+codebase), not a new primary navigation destination (§25's "history belongs to
+the note" instruction).
+
+**16. Diff design** — word-level plain-text diff (Python stdlib `difflib.SequenceMatcher`,
+zero new dependency) over `body_plain`, rendered as Added/Removed spans via the
+SAME safe split-and-render pattern Wave A's search-snippet highlighting already
+established (`renderSnippetMarks` precedent) — never `dangerouslySetInnerHTML`.
+Preview (single-version, non-diff view) uses a **read-only TipTap instance**
+(`editable: false`, reusing `buildExtensions()`) rather than a plain-text
+dump — TipTap parses/renders through its own schema exactly as the live editor
+does, so this is not a new unsafe-content surface, and it preserves real
+formatting meaning (headings/bold/lists) the plain-text diff view deliberately
+sacrifices for simplicity. This split (rich preview, plain-text diff) is the
+disclosed, "simplest robust representation" tradeoff directive §29/§75
+explicitly permits ("do not invent an enormous semantic diff engine").
+
+**17. Responsive design** — sequential/toggle layout on phone width (never
+forced side-by-side, per §76's explicit instruction), verified via the same
+Playwright mobile-audit harness used in Wave B.
+
+**18. Accessibility plan** — reuse `ConfirmModal`'s existing dialog/focus-trap/
+Escape semantics for the restore confirmation (no new modal subsystem);
+explicit `aria-label`s on history entries, version selection, and diff regions;
+drawer/panel gets a focus trap matching the codebase's established drawer
+convention.
+
+**19. Concurrency/multi-tab plan** — see §9 (reuses the existing optimistic
+lock verbatim). Draft-recovery interaction: a Restore explicitly checks for and
+clears any local unsaved-draft banner state for the note (never silently
+stomped nor left dangling pointing at now-superseded content) — tested directly
+(directive §91).
+
+**20. Migration** — one new table (`j2_note_versions`), additive, added directly
+to `_J2_SCHEMA` (idempotent `CREATE TABLE`/`CREATE INDEX IF NOT EXISTS`, no
+migration flag needed — same convention Wave B's favorites/recents tables used,
+since this is a brand-new table with no pre-existing rows to migrate).
+
+**21. Deletion/purge** — hard-purge of a trashed note (`purge_expired_deleted_notes`)
+and account deletion (`account_purge.py`) both extended to remove
+`j2_note_versions` rows for the affected note(s)/user. A cascade **trigger**
+(`AFTER DELETE ON j2_notes`) mirrors the existing Wave B favorites/recents
+pattern — cleanup can never be forgotten at a future third hard-delete call
+site, the exact rationale already established for those two tables.
+
+**22. Performance plan** — benchmark version list/preview/diff/restore at 10,
+100, and 500+ synthetic versions on one note before shipping (directive §64);
+measure autosave latency before/after (directive §68) to prove the coalescing
+hook adds no perceptible save-path cost.
+
+**23. Vertical slices** — Slice 1 (version storage + coalescing + lifecycle
+triggers), Slice 2 (history list/preview/diff), Slice 3 (restore + concurrency/
+recovery safety), Slice 4 (single-note export), Slice 5 (full-export
+completeness fixes), Slice 6 (responsive + accessibility + integrated
+real-browser trust E2E + deploy + certify) — the directive's own suggested
+decomposition fits the actual dependency shape and is used as-is.
+
+**24. Test matrix** — unit (version coalescing/change-detection, restore
+semantics, tenant isolation, export field completeness) → integration
+(router-level HTTP) → real-browser E2E in the fail-closed sandbox (the six
+named workflows in directive §92-97) → regression (full existing suites) →
+production verification.
+
+**25. Rollback** — every change is additive (new table, new endpoints, new UI
+surfaces); nothing requires a destructive transformation of existing note
+content; rollback is dropping the new table + removing the new endpoints/UI,
+identical in shape to every prior wave's rollback plan.
+
+**No material contradiction found requiring a decision — proceeding autonomously
+into Slice 1.**
+
+---
+
+### Wave C Decision Log (directive §117) — decisions made DURING implementation,
+not foreseeable at the checkpoint above.
+
+1. **Restore always force-captures the pre-restore state, bypassing the
+   coalescing window.** Found via testing, not designed up front: a restore
+   performed shortly after an edit was silently dropping the content being
+   restored away from, because the ordinary 30-minute coalescing check
+   suppressed the checkpoint. `_maybe_capture_version(..., force=True)` /
+   `update_note(..., force_version=True)` fixes this — restore is a
+   deliberate action, unlike incidental autosave, and directive §20's
+   "restore must not erase history" is unconditional. Regression test:
+   `test_restore_captures_pre_restore_state_even_inside_the_coalescing_window`.
+2. **Version capture gates on ACTUAL value change, not "did the patch mention
+   the key."** The original call site fired whenever the patch merely
+   included `title`/`subtitle`/`bodyJson`, even re-saving identical content —
+   fixed by comparing new vs. old values before calling the coalescing hook.
+3. **Diff tokenizer glues whitespace to the FOLLOWING word's leading edge,
+   not the preceding word's trailing edge.** Tried trailing-glue first; it
+   broke a pure end-of-text append (the last shared word carries no trailing
+   space in the shorter text but does once something follows it in the
+   longer one, so an unchanged word spuriously showed as removed+added).
+   Leading-glue has no such failure mode — a word's leading whitespace is
+   fixed by what comes BEFORE it, which an append never changes.
+4. **Single-note export entry point is a third button in the EXISTING
+   PNG/Print toolbar group, not a new overflow menu or command-palette
+   entry.** The original checkpoint (§12 above) called for the latter, but
+   neither an overflow menu nor a command palette exists anywhere in this
+   codebase — building either from scratch to host one button would be the
+   exact new-surface scope creep §112 warns against, just relocated. See the
+   corrected §12 text above.
+5. **Full-export completeness fields (`favorite`, `related_tickers`,
+   `linked_trades`, `import_source`/`imported_at`) are new YAML front-matter
+   keys, omitted entirely when falsy/empty (never emitted blank).** Verified
+   safe against the importer's own `parseFrontmatterBlock` (only
+   `title`/`subtitle`/`ticker`/`hero_image` are ever read back; an unknown
+   key round-trips as an inert, unread field) — no importer change needed,
+   no regression risk to the existing round-trip certification.
+6. **`linked_trades` resolves through `note_trade_links.resolve_trade_ref`
+   into a human-readable `"SYMBOL (kind)"` string; the raw internal id is
+   NEVER written.** An unresolved/ambiguous reference is omitted entirely
+   rather than shown as a broken link — showing nothing is more honest than
+   an opaque id the reader can't act on outside their own account (directive
+   §51).
+7. **Version-history export stays explicitly out of scope.** Both single-note
+   and full export include only the CURRENT version; history stays
+   viewable/restorable via the History panel but isn't bundled into export
+   archives — a disclosed, deliberate boundary per directive §58's own
+   permission to avoid making every simple export gigantic.
+8. **`NoteVersionPreview` reuses `SharedNotePage`'s `editable:false` +
+   `shareView:true` TipTap recipe**, not a bespoke read-only mode — `shareView`
+   already makes every widget embed render its archived image instead of
+   mounting a live component, which is exactly what a historical version
+   needs (directive §85: never mount a live, auth-scoped, quota-spending
+   component just from opening History) and structurally keeps a historical
+   version out of NoteFind/Ask-this-note (separate `useEditor` instance).
+9. **History panel/preview/diff components are covered by unit tests with
+   `NoteVersionPreview` (and thus real TipTap) mocked out, not by RTL-mounting
+   the real editor.** Matches this codebase's own existing convention —
+   `NoteEditorPage.jsx` and `SharedNotePage.jsx`, the only two other
+   components that mount `useEditor`+`EditorContent` directly, have zero RTL
+   test files; TipTap-mounting surfaces are verified via real-browser E2E in
+   this codebase, not jsdom.
+
+---
+
+Design-before-build for Wave D onward (directive §115) happens at the start of
+that wave, not speculatively now — per the governing directive, this document
+reports and stops before beginning any wave past the currently-authorized one.
 
 ---
 

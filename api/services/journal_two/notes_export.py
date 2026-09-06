@@ -550,11 +550,14 @@ def _yaml_scalar(value: str, *, flow: bool = False) -> str:
     return f'"{escaped}"'
 
 
-def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
+def _front_matter(
+    row: sqlite3.Row, hero_local: str | None = None, *, extra: dict[str, Any] | None = None,
+) -> str:
     try:
         tags = json.loads(row["tags"] or "[]")
     except (ValueError, TypeError):
         tags = []
+    extra = extra or {}
     lines = ["---", f"title: {_yaml_scalar(row['title'] or 'Untitled')}"]
     # subtitle (authored text) and hero_image_url (the note's headline visual)
     # are real j2_notes columns -- dropping them from the archive is silent
@@ -573,10 +576,108 @@ def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
         # URL, or unresolved -- already reported in EXPORT_ISSUES.txt) the
         # original value is kept so the front matter never goes blank.
         lines.append(f"hero_image: {_yaml_scalar(hero_local or row['hero_image_url'])}")
+    # Wave C completeness fixes (directive §46-58, gap ledger G-091/G-092) --
+    # every field below is OMITTED entirely rather than emitted blank/false,
+    # matching every other optional field above: a member reading the raw
+    # front matter should never see a field that means nothing for this note.
+    if extra.get("favorite"):
+        lines.append("favorite: true")
+    tickers = extra.get("related_tickers") or []
+    if tickers:
+        lines.append(
+            "related_tickers: [" + ", ".join(_yaml_scalar(t, flow=True) for t in tickers) + "]"
+        )
+    # Human-readable only -- resolve_trade_ref's raw internal id is NEVER
+    # written here (directive §51: "not bare DB IDs, and don't leak private
+    # broker/internal identifiers unnecessarily"). An unresolved/ambiguous
+    # reference is silently omitted rather than shown as a broken link --
+    # showing nothing is more honest than showing an opaque id a reader
+    # cannot act on outside this account.
+    linked_trades = extra.get("linked_trades") or []
+    if linked_trades:
+        lines.append(
+            "linked_trades: [" + ", ".join(_yaml_scalar(t, flow=True) for t in linked_trades) + "]"
+        )
+    import_source = row["import_source"] if "import_source" in row.keys() else None
+    if import_source:
+        lines.append(f"import_source: {_yaml_scalar(import_source)}")
+        imported_at = row["imported_at"] if "imported_at" in row.keys() else None
+        if imported_at:
+            lines.append(f"imported_at: {imported_at}")
     lines.append(f"created: {row['created_at']}")
     lines.append(f"updated: {row['updated_at']}")
     lines.append("---")
     return "\n".join(lines)
+
+
+_TRADE_REF_KIND_LABEL = {
+    "equity_trade": "equity trade",
+    "option_strategy": "option strategy",
+    "position": "open position",
+}
+
+
+def _resolve_note_related_data(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> tuple[set[str], dict[str, list[str]], dict[str, list[str]]]:
+    """One-shot, whole-export prefetch (mirrors the existing `folders` dict's
+    own "fetch once for every note" shape just above) for the three Wave C
+    export-completeness fixes: favorites, related tickers (embeds + prose
+    mentions), and human-readable linked-trade summaries. Returns
+    `(favorite_note_ids, tickers_by_note, linked_trades_by_note)`.
+
+    Trade-ref resolution still costs one `resolve_trade_ref` call per
+    trade-linked embed (that function re-verifies tenant ownership per call,
+    so it cannot be batched) -- bounded by however many trade-linked embeds
+    the account has, not by note count, and export is a rare member-initiated
+    action, not a hot path."""
+    from api.services.journal_two.note_trade_links import resolve_trade_ref
+
+    if not note_ids:
+        return set(), {}, {}
+
+    favorites = {
+        r["note_id"] for r in conn.execute(
+            "SELECT note_id FROM j2_note_favorites WHERE user_id = ?", (user_id,))
+    }
+
+    tickers_by_note: dict[str, set[str]] = {}
+    for r in conn.execute(
+        "SELECT note_id, symbol FROM j2_note_mentions WHERE user_id = ?", (user_id,)
+    ):
+        if r["symbol"]:
+            tickers_by_note.setdefault(r["note_id"], set()).add(r["symbol"])
+    embed_rows = conn.execute(
+        "SELECT note_id, symbol, trade_ref, trade_ref_type FROM j2_note_embeds"
+        " WHERE user_id = ?", (user_id,),
+    ).fetchall()
+    for r in embed_rows:
+        if r["symbol"]:
+            tickers_by_note.setdefault(r["note_id"], set()).add(r["symbol"])
+
+    linked_trades_by_note: dict[str, list[str]] = {}
+    seen_refs: dict[tuple[str, str | None], str | None] = {}
+    for r in embed_rows:
+        trade_ref = r["trade_ref"]
+        if not trade_ref:
+            continue
+        key = (trade_ref, r["trade_ref_type"])
+        if key not in seen_refs:
+            resolved = resolve_trade_ref(conn, user_id, trade_ref, r["trade_ref_type"])
+            label = None
+            if resolved.get("kind") in _TRADE_REF_KIND_LABEL:
+                kind_label = _TRADE_REF_KIND_LABEL[resolved["kind"]]
+                symbol = resolved.get("symbol")
+                label = f"{symbol} ({kind_label})" if symbol else kind_label
+            seen_refs[key] = label
+        label = seen_refs[key]
+        if label:
+            bucket = linked_trades_by_note.setdefault(r["note_id"], [])
+            if label not in bucket:
+                bucket.append(label)
+
+    tickers_out = {nid: sorted(syms) for nid, syms in tickers_by_note.items()}
+    return favorites, tickers_out, linked_trades_by_note
 
 
 #
@@ -629,10 +730,15 @@ def _write_notes_archive(
     # export.
     rows = conn.execute(
         "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
-        " hero_image_url, created_at, updated_at FROM j2_notes"
+        " hero_image_url, created_at, updated_at, import_source, import_key,"
+        " imported_at FROM j2_notes"
         " WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
         (user_id,),
     ).fetchall()
+
+    favorites, tickers_by_note, linked_trades_by_note = _resolve_note_related_data(
+        conn, user_id, [r["id"] for r in rows],
+    )
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
         "product": "uct-notebook-export",
@@ -704,9 +810,16 @@ def _write_notes_archive(
         if f"{path}.md" in used:
             path = f"{path}-{row['id'][:8]}"
         used.add(f"{path}.md")
+        extra = {
+            "favorite": row["id"] in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(row["id"], []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(row["id"], []),
+        }
         zf.writestr(
             f"{path}.md",
-            f"{_front_matter(row, hero_local)}\n\n{body}\n",
+            f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n",
         )
 
     issue_lines: list[str] = []
@@ -803,6 +916,119 @@ def build_export_zip_to_tempfile(
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return tmp_path, f"uct-notebook-export-{stamp}.zip"
+    finally:
+        if owned:
+            conn.close()
+
+
+def build_single_note_export(
+    user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+) -> tuple[bytes, str, str] | None:
+    """ONE note as portable markdown -- the trust/portability feature for a
+    member who wants to leave with a single note, not their whole notebook
+    (directive §46-58, gap ledger G-091). Returns `(content_bytes, filename,
+    media_type)`, or `None` if the note doesn't exist / isn't this user's /
+    is in Trash (same "active notebook only" scope as the full export).
+
+    Reuses the exact per-note markdown-building + attachment-resolution +
+    front-matter logic the full export already uses (`tiptap_to_markdown`,
+    `_make_attachment_resolver`, `_front_matter`) rather than a second
+    implementation that could silently drift from it. A single note is
+    bounded in size (one note's content + its own attachments, capped by the
+    same `_attachment_cap_bytes()` the full export uses), so this builds
+    in-memory -- it doesn't need the tempfile+semaphore machinery the
+    whole-notebook export needs for OOM safety on a single-replica pod.
+
+    Returns a bare `.md` file when the note has no bundleable attachments
+    (matching what a member exporting one simple note expects -- a note
+    already IS a portable markdown file, no zip needed); a `.zip`
+    (note.md + attachments/) when it has at least one. Both paths share this
+    one function, branching only on whether anything was written into
+    `attach_state["written"]`."""
+    from api.services.auth_db import get_connection
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
+            " hero_image_url, created_at, updated_at, import_source, import_key,"
+            " imported_at FROM j2_notes"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+
+        favorites, tickers_by_note, linked_trades_by_note = _resolve_note_related_data(
+            conn, user_id, [note_id],
+        )
+
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (ValueError, TypeError):
+            doc = {}
+        note_title = row["title"] or "Untitled"
+
+        buf = io.BytesIO()
+        zf = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED)
+        # Zip-root note -- folder='' so `_make_attachment_resolver`'s relative
+        # links point at a top-level `attachments/` tree in THIS archive, not
+        # the multi-note folder-nested layout the full export uses.
+        attach_state: dict[str, Any] = {
+            "zf": zf, "written": set(), "failed": set(), "issues": {},
+            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+        }
+        resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
+        try:
+            body = tiptap_to_markdown(doc, attachment_resolver=resolver)
+        except Exception:  # noqa: BLE001 -- same broad shield as the full export.
+            body = (
+                "> ⚠ This note's content could not be converted for export. "
+                "The original note is unaffected in the app -- contact "
+                "support if this repeats."
+            )
+        hero_local = None
+        if row["hero_image_url"]:
+            try:
+                hero_local = resolver(row["hero_image_url"])
+            except Exception:  # noqa: BLE001 -- same broad shield as the full export.
+                attach_state["issues"].setdefault(
+                    row["hero_image_url"], (note_title, "hero image could not be bundled"),
+                )
+
+        extra = {
+            "favorite": note_id in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(note_id, []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(note_id, []),
+        }
+        md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
+
+        if attach_state["issues"]:
+            issue_lines = [
+                "The following attachments could not be bundled into this "
+                "export. The note text above still links to them by their "
+                "original in-app address, which stops working once the "
+                "account is no longer active.",
+                "",
+            ]
+            issue_lines += [
+                f"- {url} -- {reason}" for url, (_title, reason) in attach_state["issues"].items()
+            ]
+            zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
+
+        base = _safe_name(row["title"], row["id"])
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        if attach_state["written"]:
+            zf.writestr(f"{base}.md", md_text)
+            zf.close()
+            return buf.getvalue(), f"{base}-{stamp}.zip", "application/zip"
+        # Nothing bundled -- a bare .md is simpler and more directly portable
+        # than a one-entry zip. Discard the never-populated zip buffer.
+        zf.close()
+        return md_text.encode("utf-8"), f"{base}-{stamp}.md", "text/markdown"
     finally:
         if owned:
             conn.close()

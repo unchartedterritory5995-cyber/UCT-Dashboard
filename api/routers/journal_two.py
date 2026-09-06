@@ -1765,6 +1765,75 @@ def note_opened_endpoint(note_id: str, user: dict = Depends(get_current_user)) -
     return {"ok": True}
 
 
+# ── Wave C: Version History ─────────────────────────────────────────────────
+
+@router.get("/notes/{note_id}/versions")
+def list_note_versions_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """History LIST — title/subtitle/timestamp only, never the full body (a
+    note that has accumulated years of checkpoints must not ship its whole
+    history's content over the wire just to render a timeline)."""
+    return {"versions": notes_service.list_note_versions(user["id"], note_id)}
+
+
+@router.get("/notes/{note_id}/versions/{version_id}")
+def get_note_version_endpoint(
+    note_id: str, version_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Full single-version content, for the read-only preview and the diff
+    view. get_note_version itself scopes on BOTH user_id AND note_id — a
+    version id guessed against the wrong note, or a foreign user's real
+    version id, both 404 identically (never a 403 that would confirm
+    existence)."""
+    version = notes_service.get_note_version(user["id"], note_id, version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"version": version}
+
+
+@router.post("/notes/{note_id}/versions/{version_id}/restore")
+def restore_note_version_endpoint(
+    note_id: str, version_id: str, payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Same optimistic-lock contract as the plain note PUT (§9 of the Wave C
+    entry checkpoint — restore is not a bespoke write path): an optional
+    `baseUpdatedAt` makes this a compare-and-set, so a stale restore attempt
+    (the note changed since the history panel loaded) 409s instead of
+    silently clobbering newer content."""
+    base = (payload or {}).get("baseUpdatedAt")
+    try:
+        n = notes_service.restore_note_version(
+            user["id"], note_id, version_id,
+            expected_updated_at=base if isinstance(base, str) and base else None,
+        )
+    except notes_service.NoteConflictError:
+        raise HTTPException(status_code=409, detail="note changed — refresh and retry")
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
+@router.get("/notes/{note_id}/export")
+def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> Response:
+    """Wave C single-note export (directive §46-58, gap ledger G-091) — the
+    export a member reaches for when they want to leave with ONE note, not
+    the "download my whole notebook" dialog. See
+    notes_export.build_single_note_export for why this is a bare `.md` when
+    the note has no attachments and a `.zip` only when it does, and why an
+    in-memory build is safe here (bounded by one note, unlike the whole-
+    notebook export's tempfile+semaphore path just above)."""
+    from api.services.journal_two.notes_export import build_single_note_export
+
+    built = build_single_note_export(user["id"], note_id)
+    if built is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    content, filename, media_type = built
+    return Response(
+        content=content, media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
 # Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
 # (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).
