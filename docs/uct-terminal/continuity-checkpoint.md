@@ -6,7 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Awareness Scan-Abort Hardening V1 (Seam 10) merge/deploy/production-
+Ticker Search Identity Convergence V1 (Seam 16) merge/deploy/production-
 verification -- a continuous-execution program under the owner's 2026-09-06
 CONTINUOUS EXECUTION DIRECTIVE, not a separately-authorized program stop).
 
@@ -79,12 +79,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `a8c246022d24c2b50322aa7231c4d1cdc9d82fc2`
-  (a concurrent session's unrelated Discord chart-channel-restriction commit,
-  landed on top of Awareness Scan-Abort Hardening V1's merge `7e2dec405` —
-  this file's own update is a docs-only blob-swap on top of this SHA; drift
-  since then is unrelated concurrent work — re-check overlap before trusting
-  this SHA is still current).
+- **origin/master (last verified):** `910eca6195d74039f55440645f451d6ed27445e1`
+  (Ticker Search Identity Convergence V1's own merge — this file's own update
+  is a docs-only blob-swap on top of this SHA; drift since then is unrelated
+  concurrent work — re-check overlap before trusting this SHA is still
+  current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -964,6 +963,91 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     trust defect; data is eventually correct and complete either way. Stays
     ranked below Seam 10/16/5, unchanged from the pre-review hypothesis;
     not selected, not fixed this round.
+- **Ticker Search Identity Convergence V1 (Seam 16)** — IMPLEMENTED +
+  ACCEPTED + LIVE, merge `8ebb6f076` (code) / `910eca619` (merge-to-master),
+  deployed + production-verified 2026-09-06.
+  Closed the dot/hyphen share-class identity gap ranked #2 in the prior
+  bounded reconvergence review (Awareness Scan-Abort Hardening V1's own
+  entry, above).
+  - **Root cause, confirmed by direct code read, not the recorded audit's
+    framing alone:** Massive's own `/v3/reference/tickers` feed returns
+    class-share tickers in DOT notation ('BRK.B'), but this codebase's
+    canonical form is HYPHEN ('BRK-B') everywhere else. `entity_master_
+    seed.py::_massive_reference_rows()` ALREADY hit and fixed this exact
+    defect once, at Entity Master's own seeding time (its own docstring:
+    "confirmed on real data: 13 of cap_universe's 14 hyphenated symbols had
+    a live Massive dot-form row and were double-entitied this way") — but
+    `ticker_search_index.py::_collect_rows()`, which independently sources
+    from the SAME Massive feed, never received the same fix. Result: a
+    rich, well-named row keyed 'BRK.B' (entity_id resolving to `None` --
+    Entity Master's alias table only has the hyphen spelling) sat beside a
+    blank, cap_universe-sourced 'BRK-B' row that DID resolve -- confirmed
+    live in production BEFORE this fix (`GET /api/ticker-search?q=BRK`
+    returned FOUR rows -- BRK-A/BRK-B/BRK.A/BRK.B -- for TWO real
+    instruments, half with `entity_id: null`).
+  - **Fix, entirely inside the shared search boundary, zero Entity Master or
+    frontend changes:** (1) `_canonical_massive_ticker()` re-keys any
+    dot-containing ticker to hyphen form inside `_put()` (the one place
+    ALL THREE of `_collect_rows()`'s call sites converge), mirroring
+    `entity_master_seed.py`'s already-validated transform verbatim --
+    eliminates the duplicate row at index-BUILD time (a periodic background
+    thread), zero added request-time cost. (2) `_share_class_alias()` is a
+    narrowly-scoped query-side fallback (root + literal dot + 1-2 letters
+    only -- matches every real cap_universe.json share-class ticker,
+    explicitly NOT a blanket "every dot == every hyphen" rule) so a member
+    who types the literal dot spelling still finds the now-single canonical
+    row, applied in both `ticker_search_index.search()` and the router's
+    pre-index-build startup-window fallback scan. Canonical OUTPUT ticker is
+    now always the hyphen form, matching cap_universe/FMP/yfinance/
+    Watchlists/Journal.
+  - **All four named frontend consumers inherit the fix automatically, with
+    zero code changes** (confirmed by direct grep, not assumed): `SymbolSearch.
+    jsx`, `CommandPalette.jsx`, `TickerPopup.jsx`'s SwitchTickerBox, and
+    `MobileSymbolSheet.jsx` all call the same `/api/ticker-search` endpoint.
+  - **⚠️ OPERATIONAL GOTCHA, worth remembering for any future change to this
+    module: the search index is a PERSISTED DISK SNAPSHOT with a 26h TTL
+    (`ticker_search_index.json` on the Railway volume), not a pure
+    request-computed value.** `start_background_build()` loads the snapshot
+    at boot and skips rebuilding if it's still "fresh" (built within
+    `_REFRESH_TTL`) -- so a code fix to `_collect_rows()` does NOT
+    retroactively fix already-persisted duplicate rows, and a plain deploy
+    alone does not trigger a rebuild either. **Confirmed by direct
+    production observation**: immediately after this deploy, `GET /api/
+    ticker-search?q=BRK.B` still returned the OLD, duplicated shape
+    byte-for-byte -- the code was live but the stale snapshot was still
+    being served. Fixed by triggering one manual `tsi.build_index()` via
+    `railway ssh` (writes a fresh, de-duped snapshot) followed by one
+    `railway redeploy --service web --yes` so the live serving process
+    reloads it -- re-verified via real read-only production searches
+    afterward (BRK/BRK.B/BRK-B/NVDA) confirming exactly 2 rows for BRK now
+    (down from 4), each with a real name and a real entity_id. **Any future
+    change to `_collect_rows()`'s output shape needs the SAME extra step —
+    a deploy alone is not sufficient.**
+  - **Explicitly did NOT touch:** Entity Master schema/alias data (zero
+    writes -- `resolve("BRK.B")` itself still returns `not_found` for any
+    OTHER caller; see the updated Seam 1 note above -- this is a genuinely
+    separate, narrower fact, not a reduction of Seam 1's own remaining
+    scope), historical J2 financial records, SnapTrade semantics, S7,
+    Pattern Vision, parked Technical Research, Technical Ask AI's parked
+    spec, 8G-B, Seam 14 (broad search-implementation consolidation), Seam 5
+    (AlertBell), Seam 11 (broker position↔trade linkage), Seam 27 (breadth
+    warm-cache).
+  - **Tests:** 15 new tests in `api/services/test_ticker_search_entity_
+    master_integration.py` (dot-form re-keying, dot+hyphen coalescing into
+    one row, the coalesced row resolving the REAL seeded entity_id, dot/
+    lowercase-dot/hyphen/lowercase-hyphen query variants, an ordinary
+    ticker completely unaffected, a generic prefix query returning each
+    instrument exactly once, an invalid ticker still returning nothing,
+    different share classes never collapsing into each other, the
+    narrow-regex safety guard against misfiring on an unrelated dotted
+    string, the pre-index-build router fallback path, and a full
+    router-level end-to-end proof) + all 13 pre-existing tests in that file
+    green (28 total). 78 total across the broader Entity Master test
+    surface, 43 frontend consumer tests (`SymbolSearch.test.jsx`,
+    `CommandPalette.test.jsx`) confirmed unaffected (zero frontend changes
+    were made), clean `api.main` app-boot.
+  - **Seam 1:** confirmed OPEN, not narrowed by this program (see the
+    updated Seam 1 entry above for the precise reasoning).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1094,52 +1178,47 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **No program mid-flight — the next program is selected from the debt
-  ledger below (dot-hyphen ticker-search identity, Seam 16, is next in
-  rank) unless fresh evidence changes the picture.** Owner-issued
-  **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)** is standing authorization:
-  routine, bounded, independently-safe Terminal programs no longer require a
-  stop-and-wait between each one (see Section II of that directive; the 10
-  owner-required stop conditions in its Section III remain absolute).
-  Sequence so far under this directive: Technical Ask AI Phase A →
-  **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see "CURRENT PARKED" — zero code
-  written, per Section XXII's explicit "if blocked, zero changes"
-  instruction) → AI Search Raw-Pattern Trust Adjudication V1 (Seam 23) —
-  ACCEPTED + LIVE, merge `897e53cc5` → **#7 Shared Multi-Security Grounding
-  Architecture V1** — ACCEPTED + LIVE, merge `271f79664`/`4c8b24c74` → a
-  ledger-driven (not fresh-Phase-A) re-anchor selected **Journal ↔ Research
-  Return-Context + Notes Draft-Loss Fix (Seam 12)** — ACCEPTED + LIVE, merge
-  `d6a99c708`/`119908685` → a SECOND bounded reconvergence review (owner
-  instruction, 2026-09-06) re-verified 4 ledgered candidates against CURRENT
-  code (Awareness scan-abort/Seam 10, dot-hyphen search/Seam 16, AlertBell
-  keyboard access/Seam 5, Seam 27 breadth warm-cache) rather than re-auditing
-  from scratch, confirmed all 4 still real and current, ranked Seam 10 #1
-  (member trust/correctness + silent loss of intelligence, confirmed LIVE in
-  production via `railway variables`), and implemented **Awareness
-  Scan-Abort Hardening V1 (Seam 10)** — now ACCEPTED + LIVE, merge
-  `b48200739`/`7e2dec405` (see "CURRENT ACCEPTED" above). A bounded
-  disk-hygiene pass (owner instruction) also ran ahead of that program,
-  reclaiming ~36GB by removing every fully-merged, clean worktree under
-  `uct-worktrees/` (109 total) — see the CURRENT ACCEPTED entry for the full
-  accounting of what was and was NOT touched. **Ranked-but-not-yet-selected
-  from that same review: Seam 16 (dot-hyphen ticker-search identity, #2) and
-  Seam 5 (AlertBell keyboard accessibility, #3); Seam 27 was triaged as
-  DEGRADED PERFORMANCE (a one-time post-deploy cold-cache penalty, real
-  requests unaffected) and correctly stays lowest-ranked, not elevated.**
-  **A genuine fresh Whole-Product Strategic Re-Anchor (a new multi-agent
-  Phase-A-style sweep of current code, not a re-ranking of the existing
-  ledger) is still owed** the next time no ledger-recorded, already-audited
-  candidate remains eligible — neither this nor the prior lighter-weight
-  re-anchor discharges that obligation permanently, only for their own single
-  next-program selection. **If you are resuming this session: implement Seam
-  16 next (dot/hyphen BRK.B/BRK-B identity gap in `ticker_search_index.py`/
-  `SymbolSearch.jsx` — a real, single-file precedent already exists in
-  `scripts/entity_master_seed.py`'s dot-to-hyphen re-keying step), or Seam 5
-  (AlertBell keyboard accessibility) if Seam 16 turns out to need a larger
-  diff than a bounded V1 warrants; re-verify both against current code before
-  implementing, do not trust this pointer blindly.** Do not treat "no program
-  is currently active" as a stop condition; it is not one of the 10 in
-  Section III. **Technical Ask AI and Technical Research (#1) are
+- **No program mid-flight — Seam 5 (AlertBell keyboard accessibility) is
+  next per the owner's own explicit "after Seam 16" instruction (Section
+  XXIII of the 2026-09-06 directive), unless fresh evidence changes the
+  picture.** Owner-issued **CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)**
+  is standing authorization: routine, bounded, independently-safe Terminal
+  programs no longer require a stop-and-wait between each one (see Section
+  II of that directive; the 10 owner-required stop conditions in its
+  Section III remain absolute). Sequence so far under this directive:
+  Technical Ask AI Phase A → **BLOCKED_ON_PATTERN_VISION_ACCEPTANCE** (see
+  "CURRENT PARKED" — zero code written) → AI Search Raw-Pattern Trust
+  Adjudication V1 (Seam 23) — ACCEPTED + LIVE, merge `897e53cc5` →
+  **#7 Shared Multi-Security Grounding Architecture V1** — ACCEPTED + LIVE,
+  merge `271f79664`/`4c8b24c74` → **Journal ↔ Research Return-Context +
+  Notes Draft-Loss Fix (Seam 12)** — ACCEPTED + LIVE, merge
+  `d6a99c708`/`119908685` → a bounded reconvergence review (owner
+  instruction) re-verified 4 ledgered candidates against CURRENT code +
+  live Railway state and ranked Seam 10 #1, implementing **Awareness
+  Scan-Abort Hardening V1 (Seam 10)** — ACCEPTED + LIVE, merge
+  `b48200739`/`7e2dec405`, alongside a ~36GB disk-hygiene pass (109
+  fully-merged, clean worktrees removed — see that entry above for the full
+  accounting) → per the owner's own explicit priority order, implemented
+  **Ticker Search Identity Convergence V1 (Seam 16)** — now ACCEPTED +
+  LIVE, merge `8ebb6f076`/`910eca619` (see "CURRENT ACCEPTED" above).
+  **Seam 1 was confirmed OPEN, not narrowed, by that program** — see the
+  updated Seam 1 entry above for the precise reasoning (Seam 16's fix never
+  touches Entity Master's own alias data). **A genuine fresh Whole-Product
+  Strategic Re-Anchor (a new multi-agent Phase-A-style sweep of current
+  code, not a re-ranking of the existing ledger) is still owed** the next
+  time no ledger-recorded, already-audited candidate remains eligible —
+  none of the lighter-weight re-anchors this session has run discharge that
+  obligation permanently, only for their own single next-program selection.
+  **If you are resuming this session: implement Seam 5 next (AlertBell's
+  per-item notification row is a bare `<div onClick>` with no `role`/
+  `tabIndex`/`onKeyDown`/`aria-label` — `app/src/components/AlertBell.jsx`,
+  fix shape: `role="button"` + `tabIndex={0}` + an `onKeyDown` handling
+  Enter/Space, mirroring the existing `handleItemClick`; do NOT redesign
+  Notification Center) — re-verify against current code before
+  implementing, do not trust this pointer blindly; the component may have
+  changed since it was last read.** Do not treat "no program is currently
+  active" as a stop condition; it is not one of the 10 in Section III.
+  **Technical Ask AI and Technical Research (#1) are
   UNCHANGED — still both BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED,
   waiting on the identical Tue 9/8 / Wed 9/9 evidence window; resume EITHER
   from its recorded spec under "CURRENT PARKED", never from scratch.** Do
@@ -1178,10 +1257,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Watchlist multi-security AI, Portfolio AI/LLM-computed P&L, entitlement-
   based ticker-count gating, multi-turn comparison history — see "DEFERRED"
   below), nor from Awareness Scan-Abort Hardening V1's own bounded
-  reconvergence review (Seam 16 dot-hyphen search identity and Seam 5
-  AlertBell keyboard accessibility — ranked #2/#3, real, but not this
-  round's pick; Seam 27 breadth warm-cache — triaged DEGRADED PERFORMANCE,
-  deliberately not fixed) — those are candidate lists, not authorizations.
+  reconvergence review (Seam 5 AlertBell keyboard accessibility — ranked
+  #3, real, but not this round's pick; Seam 27 breadth warm-cache — triaged
+  DEGRADED PERFORMANCE, deliberately not fixed), nor from Ticker Search
+  Identity Convergence V1's own explicitly-out-of-scope items (Seam 14
+  broad search-implementation consolidation, Seam 11 broker position↔trade
+  linkage, any Entity Master schema/alias change) — those are candidate
+  lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1237,6 +1319,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   hardening fix, not a migration). Price lookup itself remains robust
   (`to_polygon_symbol()` accepts both). Fix shape for the remainder: a second
   seeded S3 alias for the dot spelling, NOT a data migration.
+  **Confirmed still fully open as of Ticker Search Identity Convergence V1
+  (Seam 16, 2026-09-06) — that program did NOT narrow this.** Seam 16's fix
+  re-keys the dot spelling to hyphen BEFORE `ticker_search_index.py` ever
+  calls `_em_api.resolve()`, so the search index's own internal resolve
+  call no longer needs a dot-form alias to succeed -- but `resolve("BRK.B")`
+  itself is untouched and still returns `not_found` for any OTHER caller
+  that hands it a literal dot spelling. Zero Entity Master schema/alias
+  changes were made by Seam 16; this remaining scope is unchanged.
 - **Seam 2 — holiday-blind session helper — RESOLVED by Temporal / Freshness
   Truth Convergence V1, merge `94dd2bb5e`, 2026-09-05/06.**
   `app/src/utils/marketSession.js::expectedLatestDailySessionET()` and
@@ -1385,20 +1475,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   including the incidental "null — click to search" tooltip fix and the
   pre-existing test-mock assumptions this broke and fixed in
   `ResearchHeader.test.jsx`/`TickerPopup.test.jsx`.
-- **Seam 16 — dot/hyphen (BRK.B/BRK-B) identity gap in ticker search
-  (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
-  confirmed reproducible, STILL NOT fixed as of Identity Normalization
-  Hardening V1 — search-index changes were explicitly protected/out-of-scope
-  for that V1 too).** Neither `SymbolSearch.jsx` nor
-  `api/routers/ticker_search.py`/`api/services/ticker_search_index.py`
-  perform any dot↔hyphen normalization — matching is plain substring/prefix
-  on the raw uppercased ticker string, so typing `BRK.B` will NOT surface the
-  `BRK-B` row the universe actually stores. A real, single-file precedent
-  already exists in the repo (`scripts/entity_master_seed.py`'s dot-to-hyphen
-  re-keying step) that a dedicated identity-hygiene follow-up could port into
-  `ticker_search_index.py::_collect_rows()`. Cross-reference Seam 1 (now
-  partially closed — see above) — this is the search-specific instance of
-  the same underlying identity class, still not unified with it.
+- **Seam 16 — RESOLVED by Ticker Search Identity Convergence V1, merge
+  `8ebb6f076`/`910eca619`, 2026-09-06.** The fix described here (port
+  `entity_master_seed.py`'s already-validated dot-to-hyphen re-keying into
+  `ticker_search_index.py::_collect_rows()`) is exactly what shipped, plus a
+  narrowly-scoped query-side alias match so a literal dot-form query still
+  finds the now-single canonical row. See "CURRENT ACCEPTED" above. Kept as
+  a record; do not re-open unless a concrete regression is found.
 - **Seam 17 — AddPositionModal.jsx/AddTradeModal.jsx symbol fields are bare,
   unvalidated text inputs — PARTIALLY addressed by Identity Normalization
   Hardening V1, merge `9c1bff81f`, 2026-09-06; the ORIGINAL framing below is
@@ -1669,11 +1752,17 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `9c1bff81f`), AI Search Raw-Pattern Trust Adjudication V1 (merge
    `897e53cc5`), Shared Multi-Security Grounding Architecture V1 (merge
    `271f79664`/`4c8b24c74`), Journal ↔ Research Return-Context + Notes
-   Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`), and Awareness
-   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`) are all
-   ACCEPTED + LIVE as of this checkpoint — do not re-implement any of them
-   or treat them as pending; confirm via `git log` only if something here
-   looks stale.
+   Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`), Awareness
+   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`), and
+   Ticker Search Identity Convergence V1 / Seam 16 (merge
+   `8ebb6f076`/`910eca619`) are all ACCEPTED + LIVE as of this checkpoint —
+   do not re-implement any of them or treat them as pending; confirm via
+   `git log` only if something here looks stale. **Ticker Search Identity
+   Convergence V1 required an extra manual step beyond the deploy itself
+   (a `ticker_search_index.build_index()` rebuild + `railway redeploy` to
+   reload it) because the search index is a persisted disk snapshot** — see
+   that CURRENT ACCEPTED entry's operational gotcha before assuming a
+   future change to `ticker_search_index.py` is live the moment it deploys.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
@@ -1684,9 +1773,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Research Convergence, Identity Normalization Hardening, Technical Ask AI,
    AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
    Architecture (Comparison leg), Journal ↔ Research Return-Context + Notes
-   Draft-Loss Fix (Seam 12), Awareness Scan-Abort Hardening (Seam 10), or the
-   Whole-Product Convergence Review from scratch — their findings above are
-   current as of this checkpoint
+   Draft-Loss Fix (Seam 12), Awareness Scan-Abort Hardening (Seam 10),
+   Ticker Search Identity Convergence (Seam 16), or the Whole-Product
+   Convergence Review from scratch — their findings above are current as of
+   this checkpoint
    (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
    from it once unblocked, do not re-audit); verify against live code only
    where something here looks stale.
