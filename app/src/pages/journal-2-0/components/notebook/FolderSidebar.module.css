@@ -288,6 +288,44 @@
   padding: 0;
 }
 .disclosureBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+/* Wave E — Saved Views section: the header "+ New" button and each row's
+   edit/delete buttons, sized/styled to match .disclosureBtn exactly. */
+.sectionAddBtn {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  margin-left: auto;
+}
+.sectionAddBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+.rowMenuBtn {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+}
+.rowWrap:hover .rowMenuBtn { display: inline-flex; }
+.rowMenuBtn:hover { color: var(--accent); background: var(--color-surface-hover, #1c2028); }
+@media (max-width: 1024px) {
+  /* Touch has no hover -- always show so the actions remain reachable. */
+  .rowMenuBtn { display: inline-flex; }
+}
 .chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }

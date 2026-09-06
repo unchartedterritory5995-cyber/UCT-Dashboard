@@ -787,6 +787,8 @@ def _notes_filter_sql(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_conditions: list[dict[str, Any]] | None = None,
+    conn: sqlite3.Connection | None = None,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -916,6 +918,18 @@ def _notes_filter_sql(
             sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR lower(tags) LIKE ? OR ticker = ?)"
             ql = f"%{q.lower()}%"
             params.extend([ql, ql, exact_tag_pattern, exact_ticker])
+    # Wave E: property-based conditions AND onto the SAME predicate chain,
+    # exactly like every filter above. Composition with Wave A search is
+    # therefore structurally free -- directive §54 (Wave E entry checkpoint
+    # point 3). `conn` is required to re-validate every property_def_id
+    # against this user's own defs before it reaches SQL (checkpoint point
+    # 30) -- a caller that omits it silently gets no property filtering
+    # rather than an unsafe unvalidated clause.
+    if property_conditions and conn is not None:
+        from api.services.journal_two.note_properties import property_conditions_sql
+        prop_sql, prop_params = property_conditions_sql(user_id, property_conditions, conn)
+        sql += prop_sql
+        params.extend(prop_params)
     return sql, params
 
 
@@ -976,6 +990,8 @@ def list_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_conditions: list[dict[str, Any]] | None = None,
+    property_sort: dict[str, Any] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -985,6 +1001,7 @@ def list_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_conditions=property_conditions, conn=conn,
         )
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         # Wave 4 Slice 2: relevance ranking is opt-in (`sort="relevance"`),
@@ -994,7 +1011,34 @@ def list_notes(
         # that yields no FTS terms) falls back to updated_at DESC exactly
         # like today, rather than erroring or ignoring the sort silently.
         relevance_expr = fts_match_expr(q) if (sort == "relevance" and q) else None
-        if relevance_expr:
+        # Wave E: single-key property sort (entry checkpoint point 10 --
+        # mirrors TradesTable/PositionsTable's existing click-to-sort
+        # contract, one key at a time, never a multi-column sort in V1).
+        # `property_def_id` is re-validated against this user's own live
+        # defs (same tenant-safety rule as property_conditions_sql) before
+        # it reaches the ORDER BY subquery. A note with no value for the
+        # sort property sorts last regardless of direction (the leading
+        # `IS NULL` key sorts has-a-value before has-none), matching every
+        # existing table's "blanks always sink last" convention.
+        prop_sort_valid = False
+        if property_sort and property_sort.get("propertyDefId") and not relevance_expr:
+            from api.services.journal_two.note_properties import list_property_defs
+            valid_ids = {d["id"] for d in list_property_defs(user_id, conn=conn)}
+            if property_sort["propertyDefId"] in valid_ids:
+                prop_sort_valid = True
+        if prop_sort_valid:
+            direction = "DESC" if (property_sort or {}).get("direction") == "desc" else "ASC"
+            sql += (
+                " ORDER BY (SELECT pv.value_json FROM j2_note_property_values pv"
+                " WHERE pv.note_id = j2_notes.id AND pv.user_id = j2_notes.user_id"
+                " AND pv.property_def_id = ?) IS NULL,"
+                f" (SELECT pv.value_json FROM j2_note_property_values pv"
+                f" WHERE pv.note_id = j2_notes.id AND pv.user_id = j2_notes.user_id"
+                f" AND pv.property_def_id = ?) {direction}"
+            )
+            params.append(property_sort["propertyDefId"])
+            params.append(property_sort["propertyDefId"])
+        elif relevance_expr:
             # bm25() is only callable within a SELECT that itself carries a
             # MATCH on that FTS table -- this correlated scalar subquery
             # satisfies that per outer row. A row with NO matching FTS entry
@@ -1064,6 +1108,7 @@ def count_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_conditions: list[dict[str, Any]] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -1080,6 +1125,7 @@ def count_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_conditions=property_conditions, conn=conn,
         )
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()

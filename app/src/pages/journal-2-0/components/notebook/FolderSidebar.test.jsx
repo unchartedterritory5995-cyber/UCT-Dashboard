@@ -51,6 +51,21 @@ vi.mock('../../hooks/useJ2NoteTags', () => ({
   default: (...args) => useJ2NoteTagsMock(...args),
 }))
 
+// Wave E: Saved Views. Default empty so its populated-conditional section
+// stays absent (minimal "New saved view" link only) unless a test opts in.
+const useJ2SavedViewsMock = vi.fn(() => ({ views: [], isLoading: false, error: null, refresh: vi.fn() }))
+const deleteSavedViewMock = vi.fn(() => Promise.resolve())
+vi.mock('../../hooks/useJ2SavedViews', () => ({
+  default: (...args) => useJ2SavedViewsMock(...args),
+  deleteSavedView: (...args) => deleteSavedViewMock(...args),
+}))
+// The editor is a whole Sheet-based sub-surface with its own hook
+// dependencies -- stubbed here since it isn't what these tests are about
+// (its own file has its own test coverage).
+vi.mock('./SavedViewEditor', () => ({
+  default: ({ open }) => (open ? <div data-testid="saved-view-editor" /> : null),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
@@ -66,6 +81,10 @@ beforeEach(() => {
   useJ2FavoritesMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
   useJ2RecentsMock.mockReset()
   useJ2RecentsMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2SavedViewsMock.mockReset()
+  useJ2SavedViewsMock.mockImplementation(() => ({ views: [], isLoading: false, error: null, refresh: vi.fn() }))
+  deleteSavedViewMock.mockReset()
+  deleteSavedViewMock.mockImplementation(() => Promise.resolve())
 })
 
 describe('folder tree', () => {
@@ -901,5 +920,76 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     expect(screen.getByText('Untitled')).toBeInTheDocument()
+  })
+})
+
+// ── Wave E — Saved Views sidebar section ────────────────────────────────────
+
+describe('Saved Views sidebar section (Wave E)', () => {
+  it('shows a minimal "New saved view" link when there are zero views', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('New saved view')).toBeInTheDocument()
+    expect(screen.queryByText('Saved Views')).not.toBeInTheDocument()
+  })
+
+  it('renders the Saved Views section with its views once at least one exists', () => {
+    useJ2SavedViewsMock.mockImplementation(() => ({
+      views: [{ id: 'v1', name: 'Active Theses', viewType: 'list' }],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+    expect(screen.getByText('Active Theses')).toBeInTheDocument()
+  })
+
+  it('selecting a saved view calls onSelectSavedView with the whole view object', () => {
+    useJ2SavedViewsMock.mockImplementation(() => ({
+      views: [{ id: 'v1', name: 'Active Theses', viewType: 'list' }],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onSelectSavedView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onSelectSavedView={onSelectSavedView} />)
+    fireEvent.click(screen.getByText('Active Theses'))
+    expect(onSelectSavedView).toHaveBeenCalledWith({ id: 'v1', name: 'Active Theses', viewType: 'list' })
+  })
+
+  it('highlights the active saved view row', () => {
+    useJ2SavedViewsMock.mockImplementation(() => ({
+      views: [{ id: 'v1', name: 'Active Theses', viewType: 'list' }],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} activeSavedViewId="v1" />)
+    const row = screen.getByText('Active Theses').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('clicking the header "+" opens the saved-view editor', () => {
+    useJ2SavedViewsMock.mockImplementation(() => ({
+      views: [{ id: 'v1', name: 'Active Theses', viewType: 'list' }],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('New saved view'))
+    expect(screen.getByTestId('saved-view-editor')).toBeInTheDocument()
+  })
+
+  it('deleting a saved view clears the active view when it was the one deleted', async () => {
+    useJ2SavedViewsMock.mockImplementation(() => ({
+      views: [{ id: 'v1', name: 'Active Theses', viewType: 'list' }],
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onSelectSavedView = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          activeSavedViewId="v1" onSelectSavedView={onSelectSavedView} />)
+    fireEvent.click(screen.getByLabelText('Delete Active Theses'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(deleteSavedViewMock).toHaveBeenCalledWith('v1'))
+    await waitFor(() => expect(onSelectSavedView).toHaveBeenCalledWith(null))
   })
 })

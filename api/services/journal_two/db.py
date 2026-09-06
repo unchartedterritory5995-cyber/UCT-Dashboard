@@ -805,6 +805,81 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_links_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_note_links WHERE note_id = old.id OR target_note_id = old.id;
 END;
 
+-- ── Wave E (Structured Research Properties / Saved Views) ──────────────────
+-- Normalized definitions + a narrow values table (entry checkpoint point 6),
+-- mirroring j2_note_embeds/j2_note_mentions/j2_note_links' own
+-- sidecar-with-stable-parent-id shape. `key` is server-minted ONCE at
+-- creation and never regenerated -- it is the rename-safety anchor (entry
+-- checkpoint point 7, mirroring the Wave D note-link lesson): renaming
+-- `name` or an option's `label` (inside `options_json`) is a pure metadata
+-- UPDATE that touches zero rows in j2_note_property_values or
+-- j2_note_saved_views, because both of those reference `id`/option-id, never
+-- a display string. `is_builtin` distinguishes ONLY UI treatment (quick-add
+-- list membership) -- there is exactly one property mechanism, not two.
+CREATE TABLE IF NOT EXISTS j2_note_property_defs (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    key          TEXT NOT NULL,   -- immutable, server-minted, never derived from name
+    name         TEXT NOT NULL,   -- user-editable display label
+    type         TEXT NOT NULL,   -- text|number|select|multi_select|date|checkbox|url
+    options_json TEXT NOT NULL DEFAULT '[]',  -- select/multi_select: [{id,label,color}]
+    is_builtin   INTEGER NOT NULL DEFAULT 0,
+    derived      INTEGER NOT NULL DEFAULT 0,  -- 1 = read-only, computed at read time (e.g. Sector/Theme); never has values rows
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL,
+    deleted_at   TEXT,
+    UNIQUE(user_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_property_defs_user
+    ON j2_note_property_defs(user_id, sort_order);
+
+-- One row per (note, property) actually SET -- an unset property has no row
+-- (never a NULL-valued row), so "how many properties does this note carry"
+-- is a plain COUNT, and adding a new property definition fabricates zero
+-- values on existing notes (entry checkpoint point 32).
+CREATE TABLE IF NOT EXISTS j2_note_property_values (
+    note_id         TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    property_def_id TEXT NOT NULL,
+    value_json      TEXT NOT NULL,  -- type-appropriate JSON; select/multi_select store OPTION IDS only
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (note_id, property_def_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_property_values_def
+    ON j2_note_property_values(user_id, property_def_id, note_id);
+
+-- filter_json/sort_json reference property_def_id or a fixed built-in-field
+-- token (e.g. "__ticker__") -- NEVER a property's current display name and
+-- NEVER raw SQL (entry checkpoint points 8, 30). A saved view is pure query
+-- configuration; it never touches note content or property defs.
+CREATE TABLE IF NOT EXISTS j2_note_saved_views (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    view_type   TEXT NOT NULL DEFAULT 'list',  -- list|table
+    filter_json TEXT NOT NULL DEFAULT '[]',
+    sort_json   TEXT NOT NULL DEFAULT '{}',
+    columns_json TEXT NOT NULL DEFAULT '[]',   -- table view only: ordered property_def_id list
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_saved_views_user
+    ON j2_note_saved_views(user_id, sort_order);
+
+-- Cascades: deleting a note drops its own property values (mirrors every
+-- other per-note sidecar's AFTER DELETE trigger above). Deleting a property
+-- DEFINITION is a SOFT delete at the service layer (entry checkpoint point
+-- 23) -- this hard-delete trigger only fires on the rare admin/purge path
+-- that actually removes the defs row, cleaning up any values that would
+-- otherwise dangle.
+CREATE TRIGGER IF NOT EXISTS j2_notes_property_values_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_property_values WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_property_defs_ad AFTER DELETE ON j2_note_property_defs BEGIN
+    DELETE FROM j2_note_property_values WHERE property_def_id = old.id;
+END;
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note

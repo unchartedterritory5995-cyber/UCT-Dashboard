@@ -617,6 +617,30 @@ def _yaml_scalar(value: str, *, flow: bool = False) -> str:
     return f'"{escaped}"'
 
 
+def _render_property_value(prop: dict[str, Any]) -> str | None:
+    """One property entry (the shape `note_properties.get_note_properties`
+    returns: {name, type, options, value, derived}) -> a human-readable
+    string, or None to omit it. select/multi_select resolve OPTION IDS to
+    their CURRENT label text -- the value itself never stores a label, so
+    this is the only place a label is materialized, always fresh."""
+    value = prop.get("value")
+    if value is None or value == "":
+        return None
+    type_ = prop.get("type")
+    if type_ == "select":
+        opt = next((o for o in prop.get("options") or [] if o["id"] == value), None)
+        return opt["label"] if opt else None  # option removed since -- omit, never show a dangling id
+    if type_ == "multi_select":
+        by_id = {o["id"]: o["label"] for o in prop.get("options") or []}
+        labels = [by_id[v] for v in value if v in by_id]
+        return ", ".join(labels) if labels else None
+    if type_ == "checkbox":
+        return "true" if value else "false"
+    if type_ == "number":
+        return str(value)
+    return str(value)
+
+
 def _front_matter(
     row: sqlite3.Row, hero_local: str | None = None, *, extra: dict[str, Any] | None = None,
 ) -> str:
@@ -665,6 +689,21 @@ def _front_matter(
         lines.append(
             "linked_trades: [" + ", ".join(_yaml_scalar(t, flow=True) for t in linked_trades) + "]"
         )
+    # Wave E (Structured Research Properties) -- rendered as a nested
+    # `properties:` mapping (name -> human-readable value), never an opaque
+    # JSON dump (directive §61-63): option values render as their CURRENT
+    # label text (resolved by note_properties.get_note_properties at read
+    # time, so a renamed option never shows a stale label in an export taken
+    # after the rename), multi-select as a comma-joined string. Omitted
+    # entirely when the note carries zero properties -- same "never show a
+    # field that means nothing for this note" convention as every field above.
+    properties = extra.get("properties") or []
+    if properties:
+        lines.append("properties:")
+        for p in properties:
+            rendered = _render_property_value(p)
+            if rendered is not None:
+                lines.append(f"  {_yaml_scalar(p['name'])}: {_yaml_scalar(rendered)}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -686,22 +725,36 @@ _TRADE_REF_KIND_LABEL = {
 
 def _resolve_note_related_data(
     conn: sqlite3.Connection, user_id: str, note_ids: list[str],
-) -> tuple[set[str], dict[str, list[str]], dict[str, list[str]]]:
+) -> tuple[set[str], dict[str, list[str]], dict[str, list[str]], dict[str, list[dict[str, Any]]]]:
     """One-shot, whole-export prefetch (mirrors the existing `folders` dict's
-    own "fetch once for every note" shape just above) for the three Wave C
-    export-completeness fixes: favorites, related tickers (embeds + prose
-    mentions), and human-readable linked-trade summaries. Returns
-    `(favorite_note_ids, tickers_by_note, linked_trades_by_note)`.
+    own "fetch once for every note" shape just above) for the Wave C
+    export-completeness fixes PLUS Wave E's property values: favorites,
+    related tickers (embeds + prose mentions), human-readable linked-trade
+    summaries, and per-note rendered properties. Returns
+    `(favorite_note_ids, tickers_by_note, linked_trades_by_note,
+    properties_by_note)`.
 
     Trade-ref resolution still costs one `resolve_trade_ref` call per
     trade-linked embed (that function re-verifies tenant ownership per call,
     so it cannot be batched) -- bounded by however many trade-linked embeds
     the account has, not by note count, and export is a rare member-initiated
-    action, not a hot path."""
+    action, not a hot path.
+
+    Wave E property values: ONE query for this user's property defs + ONE
+    query for every value row in the export set, grouped in Python -- never
+    one query per note. Derived properties (Sector/Industry/Theme) are
+    resolved ONCE PER DISTINCT ticker across the whole export set (mirroring
+    `resolve_sector_theme_symbols`'s existing "never a full-market, never a
+    per-note provider call" discipline), then mapped onto each note by its
+    own `ticker` column -- a 4,000-note export sharing 60 distinct tickers
+    costs 60 lookups, not 4,000."""
     from api.services.journal_two.note_trade_links import resolve_trade_ref
+    from api.services.journal_two.note_properties import (
+        list_property_defs, _resolve_derived_values,
+    )
 
     if not note_ids:
-        return set(), {}, {}
+        return set(), {}, {}, {}
 
     favorites = {
         r["note_id"] for r in conn.execute(
@@ -744,7 +797,45 @@ def _resolve_note_related_data(
                 bucket.append(label)
 
     tickers_out = {nid: sorted(syms) for nid, syms in tickers_by_note.items()}
-    return favorites, tickers_out, linked_trades_by_note
+
+    # Wave E: real (non-derived) property values, batched.
+    defs_by_id = {d["id"]: d for d in list_property_defs(user_id, include_derived=False, conn=conn)}
+    placeholders = ",".join("?" * len(note_ids))
+    properties_by_note: dict[str, list[dict[str, Any]]] = {}
+    value_rows = conn.execute(
+        f"SELECT note_id, property_def_id, value_json FROM j2_note_property_values"
+        f" WHERE user_id = ? AND note_id IN ({placeholders})",
+        (user_id, *note_ids),
+    ).fetchall()
+    for r in value_rows:
+        d = defs_by_id.get(r["property_def_id"])
+        if d is None:
+            continue
+        properties_by_note.setdefault(r["note_id"], []).append({
+            "name": d["name"], "type": d["type"], "options": d["options"],
+            "value": json.loads(r["value_json"]),
+        })
+
+    # Derived properties, resolved once per DISTINCT ticker across the set.
+    note_ticker_rows = conn.execute(
+        f"SELECT id, ticker FROM j2_notes WHERE user_id = ? AND id IN ({placeholders})",
+        (user_id, *note_ids),
+    ).fetchall()
+    distinct_tickers = {r["ticker"] for r in note_ticker_rows if r["ticker"]}
+    derived_by_ticker = {t: _resolve_derived_values(t) for t in distinct_tickers}
+    _DERIVED_NAMES = {"__sector__": "Sector", "__industry__": "Industry", "__theme__": "Theme"}
+    for r in note_ticker_rows:
+        if not r["ticker"]:
+            continue
+        derived = derived_by_ticker.get(r["ticker"], {})
+        for key, name in _DERIVED_NAMES.items():
+            val = derived.get(key)
+            if val:
+                properties_by_note.setdefault(r["id"], []).append(
+                    {"name": name, "type": "text", "options": [], "value": val}
+                )
+
+    return favorites, tickers_out, linked_trades_by_note, properties_by_note
 
 
 #
@@ -828,7 +919,7 @@ def _write_notes_archive(
         (user_id,),
     ).fetchall()
 
-    favorites, tickers_by_note, linked_trades_by_note = _resolve_note_related_data(
+    favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
         conn, user_id, [r["id"] for r in rows],
     )
     note_paths = _compute_note_export_paths(rows, folders)
@@ -908,6 +999,7 @@ def _write_notes_archive(
                 t for t in tickers_by_note.get(row["id"], []) if t != row["ticker"]
             ],
             "linked_trades": linked_trades_by_note.get(row["id"], []),
+            "properties": properties_by_note.get(row["id"], []),
         }
         zf.writestr(
             f"{path}.md",
@@ -1052,7 +1144,7 @@ def build_single_note_export(
         if row is None:
             return None
 
-        favorites, tickers_by_note, linked_trades_by_note = _resolve_note_related_data(
+        favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
             conn, user_id, [note_id],
         )
 
@@ -1100,6 +1192,7 @@ def build_single_note_export(
                 t for t in tickers_by_note.get(note_id, []) if t != row["ticker"]
             ],
             "linked_trades": linked_trades_by_note.get(note_id, []),
+            "properties": properties_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
 

@@ -7,6 +7,8 @@ import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import useJ2SavedViews, { deleteSavedView } from '../../hooks/useJ2SavedViews'
+import SavedViewEditor from './SavedViewEditor'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -174,6 +176,108 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
           </button>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Wave E — Saved Views sidebar section. Same populated-conditional
+// discipline as Favorites/Recents (directive §71-73), with one exception:
+// a member needs SOME way to create their FIRST view even when the
+// section would otherwise be fully invisible, so a single minimal
+// "+ New saved view" link always shows when the list is empty (mirrors
+// PropertiesSection's identical resolution of the same tension).
+function SavedViewsSection({ activeSavedViewId, onSelectSavedView }) {
+  const { views, refresh } = useJ2SavedViews()
+  const [expanded, setExpanded] = useState(true)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingView, setEditingView] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
+
+  const openCreate = () => { setEditingView(null); setEditorOpen(true) }
+  const openEdit = (view) => { setEditingView(view); setEditorOpen(true) }
+  const onSaved = (view) => {
+    setEditorOpen(false)
+    refresh()
+    onSelectSavedView(view)
+  }
+  const doDelete = async () => {
+    const id = confirmingDeleteId
+    setConfirmingDeleteId(null)
+    await deleteSavedView(id)
+    refresh()
+    if (activeSavedViewId === id) onSelectSavedView(null)
+  }
+
+  if (!views.length) {
+    return (
+      <div className={styles.section}>
+        <div className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button type="button" className={styles.noteRow} onClick={openCreate}>
+            <UIcon name="plus" size={12} gold={false} />
+            <span className={styles.noteTitle}>New saved view</span>
+          </button>
+        </div>
+        {editorOpen && (
+          <SavedViewEditor open={editorOpen} onClose={() => setEditorOpen(false)} existingView={null} onSaved={onSaved} />
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} Saved Views`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name="columns" size={12} gold={false} />
+          Saved Views
+        </span>
+        <button type="button" className={styles.sectionAddBtn} aria-label="New saved view" onClick={openCreate}>
+          <UIcon name="plus" size={12} gold={false} />
+        </button>
+      </div>
+      {expanded && views.map((view) => (
+        <div key={view.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeSavedViewId === view.id ? styles.rowActive : ''}`}
+            onClick={() => onSelectSavedView(view)}
+            title={view.name}
+          >
+            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={12} gold={false} />
+            <span className={styles.noteTitle}>{view.name}</span>
+          </button>
+          <button type="button" className={styles.rowMenuBtn} aria-label={`Edit ${view.name}`} onClick={() => openEdit(view)}>
+            <UIcon name="gear" size={11} gold={false} />
+          </button>
+          <button type="button" className={styles.rowMenuBtn} aria-label={`Delete ${view.name}`} onClick={() => setConfirmingDeleteId(view.id)}>
+            <UIcon name="trash" size={11} gold={false} />
+          </button>
+        </div>
+      ))}
+      {editorOpen && (
+        <SavedViewEditor open={editorOpen} onClose={() => setEditorOpen(false)} existingView={editingView} onSaved={onSaved} />
+      )}
+      {confirmingDeleteId && (
+        <ConfirmModal
+          title="Delete this saved view?"
+          body="The view's filter is removed. Your notes and their properties are never touched."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={doDelete}
+          onClose={() => setConfirmingDeleteId(null)}
+        />
+      )}
     </div>
   )
 }
@@ -390,6 +494,8 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  activeSavedViewId = null,
+  onSelectSavedView = () => {},
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -861,6 +967,10 @@ export default function FolderSidebar({
             notes={recentNotes}
             activeNoteId={activeNoteId}
             onOpenNote={onOpenNote}
+          />
+          <SavedViewsSection
+            activeSavedViewId={activeSavedViewId}
+            onSelectSavedView={onSelectSavedView}
           />
           <div className={styles.section}>
             <div className={styles.rowWrap}>

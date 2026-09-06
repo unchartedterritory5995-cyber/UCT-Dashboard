@@ -15,6 +15,8 @@ import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
+import useJ2SavedViews from '../hooks/useJ2SavedViews'
+import NotesTableView from '../components/notebook/NotesTableView'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -78,6 +80,11 @@ export default function NotebookTab() {
     }, { replace: true })
   }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
+  // Wave E: an active saved view is mutually exclusive with folder/tag
+  // browsing (same "one selection channel" discipline as folder vs. Trash
+  // above) — holds the whole view object (not just its id) so viewType/
+  // filter/sort/name are all available without a second lookup.
+  const [activeView, setActiveView] = useState(null)
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
@@ -184,9 +191,15 @@ export default function NotebookTab() {
   // unrecognized, and the toolbar's own sort state ('updated' by default)
   // IS a recognized key, so it would otherwise silently win over the trash
   // default.
+  // Wave E: an active saved view's filter+sort come ENTIRELY from the
+  // server's own stored row for `savedViewId` (directive §87) -- the client
+  // sends nothing but the id. A saved view with no stored sort falls back
+  // to the server's own "updated" default, same as every list already does.
   const {
     notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
-  } = useJ2Notes({
+  } = useJ2Notes(activeView ? {
+    savedViewId: activeView.id,
+  } : {
     folderId: isTrashView ? undefined : folderId,
     tag: isTrashView ? undefined : tag,
     sort: isTrashView ? 'deleted' : sort,
@@ -270,8 +283,16 @@ export default function NotebookTab() {
     next.delete('note')
     return next
   }, { replace: false })
-  const handleSelectFolder = (id) => { setFolderId(id); if (noteId) clearNoteParam() }
-  const handleSelectTag = (t) => { setTag(t); if (noteId) clearNoteParam() }
+  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); if (noteId) clearNoteParam() }
+  const handleSelectTag = (t) => { setTag(t); setActiveView(null); if (noteId) clearNoteParam() }
+  // Wave E: selecting a saved view is its own selection channel, mutually
+  // exclusive with folder/tag browsing (same discipline as folder-vs-Trash).
+  const handleSelectSavedView = (view) => {
+    setActiveView(view)
+    setFolderId(null)
+    setTag(null)
+    if (noteId) clearNoteParam()
+  }
 
   // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
   // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
@@ -427,6 +448,8 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            activeSavedViewId={activeView?.id}
+            onSelectSavedView={handleSelectSavedView}
           />
         </div>
       </div>
@@ -447,7 +470,15 @@ export default function NotebookTab() {
         ) : (
           <>
         <div className={styles.toolbar}>
-          {isTrashView ? (
+          {activeView ? (
+            // Wave E: "using a view" is a one-click state with no
+            // configuration surface visible (directive §80) -- just the
+            // view's name + a way back to normal browsing.
+            <span className={styles.trashLabel}>
+              <UIcon name="columns" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              {activeView.name}
+            </span>
+          ) : isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the
             // toolbar's Recently-updated/Recently-created/Title options are
             // for the active library, not a meaningful choice here.
@@ -463,13 +494,13 @@ export default function NotebookTab() {
               <option value="title">Title</option>
             </select>
           )}
-          {(folderId || tag) && (
+          {(folderId || tag || activeView) && (
             <button
               type="button"
               className={styles.clear}
-              onClick={() => { setFolderId(null); setTag(null) }}
+              onClick={() => { setFolderId(null); setTag(null); setActiveView(null) }}
             >
-              Clear filter
+              {activeView ? 'Exit view' : 'Clear filter'}
             </button>
           )}
           <div className={styles.newWrap}>
@@ -576,6 +607,8 @@ export default function NotebookTab() {
               <TemplatePicker onPick={handlePick} busy={creating} />
             </div>
           </div>
+        ) : activeView?.viewType === 'table' ? (
+          <NotesTableView notes={notes} view={activeView} onOpen={openNote} />
         ) : (
           <>
             <div className={styles.grid}>

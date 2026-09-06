@@ -24,6 +24,7 @@ import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
+import PropertiesSection from './PropertiesSection'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -1373,6 +1374,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           }}
           placeholder="Subtitle (optional)"
         />
+
+        {/* Wave E: structured properties -- lives in the note's existing
+            metadata zone (title/subtitle), not a new toolbar button
+            (directive §30-32). Renders one small "+ Add property" link
+            until the note has at least one property set. */}
+        <PropertiesSection noteId={noteId} ticker={note.ticker} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

@@ -9,6 +9,7 @@ import os
 import subprocess
 import sqlite3
 import zipfile
+from unittest.mock import patch
 
 import pytest
 
@@ -1113,3 +1114,106 @@ def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
         "Cup and handle breakout.md").decode("utf-8")
     assert "title: Cup and handle breakout" in body
     assert '"' not in body.split("---")[1]  # front matter block, unquoted
+
+
+# ── Wave E: property values in export front matter ──────────────────────────
+
+def test_full_export_renders_property_values_as_readable_yaml():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    from api.services.journal_two import note_properties as np
+    prop = np.create_property_def("u1", {"name": "Thesis Status", "type": "select",
+                                          "options": [{"label": "Active"}]}, conn=c)
+    opt_id = prop["options"][0]["id"]
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("Body text")))
+    c.commit()
+    np.set_note_property_value("u1", "n1", prop["id"], opt_id, conn=c)
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "properties:" in body
+    assert "Thesis Status: Active" in body  # the CURRENT label, never the option id
+    assert opt_id not in body
+
+
+def test_full_export_property_label_reflects_a_rename_made_after_the_value_was_set():
+    """Rename-safety, proven end-to-end through export: the option id never
+    changes, but export always resolves the CURRENT label (checkpoint point 22)."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    from api.services.journal_two import note_properties as np
+    prop = np.create_property_def("u1", {"name": "Status", "type": "select",
+                                          "options": [{"label": "Active"}]}, conn=c)
+    opt_id = prop["options"][0]["id"]
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("Body text")))
+    c.commit()
+    np.set_note_property_value("u1", "n1", prop["id"], opt_id, conn=c)
+    np.update_property_def("u1", prop["id"], {"options": [{"id": opt_id, "label": "Currently Active"}]}, conn=c)
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "Status: Currently Active" in body
+    assert "Status: Active\n" not in body
+
+
+def test_full_export_derived_sector_theme_properties_appear_when_ticker_set():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("Body text")))
+    c.execute("UPDATE j2_notes SET ticker='NVDA' WHERE id='n1'")
+    c.commit()
+    with patch("api.services.ticker_meta.get_ticker_meta") as mock_meta:
+        mock_meta.return_value = {"sector": "Technology", "industry": "Semiconductors", "theme": "AI"}
+        blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "Sector: Technology" in body
+    assert "Theme: AI" in body
+
+
+def test_export_omits_properties_block_entirely_when_note_has_none():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Plain Note", _doc(_para("Body text")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Plain Note.md").decode("utf-8")
+    assert "properties:" not in body
+
+
+def test_a_removed_select_option_is_omitted_from_export_not_a_dangling_id():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    from api.services.journal_two import note_properties as np
+    prop = np.create_property_def("u1", {"name": "Status", "type": "select",
+                                          "options": [{"label": "Active"}]}, conn=c)
+    opt_id = prop["options"][0]["id"]
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("Body text")))
+    c.commit()
+    np.set_note_property_value("u1", "n1", prop["id"], opt_id, conn=c)
+    np.update_property_def("u1", prop["id"], {"options": []}, conn=c)  # option removed
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "Status:" not in body
+    assert opt_id not in body
+
+
+def test_single_note_export_renders_properties_identically_to_full_export():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    from api.services.journal_two import note_properties as np
+    prop = np.create_property_def("u1", {"name": "Confidence", "type": "text"}, conn=c)
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("Body text")))
+    c.commit()
+    np.set_note_property_value("u1", "n1", prop["id"], "High", conn=c)
+
+    content, _, _ = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "properties:" in text
+    assert "Confidence: High" in text
