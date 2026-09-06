@@ -393,8 +393,8 @@ def build_flow_command() -> dict:
         "options": [
             {"name": "ticker", "type": 3, "required": True, "autocomplete": True,
              "description": "Start typing a ticker, e.g. DPRO — pick from the list"},
-            {"name": "days", "type": 3, "required": True, "autocomplete": True,
-             "description": "Window — Today / 7 days / 30 days / 3 months / 6 months / All (or type a number)"},
+            {"name": "days", "type": 3, "required": False, "autocomplete": True,
+             "description": "Window (default: Today) — leave blank for Today, or pick 7 days / 30 days / 3 months / 6 months / All"},
         ],
     }
 
