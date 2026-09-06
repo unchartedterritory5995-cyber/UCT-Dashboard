@@ -290,6 +290,32 @@ def _flag_volume_ratio(bars: List[Bar], c: dict) -> float:
     return flag_avg / pole_avg
 
 
+def _anchor_bar_t(bars: List[Bar], pivot_t) -> int:
+    """Translate a flag-channel trendline endpoint's `t` back into a real bar
+    timestamp.
+
+    `upper_pivots`/`lower_pivots` (built in `_try_extract_pattern`, NOT via the
+    shared `detect_pivots` primitive) set `"t"` to an absolute BAR INDEX into
+    `bars` -- not a unix-second timestamp -- because the loop that builds them
+    needed that same integer for `"bar_index"` and never separately recorded
+    the bar's own `"t"` field. `fit_trendline`/`_fit_arithmetic`
+    (primitives/trendlines.py) then carries that index straight through as
+    `p1["t"]`/`p2["t"]` with no unit conversion -- by construction
+    `t_start, t_end = ts[0], ts[-1]` are copied verbatim from the first/last
+    input pivot, never re-derived, so a fitted line's `p1["t"]`/`p2["t"]` are
+    ALWAYS one of the exact bar indices that went into the fit (never an
+    interpolated/extrapolated value).
+
+    Same fix as bull_flag.py's own `_anchor_bar_t` (identical defect, both
+    detectors share this exact pivot-construction pattern) -- this is the
+    ONLY place that value is read to build a canonical/renderable `Anchor.t`
+    (`types.py`: `int  # unix seconds, bar start`), so the translation
+    belongs here. The regression itself is left untouched (re-fitting on real
+    calendar timestamps would distort the channel across weekend/holiday
+    gaps)."""
+    return int(bars[int(pivot_t)]["t"])
+
+
 def _build_detection(bars, c, confidence, context,
                      geom_score, vol_score, ctx_score, hist_score) -> Detection:
     pole_bottom = bars[c["pole_bottom_idx"]]
@@ -454,10 +480,10 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": [
-                {"t": int(c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
-                {"t": int(c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
-                {"t": int(c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
-                {"t": int(c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
+                {"t": _anchor_bar_t(bars, c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
+                {"t": _anchor_bar_t(bars, c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
+                {"t": _anchor_bar_t(bars, c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
+                {"t": _anchor_bar_t(bars, c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
             ],
             "extras": {
                 "pole_pct": round(c["pole_pct"] * 100, 2),
