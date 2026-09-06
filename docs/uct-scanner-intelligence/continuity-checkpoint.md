@@ -2607,3 +2607,70 @@ Five packages now frozen/closed on identical hold discipline
 (scan-completeness, PEG-geometry, pattern-join docs, 8G-C admin-proof,
 this VCP adjudication), zero cross-contamination, 8G-B observation cadence
 uninterrupted throughout this pass.
+
+---
+
+## BULLISH ENGULFING CANONICAL ADAPTER — PACKAGE 8F (2026-09-06)
+
+**Worktree:** `uct-dashboard-bullish-engulfing`, branch `feat/canonical-bullish-engulfing`,
+off `origin/master@dc5dbe0c9`, HEAD now `43e5ca4dd`.
+
+**Context:** owner authorized resuming remaining-family canonical adaptation
+(one family at a time, local/isolated only) once the VCP freshness-gate
+adjudication closed. Explicit instruction: do not assume VCP is next just
+because it was just discussed — rank all remaining families fresh.
+
+**Ranking (12 owner-specified criteria, re-verified against current code,
+not quoted from the prior readiness matrix):** Bullish Engulfing > Bull Flag
+> O'Neil Flat Base > Episodic Pivot > VCP > Pullback-to-50-SMA. Bull Flag
+was the closest competitor but its own 4 geometry anchors never include the
+pole (verified by direct read — `upper_pivots`/`lower_pivots` are built only
+from post-pole-top flag bars); Bullish Engulfing's 2 anchors (prior bar
+close, engulfing bar close) are both real, and it emits at most one
+detection per symbol (`detections[-1:]`) — the simplest eligibility
+semantics of any remaining family.
+
+**Contract:** identity = the engulfment geometry + hard reversal-context
+gate (`at_swing_low`/`below_50sma`/`recent_decline_pct`), all already
+materialized in `geometry.extras`. Lifecycle/eligibility = shared 7d active
+window only (no per-family gate). Event provenance = correctly, honestly
+ABSENT (a candlestick has no addressable calendar event) — mirrors HTF's
+adapter shape exactly. Explanation: real `why_it_matched` (engulfment ratio,
+the specific reversal-context reason(s) this candidate cleared, engulfing-bar
+DCR); `strengths`/`weaknesses` honestly OMITTED (this family's `_score_context`
+is monolithic, no separable DCR/CAN-SLIM helper functions like HTF/PEG/Bull
+Flag have — inventing one would risk diverging from the detector's real
+judgment).
+
+**Implementation:** `adapt_bullish_engulfing()` added to `canonical_adapter.py`
+(eligibility + anchor_roles=`["prior_bar_close","engulfing_bar_close"]` +
+semantic_subtype=`"engulfing_pair"`; event/criteria/gate_trace deliberately
+absent). `explanation_builder.py` gained bullish_engulfing as a third in-scope
+family. Zero persistence/schema/scanner-wiring change — same shadow-mode-only
+status as the existing two families. Zero production authority activated.
+
+**Tests:** extended `test_canonical_adapter.py` (+91 lines, mirrors HTF's own
+test shape exactly — parity, event/criteria/gate_trace-absent, eligibility
+shape, non-mutation, anchor-role order, scanner-summary honesty) and
+`test_explanation_builder.py` (+93 lines — why-matched facts, reversal-context
+fact names only what actually fired, no-event-section, market_context
+composes without duplicating "moving-average", no strengths/weaknesses
+section, folded into the existing family-agnostic parametrizations). Reused
+the existing 16-fixture `bullish_engulfing` battery — no new fixtures needed.
+
+**Regression:** `test_canonical_adapter.py` 130 passed, `test_explanation_builder.py`
+229 passed. Full `tests/pattern_engine/` suite: 2744 passed, 9 xfailed —
+same pre-existing xfails as the prior VCP package pass, nothing new broken.
+
+**Frozen, no merge/deploy** — same 3-option gate as every other package.
+Bull Flag (pole-anchor gap), O'Neil Flat Base (rectangle 4th-anchor overload),
+Episodic Pivot (needs genuinely new event-provenance work), VCP (needs its
+own future adapter, deliberately not chosen this pass), and Pullback-to-50-SMA
+(single-anchor geometry, the thinnest of the six) all remain unconverted,
+ranked and ready for future passes in that order.
+
+Six packages now frozen on identical hold discipline (scan-completeness,
+PEG-geometry, pattern-join docs, 8G-C admin-proof, VCP adjudication, Bullish
+Engulfing canonical adapter), zero cross-contamination, 8G-B observation
+cadence uninterrupted throughout this pass. Tuesday 2026-09-08 RTH remains
+the key `screener_live_tier` live-acceptance window.
