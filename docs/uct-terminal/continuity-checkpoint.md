@@ -6,8 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Event / News / Calendar → Research Convergence V1 merge/deploy/production-
-verification).
+Identity Normalization Hardening V1 merge/deploy/production-verification).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -23,16 +22,22 @@ a MATERIAL TRUST/CORRECTNESS defect, blocks a CORE MEMBER WORKFLOW, blocks a
 HIGH-VALUE capability release, or would propagate a serious defect through a
 shared canonical contract. Otherwise: record it, classify it, preserve it in
 the debt ledger, continue the product plan. Priority stack as of this
-checkpoint: **#1 Technical Research release** (blocked only by Pattern Vision
-reaching LIVE + ACCEPTED — when that happens, interrupt the queue safely and
+checkpoint (2026-09-06, post Identity Normalization Hardening V1): **#1
+Technical Research release** (blocked only by Pattern Vision reaching LIVE +
+ACCEPTED — classification is not due until after the Tue 9/8 / Wed 9/9
+two-session evidence window; when it happens, interrupt the queue safely and
 release it immediately) → **#2 (closed) Journal / Trade Lifecycle
 Convergence V1** → **#3 (closed) Search/Command Convergence V1** → **#4
-(just closed) Event/News/Calendar → Research convergence V1** → **#5
-Identity normalization hardening** (BRK.B/BRK-B, Seam 1 — next, unless
-Pattern Vision/S7 interrupts) → #6 Technical Ask AI (only after Technical
-Research is live/trusted) → #7 one shared multi-security grounding
-architecture for Comparison/Watchlist/Portfolio AI (do not build three
-separate systems).
+(closed) Event/News/Calendar → Research convergence V1** → **#5 (just
+closed) Identity normalization hardening V1** (write-time symbol
+canonicalization + Compare self-exclusion — see "CURRENT ACCEPTED" below for
+what actually closed vs. what remains open debt) → **#6 Technical Ask AI**
+(next candidate as of this checkpoint — Pattern Vision has NOT yet reached
+LIVE + ACCEPTED, so Technical Research release has not interrupted the queue;
+re-check `railway variables --service web --kv` and the "CURRENT LIVE
+OBSERVATION" section before assuming this is still current) → #7 one shared
+multi-security grounding architecture for Comparison/Watchlist/Portfolio AI
+(do not build three separate systems).
 
 ## North star (do not lose this)
 
@@ -511,6 +516,110 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   not merely re-cited from the prior program. See the new debt entries below
   for what was found but deliberately not fixed.
 
+- **Identity Normalization Hardening V1** — IMPLEMENTED + ACCEPTED + LIVE,
+  merge `9c1bff81f`, deployed + production-verified 2026-09-06. A 4-agent
+  Phase A workflow (independently re-verified against real source, not
+  trusted from its own summary) mapped Entity Master's real resolve() +
+  alias-seeding behavior precisely: `resolve()` applies only
+  `.strip().upper()`, no dot/hyphen transform; `scripts/entity_master_seed.py`
+  seeds ONLY the hyphen spelling (`BRK-B`) as a canonical alias, so
+  `resolve("BRK.B")` returns `not_found` today (confirmed by a passing
+  assertion in `scripts/test_entity_master_seed.py`) — this is the single
+  most load-bearing fact this program surfaced, and it bounds what a
+  write-time-only fix can and cannot close. Three priorities, in the
+  authorization's own order:
+  - **Priority 1 (Seam 17's real data-integrity risk — CLOSED, narrowly).**
+    A new `api/services/journal_two/symbol_normalize.py::normalize_symbol()`
+    (relocated, not reinvented, from `broker/snaptrade_adapter.py`, which now
+    imports it) is the single shared implementation for
+    uppercase+trim+dot-to-hyphen canonicalization. Manual AddPosition
+    (`positions.py::_validate_create_payload`), manual AddTrade
+    (`trades.py::_validate_manual_trade_payload`), and CSV import (6 call
+    sites in `csv_import.py`) now all route through it — closing the
+    realistic manual-vs-broker spelling-divergence path (BRK.B entered by
+    hand vs BRK-B synced from a broker landing as two different strings in
+    `j2_positions`/`j2_trades`). Deliberately NOT an existence/tradability
+    check per the authorization's explicit instruction — a delisted, renamed,
+    or entirely fictional ticker still saves unchanged (regression-tested).
+    **Seam 17's ORIGINAL framing (AddPositionModal.jsx/AddTradeModal.jsx are
+    bare text inputs with no autocomplete/search UI) is NOT closed and was
+    never attempted** — that is a real, separate, larger UI initiative;
+    do not conflate "the spelling-divergence risk is closed" with "Seam 17 is
+    closed."
+  - **Priority 2 (Seam 1 — PARTIALLY resolved, honestly bounded).** The
+    write-time half of Seam 1 (manual `.strip().upper()` vs broker-sync's
+    additional dot-to-hyphen step producing two spellings of one security) is
+    now closed by the same `normalize_symbol()` reuse above.
+    `comparison.py::get_comparison()` also gained an entity-id equality guard
+    (resolves both sides via Entity Master BEFORE the expensive per-side
+    fetches; rejects two spellings that resolve to the same `entityId`) —
+    but this is **real-but-partial**: it only fires when both spellings are
+    ALREADY-seeded S3 aliases of the same entity, which BRK.B/BRK-B itself is
+    NOT (per the finding above — `BRK.B` alone resolves `not_found`, so a
+    raw BRK.B-vs-BRK-B comparison today is NOT caught by this guard). The
+    READ-SIDE half of Seam 1 — S3's alias table not carrying the dot
+    spelling at all, degrading Watchlist/Portfolio Intelligence and Research
+    estimates/financials for existing dot-spelled references — is
+    UNCHANGED; S3 schema/alias-seeding was explicitly protected/out-of-scope
+    for this V1.
+  - **Priority 3 (Seam 15 — CLOSED, via a smaller mechanism than originally
+    proposed).** All 8 "+ Compare" `SymbolSearch` call sites (`ResearchHeader`,
+    `TickerPopup`, `TickerActions`, `TickerHubSheet`, `PositionDetailPage`,
+    `TradeDrawer`, `TradeDetailPage`, `Watchlists`' `CompareSearch`) used to
+    pass `sym={null}` (or `sym=""` for Watchlists, which had no base-symbol
+    threading mechanism at all), defeating `SymbolSearch.jsx`'s OWN
+    pre-existing `clean !== sym` self-exclusion guard — the guard was never
+    missing, it was structurally unreachable. Fixed by passing the real
+    current symbol at all 8 sites, confirmed safe by a full read of
+    `SymbolSearch.jsx`: the trigger button's visible text is controlled by
+    `displayLabel`, not `sym` (Phase A's synthesis had not surfaced this,
+    and `ResearchHeader.jsx`'s own old comment defending `sym={null}` was
+    describing a risk `displayLabel` already structurally prevented). Fixed
+    as a side effect: all 8 sites previously shipped a literal
+    `"null — click to search"` tooltip (`sym` template-interpolating to the
+    string "null"). Seam 15's originally-proposed fix shape (a new
+    `excludeSym` prop on the shared component) was NOT needed — the
+    per-caller prop fix was smaller and sufficient.
+  - **Production collision audit** (Section IX, read-only + aggregate-only,
+    via `railway ssh` against live `/data/auth.db` — never the local
+    `C:\data\auth.db` mirror): **zero existing symbol-spelling collisions**
+    in `j2_positions`/`j2_trades` grouped by user. This is a pure hardening
+    fix, not a migration — no positions/trades were merged, no historical
+    rows rewritten.
+  - **Tests:** 9 new backend unit tests (`test_symbol_normalize.py`, new) +
+    9 new tests across `test_positions.py`/`test_trades.py`/
+    `test_csv_import.py`/`test_research_comparison.py` (dot→hyphen
+    normalization, delisted/fictional-ticker pass-through regression guards,
+    same-entity-different-spelling rejection, unresolved-symbols-not-treated-
+    as-same-entity). Two PRE-EXISTING test-mock gaps in
+    `test_research_comparison.py` were found and fixed in the same diff (two
+    mocks returned a fixed `entity_id="ent_x"` regardless of input symbol,
+    which the new same-entity guard correctly-per-its-inputs treated as a
+    self-comparison) — a genuine test-fixture gap the new guard exposed, not
+    a production defect. 8 new frontend tests directly on `SymbolSearch.jsx`
+    (self-exclusion firing/not-firing, tooltip regression) + 8 new
+    caller-level tests confirming each of the 8 Compare sites now threads the
+    real symbol through — which also caught and fixed a PRE-EXISTING broken
+    assumption in `ResearchHeader.test.jsx` and `TickerPopup.test.jsx`: both
+    files' `SymbolSearch` mocks discriminated the Compare instance from the
+    primary instance by `sym` truthiness, an assumption this fix inverted
+    (both instances now receive a real, truthy `sym`) — fixed to discriminate
+    by `displayLabel` instead, matching the real component's own logic. Full
+    directory-scoped backend regression (positions/trades/csv_import/broker/
+    entity_master/research/journal_two-router-adjacent, ~620 tests) and
+    full frontend regression on all 8 touched files + Watchlists' 4 split
+    suites (121 tests) all green, deterministic across two runs; clean
+    production build. A whole-repo `pytest --collect-only` background run
+    stalled with no output for 10+ minutes and was abandoned rather than
+    trusted or re-attempted blind — regression confidence rests on the
+    directory-scoped runs actually completed, not a claimed full-suite pass.
+  - **Deliberately NOT touched:** S3 schema/alias-seeding, search-index
+    dot/hyphen dedup (Seam 16), Research/Watchlists/Attention/Alerts
+    read-side alias resolution for EXISTING dot-spelled data, any historical
+    position/trade migration, AddPositionModal/AddTradeModal autocomplete UI
+    (Seam 17's original framing), and all Event/News/Calendar debt (Seams
+    18-22) from the prior program.
+
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
 - **Pattern Vision** — `PATTERN_VISION_ENABLED=1`. Safety defaults locked:
@@ -561,17 +670,18 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Event / News / Calendar →
-  Research Convergence V1 (the prior active program) is now ACCEPTED + LIVE —
-  see "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction
-  on that program's authorization ("Then STOP. Do NOT automatically begin
-  Identity Normalization or Technical Research release."), no next Terminal
+- **None — requires new explicit authorization.** Identity Normalization
+  Hardening V1 (the prior active program) is now ACCEPTED + LIVE — see
+  "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
+  that program's authorization ("Then STOP. Do NOT automatically begin
+  Technical Ask AI or Technical Research release."), no next Terminal
   program has been automatically begun. **Per the 2026-09-06 Strategic
-  Re-Anchor above, the next candidate in the stated priority stack is #5 —
-  Identity normalization hardening (BRK.B/BRK-B, Seam 1) — unless Pattern
-  Vision reaches LIVE + ACCEPTED first (which makes Technical Research
-  release the immediate #1 interrupt) or a genuine S7 NVDA filing event
-  fires.** Either way, the next Terminal program still requires a new,
+  Re-Anchor above, the next candidate in the stated priority stack is #6 —
+  Technical Ask AI — unless Pattern Vision reaches LIVE + ACCEPTED first
+  (which makes Technical Research release the immediate #1 interrupt; NOT
+  yet true as of this checkpoint — classification is not due until after the
+  Tue 9/8 / Wed 9/9 two-session evidence window) or a genuine S7 NVDA filing
+  event fires.** Either way, the next Terminal program still requires a new,
   explicit owner authorization — do not self-start any program from this
   pointer alone. Do not infer a program from the "NEWLY IDENTIFIED DEBT" or
   "DEFERRED" sections below, nor from Attention Signal Propagation V1's own
@@ -594,8 +704,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   and identity findings, nor from Event / News / Calendar → Research
   Convergence V1's own deferred items (the orphaned News surfaces, the
   bounded TickerActions-reuse gap on Board/Table/Wire calendar views, event
-  context preservation, the WireView/MyStocksHub-Insights dead ends — see
-  the new debt entries below) — those are candidate lists, not
+  context preservation, the WireView/MyStocksHub-Insights dead ends), nor
+  from Identity Normalization Hardening V1's own deferred items (S3 schema/
+  alias-seeding, search-index dot/hyphen dedup — Seam 16, Research/
+  Watchlists/Attention/Alerts read-side alias resolution for existing
+  dot-spelled data, historical position/trade migration, and
+  AddPositionModal/AddTradeModal autocomplete UI — Seam 17's original
+  framing — see the new debt entries below) — those are candidate lists, not
   authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
@@ -634,18 +749,24 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   confirmed and documented it. Fix shape: `role="button"` + `tabIndex={0}` +
   an `onKeyDown` handling Enter/Space, mirroring `handleItemClick`.
 
-- **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT).**
-  Manual J2 entry (`positions.py`/`options.py`) does bare `.strip().upper()`;
-  SnapTrade sync (`snaptrade_adapter.py::normalize_symbol()`) additionally
-  rewrites dual-class dot-suffixes to hyphens (`BRK.B`→`BRK-B`). A manually
-  logged and a broker-synced position of the same real security can land under
-  two different strings in the same table. Entity Master's alias table is
-  seeded ONLY in hyphen form, so `resolve("BRK.B")` returns `not_found` — this
-  silently degrades Watchlist/Portfolio Intelligence and Research
-  estimates/financials for the dot spelling only. Price lookup itself is
-  robust (`to_polygon_symbol()` accepts both). Not urgent — documented in
-  `journal_two.py`'s own docstring as a known, accepted limitation. Fix shape:
-  a normalization shim or a second seeded alias, NOT a data migration.
+- **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT) —
+  WRITE-TIME HALF CLOSED by Identity Normalization Hardening V1, merge
+  `9c1bff81f`, 2026-09-06; READ-SIDE HALF still OPEN, deliberately.** Manual
+  J2 entry (`positions.py`/`trades.py`/`csv_import.py`) now routes through
+  the same shared `symbol_normalize.py::normalize_symbol()` SnapTrade sync
+  already used — a manually-logged and a broker-synced write of the same
+  real security can no longer land under two different strings going
+  forward. `options.py` was NOT touched (out of this V1's traced scope —
+  re-audit before assuming it's covered). What remains genuinely open: Entity
+  Master's alias table is still seeded ONLY in hyphen form
+  (`scripts/entity_master_seed.py`), so `resolve("BRK.B")` still returns
+  `not_found` — this still silently degrades Watchlist/Portfolio
+  Intelligence and Research estimates/financials for the dot spelling, and
+  still affects any EXISTING historical row already stored under the dot
+  spelling (this V1 changed no historical data — a pure write-time
+  hardening fix, not a migration). Price lookup itself remains robust
+  (`to_polygon_symbol()` accepts both). Fix shape for the remainder: a second
+  seeded S3 alias for the dot spelling, NOT a data migration.
 - **Seam 2 — holiday-blind session helper — RESOLVED by Temporal / Freshness
   Truth Convergence V1, merge `94dd2bb5e`, 2026-09-05/06.**
   `app/src/utils/marketSession.js::expectedLatestDailySessionET()` and
@@ -808,39 +929,47 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   as SymbolSearch, no lost feature-specific semantics); consolidating
   `MobileSymbolSheet.jsx` specifically requires building a touch/Sheet mode
   for SymbolSearch first (real, MEDIUM/HIGH-cost work, not this V1's bar).
-- **Seam 15 — SymbolSearch.jsx lacks a self-exclusion prop (surfaced by
-  Search / Command Convergence V1's Phase A, 2026-09-06, NOT fixed — a real
-  gap affecting all 12+ existing callers, deferred as its own initiative
-  given the blast radius).** Every Compare-picker call site that mounts
-  SymbolSearch passes `sym={null}` with nothing preventing a member from
-  comparing a security against itself. Fix shape: add an `excludeSym` prop
-  and filter matching results client-side; touches a widely-shared
-  component, so needs its own bounded audit of all 12+ callers first.
+- **Seam 15 — SymbolSearch.jsx self-exclusion — CLOSED by Identity
+  Normalization Hardening V1, merge `9c1bff81f`, 2026-09-06, via a smaller
+  mechanism than originally proposed here.** The originally-proposed fix
+  shape (a new `excludeSym` prop on the shared component) was NOT needed:
+  `SymbolSearch.jsx` already had a `clean !== sym` self-exclusion guard, but
+  all 8 "+ Compare" call sites passed `sym={null}`/`sym=""`, making the guard
+  structurally unreachable. Fixed by passing the real current symbol at all
+  8 sites instead. See "CURRENT ACCEPTED" above for the full account
+  including the incidental "null — click to search" tooltip fix and the
+  pre-existing test-mock assumptions this broke and fixed in
+  `ResearchHeader.test.jsx`/`TickerPopup.test.jsx`.
 - **Seam 16 — dot/hyphen (BRK.B/BRK-B) identity gap in ticker search
   (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
-  confirmed reproducible, NOT fixed — the authorization explicitly steered
-  clear of identity-migration work even at narrow scope).** Neither
-  `SymbolSearch.jsx` nor `api/routers/ticker_search.py`/
-  `api/services/ticker_search_index.py` perform any dot↔hyphen
-  normalization — matching is plain substring/prefix on the raw uppercased
-  ticker string, so typing `BRK.B` will NOT surface the `BRK-B` row the
-  universe actually stores. A real, single-file precedent already exists in
-  the repo (`scripts/entity_master_seed.py`'s dot-to-hyphen re-keying step)
-  that a dedicated identity-hygiene follow-up could port into
-  `ticker_search_index.py::_collect_rows()`. Cross-reference Seam 1
-  (BRK.B/BRK-B in the broader Entity Master/broker-sync context) — this is
-  the search-specific instance of the same underlying identity class, not
-  yet unified with it.
+  confirmed reproducible, STILL NOT fixed as of Identity Normalization
+  Hardening V1 — search-index changes were explicitly protected/out-of-scope
+  for that V1 too).** Neither `SymbolSearch.jsx` nor
+  `api/routers/ticker_search.py`/`api/services/ticker_search_index.py`
+  perform any dot↔hyphen normalization — matching is plain substring/prefix
+  on the raw uppercased ticker string, so typing `BRK.B` will NOT surface the
+  `BRK-B` row the universe actually stores. A real, single-file precedent
+  already exists in the repo (`scripts/entity_master_seed.py`'s dot-to-hyphen
+  re-keying step) that a dedicated identity-hygiene follow-up could port into
+  `ticker_search_index.py::_collect_rows()`. Cross-reference Seam 1 (now
+  partially closed — see above) — this is the search-specific instance of
+  the same underlying identity class, still not unified with it.
 - **Seam 17 — AddPositionModal.jsx/AddTradeModal.jsx symbol fields are bare,
-  unvalidated text inputs (surfaced by Search / Command Convergence V1's
-  Phase A, 2026-09-06 — the single highest real member-risk finding across
-  all 5 investigation reports, NOT fixed, out of this V1's bounded scope: an
-  absence of search, not a duplication/routing defect).** A mistyped symbol
-  is silently accepted into a real P&L record with no autocomplete or
-  existence check against the ticker universe. Fix shape: wire SymbolSearch
-  (or a validated variant) into these two fields — flagged here for
-  prioritization as a near-term follow-up given the trust/correctness
-  stakes, but deliberately not attempted in this narrow search-routing V1.
+  unvalidated text inputs — PARTIALLY addressed by Identity Normalization
+  Hardening V1, merge `9c1bff81f`, 2026-09-06; the ORIGINAL framing below is
+  STILL OPEN and was never attempted.** What closed: the concrete
+  data-integrity failure mode (a manually-entered spelling silently diverging
+  from a broker-synced spelling for the same real security) — see "CURRENT
+  ACCEPTED" above. What did NOT close and remains a real gap: the frontend
+  fields themselves are still bare text inputs with no autocomplete and no
+  existence check against the ticker universe (a mistyped, entirely
+  non-existent symbol is still silently accepted — this was a DELIBERATE
+  non-fix per the authorization, which explicitly forbade a hard
+  existence-check on these fields; AddTrade specifically must keep accepting
+  delisted/renamed historical tickers). Fix shape for the remainder: wire
+  SymbolSearch (or a validated variant, non-blocking on unknown tickers) into
+  these two fields as a genuinely separate UI initiative — do not conflate
+  with the spelling-safety fix that already shipped.
 - **Also confirmed genuinely pre-existing (not introduced by this program,
   not fixed, out of scope):** `CommandPalette.jsx`'s own `fetch('/api/
   ticker-search?...').then(r => r.json())` never checks `r.ok` before
@@ -981,8 +1110,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Hardening V1 (merge `dc2cdc906`), Awareness Source-Integrity Audit +
    Hardening V1 (merge `f2d96ce11`), Journal / Trade Lifecycle
    Convergence V1 (merge `701ca7319`), Search / Command Convergence V1
-   (merge `e36ca0eb5`), and Event / News / Calendar → Research Convergence
-   V1 (merge `d46f35a68`) are all ACCEPTED + LIVE as of this checkpoint — do
+   (merge `e36ca0eb5`), Event / News / Calendar → Research Convergence
+   V1 (merge `d46f35a68`), and Identity Normalization Hardening V1 (merge
+   `9c1bff81f`) are all ACCEPTED + LIVE as of this checkpoint — do
    not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
@@ -992,13 +1122,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Freshness Propagation, Attention Source-Integrity Hardening, Awareness
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
    Convergence, Search / Command Convergence, Event / News / Calendar →
-   Research Convergence, or the Whole-Product Convergence Review from
-   scratch — their findings above are current as of this checkpoint; verify
-   against live code only where something here looks stale.
+   Research Convergence, Identity Normalization Hardening, or the
+   Whole-Product Convergence Review from scratch — their findings above are
+   current as of this checkpoint; verify against live code only where
+   something here looks stale.
 7. **No Terminal program is currently authorized.** Per the 2026-09-06
    Strategic Re-Anchor at the top of this file, the stated next candidate is
-   #5 — Identity normalization hardening (BRK.B/BRK-B, Seam 1) — unless
-   Pattern Vision reaches LIVE + ACCEPTED first (Technical Research release
-   becomes the immediate #1 interrupt) or S7 fires — but do not begin
+   #6 — Technical Ask AI — unless Pattern Vision reaches LIVE + ACCEPTED
+   first (Technical Research release becomes the immediate #1 interrupt; NOT
+   yet true as of this checkpoint) or S7 fires — but do not begin
    implementation of ANY candidate, including that one, without a new,
    explicit owner authorization naming the program.
