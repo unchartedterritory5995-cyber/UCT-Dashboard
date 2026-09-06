@@ -1160,6 +1160,26 @@ autonomously into Slice 1.**
 
 ---
 
+### Wave D — CLOSED 2026-09-06
+
+**Final status: implemented, tested (134 backend + 33 frontend, including
+adversarial self-link/cycle/cross-tenant cases), real-browser E2E verified
+end-to-end (typed `[[NVDA` → search → select → chip resolving the live
+title → click → navigate → target's backlinks panel → expand → click →
+navigate back), merged to `master` (commit `7ea7fc3fe`), deployed, and
+production-verified** (Railway build SUCCESS; fresh-process `/api/health`;
+`GET /notes/{id}/backlinks` and `GET /notes/link-targets` both return real
+`401`s in production, not the SPA catch-all; the production `tiptap-*.js`
+bundle grepped live and confirmed to contain the shipped UI strings).
+Readiness scorecard: Knowledge Linking raised 3→7. A real, non-trivial bug
+(`Suggestion` plugin-key collision between SlashMenu's `/` and this wave's
+`[[`) was found and fixed via a real-editor-mount test before it ever
+reached a browser. See the Decision Log's matching Wave D closure entry for
+full evidence. Wave E begins after this section, at the start of that wave,
+not speculatively now.
+
+---
+
 Design-before-build for Wave E onward happens at the start of that wave, not
 speculatively now — per the governing directive, this document reports and
 stops before beginning any wave past the currently-authorized one.
