@@ -6,7 +6,7 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state (post-
-Journal / Trade Lifecycle Convergence V1 merge/deploy/production-verification).
+Search / Command Convergence V1 merge/deploy/production-verification).
 
 ## STRATEGIC RE-ANCHOR (2026-09-06) — read before selecting any future program
 
@@ -56,8 +56,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `701ca73190f7e53b111ef65360dafb6bcb3dfdf3`
-  (Journal / Trade Lifecycle Convergence V1 merge — this file's own update
+- **origin/master (last verified):** `e36ca0eb570a16133be0c1010f30c82081c82c8a`
+  (Search / Command Convergence V1 merge — this file's own update
   is a docs-only branch cut fresh from this SHA; drift since then is unrelated
   concurrent work — re-check overlap before trusting this SHA is still current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
@@ -404,6 +404,52 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `DayDetailPage.jsx`'s unused `useMemo` import, `PositionDetailPage.jsx`'s
   `combinePositions` fast-refresh export warning — both present on master
   before this program).
+- **Search / Command Convergence V1** — IMPLEMENTED + ACCEPTED + LIVE, merge
+  `e36ca0eb5`, deployed + production-verified 2026-09-06. A 5-agent Phase A
+  workflow inventoried the real search/command ecosystem (not assumed from
+  memory): `CommandPalette.jsx` (global Ctrl/Cmd+K, mounted once in
+  `Layout.jsx`, S2's "security/company discovery + navigation only" narrow
+  slice per its own 2026-09-03 docstring) and `SymbolSearch.jsx` (the real
+  canonical security picker, 12+ confirmed importers) were both confirmed
+  STRONG/real; `search→Research` CONVERGED; `search→Compare` CONVERGED (via
+  SymbolSearch); `search→Ask AI` PARTIAL — the palette had no path to Ask AI
+  at all (by its own explicit design scope), and `ChartWidget.jsx`'s
+  right-click "AI search this bar" was independently verified BROKEN by
+  direct code read (posted into the general, non-grounded `aiSearchBus`/
+  `AiSearchWidget` popup, never canonical Ask AI). `duplicated_security_search`
+  scored HIGH (7+ independent ticker-lookup reimplementations found), but
+  most are legitimately local (a ProseMirror mention-autocomplete plugin
+  can't mount a React component; an always-open multi-add combobox has
+  different UX semantics than a picker) — none were selected for this V1.
+  Chosen V1: complete the Ask AI convergence gap only. Fixed by (1) rerouting
+  `ChartWidget.jsx`'s "AI search this bar" to the exact
+  `/research/:sym?section=ai` route `TickerActions.jsx`'s "Ask AI about
+  {sym}" already uses (verbatim precedent, confirmed via direct read of that
+  file's own in-code comment documenting the identical prior defect class),
+  removing the now-dead `tempAi`/`AiSearchWidget`/`aiSearchBus` scaffolding
+  that action alone owned; (2) adding a strictly-additive Ctrl/Cmd+Enter /
+  Ctrl/Cmd+click secondary action to `CommandPalette.jsx` that opens Ask AI
+  for the active/typed symbol — bare Enter/click is completely unchanged,
+  verified by every one of the palette's pre-existing 20 tests passing
+  unmodified. No Compare action was added to the palette (no base/current
+  symbol context exists there for a two-symbol comparison). Fixing
+  `ChartWidget.jsx` required adding `useNavigate()`, which surfaced a real
+  regression in its own existing test suite (5 files across
+  `ChartWidget.test.jsx`/`.session.test.jsx`/`.volumepane.test.jsx`/
+  `.header.test.jsx`/`builderDoor.wire.test.jsx` — none had ever wrapped the
+  component in a Router, since it never needed one before) — fixed by adding
+  `MemoryRouter` to each. Zero backend changes, zero new endpoints, zero new
+  search UI. 4 new focused tests added to `CommandPalette.test.jsx` (24 total,
+  was 20) proving the exact convergence; full frontend regression (1012 test
+  files) green except 7 files/8 tests confirmed pre-existing and unrelated
+  (Pine/ThinkScript corpus + chart-engine-manifest suites, a `floor2`/
+  `community` reachability finding, a `useWatchlistIntelligence.js` polling-
+  site finding, a `ThemeTrackerPage.jsx` timing flake, and a genuinely
+  pre-existing missing-`r.ok`-check bug in `CommandPalette.jsx`'s own fetch —
+  every one independently confirmed present on master BEFORE this diff via
+  direct `git show` against the base SHA, none touching any file this
+  program changed). See the new debt entries below for what was found but
+  deliberately not fixed.
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -455,23 +501,23 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **None — requires new explicit authorization.** Journal / Trade Lifecycle
+- **None — requires new explicit authorization.** Search / Command
   Convergence V1 (the prior active program) is now ACCEPTED + LIVE — see
   "CURRENT ACCEPTED" above. Per the owner's explicit closing instruction on
   that program's authorization ("Then STOP. Do not automatically begin
-  Search/Command or another Terminal program."), no next Terminal program
-  has been automatically begun. **Per the 2026-09-06 Strategic Re-Anchor
-  above, the next candidate in the stated priority stack is Search/Command
-  Convergence V1 (#3) — unless Pattern Vision reaches LIVE + ACCEPTED first
+  another Terminal program."), no next Terminal program has been
+  automatically begun. **Per the 2026-09-06 Strategic Re-Anchor above, the
+  next candidate in the stated priority stack is #4 — Event/News/Calendar →
+  Research convergence — unless Pattern Vision reaches LIVE + ACCEPTED first
   (which makes Technical Research release the immediate #1 interrupt) or a
   genuine S7 NVDA filing event fires.** Either way, the next Terminal
   program still requires a new, explicit owner authorization — do not
-  self-start Search/Command or any other program from this pointer alone.
-  Do not infer a program from the "NEWLY IDENTIFIED DEBT" or "DEFERRED"
-  sections below, nor from Attention Signal Propagation V1's own
-  explicitly-deferred surfaces (TradeDetailPage/TradeDrawer Attention,
-  TickerPopup/TickerHubSheet Attention, Research Attention), nor from Alert
-  Return-to-Research Consistency V1's own deferred families
+  self-start any program from this pointer alone. Do not infer a program
+  from the "NEWLY IDENTIFIED DEBT" or "DEFERRED" sections below, nor from
+  Attention Signal Propagation V1's own explicitly-deferred surfaces
+  (TradeDetailPage/TradeDrawer Attention, TickerPopup/TickerHubSheet
+  Attention, Research Attention), nor from Alert Return-to-Research
+  Consistency V1's own deferred families
   (`ai_deep_report`/`ai_briefing`/`exposure_gate`), nor from Temporal /
   Freshness Truth Convergence V1's own deferred candidates (the
   `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops, the dual NYSE
@@ -483,9 +529,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   + Hardening V1's own out-of-scope finding (the regime-classifier
   whole-cycle scan-abort risk), nor from Journal / Trade Lifecycle
   Convergence V1's own deferred items (the broker-sync position↔trade
-  linkage gap, Research→Journal return-context, Position→Notes continuity —
-  see the new debt entries below) — those are candidate lists, not
-  authorizations.
+  linkage gap, Research→Journal return-context, Position→Notes continuity),
+  nor from Search / Command Convergence V1's own deferred duplicated-search
+  and identity findings (see the new debt entries below) — those are
+  candidate lists, not authorizations.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -674,6 +721,71 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   position-scoped equivalent). Fix shape: reuse the same read-only chip
   pattern already shipped for trade↔note links, keyed on `j2_notes.ticker`,
   no new schema, no trade/position inference.
+- **Seam 14 — duplicated ticker-search implementations across the app
+  (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
+  scored HIGH, deliberately NOT consolidated this round).** At least 7
+  independent `/api/ticker-search`-adjacent implementations exist beyond
+  the canonical `SymbolSearch.jsx`: `TickerPopup.jsx`'s `SwitchTickerBox`
+  (own fetch+debounce+dropdown), `MobileSymbolSheet.jsx` (full from-scratch
+  reimplementation for the phone chart symbol picker — imports only
+  SymbolSearch's `POPULAR_RESULTS` constant, so a SymbolSearch fix silently
+  does NOT reach mobile chart symbol selection), `TickerCombobox.jsx` +
+  `useTickerSuggest.js` (Watchlists add-symbol — an always-open multi-add
+  ARIA combobox with explicitly documented rationale for NOT using
+  SymbolSearch, a defensible duplicate not an oversight),
+  `tickerMention.js` ($TICKER community-post autocomplete — architecturally
+  FORCED duplication, a TipTap/ProseMirror Suggestion plugin cannot mount a
+  React component), `ChartExampleKit.jsx`'s `TickerSearchInput` (admin-only
+  Model Book form field, low traffic/risk), and `ComparisonPicker.jsx` (the
+  ChartToolbar "⇄" popover — LEGACY_DEAD: a third, independently hardcoded
+  "popular tickers" list with ZERO live search, a retirement candidate not
+  a convergence one). Only `TickerPopup.jsx`'s `SwitchTickerBox` and
+  `MobileSymbolSheet.jsx` are genuine convergence candidates (same use case
+  as SymbolSearch, no lost feature-specific semantics); consolidating
+  `MobileSymbolSheet.jsx` specifically requires building a touch/Sheet mode
+  for SymbolSearch first (real, MEDIUM/HIGH-cost work, not this V1's bar).
+- **Seam 15 — SymbolSearch.jsx lacks a self-exclusion prop (surfaced by
+  Search / Command Convergence V1's Phase A, 2026-09-06, NOT fixed — a real
+  gap affecting all 12+ existing callers, deferred as its own initiative
+  given the blast radius).** Every Compare-picker call site that mounts
+  SymbolSearch passes `sym={null}` with nothing preventing a member from
+  comparing a security against itself. Fix shape: add an `excludeSym` prop
+  and filter matching results client-side; touches a widely-shared
+  component, so needs its own bounded audit of all 12+ callers first.
+- **Seam 16 — dot/hyphen (BRK.B/BRK-B) identity gap in ticker search
+  (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
+  confirmed reproducible, NOT fixed — the authorization explicitly steered
+  clear of identity-migration work even at narrow scope).** Neither
+  `SymbolSearch.jsx` nor `api/routers/ticker_search.py`/
+  `api/services/ticker_search_index.py` perform any dot↔hyphen
+  normalization — matching is plain substring/prefix on the raw uppercased
+  ticker string, so typing `BRK.B` will NOT surface the `BRK-B` row the
+  universe actually stores. A real, single-file precedent already exists in
+  the repo (`scripts/entity_master_seed.py`'s dot-to-hyphen re-keying step)
+  that a dedicated identity-hygiene follow-up could port into
+  `ticker_search_index.py::_collect_rows()`. Cross-reference Seam 1
+  (BRK.B/BRK-B in the broader Entity Master/broker-sync context) — this is
+  the search-specific instance of the same underlying identity class, not
+  yet unified with it.
+- **Seam 17 — AddPositionModal.jsx/AddTradeModal.jsx symbol fields are bare,
+  unvalidated text inputs (surfaced by Search / Command Convergence V1's
+  Phase A, 2026-09-06 — the single highest real member-risk finding across
+  all 5 investigation reports, NOT fixed, out of this V1's bounded scope: an
+  absence of search, not a duplication/routing defect).** A mistyped symbol
+  is silently accepted into a real P&L record with no autocomplete or
+  existence check against the ticker universe. Fix shape: wire SymbolSearch
+  (or a validated variant) into these two fields — flagged here for
+  prioritization as a near-term follow-up given the trust/correctness
+  stakes, but deliberately not attempted in this narrow search-routing V1.
+- **Also confirmed genuinely pre-existing (not introduced by this program,
+  not fixed, out of scope):** `CommandPalette.jsx`'s own `fetch('/api/
+  ticker-search?...').then(r => r.json())` never checks `r.ok` before
+  parsing — a real bug (a non-2xx JSON error body would be treated as a
+  valid results payload) confirmed present on the base master SHA via
+  direct `git show`, i.e. it predates this program entirely and was never
+  touched by it. `jsonFetcher.test.js`'s own rail newly flagged it during
+  this program's regression run — recorded here so it isn't lost, not
+  claimed as this program's fix.
 
 ## DEFERRED (not authorized, do not build without new explicit authorization)
 
@@ -740,23 +852,25 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Convergence V1 (merge `94dd2bb5e`), S8 / Attention Freshness
    Propagation V1 (merge `0d1c1d5bf`), Attention Source-Integrity
    Hardening V1 (merge `dc2cdc906`), Awareness Source-Integrity Audit +
-   Hardening V1 (merge `f2d96ce11`), and Journal / Trade Lifecycle
-   Convergence V1 (merge `701ca7319`) are all ACCEPTED + LIVE as of this
-   checkpoint — do not re-implement any of them or treat them as pending;
-   confirm via `git log` only if something here looks stale.
+   Hardening V1 (merge `f2d96ce11`), Journal / Trade Lifecycle
+   Convergence V1 (merge `701ca7319`), and Search / Command Convergence V1
+   (merge `e36ca0eb5`) are all ACCEPTED + LIVE as of this checkpoint — do
+   not re-implement any of them or treat them as pending; confirm via
+   `git log` only if something here looks stale.
 6. Do not re-run Phase A for Watchlist Intelligence, Portfolio Intelligence,
    Comparison V1, Entry-Point Convergence, Universal Ticker Actions
    Convergence, Attention Signal Propagation, Alert Return-to-Research
    Consistency, Temporal / Freshness Truth Convergence, S8 / Attention
    Freshness Propagation, Attention Source-Integrity Hardening, Awareness
    Source-Integrity Audit + Hardening, Journal / Trade Lifecycle
-   Convergence, or the Whole-Product Convergence Review from scratch —
-   their findings above are current as of this checkpoint; verify against
-   live code only where something here looks stale.
+   Convergence, Search / Command Convergence, or the Whole-Product
+   Convergence Review from scratch — their findings above are current as of
+   this checkpoint; verify against live code only where something here
+   looks stale.
 7. **No Terminal program is currently authorized.** Per the 2026-09-06
    Strategic Re-Anchor at the top of this file, the stated next candidate is
-   Search/Command Convergence V1 (#3 in the priority stack) unless Pattern
-   Vision reaches LIVE + ACCEPTED first (Technical Research release becomes
-   the immediate #1 interrupt) or S7 fires — but do not begin implementation
-   of ANY candidate, including that one, without a new, explicit owner
+   #4 — Event/News/Calendar → Research convergence — unless Pattern Vision
+   reaches LIVE + ACCEPTED first (Technical Research release becomes the
+   immediate #1 interrupt) or S7 fires — but do not begin implementation of
+   ANY candidate, including that one, without a new, explicit owner
    authorization naming the program.
