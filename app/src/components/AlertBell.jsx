@@ -264,6 +264,21 @@ export default function AlertBell() {
                 key={a.id}
                 className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''} ${a.data?.research_url ? styles.itemLinked : ''}`}
                 onClick={() => handleItemClick(a)}
+                // Seam 5: a bare `<div onClick>` was keyboard-inaccessible —
+                // a member who cannot use a mouse could not open ANY
+                // notification, including the already-live S7 document-
+                // arrival rows. `role="button"` + `tabIndex` + Enter/Space
+                // give it real interactive semantics, matching the same
+                // `handleItemClick` the mouse path already calls.
+                role="button"
+                tabIndex={0}
+                aria-label={`${a.title}${a.message ? `. ${a.message}` : ''}${!a.read ? '. Unread' : ''}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()  // Space must not also scroll the page
+                    handleItemClick(a)
+                  }
+                }}
               >
                 <span className={styles.itemIcon}><UIcon name={TYPE_ICONS[a.type] || 'bell'} size={16} /></span>
                 <div className={styles.itemBody}>
