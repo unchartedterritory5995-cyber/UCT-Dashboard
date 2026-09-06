@@ -530,6 +530,53 @@ fix and watching both tests go red before restoring it. Full relevant test famil
 independently-confirmed pre-existing `BuilderSheet.pine.test.jsx` failure. **Per explicit instruction: no
 Track F input type, Stoch, or ADX-family begun.**
 
+**2026-09-06 (same day, sixth follow-up) — Vendor Parity Tranche 2, Lane A, fifth batch: `stoch`
+DONE, after a mid-batch capture-safety incident and its full resolution.** Owner authorized the next
+bounded Lane A batch: STOCH ONLY, explicitly not ADX-family. Established the exact UCT contract in both
+kernels (`computeStochastic`/`compute_stoch_raw`: a rolling max/min over the trailing 14 bars plus one
+arithmetic step, `%K=(close-lowestLow)/(highestHigh-lowestLow)*100`, `range==0→50`, no recursive state),
+confirmed `pine.js::PINE_CALL_SHAPES.stoch`'s existing role-order permutation (Pine's
+`ta.stoch(source,high,low,length)` → the table's `stoch(high,low,close,length)` — a real prior incident,
+"WRONG BY 126 POINTS," fixed long before this batch but only ever verified against a hand-coded reference
+formula, never real vendor output), and confirmed dual-kernel conformance (`stoch_k`/`stoch_d_by_
+composition`) already passing via the existing frozen 144-AST corpus. **The first real capture attempt hit
+a genuine, unexplained chart-state anomaly** on the program's usual `jHASRSzx` chart (a symbol switch to
+SPY updated the object tree but not the visible chart, then — with zero further action from the capturing
+agent — the tab was next observed on a third, unselected symbol with an unprompted broker-connection modal
+open). The agent stopped immediately per its own explicit blocker condition and safely restored the chart
+via Ctrl+Z, taking no other action. Owner ordered a full browser-independent forensic diagnostic before any
+retry: reconstructed the agent's exact action sequence (confirming zero clicks/keystrokes occurred between
+the anomaly's two stages), and a live concurrent-session check via `ListAgents`/`SendMessage` across every
+other Claude session active on the machine — all 5 explicitly confirmed zero Chrome browser-automation use,
+ruling out cross-session interference for everything queryable. Findings were reported strictly as
+CONFIRMED/LIKELY/UNKNOWN, with an app-internal client render/state race assessed as the best-supported (not
+proven) explanation. Owner then authorized a staged, narrowly-scoped re-capture: a fresh disposable
+TradingView layout (created via "Manage layouts → Create new layout," explicitly never a copy, with an
+extensive do-not-touch list for the existing layout) plus a mandatory 8-point pre-capture baseline check
+(passed clean, evidenced twice) — and, after a second narrow blocker (an account-wide, not layout-scoped,
+leftover Pine Editor draft from the prior HMA/MACD batch), one further narrowly-authorized exception (open a
+separate blank script buffer without touching the existing one). The resulting capture succeeded cleanly
+with zero further anomalies: 300 real SPY Daily bars (2025-06-27..2026-09-04, smaller than prior batches'
+~2,031-bar window since a disposable layout has no scrolled-back history, but every bar real).
+`jHASRSzx` was never modified at any point in the entire incident. Comparison result: **Stoch %K is VENDOR-
+PARITY VERIFIED — MULTI-BAR** with zero seed-convergence-lag exclusion beyond the true 13-bar structural
+warmup (max abs delta 1.4e-14 — a fifth, structurally distinct confirmation of the memoryless-function
+finding already made for sma/wma/hma), **PLUS PARTIAL / ZERO-RANGE BEHAVIOR UNVERIFIED** (0 of 287 real
+rolling windows in this capture are flat — a liquid ETF's range essentially never hits exactly zero —
+disclosed honestly with a clearly-labelled synthetic-only internal-consistency control rather than silently
+assumed from internal code). The role-order permutation is now VENDOR-CONFIRMED for the first time: running
+the wrong, verbatim argument order against the same real captured values disagrees on 287/287 (100%)
+steady-state bars. Three further mutations (wrong window length, wrong denominator, inverted numerator)
+each correctly discriminate (100%, 100%, and an honestly-reported ~60% for the window-length one, since
+%K's own saturation at 0/100 means a shorter window can legitimately coincide with the real value on a real
+minority of bars). Permanent regression: `tests/test_vendor_parity_stoch.py` (13 tests, all passing).
+`tools/vendor_truth.py --check` reused sma/wma/hma's own established `vendor.values`-truncation convention
+(excluding the true-warmup bars' recorded values, even though the real CSV happens to carry them from
+SPY's much longer real history) to avoid mis-flagging an already-disclosed structural boundary. Filed
+RISK-039; full evidence, decay/mutation tables, and the complete incident/diagnostic/resolution trail (as
+Appendix A) in `VENDOR_PARITY_TRANCHE_2_LANE_A_STOCH_REPORT.md`. **Per explicit instruction: stop after
+Stoch — ADX-family and every other Track F input type remain untouched.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |
