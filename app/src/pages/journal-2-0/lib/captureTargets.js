@@ -57,7 +57,7 @@ async function pushToInbox(widgetId, attrs) {
       // regardless of destination — the "current note"/"new entry" targets
       // already carry these via the full attrs bag; the inbox row needs its
       // own columns for the same two fields (db.py's Phase-2 ALTERs).
-      caption: attrs.caption, tradeRef: attrs.tradeRef,
+      caption: attrs.caption, tradeRef: attrs.tradeRef, tradeRefType: attrs.tradeRefType,
     }),
   })
   return res.ok

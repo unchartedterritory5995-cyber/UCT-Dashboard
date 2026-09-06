@@ -38,6 +38,7 @@ import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
+import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -231,6 +232,7 @@ function SaveToNotebookButton({ trade, tf }) {
         capture={captureMenu?.capture || { symbol: trade.symbol }}
         label={trade.symbol}
         tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRefType={trade.id != null ? 'equity_trade' : undefined}
         onSent={setJournalMsg}
       />
     </>
@@ -538,6 +540,10 @@ export default function TradeDetailPage() {
           <TradeResearchMenu symbol={trade.symbol} />
         </span>
       </header>
+
+      {trade.id != null && (
+        <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
+      )}
 
       <div className={styles.outcomeGrid}>
         <div className={styles.outcomeCell}>

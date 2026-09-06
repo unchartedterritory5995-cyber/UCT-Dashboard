@@ -543,6 +543,38 @@
 }
 .chromeBtn:hover { border-color: var(--ut-gold, #dcbb5e); }
 .chromeBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* Wave 3 (Thesis-Trade Link): linked-trade chip in the header. Clickable
+   variant navigates to the authoritative trade/strategy; the muted variant
+   (ambiguous/unresolved legacy reference) is inert by design -- never guess
+   a destination for a reference that can't be resolved safely. */
+.linkedTradeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--ut-gold, #dcbb5e);
+  color: var(--ut-gold, #dcbb5e);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.linkedTradeChip:hover { background: rgba(220, 187, 94, 0.12); }
+.linkedTradeChipMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px dashed var(--border, #333);
+  color: var(--color-text-muted, #98a0aa);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 12px;
+  cursor: default;
+  white-space: nowrap;
+}
 .chromeMsg {
   color: var(--ut-gold, #dcbb5e);
   font-size: 12px;

@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
@@ -132,7 +133,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
         // Wave 1 (P1-1): a comment/trade link typed before banking to the
         // inbox must still be there once the capture is placed into a note.
         ...(cap.caption ? { caption: cap.caption } : {}),
-        ...(cap.tradeRef ? { tradeRef: cap.tradeRef } : {}),
+        ...(cap.tradeRef ? { tradeRef: cap.tradeRef, tradeRefType: cap.tradeRefType } : {}),
       }).run()
     if (!ok) return
     placedIdsRef.current.add(cap.id)
@@ -190,6 +191,99 @@ export function CaptureInboxTray({ editor, onPlaced }) {
         )
       })}
     </div>
+  )
+}
+
+const _tradeLinksFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { links: [] }))
+
+// Wave 3 (Thesis-Trade Link): renders this note's linked trade/strategy as
+// clickable chips. Resolution comes ENTIRELY from the server
+// (GET /notes/{id}/trade-ref/resolve) -- this component never re-derives or
+// guesses a destination. A link whose resolution.kind is "ambiguous_legacy"
+// or "unresolved" renders as an inert chip (see note_trade_links.py) rather
+// than navigating to a possibly-wrong object.
+export function NoteLinkedTradeChips({ noteId }) {
+  const navigate = useNavigate()
+  const { data } = useSWR(
+    noteId ? `/api/j2/notes/${noteId}/trade-ref/resolve` : null,
+    _tradeLinksFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 15000 },
+  )
+  const links = data?.links || []
+  if (!links.length) return null
+
+  return (
+    <>
+      {links.map((link, i) => {
+        const res = link.resolution || {}
+        const key = `${link.tradeRef}:${link.tradeRefType}:${i}`
+        if (res.kind === 'equity_trade' || res.kind === 'option_strategy') {
+          const label = res.symbol ? `${res.symbol} · trade` : 'Linked trade'
+          const goto = () => {
+            if (res.kind === 'equity_trade') {
+              navigate(`/journal-2-0/trade/${res.id}`)
+            } else {
+              navigate(`/journal?j2tab=journal&openTrade=${res.id}`)
+            }
+          }
+          return (
+            <button
+              key={key}
+              type="button"
+              className={styles.linkedTradeChip}
+              onClick={goto}
+              title={res.kind === 'equity_trade' ? 'Open the linked equity trade' : 'Open the linked option strategy'}
+            >
+              <UIcon name="link" size={12} gold={false} />
+              {label}
+            </button>
+          )
+        }
+        if (res.kind === 'position') {
+          // Still open (never graduated to a closed trade -- see
+          // note_trade_links.py's resolve_trade_ref) -- Open Positions is
+          // the one always-reachable destination; TradeDetailPage doesn't
+          // exist for a position that hasn't closed.
+          const label = res.symbol ? `${res.symbol} · open position` : 'Linked position'
+          return (
+            <button
+              key={key}
+              type="button"
+              className={styles.linkedTradeChip}
+              onClick={() => navigate('/journal?j2tab=positions')}
+              title="Open Positions — this position hasn't closed into a trade yet"
+            >
+              <UIcon name="link" size={12} gold={false} />
+              {label}
+            </button>
+          )
+        }
+        if (res.kind === 'ambiguous_legacy') {
+          return (
+            <span
+              key={key}
+              className={styles.linkedTradeChipMuted}
+              title="This note's linked trade reference predates typed references and matches more than one record -- it can't be safely resolved. The note and its stored reference are unaffected."
+            >
+              Linked trade — ambiguous
+            </span>
+          )
+        }
+        if (res.kind === 'unresolved') {
+          return (
+            <span
+              key={key}
+              className={styles.linkedTradeChipMuted}
+              title="This note's linked trade could not be found (it may have been deleted)."
+            >
+              Linked trade — not found
+            </span>
+          )
+        }
+        return null
+      })}
+    </>
   )
 }
 
@@ -779,6 +873,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </div>
         )}
         <div className={styles.headerControls}>
+          <NoteLinkedTradeChips noteId={noteId} />
           <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
           {isAdmin && (
             <>

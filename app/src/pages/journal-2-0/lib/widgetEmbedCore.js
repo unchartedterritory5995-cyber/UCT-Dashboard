@@ -35,6 +35,11 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     mode: extra.mode === 'live' ? 'live' : 'snapshot',
     fallback: extra.fallback || null,           // {url, w, h} once the archive lands
     tradeRef: extra.tradeRef || null,
+    // Wave 3: j2_trades.id and j2_option_strategies.id are independent
+    // uuid4 namespaces, so a bare tradeRef alone cannot safely identify
+    // which table it names — every NEW write pairs it with the type the
+    // caller already knows (see note_trade_links.py's resolver).
+    tradeRefType: extra.tradeRef ? (extra.tradeRefType || null) : null,
     // A chart capture freezes a COPY of the symbol's /charts drawings (the
     // annotation layer renders the same ChartDrawingOverlay objects the global
     // store holds). One-way by design: journal edits land on the node's own
