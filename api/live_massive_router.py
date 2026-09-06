@@ -4372,6 +4372,15 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
 
     payload = _build_by_contract(today, se, 1, True, lookback, only_ticker=sym)
     contracts = payload.get("contracts", [])
+    # Drop BLOCK-ONLY contracts (a negotiated/hedge block with no sweep, no aggressor
+    # side) — they clutter the card with big-premium UNCLEAR rows. Require at least one
+    # SWEEP/ISO print (aggressive positioning), matching the Top Flow card's block-only
+    # filter. Kill switch FLOW_EXCLUDE_BLOCK_ONLY=0. Applied BEFORE net/top so the
+    # net-flow bar and the table reflect the same sweep-backed set.
+    if os.getenv("FLOW_EXCLUDE_BLOCK_ONLY", "1") == "1":
+        contracts = [c for c in contracts
+                     if any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
+                            for t in (c.get("types") or []))]
     bull = sum((c.get("bull_premium") or 0) for c in contracts)
     bear = sum((c.get("bear_premium") or 0) for c in contracts)
     net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
