@@ -1,0 +1,79 @@
+{
+  "id": "visual_fixture/level6_composite_save_reopen",
+  "lane": "visual_fixture",
+  "source": {
+    "dialect": "uct_native_formula",
+    "provenance_ref": "app/src/components/chart/builder/compatHarness.level6Fixture.test.js",
+    "capture_method": "self_authored_fixture"
+  },
+  "steps": {
+    "parse": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "dialect_detect": {
+      "status": "SUPPORTED",
+      "detected": "uct_native_formula"
+    },
+    "translate": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "canonical_ast": {
+      "status": "SUPPORTED",
+      "ast_ref": "compute.trees.{macd,signal,cross}"
+    },
+    "execution_requirements": {
+      "status": "SUPPORTED",
+      "lookback": 26
+    },
+    "visual_requirements": {
+      "status": "PARTIAL",
+      "plot_count": 3,
+      "needs": [
+        "colorMode:sign",
+        "guide_level",
+        "nested_arithmetic"
+      ],
+      "discovery": [
+        "arithmetic operators (here \"-\") compose directly between two function-call results (ema(close,12) - ema(close,26)) -- confirmed, not the same claim Level 5 proved (that was function-into-function nesting; this is operator-level composition across two calls)",
+        "a 3-plot composite (histogram w/ colorMode:sign, a signal line, and a boolean cross scanPlot) composes cleanly from every prior level's independently-confirmed capability, with no new schema gap found at this complexity"
+      ]
+    },
+    "chart_render": {
+      "status": "ENVIRONMENT_BLOCKED",
+      "reason": "RISK-027 still blocks a live pixel re-run; visual-state-across-bars is untestable without it"
+    },
+    "persistence_save": {
+      "status": "SUPPORTED",
+      "note": "JSON round-trip byte-identical AND re-validates cleanly through validateUserDefinitions -- the strongest save/reopen check reachable without a live backend (api/services/user_definitions.py itself is not exercised here). A mutation test (dropping a required tree key) confirms the re-validation step can actually catch a lossy round-trip."
+    },
+    "persistence_reload": {
+      "status": "SUPPORTED",
+      "note": "same round-trip check as persistence_save"
+    },
+    "screener_eligibility": {
+      "status": "SUPPORTED",
+      "eligible": true,
+      "reason": "scanPlot \"cross\" yields bool directly"
+    },
+    "refusal_behavior": {
+      "status": "SUPPORTED",
+      "guard": null
+    },
+    "vendor_comparison": {
+      "status": "SKIPPED_NOT_APPROPRIATE",
+      "ref": null
+    }
+  },
+  "failure_taxonomy": [],
+  "final_classification": "PARTIAL",
+  "evidence_artifact_paths": [
+    "tools/chart_parity_cases.json#ast_user_formula_sma20",
+    "app/src/components/chart/builder/compatHarness.level2Fixture.test.js",
+    "app/src/components/chart/builder/compatHarness.level3Fixture.test.js",
+    "app/src/components/chart/builder/compatHarness.level4Fixture.test.js",
+    "app/src/components/chart/builder/compatHarness.level5Fixture.test.js"
+  ],
+  "harness_version": "compat-harness-v1"
+}
