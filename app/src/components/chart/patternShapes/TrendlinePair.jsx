@@ -13,6 +13,23 @@
 // — this only changes what the label text says, never what geometry the
 // detector supplied or how it's drawn. A family with no anchor_roles (every
 // family this hasn't been wired to) renders byte-identically to before.
+//
+// VCP geometry package: vcp.py's contraction sequence (start_high, one low
+// per contraction, pivot) is a zigzag through N real points, not two
+// independent lines — and, even at its minimum 2-contraction size, N is 4,
+// the SAME anchor count every flag/wedge/triangle/channel family already
+// uses. Dispatching on count alone would therefore leave VCP's own
+// 2-contraction case on the untouched 2-line path (see below), which is
+// wrong FOR VCP SPECIFICALLY: the detector's own pivot anchor is always the
+// final contraction's HIGH — chronologically earlier than that same
+// contraction's low, which sits one position earlier in the array — so the
+// existing algorithm would draw that line running backward in time. VCP is
+// therefore routed to the zigzag branch by `pattern_id`, exactly like
+// CandleMark.jsx already special-cases `pattern_id === 'swing_pivots'` for
+// its own family-specific geometry shape. Every OTHER "trendline_pair"
+// family (still exactly 4 anchors) is completely unaffected — the
+// exactly-4-anchor path below is untouched (no re-sort, no new branch) for
+// anything that isn't VCP or doesn't exceed 4 anchors.
 import {
   getColor,
   getOpacity,
@@ -27,12 +44,59 @@ const ROLE_LABELS = {
   flag_low: 'Flag low', flag_high: 'Flag high',
 }
 
+const _IS_ZIGZAG_FAMILY = (detection) => detection?.pattern_id === 'vcp'
+
 export default function TrendlinePair({ detection, tToX, priceToY, onClick }) {
   const anchors = detection?.geometry?.anchors || []
   if (anchors.length < 4) return null
-  const [a, b, c, d] = anchors
   const roles = detection?.geometry?.anchor_roles
   const hasRoles = Array.isArray(roles) && roles.length === anchors.length
+
+  const color = getColor(detection)
+  const opacity = getOpacity(detection)
+  const sw = getStrokeWidth(detection)
+  const dash = getStrokeDasharray(detection)
+  const glow = getGlowFilter(detection)
+
+  if (anchors.length > 4 || _IS_ZIGZAG_FAMILY(detection)) {
+    // Variable-length / zigzag geometry (currently only vcp.py, at every
+    // contraction count including its own 4-anchor minimum). Sorting by
+    // real timestamp and drawing every point as one connected zigzag draws
+    // exactly the points the detector supplied, in the order they actually
+    // happened, with nothing dropped and nothing invented. The 2-line/
+    // polygon-fill shape below assumes exactly two independent lines, which
+    // is undefined for a zigzag — so this path intentionally has no fill.
+    const points = anchors
+      .map((a, i) => ({ t: a.t, price: a.price, role: hasRoles ? roles[i] : undefined }))
+      .sort((p1, p2) => p1.t - p2.t)
+      .map((p) => ({ x: tToX(p.t), y: priceToY(p.price), role: p.role }))
+    if (points.some((p) => p.x == null || p.y == null)) return null
+
+    const last = points[points.length - 1]
+    const lastLabel = hasRoles ? ROLE_LABELS[last.role] : undefined
+
+    return (
+      <g
+        onClick={() => onClick?.(detection)}
+        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+      >
+        <polyline
+          points={points.map((p) => `${p.x},${p.y}`).join(' ')}
+          fill="none"
+          stroke={color}
+          strokeWidth={sw}
+          strokeDasharray={dash}
+          opacity={opacity}
+          filter={glow}
+        />
+        <text x={last.x + 8} y={last.y + 4} fontSize="11" fill={color} opacity={opacity}>
+          {lastLabel || formatLabel(detection)}
+        </text>
+      </g>
+    )
+  }
+
+  const [a, b, c, d] = anchors
 
   const x1 = tToX(a.t)
   const y1 = priceToY(a.price)
@@ -43,12 +107,6 @@ export default function TrendlinePair({ detection, tToX, priceToY, onClick }) {
   const x4 = tToX(d.t)
   const y4 = priceToY(d.price)
   if ([x1, y1, x2, y2, x3, y3, x4, y4].some((v) => v == null)) return null
-
-  const color = getColor(detection)
-  const opacity = getOpacity(detection)
-  const sw = getStrokeWidth(detection)
-  const dash = getStrokeDasharray(detection)
-  const glow = getGlowFilter(detection)
 
   return (
     <g

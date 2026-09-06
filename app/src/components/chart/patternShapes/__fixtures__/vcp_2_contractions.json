@@ -1,0 +1,96 @@
+{
+  "id": "bf03ecb2-92da-478c-bc4b-5d5f689efff7",
+  "sym": "",
+  "tf": "",
+  "pattern_id": "vcp",
+  "pattern_name": "Volatility Contraction Pattern (VCP)",
+  "category": "uct",
+  "direction": "bullish",
+  "start_t": 1703369600,
+  "end_t": 1705097600,
+  "pivot_ts": [
+    1703369600,
+    1703974400,
+    1704924800,
+    1704492800,
+    1705097600
+  ],
+  "geometry": {
+    "shape": "trendline_pair",
+    "anchors": [
+      {
+        "t": 1703369600,
+        "price": 50.17
+      },
+      {
+        "t": 1703974400,
+        "price": 38.92
+      },
+      {
+        "t": 1704924800,
+        "price": 45.54
+      },
+      {
+        "t": 1704492800,
+        "price": 50.4
+      }
+    ],
+    "extras": {
+      "n_contractions": 2,
+      "contraction_pcts": [
+        22.4,
+        9.6
+      ],
+      "pivot_price": 50.4,
+      "last_contraction_low": 45.54,
+      "first_contraction_high": 50.17,
+      "first_contraction_height": 11.25,
+      "final_contraction_volume_ratio": 0.454,
+      "pattern_bars": 18,
+      "final_contraction_bars": 5,
+      "dcr_score_adj": 0.0,
+      "higher_low": true,
+      "higher_low_lift_pct": 17.01,
+      "aligned_ma": null,
+      "ma_distance_pct": 0.0
+    }
+  },
+  "levels": {
+    "entry": 50.45,
+    "entry_condition": "close > 50.45 on volume > 1.5x 20-bar avg",
+    "stop": 44.86,
+    "stop_basis": "last_contraction_low_minus_1.5pct",
+    "target_primary": 61.88,
+    "target_secondary": null,
+    "risk_reward": 2.04
+  },
+  "context": {
+    "trend_stage": 2,
+    "rs_trend": "up",
+    "ma_alignment": "stacked_bullish",
+    "volume_signature": "contracting",
+    "regime": "bullish",
+    "nearest_resistance": null,
+    "nearest_support": null,
+    "days_to_earnings": null,
+    "sector_strength_rank": null
+  },
+  "confidence": 72.09,
+  "quality_components": {
+    "geometry_score": 65.18,
+    "volume_score": 74.08,
+    "context_score": 100.0,
+    "historical_score": 50.0
+  },
+  "narrative": {
+    "headline": "VCP forming with 2 contractions tightening 22.4% -> 9.6% on the stock - pivot at $50.40, breakout target $61.88, R:R 2.0.",
+    "what_it_is": "The Volatility Contraction Pattern, developed by Mark Minervini and refined through his US Investing Champion records, is a high-edge setup that identifies institutional accumulation through a sequence of progressively tighter pullbacks. As big money quietly accumulates shares during the uptrend, each successive pullback gets smaller - here the contractions tighten from 22.4% in the first leg down to 9.6% in the final coil, with volume drying up as supply is absorbed. The final, tightest contraction (9.6% over 5 bars) is where weak hands are exhausted and the stock coils for the next leg. The pivot at $50.40 represents the supply line that institutions have been defending - once it breaks decisively, the path of least resistance is up. VCP is the chart language of professional accumulation. Kristjan Kullam\u00e4gi (Qullamaggie) \u2014 whose 2020-2023 returns made him the most-watched modern momentum trader on Twitter \u2014 runs the VCP pattern as his core setup, looking specifically for daily VCPs forming inside multi-week consolidations on the daily chart with the weekly chart simultaneously showing a clean breakout structure. Ryan Pierpont's Investor's Business Daily methodology, an offshoot of O'Neil's CAN SLIM lineage, treats the VCP as a refinement of the flat-base and ascending-base patterns \u2014 the same volatility-contraction read pioneered by Minervini, with explicit emphasis on the final tight 4-week zone and a clean pivot-point trigger.",
+    "why_it_matters": "This VCP is setting up in a confirmed Stage 2 uptrend with fully stacked-bullish moving-average alignment and improving relative strength versus the broader market. The 2-contraction sequence - particularly the tight 9.6% final pullback on exceptionally dry volume (~45% of the 50-bar average) - signals that the supply at $50.40 is finite and weakening. The bullish regime adds further context to position-sizing decisions, and the 18-bar formation length is well inside Minervini's 6-13 week sweet spot for the highest-quality bases. DCR signature: unknown. DCR signal is neutral - neither tailwind nor headwind from close-in-range positioning. Higher low confirmed \u2014 pullback low ($45.54) is 17.0% above the prior swing low ($38.92). Strong uptrend structure.",
+    "what_to_watch_for": "Watch for a daily close above $50.45 on volume of at least 1.5x the 20-bar average - that's the trigger that confirms the pivot break and the start of the institutional markup phase. An ideal follow-through has the stock closing in the upper half of the trigger bar's range, with the next 1-3 bars holding the breakout and never re-entering the prior contraction (45.54 to 50.40). The measured target is $61.88, derived from the height of the first contraction ($11.25) projected up from the pivot price. If the breakout day closes in the lower half of its range or volume only matches the 20-bar average, treat the trigger as suspect - on a clean VCP, institutional buying should be unmistakable and the tape should feel urgent.",
+    "failure_signal": "The VCP is invalidated if price closes back below the most recent contraction low at $45.54 (stop set at $44.86, 1.5% below) - that signals failed accumulation and a likely retest of the prior support shelf. A more nuanced failure mode: the breakout occurs on weak or declining volume and the next 2-3 bars fade back into the contraction range. This is the textbook 'failed breakout' that often precedes a deeper decline, because the institutions that were absorbing supply have now stopped buying. Position size should reflect the 11.1% risk distance - if you risk 1% of account on the trade, your position is roughly 9% of equity. Stop discipline is non-negotiable; the entire edge of the VCP setup depends on the breakout working immediately and decisively."
+  },
+  "status": "ready",
+  "outcome": null,
+  "detected_at": 1788713019,
+  "last_seen_at": 1788713019
+}
