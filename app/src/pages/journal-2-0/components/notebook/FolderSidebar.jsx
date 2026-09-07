@@ -178,6 +178,47 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   )
 }
 
+// Wave E — Saved Views section. Same populated-conditional/collapsible
+// shape as RecencySection above (checkpoint §20: zero nav clutter at zero
+// saved views), adapted for a view (name + id) instead of a note (title).
+function SavedViewsSection({ views, activeViewId, onSelectView }) {
+  const [expanded, setExpanded] = useState(true)
+  if (!views.length) return null
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} Saved Views`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name="sliders" size={12} gold={false} />
+          Saved Views
+        </span>
+      </div>
+      {expanded && views.map((view) => (
+        <div key={view.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+            onClick={() => onSelectView(view)}
+            title={view.name}
+          >
+            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={13} gold={false} />
+            <span className={styles.noteTitle}>{view.name}</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Collapse-panel glyph (rounded frame, left column filled) — the header's
 // "hide the panel" control.
 function PanelIcon() {
@@ -390,6 +431,11 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  // Wave E: populated-conditional, same convention as Favorites/Recents
+  // above -- renders nothing at zero saved views (checkpoint §20).
+  savedViews = [],
+  activeViewId = null,
+  onSelectView = () => {},
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -861,6 +907,11 @@ export default function FolderSidebar({
             notes={recentNotes}
             activeNoteId={activeNoteId}
             onOpenNote={onOpenNote}
+          />
+          <SavedViewsSection
+            views={savedViews}
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
           />
           <div className={styles.section}>
             <div className={styles.rowWrap}>

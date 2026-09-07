@@ -1,0 +1,29 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px 2px;
+}
+.label {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.input {
+  min-height: 40px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-md, 6px);
+  color: var(--color-text-primary, #e8eaed);
+}
+.error {
+  font-size: 12px;
+  color: var(--loss, #ef4444);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}

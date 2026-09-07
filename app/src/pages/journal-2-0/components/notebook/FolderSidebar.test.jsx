@@ -903,3 +903,45 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
     expect(screen.getByText('Untitled')).toBeInTheDocument()
   })
 })
+
+// ── Wave E — Saved Views sidebar section. A plain prop (not its own hook,
+// unlike Favorites/Recents above) since NotebookTab owns the useJ2SavedViews
+// call and needs the same data for the toolbar/table-view wiring. Same
+// populated-conditional shape. ──────────────────────────────────────────────
+
+describe('Saved Views sidebar section (Wave E)', () => {
+  it('renders nothing at zero saved views (populated-conditional)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+    expect(screen.queryByText('Saved Views')).not.toBeInTheDocument()
+  })
+
+  it('renders a Saved Views section and activating one calls onSelectView', () => {
+    const onSelectView = vi.fn()
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'table' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} onSelectView={onSelectView} />)
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Active Theses'))
+    expect(onSelectView).toHaveBeenCalledWith(view)
+  })
+
+  it('highlights the active saved view', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} activeViewId="v1" />)
+    const row = screen.getByText('Active Theses').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('collapsing Saved Views hides its rows without removing the header', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
+    expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+  })
+})
