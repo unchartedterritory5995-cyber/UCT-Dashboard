@@ -195,7 +195,7 @@ COMPARE_FETCH_BARS = 2000        # StockChart: min(barCount || 1500, 2000) per c
 
 
 DEFAULT_OPTIONS = {"indicators": None, "ext": False, "stats": True, "exttag": None, "preset": None, "instances": None,
-                   "breadth": None, "bars": None, "to": None, "compare": None}
+                   "breadth": None, "bars": None, "to": None, "compare": None, "darkpool": False}
 
 # Visible bars for intraday renders. The page's own default zoom counts
 # pre/post-market candles, and ~60% of a live 5/15/30-minute payload IS
@@ -237,6 +237,8 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["indicators"] = _b64url(opts["indicators"])
     if opts.get("preset"):
         params["preset"] = str(opts["preset"])          # one of the app's own theme presets
+    if opts.get("darkpool"):
+        params["darkpool"] = 1     # dark-pool zone overlay (ChartRender ?darkpool=1)
     if opts.get("compare"):
         # comparison overlays: the page draws each as a %-rebased line (ChartRender ?compare=)
         params["compare"] = ",".join(str(x).upper() for x in list(opts["compare"])[:3])

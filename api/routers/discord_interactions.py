@@ -444,7 +444,7 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         if wait:
             return _ephemeral(di.throttle_message(wait))
         prefs = _prefs_for(uid)
-        req = di.ChartRequest(ticker=ticker, tf=prefs.get("tf", "D"))
+        req = di.ChartRequest(ticker=ticker, tf=prefs.get("tf", "D"), darkpool=True)  # popup defaults dark-pools ON
         req, prefs = breadth_adjust(req, prefs)
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
         token = str(interaction.get("token") or "")
