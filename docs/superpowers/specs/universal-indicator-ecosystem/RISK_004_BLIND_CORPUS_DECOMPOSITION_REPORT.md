@@ -382,3 +382,358 @@ exceptions already carry.
 **This tranche does not implement either.** Per the authorizing instruction,
 diagnostic evidence and documentation are committed and pushed; no
 remediation follows without separate authorization.
+
+---
+
+# ADDENDUM — RISK-004 REMEDIATION TRANCHE (2026-09-06, second commit)
+
+Authorized as a bounded, two-item tranche following owner acceptance of the
+decomposition above. **Item A implemented and verified. Item B was NOT
+implemented — it hit the tranche's own explicit STOP condition and is
+reported, not fixed.**
+
+## A. Mintick offer index-space fix — IMPLEMENTED
+
+### A-1. Exact flow, and where the mismatch occurred
+
+```
+raw source (member's script, \r\n intact if that's what they pasted)
+  → lexPine(source): text = raw.replace(/\r\n?/g, '\n')     [NORMALIZATION]
+                     tokens[i].index = offset into `text`     [NORMALIZED SPACE]
+  → parse → AST, every node's .tok/.endTok carrying normalized-space indices
+  → Resolver constructed with { source }  — `source` is the RAW parameter,
+    UNCHANGED, threaded straight from translatePine's own argument           [RAW SPACE]
+  → mintickGuardOffer(node):
+       callSpan = spanOfNode(node)     — NORMALIZED-space numbers
+       keepSpan = spanOfNode(keep)     — NORMALIZED-space numbers
+       text = this.source.slice(keepSpan[0], keepSpan[1])   ← MISMATCH HERE:
+                 NORMALIZED-space numbers slicing a RAW-space string
+  → PineRefusal('pine:builtin', ..., suggest=`(${text})`, span=callSpan)
+       ← callSpan (NORMALIZED-space) is what leaves the engine as refusal.span
+  → offer application (any caller, incl. this corpus's own acceptEveryOffer):
+       edited = raw.slice(0, span[0]) + suggest + raw.slice(span[1])
+       ← MISMATCH HERE TOO: span is NORMALIZED-space, raw is RAW-space
+  → re-translation of `edited`
+```
+
+**The mismatch occurs at exactly two points, both inside `mintickGuardOffer`,
+both consuming a `spanOfNode(...)` result before it has been translated out of
+normalized-index space**: the `this.source.slice(keepSpan...)` call that
+builds `suggest`, and the `callSpan` value that becomes `refusal.span` (which
+every downstream consumer, including this test corpus's `acceptEveryOffer`,
+then uses to splice against the RAW source). `spanOfNode` itself is correct —
+it is not a bug, it is answering the question it was built to answer
+(normalized-space, because tokens live there); the bug is that its output was
+consumed against the raw string without translation.
+
+### A-2. The fix: one canonical raw↔normalized offset contract
+
+Rejected the "arbitrary offset arithmetic" approach (e.g., hand-adjusting by a
+guessed count of preceding `\r` characters at the call site) in favor of a
+single, precise, invertible mapping built once, in the same pass that performs
+the normalization, so the two operations can never independently drift:
+
+- **`lexPine`** now builds `text` character-by-character (instead of one
+  `.replace()` call) and simultaneously builds `rawOffsetMap`, an array where
+  `rawOffsetMap[n]` is the raw-string offset immediately after the raw bytes
+  that produced the first `n` characters of `text`. Each `\r\n` pair collapses
+  to one `\n` (raw pointer advances 2, normalized pointer advances 1); a lone
+  `\r` also collapses to `\n` (raw +1, normalized +1); every other character
+  is 1:1. Returned as a new field on `lexPine`'s result object (additive —
+  confirmed via the codebase's only production call site, `translatePine`,
+  plus a handful of test call sites that destructure only `.tokens`/`.version`
+  and are unaffected).
+- **`translatePine`** threads `rawOffsetMap` through to the `Resolver`
+  alongside the existing `source` option.
+- **`Resolver.toRawSpan(span)`** is the one bridge: `[rawOffsetMap[span[0]],
+  rawOffsetMap[span[1]]]`, identity when no map is available (a `Resolver`
+  built directly, without going through `translatePine`/`lexPine` — e.g. a
+  unit test — is unaffected).
+- **`mintickGuardOffer`** now calls `this.toRawSpan(spanOfNode(...))` before
+  either consuming the span itself or returning it as `refusal.span`.
+
+This is the only site that needed it: direct code reading confirms
+`this.source` is read in exactly one place in the entire engine
+(`mintickGuardOffer`), and `PineRefusal`'s 5-argument (span-carrying) form is
+constructed in exactly one place, matching the decomposition's earlier
+"exactly one offer in 114 sites" finding. No other guard, no other span
+consumer, and no other test was touched.
+
+### A-1 (invariant restored)
+
+**THE SPAN USED FOR AN EDIT NOW REFERS TO THE EXACT SOURCE STRING THE EDIT IS
+APPLIED TO** — `refusal.span` and `this.source` are both raw-space, always,
+regardless of the source's newline convention.
+
+## A1. Newline preservation
+
+**No newline conversion, silent or otherwise, reaches the member.** The fix
+works by never letting a normalized-space number touch the raw string in the
+first place, rather than by normalizing-then-reconstructing. Consequently:
+
+- The `suggest` text is sliced directly from the RAW source (`this.source`,
+  never normalized), so if the "keep" expression itself ever spanned a
+  newline, whatever raw newline bytes were there would be preserved verbatim
+  in the suggested text — this doesn't arise for the mintick idiom in
+  practice (the kept expression is always a single-line arithmetic
+  expression), but the mechanism doesn't special-case it either.
+- Splicing `raw.slice(0, span[0]) + suggest + raw.slice(span[1])` naturally
+  leaves every byte outside the edited range untouched — CRLF stays CRLF, LF
+  stays LF. Confirmed by test: applying the offer to a CRLF fixture produces a
+  result with the exact same CRLF-pair count as the original, and zero bare
+  LF-only newlines anywhere in the applied text.
+
+## A2. Exact edit safety — all scenarios tested, all pass
+
+Permanent tests in `pine.blindCorpusDecomposition.test.js`
+(`describe('✅ RISK-004 FIXED ...')`), covering every scenario the tranche
+named:
+
+| Scenario | Test |
+|---|---|
+| Target on first line (zero preceding newlines) | `'target on the very FIRST line...'` — both LF and CRLF |
+| Target after multiple CRLF lines | `'CRLF source: span is now correct...'` (5 preceding lines) |
+| Target near end of file | `'target near the END of a CRLF file...'` (13 preceding lines) |
+| LF source | control case in every paired test |
+| CRLF source | primary case in every paired test |
+| Text before the target unchanged | `applied.slice(0, span[0]) === crlf.slice(0, span[0])` |
+| Text after the target unchanged | `applied.slice(span[0]+suggest.length) === crlf.slice(span[1])` |
+| Output syntactically valid | `translatePine(applied).ok === true` in every case |
+| Intended guard removed/replaced exactly once | re-translation after applying raises no further mintick refusal |
+| Before/after snippet match | `crlf.slice(...span) === CALL_TEXT` and `refusal.suggest === '(high - low)'` asserted together |
+
+No off-by-one or cross-line corruption found in any tested case.
+
+## A3. Real corpus proof — every triggering script, before and after
+
+**Exactly 9 of the 48 frozen scripts trigger `mintickGuardOffer`** (confirmed
+programmatically — `pine.blindCorpusDecomposition.test.js`, not a re-typed
+list): `breakout-gap-up-holding`, `candles-key-reversal-bar`,
+`candles-red-to-green-day`, `candles-strong-closing-range`,
+`multifactor-pocket-pivot-accumulation`, `volatility-atr-expansion-breakout`,
+`volatility-inside-bar-continuation`, `volume-capitulation-volume-reversal`,
+`volume-rvol-breakout-thrust`.
+
+| Script | BEFORE (pre-fix, this decomposition's earlier finding) | AFTER (post-fix, re-measured) |
+|---|---|---|
+| breakout-gap-up-holding | refusal: `pine:builtin` (mintick); offer generated; applied → corrupted splice → `pine:character` | offer generated; applied in ONE step → **RECOVERED** (translates to a boolean screen) |
+| candles-key-reversal-bar | same shape; applied → corrupted → `pine:no-output` | applied in ONE step → **RECOVERED** |
+| candles-red-to-green-day | same shape; applied → corrupted → `pine:statement` | applied in ONE step → **RECOVERED** |
+| candles-strong-closing-range | same shape; applied → corrupted → `pine:undefined` | applied in ONE step → **RECOVERED** |
+| multifactor-pocket-pivot-accumulation | same shape; applied → corrupted → `pine:statement` | applied in ONE step → **RECOVERED** |
+| volatility-atr-expansion-breakout | same shape; applied → corrupted → `pine:character` | applied in ONE step → **RECOVERED** |
+| volatility-inside-bar-continuation | same shape; applied → corrupted → `pine:character` | applied in ONE step → **RECOVERED** |
+| volume-capitulation-volume-reversal | same shape; applied → corrupted → `pine:character` | applied in ONE step → **RECOVERED** |
+| volume-rvol-breakout-thrust | same shape; applied → corrupted → `pine:undefined` | applied in ONE step → **RECOVERED** |
+
+**OFFER FIXED: 9/9. SCRIPT RECOVERED: 9/9.** These are the same 9 here —
+every "secondary guard" the pre-fix measurement reported
+(`pine:character`/`pine:no-output`/`pine:statement`/`pine:undefined`) was a
+corruption artifact of the coordinate-space bug, not a real second blocker.
+Once the offer applies the TEXT the member actually sees offered
+(`(high - low)`, spliced at the TRUE call location), every one of these 9
+scripts' remaining logic was already expressible — none needed anything else.
+This was not assumed; it was measured (`pine.blindCorpusDecomposition.test.js`,
+`describe('✅ RISK-004 REMEDIATION A ...')`, asserting chain length 1 and
+`recovered === true` for all 9 by name).
+
+## A4. Non-vacuity — all required proofs added, as permanent tests
+
+- **The historical bug reproduces under the pre-fix coordinate treatment**:
+  for a pure-LF source, `lexPine`'s normalized text IS the source text, so
+  that source's own `refusal.span` numbers ARE, byte-for-byte, "the
+  normalized-space numbers" the pre-fix code used unconditionally. Reusing
+  those exact numbers against the CRLF-converted version of the same script
+  reproduces the historical corruption precisely, without reverting any code
+  — `'NON-VACUITY: reproduces the historical bug when the same normalized-
+  space numbers are (mis)used against the CRLF string'`.
+- **LF remains correct**: asserted as the control case in every paired test.
+- **Intentionally shifting a span causes the regression to fail**:
+  `'NON-VACUITY: shifting the (correct) span by even one character breaks the
+  assertion'` — `±1` on either endpoint no longer equals the call text.
+- **Applying the offer to the wrong source representation is detected**:
+  `'NON-VACUITY: applying a CRLF-derived offer to the LF-normalized text ...
+  is detected as a mismatch, not silently accepted'`.
+- **No unrelated source bytes/code units are changed**: byte-for-byte prefix/
+  suffix equality asserted in `'applying the offer on CRLF now recovers the
+  script ... and PRESERVES the original newline convention'`.
+
+## B. `ta.cci` role-order fix — NOT IMPLEMENTED, STOPPED PER EXPLICIT INSTRUCTION
+
+### B-1. Exact signature chain, as requested
+
+```
+PINE/VENDOR SIGNATURE:      ta.cci(source, length) — CCI of an ARBITRARY source
+                            series: (source - sma(source,length))
+                                    / (0.015 * mean_abs_dev(source,length))
+
+CURRENT UCT TRANSLATION:    the `cci` shape entry (pine.js) requires
+                            `sourceMustBe: { at: 0, series: 'hlc3' }` — any
+                            other source at argument 0 refuses with
+                            `pine:role-order`.
+
+INTERNAL CLOSED-TABLE
+CONTRACT:                   `cci: { table: 'cci', pineArity: 2,
+                            sourceMustBe: {...}, build: [{series:'high'},
+                            {series:'low'},{series:'close'},{pine:1}] }`
+                            — the table's `cci` entry is called with EXPLICIT
+                            high/low/close, never a generic "source" slot.
+
+KERNEL (indicators.js
+computeCCI):                `computeCCI(bars, period)` — takes full OHLC
+                            `bars` objects and INTERNALLY, UNCONDITIONALLY
+                            computes `tp[i] = (bars[i].h + bars[i].l +
+                            bars[i].c) / 3` (typical price). There is NO
+                            parameter for an arbitrary source series. The
+                            kernel physically cannot compute "CCI of close" —
+                            it can only ever compute "CCI of typical price."
+```
+
+### B-1 finding: this is NOT a narrow adapter/mapping bug
+
+**Runtime CCI semantics are already correct for what the kernel implements —
+but the kernel only implements ONE case (source = typical price), and real
+Pine's `ta.cci` supports an arbitrary source.** There is no positional or
+role-order remapping that fixes this: computing "CCI of `close`" requires the
+SMA and mean-absolute-deviation of `close` itself, not of typical price —
+these are different numbers for any source other than `hlc3`, by
+construction, not by a wiring mistake. No adapter-level change can bridge
+this; only a genuinely new, generic kernel function (accepting an arbitrary
+source array, not `bars`) could.
+
+**The current `pine:role-order` refusal is not a bug — it is the DELIBERATE,
+already-correct behavior**, per the shape's own committed comment (pine.js,
+directly above the `cci` entry): *"WITHOUT THAT FIELD THE PLAN WOULD BE A
+LIE... a shape alone would answer `ta.cci(close, 20)` — a real and different
+indicator — with the typical-price column: a plausible number, on the right
+scale, wrong on every bar, with nothing refusing."* The refusal message itself
+already states this precisely and honestly (*"those are the same column when
+the source is `hlc3` and a DIFFERENT indicator otherwise, so only that source
+is taken"*).
+
+### STOP condition met — per explicit instruction
+
+The authorizing instruction states: *"If the proposed role-order change would
+alter actual CCI runtime semantics rather than just the adapter mapping, STOP
+and report before changing it."* Making `meanrev-zscore-multi-oscillator-
+washout`'s `ta.cci(close, 20)` translate would require exactly that — a new
+generic CCI kernel, not an adapter correction. **This tranche does not
+implement it.** No kernel code, no `closedTable.json` entry, and no
+`pine.js` role-order logic were touched for `cci`. The earlier decomposition
+report's characterization of this as "the single highest-confidence,
+lowest-risk fix" (§11, item 2) is hereby corrected: it is real, but it is
+KERNEL-level work, not adapter-level, and needs its own decision, not a
+narrow-tranche fix.
+
+**B1 (semantic safety), B2 (mutation proof): not applicable — no change was
+made to prove safe.**
+
+## C. Frozen 48-script corpus re-run
+
+```
+RAW BEFORE:       27 / 48
+RAW AFTER:        27 / 48        (unchanged — B was not implemented, and A
+                                   only ever affected the ASSISTED path, never
+                                   the raw translation of the original script)
+
+ASSISTED BEFORE:  27 / 48
+ASSISTED AFTER:   36 / 48        (+9, exactly the 9 mintick-triggering scripts)
+```
+
+Every changed script (all 9 recovered ONLY via ASSISTED, none via RAW —
+`RAW ACCEPTED` and `ASSISTED RECOVERED` are kept distinct throughout, per
+instruction):
+
+| Script | Prior primary blocker | New result | Source of change | Newly exposed secondary blocker |
+|---|---|---|---|---|
+| breakout-gap-up-holding | `syminfo.mintick` (pine:builtin) | ASSISTED RECOVERED (raw still refuses, correctly — the original script still needs the member's consent) | mintick offer fix (A) | none |
+| candles-key-reversal-bar | same | ASSISTED RECOVERED | A | none |
+| candles-red-to-green-day | same | ASSISTED RECOVERED | A | none |
+| candles-strong-closing-range | same | ASSISTED RECOVERED | A | none |
+| multifactor-pocket-pivot-accumulation | same | ASSISTED RECOVERED | A | none |
+| volatility-atr-expansion-breakout | same | ASSISTED RECOVERED | A | none |
+| volatility-inside-bar-continuation | same | ASSISTED RECOVERED | A | none |
+| volume-capitulation-volume-reversal | same | ASSISTED RECOVERED | A | none |
+| volume-rvol-breakout-thrust | same | ASSISTED RECOVERED | A | none |
+
+No script changed due to CCI (B was not implemented). No previously-passing
+script regressed. No new secondary blocker was exposed anywhere — the "OFFER
+FIXED = SCRIPT RECOVERED, 9/9" finding in A3 already establishes this.
+
+## D. Assisted-edit metric — first trustworthy measurement
+
+Across all 21 pre-tranche misses:
+
+```
+Failing scripts offered an edit at all:         9  (the mintick 9 — every other
+                                                     guard is NO_OFFER by
+                                                     construction; unchanged by
+                                                     this tranche)
+Offered edit applicable (well-formed, once
+  coordinate space is corrected):                9 / 9
+Edit successfully applies (splice produces
+  syntactically valid Pine):                     9 / 9
+Translates after the edit:                       9 / 9
+Remains blocked by a secondary issue after
+  a successful edit:                             0 / 9
+```
+
+**This is not a claim that assisted editing is broadly functional.** There is
+still, after this tranche, only ONE offer-bearing refusal in the entire
+114-site `PineRefusal` surface (`mintickGuardOffer`) — confirmed unchanged by
+direct re-count. The other 12 of the original 21 misses remain NO_OFFER, by
+design, untouched, exactly as scoped. What changed is that the one offer that
+exists is now honest: when it fires, it works, on both LF and CRLF sources.
+
+## E. Scope discipline — confirmed
+
+No offers were added to any other `PineRefusal` site. `ta.barssince`,
+`ta.valuewhen`, tuple support, undefined-symbol recovery, additional
+builtins, additional Track F input types, generalized recursive/stateful
+semantics, and broad Pine parser work were not touched. `git diff` confirms
+the entire change surface is: `pine.js` (lexPine's normalization loop +
+`rawOffsetMap`, `translatePine`'s thread-through, the `Resolver` constructor's
+new field, `mintickGuardOffer` + the new `toRawSpan` helper) and
+`pine.blindCorpus.test.js`/`pine.blindCorpusDecomposition.test.js` (the two
+floor constants and new/updated permanent tests).
+
+## F. Documentation
+
+RISK-004 truth, preserving both numbers and the two-cause history, is
+recorded in RISK_REGISTER.md's updated RISK-004 row (below) and restated here:
+
+- **CURRENT RAW ACCEPTANCE: 27/48** (unchanged by this tranche).
+- **CURRENT ASSISTED ACCEPTANCE: 36/48** (up from 27/48; the historical
+  21/48 and the intermediate 27/48-both-raw-and-assisted are both preserved
+  as historical fact, not erased).
+- **The historical zero-uplift result had two distinct, now-both-diagnosed
+  causes**: (1) extremely narrow offer coverage — only 1 of 114 refusal sites
+  ever offered anything, unchanged by this tranche, a scope boundary rather
+  than a defect; and (2) the sole real offer path had a CRLF/LF index-space
+  defect — **fixed in this tranche (Item A)**. Cause (2) is why uplift was
+  previously exactly zero despite cause (1) alone still leaving room for up to
+  9 recoveries; cause (2) being fixed is why uplift is now exactly 9, matching
+  cause (1)'s remaining ceiling precisely (no other guard offers anything, so
+  9 was always the maximum possible uplift once (2) was fixed).
+
+## Recommendation for the next custom-indicator issue (not begun)
+
+Given B could not be done as a narrow fix, the highest-confidence next,
+narrowly-scoped item is **`ta.barssince`'s bounding-heuristic gaps** (item 3 in
+the original ranking, §11 above) — it touches 4 of the remaining 21 misses
+(`breakout-flat-base-pivot-breakout`, `breakout-squeeze-release-breakout`,
+`recency-breakout-hold-since-trigger`, `recency-fresh-golden-cross`), more
+than any other single remaining construct, and does not require a kernel
+change (only widening which comparison SHAPES the existing "compared to a
+bound" exception recognizes — `nz(...)`-wrapped, assigned-then-compared, and
+compared-to-another-`barssince`-call are the three gaps found). It should be
+scoped as its own decision, since the existing heuristic is already a
+deliberate, narrow exception and widening it changes what "bounded" means —
+exactly the kind of narrow-but-not-trivial call this tranche's discipline
+(state the exact contract, prove it, don't touch the kernel) should carry
+into. The `ta.cci` generic-source kernel question (from Part B) is a SEPARATE,
+larger decision — it is real engine capability, not a corpus-chasing fix —
+and deserves its own scoping conversation rather than being bundled into a
+future "narrow fix" tranche by default.
+
+**This recommendation is not begun.**

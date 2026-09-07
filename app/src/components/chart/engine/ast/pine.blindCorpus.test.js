@@ -109,8 +109,19 @@ const ACCEPTED = FILES.filter((f) => {
  *  NOT authorized alongside it), `ta.cci`, `ta.supertrend`, `ta.kcw`,
  *  `ta.cmf`, `ta.obv` — see the exam's own `console.log('still short ...')`
  *  output. Implementing any of those is a separate, future authorization,
- *  not a way to force this floor higher. */
-const ACCEPT_FLOOR = 27
+ *  not a way to force this floor higher.
+ *
+ *  ⭐⭐ 27 -> 36 IS RISK-004 REMEDIATION A (2026-09-06): the mintick offer's
+ *  span was computed in `lexPine`'s LF-normalized index space and spliced
+ *  into `this.source` (the RAW, `\r\n`-intact script) — corrupting every
+ *  application on a CRLF, multi-line source, which every one of these 48
+ *  fixtures is. `lexPine` now also returns `rawOffsetMap`, and
+ *  `Resolver.toRawSpan` translates through it before the offer touches
+ *  `this.source` or leaves as `refusal.span`. All 9 of the corpus's
+ *  `syminfo.mintick` misses now apply in exactly one offer step and fully
+ *  recover — see `pine.blindCorpusDecomposition.test.js`. This is a REAL
+ *  gain, not a bookkeeping correction: the engine earned it. */
+const ACCEPT_FLOOR = 36
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.

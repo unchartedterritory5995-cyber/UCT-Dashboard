@@ -1395,7 +1395,35 @@ const DIGIT = /[0-9]/
  * off a stream with separators in it.
  */
 export function lexPine(src) {
-  const text = String(src == null ? '' : src).replace(/\r\n?/g, '\n')
+  const raw = String(src == null ? '' : src)
+  // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
+  // CONTRACT. Pine's line/continuation rules are simplest against LF-only
+  // text, so every token is still produced against a `\r\n?`-collapsed copy
+  // (`text`, below). But `translatePine`'s own `source` parameter — and
+  // whatever an offer's `span` is eventually spliced into — is the ORIGINAL,
+  // un-normalized string. `rawOffsetMap[n]` is the raw-string offset
+  // immediately after the raw bytes that produced the first `n` characters of
+  // `text`, so it translates ANY normalized-space offset (a token's `.index`,
+  // or a `spanOfNode(...)` result built from token indices) back into the
+  // coordinate space of the string an edit is actually applied to. Built in
+  // the SAME pass that performs the normalization, so the two can never drift
+  // into two competing ideas of "where `\r\n` collapsed" — see
+  // `Resolver.toRawSpan`, the one place that consumes this.
+  let text = ''
+  const rawOffsetMap = [0]
+  {
+    let r = 0
+    while (r < raw.length) {
+      if (raw[r] === '\r') {
+        text += '\n'
+        r += raw[r + 1] === '\n' ? 2 : 1
+      } else {
+        text += raw[r]
+        r += 1
+      }
+      rawOffsetMap.push(r)
+    }
+  }
   const tokens = []
   const lines = text.split('\n')
   const indents = lines.map((line) => {
@@ -1495,7 +1523,7 @@ export function lexPine(src) {
     throw new PineRefusal('pine:character', REFUSALS['pine:character'], at(i, line, col, ch))
   }
 
-  return { tokens, indents, version, lines }
+  return { tokens, indents, version, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -3549,6 +3577,11 @@ class Resolver {
      *  their text back rather than re-printing a tree, so what lands in the box
      *  is what they wrote. */
     this.source = typeof opts.source === 'string' ? opts.source : null
+    /** ⭐⭐ RISK-004 FIX — `lexPine`'s normalized-index → raw-index map (see its
+     *  own comment). `null` when a caller builds a Resolver directly without
+     *  going through `translatePine`/`lexPine` — `toRawSpan` is the identity
+     *  in that case, so direct-construction callers are unaffected. */
+    this.rawOffsetMap = Array.isArray(opts.rawOffsetMap) ? opts.rawOffsetMap : null
     this.table = table
     this.types = types || new Map()
     this.index = functionIndex(table)
@@ -4869,14 +4902,34 @@ class Resolver {
     const keep = isMintick(args[0].value) ? args[1].value
       : isMintick(args[1].value) ? args[0].value : null
     if (!keep) return null
-    const callSpan = spanOfNode(node)
-    const keepSpan = spanOfNode(keep)
+    // `spanOfNode` returns offsets into `lexPine`'s LF-normalized token
+    // stream. `this.source` is the member's RAW script — CRLF intact when
+    // that's what they pasted. `toRawSpan` is the one bridge between the two;
+    // without it, `callSpan` covers the wrong bytes of `this.source` on any
+    // CRLF-authored script whose flagged call sits past line 1 (RISK-004).
+    const callSpan = this.toRawSpan(spanOfNode(node))
+    const keepSpan = this.toRawSpan(spanOfNode(keep))
     if (!callSpan || !keepSpan || !this.source) return null
     const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
     if (!text) return null
     return new PineRefusal('pine:builtin',
       `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_RULED['syminfo.mintick']}`,
       locate(node.tok), `(${text})`, callSpan)
+  }
+
+  /** ⭐⭐ RISK-004 FIX — translates a `spanOfNode(...)` result (normalized-text
+   *  index space) into `this.source`'s own coordinate space (the raw string,
+   *  `\r\n` intact) via `lexPine`'s `rawOffsetMap`. THE INVARIANT THIS
+   *  RESTORES: the span used for an edit must refer to the exact source
+   *  string the edit is applied to. Identity when no map is available (a
+   *  Resolver built directly, without `translatePine`/`lexPine`, e.g. in a
+   *  unit test) or when the map doesn't cover the requested offset. */
+  toRawSpan(span) {
+    if (!span) return span
+    const map = this.rawOffsetMap
+    if (!map) return span
+    const at = (n) => (Number.isInteger(n) && n >= 0 && n < map.length ? map[n] : n)
+    return [at(span[0]), at(span[1])]
   }
 
   resolveCall(node) {
@@ -7232,7 +7285,7 @@ export function translatePine(source, opts = {}) {
     return { ...blank, refusal: r, refusals: [r] }
   }
 
-  const { tokens, indents, version, lines } = lexed
+  const { tokens, indents, version, lines, rawOffsetMap } = lexed
   if (tokens.length === 0) {
     const r = refusalValue('pine:empty', REFUSALS['pine:empty'], null)
     return { ...blank, version, refusal: r, refusals: [r] }
@@ -7762,7 +7815,7 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned, source, paramMint })
+      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
