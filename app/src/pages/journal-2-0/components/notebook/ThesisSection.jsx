@@ -35,12 +35,22 @@ function isThesisShaped(note, evidence, changelog) {
  * regardless (checkpoint decision: an evidence row must open its source
  * even when the excerpt was captured into a DIFFERENT note). */
 function ExcerptEvidenceRow({ evidence, localExcerpt, onOpen }) {
-  const label = evidence.caption
-    || (localExcerpt ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}` : 'Document excerpt')
+  // The citation is NOT interchangeable with the caption, so it is never
+  // replaced by one. The caption answers "why does this support the thesis";
+  // the citation answers "which passage, on which page, of which document"
+  // -- and a thesis whose evidence list reads as four sentences of reasoning
+  // with no sources is exactly the thing this wave exists to prevent. Both,
+  // in that order, the source dimmed behind the reason.
+  const citation = localExcerpt
+    ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}`
+    : null
   return (
     <button type="button" className={styles.evidenceLink} onClick={onOpen}>
       <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
-      {label}
+      {evidence.caption || citation || 'Document excerpt'}
+      {evidence.caption && citation && (
+        <span className={styles.evidenceCitation}> — {citation}</span>
+      )}
     </button>
   )
 }

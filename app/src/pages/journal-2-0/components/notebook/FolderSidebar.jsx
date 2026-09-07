@@ -5,6 +5,7 @@ import useJ2Notes, {
 } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
+import useExcerptSearch from '../../hooks/useExcerptSearch'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -624,6 +625,15 @@ export default function FolderSidebar({
   const { results: documentResults, isLoading: documentsSearching } =
     useDocumentSearch(debouncedQuery, { enabled: mode === 'search' })
 
+  // Wave J: the member's own saved evidence — captured passages and the
+  // annotations written on them. A THIRD section, for the same reason
+  // Documents is a second one: a passage a member deliberately kept is not
+  // the same kind of hit as a page the text happens to appear on, and
+  // ranking them against each other would bury the curated one under the
+  // raw. Query-only, matching Documents above.
+  const { results: excerptResults, isLoading: excerptsSearching } =
+    useExcerptSearch(debouncedQuery, { enabled: mode === 'search' })
+
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
   //
@@ -965,6 +975,37 @@ export default function FolderSidebar({
                       {d.name || 'Document'} · p.{d.pageNumber}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave J: Evidence section — the passages this member chose to
+              keep, plus their annotations. Third and last, after Notes and
+              Documents, each still its own list. Same render-only-when-it-
+              has-something-to-say rule as Documents above. */}
+          {trimmedQuery && (excerptsSearching || excerptResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {excerptsSearching
+                  ? 'Searching evidence…'
+                  : `${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!excerptsSearching && excerptResults.map((e) => (
+                <button
+                  key={e.excerptId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: e.noteId })}
+                  title={`${e.documentName || 'Document'} — p. ${e.pageNumber}, in "${e.noteTitle}"`}
+                >
+                  <UIcon name="quote" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {e.documentName || 'Document'} · p.{e.pageNumber}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
                   </span>
                 </button>
               ))}

@@ -59,6 +59,11 @@
 .evidenceLink:hover {
   color: #dcbb5e;
 }
+/* The source behind the reason — dimmed so the caption still leads, present
+   so a document_excerpt row is always a real, page-aware citation. */
+.evidenceCitation {
+  color: var(--color-text-muted, #98a0aa);
+}
 .evidenceLabel {
   font-size: 13px;
   color: var(--color-text-primary, #e8eaed);

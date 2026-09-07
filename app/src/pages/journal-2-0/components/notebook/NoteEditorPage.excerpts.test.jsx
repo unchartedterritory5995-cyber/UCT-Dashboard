@@ -133,6 +133,13 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-document-excerpt]')).toBeTruthy()
     })
+
+    // ⛔ REGRESSION RAIL, found live in the browser: clicking the chip to
+    // open the preview leaves ProseMirror holding a NodeSelection on it, and
+    // `insertContent` REPLACES the selection -- so saving the first excerpt
+    // from a document deleted the attachment chip that document came in on.
+    // The chip must still be there after the excerpt lands beside it.
+    expect(document.querySelector('a[data-type="attachmentChip"]')).toBeTruthy()
   })
 
   it('a failed excerpt save shows a toast and inserts no node', async () => {

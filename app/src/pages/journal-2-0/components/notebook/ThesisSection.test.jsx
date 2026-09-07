@@ -201,14 +201,22 @@ describe('ThesisSection — Wave J document excerpt evidence', () => {
     expect(onOpenExcerptSource).toHaveBeenCalledWith('ex1')
   })
 
-  it('an evidence caption wins over the resolved citation when both are present (why-it-matters is the more specific text)', () => {
+  it('shows the caption AND the citation when both exist — the reason never replaces the source', () => {
+    // ⛔ This used to assert the caption WON, hiding the citation. Found in a
+    // live pass: a thesis with several captioned excerpts then read as a list
+    // of sentences with no sources at all -- page-aware citation is the whole
+    // point of the wave, and it must not vanish the moment a member explains
+    // why a passage matters. The two answer different questions (see
+    // ExcerptEvidenceRow) and both are shown, caption first.
     summaryResult = {
       evidence: [{ id: 'e1', targetType: 'document_excerpt', targetId: 'ex1', stance: 'opposes', caption: 'Directly weakens my margin thesis', removedAt: null }],
       changelog: [], isLoading: false, refresh: vi.fn(),
     }
     excerptsResult = { excerpts: [{ id: 'ex1', documentName: 'Deck.pdf', pageNumber: 17, capturedText: 'x' }] }
     renderIt(PLAIN_NOTE)
-    expect(screen.getByText('Directly weakens my margin thesis')).toBeTruthy()
+    const row = screen.getByRole('button', { name: /Directly weakens my margin thesis/ })
+    expect(row.textContent).toContain('Directly weakens my margin thesis')
+    expect(row.textContent).toContain('Deck.pdf · p.17')
   })
 
   it('a document_excerpt evidence row still opens even when the excerpt is not among this note\'s own excerpts (captured elsewhere)', () => {

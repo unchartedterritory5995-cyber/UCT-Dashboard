@@ -7,6 +7,11 @@ const OVERSCAN = 2
 const PAGE_GAP = 12
 const QUOTE_CONTEXT_CHARS = 200
 const EMPHASIS_MS = 2200
+// A US-letter page at pdfjs scale 1 is 612 CSS px; browsers and print both
+// treat ~96dpi (816px, scale 1.33) as its natural size. 960 leaves a little
+// headroom above that for dense financial tables without tipping into
+// magnification -- see the `renderWidth` comment for what uncapped did.
+const MAX_PAGE_WIDTH = 960
 
 /**
  * Wave J — a real, selectable PDF page renderer (canvas + pdfjs TextLayer),
@@ -34,9 +39,10 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
   const [selectionPopover, setSelectionPopover] = useState(null) // {x, y, text, pageNumber}
   const [emphasized, setEmphasized] = useState(null) // excerptId currently pulsing
 
-  // pageNumber -> { fullText, spans: [{el, start, len}] } -- populated as
+  // pageNumber -> { fullText, map } from `_buildPageText` -- populated as
   // each page's text layer finishes rendering. Needed both to capture a
-  // selection's quote-context and to re-locate a saved excerpt's rects.
+  // selection's offsets + quote-context and to re-locate a saved excerpt's
+  // highlight rects, which is why ONE builder produces both.
   const pageTextRef = useRef(new Map())
   const pageContainerRef = useRef(new Map()) // pageNumber -> outer page div
 
@@ -68,7 +74,15 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     return () => ro.disconnect()
   }, [])
 
-  const scale = baseViewport ? containerWidth / baseViewport.width : 1
+  // Fit-to-width, but CAPPED. Found live in the browser: the preview Sheet
+  // is near-full-viewport, so a letter page (612pt) fitted to an 1883px
+  // container rendered at 3.02x -- 72px body text, one paragraph per screen,
+  // and the right edge clipped. A page has a natural reading size and more
+  // pixels than that is magnification, not fidelity. MAX_PAGE_WIDTH is the
+  // ceiling; narrow containers still fit-to-width as before, and the page
+  // stays centred (.page is a centring flex row) once it stops growing.
+  const renderWidth = Math.min(containerWidth, MAX_PAGE_WIDTH)
+  const scale = baseViewport ? renderWidth / baseViewport.width : 1
   const pageHeight = baseViewport ? baseViewport.height * scale : 800
 
   const virtualizer = useVirtualizer({
@@ -143,11 +157,20 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
       const lastRect = rects[rects.length - 1] || range.getBoundingClientRect()
       const scrollBox = scrollRef.current?.getBoundingClientRect()
       if (!scrollBox) return
+      // Resolve the selection's offsets HERE, against the live Range, while
+      // it still exists -- a Range is invalidated by the click that saves,
+      // and re-deriving offsets later by searching for the selected string
+      // is exactly the lossy step `_buildPageText` documents.
+      const map = pageTextRef.current.get(pageNumber)?.map
+      const charStart = map ? _offsetOfPoint(map, range.startContainer, range.startOffset) : null
+      const charEnd = map ? _offsetOfPoint(map, range.endContainer, range.endOffset) : null
       setSelectionPopover({
         x: lastRect.right - scrollBox.left,
         y: lastRect.bottom - scrollBox.top,
         text,
         pageNumber,
+        charStart,
+        charEnd,
       })
     }
     document.addEventListener('selectionchange', onSelectionChange)
@@ -158,18 +181,30 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     if (!selectionPopover || !onSaveExcerpt) return
     const { text, pageNumber } = selectionPopover
     const pageText = pageTextRef.current.get(pageNumber)?.fullText || ''
-    const idx = pageText.indexOf(text)
+    let charStart = selectionPopover.charStart
+    let charEnd = selectionPopover.charEnd
+    if (charStart == null || charEnd == null || charEnd <= charStart) {
+      // The Range boundaries didn't resolve (a selection anchored outside
+      // this page's text nodes). Fall back to a search, which is exact now
+      // that both strings come from the same builder.
+      const idx = pageText.indexOf(text)
+      charStart = idx >= 0 ? idx : null
+      charEnd = idx >= 0 ? idx + text.length : null
+    }
     let quotePrefix = null
     let quoteSuffix = null
-    let charStart = null
-    let charEnd = null
-    if (idx >= 0) {
-      charStart = idx
-      charEnd = idx + text.length
-      quotePrefix = pageText.slice(Math.max(0, idx - QUOTE_CONTEXT_CHARS), idx) || null
+    let capturedText = text
+    if (charStart != null && charEnd != null) {
+      // The popover shows the TRIMMED selection; keep the stored offsets on
+      // the same characters so captured text, offsets and context can never
+      // describe three slightly different passages.
+      while (charStart < charEnd && /\s/.test(pageText[charStart])) charStart += 1
+      while (charEnd > charStart && /\s/.test(pageText[charEnd - 1])) charEnd -= 1
+      capturedText = pageText.slice(charStart, charEnd) || text
+      quotePrefix = pageText.slice(Math.max(0, charStart - QUOTE_CONTEXT_CHARS), charStart) || null
       quoteSuffix = pageText.slice(charEnd, charEnd + QUOTE_CONTEXT_CHARS) || null
     }
-    onSaveExcerpt({ pageNumber, capturedText: text, quotePrefix, quoteSuffix, charStart, charEnd })
+    onSaveExcerpt({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd })
     window.getSelection()?.removeAllRanges()
     setSelectionPopover(null)
   }, [selectionPopover, onSaveExcerpt])
@@ -237,6 +272,14 @@ function PdfPage({ pdf, pageNumber, scale, top, excerptsOnPage, emphasized, onTe
   useEffect(() => {
     let cancelled = false
     let renderTask = null
+    // Drop the previous pass's rects BEFORE re-rendering. They are absolute
+    // pixel offsets computed at the OLD scale, and re-render is async (page
+    // render + text layer + re-location), so leaving them up paints
+    // highlights over the wrong lines for the whole await -- caught live
+    // after a viewport resize: two gold bars sat a paragraph above the
+    // passage they were marking. A highlight that briefly ISN'T there is
+    // honest; one that points at the wrong sentence is not.
+    setHighlightRects([])
     pdf.getPage(pageNumber).then(async (page) => {
       if (cancelled) return
       const viewport = page.getViewport({ scale })
@@ -262,22 +305,31 @@ function PdfPage({ pdf, pageNumber, scale, top, excerptsOnPage, emphasized, onTe
       if (!container) return
       container.innerHTML = ''
       // pdfjs's own TextLayer sizes/scales the container via CSS custom
-      // properties + a `round()` expression normally set by its higher-
-      // level PDFPageView machinery, which this viewer doesn't use. Setting
-      // both explicitly here (rather than relying on that chain resolving
-      // correctly on its own) is what makes each span's computed font-size
-      // (`--font-height` × `--total-scale-factor`, pdfjs's own per-span
-      // formula) actually match the canvas glyphs it sits over.
+      // properties normally set by its higher-level PDFPageView machinery,
+      // which this viewer doesn't use. `--total-scale-factor` is what makes
+      // each span's computed font-size (`--font-height` × that factor,
+      // pdfjs's own per-span formula) match the canvas glyphs it sits over.
+      //
+      // The other two matter for a reason found by reading pdf.mjs rather
+      // than by watching it fail: the TextLayer CONSTRUCTOR calls
+      // setLayerDimensions, which overwrites style.width/height with
+      // `round(down, var(--total-scale-factor) * <pt>px, var(--scale-round-x))`
+      // -- and pdfjs declares no fallback for --scale-round-*, so with them
+      // unset the whole expression is invalid and both dimensions are
+      // dropped. (It looked fine only because .textLayerRoot's `inset: 0`
+      // was silently covering for it, and any width/height set HERE, before
+      // the constructor, is clobbered a line later.) pdf_viewer.css sets
+      // both to 1px on `.pdfViewer .page`; this is that same declaration,
+      // scoped to the one element that needs it.
       container.style.setProperty('--total-scale-factor', String(scale))
-      container.style.width = `${viewport.width}px`
-      container.style.height = `${viewport.height}px`
+      container.style.setProperty('--scale-round-x', '1px')
+      container.style.setProperty('--scale-round-y', '1px')
       const layer = new pdfjsLib.TextLayer({ textContentSource: textContent, container, viewport })
       await layer.render()
       if (cancelled) return
 
-      const fullText = textContent.items.map((it) => it.str || '').join('')
-      const spans = Array.from(container.querySelectorAll('span'))
-      onTextReady(pageNumber, { fullText, spans, textContent })
+      const { fullText, map } = _buildPageText(container)
+      onTextReady(pageNumber, { fullText, map })
 
       // Compute highlight rects for any excerpt already saved on this page,
       // by re-locating the captured text (via quote context, falling back
@@ -285,16 +337,21 @@ function PdfPage({ pdf, pageNumber, scale, top, excerptsOnPage, emphasized, onTe
       // that char range to real DOM Ranges over the text-layer spans.
       const rectsByExcerpt = []
       for (const ex of excerptsOnPage) {
-        const range = _locateTextRange(fullText, ex, spans)
+        const range = _locateTextRange(fullText, ex, map)
         if (!range) continue
-        const clientRects = Array.from(range.getClientRects())
+        // A range crossing a line break yields a zero-WIDTH rect for the
+        // <br> boundary itself (measured: 0x19 at the page's left margin,
+        // nowhere near the text). Drawing it puts an invisible element in
+        // the highlight layer at a misleading position; drop anything with
+        // no area.
         const containerBox = container.getBoundingClientRect()
-        rectsByExcerpt.push({
-          excerptId: ex.id,
-          rects: clientRects.map((r) => ({
+        const rects = Array.from(range.getClientRects())
+          .filter((r) => r.width > 0 && r.height > 0)
+          .map((r) => ({
             x: r.left - containerBox.left, y: r.top - containerBox.top, w: r.width, h: r.height,
-          })),
-        })
+          }))
+        if (!rects.length) continue
+        rectsByExcerpt.push({ excerptId: ex.id, rects })
       }
       setHighlightRects(rectsByExcerpt)
     }).catch(() => {})
@@ -334,6 +391,78 @@ function PdfPage({ pdf, pageNumber, scale, top, excerptsOnPage, emphasized, onTe
   )
 }
 
+/** Builds a rendered page's canonical text AND the text-node offset map that
+ * indexes into it. THE ONE PLACE either is derived, because capture and
+ * re-location must agree character-for-character or excerpts silently lose
+ * their anchors.
+ *
+ * ⛔ Found live in the browser: this used to be
+ * `textContent.items.map(it => it.str).join('')` on one side and the
+ * browser's own `Selection.toString()` on the other, and those are NOT the
+ * same string. pdfjs renders one <span> per item separated by
+ * `<br role="presentation">`, so a selection crossing a line break comes
+ * back with a "\n" the item-join never had -- and a wrapped line's items
+ * carry no trailing space, so the join reads "...meaning ofthe Private...".
+ * The mismatch made `fullText.indexOf(selection)` return -1 for EVERY
+ * selection longer than one rendered line, which is nearly every real
+ * excerpt: quote_prefix, quote_suffix, char_start and char_end all landed
+ * null (the entire W3C text-quote anchor Wave J is built on), and
+ * `_locateTextRange` could then never redraw the highlight. Both failures
+ * were SILENT -- the excerpt saved, the card appeared, and only the page
+ * highlight and the durability guarantee were missing.
+ *
+ * Walking the real DOM in document order reproduces exactly what the
+ * browser hands back from a selection, and needs no assumption about how
+ * pdfjs chooses to emit EOLs. */
+export function _buildPageText(container) {
+  const parts = []
+  const map = [] // [{ node, start, len }] -- text nodes, in document order
+  let offset = 0
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+  )
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = node.nodeValue || ''
+      if (!t) continue
+      map.push({ node, start: offset, len: t.length })
+      parts.push(t)
+      offset += t.length
+    } else if (node.nodeName === 'BR') {
+      parts.push('\n')
+      offset += 1
+    }
+  }
+  return { fullText: parts.join(''), map }
+}
+
+/** Converts a DOM Range boundary (node + offset) to an offset in the
+ * `fullText` `_buildPageText` produced -- the exact inverse of
+ * `_locateTextRange`'s mapping. Capturing offsets from the live Range is
+ * what makes them EXACT: the alternative, searching for the selected string,
+ * is both ambiguous on a repeated phrase and defeated by any whitespace the
+ * browser adds. Returns null when the boundary isn't inside this page. */
+export function _offsetOfPoint(map, node, offset) {
+  if (!node) return null
+  if (node.nodeType === Node.TEXT_NODE) {
+    const entry = map.find((m) => m.node === node)
+    return entry ? entry.start + Math.min(offset, entry.len) : null
+  }
+  // An element boundary: `offset` indexes its child nodes.
+  const child = node.childNodes?.[offset]
+  if (child) {
+    const at = map.find((m) => m.node === child || child.contains?.(m.node))
+    if (at) return at.start
+  }
+  const inside = map.filter((m) => node.contains?.(m.node))
+  if (inside.length) {
+    const last = inside[inside.length - 1]
+    return last.start + last.len
+  }
+  return null
+}
+
 /** Locates a saved excerpt's text inside a freshly-rendered page's text and
  * returns a real DOM Range spanning it -- or null if it can no longer be
  * found (a page re-extraction changed the text enough that even the quote-
@@ -341,8 +470,10 @@ function PdfPage({ pdf, pageNumber, scale, top, excerptsOnPage, emphasized, onTe
  * source of truth regardless, per checkpoint decision 14 -- this function
  * only affects whether a VISUAL highlight can be drawn, never the excerpt's
  * own stored content). Quote-context first (robust to drift elsewhere on
- * the page), a bare indexOf of the captured text as fallback. */
-export function _locateTextRange(fullText, excerpt, spans) {
+ * the page), a bare indexOf of the captured text as fallback.
+ *
+ * `map` is `_buildPageText`'s text-node map over the SAME fullText. */
+export function _locateTextRange(fullText, excerpt, map) {
   const needle = excerpt.capturedText || ''
   if (!needle) return null
   let start = -1
@@ -355,26 +486,18 @@ export function _locateTextRange(fullText, excerpt, spans) {
   if (start < 0) return null
   const end = start + needle.length
 
-  // Map [start, end) in fullText to (node, offset) pairs over the text
-  // layer's own spans, whose concatenated textContent equals fullText in
-  // the SAME order pdfjs emitted it (both onTextReady and this function
-  // walk `container.querySelectorAll('span')` identically).
-  let cursor = 0
   let startNode = null; let startOffset = 0
   let endNode = null; let endOffset = 0
-  for (const span of spans) {
-    const len = (span.textContent || '').length
-    const spanStart = cursor
-    const spanEnd = cursor + len
-    if (!startNode && start >= spanStart && start < spanEnd) {
-      startNode = span.firstChild
-      startOffset = start - spanStart
+  for (const entry of map) {
+    const entryEnd = entry.start + entry.len
+    if (!startNode && start >= entry.start && start < entryEnd) {
+      startNode = entry.node
+      startOffset = start - entry.start
     }
-    if (!endNode && end > spanStart && end <= spanEnd) {
-      endNode = span.firstChild
-      endOffset = end - spanStart
+    if (!endNode && end > entry.start && end <= entryEnd) {
+      endNode = entry.node
+      endOffset = end - entry.start
     }
-    cursor = spanEnd
     if (startNode && endNode) break
   }
   if (!startNode || !endNode) return null
