@@ -127,11 +127,16 @@ def seed_dot_form_aliases(db_path: str | None = None, dry_run: bool = False) -> 
     scan (60 pages, the whole reference universe) -- a per-symbol
     `massive.get_ticker_details()` call against cap_universe's ~14 hyphenated
     candidates is the smallest coherent check, and it EMPIRICALLY CONFIRMS
-    (never assumes from the suffix pattern alone) which of them Massive's own
-    reference API actually resolves under a dot spelling. That is what
-    excludes a genuine non-class-share hyphen ticker (e.g. a SPAC unit like
-    NWAX-U) without a hand-maintained denylist: no real vendor spells a unit
-    with a dot, so Massive's reference API simply returns nothing for it.
+    (never assumes from the suffix pattern alone, and never assumes from a
+    genuine-looking share-class SUFFIX either) which of them Massive's own
+    reference API actually resolves under a dot spelling -- measured
+    2026-09-06 against live production data: 13 of 14 confirmed (including
+    NWAX-U, a SPAC UNIT ticker whose dot form Massive's reference API DOES
+    carry -- disproving the assumption that only share classes get one).
+    The one exclusion, CWEN-A, is a genuine Massive 404 on `CWEN.A`
+    (verified directly against the raw REST call, not a swallowed
+    exception), not a suffix-pattern artifact -- exactly the class of wrong
+    guess this empirical check exists to prevent.
     """
     from api.services import cap_universe, massive
     from api.services.entity_master import api as em_api
