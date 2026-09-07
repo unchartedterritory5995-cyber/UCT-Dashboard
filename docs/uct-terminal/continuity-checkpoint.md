@@ -6,38 +6,39 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Seam 21 (MyStocksHub News/Filings/Calls Research companion link)
-merge/deploy -- the third program picked directly from the debt ledger
-after the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR's
-own named priority stack (13-lens multi-agent current-state review +
-synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens failures) was
-exhausted. Full re-anchor report delivered to the owner in-conversation;
-this doc keeps only the load-bearing conclusions, not the full 30-section
-report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
-Alert Durability V1 (Seam 30) plus the keyboard accessibility program
-plus Compare Coverage V1 (scoped via an explicit owner check-in,
-price-only) plus Seam 20 (Wire + MyStocksHub Insights row navigation)
-plus Feature-Flag Governance Sweep plus Seam 25 plus Seam 21 are now
-closed. **Seam 19 (the broader TickerActions/useTickerActions
-context-menu reuse into `EarningsTile.jsx`/`CalendarDayTable.jsx`/
-`FeedView.jsx`) was DELIBERATELY NOT bundled into the Seam 20 pass —
-larger blast radius, its own separate V2 scope, still open.**
-**A FULL re-scan of the debt ledger after Seam 21 found the remaining
-pool has thinned to items that each carry a real reason not to pick them
-up autonomously**: Seam 19 (larger blast radius, deliberately deferred
-twice already), Seam 1/6/7/8/11/14/17-remainder (each explicitly recorded
-as "not a bounded V1" / needs its own Phase A / architecture decision),
-Seam 13 (touches `PositionDetailPage.jsx`, which the concurrent,
-unrelated Notebook-platform session has been actively iterating on this
-same session — a protected-parallel-program conflict risk, not a
-technical blocker), Seam 18/22/24 (needs a product decision or is
-gated), Seam 3/4/27 (explicitly LOW-PRIORITY, "stop escalating"). One
-small, genuinely bounded item survived the re-scan and was picked up:
-**`CommandPalette.jsx`'s missing `r.ok` check** (recorded as pre-existing,
-out-of-scope debt during Search/Command Convergence V1's Phase A,
-2026-09-06, never picked up since) -- see below. Awareness Reachability
-Restoration V1 remains deliberately SKIPPED pending a genuine owner
-monetization/entitlement decision (see the top-of-file section) -- do not
+Seam 19 (TickerActions Dedicated Scope + Convergence V1) merge/deploy.
+After Seam 21 + the `CommandPalette.jsx` jsonFetcher fix, a full
+debt-ledger re-scan found no further clearly-bounded item and this doc
+recorded a HOLDING state -- **the owner then explicitly authorized and
+directed Seam 19 as the next program** (a dedicated, deeper Phase A,
+larger-than-V1 scope pre-authorized), overriding that hold. Full
+re-anchor report delivered to the owner in-conversation earlier;
+this doc keeps only the load-bearing conclusions. Both re-anchor MUST-FIX
+trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam 30) plus
+the keyboard accessibility program plus Compare Coverage V1 (scoped via
+an explicit owner check-in, price-only) plus Seam 20 (Wire + MyStocksHub
+Insights row navigation) plus Feature-Flag Governance Sweep plus Seam 25
+plus Seam 21 plus the `CommandPalette.jsx` jsonFetcher fix plus **Seam 19**
+are now closed. **Seam 19's dedicated Phase A found the real live surface
+was 3 components, not the 4 files the ledger named** — `FeedView.jsx`
+delegates entirely to `CalendarDayTable.jsx` for earnings rows (one
+wiring point covers both); `WeekView.jsx`'s only live row-renderer is
+`EarningsTile.jsx`. Two dead-code discoveries along the way, left
+untouched (zero member value): `FeedView.jsx`'s `PrintTape`/
+`CompactCluster` and `WeekView.jsx`'s `WeekRow` are all defined with zero
+JSX call-sites. **A FULL re-scan of the debt ledger after Seam 21 found
+the remaining pool (excluding Seam 19, since it is now separately
+authorized) has thinned to items that each carry a real reason not to
+pick them up autonomously**: Seam 1/6/7/8/11/14/17-remainder (each
+explicitly recorded as "not a bounded V1" / needs its own Phase A /
+architecture decision), Seam 13 (touches `PositionDetailPage.jsx`, which
+the concurrent, unrelated Notebook-platform session has been actively
+iterating on this same session — a protected-parallel-program conflict
+risk, not a technical blocker), Seam 18/22/24 (needs a product decision
+or is gated), Seam 3/4/27 (explicitly LOW-PRIORITY, "stop escalating").
+Awareness Reachability Restoration V1 remains deliberately SKIPPED
+pending a genuine owner monetization/entitlement decision (see the
+top-of-file section) -- do not
 resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
@@ -140,7 +141,11 @@ the already-populated `snapshot_date`/`bars_asof` columns from
 `snapshot_builder.py`'s own header). Production-verified live (AAPL:
 "built 2026-09-06, bars asof 2026-09-04" — a real 2-day divergence example
 on the very first check). 3 new tests + full 1011-test ai_search surface
-green → **now: Seam 21** (see the debt ledger below).
+green → Seam 21 ✅ → `CommandPalette.jsx` jsonFetcher fix ✅ → **Seam 19**
+✅ resolved same day, merge `7a0dd2a78`/`66f6e34f2` (owner-directed
+dedicated program, see "CURRENT ACTIVE PROGRAM" below for full detail) →
+**now: Seam 1** (read-side half — BRK.B Entity Master alias; see the debt
+ledger below).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -1671,26 +1676,46 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
   Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
   Feature-Flag Governance Sweep + Seam 25 + Seam 21 +
-  `CommandPalette.jsx` jsonFetcher fix — ALL DONE, ACCEPTED + LIVE.
-  HOLDING — no further clearly-bounded independent work identified.**
+  `CommandPalette.jsx` jsonFetcher fix + **Seam 19** — ALL DONE,
+  ACCEPTED + LIVE. Seam 1 (Entity Master BRK.B dot-form alias, read-side
+  half) — STARTING NOW.**
   The re-anchor's own named priority stack is EXHAUSTED (Feature-Flag
-  Governance Sweep was its last item); Seam 25, Seam 21, and the
-  CommandPalette fix were each selected directly from the debt ledger
-  below rather than a stack item. **A full re-scan of the ledger after
-  Seam 21 found every remaining item carries a real, recorded reason not
-  to pick it up autonomously** — see "Last verified" at the top of this
-  file for the itemized list (Seam 19 larger/deferred-twice, Seam
-  1/6/7/8/11/14/17-remainder each explicitly "not a bounded V1" in their
-  own entries, Seam 13 a parallel-program-conflict risk with the
-  concurrent Notebook session, Seam 18/22/24 needing a product decision
-  or gated, Seam 3/4/27 explicitly LOW-PRIORITY). This is the standing
-  directive's own "no independent work left" condition — reporting status
-  rather than manufacturing further activity. **Seam 19 (Board/Table/Feed
-  TickerActions context-menu reuse) remains
-  its own open, separately-scoped V2 — deliberately not bundled into the
-  Seam 20 pass** (larger blast radius across 3+ live files with existing
-  click handlers to preserve; see the Seam 19 debt-ledger entry below,
-  unchanged).
+  Governance Sweep was its last item); Seam 25/21/CommandPalette were
+  each selected from the debt ledger. After Seam 21, a full re-scan found
+  every remaining item carrying a real reason not to pick it up
+  autonomously and this doc recorded a HOLDING state — **the owner then
+  explicitly authorized and directed Seam 19 as its own dedicated,
+  larger-scope program** (Section III-VII of the directive: a full Phase A
+  proportional to Seam 19's own deferred-scope history, pre-authorized
+  implementation once Phase A confirms READY, explicit "do not
+  automatically hold after completion" instruction for what comes next).
+  **Seam 19 — ACCEPTED + LIVE, merge `7a0dd2a78`/`66f6e34f2`**: see the
+  Seam 19 debt-ledger entry below (now RESOLVED) for full Phase A
+  findings and implementation detail.
+  **Selecting the next program per the owner's own explicit priority
+  order (Section XI):** live-checked both interrupt conditions before
+  falling through to "highest-value remaining unblocked gap" —
+  (1) Pattern Vision: `PATTERN_VISION_ENABLED=1` on web (live-read via
+  `railway variables`), still LIVE/NOT YET ACCEPTED; the Tue 9/8/Wed 9/9
+  evidence window has not even started (today is 2026-09-06) — condition
+  does not apply. (2) S7 NVDA: `/data/alert_taxonomy.db` on web queried
+  directly — `alert_fires` table has **0 rows**, and the live predicate
+  `pred_dd253fcc78ab498a`'s `last_seen_state` accession is still the
+  original baseline (`0001197647-26-000009`) — no genuine filing has
+  landed; condition does not apply. (3) Highest-value unblocked gap: of
+  the pool re-scanned after Seam 21 (Seam 1/6/7/8/11/14/17-remainder,
+  Seam 13, Seam 18/22/24, Seam 3/4/27), **Seam 1's read-side half** is the
+  only one that is simultaneously a real member-facing defect (BRK.B —
+  a commonly-held real security — silently degrades Watchlist/Portfolio
+  Intelligence and Research estimates/financials), explicitly bounded
+  ("a second seeded S3 alias for the dot spelling, NOT a data
+  migration"), and confirmed STILL fully open by TWO independent later
+  programs re-checking it (Identity Normalization Hardening V1's own
+  write-time fix, then Ticker Search Identity Convergence V1/Seam 16) —
+  every other remaining item is either explicitly not-bounded, gated on a
+  product/owner decision, a parallel-program collision risk, or
+  explicitly deprioritized. See the Seam 1 debt-ledger entry below for
+  its full definition; Phase A beginning now.
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1786,16 +1811,47 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   regression test confirmed non-vacuous (verified it fails without the
   fix, then restored the fix) before merge. Full CommandPalette suite (37
   tests) + `jsonFetcher`'s own roster rail green; clean build.
-  **The re-anchor's own named priority stack is now exhausted, AND the
-  debt-ledger re-scan after this fix found no further clearly-bounded
-  item** (see the top-of-file summary for the full itemized reasoning) —
-  **holding here rather than manufacturing further activity.** The next
-  genuinely independent, bounded programs would need either (a) the
-  owner's monetization/entitlement decision on Awareness Reachability
-  Restoration V1, (b) an explicit decision to take on Seam 19's larger
-  scope, (c) a product decision on Seam 18, or (d) Pattern Vision's
-  classification landing (Tue 9/8 / Wed 9/9 window) unblocking Technical
-  Ask AI / Technical Research.
+  **The re-anchor's own named priority stack was exhausted and the
+  debt-ledger re-scan found no further clearly-bounded item — this doc
+  recorded a HOLDING state here. The owner then explicitly directed Seam
+  19 as its own dedicated, larger-scope program, overriding the hold**
+  → **Seam 19 (TickerActions Dedicated Scope + Convergence V1)** —
+  ACCEPTED + LIVE, merge `7a0dd2a78`/`66f6e34f2`: a dedicated Phase A
+  (per the owner's own 16-point checklist) found the real live surface
+  was 3 components, not the 4 files the ledger named — `FeedView.jsx`
+  delegates entirely to `CalendarDayTable.jsx` for earnings rows (one
+  wiring point covers Table+Feed); `WeekView.jsx`'s only live
+  row-renderer is `EarningsTile.jsx` (Board). Two dead-code discoveries,
+  left untouched (zero JSX call-sites, confirmed by direct read):
+  `FeedView.jsx`'s `PrintTape`/`CompactCluster`, `WeekView.jsx`'s
+  `WeekRow`. Wired all 3 live surfaces to `useTickerActions`/
+  `TickerActionsMenu`, matching each row's existing shape to an
+  already-established precedent elsewhere in the app: `EarningsTile.jsx`
+  gets whole-tile long-press (compact-card precedent, matches
+  `EarningsCard.jsx`); `CalendarDayTable.jsx` Row and `WireView.jsx`'s row
+  get sym-span-scoped long-press (dense multi-column precedent, matches
+  `VirtualResults.jsx`/`ResultCards.jsx`). Existing primary click (peek
+  modal / navigate) completely unchanged on all 3. Hook instantiated once
+  per list (not once per row), threaded via a `longPressProps` prop; menu
+  renders conditionally (`{ta.menu && <TickerActionsMenu/>}`) so it never
+  needs a Router until a context menu genuinely opens. 14 new tests
+  across 2 new files + 2 extended, following the established
+  shallow-mock-TickerActions convention (`EarningsCard.test.jsx`/
+  `VirtualResults.test.jsx`); confirmed non-vacuous (all 7 wiring
+  assertions verified to fail without the fix, then restored). Full
+  calendar suite (381 tests/29 files) green; clean build. Production-
+  verified live (deployed bundle: `longPressProps` — an identifier unique
+  to this wiring — appears 13× in the exact chunk that also carries
+  WireView's own row markup).
+  **Next program selected per the owner's own explicit priority order**
+  (Pattern Vision LIVE+ACCEPTED / genuine S7 event / else highest-value
+  unblocked gap) — both interrupt conditions live-checked and ruled out
+  (Pattern Vision still `PATTERN_VISION_ENABLED=1`/not yet accepted,
+  evidence window not started; S7 `alert_fires` table has 0 rows, the
+  live NVDA predicate's `last_seen_state` still shows the original
+  baseline accession) → **now: Seam 1** (read-side half — Entity Master's
+  BRK.B dot-form alias; see the debt ledger below for its full
+  definition and confirmed-still-open history across two later programs).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
@@ -2068,20 +2124,21 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (`reachable.test.js:301-303`). Fixing either is moot until a product
   decision names the canonical live news tile (NewsFeed vs. TapeFeed vs. its
   live duplicate `MoversSidebar.jsx`); wiring dead code serves no member.
-- **Seam 19 — TickerActions long-press/right-click reuse is bounded to one
-  earnings surface (surfaced by Event / News / Calendar → Research
-  Convergence V1's Phase A, 2026-09-06, NOT fixed — real gap, larger blast
-  radius than a bounded V1).** Only `EarningsCard.jsx` (reachable via
-  `DayDetailDrawer`/MyStocksHub Earnings tab) wires `useTickerActions`/
-  `TickerActionsMenu`, giving it BOTH `/research/{sym}` and
-  `?section=ai` plus touch-parity (`longPressProps` mirroring
-  `onContextMenu`). The dominant, first-landed calendar surfaces — Board
-  (`EarningsTile.jsx`), Table/Feed (`CalendarDayTable.jsx`,
-  `FeedView.jsx`), and Wire (`WireView.jsx`) — have none of this, so
-  `?section=ai` is unreachable from any of them without first opening the
-  modal → drawer path. Expanding reuse into 3+ additional live files with
-  existing click handlers to preserve is real work, deliberately left for a
-  dedicated V2, not bundled into this narrow V1.
+- **Seam 19 — RESOLVED 2026-09-06, merge `7a0dd2a78`/`66f6e34f2`
+  (owner-directed dedicated program, TickerActions Dedicated Scope +
+  Convergence V1).** Was: only `EarningsCard.jsx` wired `useTickerActions`/
+  `TickerActionsMenu`; Board/Table/Feed/Wire had none of it, so Ask AI/
+  Flag/Tag/Compare/Alert were unreachable without first opening the
+  modal → drawer path. Dedicated Phase A found the real live surface was
+  3 components, not 4 files (`FeedView.jsx` delegates entirely to
+  `CalendarDayTable.jsx`; `WeekView.jsx`'s only live renderer is
+  `EarningsTile.jsx`) — plus 3 dead-code functions left untouched
+  (`FeedView.jsx`'s `PrintTape`/`CompactCluster`, `WeekView.jsx`'s
+  `WeekRow`, zero JSX call-sites). Wired all 3, matching long-press
+  scoping to each row's existing shape (whole-tile for the compact
+  `EarningsTile`, sym-span-scoped for the two dense multi-column rows).
+  14 new tests, confirmed non-vacuous; full calendar suite (381/29)
+  green; production-verified via a unique-identifier bundle check.
 - **Seam 20 — RESOLVED 2026-09-06, merge `25531af60`/`9b4384d9e`
   (Calendar TickerActions Reuse V2).** Was: Wire view rows and
   MyStocksHub's Insights tab were confirmed dead ends (surfaced by Event /
