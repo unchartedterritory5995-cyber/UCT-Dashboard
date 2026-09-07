@@ -19,6 +19,7 @@ import { Toggle, ToggleSummary, ToggleContent } from './toggleNode'
 import { NoteFind } from './noteFindExtension'
 import { NoteLink } from './noteLinkNode'
 import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
+import { FinancialFact } from './financialFactNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -73,6 +74,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // WidgetEmbed above -- TipTap drops unknown node types at parse time.
     NoteLink,
     NoteLinkMenuExtension,
+    // Wave F: captured financial fact cards. Same "never remove" rule as
+    // WidgetEmbed/NoteLink above -- TipTap drops unknown node types at parse
+    // time.
+    FinancialFact,
   ]
 }
 

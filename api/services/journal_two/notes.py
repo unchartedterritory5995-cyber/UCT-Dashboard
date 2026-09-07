@@ -306,6 +306,46 @@ def _sync_note_links(
             [(note_id, user_id, i, tid) for i, tid in enumerate(target_ids)])
 
 
+def _extract_note_fact_refs(doc: dict[str, Any] | None) -> list[str]:
+    """Every `financialFact` node's fact id, in document order (Wave F)."""
+    ids: list[str] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "financialFact":
+            attrs = node.get("attrs")
+            fid = attrs.get("factId") if isinstance(attrs, dict) else None
+            if isinstance(fid, str) and fid:
+                ids.append(fid)
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return ids
+
+
+def _sync_note_fact_refs(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_fact_refs projection inside the caller's
+    transaction (no commit here) -- same delete+insert idiom as
+    _sync_note_links. Facts are note-owned (Wave F checkpoint decision 24):
+    a factId this note no longer references simply drops out of the sidecar;
+    the owning j2_fact_observations row is untouched here (removal-as-deletion
+    is note_facts.delete_fact_observation's job, called explicitly by the
+    editor when a member removes a financialFact node, never inferred from a
+    save diff -- inferring it here would delete a fact the member only
+    temporarily cut mid-edit)."""
+    conn.execute("DELETE FROM j2_note_fact_refs WHERE note_id = ?", (note_id,))
+    fact_ids = _extract_note_fact_refs(body_json)
+    if fact_ids:
+        conn.executemany(
+            "INSERT INTO j2_note_fact_refs (note_id, user_id, position, fact_id)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, i, fid) for i, fid in enumerate(fact_ids)])
+
+
 # ── Validation ───────────────────────────────────────────────────────────────
 
 def _validate_tags(raw: Any) -> list[str]:
@@ -640,6 +680,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_embeds(conn, user_id, row["id"], body_json)
                         _sync_note_mentions(conn, user_id, row["id"], body_plain)
                         _sync_note_links(conn, user_id, row["id"], body_json)
+                        _sync_note_fact_refs(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
                     else:
@@ -655,6 +696,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_embeds(conn, user_id, new_id, body_json)
                         _sync_note_mentions(conn, user_id, new_id, body_plain)
                         _sync_note_links(conn, user_id, new_id, body_json)
+                        _sync_note_fact_refs(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         created.append(item)
@@ -1678,6 +1720,7 @@ def create_note(
         _sync_note_embeds(conn, user_id, new_id, body_json)
         _sync_note_mentions(conn, user_id, new_id, body_plain)
         _sync_note_links(conn, user_id, new_id, body_json)
+        _sync_note_fact_refs(conn, user_id, new_id, body_json)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -2063,6 +2106,7 @@ def update_note(
             _sync_note_embeds(conn, user_id, note_id, bj)
             _sync_note_mentions(conn, user_id, note_id, bp)
             _sync_note_links(conn, user_id, note_id, bj)
+            _sync_note_fact_refs(conn, user_id, note_id, bj)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2119,6 +2163,67 @@ def append_widget_embed(
         _sync_note_embeds(conn, user_id, note_id, body_json)
         _sync_note_mentions(conn, user_id, note_id, body_plain)
         _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        conn.commit()
+        out = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        return _row_to_note(out)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def append_financial_fact(
+    user_id: str,
+    note_id: str,
+    fact_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave F — the server half of a "Save price to Notebook" capture from a
+    surface OUTSIDE the note editor (e.g. TickerPopup): append one
+    financialFact node referencing an already-created fact observation to a
+    note's body. Mirrors append_widget_embed exactly (atomic load/append/save
+    in one transaction, same sidecar syncs, same trash guard). The fact row
+    itself must already exist (created via note_facts.create_fact_observation
+    against this SAME note_id) -- this function only places the NODE; it
+    never creates or validates the fact's value."""
+    if not fact_id:
+        raise NoteValidationError("factId required")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (TypeError, ValueError):
+            doc = {}
+        if not isinstance(doc, dict) or doc.get("type") != "doc":
+            doc = {"type": "doc", "content": []}
+        content = doc.get("content")
+        if not isinstance(content, list):
+            content = []
+        content.append({"type": "financialFact", "attrs": {"factId": fact_id}})
+        doc["content"] = content
+        body_json = _validate_body_json(doc)
+        body_plain = extract_plain_text(body_json)
+        conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, updated_at = ?"
+            " WHERE id = ? AND user_id = ?",
+            (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
+        )
+        _sync_note_embeds(conn, user_id, note_id, body_json)
+        _sync_note_mentions(conn, user_id, note_id, body_plain)
+        _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)

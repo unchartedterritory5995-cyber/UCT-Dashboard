@@ -1190,3 +1190,71 @@ def test_export_never_duplicates_financial_derived_properties_under_the_generic_
     blob, _ = build_export_zip("u1", conn=c)
     body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
     assert body.count("NVDA") == 1  # only the dedicated `ticker:` field
+
+
+# ── Wave F: financial fact export ────────────────────────────────────────────
+
+def test_full_export_renders_a_captured_financial_fact_as_readable_front_matter():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "financial_facts:" in body
+    assert "ticker: NVDA" in body
+    assert "fact: Price" in body
+    assert "value: $142.83" in body
+
+
+def test_full_export_never_leaks_a_current_value_only_the_immutable_original():
+    """An export is a durable artifact, not a live view (directive §82) --
+    it must never trigger or embed a live current-value lookup."""
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "current" not in body.lower()
+
+
+def test_full_export_includes_a_fact_caption_when_present():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation(
+        "u1", "n1", ticker="NVDA", fact_type="price", value=142.83,
+        caption="ahead of earnings", conn=c,
+    )
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "note: ahead of earnings" in body
+
+
+def test_single_note_export_also_renders_financial_facts():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="user_note", value="My target: 195", conn=c)
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "fact: Note" in text
+    assert "My target: 195" in text
+
+
+def test_a_notes_facts_never_appear_in_another_notes_export():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis A", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Thesis B", _doc(_para("y")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=1.0, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "financial_facts:" not in zf.read("Thesis B.md").decode("utf-8")
+    assert "financial_facts:" in zf.read("Thesis A.md").decode("utf-8")

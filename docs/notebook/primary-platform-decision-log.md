@@ -1342,6 +1342,137 @@ duplicated here.
 
 ---
 
+### 2026-09-07 — WAVE F: Financial Fact / Snapshot Ledger + Temporal Semantics — implemented, tested, real-browser E2E verified, merged, deployed, production-verified
+
+Built directly per the standing PERMANENT session rule (unbroken since Process
+incident #2): no fork/subagent dispatch for any part of Wave F's research,
+architecture, implementation, testing, browser verification, git
+reconciliation, or deployment.
+
+**The load-bearing architectural finding this wave turned on:** the chart
+embed's proven "frozen at insert" pattern is a QUERY-CUTOFF mechanism (a
+stamped epoch timestamp, re-derived against the permanent `bars.db` at render
+time), not a value-copy mechanism — confirmed by reading `ChartEmbed.jsx` and
+`widgetEmbedCore.js` in full during the entry checkpoint. This does NOT
+generalize to analyst estimates, which have no historical, point-in-time-
+queryable store anywhere upstream — an estimate observed today can only survive
+to be read in a month if Wave F copies the actual value at capture time. This
+asymmetry is why PRICE (query-cutoff-compatible, rights-independent, backed by
+UCT's own already-licensed Massive bars) and a genuinely new value-copy ledger
+needed different storage strategies sharing only an identity/registry model.
+
+**A second load-bearing finding:** `entity_master` (`api/services/entity_master/`)
+already exists — fully built, tested (76/76 across its own 8 checkpoints),
+seeded against real production data, and owner-accepted 2026-09-02 — as a
+canonical, `as_of`-aware, ambiguity-honest security-identity service, and it
+was completely unwired to any consumer anywhere in this codebase. Wave F is its
+first real consumer (`note_facts._resolve_entity_id`). This changed entry
+checkpoint decision 9 from "invent a stable id" to "consume the real one
+already sitting there" — not a contradiction of the directive, exactly the
+kind of pre-existing infrastructure §23 asked to verify before inventing
+something new.
+
+**What shipped:** `j2_fact_observations` (immutable, note-owned, no
+value-update code path exists in `note_facts.py` at all) + `j2_note_fact_refs`
+(sidecar, mirrors `j2_note_links`'s exact "rebuildable projection" contract) +
+two cascade-delete triggers; a small fact-type registry (`price` and
+`user_note` ACTIVE; `analyst_price_target_consensus` architected but
+INACTIVE — proves the design generalizes to a genuinely rights-conditional
+type without shipping any new persistent vendor-value storage); a batched,
+per-note current-value resolver riding the existing shared live-price cache
+(zero new provider cost); a new `financialFact` TipTap node (mirroring Wave
+D's `noteLink` node precedent, deliberately NOT the `/charts`
+`WIDGET_REGISTRY`, which is cross-surface panel infrastructure of the wrong
+shape for an immutable data card); two capture entry points (`/price TICKER`
+slash command; a `TickerPopup` "Save price to Notebook" door); export
+integration (immutable-observation values only, never a live lookup); and
+`docs/notebook/financial-temporal-semantics.md`, the durable, program-wide
+contract for the four temporal modes (`live` / `snapshot` / `live_and_snapshot`
+/ `reference_only`), binding on every future wave touching this ledger.
+
+**The core guarantee, proven live rather than merely asserted:** created a
+real `price` fact via the API with an explicit value ($142.83), opened the
+actual note editor, and watched the CURRENT half honestly report "Couldn't
+refresh" (this sandbox has no live Massive API key — a disclosed environment
+limitation, not a code defect) while the CAPTURED half stayed exactly $142.83
+— proving directive §47/§81/§98's single most emphasized rule live: a
+current-value resolver failure never hides the original observation. Also
+proven live: removing the `financialFact` node from a note (its own × button)
+left the underlying `j2_fact_observations` row fully intact and updatable — a
+note-content change is not a ledger deletion; only `note_facts
+.delete_fact_observation` (separately verified) actually deletes a fact.
+
+**One real, reproducible defect found via live browser testing — not the unit
+suite alone — and fixed:** `FinancialFactView.jsx` read
+`editor.storage.uctJournalWidgets.noteId` SYNCHRONOUSLY at first render, losing
+a timing race this exact codebase had already hit and documented elsewhere
+(`WidgetEmbedView.jsx`'s own "settle window" comment: "node-view effects can
+run before the page's onCreate stamps editor.storage"). Because nothing else
+ever re-renders an already-mounted node view when unrelated `editor.storage`
+mutates later, a `noteId` read as `undefined` on the first render stayed
+`undefined` forever — the note-facts fetch never fired, and a genuinely-
+captured, backend-verified fact permanently rendered "This captured fact is no
+longer available." Caught by directly comparing a backend `curl` response
+(correct, fast) against the actual rendered note editor (wrong) on the exact
+same fact id. Fixed with a `useState` + `useEffect` 50ms settle-window
+re-check, the same hazard class `WidgetEmbedView.jsx` already names; re-
+verified live (the card renders correctly) and covered by two new regression
+tests.
+
+**Rights discipline held exactly as specified:** attempting to create an
+`analyst_price_target_consensus` fact raises `FactValidationError` ("not yet
+enabled") at both the service layer and the router (400); no frontend surface
+can reach it. Competitive-gap-ledger G-060 closed, G-062 updated to PARTIAL
+with an accurate split (price/user-note DONE, estimates rights-gated not
+effort-blocked); readiness-scorecard's Temporal Correctness / Provenance row
+raised 5→7.
+
+**Verification breadth:** entity-identity resolution (all three real statuses:
+resolved/not_found/ambiguous, none ever blocking a capture; a simulated
+resolver exception also degrades rather than raising); idempotency (a repeated
+key returns the SAME fact, the first value wins; two different intents never
+conflated; scoped per-user); tenant isolation (a foreign user can neither read,
+delete, nor caption-update another user's fact, verified with real cross-user
+router requests); export (immutable values only, never a live lookup, verified
+both in the full archive and single-note paths); account-deletion coverage
+(the two new tables covered automatically by the existing schema-driven
+generic purge test, zero bespoke test code needed); a proportionate
+performance check (3,000 notes each with one fact: 0.07-0.09ms reads, no
+scaling concern); a mobile sweep (0 overflow, 0 small targets on phone/
+phone390/tablet); and an accessibility check (a real semantic `<button
+aria-label="Remove captured fact from note">`, verified via a live DOM query
+against the actual rendered card — never color-only change signaling).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT** (the
+directive's own three-way taxonomy) — one real local defect found, fixed,
+tested, and real-browser-verified; no architecture-level contradiction against
+the entry checkpoint's 46 decisions; no scope added (no `reference_only` fact
+type shipped active, no board/calendar rendering, no Research Time
+Machine/Thesis Changelog/Ask Notebook grounding — all explicitly deferred as
+future-wave prerequisites this wave only lays groundwork for). **Explicitly
+recorded, not fixed:** the `TickerPopup` capture door is unit-tested (5 passing
+tests) but wasn't exercised via live-browser click-through this pass (no
+reachable ticker chip existed in this sandbox's empty seeded data — the
+`/price` slash command, the primary entry point, IS fully live-verified);
+`analyst_price_target_consensus` stays inactive pending a real, separate
+rights approval (not a build task); `source_as_of` is `NULL` for every fact
+type this wave ships (no current UCT provider path exposes a reliable per-
+value as-of time distinct from request time — disclosed in
+`financial-temporal-semantics.md`, not silently omitted).
+
+**Wave F's core contracts are now FROZEN per the directive**: the four
+temporal-mode definitions, the immutable-observation/mutable-caption-only
+split, the note-owned (not shared) fact lifecycle, the `entity_master`-backed
+identity model, the `financialFact` node + sidecar pattern, the rights-class
+gate on WRITE (never on read), and the batched-per-note current-value
+resolution contract.
+
+**Production closure:** same isolated-temporary-worktree process as prior
+waves. Merge/deploy detail recorded once the push completes — see the
+immediately following entry.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

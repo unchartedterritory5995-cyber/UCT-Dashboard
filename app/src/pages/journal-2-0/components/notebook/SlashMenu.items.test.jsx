@@ -2,8 +2,8 @@
 // (prefix matching armed an Enter trap on prose; the exact-match fix then
 // killed '/ch' discoverability, found by the owner on prod). Single token =
 // prefix match (completion, nothing to eat); with args/prose = exact name.
-import { describe, it, expect } from 'vitest'
-import { widgetItems } from './SlashMenu'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { widgetItems, factItems } from './SlashMenu'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
 
@@ -116,5 +116,84 @@ describe('composition presets (/mtf, /compare)', () => {
     // The optional tf reaches BOTH halves.
     const pair15 = insertedBy('compare AMD 3/13/2026 15m')
     expect(pair15.map((n) => n.attrs.params.tf)).toEqual(['15', '15'])
+  })
+})
+
+describe('/price (Wave F financial fact capture)', () => {
+  const factTitles = (q) => factItems(q).map((i) => i.title)
+
+  it('single-token discovery + bare-name hint', () => {
+    expect(factTitles('p')).toEqual(['Price'])
+    expect(factTitles('price')).toEqual(['Price'])
+    expect(factTitles('')).toEqual(['Price'])
+  })
+
+  it('a valid symbol produces the capture item', () => {
+    expect(factTitles('price NVDA')).toEqual(['Price — NVDA'])
+    expect(factTitles('price amd')).toEqual(['Price — AMD'])
+  })
+
+  it('prose or multiple tokens after the name match nothing', () => {
+    expect(factTitles('price looks great here')).toEqual([])
+    expect(factTitles('price NVDA AMD')).toEqual([])
+    expect(factTitles('pr NVDA')).toEqual([])  // prefix + args never matches
+  })
+
+  it('unrelated tokens match nothing', () => {
+    expect(factTitles('chart')).toEqual([])
+    expect(factTitles('xyz')).toEqual([])
+  })
+
+  const realFetch = global.fetch
+  beforeEach(() => { global.fetch = vi.fn() })
+  afterEach(() => { global.fetch = realFetch })
+
+  function makeChain(box) {
+    const chain = {
+      focus: () => chain, deleteRange: () => chain,
+      insertContent: (c) => { box.inserted = c; return chain },
+      run: () => {},
+    }
+    return chain
+  }
+
+  it('on success, POSTs the capture and inserts a financialFact node with the returned id', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true, json: async () => ({ fact: { id: 'fact-123' } }),
+    })
+    const box = { inserted: null }
+    const chain = makeChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await factItems('price NVDA')[0].command({ editor, range: {} })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notes/note-1/facts', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ ticker: 'NVDA', factType: 'price' }),
+    }))
+    expect(box.inserted).toEqual({ type: 'financialFact', attrs: { factId: 'fact-123' } })
+  })
+
+  it('on a failed capture, inserts nothing (never a broken/partial node)', async () => {
+    global.fetch.mockResolvedValue({ ok: false })
+    const box = { inserted: null }
+    const chain = makeChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await factItems('price NVDA')[0].command({ editor, range: {} })
+    expect(box.inserted).toBeNull()
+  })
+
+  it('a network error never throws onto the caller and inserts nothing', async () => {
+    global.fetch.mockRejectedValue(new Error('network down'))
+    const box = { inserted: null }
+    const chain = makeChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await expect(factItems('price NVDA')[0].command({ editor, range: {} })).resolves.toBeUndefined()
+    expect(box.inserted).toBeNull()
+  })
+
+  it('with no noteId on editor storage, never calls fetch at all', async () => {
+    const chain = makeChain({ inserted: null })
+    const editor = { chain: () => chain, storage: {} }
+    await factItems('price NVDA')[0].command({ editor, range: {} })
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })

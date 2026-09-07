@@ -2031,6 +2031,75 @@ def delete_saved_view_endpoint(view_id: str, user: dict = Depends(get_current_us
     return {"ok": True}
 
 
+# ── Wave F (Financial Fact / Snapshot Ledger) ───────────────────────────────
+from api.services.journal_two import note_facts, fact_current_value
+
+
+@router.post("/notes/{note_id}/facts")
+def create_note_fact_endpoint(
+    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        fact = note_facts.create_fact_observation(
+            user["id"], note_id,
+            ticker=body.get("ticker"), fact_type=body.get("factType"),
+            value=body.get("value"), observed_at=body.get("observedAt"),
+            caption=body.get("caption"), idempotency_key=body.get("idempotencyKey"),
+            period=body.get("period"), source_ref=body.get("sourceRef"),
+        )
+    except note_facts.FactValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"fact": fact}
+
+
+@router.get("/notes/{note_id}/facts")
+def list_note_facts_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Every fact this note references, resolved + batch current-value lookup
+    (checkpoint decision 21/24/39) -- one call per note-open, never one call
+    per fact."""
+    facts = note_facts.list_note_facts(user["id"], note_id)
+    current = fact_current_value.resolve_current_values(facts)
+    for f in facts:
+        if f["id"] in current:
+            f["current"] = current[f["id"]]
+    return {"facts": facts}
+
+
+@router.post("/notes/{note_id}/facts/{fact_id}/insert")
+def insert_note_fact_endpoint(
+    note_id: str, fact_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The server half of a capture from OUTSIDE the note editor (e.g.
+    TickerPopup's "Save to Notebook" door): place an already-created fact's
+    financialFact node into a note's body. The fact must already exist
+    against this same note_id (checkpoint decision 30)."""
+    try:
+        note = notes_service.append_financial_fact(user["id"], note_id, fact_id)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"note": note}
+
+
+@router.put("/facts/{fact_id}")
+def update_note_fact_endpoint(
+    fact_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    fact = note_facts.update_fact_caption(user["id"], fact_id, body.get("caption"))
+    if fact is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"fact": fact}
+
+
+@router.delete("/facts/{fact_id}")
+def delete_note_fact_endpoint(fact_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    ok = note_facts.delete_fact_observation(user["id"], fact_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
 # Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
 # (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).
