@@ -148,17 +148,66 @@ export function institutionalFlow(own) {
     })
   }
 
-  // The four position-flow counts, shown as one line because they are one fact.
-  const flow = [
-    ['new_positions', 'New', 'up'],
-    ['increased_positions', 'Added', 'up'],
-    ['reduced_positions', 'Reduced', 'down'],
-    ['closed_positions', 'Exited', 'down'],
-  ].map(([k, label, tone]) => ({ key: k, label, tone, value: num(s[k]) }))
-    .filter(f => f.value != null)
+  // ── the position flow, as TWO SIDES rather than four numbers ────────────
+  // New + Increased is one behaviour and Reduced + Exited is the opposite one.
+  // Rendered as four equal-weight counts they competed with each other and the
+  // reader had to do the grouping; grouped, the balance is the first thing you
+  // see. The side TOTAL leads and its parts follow, so the comparison is
+  // between two numbers, not eight.
+  const side = (keys, tone) => {
+    const parts = keys
+      .map(([k, label]) => ({ key: k, label, value: num(s[k]) }))
+      .filter(p => p.value != null)
+    if (!parts.length) return null
+    return { tone, parts, total: parts.reduce((a, p) => a + p.value, 0) }
+  }
+  const accumulation = side([['new_positions', 'new'], ['increased_positions', 'increased']], 'up')
+  const distribution = side([['reduced_positions', 'reduced'], ['closed_positions', 'exited']], 'down')
 
-  if (!rows.length && !flow.length) return null
-  return { rows, flow, quarter: tf.quarter, quarterLabel: quarterLabel(tf.quarter) }
+  if (!rows.length && !accumulation && !distribution) return null
+  return {
+    rows, accumulation, distribution,
+    quarter: tf.quarter,
+    quarterLabel: quarterLabel(tf.quarter),
+    asOf: quarterEnd(tf.quarter),
+  }
+}
+
+// ── insider role normalisation (§8) ─────────────────────────────────────────
+/**
+ * FMP's `typeOfOwner` is prose ("officer: Chief Executive Officer"), which is
+ * accurate and too long for a 62px column. These map ONLY the titles whose
+ * abbreviation is unambiguous.
+ *
+ * ⛔ Anything not matched is returned UNCHANGED. A wrong abbreviation on a
+ * filing is worse than a long one — "officer: EVP Global Operations" has no
+ * standard short form, so it keeps its own words and the column ellipsises.
+ */
+const ROLE_MAP = [
+  // The word boundaries are load-bearing: a bare /cto/ fires on "Director of
+  // Technology" and /cao/ on "Chicago". An acronym only counts as a whole word.
+  [/chief executive officer|\bceo\b/i, 'CEO'],
+  [/chief financial officer|\bcfo\b/i, 'CFO'],
+  [/chief operating officer|\bcoo\b/i, 'COO'],
+  [/chief technology officer|\bcto\b/i, 'CTO'],
+  [/chief accounting officer|\bcao\b/i, 'CAO'],
+  [/chief legal officer|general counsel/i, 'General Counsel'],
+  [/^\s*director\s*$/i, 'Director'],
+  [/\bchairman\b/i, 'Chairman'],
+  [/10%|ten percent/i, '10% owner'],
+]
+
+export function normalizeRole(title) {
+  const raw = String(title || '').trim()
+  if (!raw) return null
+  // Strip FMP's "officer: " / "director: " prefix — the role itself follows.
+  const body = raw.replace(/^(officer|director)\s*:\s*/i, '').trim() || raw
+  for (const [re, short] of ROLE_MAP) {
+    if (re.test(body)) return short
+  }
+  // A bare "director" prefix with no body is still a director.
+  if (/^director\b/i.test(raw)) return 'Director'
+  return body
 }
 
 // ── top holders ─────────────────────────────────────────────────────────────
@@ -268,6 +317,7 @@ export function insiderActivity(rows, { days = 90, now = Date.now() } = {}) {
       date: r.date,
       name: r.name || '—',
       title: r.title || null,
+      role: normalizeRole(r.title),
       type: r.type,
       shares: num(r.shares),
       amount: num(r.amount),
@@ -300,8 +350,12 @@ export function positioningFacts(own) {
     const chg = ((cur - prior) / prior) * 100
     out.push({
       key: 'shortchg', label: 'Short vs prior month', value: fmtSigned(chg, 1),
-      tone: chg > 0 ? 'down' : chg < 0 ? 'up' : 'none',
-      hint: 'Change in shares short against the previous FINRA settlement date. Rising short interest is shown red.',
+      // ⚠️ NOT the sign of the number. Short interest FALLING is the
+      // constructive reading, so a negative change is GREEN and a positive one
+      // RED — the inverse of every other change in this panel, which is exactly
+      // why it is spelled out here rather than left to a generic sign rule.
+      tone: chg < 0 ? 'up' : chg > 0 ? 'down' : 'none',
+      hint: 'Change in shares short against the previous FINRA settlement date. Short interest falling is shown green, rising red.',
     })
   }
   return out.length >= 2 ? out : []

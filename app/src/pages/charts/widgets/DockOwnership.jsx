@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import {
   snapshotFacts, institutionalFlow, topHolders, insiderActivity, positioningFacts,
-  HOLDER_STATE, fmtShares, fmtMoney, fmtPct, fmtDate, fmtDateShort, quarterEnd,
+  HOLDER_STATE, fmtShares, fmtMoney, fmtPct, fmtDate, fmtDateShort,
 } from './ownershipModel'
 import styles from './dockPanels.module.css'
 
@@ -133,7 +133,9 @@ function InsiderTable({ rows }) {
                 and inherited the panel's 12px body size while the ROLE picked
                 up the 11px meant for the name. Caught on screen. */}
             <span className={styles.owInsWho}>{t.name}</span>
-            {t.title && <span className={styles.owInsRole}>{t.title}</span>}
+            {/* Abbreviated where unambiguous; the filing's own words otherwise,
+                and the full string stays on the row's title attribute. */}
+            {t.role && <span className={styles.owInsRole}>{t.role}</span>}
           </span>
           <span className={`${styles.owInsShares} ${t.type === 'buy' ? styles.pos : styles.neg}`}>
             {t.type === 'buy' ? '+' : '−'}{fmtShares(t.shares)}
@@ -208,10 +210,15 @@ export default function DockOwnership({ sym }) {
             {/* HOW ownership is changing. Counts of FILINGS, never of trades. */}
             {flow && (
               <>
+                {/* One line, not a paragraph. The filing-lag mechanics are real
+                    and belong in Data & methodology; the interface only needs to
+                    say WHICH DATE these numbers describe. */}
                 <SectionHead
                   title="Institutional activity"
                   meta={flow.quarterLabel ? { label: 'Reported', value: flow.quarterLabel } : null}
-                  note={`Positions as reported in Form 13F for the quarter ended ${fmtDate(quarterEnd(flow.quarter)) || flow.quarterLabel}. Filers have up to 45 days after the quarter closes, so this is a snapshot of that date, not of today.`}
+                  note={flow.asOf
+                    ? `13F holdings as of ${fmtDate(flow.asOf)} · reported with filing lag`
+                    : '13F holdings · reported with filing lag'}
                 />
                 <div className={styles.etQuality}>
                   {flow.rows.map(r => (
@@ -228,14 +235,21 @@ export default function DockOwnership({ sym }) {
                     </div>
                   ))}
                 </div>
-                {flow.flow.length > 0 && (
+                {(flow.accumulation || flow.distribution) && (
                   <div className={styles.owFlow}>
-                    {flow.flow.map(f => (
-                      <span key={f.key} className={styles.owFlowItem}>
-                        <span className={`${styles.owFlowN} ${TONE[f.tone]}`}>{f.value}</span>
-                        <span className={styles.owFlowK}>{f.label}</span>
-                      </span>
-                    ))}
+                    {[['Accumulating', flow.accumulation], ['Distributing', flow.distribution]]
+                      .filter(([, side]) => side)
+                      .map(([label, side]) => (
+                        <div key={label} className={styles.owFlowSide}>
+                          <span className={styles.owFlowK}>{label}</span>
+                          <span className={`${styles.owFlowN} ${TONE[side.tone]}`}>
+                            {side.total.toLocaleString()}
+                          </span>
+                          <span className={styles.owFlowParts}>
+                            {side.parts.map(pt => `${pt.value.toLocaleString()} ${pt.label}`).join(' · ')}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 )}
               </>
@@ -253,7 +267,7 @@ export default function DockOwnership({ sym }) {
                 <div className={`${styles.owHead}${holders.hasChange ? '' : ' ' + styles.owHead2}`}>
                   <span>Holder</span>
                   <span className={styles.owR}>Shares</span>
-                  {holders.hasChange && <span className={styles.owR}>Position</span>}
+                  {holders.hasChange && <span className={styles.owR}>Change</span>}
                 </div>
                 <div className={holders.hasChange ? styles.owTable : `${styles.owTable} ${styles.owTable2}`}>
                   {visibleHolders.map(h => (
@@ -278,12 +292,12 @@ export default function DockOwnership({ sym }) {
                   meta={insider.hasRecent
                     ? { label: `Last ${insider.days}d`, value: `${insider.buyCount} buy · ${insider.sellCount} sell` }
                     : null}
-                  note="Open-market purchases and sales only. Grants, awards, option exercises and gifts are excluded — they are compensation events, not decisions to buy or sell at the market price."
+                  note="Open-market purchases and sales only · Form 4"
                 />
                 {insider.hasRecent ? (
                   <div className={styles.etQuality}>
                     <div className={styles.etQRow}>
-                      <span className={styles.etQKey}>Net value, last {insider.days} days</span>
+                      <span className={styles.etQKey}>Net open-market value · {insider.days}D</span>
                       <span className={`${styles.etQVal} ${insider.net > 0 ? styles.pos : insider.net < 0 ? styles.neg : ''}`}>
                         {insider.net > 0 ? '+' : ''}{fmtMoney(insider.net)}
                       </span>
@@ -329,7 +343,9 @@ export default function DockOwnership({ sym }) {
                   <span className={styles.finProvK}>Institutional</span>
                   <span className={styles.finProvV}>
                     Form 13F via FMP{flow?.quarterLabel ? ` — ${flow.quarterLabel}` : ''}. Managers with
-                    over $100M in US equities file quarterly, up to 45 days after the quarter ends.
+                    over $100M in US equities file quarterly, and have up to 45 days after the quarter
+                    closes to do so — the figures describe that quarter-end date, not today. Position
+                    counts are counts of FILERS, not of trades.
                   </span>
                   <span className={styles.finProvK}>Holders</span>
                   <span className={styles.finProvV}>
@@ -339,8 +355,10 @@ export default function DockOwnership({ sym }) {
                   </span>
                   <span className={styles.finProvK}>Insider</span>
                   <span className={styles.finProvV}>
-                    SEC Form 4 via FMP, Finnhub as fallback. Filed within two business days of the
-                    transaction. Only open-market purchases and sales are included.
+                    SEC Form 4 via FMP, Finnhub as fallback, filed within two business days of the
+                    transaction. Only open-market purchases and sales are counted — grants, awards,
+                    option exercises and gifts are excluded, because they are compensation events
+                    rather than decisions to buy or sell at the market price.
                   </span>
                   <span className={styles.finProvK}>Short interest</span>
                   <span className={styles.finProvV}>

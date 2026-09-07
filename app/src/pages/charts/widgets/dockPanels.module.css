@@ -862,34 +862,58 @@
    Named .owStrip, not .etStrip: Earnings' strip was REMOVED in the editing
    pass, so reusing that class name silently produced unstyled body text. This
    block owns its own vocabulary. */
+/* Four measures of the same thing — how much of the company is spoken for — so
+   they get equal COLUMNS rather than being strung along a line. Inline
+   label-then-value read as four unrelated fragments of text at the top of the
+   tab; stacked in a grid the values line up on one baseline and the strip reads
+   as one instrument. */
 .owStrip {
-  flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline;
-  gap: 3px 16px; padding: 8px var(--et-pad) 8px;
+  flex: 0 0 auto;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--et-gap); row-gap: 8px;
+  padding: 9px var(--et-pad) 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 }
-.owStripItem { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.owStripItem { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .owStripK {
-  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
   color: var(--text-muted, #cfcac0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .owStripV {
-  font-size: 11.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
-  font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
 }
 
 /* ── the 13F position-flow line: four counts that are one fact ──────────── */
+/* TWO SIDES, not four numbers. Four equal-weight counts made the reader do the
+   grouping; the side total leads, its parts follow quietly, and the comparison
+   the section exists to support is between two figures. */
 .owFlow {
-  display: flex; flex-wrap: wrap; gap: 4px 18px;
-  padding: 6px var(--et-pad) 2px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  column-gap: var(--et-gap); row-gap: 6px;
+  padding: 7px var(--et-pad) 4px;
 }
-.owFlowItem { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
-.owFlowN { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.owFlowSide {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline;
+  column-gap: 6px; row-gap: 1px; min-width: 0;
+}
 .owFlowK {
-  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  grid-column: 1 / -1;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
   color: var(--text-muted, #cfcac0);
 }
+.owFlowN { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* The parts are the breakdown, so they sit a tier below the total. */
+.owFlowParts {
+  min-width: 0; font-size: 9px; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* A delta riding beside the value it modifies. */
-.owDelta { margin-left: 5px; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* A delta rides beside the value it modifies and stays SMALLER than it — the
+   value is the fact, the change is the annotation. */
+.owDelta { margin-left: 5px; font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ── holders table — ONE grid definition read by the header and the rows,
       exactly as .etTable does, so the header cannot drift. ──────────────── */
@@ -978,7 +1002,10 @@
   .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 54px 62px; }
   .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 62px; }
   .owInsHead, .owInsRow { grid-template-columns: 40px minmax(0, 1fr) 54px 54px; }
-  .owFlow { gap: 3px 12px; }
+  /* Four columns of 60px turns every value into an ellipsis; 2x2 keeps them
+     whole and costs one row. */
+  .owStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owStripV { font-size: 12px; }
 }
 @container dock (min-width: 470px) {
   .own { --et-pad: 14px; --et-gap: 10px; }
