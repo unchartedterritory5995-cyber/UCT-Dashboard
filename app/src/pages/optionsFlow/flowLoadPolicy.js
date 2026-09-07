@@ -340,3 +340,64 @@ export function firstPassWaitMs({ processedOnce, deltaPending, erSoonReady, alre
   const erWait = (!erSoonReady && alreadyPainted) ? ER_BADGE_WAIT_MS : 0
   return Math.max(deltaWait, erWait)
 }
+
+
+/* ─── Should the BASE TAPE be fetched at all on this pass? ──────────────────
+ *
+ * Measured on production 2026-09-07, cold SPA entry to /options-flow:
+ *
+ *   /api/flow/aggregate   start 998 ms   2,964 KB wire / 24,403 KB decoded
+ *   /api/flow/data        start 998 ms   3,659 KB wire / 16,450 KB decoded
+ *
+ * BOTH fire, in parallel, on every cold entry — 7.6 MB on the wire and 41.6 MB
+ * decoded before meaningful content. The comparable sections measured the same
+ * way need 0-6 KB: UCT20 content at 124 ms, Breadth 144 ms, Screener 1,380 ms,
+ * against Options Flow at 3,039 ms.
+ *
+ * The aggregate is what PAINTS (prehydrate). The tape exists to populate the
+ * worker for later work. Nothing read before meaningful content needs raw rows:
+ *   - cap filter + Stocks/Indexes tab recompute from `D.clean_confirmed` in FD
+ *   - Both/Calls/Puts/Unusual/Standout filter the already-built candidate list
+ *   - the re-aggregation effect is gated `if (!rowCount) return`, so with no
+ *     tape it simply never runs and the prehydrated D stands
+ *
+ * ⛔ THIS IS A DECISION ABOUT *WHEN*, NEVER ABOUT *WHAT*. Every consumer still
+ * receives byte-identical rows; they arrive when that consumer asks. Deferring a
+ * fetch must never turn into serving less data — see the demand cases below,
+ * each of which forces the fetch rather than degrading the feature.
+ */
+export function shouldFetchTape({
+  deferEnabled = false,
+  prehydrateAvailable = false,
+  hasRows = false,
+  isRangeChange = false,
+  demanded = false,
+  silent = false,
+} = {}) {
+  // Flag off => today's behaviour exactly. This is the rollback path and it must
+  // stay byte-identical, so it is checked before anything else.
+  if (!deferEnabled) return { fetch: true, reason: 'defer-disabled' }
+
+  // A feature explicitly asked for raw rows. Always wins: a deferred fetch that
+  // refuses a real demand is a broken feature, not a fast one.
+  if (demanded) return { fetch: true, reason: 'demanded' }
+
+  // A background refresh of a range we are already showing.
+  if (silent) return { fetch: true, reason: 'silent-refresh' }
+
+  // The worker still holds this exact dataset (instant re-entry) — unchanged.
+  if (hasRows) return { fetch: false, reason: 'already-held' }
+
+  // A range change asks a question the prehydrated view cannot answer: the
+  // server's aggregate is built per (source, days, date_filter), so a different
+  // range is a different dataset, not a re-slice of this one.
+  if (isRangeChange) return { fetch: true, reason: 'range-change' }
+
+  // The default view, with a server answer available: paint from it and let the
+  // tape arrive when something actually needs it.
+  if (prehydrateAvailable) return { fetch: false, reason: 'deferred' }
+
+  // No server answer => the tape IS the only way to render. Never defer into a
+  // blank screen.
+  return { fetch: true, reason: 'no-prehydrate' }
+}

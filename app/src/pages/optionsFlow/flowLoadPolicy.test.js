@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import {
   planDelta,
   adoptVersion,
@@ -14,6 +17,7 @@ import {
   firstPassWaitMs,
   DELTA_WAIT_MS,
   ER_BADGE_WAIT_MS,
+  shouldFetchTape,
 } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
@@ -404,5 +408,110 @@ describe('firstPassWaitMs — run the first aggregate ONCE, not twice', () => {
     // — and it must comfortably exceed the measured cold call (5,442ms) or a
     // cold load fires early and pays the second pass anyway.
     expect(ER_BADGE_WAIT_MS).toBeGreaterThan(5442)
+  })
+})
+
+// ── shouldFetchTape ─────────────────────────────────────────────────────────
+// Cold entry measured on prod 2026-09-07 fired BOTH /api/flow/aggregate
+// (24,403 KB decoded) and /api/flow/data (16,450 KB decoded) in parallel —
+// 7.6 MB wire before meaningful content, against 0-6 KB for UCT20/Breadth/
+// Screener measured identically. The aggregate paints; the tape only feeds the
+// worker for later work.
+describe('shouldFetchTape — WHEN the tape loads, never WHAT it contains', () => {
+  const base = { deferEnabled: true, prehydrateAvailable: true }
+
+  it('⛔ flag OFF is byte-identical to today: always fetch', () => {
+    // The rollback path. Checked before every other rule on purpose.
+    for (const extra of [{}, { hasRows: true }, { prehydrateAvailable: false }, { demanded: true }]) {
+      expect(shouldFetchTape({ ...extra, deferEnabled: false }).fetch).toBe(true)
+    }
+  })
+
+  it('defers the default view when the server can paint it', () => {
+    const r = shouldFetchTape(base)
+    expect(r.fetch).toBe(false)
+    expect(r.reason).toBe('deferred')
+  })
+
+  it('⛔ NEVER defers into a blank screen — no prehydrate means the tape is the only renderer', () => {
+    expect(shouldFetchTape({ deferEnabled: true, prehydrateAvailable: false }).fetch).toBe(true)
+  })
+
+  it('a real demand always wins over deferral', () => {
+    // A deferred fetch that refuses a genuine demand is a broken feature, not a
+    // fast one.
+    expect(shouldFetchTape({ ...base, demanded: true }).fetch).toBe(true)
+    expect(shouldFetchTape({ ...base, demanded: true }).reason).toBe('demanded')
+  })
+
+  it('a range change fetches — a different range is a different dataset', () => {
+    // The server aggregate is built per (source, days, date_filter); another
+    // range is not a re-slice of the one already painted.
+    expect(shouldFetchTape({ ...base, isRangeChange: true }).fetch).toBe(true)
+  })
+
+  it('does not refetch what the worker already holds', () => {
+    expect(shouldFetchTape({ ...base, hasRows: true }).fetch).toBe(false)
+    expect(shouldFetchTape({ ...base, hasRows: true }).reason).toBe('already-held')
+  })
+
+  it('a silent background refresh still fetches', () => {
+    expect(shouldFetchTape({ ...base, silent: true }).fetch).toBe(true)
+  })
+
+  it('demand outranks every non-flag rule', () => {
+    expect(shouldFetchTape({ ...base, demanded: true, hasRows: true }).fetch).toBe(true)
+  })
+
+  it('CONTROL: the function actually discriminates', () => {
+    // Guards against a version that returns {fetch:true} for everything, which
+    // would pass every assertion above except the deferral ones.
+    const outcomes = new Set([
+      shouldFetchTape(base).fetch,
+      shouldFetchTape({ ...base, demanded: true }).fetch,
+    ])
+    expect(outcomes.size).toBe(2)
+  })
+
+  it('called with no arguments it defaults to fetching', () => {
+    expect(shouldFetchTape().fetch).toBe(true)
+  })
+})
+
+// ── the wiring rail ─────────────────────────────────────────────────────────
+// This repo's most-repeated defect is a feature that is built, tested, green and
+// connected to nothing. These derive the wiring from OptionsFlow.jsx itself.
+describe('the tape deferral is actually WIRED into the page', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the base effect consults shouldFetchTape BEFORE fetching the tape', () => {
+    const i = src.indexOf('shouldFetchTape({')
+    const f = src.indexOf('fetch(baseFetchUrl(')
+    expect(i).toBeGreaterThan(-1)
+    expect(f).toBeGreaterThan(-1)
+    expect(i).toBeLessThan(f)          // decided first, fetched second
+  })
+
+  it('a declined plan returns WITHOUT fetching and clears the spinner', () => {
+    const seg = src.slice(src.indexOf('shouldFetchTape({'), src.indexOf('fetch(baseFetchUrl('))
+    expect(seg).toContain('!_tapePlan.fetch')
+    expect(seg).toContain('setCsvLoading(false)')   // never strand the spinner
+    expect(seg).toContain('return')
+  })
+
+  it('the effect re-runs when a feature demands the tape', () => {
+    // Without tapeDemanded in the deps, requiring the tape would set state that
+    // never re-triggers the fetch — a feature that waits forever.
+    expect(src).toMatch(/\}, \[csvFile, baseNonce, tapeDemanded\]\)/)
+  })
+
+  it('⛔ the flag defaults OFF — deferral must be opt-in', () => {
+    expect(src).toContain('VITE_FLOW_DEFER_TAPE === "1"')
+  })
+
+  it('CONTROL: the source really was read', () => {
+    expect(src.length).toBeGreaterThan(100000)
+    expect(src).toContain('TOP 10 FLOW PICKS')
   })
 })

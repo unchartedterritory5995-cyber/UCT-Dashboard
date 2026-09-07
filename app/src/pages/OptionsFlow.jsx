@@ -3,7 +3,14 @@ import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tool
 import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey } from "./optionsFlow/flowLoadPolicy";
+// Defer the 16 MB raw tape off the cold first-paint path. Measured on prod
+// 2026-09-07: cold entry fired /api/flow/aggregate (24,403 KB decoded) AND
+// /api/flow/data (16,450 KB decoded) in parallel — 7.6 MB wire before content,
+// against 0-6 KB for UCT20/Breadth/Screener measured identically.
+// ⛔ OFF => byte-identical to previous behaviour. That is the rollback path.
+const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
+
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
@@ -902,6 +909,22 @@ export default function OptionsFlowDashboard() {
   const calRef = useRef(null);
   const [D, setD] = useState(null);
 
+  // ── Deferred tape ────────────────────────────────────────────────────────
+  // Measured on prod 2026-09-07, cold entry: /api/flow/aggregate (24,403 KB
+  // decoded) and /api/flow/data (16,450 KB decoded) fired in PARALLEL — 7.6 MB
+  // on the wire before meaningful content, against 0-6 KB for UCT20 / Breadth /
+  // Screener measured the same way. The aggregate PAINTS; the tape only feeds
+  // the worker for later work, and nothing read before first content needs raw
+  // rows (cap filter and the Stocks/Indexes tab recompute from D.clean_confirmed
+  // in FD; Both/Calls/Puts/Unusual/Standout filter the already-built candidate
+  // list; the re-aggregation effect is gated `if (!rowCount) return`).
+  //
+  // ⛔ ONE shared demand flag, never per-feature fetching. Several features can
+  // want the tape at once, and each deciding for itself is how a 16 MB download
+  // gets issued twice. Setting this re-runs the base effect, which already
+  // dedupes by csvFile and cancels in-flight work, so N demands collapse to one
+  // fetch. A version or range change replaces csvFile and re-arms the path.
+  const [tapeDemanded, setTapeDemanded] = useState(false);
   const [dataVersion, setDataVersion] = useState(null);
   // Mirror of dataVersion for the base fetch effect. It is read, never depended
   // on: /api/flow/version is a 60-SECOND time bucket server-side, so listing
@@ -1347,7 +1370,11 @@ export default function OptionsFlowDashboard() {
     // replacing it under them buys nothing.
     const _preViewKey = snapshotKey(csvFile) + "|"
       + processedKey(dateFilter, dateFrom, dateTo);
-    if (!silent && _processedViewKey.current !== _preViewKey) {
+    // Hoisted so the tape plan below can ask 'is a server answer coming?'
+    // synchronously. _prehydrated.current only flips in the .then, which has
+    // not run yet on this pass.
+    const _preFired = !silent && _processedViewKey.current !== _preViewKey;
+    if (_preFired) {
       fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
         // Keyed by VIEW, not by "have we ever processed". The client's own
         // aggregate stays the authority for the view it has published; this may
@@ -1375,6 +1402,33 @@ export default function OptionsFlowDashboard() {
     // Captured here because it is only readable off the Response; it is what
     // makes a cache-replayed body detectable. See adoptVersion() for the bug.
     let servedVer = null;
+
+    // ── Is the raw tape actually needed on this pass? ────────────────────────
+    // The prehydrate above already paints. This decides only WHEN the 16 MB tape
+    // arrives, never WHAT any consumer receives — every demand path below forces
+    // the fetch rather than degrading a feature. Flag off => byte-identical to
+    // the previous behaviour, which is the rollback path.
+    const _tapePlan = shouldFetchTape({
+      deferEnabled: DEFER_TAPE,
+      // `_prehydrated` is set by the prehydrate .then above; on the very first
+      // pass it is still false, so the plan asks whether one is even possible
+      // for this view rather than whether it has landed yet.
+      prehydrateAvailable: _prehydrated.current || _preFired,
+      hasRows: _hasRows.current,
+      isRangeChange: _rangeOnlyChange || fetchDaysAtStart !== 1,
+      demanded: tapeDemanded,
+      silent,
+    });
+    if (!_tapePlan.fetch) {
+      // Nothing is in flight and nothing is loading — the painted prehydrate IS
+      // the view. Clear the spinner so the page is not left waiting on a fetch
+      // that will never happen.
+      console.log(`[perf] tape deferred (${_tapePlan.reason}) — not fetching ${csvFile}`);
+      setCsvLoading(false);
+      setLoadedFetchDays(fetchDaysAtStart);
+      return () => { cancelled = true; };
+    }
+
     fetch(baseFetchUrl(csvFile, versionedRefresh ? baseNonce : 0, dataVersionRef.current),
           versionedRefresh ? { cache: "no-store" } : undefined)
         .then(res => {
@@ -1451,7 +1505,7 @@ export default function OptionsFlowDashboard() {
         // already reading on screen — never swap it for the error state.
         .catch(err => { if (!cancelled) { if (!silent) setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
     return () => { cancelled = true; };
-  }, [csvFile, baseNonce]);
+  }, [csvFile, baseNonce, tapeDemanded]);
 
   // ─── Incremental live update (today-delta merge) ─────────────────────────
   // When the DB version bumps during the session, refetch ONLY today's trades
