@@ -157,6 +157,34 @@ def _fundamentals_comparison_evidence(sym: str, side: str, fund: dict) -> list[d
     }]
 
 
+def _price_comparison_evidence(sym: str, side: str, price: dict) -> list[dict]:
+    """Compare Coverage V1 (2026-09-06): current price + day change % +
+    52-week range -- the answer to the single most natural comparison
+    question ("which one's up more today, which is closer to its 52-week
+    high") that this evidence bundle previously could not answer at all.
+    `price` is `comparison.py::_side()`'s own dict -- see that module for
+    where each field is sourced."""
+    if not price or price.get("last") is None:
+        return []
+    parts = [f"${price['last']:g}"]
+    chg = price.get("change_pct")
+    if chg is not None:
+        sign = "+" if chg >= 0 else ""
+        parts.append(f"{sign}{chg:.2f}% today")
+    hi, lo = price.get("week52_high"), price.get("week52_low")
+    if hi is not None and lo is not None:
+        parts.append(f"52-week range ${lo:g}-${hi:g}")
+    return [{
+        "type": "comparison_price",
+        "date": "current snapshot",
+        "source": "UCT live price",
+        "text": f"{sym}: " + ", ".join(parts) + ".",
+        "url": None,
+        "sym": sym,
+        "side": side,
+    }]
+
+
 def _ratings_comparison_evidence(sym: str, side: str, ratings: dict) -> list[dict]:
     out = []
     as_of = ratings.get("price_as_of") or "current snapshot"
@@ -289,6 +317,8 @@ def build_comparison_evidence(
 
     a, b = cmp["a"], cmp["b"]
     raw: list[dict] = []
+    raw.extend(_price_comparison_evidence(a["sym"], "a", a.get("price") or {}))
+    raw.extend(_price_comparison_evidence(b["sym"], "b", b.get("price") or {}))
     raw.extend(_fundamentals_comparison_evidence(a["sym"], "a", a.get("fundamentals") or {}))
     raw.extend(_fundamentals_comparison_evidence(b["sym"], "b", b.get("fundamentals") or {}))
     raw.extend(_ratings_comparison_evidence(a["sym"], "a", a.get("ratings") or {}))

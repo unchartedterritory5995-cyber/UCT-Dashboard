@@ -35,6 +35,45 @@ class TestFundamentalsComparisonEvidence:
         assert cai._fundamentals_comparison_evidence("XYZ", "b", {}) == []
 
 
+class TestPriceComparisonEvidence:
+    """Compare Coverage V1 (2026-09-06)."""
+
+    def test_builds_one_tagged_item_with_price_change_and_range(self):
+        price = {"last": 230.5, "change_pct": 1.25, "week52_high": 250.0, "week52_low": 165.0}
+        out = cai._price_comparison_evidence("AAPL", "a", price)
+        assert len(out) == 1
+        item = out[0]
+        assert item["sym"] == "AAPL" and item["side"] == "a"
+        assert item["type"] == "comparison_price"
+        assert "$230.5" in item["text"]
+        assert "+1.25% today" in item["text"]
+        assert "52-week range $165-$250" in item["text"]
+
+    def test_a_negative_change_is_signed_correctly(self):
+        price = {"last": 410.0, "change_pct": -0.5, "week52_high": 470.0, "week52_low": 380.0}
+        out = cai._price_comparison_evidence("MSFT", "b", price)
+        assert "-0.50% today" in out[0]["text"]
+        assert "+-0.50" not in out[0]["text"]  # never double-signed
+
+    def test_missing_week52_omits_the_range_but_keeps_the_price(self):
+        price = {"last": 100.0, "change_pct": 2.0, "week52_high": None, "week52_low": None}
+        out = cai._price_comparison_evidence("XYZ", "a", price)
+        assert "$100" in out[0]["text"]
+        assert "52-week" not in out[0]["text"]
+
+    def test_missing_change_pct_omits_it_but_keeps_the_price(self):
+        price = {"last": 100.0, "change_pct": None, "week52_high": 120.0, "week52_low": 80.0}
+        out = cai._price_comparison_evidence("XYZ", "a", price)
+        assert "$100" in out[0]["text"]
+        assert "today" not in out[0]["text"]
+
+    def test_an_empty_leg_produces_no_evidence_not_a_crash(self):
+        assert cai._price_comparison_evidence("XYZ", "b", {}) == []
+
+    def test_a_leg_with_no_last_price_produces_no_evidence(self):
+        assert cai._price_comparison_evidence("XYZ", "b", {"change_pct": 1.0}) == []
+
+
 class TestRatingsComparisonEvidence:
     def test_composite_and_components_each_produce_a_tagged_item(self):
         ratings = {"composite": 88, "components": {"eps": 90, "rs": 80}, "price_as_of": "2026-09-04"}

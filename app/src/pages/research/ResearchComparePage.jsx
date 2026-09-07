@@ -19,6 +19,23 @@ function fmtNum(v, digits = 2) {
 function fmtPct(v, digits = 1) {
   return typeof v === 'number' ? `${v.toFixed(digits)}%` : '—'
 }
+function fmtPrice(v) {
+  return typeof v === 'number' ? `$${v.toFixed(2)}` : '—'
+}
+
+// Compare Coverage V1 (2026-09-06): day-change %, signed and colored, the
+// same red/green convention used everywhere else in the app.
+function ChangePctCell({ v }) {
+  if (typeof v !== 'number') return <td>—</td>
+  const cls = v > 0 ? styles.pos : v < 0 ? styles.neg : undefined
+  const sign = v > 0 ? '+' : ''
+  return <td className={cls}>{sign}{v.toFixed(2)}%</td>
+}
+
+function Week52Cell({ lo, hi }) {
+  if (typeof lo !== 'number' || typeof hi !== 'number') return <td>—</td>
+  return <td>${lo.toFixed(2)} – ${hi.toFixed(2)}</td>
+}
 
 function EntityLabel({ side }) {
   if (!side) return null
@@ -97,6 +114,17 @@ export default function ResearchComparePage() {
           <table className={styles.tbl}>
             <thead><tr><th /><th>{sym}</th><th>{comparator}</th></tr></thead>
             <tbody>
+              <SummaryRow label="Price" a={a?.price?.last} b={b?.price?.last} fmt={fmtPrice} />
+              <tr>
+                <th scope="row">Today</th>
+                <ChangePctCell v={a?.price?.change_pct} />
+                <ChangePctCell v={b?.price?.change_pct} />
+              </tr>
+              <tr>
+                <th scope="row">52-Week Range</th>
+                <Week52Cell lo={a?.price?.week52_low} hi={a?.price?.week52_high} />
+                <Week52Cell lo={b?.price?.week52_low} hi={b?.price?.week52_high} />
+              </tr>
               <SummaryRow label="Sector" a={a?.fundamentals?.sector} b={b?.fundamentals?.sector} />
               <SummaryRow label="Industry" a={a?.fundamentals?.industry} b={b?.fundamentals?.industry} />
               <SummaryRow label="Market Cap" a={a?.fundamentals?.market_cap} b={b?.fundamentals?.market_cap} />

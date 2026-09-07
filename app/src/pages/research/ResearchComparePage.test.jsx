@@ -25,12 +25,14 @@ function fullData(overrides = {}) {
     a: {
       sym: 'AAPL', entity: { status: 'resolved', entityId: 'e_aapl' },
       fundamentals: { sector: 'Technology', industry: 'Consumer Electronics', market_cap: '$3.0T', pe_trailing: 30.1 },
+      price: { last: 230.5, change_pct: 1.25, week52_high: 250.0, week52_low: 165.0 },
       estimates: [], ratings: { composite: 88, components: {}, price_as_of: '2026-09-04' },
       analyst: { consensus: { label: 'Buy' }, price_target: { consensus: 260 } },
     },
     b: {
       sym: 'MSFT', entity: { status: 'resolved', entityId: 'e_msft' },
       fundamentals: { sector: 'Technology', industry: 'Software', market_cap: '$3.1T', pe_trailing: 33.4 },
+      price: { last: 410.0, change_pct: -0.5, week52_high: 470.0, week52_low: 380.0 },
       estimates: [], ratings: { composite: 82, components: {}, price_as_of: '2026-09-04' },
       analyst: { consensus: { label: 'Buy' }, price_target: { consensus: 480 } },
     },
@@ -111,5 +113,42 @@ describe('ResearchComparePage', () => {
     mockComparisonReturn = { data: fullData(), isLoading: false }
     renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
     expect(screen.getByText('Fundamentals shown as currently reported.')).toBeInTheDocument()
+  })
+
+  describe('Compare Coverage V1 -- price/day-change/52-week range (Seam)', () => {
+    it('renders both prices, signed day-change %, and the 52-week range', () => {
+      mockComparisonReturn = { data: fullData(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      expect(screen.getByText('$230.50')).toBeInTheDocument()
+      expect(screen.getByText('$410.00')).toBeInTheDocument()
+      expect(screen.getByText('+1.25%')).toBeInTheDocument()
+      expect(screen.getByText('-0.50%')).toBeInTheDocument()
+      expect(screen.getByText('$165.00 – $250.00')).toBeInTheDocument()
+      expect(screen.getByText('$380.00 – $470.00')).toBeInTheDocument()
+    })
+
+    it('a positive change is colored differently from a negative one', () => {
+      mockComparisonReturn = { data: fullData(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const up = screen.getByText('+1.25%')
+      const down = screen.getByText('-0.50%')
+      expect(up.className).not.toBe(down.className)
+      expect(up.className).toBeTruthy()
+      expect(down.className).toBeTruthy()
+    })
+
+    it('renders an em dash instead of crashing when price data is absent', () => {
+      mockComparisonReturn = {
+        data: fullData({
+          b: { sym: 'NOTATICKERXYZ', entity: { status: 'not_found' }, fundamentals: { error: 'no fundamentals available' }, estimates: [], ratings: {}, analyst: {} },
+        }),
+        isLoading: false,
+      }
+      mockParams = { sym: 'AAPL', comparator: 'NOTATICKERXYZ' }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/NOTATICKERXYZ' })
+      expect(screen.getByTestId('research-compare-page')).toBeInTheDocument()
+      // AAPL's own price still renders correctly alongside the missing side.
+      expect(screen.getByText('$230.50')).toBeInTheDocument()
+    })
   })
 })

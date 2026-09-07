@@ -18,6 +18,9 @@
 
 .aiSection { margin-top: 16px; }
 
+.pos { color: var(--color-success, #22c55e); }
+.neg { color: var(--color-danger, #ef4444); }
+
 .notFound { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
 .caveat { color: var(--color-warning, #b58a2a); font-size: var(--text-sm); margin-bottom: 8px; }
 .footnote { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
