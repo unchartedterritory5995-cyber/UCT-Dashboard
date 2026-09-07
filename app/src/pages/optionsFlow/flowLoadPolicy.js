@@ -342,6 +342,26 @@ export function firstPassWaitMs({ processedOnce, deltaPending, erSoonReady, alre
 }
 
 
+/**
+ * How long a DEFERRED load will wait for the server's answer before fetching
+ * the tape anyway.
+ *
+ * ⛔ THIS CONSTANT IS WHY THE DEFERRAL IS SAFE. flowPrehydrate's stated contract
+ * is "an ACCELERATOR, NEVER A DEPENDENCY": it returns null on a 503, offline, or
+ * a shape it declines, and the page then follows its normal path. Deferring the
+ * tape deleted that normal path — the aggregate became the ONLY route to first
+ * paint, so a null answer left a permanently empty page with nothing to re-arm
+ * it. Measured on prod 2026-09-07: a version bump emptied the aggregate cache
+ * and the rebuild took 16.5 s, during which the deferred page showed nothing.
+ *
+ * Sized against the endpoint's own behaviour, not a round number: warm is
+ * ~300 ms (prod), a cold rebuild is seconds. 3 s is past any warm answer and
+ * well inside a cold one, so it fires when the server is genuinely not coming
+ * and stays out of the way when it is.
+ */
+export const PREHYDRATE_FALLBACK_MS = 3000
+
+
 /* ─── Should the BASE TAPE be fetched at all on this pass? ──────────────────
  *
  * Measured on production 2026-09-07, cold SPA entry to /options-flow:

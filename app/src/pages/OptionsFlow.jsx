@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 // ⛔ OFF => byte-identical to previous behaviour. That is the rollback path.
 const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
 
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
@@ -1374,12 +1374,41 @@ export default function OptionsFlowDashboard() {
     // synchronously. _prehydrated.current only flips in the .then, which has
     // not run yet on this pass.
     const _preFired = !silent && _processedViewKey.current !== _preViewKey;
+    let _preFallbackTimer = null;
     if (_preFired) {
+      // ⛔ THE DEFERRAL TURNED AN ACCELERATOR INTO A DEPENDENCY — this puts the
+      // fallback back. flowPrehydrate returns null for a 503, offline, or a
+      // shape it declines, and the page has always coped by using the tape it
+      // fetched in parallel. Deferring the tape removed that path: a null
+      // answer, or one that never arrives, would leave an empty page with
+      // nothing left to re-arm it. Demanding the tape re-runs this effect
+      // (tapeDemanded is a dep) and the plan then answers `demanded`.
+      //
+      // Both failure shapes are covered because they are NOT the same event: a
+      // decline RESOLVES null and is known immediately, while a cold rebuild
+      // simply does not answer (prod: 16.5 s after a version bump) and only a
+      // clock can notice it.
+      let _preLanded = false;
+      const _demandTape = (why) => {
+        if (cancelled || _preLanded || _hasRows.current) return;
+        console.log(`[perf] prehydrate ${why} — demanding the tape`);
+        setTapeDemanded(true);   // idempotent: React bails on an identical value
+      };
+      // Only armed when deferral is ON. With the flag off the tape is already
+      // in flight and a timer here would be a second, pointless authority.
+      _preFallbackTimer = DEFER_TAPE
+        ? setTimeout(() => _demandTape(`did not answer in ${PREHYDRATE_FALLBACK_MS}ms`),
+                     PREHYDRATE_FALLBACK_MS)
+        : null;
       fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
+        if (cancelled) return;
+        if (!pre) { clearTimeout(_preFallbackTimer); _demandTape('declined'); return; }
+        _preLanded = true;
+        clearTimeout(_preFallbackTimer);
         // Keyed by VIEW, not by "have we ever processed". The client's own
         // aggregate stays the authority for the view it has published; this may
         // only fill one it has not.
-        if (cancelled || !pre || _processedViewKey.current === _preViewKey) return;
+        if (_processedViewKey.current === _preViewKey) return;
         console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
         _prehydrated.current = true;   // the budget firstPassWaitMs spends
@@ -1443,7 +1472,7 @@ export default function OptionsFlowDashboard() {
       console.log(`[perf] tape deferred (${_tapePlan.reason}) — not fetching ${csvFile}`);
       setCsvLoading(false);
       setLoadedFetchDays(fetchDaysAtStart);
-      return () => { cancelled = true; };
+      return () => { cancelled = true; clearTimeout(_preFallbackTimer); };
     }
 
     fetch(baseFetchUrl(csvFile, versionedRefresh ? baseNonce : 0, dataVersionRef.current),
@@ -1521,7 +1550,7 @@ export default function OptionsFlowDashboard() {
         // A background refresh that fails must leave the data the user is
         // already reading on screen — never swap it for the error state.
         .catch(err => { if (!cancelled) { if (!silent) setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(_preFallbackTimer); };
   }, [csvFile, baseNonce, tapeDemanded]);
 
   // ─── Incremental live update (today-delta merge) ─────────────────────────

@@ -17,8 +17,7 @@ import {
   firstPassWaitMs,
   DELTA_WAIT_MS,
   ER_BADGE_WAIT_MS,
-  shouldFetchTape,
-} from './flowLoadPolicy'
+  shouldFetchTape, PREHYDRATE_FALLBACK_MS } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
 // (days=1) view, with a version that has not been merged yet.
@@ -551,5 +550,63 @@ describe('the deferred tape does not take the date picker with it', () => {
   it('CONTROL: the source really was read', () => {
     expect(src.length).toBeGreaterThan(100000)
     expect(src).toContain('TOP 10 FLOW PICKS')
+  })
+})
+
+// ── the deferral must not turn an ACCELERATOR into a DEPENDENCY ─────────────
+// flowPrehydrate returns null on 503/offline/declined shapes, and the page has
+// always coped because the tape was in flight beside it. Deferring the tape
+// deleted that path: without a fallback, a null answer — or one that simply
+// never arrives (prod: a 16.5 s cold rebuild after a version bump) — leaves a
+// permanently empty page.
+describe('a prehydrate that never answers still yields a page', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+  const block = src.slice(src.indexOf('if (_preFired) {'),
+                          src.indexOf('const versionedRefresh'))
+
+  it('a DECLINED prehydrate demands the tape', () => {
+    // The null branch must act, not just return.
+    expect(block).toMatch(/if \(!pre\)[^\n]*_demandTape\('declined'\)/)
+  })
+
+  it('a SILENT prehydrate is rescued by a clock', () => {
+    // A decline resolves; a cold rebuild does not. Only a timer sees the second.
+    expect(block).toContain('PREHYDRATE_FALLBACK_MS')
+    expect(block).toContain('setTimeout(')
+    expect(block).toContain('setTapeDemanded(true)')
+  })
+
+  it('the fallback timer is armed ONLY when deferral is on', () => {
+    // With the flag off the tape is already in flight; a timer there would be a
+    // second authority over the same fetch.
+    expect(block).toMatch(/_preFallbackTimer\s*=\s*DEFER_TAPE\s*\n?\s*\?/)
+  })
+
+  it('a landed prehydrate disarms the timer, so it cannot fetch 16 MB late', () => {
+    expect(block).toContain('_preLanded = true')
+    expect(block).toContain('clearTimeout(_preFallbackTimer)')
+  })
+
+  it('EVERY cleanup path clears the timer — including the deferred early return', () => {
+    // The deferral returns early, BEFORE the normal cleanup. A timer left armed
+    // on an unmounted effect fires setState on a dead view.
+    const eff = src.slice(src.indexOf('if (_preFired) {'),
+                          src.indexOf('}, [csvFile, baseNonce, tapeDemanded])'))
+    const cleanups = eff.match(/return \(\) => \{ cancelled = true;[^}]*\}/g) || []
+    expect(cleanups.length).toBeGreaterThanOrEqual(2)
+    for (const c of cleanups) expect(c).toContain('clearTimeout(_preFallbackTimer)')
+  })
+
+  it('the budget clears a warm answer and sits inside a cold one', () => {
+    // Warm is ~300 ms on prod; a cold rebuild is seconds. A budget below the
+    // warm answer would fetch the tape on every healthy load and delete the win.
+    expect(PREHYDRATE_FALLBACK_MS).toBeGreaterThan(1000)
+    expect(PREHYDRATE_FALLBACK_MS).toBeLessThan(8000)
+  })
+
+  it('CONTROL: the block really was located', () => {
+    expect(block.length).toBeGreaterThan(500)
+    expect(block).toContain('fetchPrehydrate(')
   })
 })

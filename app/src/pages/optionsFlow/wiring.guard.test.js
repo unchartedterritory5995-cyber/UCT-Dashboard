@@ -214,12 +214,21 @@ describe('prehydration wiring — the server-computed first paint', () => {
     // still resolve after the real result and overwrite it.
     const at = CODE.indexOf('fetchPrehydrate(')
     expect(at, 'fetchPrehydrate call not found' + FIX).toBeGreaterThan(-1)
-    const region = CODE.slice(Math.max(0, at - 400), at + 500)
-    const guards = region.match(/_processedViewKey\.current/g) || []
-    expect(guards.length,
-      'the per-view guard around fetchPrehydrate was weakened — a late '
-      + 'aggregate can now overwrite the authoritative client result' + FIX)
-      .toBeGreaterThanOrEqual(2)
+    // ⛔ NAME THE TWO GUARDS, do not count symbols in a character window.
+    // This counted >=2 occurrences of `_processedViewKey.current` within
+    // [at-400, at+500]. That is a PROXY for "guarded on both sides", and it
+    // broke the moment a comment was added above the call — the code was
+    // correct and the rail went red, which is the failure that teaches people
+    // to delete rails. Assert the two guards themselves instead: each is
+    // pinned where it must be, and neither can drift into the other's slot.
+    const before = CODE.slice(0, at)
+    expect(/_preFired\s*=\s*!silent\s*&&\s*_processedViewKey\.current !== _preViewKey/.test(before),
+      'the pre-await guard is gone — the page would ask the server for a view '
+      + 'its own aggregate has already published' + FIX).toBe(true)
+    const after = CODE.slice(at, at + 1600)
+    expect(/_processedViewKey\.current === _preViewKey/.test(after),
+      'the post-await guard is gone — a slow aggregate can now resolve AFTER '
+      + 'the authoritative client result and overwrite it' + FIX).toBe(true)
     // ...and the client aggregate must actually STAMP the view it published,
     // or the guard above compares against something nothing ever sets.
     // ⛔ `=(?!=)` — an ASSIGNMENT, not a comparison. Written as `\s*=` this
