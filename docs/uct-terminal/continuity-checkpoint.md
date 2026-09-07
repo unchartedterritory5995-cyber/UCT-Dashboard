@@ -6,40 +6,42 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Seam 19 (TickerActions Dedicated Scope + Convergence V1) merge/deploy.
-After Seam 21 + the `CommandPalette.jsx` jsonFetcher fix, a full
-debt-ledger re-scan found no further clearly-bounded item and this doc
-recorded a HOLDING state -- **the owner then explicitly authorized and
-directed Seam 19 as the next program** (a dedicated, deeper Phase A,
-larger-than-V1 scope pre-authorized), overriding that hold. Full
-re-anchor report delivered to the owner in-conversation earlier;
-this doc keeps only the load-bearing conclusions. Both re-anchor MUST-FIX
-trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam 30) plus
-the keyboard accessibility program plus Compare Coverage V1 (scoped via
-an explicit owner check-in, price-only) plus Seam 20 (Wire + MyStocksHub
-Insights row navigation) plus Feature-Flag Governance Sweep plus Seam 25
-plus Seam 21 plus the `CommandPalette.jsx` jsonFetcher fix plus **Seam 19**
-are now closed. **Seam 19's dedicated Phase A found the real live surface
-was 3 components, not the 4 files the ledger named** — `FeedView.jsx`
-delegates entirely to `CalendarDayTable.jsx` for earnings rows (one
-wiring point covers both); `WeekView.jsx`'s only live row-renderer is
-`EarningsTile.jsx`. Two dead-code discoveries along the way, left
-untouched (zero member value): `FeedView.jsx`'s `PrintTape`/
-`CompactCluster` and `WeekView.jsx`'s `WeekRow` are all defined with zero
-JSX call-sites. **A FULL re-scan of the debt ledger after Seam 21 found
-the remaining pool (excluding Seam 19, since it is now separately
-authorized) has thinned to items that each carry a real reason not to
-pick them up autonomously**: Seam 1/6/7/8/11/14/17-remainder (each
-explicitly recorded as "not a bounded V1" / needs its own Phase A /
-architecture decision), Seam 13 (touches `PositionDetailPage.jsx`, which
-the concurrent, unrelated Notebook-platform session has been actively
-iterating on this same session — a protected-parallel-program conflict
-risk, not a technical blocker), Seam 18/22/24 (needs a product decision
-or is gated), Seam 3/4/27 (explicitly LOW-PRIORITY, "stop escalating").
-Awareness Reachability Restoration V1 remains deliberately SKIPPED
-pending a genuine owner monetization/entitlement decision (see the
-top-of-file section) -- do not
-resolve it unilaterally.
+**Seam 1 (read-side half)** merge/deploy — a real WRITE to production
+identity data (`entity_master.db`), not a UI/code-only change like every
+program before it this session. Seam 19 (TickerActions Dedicated Scope +
+Convergence V1, owner-directed, overriding an earlier HOLDING state) was
+the program before it. Full re-anchor report delivered to the owner
+in-conversation earlier; this doc keeps only the load-bearing
+conclusions. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29)
+plus Alert Durability V1 (Seam 30) plus the keyboard accessibility
+program plus Compare Coverage V1 (scoped via an explicit owner check-in,
+price-only) plus Seam 20 (Wire + MyStocksHub Insights row navigation)
+plus Feature-Flag Governance Sweep plus Seam 25 plus Seam 21 plus the
+`CommandPalette.jsx` jsonFetcher fix plus Seam 19 plus **Seam 1
+(read-side half)** are now closed. **Seam 19's dedicated Phase A found
+the real live surface was 3 components, not the 4 files the ledger
+named** — `FeedView.jsx` delegates entirely to `CalendarDayTable.jsx`
+for earnings rows (one wiring point covers both); `WeekView.jsx`'s only
+live row-renderer is `EarningsTile.jsx`. Two dead-code discoveries along
+the way, left untouched (zero member value): `FeedView.jsx`'s
+`PrintTape`/`CompactCluster` and `WeekView.jsx`'s `WeekRow` are all
+defined with zero JSX call-sites. **Seam 1's own dry-run against real
+production data disproved one of its own implementation assumptions
+before the real write ran** — see the Seam 1 debt-ledger entry below;
+the empirical-check design (verify against Massive's live reference API,
+never assume from a suffix pattern) is what caught it. **A re-scan of
+the debt ledger after Seam 19 found the remaining pool has thinned to
+items that each carry a real reason not to pick them up autonomously**:
+Seam 6/7/8/11/14/17-remainder (each explicitly recorded as "not a
+bounded V1" / needs its own Phase A / architecture decision), Seam 13
+(touches `PositionDetailPage.jsx`, which the concurrent, unrelated
+Notebook-platform session has been actively iterating on this same
+session — a protected-parallel-program conflict risk, not a technical
+blocker), Seam 18/22/24 (needs a product decision or is gated), Seam
+3/4/27 (explicitly LOW-PRIORITY, "stop escalating"). Awareness
+Reachability Restoration V1 remains deliberately SKIPPED pending a
+genuine owner monetization/entitlement decision (see the top-of-file
+section) -- do not resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -144,8 +146,24 @@ on the very first check). 3 new tests + full 1011-test ai_search surface
 green → Seam 21 ✅ → `CommandPalette.jsx` jsonFetcher fix ✅ → **Seam 19**
 ✅ resolved same day, merge `7a0dd2a78`/`66f6e34f2` (owner-directed
 dedicated program, see "CURRENT ACTIVE PROGRAM" below for full detail) →
-**now: Seam 1** (read-side half — BRK.B Entity Master alias; see the debt
-ledger below).
+**Seam 1 (read-side half)** ✅ resolved same day, merge
+`039d885bb`+`ac76a93cf`/`75f2a0c14` — a real WRITE to production identity
+data, not a code-only change: `seed_dot_form_aliases()` added a
+dot-form alias per cap_universe class-share entity, empirically verified
+per-symbol against Massive's live reference API rather than assumed from
+the hyphen-suffix pattern. Dry-run against real production data caught a
+genuine flaw in the fix's OWN docstring before the real write ran:
+`NWAX-U` (assumed to be a non-class-share SPAC unit with no dot form)
+turned out to have a confirmed Massive dot-form row (`NWAX.U`, `type:
+"UNIT"`) and was correctly included; `CWEN-A` (assumed to be a genuine
+class share) turned out to be a real, verified 404 at Massive and was
+correctly excluded — the empirical-check design caught both
+surprises the suffix-pattern assumption would have gotten backwards.
+13 of 14 cap_universe hyphenated symbols got a confirmed dot alias
+added; production-verified via direct SQLite query (aliases count
+32651→32664, exactly +13) and a full 13-pair resolve() cross-check (both
+spellings resolve to the identical entity_id for every pair). 6 new
+tests, full entity_master + search-integration suite green (99 tests).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -1676,9 +1694,10 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
   Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
   Feature-Flag Governance Sweep + Seam 25 + Seam 21 +
-  `CommandPalette.jsx` jsonFetcher fix + **Seam 19** — ALL DONE,
-  ACCEPTED + LIVE. Seam 1 (Entity Master BRK.B dot-form alias, read-side
-  half) — STARTING NOW.**
+  `CommandPalette.jsx` jsonFetcher fix + **Seam 19** + **Seam 1
+  (read-side half)** — ALL DONE, ACCEPTED + LIVE. HOLDING — a full
+  re-scan after Seam 1 found no further clearly-bounded, fully-unblocked
+  item.**
   The re-anchor's own named priority stack is EXHAUSTED (Feature-Flag
   Governance Sweep was its last item); Seam 25/21/CommandPalette were
   each selected from the debt ledger. After Seam 21, a full re-scan found
@@ -1714,8 +1733,30 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   write-time fix, then Ticker Search Identity Convergence V1/Seam 16) —
   every other remaining item is either explicitly not-bounded, gated on a
   product/owner decision, a parallel-program collision risk, or
-  explicitly deprioritized. See the Seam 1 debt-ledger entry below for
-  its full definition; Phase A beginning now.
+  explicitly deprioritized.
+  **Seam 1 (read-side half) — ACCEPTED + LIVE, merge
+  `039d885bb`+`ac76a93cf`/`75f2a0c14`**: see the Seam 1 debt-ledger entry
+  below (now RESOLVED) for full implementation detail, including the
+  dry-run finding that disproved the fix's own initial suffix-pattern
+  assumption before the real write ran (NWAX-U correctly included,
+  CWEN-A correctly excluded, neither matching the naive guess).
+  **A full re-scan of the debt ledger after Seam 1 found no further
+  clearly-bounded item — HOLDING.** Seam 6/7/8/11/14 each need their own
+  Phase A or a real architecture/product decision before any V1 is even
+  definable; Seam 13 risks colliding with the concurrent Notebook
+  session; Seam 18/22/24 need a product decision or are gated; Seam
+  3/4/27 are explicitly LOW-PRIORITY. Seam 17's remainder (symbol
+  autocomplete in `AddPositionModal.jsx`/`AddTradeModal.jsx`) is the
+  closest candidate but carries genuine implementation-approach breadth
+  (adapt `SymbolSearch.jsx`'s click-to-open shape vs. build a new
+  autocomplete-while-typing component, while staying non-blocking on
+  unknown/delisted tickers) — the same kind of design-space question
+  Compare Coverage V1 got an explicit owner check-in for, not a
+  unilateral call. This is the standing directive's own completion
+  standard being met: important workflows are coherent, known material
+  trust defects are closed, and what remains is genuinely external
+  dependencies, owner decisions, or work needing its own dedicated Phase
+  A before it can even be scoped.
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1849,9 +1890,51 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (Pattern Vision still `PATTERN_VISION_ENABLED=1`/not yet accepted,
   evidence window not started; S7 `alert_fires` table has 0 rows, the
   live NVDA predicate's `last_seen_state` still shows the original
-  baseline accession) → **now: Seam 1** (read-side half — Entity Master's
-  BRK.B dot-form alias; see the debt ledger below for its full
-  definition and confirmed-still-open history across two later programs).
+  baseline accession) → **Seam 1 (read-side half)** — ACCEPTED + LIVE,
+  merge `039d885bb`+`ac76a93cf`/`75f2a0c14`: `seed_dot_form_aliases()`
+  added a dot-form alias per cap_universe class-share entity (BRK-B →
+  also BRK.B, etc.), NOT a data migration — one alias row per
+  already-existing entity, zero existing rows touched. Empirically
+  verified per-symbol against Massive's live reference API rather than
+  assumed from the hyphen-suffix pattern — a design choice the dry-run
+  itself proved necessary: `NWAX-U` (assumed a non-class-share SPAC unit
+  with no dot form) turned out to have a confirmed Massive row
+  (`NWAX.U`, `type: "UNIT"`) and was correctly included; `CWEN-A`
+  (assumed a genuine class share) turned out to be a real, verified 404
+  at Massive and was correctly excluded. Corrected the fix's own
+  docstring once this was found, before the real write ran. 13 of 14
+  candidates got a confirmed dot alias; production-verified via direct
+  SQLite query (aliases 32651→32664, exactly +13) and a full 13-pair
+  `resolve()` cross-check (every hyphen/dot pair now resolves to the
+  identical entity_id). 6 new tests, full entity_master +
+  search-integration suite green (99 tests).
+  **A full re-scan of the debt ledger after Seam 1 found no further
+  clearly-bounded, fully-unblocked item — HOLDING here.** Every remaining
+  entry carries a real, substantive reason not to pick it up
+  autonomously: Seam 6/7/8/11/14 each explicitly need their own Phase A
+  or a real architecture/product decision before any V1 is even
+  definable; Seam 13 risks colliding with the concurrent Notebook
+  session's active work on `PositionDetailPage.jsx`; Seam 18/22/24 need
+  a product decision or are gated; Seam 3/4/27 are explicitly
+  LOW-PRIORITY. **Seam 17's remainder (wiring symbol autocomplete into
+  `AddPositionModal.jsx`/`AddTradeModal.jsx`'s bare text inputs) is the
+  closest candidate but was NOT picked up** — a quick re-check found
+  `SymbolSearch.jsx` is architecturally a click-to-open dropdown
+  component (per its own CLAUDE.md description), not a drop-in
+  autocomplete-while-typing replacement for an always-visible input, and
+  the field must stay non-blocking on unknown/delisted/historical
+  tickers (AddTrade's own explicit requirement) — real implementation-
+  approach breadth (adapt `SymbolSearch` vs. build a new
+  autocomplete-below-input shape), the same kind of genuine design-space
+  question Compare Coverage V1 got an explicit owner check-in for
+  earlier this session, not a unilateral call. This satisfies the
+  standing directive's own completion standard: important workflows are
+  now coherent, known material trust defects are closed, and what
+  remains is genuinely external dependencies (Pattern Vision's evidence
+  window, a genuine S7 event), owner decisions (Awareness Reachability
+  Restoration V1's monetization question, Seam 18's product decision,
+  Seam 17-remainder's design-space choice), or work needing its own
+  dedicated Phase A before it can even be scoped (Seam 6/7/8/11/14).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
@@ -1898,31 +1981,24 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   regression is found.
 
 - **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT) —
-  WRITE-TIME HALF CLOSED by Identity Normalization Hardening V1, merge
-  `9c1bff81f`, 2026-09-06; READ-SIDE HALF still OPEN, deliberately.** Manual
-  J2 entry (`positions.py`/`trades.py`/`csv_import.py`) now routes through
-  the same shared `symbol_normalize.py::normalize_symbol()` SnapTrade sync
-  already used — a manually-logged and a broker-synced write of the same
-  real security can no longer land under two different strings going
-  forward. `options.py` was NOT touched (out of this V1's traced scope —
-  re-audit before assuming it's covered). What remains genuinely open: Entity
-  Master's alias table is still seeded ONLY in hyphen form
-  (`scripts/entity_master_seed.py`), so `resolve("BRK.B")` still returns
-  `not_found` — this still silently degrades Watchlist/Portfolio
-  Intelligence and Research estimates/financials for the dot spelling, and
-  still affects any EXISTING historical row already stored under the dot
-  spelling (this V1 changed no historical data — a pure write-time
-  hardening fix, not a migration). Price lookup itself remains robust
-  (`to_polygon_symbol()` accepts both). Fix shape for the remainder: a second
-  seeded S3 alias for the dot spelling, NOT a data migration.
-  **Confirmed still fully open as of Ticker Search Identity Convergence V1
-  (Seam 16, 2026-09-06) — that program did NOT narrow this.** Seam 16's fix
-  re-keys the dot spelling to hyphen BEFORE `ticker_search_index.py` ever
-  calls `_em_api.resolve()`, so the search index's own internal resolve
-  call no longer needs a dot-form alias to succeed -- but `resolve("BRK.B")`
-  itself is untouched and still returns `not_found` for any OTHER caller
-  that hands it a literal dot spelling. Zero Entity Master schema/alias
-  changes were made by Seam 16; this remaining scope is unchanged.
+  FULLY RESOLVED 2026-09-06.** Write-time half closed by Identity
+  Normalization Hardening V1, merge `9c1bff81f`. Read-side half
+  (`resolve("BRK.B")` returning `not_found`) closed by Seam 1 proper,
+  merge `039d885bb`+`ac76a93cf`/`75f2a0c14`: `scripts/entity_master_seed.
+  py::seed_dot_form_aliases()` adds a dot-form alias per already-existing
+  class-share entity — not a data migration, zero existing rows touched.
+  Empirically verified per-symbol against Massive's live reference API
+  (`massive.get_ticker_details()`) rather than assumed from the hyphen
+  suffix, which the dry-run proved necessary: `NWAX-U` (assumed a
+  non-class-share SPAC unit) turned out to have a confirmed Massive
+  dot-form row and was correctly included; `CWEN-A` (assumed a genuine
+  class share) turned out to be a real, verified 404 at Massive and was
+  correctly excluded. 13 of 14 cap_universe hyphenated candidates got a
+  confirmed alias; production-verified (aliases 32651→32664, exactly
+  +13; every hyphen/dot pair resolves to the identical entity_id). 6 new
+  tests, full entity_master + search-integration suite green (99 tests).
+  `options.py` remains out of traced scope (unchanged from the write-time
+  half — re-audit before assuming it's covered, if ever revisited).
 - **Seam 2 — holiday-blind session helper — RESOLVED by Temporal / Freshness
   Truth Convergence V1, merge `94dd2bb5e`, 2026-09-05/06.**
   `app/src/utils/marketSession.js::expectedLatestDailySessionET()` and
