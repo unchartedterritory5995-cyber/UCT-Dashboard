@@ -837,6 +837,32 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
     version = _current_version()
     key = (source, days, date_filter)
 
+    # ── Bootstrap parts (flag-gated, additive) ─────────────────────────────
+    # `?part=bootstrap` serves only what the first screen reads; `?part=WATCH`
+    # etc. serve one deferred array each. Same computation, same values — only
+    # the partition differs, and the parts recombine into the identical object
+    # this endpoint returns without the flag. See flowBootstrap.js for the
+    # consumption audit that decided the split.
+    #
+    # ⛔ An unknown/absent part falls through to the WHOLE-D path rather than
+    # erroring: the flag is a performance opt-in, and a member must never get a
+    # 4xx because a part name drifted.
+    part = request.query_params.get("part")
+    if part and flow_aggregate.parts_enabled() and flow_aggregate.is_part_name(part):
+        got = flow_aggregate.get_cached_or_build_part(
+            key, version,
+            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+            date_filter, part)
+        if got:
+            pv, pgz = got
+            ph = {**_FLOW_CACHE_HEADERS, "X-Flow-Version": str(pv), "X-Flow-Part": part}
+            if "gzip" in (request.headers.get("accept-encoding") or "").lower():
+                return Response(content=pgz, media_type="application/json",
+                                headers={**ph, "Content-Encoding": "gzip"})
+            return Response(content=gzip.decompress(pgz),
+                            media_type="application/json", headers=ph)
+        # Build declined (busy/unavailable) — fall through to whole-D below.
+
     flow_aggregate._STATS["endpoint_requests"] += 1   # member traffic only
     built = build_aggregate(source, days, date_filter, version)
     if not built:

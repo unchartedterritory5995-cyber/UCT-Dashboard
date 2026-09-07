@@ -117,3 +117,32 @@ export function mergeDeferred(bootstrap, deferred) {
   if (!bootstrap) return deferred
   return { ...bootstrap, ...deferred }
 }
+
+/**
+ * The transport unit: `bootstrap` plus ONE part per deferred key.
+ *
+ * ⛔ Deliberately NOT `{bootstrap, deferred}`. A single deferred blob would just
+ * move the problem — the member would trade "download the whole tape at startup"
+ * for "download most of the tape on the first tab click". Per-key parts let a
+ * surface request exactly what it reads (see DEFERRED_KEYS_BY_SURFACE): the
+ * Tracker asks for WATCH alone and never receives `all_trades`, and each part
+ * gets its own cacheable URL rather than sharing one that changes whenever any
+ * of its members do.
+ *
+ * A part is absent when `D` never had that key — never an empty array, so a
+ * consumer can still tell "no rows" from "not fetched".
+ */
+export function partsFrom(D) {
+  const { bootstrap, deferred } = splitAggregate(D)
+  const parts = { bootstrap }
+  for (const k of Object.keys(deferred || {})) parts[k] = deferred[k]
+  return parts
+}
+
+/** Every part name this contract can produce. `bootstrap` first, then the rest. */
+export const PART_NAMES = Object.freeze(['bootstrap', ...DEFERRED_KEYS])
+
+/** True when `name` is a part a caller may legitimately ask for. */
+export function isPartName(name) {
+  return PART_NAMES.includes(name)
+}

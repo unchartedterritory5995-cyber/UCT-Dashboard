@@ -8,6 +8,9 @@ import {
   splitAggregate,
   mergeDeferred,
   needsDeferred,
+  partsFrom,
+  PART_NAMES,
+  isPartName,
 } from './flowBootstrap'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -182,5 +185,44 @@ describe('the deferral claim is re-derived from OptionsFlow.jsx', () => {
       const hits = [...src.matchAll(new RegExp(`\\b(?:D|FD)\\??\\.${k}\\b`, 'g'))]
       expect(hits.length, `${k} is now read somewhere; re-run the audit`).toBe(0)
     }
+  })
+})
+
+describe('parts — one per deferred key, never one deferred blob', () => {
+  it('produces bootstrap plus a part for each deferred key present', () => {
+    const parts = partsFrom(makeD())
+    expect(Object.keys(parts).sort()).toEqual(['bootstrap', ...DEFERRED_KEYS].sort())
+  })
+
+  it('recombining every part reproduces the original exactly', () => {
+    const D = makeD()
+    const parts = partsFrom(D)
+    const { bootstrap, ...rest } = parts
+    expect({ ...bootstrap, ...rest }).toEqual(D)
+  })
+
+  it('⛔ a surface can take ONE part without dragging the rest', () => {
+    // The Tracker reads WATCH and nothing else deferred. If asking for WATCH
+    // returned anything of all_trades, we would have rebuilt the same problem
+    // one click later.
+    const parts = partsFrom(makeD())
+    const trackerNeeds = DEFERRED_KEYS_BY_SURFACE.tracker
+    expect(trackerNeeds).toEqual(['WATCH'])
+    for (const k of trackerNeeds) expect(parts[k]).toBeDefined()
+    expect(trackerNeeds).not.toContain('all_trades')
+    expect(trackerNeeds).not.toContain('all_directional')
+  })
+
+  it('omits a part whose key D never had', () => {
+    const parts = partsFrom({ clean_confirmed: [], WATCH: [1] })
+    expect('all_trades' in parts).toBe(false)
+    expect(parts.WATCH).toEqual([1])
+  })
+
+  it('isPartName accepts every produced name and rejects others', () => {
+    for (const n of PART_NAMES) expect(isPartName(n)).toBe(true)
+    expect(isPartName('clean_confirmed')).toBe(false)  // bootstrap-only key
+    expect(isPartName('__proto__')).toBe(false)
+    expect(isPartName('')).toBe(false)
   })
 })
