@@ -690,6 +690,19 @@ def _front_matter(
             lines.append(f"    observed: {item['observedAt']}")
             if item.get("caption"):
                 lines.append(f"    note: {_yaml_scalar(item['caption'])}")
+    # Wave G: thesis evidence -- live links only (removed_at IS NOT NULL rows
+    # are excluded by _resolve_thesis_evidence_by_note itself, same "export
+    # the current, durable state" posture as everything else in this front
+    # matter). Target resolved to a human-readable label, never a bare id
+    # (same discipline as linked_trades above).
+    evidence = extra.get("thesis_evidence") or []
+    if evidence:
+        lines.append("thesis_evidence:")
+        for item in evidence:
+            lines.append(f"  - stance: {item['stance']}")
+            lines.append(f"    target: {_yaml_scalar(item['targetLabel'])}")
+            if item.get("caption"):
+                lines.append(f"    note: {_yaml_scalar(item['caption'])}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -868,6 +881,62 @@ def _resolve_facts_by_note(
     return out
 
 
+def _resolve_thesis_evidence_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, str]]]:
+    """Wave G — one-shot, whole-export prefetch of every LIVE evidence link
+    (removed_at IS NULL), keyed by the thesis note (evidence is note-owned,
+    checkpoint decision 34, mirroring _resolve_facts_by_note's own note-
+    owned batch-query shape exactly). Each target is resolved to a human
+    label at export time -- a raw note/fact id would be meaningless outside
+    this account (same "not bare DB ids" discipline `linked_trades` already
+    follows)."""
+    if not note_ids:
+        return {}
+    placeholders = ",".join("?" for _ in note_ids)
+    rows = conn.execute(
+        f"SELECT note_id, target_type, target_id, stance, caption FROM j2_thesis_evidence"
+        f" WHERE user_id = ? AND note_id IN ({placeholders}) AND removed_at IS NULL"
+        f" ORDER BY note_id, created_at",
+        (user_id, *note_ids),
+    ).fetchall()
+    if not rows:
+        return {}
+    from api.services.journal_two import fact_registry
+    note_targets = [r["target_id"] for r in rows if r["target_type"] == "note"]
+    fact_targets = [r["target_id"] for r in rows if r["target_type"] == "fact"]
+    note_titles: dict[str, str] = {}
+    if note_targets:
+        ph = ",".join("?" for _ in note_targets)
+        for r in conn.execute(
+            f"SELECT id, title FROM j2_notes WHERE user_id = ? AND id IN ({ph})",
+            (user_id, *note_targets),
+        ).fetchall():
+            note_titles[r["id"]] = r["title"] or "Untitled"
+    fact_labels: dict[str, str] = {}
+    if fact_targets:
+        ph = ",".join("?" for _ in fact_targets)
+        for r in conn.execute(
+            f"SELECT id, ticker, fact_type FROM j2_fact_observations WHERE user_id = ? AND id IN ({ph})",
+            (user_id, *fact_targets),
+        ).fetchall():
+            fdef = fact_registry.get_fact_type(r["fact_type"])
+            fact_labels[r["id"]] = f"{r['ticker']} {fdef.label if fdef else r['fact_type']}"
+
+    out: dict[str, list[dict[str, str]]] = {}
+    for r in rows:
+        if r["target_type"] == "note":
+            label = note_titles.get(r["target_id"])
+        else:
+            label = fact_labels.get(r["target_id"])
+        if label is None:
+            continue  # target no longer resolves (e.g. deleted since) -- omit rather than show a dangling id
+        out.setdefault(r["note_id"], []).append({
+            "stance": r["stance"], "targetLabel": label, "caption": r["caption"] or None,
+        })
+    return out
+
+
 #
 # Round-trip self-identification (2026-09-02 adversarial audit, finding A4).
 #
@@ -953,6 +1022,7 @@ def _write_notes_archive(
         conn, user_id, [r["id"] for r in rows],
     )
     facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
+    evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
@@ -1032,6 +1102,7 @@ def _write_notes_archive(
             "linked_trades": linked_trades_by_note.get(row["id"], []),
             "properties": properties_by_note.get(row["id"], []),
             "financial_facts": facts_by_note.get(row["id"], []),
+            "thesis_evidence": evidence_by_note.get(row["id"], []),
         }
         zf.writestr(
             f"{path}.md",
@@ -1180,6 +1251,7 @@ def build_single_note_export(
             conn, user_id, [note_id],
         )
         facts_by_note = _resolve_facts_by_note(conn, user_id, [note_id])
+        evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [note_id])
 
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -1227,6 +1299,7 @@ def build_single_note_export(
             "linked_trades": linked_trades_by_note.get(note_id, []),
             "properties": properties_by_note.get(note_id, []),
             "financial_facts": facts_by_note.get(note_id, []),
+            "thesis_evidence": evidence_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
 

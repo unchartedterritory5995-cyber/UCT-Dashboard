@@ -2432,3 +2432,318 @@ identity model, the `financialFact` node + sidecar pattern, the rights-class
 gate on write (never on read), and the batched-per-note current-value
 resolution contract — none of these were redesigned by this pass beyond the
 one named fix (the settle-window race).
+
+---
+
+## Wave G — Thesis Intelligence + Thesis Changelog — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch
+for any part of Wave G's research, architecture, implementation, testing,
+browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction (read before design, not after)
+
+**The directive's own §180 warning — "do not assume the original roadmap's
+'thesis is a bare tag' remains true after Waves E/F" — is exactly right, and
+the readiness scorecard's Thesis Intelligence row (still reading 3/"a bare tag
+string, no structured fields" at the time this checkpoint was written) is
+STALE.** Direct code reads found:
+
+- **`AddPositionModal.jsx` already runs a real pre-trade thesis flow** (Wave 3):
+  search an existing note or create one (tagged `tags: ['thesis']`), then —
+  AFTER the position is persisted and a real id exists — attach a typed
+  relationship by inserting a **`chart` widgetEmbed** (a frozen entry-date
+  snapshot) whose `attrs.tradeRef`/`attrs.tradeRefType: 'position'` carry the
+  link. A failure here never undoes the saved position/note; it surfaces a
+  retry banner (`pendingLink`/`thesisLinkWarning`). This is the ONLY current
+  thesis-creation entry point outside plain Notebook note creation.
+- **Wave E already shipped real structured thesis metadata**, completely
+  disconnected from the `'thesis'` tag above: `builtin:thesis_status`
+  (Watching/Active/Invalidated/Closed), `builtin:confidence` (Low/Medium/High),
+  `builtin:research_type` (Long Thesis/Short Thesis/Earnings Play/Sector
+  Note/Watchlist Note), `builtin:review_date` (date), and — critically —
+  **`builtin:trade_ref` ("Linked Trade")**, which already resolves live via
+  `note_trade_links.resolve_trade_ref` and already displays in any note's
+  Properties section. A note created by `AddPositionModal`'s thesis flow
+  today shows its linked position with ZERO new code — Wave E already wired
+  this. **These two systems (the tag and the properties) have never been
+  connected**: nothing sets `builtin:thesis_status` when a thesis note is
+  created via `AddPositionModal`, and nothing requires the `'thesis'` tag for
+  a note to carry thesis properties. This disconnect is the central ownership
+  question this checkpoint resolves (decision 3/9 below).
+- **`note_trade_links.py` already solves typed relationships completely**,
+  including graduation (`position` → `equity_trade` automatically, once a
+  position closes into exactly one trade — multiple partial closes stay
+  `position` rather than guessing), an explicit `notes_linked_to_trade`
+  reverse lookup (already exposed at `GET /api/j2/notes/linked-to-trade`,
+  already consumed by `LinkedNotesPanel.jsx` on the open-position view), and
+  a documented **never-guess** discipline for ambiguous/legacy references.
+  **A thesis note can already reference MULTIPLE trades** — nothing prevents
+  more than one trade-ref-carrying embed on one note (directive §125's
+  "multiple trades per thesis" scenario is already structurally supported,
+  not a gap to close).
+- **`j2_note_versions` already versions `properties_json`** (Wave E ALTER,
+  `_maybe_capture_version`'s coalescing capture) — meaning a property-change
+  history (status/confidence/review_date transitions) can be DERIVED by
+  diffing consecutive version rows rather than built as a new live-tracking
+  system. **No `restored_from_version_id` marker exists yet** — `force=True`
+  version capture is used exclusively by `restore_note_version`, but nothing
+  on the resulting row says which version was restored TO. A small additive
+  column closes this (decision 24 below).
+- **Notebook templates (`notebookTemplates.js`) use plain headings/paragraphs/
+  bullets/hr — never `Toggle`/`Callout` nodes**, despite both being registered
+  editor extensions. Established house style for a template is prompts under
+  visible headings, not collapsible sections. A new Thesis template follows
+  this exact precedent, not something novel.
+- **`j2_note_links` (Wave D) and `j2_fact_observations` (Wave F) are both
+  already stable-id-referenceable, tenant-scoped, per-note-resolvable** —
+  exactly the shape an evidence relationship needs to point at without
+  copying content.
+
+### 48 required decisions
+
+1. **Current thesis reality** — see reconstruction above: a tag (`'thesis'`,
+   Wave 3, search/creation only) + disconnected Wave E structured properties
+   + Wave 3 typed trade/position relationships, already functional but never
+   unified into one coherent "this is a thesis" concept.
+2. **Current thesis entry points** — `AddPositionModal`'s pre-trade flow
+   (search-existing/create-new); plain Notebook "+ New note" (no thesis
+   semantics applied at all today). Wave G's own new `/thesis`-shaped
+   template is a third, additive entry point (decision 10).
+3. **Thesis object ownership** — **Model A: a note + existing structured
+   metadata, NOT a separate first-class object.** No `j2_theses` table.
+   Directly answers directive §9's classification: the smallest durable model
+   IS a specialized note with structured semantics, because every primitive
+   a thesis needs (title/subtitle for the statement, Wave E properties for
+   status/confidence/review-date, Wave D links + Wave F facts for evidence
+   targets, Wave 3 embeds for trade/position, Wave C for history) already
+   exists and already works. Building a parallel object would duplicate all
+   of it (directive §10's explicit prohibition).
+4. **Note vs. separate thesis object decision** — resolved by (3). A note
+   "is a thesis" when it carries `builtin:research_type` set to a
+   thesis-shaped value (`Long Thesis`/`Short Thesis`) OR the legacy `'thesis'`
+   tag (both recognized, never requiring migration — decision 39). Wave G
+   unifies these going forward: the new creation path (decision 10) sets
+   BOTH, and `AddPositionModal`'s existing flow is extended to also set
+   `builtin:research_type` (a one-line addition, not a redesign) so a
+   pre-trade thesis note is indistinguishable from one created any other way.
+5. **Current property support** — `builtin:thesis_status`/`confidence`/
+   `research_type`/`review_date`/`trade_ref` (Wave E) — ALL reused unchanged.
+6. **Status model** — reuse `builtin:thesis_status` exactly as shipped
+   (Watching/Active/Invalidated/Closed). No second state machine.
+7. **Confidence model** — reuse `builtin:confidence` exactly as shipped
+   (Low/Medium/High). No second scale.
+8. **Thesis statement model** — reuse the note's own `subtitle` field
+   (already exists on every note, already rendered prominently under the
+   title in the editor) as the compact "what do I believe" statement.
+   NOTE CONTENT SECTION classification, zero new schema.
+9. **Bull/bear model** — NOTE CONTENT SECTION (headings in the note body,
+   via the new template, decision 10) — rich authored reasoning, never
+   database cells, per directive §13/§20's explicit instruction.
+10. **Assumption model** — NOTE CONTENT SECTION (a heading in the template).
+    Not structured — directive §13 explicitly warns against over-structuring
+    "nuanced investment reasoning."
+11. **Risk model** — NOTE CONTENT SECTION (a heading in the template). Same
+    reasoning as (10) — directive §19's "do not reduce risks to a tag list."
+12. **Catalyst model** — NOTE CONTENT SECTION this wave. `builtin:research_type`
+    already has no dedicated Catalyst/Catalyst-Date built-in (checked: Wave
+    E's entry checkpoint explicitly classified Catalyst/Catalyst-Date as
+    OPTIONAL/FUTURE, never shipped) — a structured Catalyst property remains
+    a clean future addition (an ordinary user-defined property today, via
+    Wave E's existing "+ Add property" UI) rather than a new built-in this
+    wave.
+13. **Invalidation model** — TWO parts, per directive §17's own split: the
+    STRUCTURED signal is `builtin:thesis_status = 'Invalidated'` (already
+    exists); the REASONING is NOTE CONTENT (a heading in the template). No
+    new "invalidation criteria" field — human reasoning belongs in prose,
+    matching directive §13's classification discipline exactly.
+14. **Review model** — reuse `builtin:review_date`. "Mark reviewed" (decision
+    30) is UX sugar over an ordinary property update (advance the date),
+    never a new backend primitive — directive §43's explicit "no new task
+    engine needed."
+15. **Evidence data model** — NEW, the one genuinely new structural addition
+    this wave needs (directive §21/§24 anticipated this): `j2_thesis_evidence`
+    (id, user_id, note_id, target_type: `'note'|'fact'`, target_id, stance:
+    `'supports'|'opposes'`, caption, created_at, removed_at). Soft-delete via
+    `removed_at` (not a hard DELETE) so "evidence added"/"evidence removed"
+    changelog events can be derived directly from this one table's own
+    timestamps (directive §169's "avoid payload duplication" — no separate
+    event row needed for this event class).
+16. **Evidence stance** — exactly two values, `supports`/`opposes` — directive
+    §103's explicit "do not require Neutral unless useful." No third value
+    this wave.
+17. **Evidence target types** — exactly two, `note` (Wave D-shaped: any other
+    note's id) and `fact` (Wave F-shaped: any `j2_fact_observations` id this
+    user owns). `target_type` is an open string column (not a CHECK
+    constraint) so a future type is additive, per directive §59's
+    extensibility ask — but only these two are validated/accepted this wave.
+18. **Evidence annotation** — `caption` (nullable, free text) — directive
+    §57's "why this matters," mirrors Wave F's own fact-caption pattern
+    exactly.
+19. **Trade/position ownership** — UNCHANGED. Reuses `j2_note_embeds`'
+    existing `trade_ref`/`trade_ref_type` + `resolve_trade_ref`/
+    `notes_linked_to_trade` verbatim. No new table (directive §26's explicit
+    instruction, and the reconstruction above proves the existing mechanism
+    already supports every scenario the directive names, including multiple
+    trades per thesis).
+20. **Note-link interaction** — Wave D's `noteLink` node is UNCHANGED and
+    remains the general-purpose in-prose linking mechanism; a thesis
+    additionally MAY register a `noteLink` target as typed evidence via (15)
+    — the two coexist, evidence is a strict superset annotation, never a
+    replacement.
+21. **Fact interaction** — Wave F's `financialFact` node is UNCHANGED;
+    evidence (15) may reference a fact id the SAME note (or another note the
+    user owns) already captured. No fact is ever copied or mutated to "belong
+    to" a thesis.
+22. **Changelog source inputs** — five sources, ALL derived from existing
+    authoritative data, zero duplicate storage: (a) Wave C+E version-pair
+    `properties_json` diffs → status/confidence/review-date change events;
+    (b) Wave C version-pair title/subtitle/body_plain diffs → a single
+    generic "thesis edited" event pointing at the version pair (never
+    duplicating the text itself); (c) `j2_thesis_evidence.created_at`/
+    `removed_at` → evidence-added/removed events; (d) `j2_fact_observations
+    .observed_at` (for facts referenced as evidence) → fact-captured events;
+    (e) `j2_note_embeds` trade-ref rows' `captured_at` + position/trade
+    `created_at`/`closed_at` → position-linked/trade-closed events. See (34)
+    for why this is a COMPUTED READ, not a stored event log.
+23. **Property-history reality** — confirmed via direct code read: Wave E
+    property VALUES are already versioned (checkpoint §26's own decision,
+    `j2_note_versions.properties_json`, the same coalescing gate as title/
+    subtitle/body). Wave G's changelog reuses this unchanged — no new
+    property-audit table.
+24. **Changelog event model** — a **computed read model**, not a stored
+    table (directive §34's own "prove it against existing infrastructure
+    first" — proven: every event class in (22) already has a durable,
+    timestamped, authoritative home). The one additive schema change:
+    `j2_note_versions.restored_from_version_id` (nullable TEXT), stamped ONLY
+    by `restore_note_version`'s own forced capture, so a restore produces a
+    distinct, auditable "Restored from version X" event instead of reading
+    as an ordinary edit.
+25. **Event immutability** — trivially satisfied: every source in (22) is
+    already immutable or append-only (versions never mutate; evidence rows
+    are soft-deleted, never rewritten; facts are immutable per Wave F).
+26. **Event dedupe** — moot for a computed read (there is no write path to
+    the changelog itself to double-fire); the evidence table's own `id` is
+    the natural PK, and duplicate evidence-add clicks are prevented the same
+    way Wave F's idempotency works (a client-generated intent key, decision
+    41).
+27. **Content-history link** — every "thesis edited" changelog row carries
+    the `(fromVersionId, toVersionId)` pair; the frontend's "View changes"
+    action opens Wave C's EXISTING diff view unchanged — no second diff
+    engine (directive §108's explicit instruction).
+28. **Financial-fact event policy** — a changelog event fires ONLY at
+    CAPTURE time (`observed_at`), never on a current-value refresh (directive
+    §39/§80/§112's explicit "do not log every quote tick" — trivially
+    satisfied since current-value resolution has no write path at all,
+    Wave F's own architecture already prevents this class of noise
+    structurally).
+29. **Trade/position event policy** — "position linked" derives from the
+    trade-ref embed's `captured_at`; "trade closed" derives from
+    `j2_trades.closed_at` becoming non-null for a trade this note's evidence/
+    embeds resolve to. Both READ-ONLY derivations, no new write path.
+30. **Review checkpoint** — "Mark reviewed" is a thin frontend action that
+    calls the EXISTING `update_note` properties-patch path to advance
+    `review_date` — the resulting version-diff automatically becomes a
+    changelog event via (22)(a). No new endpoint, no new table.
+31. **Current-state baseline** — for a thesis with no evidence/changelog
+    history yet (every existing thesis note, pre-Wave-G), the changelog
+    renders empty with honest framing ("Changes will appear as this thesis
+    evolves," directive §122) — never a fabricated "baseline established"
+    event.
+32. **Migration** — NONE. No backfilled fake historical events (directive
+    §141/§143, absolute — same discipline as Wave F's own "no fabricated
+    history" rule). An existing `'thesis'`-tagged note without
+    `builtin:research_type` set is not silently mutated; decision 4's dual
+    recognition means it still reads as a thesis without a write.
+33. **Export** — the current single-note/full-archive export gains a
+    `thesis_evidence:`/`thesis_changelog:` front-matter section (human-
+    readable, immutable-derived only) when a note carries evidence or
+    resolvable changelog events — mirrors Wave E/F's own export pattern
+    exactly, no new export mechanism.
+34. **Trash/purge** — evidence rows are note-owned (mirrors Wave F's fact
+    ownership decision exactly): `j2_thesis_evidence` rows for a note are
+    only ever created/removed via that note's own evidence actions, cascade-
+    deleted on note hard-purge via a new trigger, unaffected by soft-delete
+    (trash).
+35. **Account deletion** — `j2_thesis_evidence` added to
+    `account_purge._DIRECT_USER_TABLES`, covered automatically by the
+    existing schema-driven generic purge test (same mechanism that already
+    covered Wave F's two new tables with zero bespoke code).
+36. **Tenant security** — every evidence write/read re-validates ownership of
+    BOTH the thesis note and the evidence target (note or fact) server-side,
+    mirroring `resolve_trade_ref`'s own "the reference is never treated as
+    authorization" discipline exactly.
+37. **Read model/performance** — one aggregated endpoint,
+    `GET /notes/{id}/thesis-summary`, batches evidence + a bounded recent-
+    changelog slice + linked trade/position resolution in ONE request —
+    mirrors Wave E's saved-view resolution and Wave F's batched current-value
+    pattern (directive §65/§118's explicit "no N+1 waterfalls" instruction).
+38. **Sidebar/IA** — NO new top-level navigation surface (directive §45's
+    explicit prohibition). Thesis-shaped notes are discoverable via ordinary
+    Notebook + Wave E saved views (decision 44) — not a dedicated "Thesis"
+    tab.
+39. **Note UI** — a compact, collapsed-by-default "Thesis Evidence" section
+    (mirrors Wave E's PropertiesSection progressive-disclosure exactly: a
+    small "+ Add evidence" link when empty, never a permanent panel) plus a
+    "Changelog" tab/section rendered similarly. Both sit below the existing
+    Properties section, above the body — never wrapping the editor in
+    dashboard chrome (directive §90's explicit instruction).
+40. **Mobile** — evidence rows and changelog entries stack vertically at
+    every width (same discipline as Wave F's THEN/NOW card — one markup,
+    no separate mobile path).
+41. **Keyboard** — native controls throughout; the evidence-target picker
+    reuses the SAME debounced-search pattern `AddPositionModal`'s own
+    thesis-note search already uses (a proven, existing keyboard-complete
+    pattern) rather than inventing a new one.
+42. **Error/loading/empty states** — evidence/changelog load independently of
+    the note body (directive §66/§121's "fail locally" — a changelog fetch
+    failure never blocks reading/editing the thesis itself).
+43. **Competitor task matrix** — scoped comparison against Notion/Obsidian/
+    Evernote's structured-research + history capabilities, produced at
+    closure (directive §145/§173-175) using current official sources, not
+    re-derived from Wave E's own now-dated competitor pass.
+44. **Financial differentiation test** — the live-browser E2E in the closure
+    section (decision matches directive §176 exactly): create a thesis via
+    the real pre-trade flow, capture a financial fact, watch the changelog
+    render it, all in one system — proving the "automatically bound context"
+    claim rather than asserting it.
+45. **Vertical slices** — recomputed from this checkpoint (directive §181's
+    own "do not force the suggested decomposition if architecture suggests a
+    better one" — it does, since most of the suggested slices collapse once
+    (3)/(22)/(24) are resolved): (1) schema (`j2_thesis_evidence` +
+    `restored_from_version_id`) + evidence service + router; (2) changelog
+    read-model service (the version/evidence/fact/trade diff-and-merge
+    logic) + router; (3) frontend: evidence section + changelog section +
+    the aggregated `thesis-summary` hook; (4) the new Thesis note template +
+    `AddPositionModal`'s `research_type` connective fix + saved-view starter
+    entries (decision 44 below); (5) export integration + account-purge
+    coverage; (6) real-browser E2E + mobile + accessibility + performance +
+    production deploy + certification.
+46. **Test matrix** — evidence CRUD/idempotency/tenant-isolation/lifecycle;
+    changelog correctness (each of the 5 source classes, ordering, the
+    restore-marker event, no-noise-on-current-refresh); read-model batching;
+    export; account-purge; real-browser E2E per directive §148-160
+    (create, pre-trade flow, structure via template, evidence add/remove,
+    changelog rendering + ordering + "View changes" round-trip, THEN/NOW
+    no-noise proof, invalidation, mobile).
+47. **Rollback** — fully additive: one new table, one new nullable column,
+    one new template, one new aggregated read endpoint, one connective
+    one-line fix to `AddPositionModal`. Disabling any of it leaves every
+    existing note/property/link/fact/trade relationship fully intact —
+    nothing here is a data-format change to those systems.
+48. **Starter saved views (folded from directive §44/§86)** — four Wave-E
+    saved views seeded once (not sidebar clutter, ordinary saved-view rows a
+    member can rename/delete): "Active Theses" (`research_type` in
+    {Long/Short Thesis} AND `thesis_status = Active`), "Needs Review"
+    (`review_date <= today`), "Invalidated Theses" (`thesis_status =
+    Invalidated`), "Theses With Open Positions" (`trade_ref` is_not_empty).
+    Uses Wave E's EXISTING property-filter/saved-view machinery verbatim —
+    zero new query mechanism.
+
+**No MATERIAL architectural contradiction found.** The directive's own
+tentative models (A/B/C in §9) are resolved decisively in favor of Model A
+by direct evidence, not assumption — every primitive Wave G needs already
+exists except a small typed evidence-relationship table and a nullable
+restore-marker column, exactly the minimal-new-primitive outcome directive
+§10/§25/§63 asked to prove before building anything larger. Proceeding
+directly to implementation.

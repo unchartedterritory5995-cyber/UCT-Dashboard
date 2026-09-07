@@ -1778,6 +1778,7 @@ def _maybe_capture_version(
     user_id: str,
     existing: sqlite3.Row,
     force: bool = False,
+    restored_from_version_id: str | None = None,
 ) -> None:
     """Coalescing version-capture hook -- called from update_note BEFORE the
     UPDATE is applied, so `existing` is the pre-edit row (the content about
@@ -1823,6 +1824,13 @@ def _maybe_capture_version(
     UPDATE — a bug here must never be able to block the authoritative note
     save (directive §19); any failure here costs a version-history entry,
     never note data.
+
+    `restored_from_version_id` (Wave G checkpoint §24, passed only by
+    restore_note_version via update_note) is stamped onto the row THIS call
+    captures -- i.e. the pre-restore state being preserved -- recording which
+    version the note was restored TO. It marks this checkpoint as the direct
+    result of a restore so the Wave G changelog can render "Restored from
+    version X" as a distinct, auditable event instead of an ordinary edit.
     """
     try:
         latest = conn.execute(
@@ -1840,12 +1848,13 @@ def _maybe_capture_version(
                     return  # still inside the same coalescing window -- no new checkpoint
         conn.execute(
             "INSERT INTO j2_note_versions (id, user_id, note_id, title, subtitle,"
-            " body_json, body_plain, properties_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " body_json, body_plain, properties_json, created_at, restored_from_version_id)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 uuid.uuid4().hex, user_id, note_id,
                 old_content[0], old_content[1],
                 existing["body_json"], old_content[2], old_content[3],
-                existing["updated_at"],
+                existing["updated_at"], restored_from_version_id,
             ),
         )
     except Exception:  # noqa: BLE001 — see docstring: never break the real save
@@ -1913,6 +1922,7 @@ def get_note_version(
             # before this column existed" -- both read identically as
             # "nothing to restore," which is correct for either case.
             "propertiesJson": json.loads(row["properties_json"]) if row["properties_json"] else None,
+            "restoredFromVersionId": row["restored_from_version_id"] if "restored_from_version_id" in _row_keys(row) else None,
         }
     finally:
         if owned:
@@ -1965,6 +1975,7 @@ def restore_note_version(
                 "propertiesReplace": version["propertiesJson"] or {},
             },
             conn=conn, expected_updated_at=expected_updated_at, force_version=True,
+            restored_from_version_id=version_id,
         )
     finally:
         if owned:
@@ -1978,6 +1989,7 @@ def update_note(
     conn: sqlite3.Connection | None = None,
     expected_updated_at: str | None = None,
     force_version: bool = False,
+    restored_from_version_id: str | None = None,
 ) -> dict[str, Any] | None:
     """`expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
@@ -2094,7 +2106,10 @@ def update_note(
             else (existing["properties_json"] if "properties_json" in _row_keys(existing) else None)
         )
         if (new_title, new_subtitle, new_body_plain, new_properties_for_compare) != _versioned_content_of(existing):
-            _maybe_capture_version(conn, note_id, user_id, existing, force=force_version)
+            _maybe_capture_version(
+                conn, note_id, user_id, existing, force=force_version,
+                restored_from_version_id=restored_from_version_id,
+            )
 
         sets.append("updated_at = ?"); params.append(_now_iso())
         params.extend([note_id, user_id])

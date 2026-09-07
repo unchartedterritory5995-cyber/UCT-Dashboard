@@ -332,6 +332,40 @@ export default function NotebookTab() {
     setSaveViewOpen(false)
   }
 
+  // Wave G checkpoint §48 — four canonical thesis-relevant starter views,
+  // built entirely from Wave E's existing property-filter mechanism (AND-
+  // only, eq/lte/is_not_empty over USER_SET builtin properties). Two of the
+  // directive's five originally-suggested views turned out infeasible
+  // against that mechanism as designed (builtin:trade_ref is
+  // financial_derived and not filterable at all; "research_type is Long OR
+  // Short" needs an OR the filter deliberately doesn't support) -- rather
+  // than build a second query mechanism just for this, the starter set uses
+  // the four that ARE naturally expressible: Active, High Confidence, Needs
+  // Review, Invalidated. Ordinary saved-view rows once created -- fully
+  // renameable/deletable like any other.
+  const addStarterThesisViews = async () => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const starters = [
+      { name: 'Active Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' }] },
+      {
+        name: 'High Confidence',
+        filter: [
+          { propertyId: 'builtin:confidence', op: 'eq', value: 'high' },
+          { propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' },
+        ],
+      },
+      { name: 'Needs Review', filter: [{ propertyId: 'builtin:review_date', op: 'lte', value: todayIso }] },
+      { name: 'Invalidated Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'invalidated' }] },
+    ]
+    let last = null
+    for (const s of starters) {
+      try {
+        last = await createSavedView(s.name, 'list', { propertyFilter: s.filter, propertySort: null })
+      } catch { /* one starter failing (e.g. a name collision) shouldn't block the rest */ }
+    }
+    if (last) setActiveView(last)
+  }
+
   // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
   // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
   const restoreNote = async (note) => {
@@ -357,7 +391,7 @@ export default function NotebookTab() {
 
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker).
-  const createNote = async ({ title = '', bodyJson, tags, ticker } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -379,10 +413,27 @@ export default function NotebookTab() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
+      // Wave G: a template can also seed structured properties (e.g. the
+      // Thesis template's Research Type) -- create_note has no properties
+      // param of its own (Wave E's set_note_properties is a PUT-only path),
+      // so this is a follow-up patch, best-effort: a failure here still
+      // leaves a perfectly usable note, just without the pre-set property.
+      let created = body.note
+      if (properties && Object.keys(properties).length) {
+        try {
+          const putRes = await fetch(`/api/j2/notes/${created.id}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ properties }),
+          })
+          if (putRes.ok) created = (await putRes.json()).note
+        } catch { /* best-effort -- note creation itself already succeeded */ }
+      }
       // Instant: put it in the tree now, then reconcile from the server.
-      addNoteToTree(body.note)
+      addNoteToTree(created)
       refreshAll()
-      openNote(body.note)
+      openNote(created)
     } catch (e) {
       alert(`Could not create note: ${e.message || e}`)
     } finally {
@@ -407,6 +458,7 @@ export default function NotebookTab() {
       bodyJson: tpl.build(ctx),
       tags: tpl.tags,
       ticker: ctx.ticker,
+      properties: tpl.properties,
     })
   }
 

@@ -25,6 +25,7 @@ import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
+import ThesisSection from './ThesisSection'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -1379,6 +1380,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
         <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
+            body (checkpoint §39); renders nothing for a note that isn't
+            being used as a thesis. */}
+        <ThesisSection noteId={noteId} note={note} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

@@ -943,6 +943,37 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_fact_observations_ad AFTER DELETE ON j2_no
     DELETE FROM j2_fact_observations WHERE note_id = old.id;
 END;
 
+-- ── Wave G (Thesis Intelligence + Thesis Changelog) ────────────────────────
+-- The ONE new structural primitive Wave G's entry checkpoint (decision 15)
+-- found necessary: a typed evidence relationship pointing FROM a thesis note
+-- TO either another note (Wave D-shaped) or a captured financial fact
+-- (Wave F-shaped), annotated with a stance. Everything else Wave G needs --
+-- status/confidence/review-date, trade/position linkage, property-change
+-- history -- already exists (Wave E properties, Wave 3 typed relationships,
+-- Wave C version diffs). Soft-deleted via `removed_at` (never a hard DELETE
+-- on user action) so the changelog's evidence-added/evidence-removed events
+-- can be derived directly from this table's own timestamps -- no separate
+-- event-log table (checkpoint decision 22/24).
+CREATE TABLE IF NOT EXISTS j2_thesis_evidence (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,          -- the thesis note this evidence belongs to
+    target_type TEXT NOT NULL,          -- 'note' | 'fact' (open string -- checkpoint 17)
+    target_id   TEXT NOT NULL,
+    stance      TEXT NOT NULL,          -- 'supports' | 'opposes' (checkpoint 16)
+    caption     TEXT,                   -- why this matters -- mirrors j2_fact_observations.caption
+    created_at  TEXT NOT NULL,
+    removed_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_note
+    ON j2_thesis_evidence(note_id, removed_at);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_user
+    ON j2_thesis_evidence(user_id, note_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_evidence_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_thesis_evidence WHERE note_id = old.id;
+END;
+
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
 -- row so a revoked link stays dead instead of being re-mintable by accident.
@@ -1451,6 +1482,12 @@ _PHASE_2_ALTERS = [
     # not a silent gap. NULL for every version captured before this column
     # existed (those notes simply had no properties yet in Wave E's absence).
     "ALTER TABLE j2_note_versions ADD COLUMN properties_json TEXT",
+    # Wave G checkpoint §24: marks a version row as the RESULT of a restore
+    # (the id of the version that was restored TO), so the changelog can
+    # render "Restored from version X" as a distinct, auditable event
+    # instead of an ordinary edit. Stamped ONLY by restore_note_version's
+    # existing force=True capture path -- NULL for every other version.
+    "ALTER TABLE j2_note_versions ADD COLUMN restored_from_version_id TEXT",
 ]
 
 

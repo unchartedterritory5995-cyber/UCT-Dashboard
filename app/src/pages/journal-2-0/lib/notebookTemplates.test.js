@@ -13,6 +13,7 @@ const KEYS = [
   'post-market-debrief',
   'weekly-plan',
   'weekly-review',
+  'thesis',
   'trade-review',
   'swing-log',
   'earnings-play',
@@ -164,6 +165,19 @@ describe('notebook templates catalog', () => {
     expect(getTemplate('daily-prep').label).toBe('Daily Game Plan')
     expect(getTemplate('trade-review').label).toBe('Trade Post-Mortem')
     expect(getTemplate('nope')).toBeNull()
+  })
+
+  it('the thesis template never writes a direction into its body (checkpoint §47 -- direction lives in the Research Type property)', () => {
+    const flat = JSON.stringify(getTemplate('thesis').build(RICH_CTX)).toLowerCase()
+    expect(flat).not.toContain('long thesis')
+    expect(flat).not.toContain('short thesis')
+    expect(flat).toContain('bull case')
+    expect(flat).toContain('bear case')
+    expect(flat).toContain('what would prove me wrong')
+  })
+
+  it('the thesis template carries the legacy thesis tag (checkpoint §4 dual recognition)', () => {
+    expect(getTemplate('thesis').tags).toContain('thesis')
   })
 
   describe('containsTableNode helper', () => {

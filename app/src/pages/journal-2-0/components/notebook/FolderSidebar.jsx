@@ -181,9 +181,38 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
 // Wave E — Saved Views section. Same populated-conditional/collapsible
 // shape as RecencySection above (checkpoint §20: zero nav clutter at zero
 // saved views), adapted for a view (name + id) instead of a note (title).
-function SavedViewsSection({ views, activeViewId, onSelectView }) {
+//
+// Wave G checkpoint §48: `onAddStarterViews` (present only once the member
+// has zero saved views of their own) offers the four canonical thesis
+// starter views as ONE click -- ordinary saved-view rows afterward, fully
+// renameable/deletable, never a permanent fixture. It disappears the
+// moment the member has any saved view (their own or the starter set), so
+// nothing here becomes nav clutter for someone who doesn't use thesis
+// properties at all.
+function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterViews }) {
   const [expanded, setExpanded] = useState(true)
-  if (!views.length) return null
+  const [addingStarters, setAddingStarters] = useState(false)
+  if (!views.length) {
+    if (!onAddStarterViews) return null
+    return (
+      <div className={styles.section}>
+        <div className={styles.rowWrap}>
+          <button
+            type="button"
+            className={styles.starterViewsBtn}
+            disabled={addingStarters}
+            onClick={async () => {
+              setAddingStarters(true)
+              try { await onAddStarterViews() } finally { setAddingStarters(false) }
+            }}
+          >
+            <UIcon name="sliders" size={12} gold={false} />
+            {addingStarters ? 'Adding…' : 'Add thesis starter views'}
+          </button>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className={styles.section}>
       <div className={styles.rowWrap}>
@@ -436,6 +465,7 @@ export default function FolderSidebar({
   savedViews = [],
   activeViewId = null,
   onSelectView = () => {},
+  onAddStarterViews = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -912,6 +942,7 @@ export default function FolderSidebar({
             views={savedViews}
             activeViewId={activeViewId}
             onSelectView={onSelectView}
+            onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>
             <div className={styles.rowWrap}>
