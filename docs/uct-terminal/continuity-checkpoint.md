@@ -6,23 +6,28 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Calendar TickerActions Reuse V2 (Seam 20 half) merge/deploy -- the seventh
-item down the priority stack from the same-day owner-authorized
-WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent current-state
-review + synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens
-failures). Full re-anchor report delivered to the owner in-conversation;
-this doc keeps only the load-bearing conclusions, not the full 30-section
-report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
-Alert Durability V1 (Seam 30) plus the keyboard accessibility program plus
-Compare Coverage V1 (scoped via an explicit owner check-in, price-only)
-plus Seam 20 (Wire + MyStocksHub Insights row navigation) are now closed.
-**Seam 19 (the broader TickerActions/useTickerActions context-menu reuse
-into `EarningsTile.jsx`/`CalendarDayTable.jsx`/`FeedView.jsx`) was
-DELIBERATELY NOT bundled into this pass — larger blast radius, its own
-separate V2 scope, still open.** Feature-Flag Governance Sweep is next;
-Awareness Reachability Restoration V1 remains deliberately SKIPPED pending
-a genuine owner monetization/entitlement decision (see the top-of-file
-section) -- do not resolve it unilaterally.
+Feature-Flag Governance Sweep merge/deploy -- the eighth item down the
+priority stack from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC
+RE-ANCHOR (13-lens multi-agent current-state review + synthesis, ~3.9M
+subagent tokens, 699 tool calls, zero lens failures). Full re-anchor
+report delivered to the owner in-conversation; this doc keeps only the
+load-bearing conclusions, not the full 30-section report. Both re-anchor
+MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam
+30) plus the keyboard accessibility program plus Compare Coverage V1
+(scoped via an explicit owner check-in, price-only) plus Seam 20 (Wire +
+MyStocksHub Insights row navigation) plus Feature-Flag Governance Sweep
+are now closed. **Seam 19 (the broader TickerActions/useTickerActions
+context-menu reuse into `EarningsTile.jsx`/`CalendarDayTable.jsx`/
+`FeedView.jsx`) was DELIBERATELY NOT bundled into the Seam 20 pass —
+larger blast radius, its own separate V2 scope, still open.** With the
+re-anchor's own named priority stack now exhausted, the next program
+(Seam 25 -- AI Search nightly-snapshot freshness disclosure) was selected
+directly from the debt ledger below rather than a named stack item,
+per the re-anchor's own stated headline priority (trust-boundary
+consistency across already-built AI surfaces). Awareness Reachability
+Restoration V1 remains deliberately SKIPPED pending a genuine owner
+monetization/entitlement decision (see the top-of-file section) -- do not
+resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -93,10 +98,30 @@ converted to real `<button>`s navigating to `/research/{sym}`, reusing
 `EventCard.jsx`'s already-shipped convergence pattern; **Seam 19 (Board/
 Table/Feed calendar views' `TickerActions`/`useTickerActions` context-menu
 reuse) deliberately NOT bundled — larger blast radius, own separate V2
-scope, still open** → **now: Feature-Flag Governance Sweep** (the
-flag-ledger test is RED on master; 3 undeclared live-armed flags found,
-one money-adjacent — `BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner
-confirm-or-rollback).
+scope, still open** → **Feature-Flag Governance Sweep** ✅ resolved same
+day, merge `b68b71e18`/`4c8693b32` -- the flag-ledger test's own count of
+"3 undeclared" had gone stale; a fresh measurement found **7** (not 3):
+`ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED`, `BARS_A_CLOSE_GUARD_ENABLED`,
+`CREAM_EOD_ENABLED`, `PATTERN_CANONICAL_ADAPT_ENABLED`,
+`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED`,
+`PATTERN_CANONICAL_SHADOW_LOG_ENABLED`, `THEME_SETS_ENABLED` — all 7
+declared (4 armed, 3 dark) against a live Railway read + direct code
+investigation, plus a drift fix (`ALPHA_GOLD_EOD_ENABLED` had gone stale
+"armed"; confirmed OFF, superseded by the new `CREAM_EOD_ENABLED` on the
+same cron slot). Also found and fixed a genuine scanner blind spot in
+`api/services/feature_flag_index.py`: `import os as _os; _os.getenv(...)`
+was invisible to the AST scan (only the literal base name `os` matched),
+which is exactly how `BROKER_BALANCE_HISTORY_ENABLED` — live, money-
+adjacent, zero rationale — evaded detection entirely; fixed by resolving
+per-file `os` import aliases, proven non-vacuous by a new control test
+that was confirmed to fail without the fix before being restored.
+`BROKER_BALANCE_HISTORY_ENABLED` itself was surfaced to the owner via an
+explicit check-in (adds one read-only, best-effort SnapTrade
+balance-history cross-check to the existing broker fidelity audit, never
+writes to any balance/position) — **owner chose to keep it armed**, now
+documented in the ledger with that rationale. Pure docs/test-tooling
+change, zero runtime behavior touched → **now: Seam 25** (see the debt
+ledger below).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -1625,15 +1650,22 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
-  Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) —
-  ALL DONE, ACCEPTED + LIVE. Feature-Flag Governance Sweep — STARTING
-  NOW**, continuing directly down the re-anchor's own priority stack per
-  the standing directive (no new ledger-scan needed — the re-anchor
-  already did that scan; see below). **Seam 19 (Board/Table/Feed
-  TickerActions context-menu reuse) remains its own open, separately-
-  scoped V2 — deliberately not bundled into the Seam 20 pass** (larger
-  blast radius across 3+ live files with existing click handlers to
-  preserve; see the Seam 19 debt-ledger entry below, unchanged).
+  Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
+  Feature-Flag Governance Sweep — ALL DONE, ACCEPTED + LIVE. Seam 25
+  (AI Search nightly-snapshot freshness disclosure) — STARTING NOW.**
+  The re-anchor's own named priority stack is now EXHAUSTED (Feature-Flag
+  Governance Sweep was its last item) — Seam 25 was selected directly from
+  the debt ledger below rather than a stack item, per the re-anchor's own
+  stated headline conclusion (trust-boundary consistency across
+  already-built AI surfaces is the primary remaining gap). Other live
+  candidates considered and NOT picked this round: Seam 19 (larger blast
+  radius, its own V2, still open — see below), Seam 21 (News/Filings/Calls
+  → Research companion link, bounded but lower trust-value than Seam 25).
+  **Seam 19 (Board/Table/Feed TickerActions context-menu reuse) remains
+  its own open, separately-scoped V2 — deliberately not bundled into the
+  Seam 20 pass** (larger blast radius across 3+ live files with existing
+  click handlers to preserve; see the Seam 19 debt-ledger entry below,
+  unchanged).
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1679,14 +1711,36 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `FeedView.jsx`) was assessed in this program's own Phase A and confirmed
   as its own larger, separately-scoped V2 (3+ live files with existing
   click handlers to preserve) — **deliberately left open, not bundled**;
-  see the Seam 19 debt-ledger entry below, unchanged → now Feature-Flag
-  Governance Sweep (Awareness Reachability Restoration V1 still skipped,
-  see above).
-  **Next in the priority stack after this program** (all independent of
-  Pattern Vision's gate, Awareness Reachability Restoration still excluded
-  pending owner input): Feature-Flag Governance Sweep (incl. an owner
-  confirm-or-rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`) — this
-  is now the CURRENT ACTIVE PROGRAM (see above).
+  see the Seam 19 debt-ledger entry below, unchanged → **Feature-Flag
+  Governance Sweep** — ACCEPTED + LIVE, merge `b68b71e18`/`4c8693b32`:
+  declared 7 undeclared gates (the ledger test's own "3" had gone stale;
+  measured fresh), fixed a real drift (`ALPHA_GOLD_EOD_ENABLED` stale
+  "armed", now correctly `dark`/superseded), fixed a genuine AST-scanner
+  blind spot (`import os as _os` aliasing was invisible to the gate scan —
+  exactly how `BROKER_BALANCE_HISTORY_ENABLED` evaded detection), and
+  surfaced that flag to the owner via an explicit check-in rather than
+  deciding unilaterally — **owner chose to keep it armed**, now documented
+  with that rationale. Pure docs/test-tooling, zero runtime behavior
+  change. See the Feature-Flag Governance Sweep debt-ledger entry above
+  (top-of-file priority-stack paragraph) for full detail → **now: Seam 25**
+  (Awareness Reachability Restoration V1 still skipped, see above).
+  **This program (Seam 25)**: `ai_search.py::_ctx_posture()` surfaces
+  SMA%/RSI/RS-rank/Stage/etc. from the nightly `screener_rows` snapshot
+  into AI Search answers labeled only "UCT nightly snapshot," with none of
+  the real freshness columns (`snapshot_date`/`bars_asof`/`built_at`) that
+  `snapshot_db.get_row` already carries threaded through — if the nightly
+  build job ever fails silently, neither the model nor the member can tell
+  the data is stale. **Bounded Phase A required before implementation**:
+  re-read `_ctx_posture()` and the `screener_rows`/`snapshot_db` freshness
+  columns against CURRENT code before writing any fix — this seam was
+  recorded 2026-09-06 by Technical Ask AI's own Phase A and the framing may
+  have drifted since. Fix shape: thread `built_at`/`bars_asof` into
+  `_ctx_posture`'s rendered string, mirroring how Pattern Vision's
+  `asof_date`/`judged_at` are already present on confirmed verdicts.
+  **The re-anchor's own named priority stack is now exhausted** — future
+  "next program" selections should be re-derived from the debt ledger
+  below (ranked by trust-boundary value per the re-anchor's headline
+  conclusion) rather than expecting another named stack entry.
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
