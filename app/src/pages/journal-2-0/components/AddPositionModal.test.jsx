@@ -10,6 +10,25 @@ vi.mock('../hooks/usePreTradeVerdict', () => ({
   default: vi.fn(),
 }))
 
+// Seam 17 remainder: this file tests the MODAL's own save/validation/thesis
+// behavior, not SecuritySymbolInput's own search/debounce/keyboard behavior
+// (covered by its own test file) -- reduced to a plain controlled input so
+// no real (unmocked) `/api/ticker-search` fetch fires mid-test and lands a
+// state update outside any of these tests' own act() boundary.
+vi.mock('./SecuritySymbolInput', () => ({
+  default: ({ value, onChange, placeholder, disabled, autoFocus, className }) => (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      autoFocus={autoFocus}
+      className={className}
+    />
+  ),
+}))
+
 const NO_VERDICT = { run: vi.fn(), verdict: null, isLoading: false, error: null, reset: vi.fn() }
 
 const BASE_SETTINGS = {
