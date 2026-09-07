@@ -1595,16 +1595,33 @@ removed (the same Windows file-lock → PowerShell `Remove-Item -Recurse
 -Force` + `git worktree prune` fallback this pattern always needs on this
 box).
 
+A second closure-doc merge (`d7b541c1b`, gap-ledger/scorecard/decision-log/
+build-plan-closure) followed the same pattern — master had moved again by
+then (an unrelated concurrent `chart controls` commit), re-fetch confirmed
+still a clean ancestor, `--no-ff` merge, zero conflicts, pushed.
+
 Railway `web` picked up the push automatically; watched `railway status
 --json` (web service specifically, via a Python-based parse of the actual
 GraphQL shape — `environments.edges[0].node.serviceInstances.edges[]`, not
 the flat `.deployments` shape an earlier jq-based check incorrectly assumed)
 through to **SUCCESS**. `latestDeployment.meta.commitHash` reads
-`7317aec03` — byte-identical to `origin/master`'s HEAD. Fresh-process
-confirmed via `GET /api/health` on `uctintelligence.com`. New Wave G routes
+`bdec549bb` — ONE commit ahead of `d7b541c1b` (an unrelated concurrent
+session's docs-only "Seam 11" commit landed and rode the same build; directly
+confirmed via `git merge-base --is-ancestor d7b541c1b bdec549bb` that Wave G's
+own commits are fully included, not superseded or lost — the same class of
+benign concurrent-session landing Wave F's own closure recorded). Fresh-
+process confirmed via `GET /api/health` on `uctintelligence.com`
+(`uptime_seconds: 318` moments after the flip to SUCCESS). New Wave G routes
 (`POST/GET /notes/{id}/evidence`, `DELETE /evidence/{id}`, `GET
 /notes/{id}/thesis-summary`) verified returning real, auth-gated `401
-application/json` in production, not the SPA catch-all.
+application/json` in production, not the SPA catch-all. Production bundle
+(`NotebookTab-*.js`, fetched live via its real chunk name resolved from the
+main entry bundle's own import manifest, not guessed) contains the shipped
+UI copy: "Add evidence", "Changelog", "Supports", "Opposes", "Bull case",
+"Bear case", "Long/Short Thesis", "What would prove me wrong". LOCKED
+`broker_sync` merge invariant re-checked: `grep -c broker_sync api/main.py`
+reads 10, unchanged from Wave F/E's own post-merge readings, comfortably
+above the documented ≥7 floor.
 
 Verification detail (the coalescing-noise-avoidance live proof, the starter-
 views constraint discovery, tenant-isolation/mobile/accessibility results)
