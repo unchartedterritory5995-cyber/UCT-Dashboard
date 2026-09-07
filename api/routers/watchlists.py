@@ -121,13 +121,17 @@ def watchlist_performance(body: PerfRequest, user: dict = Depends(get_current_us
 class IntelRequest(BaseModel):
     tickers: list[str]
     changes: Optional[dict[str, float]] = None
+    # Seam 8 (2026-09-07): optional, additive per-symbol vendor observation
+    # epoch (seconds) alongside `changes` -- a caller that omits it (every
+    # caller before Seam 8) gets byte-identical behavior to before.
+    price_observed_at: Optional[dict[str, float]] = None
 
 
 @router.post("/api/watchlists/intelligence")
 def watchlist_intelligence(body: IntelRequest, user: dict = Depends(get_current_user)):
     from api.services.watchlist_intelligence import get_intelligence_for_symbols
     tickers = list(set(t.upper() for t in body.tickers[:100]))  # cap at 100, mirrors watchlist-performance
-    return get_intelligence_for_symbols(tickers, body.changes)
+    return get_intelligence_for_symbols(tickers, body.changes, body.price_observed_at)
 
 
 # ── Digest settings ──

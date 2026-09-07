@@ -354,6 +354,16 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
         "day_close": round(close, 2),
         "ext_price": None,
         "ext_session": None,
+        # Seam 8: this row represents a closed session's move, not a live
+        # tick -- no per-symbol observation timestamp is fetched for the
+        # closed-market fallback (would need _session_closes() to also
+        # track which calendar date each map represents, which it
+        # currently doesn't; explicitly out of this V1's scope, see the
+        # continuity checkpoint). None here is honest and non-regressive --
+        # price_move.as_of already degrades to None whenever no trustworthy
+        # timestamp is supplied, which was already the case for every
+        # closed-market fact before Seam 8.
+        "observed_at": None,
         # This row already REPRESENTS the last completed session (its change is that
         # session's move), so there's no separate pre-market split — the header uses
         # `change`/`change_pct` here. Kept for response-shape consistency.
@@ -402,6 +412,16 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         prev_day = t.get("prevDay", {})
         last_trade = t.get("lastTrade", {})
         minute = t.get("min", {})
+        # Seam 8 (2026-09-07): the vendor's own observation timestamp for
+        # THIS ticker, already computed by massive.py::get_batch_quotes for
+        # every ticker in this SAME batch (previously only folded into a
+        # result-level freshness aggregate, now also stamped per-ticker) --
+        # zero new provider call. `chg_pct` below is a day.c-vs-prevDay.c
+        # regular-session close comparison, and this is the vendor's own
+        # best signal for when that comparison's evidence was observed
+        # (live-validated to agree with lastTrade.t within ~1s -- see
+        # massive.py::_ticker_observed_at's own docstring).
+        observed_at = t.get("_observed_at")
 
         # Live price. During RTH the actual LAST TRADE is the current price;
         # `day.c` (the day aggregate's close) LAGS the last trade intraday by
@@ -504,6 +524,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
+            # Seam 8: the vendor's own observation epoch (seconds) for this
+            # ticker's quote, when available -- None (never a guess) when
+            # the provider omitted both `updated` and `lastTrade.t`.
+            "observed_at": observed_at,
             # The PREVIOUS regular session's change (prevDay.c vs the close before it).
             # The header shows this as the "original" regular-hours number during
             # pre-market/overnight, when today's regular session hasn't happened yet.
@@ -534,7 +558,10 @@ def get_live_prices(
 ):
     """Return real-time price snapshot for a batch of tickers.
 
-    Response: {AAPL: {price, change_pct, change, volume, ...}, ...}
+    Response: {AAPL: {price, change_pct, change, volume, observed_at, ...}, ...}
+    `observed_at` (Seam 8, 2026-09-07) is the vendor's own epoch-seconds
+    observation timestamp for THIS ticker's quote when available, else
+    None -- never a fabricated wall-clock stamp.
     """
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:
