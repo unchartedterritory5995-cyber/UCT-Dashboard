@@ -143,6 +143,18 @@ def detect_pullback_to_50sma(bars: List[Bar], context: dict) -> List[Detection]:
     atr14 = _atr(bars[-15:])
     if atr14 <= 0:
         return []
+
+    # HARD CURRENTNESS GATE: this detector's own failure_signal already
+    # documents the invalidation level (a close below 50-SMA minus 0.5 ATR)
+    # but the code never checked whether that had already happened between
+    # the reclaim bar and the true last bar. A reclaim that has since broken
+    # back down through its own documented invalidation level is a stale,
+    # already-failed second-buy-point, not a live one.
+    stop_level = sma50 - 0.5 * atr14
+    for j in range(reclaim_bar_idx + 1, n):
+        if bars[j]["c"] < stop_level:
+            return []
+
     prior_advance_height = prior_high - prior_low
 
     sq = compute_structure_quality(bars, pullback_bar_idx, pullback_low)
