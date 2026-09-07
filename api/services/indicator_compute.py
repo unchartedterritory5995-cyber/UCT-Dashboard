@@ -742,6 +742,45 @@ def compute_obv(bars: List[dict]) -> List[MaybeNum]:
     return _round_series(compute_obv_raw(bars), 2)
 
 
+# ─── PVT ─────────────────────────────────────────────────────────────────────
+
+def compute_pvt_raw(bars: List[dict]) -> List[MaybeNum]:
+    """Price-Volume Trend, unrounded. Mirrors ``computePVT``.
+
+    TradingView's own published reference-manual EXAMPLE source:
+    ``f_pvt() => ta.cum((ta.change(close) / close[1]) * volume)``.
+
+    ⚠️ PRESERVED QUIRK — THE ZERO SEED, same as ``compute_obv_raw``. Bar 0 is
+    ``0.0``. The LEVEL is never exposed to a formula — only a windowed DELTA is
+    (``_fn_pvtn``) — so an unverified seed cannot leak into any answer this
+    lane emits.
+
+    Zero-previous-close is treated as a 0 contribution: a defensive,
+    UNVERIFIED boundary, never observed on real data. Verified against a real
+    TradingView capture (exact match, 15 real SPY trading days, steady-state
+    5-bar windowed delta):
+    ``tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json``.
+    """
+    n = len(bars)
+    if n == 0:
+        return []
+    out: List[MaybeNum] = [None] * n
+    out[0] = 0.0
+    pvt = 0.0
+    for i in range(1, n):
+        prev_close = bars[i - 1]["c"]
+        v = float(bars[i].get("v") or 0)
+        term = ((bars[i]["c"] - prev_close) / prev_close) * v if prev_close else 0.0
+        pvt += term
+        out[i] = pvt
+    return out
+
+
+def compute_pvt(bars: List[dict]) -> List[MaybeNum]:
+    """DELIVERY wrapper (2dp), same convention as ``compute_obv``."""
+    return _round_series(compute_pvt_raw(bars), 2)
+
+
 # ─── Donchian Channels ───────────────────────────────────────────────────────
 
 def compute_donchian_raw(

@@ -1,0 +1,375 @@
+{
+  "id": "ta-kcw-close20-2-2026-09-06",
+  "shape": "stateless",
+  "script": {
+    "dialect": "pine",
+    "source": "//@version=5\nindicator(\"t\")\nplot(ta.kcw(close, 20, 2, true))\n",
+    "plot": "kcw_builtin",
+    "independentlyTranslatable": true
+  },
+  "engine": {
+    "formula": "2 * (2 * ema(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 20)) / ema(close, 20)",
+    "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            {
+              "type": "num",
+              "value": 2
+            },
+            {
+              "type": "op",
+              "name": "*",
+              "args": [
+                {
+                  "type": "num",
+                  "value": 2
+                },
+                {
+                  "type": "call",
+                  "name": "ema",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "max",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "-",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "high"
+                            },
+                            {
+                              "type": "series",
+                              "name": "low"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "name": "max",
+                          "args": [
+                            {
+                              "type": "call",
+                              "name": "abs",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "high"
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 1,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "call",
+                              "name": "abs",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "low"
+                                    },
+                                    {
+                                      "type": "offset",
+                                      "value": 1,
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "name": "ema",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 20
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "market": {
+    "symbol": "SPY",
+    "timeframe": "1D",
+    "bars": [
+      {
+        "date": "2026-08-17",
+        "o": 776.18,
+        "h": 776.78,
+        "l": 772.51,
+        "c": 772.67,
+        "v": 34360000,
+        "t": "1786924800"
+      },
+      {
+        "date": "2026-08-18",
+        "o": 768.7,
+        "h": 769.5,
+        "l": 766.92,
+        "c": 767.45,
+        "v": 43920000,
+        "t": "1787011200"
+      },
+      {
+        "date": "2026-08-19",
+        "o": 770.36,
+        "h": 772.47,
+        "l": 768.1,
+        "c": 769.06,
+        "v": 40310000,
+        "t": "1787097600"
+      },
+      {
+        "date": "2026-08-20",
+        "o": 765.96,
+        "h": 768.15,
+        "l": 762.04,
+        "c": 762.6,
+        "v": 45520000,
+        "t": "1787184000"
+      },
+      {
+        "date": "2026-08-21",
+        "o": 766.05,
+        "h": 767.85,
+        "l": 764.17,
+        "c": 765.72,
+        "v": 39190000,
+        "t": "1787270400"
+      },
+      {
+        "date": "2026-08-24",
+        "o": 764.78,
+        "h": 765.22,
+        "l": 762.08,
+        "c": 763.47,
+        "v": 32430000,
+        "t": "1787529600"
+      },
+      {
+        "date": "2026-08-25",
+        "o": 766.16,
+        "h": 766.78,
+        "l": 763.05,
+        "c": 765.91,
+        "v": 27420000,
+        "t": "1787616000"
+      },
+      {
+        "date": "2026-08-26",
+        "o": 764.73,
+        "h": 767.35,
+        "l": 763.93,
+        "c": 766.08,
+        "v": 28750000,
+        "t": "1787702400"
+      },
+      {
+        "date": "2026-08-27",
+        "o": 768.5,
+        "h": 772.36,
+        "l": 767.16,
+        "c": 771.1,
+        "v": 34560000,
+        "t": "1787788800"
+      },
+      {
+        "date": "2026-08-28",
+        "o": 771.76,
+        "h": 775.3,
+        "l": 768.31,
+        "c": 769.35,
+        "v": 36740000,
+        "t": "1787875200"
+      },
+      {
+        "date": "2026-08-31",
+        "o": 767.33,
+        "h": 768.0,
+        "l": 764.72,
+        "c": 767.05,
+        "v": 38810000,
+        "t": "1788134400"
+      },
+      {
+        "date": "2026-09-01",
+        "o": 762.01,
+        "h": 764.67,
+        "l": 759.48,
+        "c": 761.78,
+        "v": 41130000,
+        "t": "1788220800"
+      },
+      {
+        "date": "2026-09-02",
+        "o": 762.45,
+        "h": 766.43,
+        "l": 761.73,
+        "c": 765.16,
+        "v": 29570000,
+        "t": "1788307200"
+      },
+      {
+        "date": "2026-09-03",
+        "o": 767.9,
+        "h": 774.03,
+        "l": 767.45,
+        "c": 773.17,
+        "v": 43530000,
+        "t": "1788393600"
+      },
+      {
+        "date": "2026-09-04",
+        "o": 772.01,
+        "h": 772.87,
+        "l": 769.0,
+        "c": 770.19,
+        "v": 34050000,
+        "t": "1788480000"
+      }
+    ]
+  },
+  "input": {
+    "kind": "real",
+    "note": "ta.kcw(close,20,2,true) run against real SPY daily OHLC, plotted alongside two candidates built from TradingView's own published f_kcw reference-manual source: basis=ta.ema(close,20); span=ta.tr (useTrueRange=true); rangeEma=ta.ema(span,20); candRatio = 2*mult*rangeEma/basis (the published formula, a RATIO); candPercent = candRatio*100 (the plausible-but-wrong percent convention)."
+  },
+  "vendor": {
+    "readDecimals": 4,
+    "values": {
+      "1786924800": {
+        "kcw_builtin": 0.1896,
+        "kcw_candRatio": 0.1896,
+        "kcw_candPercent": 18.96
+      },
+      "1787011200": {
+        "kcw_builtin": 0.1872,
+        "kcw_candRatio": 0.1872,
+        "kcw_candPercent": 18.72
+      },
+      "1787097600": {
+        "kcw_builtin": 0.1833,
+        "kcw_candRatio": 0.1833,
+        "kcw_candPercent": 18.33
+      },
+      "1787184000": {
+        "kcw_builtin": 0.1845,
+        "kcw_candRatio": 0.1845,
+        "kcw_candPercent": 18.45
+      },
+      "1787270400": {
+        "kcw_builtin": 0.1812,
+        "kcw_candRatio": 0.1812,
+        "kcw_candPercent": 18.12
+      },
+      "1787529600": {
+        "kcw_builtin": 0.1734,
+        "kcw_candRatio": 0.1734,
+        "kcw_candPercent": 17.34
+      },
+      "1787616000": {
+        "kcw_builtin": 0.1667,
+        "kcw_candRatio": 0.1667,
+        "kcw_candPercent": 16.67
+      },
+      "1787702400": {
+        "kcw_builtin": 0.1569,
+        "kcw_candRatio": 0.1569,
+        "kcw_candPercent": 15.69
+      },
+      "1787788800": {
+        "kcw_builtin": 0.1583,
+        "kcw_candRatio": 0.1583,
+        "kcw_candPercent": 15.83
+      },
+      "1787875200": {
+        "kcw_builtin": 0.1608,
+        "kcw_candRatio": 0.1608,
+        "kcw_candPercent": 16.08
+      },
+      "1788134400": {
+        "kcw_builtin": 0.1573,
+        "kcw_candRatio": 0.1573,
+        "kcw_candPercent": 15.73
+      },
+      "1788220800": {
+        "kcw_builtin": 0.1612,
+        "kcw_candRatio": 0.1612,
+        "kcw_candPercent": 16.12
+      },
+      "1788307200": {
+        "kcw_builtin": 0.1576,
+        "kcw_candRatio": 0.1576,
+        "kcw_candPercent": 15.76
+      },
+      "1788393600": {
+        "kcw_builtin": 0.1644,
+        "kcw_candRatio": 0.1644,
+        "kcw_candPercent": 16.44
+      },
+      "1788480000": {
+        "kcw_builtin": 0.1589,
+        "kcw_candRatio": 0.1589,
+        "kcw_candPercent": 15.89
+      }
+    }
+  },
+  "provenance": {
+    "platform": "TradingView",
+    "platformVersion": "Pine v5, web (TradingView Premium)",
+    "who": "owner",
+    "when": "2026-09-06",
+    "chartUrl": null,
+    "rawArtifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/03_kcw_builtin_vs_candidates.jpg",
+    "note": "LIMITATION DISCLOSED: same CSV-download-blocked environment note as the falling observation in this batch -- raw artifact is a Table View screenshot, not a CSV. kcw_builtin === kcw_candRatio exactly on 15/15 real SPY trading days (max abs delta 0.0000 at 4 read decimals); kcw_candPercent differs from the builtin by exactly a factor of 100 on every row, ruling out the percent convention. A synthetic zero-range single bar (isZeroRange in the oracle script) was also tested and did not zero out kcw (expected: kcw is EMA-smoothed over the window, so one zero-range bar inside it does not zero the result) -- disclosed as expected behavior, not a special case requiring separate handling. CLASSIFICATION: VENDOR-PARITY VERIFIED -- LIMITED SAMPLE (15 real SPY trading days, screenshot capture). Formula: basis=ema(src,length); span=useTrueRange?tr:(high-low); rangeEma=ema(span,length); kcw=2*mult*rangeEma/basis -- a RATIO, never multiplied by 100. Composes cleanly from the already-shipped PINE_CALL_SHAPES.kc foundation (pine.js), which already computes basis/span/rangeEma identically for ta.kc's tuple output."
+  }
+}

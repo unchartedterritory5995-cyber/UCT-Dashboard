@@ -83,6 +83,7 @@ from api.services.indicator_compute import (
     compute_macd_raw,
     compute_mfi_raw,
     compute_obv_raw,
+    compute_pvt_raw,
     compute_rsi_raw,
     compute_stoch_raw,
     compute_vwap_raw,
@@ -694,6 +695,25 @@ def _window_rising_monotone(series: Sequence[float], lo: int, hi: int) -> float:
         if _isnan(a) or _isnan(b):
             return NAN
         if not (a > b):
+            return 0.0
+    return 1.0
+
+
+def _window_falling_monotone(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.falling(src, length)`` — STRICT MONOTONE DECREASE, the mirror of
+    ``_window_rising_monotone``.
+
+    Resolved 2026-09-06 by an INDEPENDENT real vendor capture (not assumed by
+    symmetry with ``rising`` — see ``closedTable.json``'s
+    ``_functions_vendor_parity_resolutions.falling_resolution``). The JS twin
+    is ``interpret.js::windowFallingMonotone`` — same NaN rule: NaN anywhere
+    in the window makes the answer NaN.
+    """
+    for i in range(lo + 1, hi + 1):
+        a, b = series[i], series[i - 1]
+        if _isnan(a) or _isnan(b):
+            return NAN
+        if not (a < b):
             return 0.0
     return 1.0
 
@@ -1454,6 +1474,9 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # each of these four carries. JS twins: ``interpret.js``'s ``FN.rising``/
     # ``FN.median``/``FN.percentrank``/``FN.bbw``.
     "rising": lambda series, n: _rolling(series, n + 1, _window_rising_monotone),
+    # BATCH 1 -- resolved 2026-09-06 by real TradingView capture (independent
+    # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
+    "falling": lambda series, n: _rolling(series, n + 1, _window_falling_monotone),
     "median": lambda series, n: _rolling(series, n, _window_median),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
@@ -1676,6 +1699,32 @@ def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     return out
 
 
+def _fn_pvtn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``pvtN(n)`` -- price-volume trend's CHANGE across the last ``n`` bars.
+
+    Mirrors ``_fn_obvn`` exactly, for the identical reason: ``ta.pvt`` is a
+    bare Pine builtin (close-and-volume by definition), its LEVEL is refused
+    for the same unseeded-cumulative reason as OBV
+    (``_functions_excluded.pvt``), and only the windowed DELTA is declarable
+    because the arbitrary seed cancels in a difference.
+
+    Verified against a real TradingView capture
+    (``tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json``):
+    exact match on 15 real SPY trading days, steady-state.
+    """
+    n = int(args[0])
+    level = compute_pvt_raw(bars)
+    out: List[MaybeNum] = [None] * len(bars)
+    if len(level) != len(bars):
+        return out
+    for i in range(n, len(bars)):
+        near, far = level[i], level[i - n]
+        if not (_is_number(near) and _is_number(far)):
+            continue
+        out[i] = float(near) - float(far)
+    return out
+
+
 def _fn_cum_from(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     """``cumFrom(source, anchorEpoch, maxBars)`` -- a RUNNING TOTAL that is a
     fact about the market rather than about the fetch.
@@ -1882,6 +1931,7 @@ _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
     "avwap": _fn_avwap,
     "obvN": _fn_obvn,
+    "pvtN": _fn_pvtn,
     "cumFrom": _fn_cum_from,
     "aroonUp": _fn_aroon_up,
     "aroonDown": _fn_aroon_down,

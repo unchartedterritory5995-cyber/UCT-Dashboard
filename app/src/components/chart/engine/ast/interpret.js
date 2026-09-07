@@ -83,7 +83,7 @@ import { yieldsOf, SENTENCE_RULES } from './sentence.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP, computeOBV, AVWAP_MIN_INSTANT,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -755,6 +755,32 @@ function windowRisingMonotone(series, lo, hi) {
   return 1
 }
 
+/** `ta.falling(src, length)` — STRICT MONOTONE DECREASE over `length + 1`
+ *  samples, the mirror of `windowRisingMonotone`.
+ *
+ *  ⭐ NOT ASSUMED SYMMETRIC — INDEPENDENTLY VENDOR-VERIFIED. `ta.falling` is
+ *  never captured merely by flipping `rising`'s comparison: TradingView's own
+ *  `falling` RETURNS clause carries the identical "any"-vs-"every" ambiguity
+ *  `rising` had before its own real vendor capture, so this needed its own
+ *  live proof rather than an inherited assumption. Real SPY close was probed
+ *  because a synthetic rising-base pattern can never contain a genuine 3-bar
+ *  losing streak (see the oracle script's own note) — 15/15 real trading days
+ *  match strict-monotone, with one genuinely discriminating row (2026-08-20)
+ *  where the running-minimum candidate disagrees. See
+ *  `tests/fixtures/vendor/observations/ta-falling-close3-2026-09-06.json` and
+ *  `closedTable.json`'s `_functions_vendor_parity_resolutions.falling_resolution`.
+ *
+ *  ⛔ SAME NaN RULE AS `windowRisingMonotone` — NaN anywhere in the window
+ *  makes the answer NaN, matching every other windowed function here. */
+function windowFallingMonotone(series, lo, hi) {
+  for (let i = lo + 1; i <= hi; i++) {
+    const a = series[i], b = series[i - 1]
+    if (Number.isNaN(a) || Number.isNaN(b)) return NaN
+    if (!(a < b)) return 0
+  }
+  return 1
+}
+
 /** `ta.median(src, length)` — rank-counting, no sort/array ops (keeps
  *  `maxLookback` a pure tree sum, per `closedTable.json`'s own constraint).
  *
@@ -1136,6 +1162,9 @@ export const FN = Object.freeze({
   // `closedTable.json`'s `_functions_vendor_parity_resolutions` for the
   // full evidence chain each of these four carries.
   rising: (series, n) => rolling(series, n + 1, windowRisingMonotone),
+  // ⭐⭐ BATCH 1 — resolved 2026-09-06 by real TradingView capture (independent
+  // proof, not assumed symmetry). See `windowFallingMonotone`'s own docstring.
+  falling: (series, n) => rolling(series, n + 1, windowFallingMonotone),
   median: (series, n) => rolling(series, n, windowMedian),
   percentrank: (series, n) => {
     const out = nan(series.length)
@@ -1409,6 +1438,41 @@ function barObvN(bars, args) {
   return out
 }
 
+/** `pvtN(n)` — price-volume trend's CHANGE across the last `n` bars. Mirrors
+ *  `barObvN` exactly, for the identical reason: `ta.pvt` is a bare Pine
+ *  builtin (close-and-volume by definition, no series to hand it), its LEVEL
+ *  is refused for the same unseeded-cumulative reason as OBV
+ *  (`_functions_excluded.pvt`), and only the windowed DELTA is declarable
+ *  because the arbitrary seed cancels in a difference.
+ *
+ *  ⭐⭐ THIS IS THE ONE THAT UNLOCKS A REAL CORPUS SCRIPT. Unlike `ta.accdist`
+ *  (corpus need is EMA-based, which no bounded-delta primitive can serve —
+ *  see `_functions_excluded.accdist`), the blind-corpus script
+ *  `volume-obv-accumulation-divergence` writes exactly `ta.pvt > ta.pvt[10]`,
+ *  the precise shape `contextBoundedPlan` rewrites to `pvtN(10) > 0`.
+ *
+ *  ⭐ VERIFIED against a real TradingView capture
+ *  (tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json): exact
+ *  match on 15 real SPY trading days (steady-state; the true first-valid-bar
+ *  initialization is not independently observable from that window and is
+ *  not claimed — the windowed delta never depends on it, since the unknown
+ *  seed cancels regardless of what it actually was). */
+function barPvtN(bars, args) {
+  const n = args[0]
+  const level = computePVT(bars)
+  if (level.length !== bars.length) return []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i].t, value: NaN }
+  for (let i = n; i < bars.length; i++) {
+    const near = level[i] ? level[i].value : undefined
+    const far = level[i - n] ? level[i - n].value : undefined
+    out[i].value = (typeof near === 'number' && typeof far === 'number')
+      ? near - far
+      : NaN
+  }
+  return out
+}
+
 /** Chande's Aroon, from the published formula and this table's own arg-extreme.
  *
  *  ⭐ THE PUBLISHED FORM, VERBATIM (StockCharts):
@@ -1597,7 +1661,7 @@ function barCumFrom(bars, args) {
 }
 
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN, cumFrom: barCumFrom,
+  vwap: barVwap, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 

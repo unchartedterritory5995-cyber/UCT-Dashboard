@@ -1,0 +1,114 @@
+//@version=5
+indicator("uct-oracle-cmf-adl-pvt-falling-kcw-v1", overlay=false)
+
+// BATCH 1 vendor oracle: ta.falling, ta.kcw, ta.cmf, ta.accdist, ta.pvt.
+// Session-reconstructed transcript of the live TradingView Pine Editor draft
+// (never saved as a repo file during capture -- the draft lived only in the
+// browser tab). The VALUES this observation relies on come directly from
+// real Table View screenshots (raw_captures/2026-09-06-..._screenshots/),
+// not from this transcript. This file documents the shape of the script that
+// produced those values so the formulas are independently readable.
+
+// ---- synthetic 20-bar repeating pattern for falling/kcw edge-case control ----
+// phase 10 is a deliberate ZERO-RANGE bar (o=h=l=c). phase 15 is a deliberate
+// ZERO-VOLUME bar (v=0). Everything else is a mild up/down zigzag on a rising
+// base so the window contains real variation.
+phase = bar_index % 20
+base = 100.0 + phase
+isZeroRange = phase == 10
+isZeroVolume = phase == 15
+o = isZeroRange ? base + 30.0 : base
+h = isZeroRange ? base + 30.0 : base + 3.0
+l = isZeroRange ? base + 30.0 : base - 2.0
+c = isZeroRange ? base + 30.0 : (phase % 2 == 0 ? base + 1.5 : base - 1.0)
+v = isZeroVolume ? 0.0 : 1000.0 + phase * 50.0
+
+// ==== ta.falling(c,3): candidate strict-monotone (mirrors the vendor-verified
+// ta.rising architecture) vs candidate running-minimum, on the SYNTHETIC series
+// (kept for the zero-range/zero-volume-adjacent bars) ====
+fallingBuiltin        = ta.falling(c, 3)
+fallingCandMonotone   = c[3] > c[2] and c[2] > c[1] and c[1] > c
+fallingCandRunningMin = c < math.min(c[1], math.min(c[2], c[3]))
+
+// ==== ta.kcw(src,length,mult,useTrueRange): candidate ratio (TradingView's
+// published f_kcw source) vs candidate * 100 ====
+kcwLength = 20
+kcwMult = 2.0
+kcwUseTrueRange = true
+kcwBasis = ta.ema(c, kcwLength)
+kcwSpan = kcwUseTrueRange ? ta.tr : (h - l)
+kcwRangeEma = ta.ema(kcwSpan, kcwLength)
+kcwBuiltin     = ta.kcw(c, kcwLength, kcwMult, kcwUseTrueRange)
+kcwCandRatio   = 2.0 * kcwMult * kcwRangeEma / kcwBasis
+kcwCandPercent = kcwCandRatio * 100.0
+
+// ==== ta.cmf: DOES NOT COMPILE in real Pine v5 ("Could not find function or
+// function reference 'ta.cmf'") -- confirmed a second, independent way: the
+// string "ta.cmf" is absent from the full official Pine v5 reference manual
+// page text. No builtin plot exists for it. Candidate-only, on the SYNTHETIC
+// series (non-comparable to any real builtin, since there is none): ====
+mfmCand = (h - l) != 0 ? ((c - l) - (h - c)) / (h - l) : 0.0
+mfvCand = mfmCand * v
+cmfCandSumRatio = math.sum(mfvCand, kcwLength) / math.sum(v, kcwLength)
+
+// ==== ta.accdist: bare builtin, always reads the REAL chart high/low/close/
+// volume -- cannot be redirected to the synthetic series above. Candidate is
+// the standard money-flow-multiplier*volume cumulative contribution,
+// windowed as a 5-bar DELTA (mirrors the already-verified obvN(k) pattern:
+// a windowed delta cancels an unseeded cumulative's unknown starting point).
+// mfmCand/mfvCand above are kept only for the (non-comparable) synthetic
+// demonstration; adDeltaSumCandReal5 is the one actually compared. ====
+adBuiltin = ta.accdist
+adChange5 = adBuiltin - adBuiltin[5]
+adDeltaSumCand5 = math.sum(mfvCand, 5)
+realMfm = (high - low) != 0 ? ((close - low) - (high - close)) / (high - low) : 0.0
+realMfv = realMfm * volume
+adDeltaSumCandReal5 = math.sum(realMfv, 5)
+cmfCandSumRatioReal = math.sum(realMfv, kcwLength) / math.sum(volume, kcwLength)
+
+// ==== ta.pvt: bare builtin, same real-OHLCV-only constraint as accdist.
+// TradingView's own published EXAMPLE source: f_pvt() => ta.cum((ta.change
+// (close)/close[1]) * volume). Candidate is that per-bar term, windowed as a
+// 5-bar DELTA for the same unseeded-cumulative reason as accdist -- this is
+// also EXACTLY the shape the corpus script needs (ta.pvt > ta.pvt[10]). ====
+pvtBuiltin = ta.pvt
+pvtChange5 = pvtBuiltin - pvtBuiltin[5]
+pvtDeltaCand = ta.change(c) / c[1] * v
+pvtDeltaSumCand5 = math.sum(pvtDeltaCand, 5)
+realPvtDelta = ta.change(close) / close[1] * volume
+pvtDeltaSumCandReal5 = math.sum(realPvtDelta, 5)
+
+// ==== ta.falling, real-close variant: the synthetic pattern above can never
+// produce a genuine 3-bar consecutive decrease (base rises every bar), so
+// fallingBuiltin/fallingCandMonotone/fallingCandRunningMin are all 0.0000 on
+// every synthetic row -- non-discriminating, not wrong. Real SPY close, over
+// ~300 real trading days, contains genuine losing streaks. ====
+fallingRealBuiltin        = ta.falling(close, 3)
+fallingRealCandMonotone   = close[3] > close[2] and close[2] > close[1] and close[1] > close
+fallingRealCandRunningMin = close < math.min(close[1], math.min(close[2], close[3]))
+
+plot(phase, "phase")
+plot(o, "o")
+plot(h, "h")
+plot(l, "l")
+plot(c, "c")
+plot(v, "v")
+plot(fallingBuiltin ? 1 : 0, "falling_builtin")
+plot(fallingCandRunningMin ? 1 : 0, "falling_candRunningMin")
+plot(fallingCandMonotone ? 1 : 0, "falling_candMonotone")
+plot(kcwBuiltin, "kcw_builtin")
+plot(kcwCandRatio, "kcw_candRatio")
+plot(kcwCandPercent, "kcw_candPercent")
+plot(cmfCandSumRatio, "cmf_candSumRatio")
+plot(adBuiltin, "ad_builtin")
+plot(adChange5, "ad_change5")
+plot(adDeltaSumCand5, "ad_deltaSumCand5")
+plot(pvtBuiltin, "pvt_builtin")
+plot(pvtChange5, "pvt_change5")
+plot(pvtDeltaSumCand5, "pvt_deltaSumCand5")
+plot(adDeltaSumCandReal5, "ad_deltaSumCandReal5")
+plot(pvtDeltaSumCandReal5, "pvt_deltaSumCandReal5")
+plot(cmfCandSumRatioReal, "cmf_candSumRatioReal")
+plot(fallingRealBuiltin ? 1 : 0, "falling_real_builtin")
+plot(fallingRealCandMonotone ? 1 : 0, "falling_real_candMonotone")
+plot(fallingRealCandRunningMin ? 1 : 0, "falling_real_candRunningMin")

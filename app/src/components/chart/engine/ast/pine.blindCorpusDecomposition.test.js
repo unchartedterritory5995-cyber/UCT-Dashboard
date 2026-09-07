@@ -48,7 +48,14 @@ describe('⛔⛔ RISK-004 — the assisted-edit mechanism has exactly ONE offer'
     const probes = [
       ['ta.valuewhen arity', 'x = ta.valuewhen(close > open, close, 0)\nplot(x > 0 ? 1 : 0)'],
       ['ta.barssince unbounded', 'x = nz(ta.barssince(close > open), 0)\nplot(x > 5 ? 1 : 0)'],
-      ['ta.falling unserved', 'x = ta.falling(close, 3)\nplot(x ? 1 : 0)'],
+      // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06): `ta.falling`
+      // no longer belongs in this probe list — it TRANSLATES now, resolved by
+      // a real vendor capture (see `pine.batch1VendorBacked.test.js`). `ta.cmf`
+      // takes its place in the SAME guard family: it is not real Pine syntax
+      // at all (confirmed by a live compile error and its absence from the
+      // full v5 reference manual text), so it refuses as an unrecognised
+      // name, with no suggest — the identical shape this probe exists to cover.
+      ['ta.cmf not real Pine syntax', 'x = ta.cmf(21)\nplot(x > 0 ? 1 : 0)'],
       ['ta.supertrend tuple', '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 ? 1 : 0)'],
       ['ta.cci role-order', 'x = ta.cci(close, 20)\nplot(x < -100 ? 1 : 0)'],
       ['undefined name', 'plot(neverDefined ? 1 : 0)'],
@@ -246,7 +253,18 @@ describe('⭐ RISK-004 — confirmed SECONDARY blockers behind the first-reporte
     expect(out.ok).toBe(true)
   })
 
-  it('volatility-range-contraction-base: THREE independent real blockers stack behind ta.kcw — ta.tr(true) (parameter fidelity) and ta.falling (unserved) each fire in turn; request.security here is clean', () => {
+  it('volatility-range-contraction-base: ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, '
+    + 'BATCH 1 (2026-09-06) resolved TWO of the three blockers that used to '
+    + 'stack behind ta.kcw — ta.kcw itself (the first-reported guard) and '
+    + 'ta.falling (unserved) both TRANSLATE now, resolved by real vendor '
+    + 'captures. Only ta.tr(true) (a pre-existing, deliberate parameter-'
+    + 'fidelity refusal, unrelated to this tranche) remains; request.security '
+    + 'was always clean. The real fixture now refuses with exactly this one '
+    + 'guard — see zzz_probe-style direct confirmation in '
+    + 'pine.blindCorpus.test.js\'s own printed roster.', () => {
+    const kcw = translatePine(['//@version=6', 'indicator("t")', 'x = ta.kcw(close, 20, 1.5)', 'plot(x > 0 ? 1 : 0)'].join('\r\n'))
+    expect(kcw.ok).toBe(true)
+
     const trTrue = translatePine(['//@version=6', 'indicator("t")', 'x = ta.tr(true)', 'plot(x > 0 ? 1 : 0)'].join('\r\n'))
     expect(trTrue.ok).toBe(false)
     expect(trTrue.refusal.message).toContain('ta.tr(true)')
@@ -257,8 +275,7 @@ describe('⭐ RISK-004 — confirmed SECONDARY blockers behind the first-reporte
       'contracting = ta.falling(ta.rma(tr, 10), 3)',
       'plot(contracting ? 1 : 0)',
     ].join('\r\n'))
-    expect(falling.ok).toBe(false)
-    expect(falling.refusal.message).toContain('ta.falling')
+    expect(falling.ok).toBe(true)
 
     const security = translatePine([
       '//@version=6', 'indicator("t")',
@@ -286,14 +303,38 @@ describe('⭐ RISK-004 — confirmed SECONDARY blockers behind the first-reporte
     expect(loop.refusal.guard).toBe('pine:reassign')
   })
 
-  it('volume-obv-accumulation-divergence: ta.pvt (unserved) is independent of ta.obv — both are cumulative running-sum builtins missing from the same family', () => {
-    const out = translatePine([
+  it('volume-obv-accumulation-divergence: ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, '
+    + 'BATCH 1 (2026-09-06) resolved ta.pvt\'s windowed-delta rewrite — '
+    + '`ta.pvt > ta.pvt[10]` now TRANSLATES in isolation (see '
+    + 'pine.batch1VendorBacked.test.js) — but the real fixture ALSO reads '
+    + 'ta.obv\'s bare LEVEL in the SAME boolean expression '
+    + '(`obvLine = ta.obv` feeding `obvNewHigh`/`obvLine > obvSig`), which '
+    + 'stays permanently refused for the reason `_functions_excluded.obv` '
+    + 'states. This is the confirmed independent SECOND blocker this file '
+    + 'exists to name: fixing ta.pvt alone does not fix the real script.', () => {
+    const pvtAlone = translatePine([
       '//@version=6', 'indicator("t")',
       'pvtRising = ta.pvt > ta.pvt[10]',
       'plot(pvtRising ? 1 : 0)',
     ].join('\r\n'))
-    expect(out.ok).toBe(false)
-    expect(out.refusal.message).toContain('ta.pvt')
+    expect(pvtAlone.ok).toBe(true)
+
+    const obvLevel = translatePine([
+      '//@version=6', 'indicator("t")',
+      'obvLine = ta.obv',
+      'plot(obvLine > 1000 ? 1 : 0)',
+    ].join('\r\n'))
+    expect(obvLevel.ok).toBe(false)
+    expect(obvLevel.refusal.message).toContain('CUMULATIVE FROM THE FIRST BAR') // the bounded form is obvN
+
+    const bothTogether = translatePine([
+      '//@version=6', 'indicator("t")',
+      'obvLine = ta.obv',
+      'pvtRising = ta.pvt > ta.pvt[10]',
+      'plot(obvLine > 1000 and pvtRising ? 1 : 0)',
+    ].join('\r\n'))
+    expect(bothTogether.ok).toBe(false)
+    expect(bothTogether.refusal.message).toContain('CUMULATIVE FROM THE FIRST BAR')
   })
 
   it('multifactor-gap-up-continuation-hold: ta.supertrend is refused in BOTH the tuple form and the bare single-assignment form — there is no expressible spelling, by design', () => {
@@ -473,7 +514,14 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     expect(out.guard).toBe('pine:function')
   })
 
-  it('the real corpus is unaffected beyond the one sound script: exactly 20 misses remain (was 21), and the newly-passing script is breakout-squeeze-release-breakout', () => {
+  it('the real corpus is unaffected beyond the one sound script: 20 misses remained (was 21) as of the RISK-004 barssince tranche, and the newly-passing script was breakout-squeeze-release-breakout. '
+    + '⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) moved this floor '
+    + 'again, independently: candles-doji-at-extension needed only ta.falling '
+    + '(now resolved) and RAW-passes, taking misses to 19. See '
+    + 'pine.blindCorpus.test.js\'s FLOOR/ACCEPT_FLOOR for the authoritative, '
+    + 'currently-maintained running total — this count is preserved here as a '
+    + 'point-in-time snapshot of the RISK-004 tranche\'s own claim, not '
+    + 'silently re-typed to the new number.', () => {
     const files = fs.readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.pine'))
     const misses = []
     for (const f of files) {
@@ -482,10 +530,11 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
       if (!yieldsBoolScreen(source)) misses.push(name)
     }
     expect(misses).not.toContain('breakout-squeeze-release-breakout')
+    expect(misses).not.toContain('candles-doji-at-extension') // ta.falling — batch 1
     expect(misses).toContain('breakout-flat-base-pivot-breakout') // unsound nz sentinel — stays a miss
     expect(misses).toContain('recency-breakout-hold-since-trigger') // numeric window use — stays a miss
     expect(misses).toContain('recency-fresh-golden-cross') // barssince vs barssince — stays a miss
-    expect(misses.length).toBe(20)
+    expect(misses.length).toBe(19)
   })
 })
 

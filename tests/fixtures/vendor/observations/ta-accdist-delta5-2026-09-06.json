@@ -1,0 +1,235 @@
+{
+  "id": "ta-accdist-delta5-2026-09-06",
+  "shape": "stateful",
+  "script": {
+    "dialect": "pine",
+    "source": "see tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/uct-oracle-cmf-adl-pvt-falling-kcw-v1.pine (session-reconstructed transcript, see that file's own header note)",
+    "plot": "ad_change5",
+    "independentlyTranslatable": false,
+    "notIndependentlyTranslatableReason": "ta.accdist's LEVEL is a cumulative-from-first-bar, unseeded accumulator -- the exact same architecture class already ruled unimplementable for ta.obv (RISK_REGISTER.md; no absolute seed is observable). Only a WINDOWED DELTA (accdist - accdist[k]) cancels the unknown seed, mirroring the already-shipped obvN(k) / boundedObvAgainstOwnAverage pattern. This observation verifies the k=5 windowed delta's per-bar contribution formula, not the unimplementable raw level."
+  },
+  "engine": {
+    "formula": null,
+    "ast": null,
+    "note": "DELIBERATELY NOT IMPLEMENTED -- no accdistN(k) primitive exists in either kernel, and none is proposed. The per-bar money-flow-multiplier formula this observation verifies would support the SAME obvN/pvtN-style windowed-delta rewrite if a corpus script ever needed `ta.accdist <cmp> ta.accdist[k]`, but the one blind-corpus script that names ta.accdist (volume-dollar-volume-money-flow) needs an EMA-based comparison instead (adTrend = adLine > ta.ema(adLine,20)), which no bounded-delta primitive can serve -- see closedTable.json's `_functions_excluded.accdist`. This observation exists to record the vendor evidence behind that ruling's per-bar formula claim, not to back an implementation."
+  },
+  "market": {
+    "symbol": "SPY",
+    "timeframe": "1D",
+    "bars": [
+      {
+        "date": "2026-08-17",
+        "o": 776.18,
+        "h": 776.78,
+        "l": 772.51,
+        "c": 772.67,
+        "v": 34360000,
+        "t": "1786924800"
+      },
+      {
+        "date": "2026-08-18",
+        "o": 768.7,
+        "h": 769.5,
+        "l": 766.92,
+        "c": 767.45,
+        "v": 43920000,
+        "t": "1787011200"
+      },
+      {
+        "date": "2026-08-19",
+        "o": 770.36,
+        "h": 772.47,
+        "l": 768.1,
+        "c": 769.06,
+        "v": 40310000,
+        "t": "1787097600"
+      },
+      {
+        "date": "2026-08-20",
+        "o": 765.96,
+        "h": 768.15,
+        "l": 762.04,
+        "c": 762.6,
+        "v": 45520000,
+        "t": "1787184000"
+      },
+      {
+        "date": "2026-08-21",
+        "o": 766.05,
+        "h": 767.85,
+        "l": 764.17,
+        "c": 765.72,
+        "v": 39190000,
+        "t": "1787270400"
+      },
+      {
+        "date": "2026-08-24",
+        "o": 764.78,
+        "h": 765.22,
+        "l": 762.08,
+        "c": 763.47,
+        "v": 32430000,
+        "t": "1787529600"
+      },
+      {
+        "date": "2026-08-25",
+        "o": 766.16,
+        "h": 766.78,
+        "l": 763.05,
+        "c": 765.91,
+        "v": 27420000,
+        "t": "1787616000"
+      },
+      {
+        "date": "2026-08-26",
+        "o": 764.73,
+        "h": 767.35,
+        "l": 763.93,
+        "c": 766.08,
+        "v": 28750000,
+        "t": "1787702400"
+      },
+      {
+        "date": "2026-08-27",
+        "o": 768.5,
+        "h": 772.36,
+        "l": 767.16,
+        "c": 771.1,
+        "v": 34560000,
+        "t": "1787788800"
+      },
+      {
+        "date": "2026-08-28",
+        "o": 771.76,
+        "h": 775.3,
+        "l": 768.31,
+        "c": 769.35,
+        "v": 36740000,
+        "t": "1787875200"
+      },
+      {
+        "date": "2026-08-31",
+        "o": 767.33,
+        "h": 768.0,
+        "l": 764.72,
+        "c": 767.05,
+        "v": 38810000,
+        "t": "1788134400"
+      },
+      {
+        "date": "2026-09-01",
+        "o": 762.01,
+        "h": 764.67,
+        "l": 759.48,
+        "c": 761.78,
+        "v": 41130000,
+        "t": "1788220800"
+      },
+      {
+        "date": "2026-09-02",
+        "o": 762.45,
+        "h": 766.43,
+        "l": 761.73,
+        "c": 765.16,
+        "v": 29570000,
+        "t": "1788307200"
+      },
+      {
+        "date": "2026-09-03",
+        "o": 767.9,
+        "h": 774.03,
+        "l": 767.45,
+        "c": 773.17,
+        "v": 43530000,
+        "t": "1788393600"
+      },
+      {
+        "date": "2026-09-04",
+        "o": 772.01,
+        "h": 772.87,
+        "l": 769.0,
+        "c": 770.19,
+        "v": 34050000,
+        "t": "1788480000"
+      }
+    ]
+  },
+  "input": {
+    "kind": "real",
+    "note": "ad_change5 = ta.accdist - ta.accdist[5] (the builtin's own 5-bar windowed delta, real chart OHLCV) plotted alongside ad_deltaSumCandReal5 = math.sum(realMfv,5) where realMfv = mfm*volume, mfm = ((close-low)-(high-close))/(high-low) with real high/low/close/volume (never the script's synthetic o/h/l/c/v -- ta.accdist is a bare builtin that cannot be redirected to a custom source, so the candidate must also be built from the real OHLCV or the two are on incomparable scales)."
+  },
+  "vendor": {
+    "readDecimals": 2,
+    "values": {
+      "1786924800": {
+        "ad_change5": -60032291.59,
+        "ad_deltaSumCandReal5": -60032291.59
+      },
+      "1787011200": {
+        "ad_change5": -67639766.32,
+        "ad_deltaSumCandReal5": -67639766.32
+      },
+      "1787097600": {
+        "ad_change5": -79238359.27,
+        "ad_deltaSumCandReal5": -79238359.27
+      },
+      "1787184000": {
+        "ad_change5": -131856801.15,
+        "ad_deltaSumCandReal5": -131856801.15
+      },
+      "1787270400": {
+        "ad_change5": -123604539.45,
+        "ad_deltaSumCandReal5": -123604539.45
+      },
+      "1787529600": {
+        "ad_change5": -95543903.41,
+        "ad_deltaSumCandReal5": -95543903.41
+      },
+      "1787616000": {
+        "ad_change5": -55038254.45,
+        "ad_deltaSumCandReal5": -55038254.45
+      },
+      "1787702400": {
+        "ad_change5": -25042985.74,
+        "ad_deltaSumCandReal5": -25042985.74
+      },
+      "1787788800": {
+        "ad_change5": 29993749.97,
+        "ad_deltaSumCandReal5": 29993749.97
+      },
+      "1787875200": {
+        "ad_change5": 10381291.53,
+        "ad_deltaSumCandReal5": 10381291.53
+      },
+      "1788134400": {
+        "ad_change5": 30546733.14,
+        "ad_deltaSumCandReal5": 30546733.14
+      },
+      "1788220800": {
+        "ad_change5": 11241722.13,
+        "ad_deltaSumCandReal5": 11241722.13
+      },
+      "1788307200": {
+        "ad_change5": 17431529.67,
+        "ad_deltaSumCandReal5": 17431529.67
+      },
+      "1788393600": {
+        "ad_change5": 31723454.06,
+        "ad_deltaSumCandReal5": 31723454.06
+      },
+      "1788480000": {
+        "ad_change5": 44401081.54,
+        "ad_deltaSumCandReal5": 44401081.54
+      }
+    }
+  },
+  "provenance": {
+    "platform": "TradingView",
+    "platformVersion": "Pine v5, web (TradingView Premium)",
+    "who": "owner",
+    "when": "2026-09-06",
+    "chartUrl": null,
+    "rawArtifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/04_accdist_pvt_builtin_vs_real_candidates_exact_match.jpg",
+    "note": "LIMITATION DISCLOSED: same CSV-download-blocked environment note as the falling/kcw observations in this batch -- raw artifact is a Table View screenshot, not a CSV. ad_change5 === ad_deltaSumCandReal5 exactly on all 15/15 real SPY trading days visible (max abs delta 0.00 at 2 read decimals) -- this is STEADY-STATE agreement (the window is fully inside the visible history; the true absolute origin of ta.accdist's cumulative level, at the first bar the underlying instrument ever traded, was not and cannot be observed from a 15-row window many years into SPY's history). INITIALIZATION AGREEMENT is explicitly NOT claimed here, per the tranche's instruction to separate the two when the true historical origin can't be observed -- this mirrors ta.obv's already-documented posture exactly. CLASSIFICATION: VENDOR-PARITY VERIFIED -- STEADY-STATE, LIMITED SAMPLE. A prior candidate-formula design error (mfmCand/mfvCand built from the oracle script's own SYNTHETIC o/h/l/c/v, non-comparable in scale to the real builtin) was caught and corrected before this capture by adding the real-OHLCV-sourced realMfm/realMfv/adDeltaSumCandReal5 variables actually compared here -- see the oracle script's own comments. ta.accdist's LEVEL remains as fundamentally unimplementable as ta.obv's (the same obvN-mirrored reasoning: cumulative from the first bar, no absolute seed); only a bounded windowed-delta primitive (accdist_delta(k) = accdist - accdist[k]) is proposed for implementation, and even that would NOT unlock the blind-corpus script volume-dollar-volume-money-flow, whose need (adTrend = adLine > ta.ema(adLine,20)) is EMA-based, not a fixed-offset window -- the same 'infinite tail, unseeded baseline doesn't cancel' reason already documented for OBV against an EMA comparison."
+  }
+}

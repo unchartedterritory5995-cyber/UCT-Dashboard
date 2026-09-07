@@ -1369,3 +1369,514 @@ standing instruction, better suited to a future VENDOR-PARITY-BACKED batch
 than a translator-fix tranche, not begun here.
 
 **This recommendation is not begun.**
+
+# ADDENDUM 4 — VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06, fifth tranche)
+
+Executes the recommendation Addendum 3 left not-begun, exactly as scoped:
+`ta.falling`, `ta.kcw`, `ta.cmf`, `ta.accdist`, `ta.pvt`. Each was resolved by
+REAL TradingView vendor capture before any implementation, per the tranche's
+own explicit instruction ("do not implement from documentation alone if
+vendor behavior is observable").
+
+## 1. Exact corpus demand, reconstructed per function
+
+| Script | Exact Pine call | Also in public corpus? |
+|---|---|---|
+| `candles-doji-at-extension` | `directional = ta.rising(close, 3) or ta.falling(close, 3)` | No |
+| `volatility-range-contraction-base` | `kw = ta.kcw(close, kcLen, 1.5)`; separately `ta.falling(ta.rma(tr, 10), 3)` | No |
+| `volume-dollar-volume-money-flow` | `cmf21 = ta.cmf(21)`; separately `adLine = ta.accdist` | No |
+| `volume-obv-accumulation-divergence` | `pvtRising = ta.pvt > ta.pvt[10]`; separately `obvLine = ta.obv` (bare LEVEL, unrelated permanent blocker) | No |
+
+Confirmed by direct read of each `.pine` fixture (`tests/fixtures/pine_blind/`)
+and by live translation of each script through the current engine, before and
+after this tranche's changes — not inferred from memory. No other blind-corpus
+or public-corpus script references any of these five names.
+
+## 2. Current UCT capabilities read before vendor capture
+
+- **`ta.falling`**: `interpret.js::windowRisingMonotone` (the vendor-verified
+  `ta.rising` implementation) was the direct architectural template — same
+  `rolling(series, n+1, fn)` shape, same NaN-anywhere-in-window convention.
+  The open question was whether `falling` is truly the mirror (`<` for `>`)
+  or carries its own ambiguity; the tranche's own instruction explicitly
+  required proving symmetry rather than assuming it.
+- **`ta.kcw`**: the existing `ta.kc` tuple builder
+  (`PINE_TUPLE_BUILTINS.kc` in `pine.js`) already composes
+  `basis=ta.ema(src,length)`, `span=useTrueRange?ta.tr:(high-low)`,
+  `rangeEma=ta.ema(span,length)` for the Keltner tuple's upper/lower bands.
+  `ta.kcw` needed the SAME basis/span/rangeEma but returns a SCALAR
+  (`2*mult*rangeEma/basis`), so it could not reuse the tuple mechanism
+  directly — it needed the separate `BUILTIN_CALL_TREE` scalar-expansion
+  door (already used for `roc`/`mom`/`vwma`/`linreg`).
+- **`ta.cmf`**: no existing capability question applied — read the live Pine
+  Editor's own compile error and the full v5 reference manual text first
+  (see §5 below); both independently say the function does not exist.
+- **`ta.accdist`**: `_functions_excluded.obv`'s already-shipped ruling
+  (cumulative from the first bar, no absolute seed, only a windowed DELTA is
+  declarable) was the direct template. The open question was whether the
+  blind-corpus script's actual need could be serviced by that same
+  windowed-delta shape — read directly: `adTrend = adLine >
+  ta.ema(adLine, 20)` is EMA-based, the exact shape `_functions_excluded.obv`
+  already excludes (`ta.ema` is not admitted in the obv-vs-own-average
+  rewrite because an exponential average weights every bar back to the
+  first, leaving an infinite tail). So `ta.accdist`'s corpus need could not
+  be serviced by any bounded-delta primitive even before vendor capture —
+  confirmed by reading the script, not assumed.
+- **`ta.pvt`**: the SAME `_functions_excluded.obv` template, but the corpus
+  need (`ta.pvt > ta.pvt[10]`) is EXACTLY the `obv > obv[k]` shape
+  `contextBoundedPlan` already rewrites — read as the highest-value target
+  of the batch before any capture was taken.
+
+## 3. Vendor capture safety
+
+The established procedure (isolated/disposable layout, baseline check before
+capture, stop-and-recover rather than force a broken state) was followed
+throughout. One incident: the working layout entered a genuinely broken state
+(Table View showing "ø" on every row, stale ticker header not updating on a
+symbol change) — not merely cosmetic. Per protocol, a fresh layout was created
+via "Create new layout…" rather than continuing to force the broken one;
+recovery was confirmed (real candle rendering, real non-"ø" values) before
+resuming. No other session's tab was touched; no broker-connection prompt was
+interacted with.
+
+**A genuine, disclosed environment limitation surfaced mid-capture**:
+TradingView's Table View "Download data" CSV export — the raw-artifact
+mechanism every prior vendor-parity tranche in this program relied on — was
+attempted twice, with explicit user permission obtained first, and produced no
+file anywhere on the filesystem (`Downloads/`, and a broader home-directory
+search, both empty; no `blob:`/`download` anchor in the DOM). This reads as a
+silent page-initiated-download block in this specific browser-automation
+environment. Per the tranche's own instruction ("classify VENDOR CAPTURE
+BLOCKED and do not invent semantics" if capture is untrustworthy), the
+capture itself was NOT abandoned — the underlying live vendor VALUES were
+fully trustworthy and directly observed — only the RAW-ARTIFACT PRESERVATION
+mechanism needed a substitute. Full-resolution Table View screenshots
+(captured via the `computer` tool's own screenshot action, never a
+page-initiated download) were used instead, saved to
+`tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/`.
+This is disclosed as a LIMITATION, not hidden: it yields a smaller real
+sample (15 real trading days visible per screenshot) than this program's
+CSV-based multi-bar audits elsewhere (`ta.rising`'s own 297-row audit).
+
+## 4. Vendor oracle design
+
+One combined Pine v5 script (`uct-oracle-cmf-adl-pvt-falling-kcw-v1`, session-
+reconstructed transcript preserved at
+`tests/fixtures/vendor/raw_captures/.../uct-oracle-cmf-adl-pvt-falling-kcw-v1.pine`)
+plotted, side by side, on real SPY daily bars:
+
+- a synthetic 20-bar repeating pattern (deliberate zero-range bar at phase 10,
+  zero-volume bar at phase 15) for controlled edge-case behavior on
+  `falling`/`kcw`;
+- the REAL SPY `close`/`high`/`low`/`volume` for `falling` (the synthetic
+  pattern's rising base can never contain a genuine losing streak — a real
+  discriminating series was required) and for `accdist`/`pvt`/`cmf` (these
+  three are bare Pine builtins that always consume the chart's real OHLCV —
+  they cannot be redirected to a custom/synthetic source, a design constraint
+  discovered and corrected mid-session after an initial candidate-formula
+  scale mismatch, see §7/§9 below).
+
+Every candidate deliberately included a plausible WRONG alternative
+(`falling`: running-minimum vs strict-monotone; `kcw`: ratio vs ×100 percent;
+`accdist`/`pvt`: synthetic-sourced vs real-OHLCV-sourced) so the oracle could
+not agree with every candidate at once.
+
+## 5. `ta.falling` — RESOLVED, IMPLEMENTED
+
+**Semantic ruling**: strict monotone DECREASE over `length+1` samples — the
+structural mirror of the already-verified `ta.rising`, but PROVEN
+independently rather than assumed. Real SPY close (2026-08-17..2026-09-04, 15
+trading days) was probed because the batch's own synthetic rising-base
+pattern can never contain a genuine 3-bar losing streak (non-discriminating
+by construction). Result: the real `ta.falling(close,3)` builtin matches the
+strict-monotone candidate on 15/15 real trading days and matches the
+running-minimum candidate on only 14/15 — the one disagreement (2026-08-20)
+is a genuine discriminating row (a real 3-bar losing streak that was NOT also
+a new running low on the most recent bar), proving strict monotone rather
+than merely being consistent with it.
+
+**Implementation**: `interpret.js::windowFallingMonotone` /
+`ast_interpret.py::_window_falling_monotone`, the exact structural mirror of
+`windowRisingMonotone`/`_window_rising_monotone` with `<` in place of `>`.
+Registered in both `FN`/`_FN` tables as `falling: (series, n) => rolling(series, n+1, windowFallingMonotone)`.
+`closedTable.json`: `functions.falling` declared (mirrors `functions.rising`
+exactly); the PRE-EXISTING `_functions_excluded.falling` entry (which
+deferred entirely to `rising`'s then-unresolved ambiguity) REMOVED, replaced
+by `_functions_vendor_parity_resolutions.falling_resolution`.
+
+**Vendor artifact**: `tests/fixtures/vendor/observations/ta-falling-close3-2026-09-06.json`.
+
+## 6. `ta.kcw` — RESOLVED, IMPLEMENTED
+
+**Semantic ruling**: TradingView's own published `f_kcw` reference-manual
+source, verbatim: `basis=ta.ema(src,length)`,
+`span=useTrueRange?ta.tr:(high-low)`, `rangeEma=ta.ema(span,length)`,
+`kcw=2*mult*rangeEma/basis` — a RATIO, never multiplied by 100 (the
+plausible-but-wrong convention `ta.bbw`'s own vendor-resolved percent form
+might suggest by false analogy — explicitly NOT inferred from `ta.bbw`, per
+the tranche's own instruction). Verified against the real builtin: exact
+match on all 15 real SPY trading days (max abs delta 0.0000 at 4 read
+decimals); the ×100 candidate visibly disagrees with the real builtin on
+every one of those 15 rows.
+
+**Implementation**: `pine.js::BUILTIN_CALL_TREE.kcw` — a new scalar
+AST-expansion entry (the same door `roc`/`mom`/`vwma`/`linreg` already use),
+composing `ema`/`ta.tr`'s own existing expansion, costing the manifest zero
+new declared vocabulary. `useTrueRange` must be a literal 1/0 to be read
+statically (mirrors the `bare === 'tr'` convention already established); a
+non-literal flag declines to the ordinary refusal rather than being guessed
+at. Arity (3 or 4 args) is checked explicitly before the expansion runs.
+
+**Vendor artifact**: `tests/fixtures/vendor/observations/ta-kcw-close20-2-2026-09-06.json`.
+
+**Known, disclosed limitation**: `ta.kcw`'s formula needs a 20-bar EMA
+warm-up, and this batch's raw artifact holds only 15 real trading days (the
+CSV-download blockage in §3 prevented capturing the wider window prior
+tranches used) — so this function's evidence is NOT independently
+re-executable from a cold start in either kernel (a from-scratch 20-length
+EMA over only 15 bars produces all-NaN). Its vendor-parity claim therefore
+rests on DIRECT ARITHMETIC over the observation's own recorded values (both
+`kcw_builtin` and `kcw_candRatio` were plotted live inside the SAME
+TradingView session, with TradingView's own full historical warm-up, so
+their agreement IS the vendor-parity evidence) rather than a from-scratch
+re-execution — disclosed explicitly, not silently substituted.
+
+## 7. `ta.cmf` — CONFIRMED NOT REAL PINE SYNTAX, NOT IMPLEMENTED
+
+Two independent proofs, neither inferred: (1) `ta.cmf(21)` produces a live
+compile error in TradingView's own Pine Editor — "Could not find function or
+function reference 'ta.cmf'"; (2) the string `ta.cmf` is absent from the
+full official Pine v5 reference manual page text
+(`document.body.innerText.includes('ta.cmf')` → `false`). The blind-corpus
+script's `cmf21 = ta.cmf(21)` is therefore a genuine script-author error —
+analogous to this program's already-accepted precedent
+(`multifactor-rsi-pullback-in-uptrend`'s "author's own bug"). **Ruling: this
+should be classified as a CORRECT REFUSAL / not-real-Pine-syntax, never an
+unsupported-but-real builtin.** No `_functions_excluded.cmf` entry was added
+(that section is reserved for REAL Pine functions this engine declines to
+support; an entry there would incorrectly imply `ta.cmf` is real). The
+existing generic "unrecognized name" refusal — confirmed live, unchanged —
+is already the CORRECT answer for this name; a regression test
+(`pine.batch1VendorBacked.test.js`) pins that it stays a plain unrecognized-
+name refusal, never a "ruled" one.
+
+## 8. `ta.accdist` — vendor-verified formula, DELIBERATELY NOT IMPLEMENTED
+
+**Semantic ruling**: TradingView publishes no formula of its own for
+`ta.accdist`, but the adjacent `ta.iii` (Intraday Intensity Index) publishes
+`f_iii() => ((2*close-high-low)/(high-low))*volume` — algebraically identical
+to the standard money-flow-multiplier-times-volume per-bar contribution
+(corroborating, not definitive, since it is a DIFFERENT function's published
+formula). That per-bar formula was VERIFIED against the real builtin via a
+5-bar windowed delta (mirroring the `obvN` pattern): exact match on all 15
+real SPY trading days (max abs delta 0.00 at 2 read decimals) —
+STEADY-STATE agreement; INITIALIZATION AGREEMENT is explicitly NOT claimed
+(the true absolute origin of `ta.accdist`'s cumulative level, at the first
+bar SPY ever traded, cannot be observed from a 15-row window decades later),
+per the tranche's own explicit instruction to separate the two.
+
+**Implementation decision: NONE, deliberately.** Unlike `ta.pvt`, no
+`accdistN(k)` bounded-delta primitive was declared, because the one
+blind-corpus script needing `ta.accdist` (`volume-dollar-volume-money-flow`)
+computes `adTrend = adLine > ta.ema(adLine, 20)` — EMA-based, not a
+fixed-offset window — the exact shape `_functions_excluded.obv`'s own ruling
+already excludes (an exponential average weights every bar back to the
+first, so the seed-cancellation identity that makes `obvN`/`pvtN` declarable
+does not hold for an EMA comparison). Declaring `accdistN(k)` would cost the
+manifest new surface area (a new table entry, new tests, new dual-kernel
+conformance) and unlock ZERO blind-corpus scripts — a function-specific
+speculative expansion the tranche's own instruction explicitly refuses
+("No function-specific hacks for one corpus fixture"). `closedTable.json`'s
+new `_functions_excluded.accdist` entry states this reasoning and cites the
+vendor evidence supporting the per-bar formula claim, while explicitly not
+foreclosing a future `accdistN` the moment a real script needs a fixed-offset
+`ta.accdist` comparison.
+
+**Vendor artifact**: `tests/fixtures/vendor/observations/ta-accdist-delta5-2026-09-06.json`
+(`engine.ast: null`, `engine.formula: null` — explicitly not independently
+translatable to anything, since nothing was implemented; the observation
+exists only to record the vendor evidence behind the ruling's own citation).
+
+## 9. `ta.pvt` — RESOLVED, IMPLEMENTED (highest-value target of the batch)
+
+**Semantic ruling**: TradingView's own published reference-manual EXAMPLE
+source, verbatim: `f_pvt() => ta.cum((ta.change(close) / close[1]) * volume)`.
+Verified via a 5-bar windowed delta against the real builtin: exact match on
+all 15 real SPY trading days — STEADY-STATE agreement; INITIALIZATION
+AGREEMENT (the true first-valid-bar / prior-close-at-inception behavior) is
+explicitly NOT claimed, for the identical reason `ta.accdist`'s ruling states
+— though it cannot affect any answer this engine emits either way, since the
+unknown seed cancels in the windowed difference regardless of what it
+actually was.
+
+**Implementation**: `interpret.js::barPvtN` / `ast_interpret.py::_fn_pvtn`,
+the exact structural mirror of `barObvN`/`_fn_obvn`. `indicators.js::computePVT`
+/ `indicator_compute.py::compute_pvt_raw` (+ `compute_pvt` delivery wrapper)
+added, mirroring `computeOBV`/`compute_obv_raw` exactly (same zero-seed
+convention — irrelevant to any exposed answer, since only the windowed delta
+is ever emitted). `pine.js`: `isBarePvt` added (mirrors `isBareObv`);
+`contextBoundedPlan` extended to recognize `ta.pvt <cmp> ta.pvt[k]` /
+`ta.pvt - ta.pvt[k]` alongside its existing `obv` branch, rewriting to a new
+`pvtN(k)` call exactly as the `obv` branch rewrites to `obvN(k)`.
+`closedTable.json`: `functions.pvtN` declared (mirrors `functions.obvN`);
+new `_functions_excluded.pvt` entry states the bare-LEVEL ruling (same
+reasoning as `obv`'s) while disclosing the bounded-delta escape hatch, per
+the same `⛔ THE UNBOUNDED NAME IS STILL REFUSED` convention `obv`'s own
+entry carries.
+
+**This is the batch's highest-value target**: it directly unlocks the
+blind-corpus script `volume-obv-accumulation-divergence`'s literal
+`pvtRising = ta.pvt > ta.pvt[10]` construct — confirmed translating to
+`pvtN(10) > 0` and exact-matched against the real vendor value on all 10 real
+trading days past its 5-bar warmup (see §14 for the full result; the script
+itself still misses overall, for the independent, permanent, unrelated
+reason given in §15).
+
+**Vendor artifact**: `tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json`.
+
+## 10. Implementation-rule adherence
+
+Every implemented function (`falling`, `kcw`, `pvtN`) composes cleanly from
+already-declared primitives or an already-established architectural pattern
+(`obvN`'s bounded-delta rewrite) — no new execution model, no unbounded
+history support, no arbitrary recursion, no AST redesign, no broad
+data-pipeline change. `ta.cmf` and `ta.accdist` were each STOPPED rather than
+implemented, per §7/§8's own reasoning, exactly per the rule's own text
+("If existing architecture supports it cleanly: implement narrowly... If
+implementation requires [any of five listed things]: STOP that function and
+classify it").
+
+## 11. Data requirement contract
+
+`falling`/`kcw` operate on already-declared series (`close`,
+`high`/`low`/`tr`) — no new data requirement. `pvtN` (like `obvN` before it)
+reads bars directly (`reads: "bars"`, close-and-volume by definition) — the
+SAME data requirement `obvN` already declares and both chart and screener
+execution already satisfy identically, since it shares the exact `BAR_FN`
+registration mechanism. No new execution-requirement expression was needed;
+nothing here required stopping to report a gap in that system.
+
+## 12. JS/Python conformance (kept separate from vendor parity)
+
+`falling` and `pvtN`: full dual-kernel conformance via the existing
+`tools/ast_conformance.py` harness (`run_js`/`run_py`/`compare_lanes`),
+asserted in `tests/test_vendor_parity_batch1.py::test_dual_kernel_conformance_js_vs_python`
+— zero differences over every bar of the 15-bar real capture, for both
+functions. `kcw`: covered structurally instead — `BUILTIN_CALL_TREE` is a
+JS-only, Pine-translation-time AST rewrite (the SAME mechanism `roc`/`mom`/
+`linreg`/`vwma` already use, none of which carry separate Python-lane
+"conformance" either, since the REWRITE happens entirely in the JS
+translator before either kernel executes anything) — the resulting canonical
+tree (`ema`/`op` nodes only) is executed identically by both kernels because
+`ema` itself already has full dual-kernel conformance. This is stated
+explicitly as a DIFFERENT claim from vendor parity, per the tranche's own
+instruction ("JS == Python does NOT prove TradingView parity").
+
+## 13. Vendor comparison — row counts, deltas, warm-up
+
+| Function | Vendor rows held | Warm-up (this engine) | Rows compared | Max abs delta | Max rel delta | Mismatches |
+|---|---|---|---|---|---|---|
+| `falling` | 15 | 3 bars | 12 | 0 | 0 | 0/12 |
+| `kcw` | 15 | n/a (direct arithmetic, not re-executed — §6) | 15 | 0.0000 (4 decimals) | 0 | 0/15 |
+| `pvtN(5)` | 15 | 5 bars | 10 | ~25 (on deltas of magnitude 10⁴–10⁵; volume-rounding artifact, §3/§9) | ~5e-5 (0.005%) | 0/10 at rel-tol 1e-3 |
+
+No row was silently skipped: every real vendor row held in each observation
+is accounted for above as either compared (with its result) or excluded by a
+named, disclosed warm-up boundary. Qualified status for each (see §5/§6/§8/§9
+above for the full reasoning): `falling` → VENDOR-PARITY VERIFIED — LIMITED
+SAMPLE; `kcw` → VENDOR-PARITY VERIFIED — LIMITED SAMPLE; `pvtN` →
+VENDOR-PARITY VERIFIED — STEADY-STATE, LIMITED SAMPLE; `accdist`'s per-bar
+formula → VENDOR-PARITY VERIFIED — STEADY-STATE, LIMITED SAMPLE (formula
+only, not implemented); `cmf` → not applicable (not real Pine).
+
+## 14. Mutation / non-vacuity evidence
+
+Each proves the vendor oracle actually discriminates, using the real capture
+itself wherever possible (no synthetic substitute where the real data
+already supplies the discriminator):
+
+- **`falling`**: the real vendor's own recorded `falling_real_candRunningMin`
+  column (running-minimum, the plausible wrong reading) genuinely disagrees
+  with the real builtin at 2026-08-20 while `falling_real_candMonotone`
+  (strict monotone, the shipped reading) agrees at every row — pinned as a
+  permanent regression in both
+  `pine.batch1VendorBacked.test.js`
+  and `tests/test_vendor_parity_batch1.py::test_MUTATION_falling_running_minimum_disagrees_with_the_real_capture`.
+- **`kcw`**: the real vendor's own recorded `kcw_candPercent` column (×100,
+  the plausible wrong reading) visibly disagrees with the real builtin
+  (>1.0 absolute, against a value ~0.15–0.19) on all 15 real rows, while
+  `kcw_candRatio` (the shipped reading) agrees exactly — pinned in
+  `tests/test_vendor_parity_batch1.py::test_MUTATION_kcw_percent_form_disagrees_with_the_ratio_on_every_real_row`.
+- **`pvtN`**: a hand-rolled wrong-previous-close candidate (dividing by THIS
+  bar's close instead of the PRIOR bar's — a plausible off-by-one) was
+  computed independently in BOTH the JS
+  (`pine.batch1VendorBacked.test.js`) and Python
+  (`tests/test_vendor_parity_batch1.py::test_MUTATION_pvt_wrong_previous_close_disagrees`)
+  permanent test suites; both confirm at least one real disagreement against
+  the real captured value while the correct implementation agrees at every
+  computable row.
+- **`accdist`**: no mutation test — nothing was implemented to mutate (§8).
+
+## 15. Frozen 48-script corpus re-run
+
+```
+RAW BEFORE:       28 / 48
+RAW AFTER:        29 / 48        (+1: candles-doji-at-extension, ta.falling alone)
+
+ASSISTED BEFORE:  37 / 48
+ASSISTED AFTER:   38 / 48        (+1, same script — no offer needed, a RAW gain)
+```
+
+**Exactly one script recovered, fully, RAW, needing no offer**:
+`candles-doji-at-extension` — its only unserved name was `ta.falling`, now
+served.
+
+**Two scripts partially advanced but remain misses, each for a genuine,
+independent, newly-confirmed secondary blocker** (not "a script recovered
+merely because it advanced one stage" — neither fully passes):
+
+- `volatility-range-contraction-base` — BOTH `ta.kcw` (its first-reported
+  blocker) and `ta.falling` (its second) now translate. The script's ONLY
+  remaining real blocker, confirmed by direct translation of the live
+  fixture, is `ta.tr(true)` — a pre-existing, deliberate, unrelated
+  parameter-fidelity refusal ("this engine leaves that bar not-computable
+  rather than inventing it"), untouched by this tranche. **A mid-session
+  assumption that `request.security` was this script's remaining blocker
+  was checked against the real engine output before being written down, and
+  was wrong — `request.security(syminfo.tickerid, "W", ta.atr(10))` was
+  ALWAYS clean, confirmed by direct translation, both before and after this
+  correction.**
+- `volume-obv-accumulation-divergence` — `ta.pvt`'s windowed-delta rewrite
+  now translates (`pvtN(10) > 0`, confirmed exact-matched against real
+  vendor data, §9/§13). The real fixture's SAME boolean expression ALSO
+  reads `ta.obv`'s bare LEVEL (`obvLine = ta.obv`, feeding
+  `obvNewHigh`/`obvLine > obvSig`), which stays permanently refused for the
+  reason `_functions_excluded.obv` states — confirmed as a genuine,
+  independent second blocker (both together still refuse; `ta.obv` alone
+  refuses; `ta.pvt`'s rewrite alone translates), not a partial
+  implementation of this tranche's own scope.
+
+`volume-dollar-volume-money-flow` (needs both `ta.cmf` and `ta.accdist`,
+neither implemented per §7/§8) correctly remains a miss, as expected.
+
+Every downstream self-consistency rail this addition touched was updated in
+the same commit as the implementation, never left red: `parse.test.js`'s
+manifest-size counts, `sentence.test.js`'s totality counts and grammar
+round-trip rules, `pine.derived.test.js`'s TA_VETTED roster,
+`pine.blindCorpus.test.js`'s FLOOR/ACCEPT_FLOOR and probe rosters,
+`pine.blindCorpusDecomposition.test.js`'s now-stale secondary-blocker
+assertions (rewritten to state the current, re-verified truth, not silently
+left describing a state that no longer holds), and
+`tests/fixtures/ast/corpus.json`'s permanent conformance coverage (two new
+cases, `conformance_log.json` re-recorded and independently verified to move
+ZERO existing digests: `0 MOVED [], 6 added, 0 removed` — the tool's own
+printed non-vacuity proof, confirming this batch changed no PREVIOUSLY-shipped
+function's behavior).
+
+## 16. `ta.cci`, `ta.valuewhen`, broader `ta.barssince`, and every other §16
+parked item — kept parked, unchanged
+
+None touched. `meanrev-zscore-multi-oscillator-washout` remains blocked on
+`ta.cci`'s kernel-level gap; the three remaining `ta.valuewhen`/`ta.barssince`
+capability-gap misses are unaffected; no tuple support, undefined-symbol
+recovery, new Track F input type, new assisted-edit offer,
+generalized recursive/stateful Pine support, BuilderSheet visual expansion,
+or pattern-engine work was begun.
+
+## 17. Documentation
+
+This addendum; `RISK_REGISTER.md`'s new RISK-041 row; `closedTable.json`'s
+`functions`/`_functions_excluded`/`_functions_vendor_parity_resolutions`
+sections (§5/§6/§8/§9 above); `docs/formulas/GRAMMAR.md` regenerated
+(`FORMULA_DOCS_WRITE=1 npx vitest run …/formulaDocs.test.js`). Historical
+status changes preserved throughout — `_functions_excluded.falling` was
+REMOVED (superseded by resolution, not silently rewritten as though the
+prior refusal never existed — its text is preserved verbatim in this repo's
+git history), and every other pre-existing entry this addendum's changes sit
+beside (`obv`, `rising`'s own resolution, etc.) is quoted or cited, never
+restated as a second, potentially-drifting copy.
+
+## FINAL RETURN — items 1–20
+
+1 (exact corpus demand, all five functions): §1.
+2 (vendor semantic ruling, all five): §5–§9.
+3 (raw artifact path, all five): §3 (the screenshot directory), plus each
+function's own observation JSON's `provenance.rawArtifact` field (§5/§6/§8/§9).
+4 (implementation path, all five): §5/§6/§9 (`falling`/`kcw`/`pvtN`); §7/§8
+state why `cmf`/`accdist` have none.
+5 (any function stopped, and why): `ta.cmf` (§7, not real Pine syntax) and
+`ta.accdist` (§8, corpus need is EMA-based, unservable by any bounded-delta
+primitive, would cost new surface area for zero unlock).
+6 (JS/Python conformance results): §12.
+7 (vendor comparison row counts/deltas): §13.
+8 (warm-up findings): §13 (per-function warm-up column); §5/§9 (falling 3
+bars, pvtN 5 bars); §6 (kcw's own warm-up cannot be satisfied by this
+batch's 15-bar sample — disclosed, not silently worked around).
+9 (initialization findings): §8/§9 — STEADY-STATE claimed for both
+`accdist`'s formula and `pvtN`; INITIALIZATION explicitly NOT claimed for
+either, per the tranche's own instruction to separate the two when the true
+historical origin cannot be observed.
+10 (zero-range/zero-volume/NA boundaries): the oracle script's synthetic
+pattern deliberately included a zero-range bar (phase 10) and a zero-volume
+bar (phase 15); `kcw` was confirmed to NOT zero out from one zero-range bar
+inside its 20-bar EMA window (expected — EMA-smoothed, not a raw per-bar
+formula); the accdist/pvt per-bar formulas' zero-high-low-range guard
+(`(high-low)!=0 ? ... : 0.0`) and pvt's zero-previous-close guard are both
+DEFENSIVE, UNVERIFIED boundaries (never observed on real SPY data), disclosed
+as such in `indicators.js`/`indicator_compute.py`'s own comments — not
+claimed as vendor-verified.
+11 (mutation/non-vacuity evidence): §14.
+12 (final qualified parity status, all five): §13's table.
+13 (48-script RAW before/after): §15 — 28/48 → 29/48.
+14 (48-script ASSISTED before/after): §15 — 37/48 → 38/48.
+15 (exact scripts recovered): §15 — `candles-doji-at-extension` (fully, RAW,
+no offer needed).
+16 (newly exposed secondary blockers): §15 —
+`volatility-range-contraction-base`'s real remaining blocker is `ta.tr(true)`
+(pre-existing, unrelated); `volume-obv-accumulation-divergence`'s is
+`ta.obv`'s bare LEVEL (pre-existing, unrelated, permanent).
+17 (test-suite results): `pine.batch1VendorBacked.test.js` 18/18;
+`tests/test_vendor_parity_batch1.py` 8/8; `pine.blindCorpus.test.js` 16/16;
+`pine.blindCorpusDecomposition.test.js` full suite green after the rewrite
+in §15; the full `app/src/components/chart/engine/ast/` vitest directory
+(114 files / 2,156 tests) green; the full repo-wide `app/` vitest run
+(996/1,001 other files green — 3 PRE-EXISTING, unrelated failures found and
+explicitly NOT touched, confirmed via `git status`/`git log` showing zero
+modification by this tranche to any implicated file:
+`flipCRecord.test.js`'s frozen `tools/chart_parity_cases.json` case count,
+`ImportBox.thinkscript.test.jsx`'s paste-field debounce assertion,
+`StockChart.smoke.test.jsx`'s `lightweight-charts` mock missing `LineType`);
+targeted Python backend sweep (`test_ast_interpret`, `test_ast_conformance`,
+`test_ast_bounded_state`, `test_ast_lint`, `test_ast_arg_domain`,
+`test_ast_arg_roles`, `test_closed_table_citations`,
+`test_vendor_parity_batch1`, `test_vendor_parity_lane_b*`) all green.
+18 (updated RISK-004 status): RAW 29/48, ASSISTED 38/48 (§15); RISK_REGISTER
+RISK-041 row added.
+19 (commits pushed): see this tranche's own commit(s) on
+`worktree-indicator-ecosystem`.
+20 (recommendation for the next custom-indicator issue only): see below.
+
+## Recommendation for the next custom-indicator issue (not begun)
+
+With `ta.falling`/`ta.kcw`/`ta.pvt` now vendor-verified and shipped, and
+`ta.cmf`/`ta.accdist` correctly classified and parked, the remaining misses
+in the 48-script corpus are: `ta.valuewhen` (×2, capability gap, already
+classified — Addendum 3), `syminfo.mintick` misses that are not actually
+mintick-blocked (already-reconciled in earlier addenda), `ta.cci` (kernel-
+level, already classified — Addendum 1), `ta.supertrend` (structurally
+inexpressible, already classified), `ta.tr(true)` (deliberate parameter-
+fidelity refusal, newly re-confirmed in this tranche as
+`volatility-range-contraction-base`'s sole remaining blocker — §15), and
+`ta.obv`'s bare LEVEL (permanently excluded, newly re-confirmed in this
+tranche as `volume-obv-accumulation-divergence`'s sole remaining blocker —
+§15). Every remaining miss is now either a previously-classified capability
+gap or a DELIBERATE, already-ruled-on refusal — there is no further
+plain-UNSUPPORTED_BUILTIN, no-disclosed-ambiguity opportunity left in this
+corpus of the shape this batch and its three predecessors have been closing.
+A genuinely new tranche would need to either (a) revisit one of the
+already-ruled-on deliberate refusals (`ta.tr(true)`, `ta.obv`'s LEVEL,
+`ta.cci`'s kernel gap, `ta.supertrend`) with new evidence or a new owner
+decision, or (b) look outside this specific 48-script corpus entirely for
+the next candidate functions.
+
+**This recommendation is not begun.**

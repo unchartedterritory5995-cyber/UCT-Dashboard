@@ -271,6 +271,16 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
       + ' length with the CURRENT bar EXCLUDED from the sample, not length+1',
     bbw: 'ta.bbw — resolved by real TradingView capture: the PERCENT form (x100),'
       + ' not the bare ratio; population stdev matches this table\'s existing stdev',
+    // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06).
+    falling: 'ta.falling — resolved by an INDEPENDENT real TradingView capture (not'
+      + ' assumed by symmetry with rising): STRICT MONOTONE DECREASE over length+1'
+      + ' samples, the mirror of rising with < in place of >. Argument order'
+      + ' (source, length) matches Pine\'s own signature exactly.',
+    // — OURS ALONE, mirroring obvN's own entry immediately above for the
+    //   identical reason: `pvtN` is not a Pine name (`ta.pvt` bare is the real,
+    //   unbounded builtin, and it stays refused — see `_functions_excluded.pvt`),
+    //   so nothing can be mistranslated onto it.
+    pvtN: 'no Pine name collides — ta.pvt is the unbounded one and stays refused',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

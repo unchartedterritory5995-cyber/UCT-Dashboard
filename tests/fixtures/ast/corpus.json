@@ -4420,6 +4420,40 @@
           }
         ]
       }
+    },
+    {
+      "id": "falling_close_3",
+      "source": "falling(close, 3)",
+      "why": "Vendor-Backed Unserved Builtins, Batch 1 -- covers falling, resolved by an INDEPENDENT real TradingView capture (not assumed by symmetry with rising) to strict monotone DECREASE over length+1 samples (closedTable.json::_functions_vendor_parity_resolutions.falling_resolution).",
+      "ast": {
+        "type": "call",
+        "name": "falling",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "pvtN_bounded_price_volume_trend_change",
+      "source": "pvtN(5)",
+      "why": "THE FOURTH `reads: \"bars\"` ENTRY, mirroring obvN exactly: _functions_excluded.pvt refuses the unbounded LEVEL for the identical unseeded-cumulative reason obv is refused; this is that level's CHANGE across a declared window, and the seed cancels. Bound to the shipped accumulator (computePVT / compute_pvt_raw, differenced 5 bars apart) so this digest is also the rail on those two staying one number. Verified against a real TradingView capture (tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json): exact match on 15 real SPY trading days, steady-state.",
+      "ast": {
+        "type": "call",
+        "name": "pvtN",
+        "args": [
+          {
+            "type": "num",
+            "value": 5
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

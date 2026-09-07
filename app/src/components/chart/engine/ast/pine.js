@@ -1107,6 +1107,43 @@ const BUILTIN_CALL_TREE = Object.freeze({
       cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
     ])
   },
+  // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
+  // Channel Width. TradingView's own published `f_kcw` reference-manual
+  // source, verbatim:
+  //   basis    = ta.ema(src, length)
+  //   span     = useTrueRange ? ta.tr : (high - low)
+  //   rangeEma = ta.ema(span, length)
+  //   kcw      = ((basis + rangeEma*mult) - (basis - rangeEma*mult)) / basis
+  //            = 2 * mult * rangeEma / basis
+  // A RATIO — never multiplied by 100 (the plausible-but-wrong percent
+  // convention `ta.bbw` might suggest by analogy). Verified against a real
+  // TradingView capture (tests/fixtures/vendor/observations/
+  // ta-kcw-close20-2-2026-09-06.json): exact match on 15 real SPY trading
+  // days, including that the candidate's *100 sibling is 100x off on every
+  // one. Composes from primitives this table already declares (`ema`, and
+  // `tr`'s own expansion above) — costs the manifest nothing, exactly like
+  // `vwma`/`linreg` above.
+  //
+  // ⛔ `useTrueRange` MUST BE A LITERAL 1/0 to be read here — a resolved
+  // boolean is a `num` node with value 1 or 0 (see the `bare === 'tr'` guard
+  // above for the same convention). Anything else declines to `null` and
+  // falls through to the ordinary refusal rather than being guessed at.
+  kcw: (a) => {
+    const [src, length, mult, flag] = a
+    let useTrueRange = true
+    if (flag !== undefined) {
+      if (!flag || flag.type !== 'num') return null
+      const v = Number(flag.value)
+      if (v !== 0 && v !== 1) return null
+      useTrueRange = v === 1
+    }
+    const span = useTrueRange
+      ? BUILTIN_SERIES_TREE.tr()
+      : cOp('-', [{ type: 'series', name: 'high' }, { type: 'series', name: 'low' }])
+    const basis = cCall('ema', [src, length])
+    const rangeEma = cCall('ema', [span, length])
+    return cOp('/', [cOp('*', [cNum(2), cOp('*', [mult, rangeEma])]), basis])
+  },
   cross: (a) => cOp('||', [
     cCall('crossOver', [a[0], a[1]]),
     cCall('crossUnder', [a[0], a[1]]),
@@ -2505,6 +2542,17 @@ function isBareObv(node) {
   return named === 'ta.obv' || named === 'obv'
 }
 
+/** True when `node` names Pine's cumulative PVT with no `[…]` applied.
+ *  Mirrors `isBareObv` exactly — `ta.pvt` is the same unseeded-cumulative
+ *  shape as `ta.obv`. See `_functions_excluded.pvt`. */
+function isBarePvt(node) {
+  if (!node) return false
+  const named = node.type === 'name' ? node.name
+    : (node.type === 'call' && (!node.args || node.args.length === 0)) ? node.name
+      : null
+  return named === 'ta.pvt' || named === 'pvt'
+}
+
 /** `ta.sma(ta.obv, n)` — an average of OBV over its OWN window. Returns the
  *  length NODE (unresolved, because a member writes it as an input as often as a
  *  literal), or null.
@@ -2738,6 +2786,17 @@ function contextBoundedPlan(node) {
       && right && right.type === 'offset' && isBareObv(right.arg)) {
     const lag = Number(right.n)
     if (Number.isInteger(lag) && lag >= 1) return { kind: 'obv', op, lag }
+  }
+
+  // ⭐⭐ `pvt <cmp> pvt[k]` and `pvt - pvt[k]` — THE SAME IDENTITY AS `obv`'s,
+  // for the same reason: `ta.pvt` is an unseeded cumulative and the arbitrary
+  // seed CANCELS in a windowed difference. See `_functions_excluded.pvt` and
+  // `isBarePvt`. This is what actually unlocks `volume-obv-accumulation-
+  // divergence`'s `pvtRising = ta.pvt > ta.pvt[10]`.
+  if ((own(FLIP, op) || op === '-') && isBarePvt(left)
+      && right && right.type === 'offset' && isBarePvt(right.arg)) {
+    const lag = Number(right.n)
+    if (Number.isInteger(lag) && lag >= 1) return { kind: 'pvt', op, lag }
   }
 
   return null
@@ -4474,7 +4533,10 @@ class Resolver {
                 cNum(bounded.k),
               ])
             }
-            const change = cCall('obvN', [cNum(bounded.lag)])
+            // ⭐ `obv` AND `pvt` ARE THE SAME REWRITE onto their own bounded-delta
+            // primitive — see `contextBoundedPlan`'s pvt branch and
+            // `_functions_excluded.pvt`.
+            const change = cCall(bounded.kind === 'pvt' ? 'pvtN' : 'obvN', [cNum(bounded.lag)])
             // ⛔ THE DIFFERENCE IS THE VALUE, so `-` returns it directly rather
             // than comparing it to anything.
             return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
@@ -5886,6 +5948,11 @@ class Resolver {
         // about the wrong subject.
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` crosses one series with another, and needs both`, locate(tok))
+      }
+      if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
+        throw new PineRefusal('pine:arity',
+          `\`${pineName}\` takes a source, a length, a multiplier and an `
+          + 'optional useTrueRange flag', locate(tok))
       }
       if (bare === 'linreg') {
         // ⛔ THE DOMAIN, CHECKED BEFORE THE EXPANSION AND NAMED. A regression needs

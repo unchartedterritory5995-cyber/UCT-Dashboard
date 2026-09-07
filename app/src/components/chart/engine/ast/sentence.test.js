@@ -161,6 +161,9 @@ const FORMS = [
   // derived from it: the round trip proves nothing if the oracle agrees
   // with the renderer by construction.
   { kind: 'call', name: 'rising', parts: [0, ' rising for ', 1, ' bars'] },
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+  // discipline as `rising` above: hand-typed, deliberately not derived.
+  { kind: 'call', name: 'falling', parts: [0, ' falling for ', 1, ' bars'] },
   { kind: 'call', name: 'median', parts: ['the ', 1, '-bar median of ', 0] },
   { kind: 'call', name: 'percentrank', parts: ['the ', 1, '-bar percent rank of ', 0] },
   {
@@ -272,6 +275,11 @@ const FORMS = [
     name: 'obvN',
     parts: ['the signed volume of the last ', 0,
             ' bars, which is on-balance volume\'s change across that window'] },
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+  // discipline as `obvN` above: hand-typed, deliberately not derived.
+  { kind: 'call',
+    name: 'pvtN',
+    parts: ['the change in price-volume trend across the last ', 0, ' bars'] },
 
   // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
   // table, and that is the whole design: this grammar is a DELIBERATE second
@@ -990,6 +998,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:donchianUpper',
       'function:ema',
       'function:exp',
+      // ⭐ 101 -> 103: VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) —
+      // `falling` (`ta.falling`'s structural mirror of `rising`, resolved by
+      // an INDEPENDENT real vendor capture) and `pvtN` (below, beside `pow` —
+      // `ta.pvt`'s windowed-delta bounded form, mirroring `obvN`). Two named
+      // entries, not a bumped count.
+      'function:falling',
       'function:highest',
       'function:highestbars',
       'function:hma',
@@ -1018,6 +1032,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:pivotlow',
       'function:plusDI',
       'function:pow',
+      'function:pvtN',
       'function:rising',
       'function:rma',
       'function:round',
@@ -1036,7 +1051,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(101)
+    expect(entries.length).toBe(103)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1046,7 +1061,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(101)
+    expect(subjects.length).toBe(103)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2413,7 +2428,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 101)
+    expect(sentences.length).toBe(CORPUS.cases.length + 103)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

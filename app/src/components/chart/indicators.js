@@ -566,6 +566,32 @@ export function computeOBV(bars) {
   return result
 }
 
+// ─── Price-Volume Trend (PVT) ───────────────────────────────────────────────
+// TradingView's own published reference-manual EXAMPLE source:
+//   f_pvt() => ta.cum((ta.change(close) / close[1]) * volume)
+// PVT[0] = 0 (seed; the LEVEL is never exposed to a formula — only a windowed
+// DELTA is, via `pvtN` — so an unverified seed cannot leak into any answer
+// this engine emits, the same justification `computeOBV`'s own seed carries).
+// Zero-previous-close is treated as a 0 contribution: a defensive, UNVERIFIED
+// boundary, since SPY (or any real equity) never presents one in a live
+// capture. Verified against a real TradingView capture (exact match, 15 real
+// SPY trading days, steady-state 5-bar windowed delta):
+// tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json
+
+export function computePVT(bars) {
+  if (!bars?.length) return []
+  const result = [{ time: bars[0].t, value: 0 }]
+  let pvt = 0
+  for (let i = 1; i < bars.length; i++) {
+    const prevClose = bars[i - 1].c
+    const v = bars[i].v || 0
+    const term = prevClose ? ((bars[i].c - prevClose) / prevClose) * v : 0
+    pvt += term
+    result.push({ time: bars[i].t, value: pvt })
+  }
+  return result
+}
+
 // ─── Donchian Channels ───────────────────────────────────────────────────────
 // upper  = highest high over `period`
 // lower  = lowest  low  over `period`

@@ -68,7 +68,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (68)
+## Functions (70)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -98,6 +98,7 @@ decide whether a formula can run at all.
 | `donchianUpper(high, low, period)` | a number | whatever `period` asks for | the top of the `period`-bar Donchian channel over `high` and `low` |
 | `ema(source, period)` | a number | whatever `period` asks for | the `period`-bar exponential average of `source` |
 | `exp(source)` | a number | 0 bars | e raised to `source` |
+| `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
 | `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the highest `source` of the last `period` bars |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
@@ -126,6 +127,7 @@ decide whether a formula can run at all.
 | `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
 | `plusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar +DI of `high`, `low` and `close` |
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
+| `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
 | `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |

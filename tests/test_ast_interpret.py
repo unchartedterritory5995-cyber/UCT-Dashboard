@@ -263,7 +263,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # capture rather than documentation alone (`closedTable.json::
     # _functions_vendor_parity_resolutions`). No new node type, argument
     # kind, or lookback form -- ordinary `arg1` windows like `sma`/`stdev`.
-    assert len(ast_table.bar_names()) == 101, len(ast_table.bar_names())
+    # 101 -> 103 (2026-09-06): Vendor-Backed Unserved Builtins, Batch 1 --
+    # `falling` (an ordinary `arg1` window, the structural mirror of `rising`,
+    # resolved by an INDEPENDENT real vendor capture) and `pvtN` (a bar
+    # reader, the structural mirror of `obvN`, window `arg0`). No new node
+    # type, argument kind, or lookback form.
+    assert len(ast_table.bar_names()) == 103, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -284,7 +289,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # one of them is wrong.
     # 234 -> 238 (2026-09-06): the same four Lane B functions; the scalar half
     # is untouched at 137.
-    assert len(declared) == 238, f"the table declares {len(declared)} names, not 238"
+    # 238 -> 240 (2026-09-06): the same `falling`/`pvtN` pair as the bar count
+    # above; the scalar half is untouched at 137.
+    assert len(declared) == 240, f"the table declares {len(declared)} names, not 240"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 68 functions and 137 scalars — 238 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 70 functions and 137 scalars — 240 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -479,7 +479,13 @@ describe('the manifest', () => {
     // `_functions_excluded` writeups each entry replaces). No new node type,
     // argument kind, or lookback form — all four are ordinary `arg1` windows,
     // same shape as `sma`/`stdev` beside them. `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(68)
+    // ⭐ 68 -> 70 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06):
+    // `falling` (an ordinary `arg1` window, the structural mirror of `rising`,
+    // resolved by an INDEPENDENT real vendor capture) and `pvtN` (a bar
+    // reader, `reads: "bars"`, the structural mirror of `obvN` — its window is
+    // `arg0`, the same declaration shape `obvN` already uses). No new node
+    // type, argument kind, or lookback form. `tableVersion` is unmoved.
+    expect(Object.keys(TABLE.functions)).toHaveLength(70)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -566,9 +572,11 @@ describe('the manifest', () => {
     // exist here at all, and why Pine's `cum` still cannot. Scalar half
     // untouched at 111.
     // 97 -> 101 IS VENDOR PARITY TRANCHE 2, LANE B. Scalar half untouched at 137.
-    expect(bar.size).toBe(101)
+    // 101 -> 103 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (`falling`, `pvtN`).
+    // Scalar half untouched at 137.
+    expect(bar.size).toBe(103)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(238)
+    expect(declared.size).toBe(240)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

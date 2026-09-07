@@ -1,0 +1,243 @@
+{
+  "id": "ta-pvt-delta5-2026-09-06",
+  "shape": "stateful",
+  "script": {
+    "dialect": "pine",
+    "source": "//@version=5\nindicator(\"t\")\nplot(ta.pvt - ta.pvt[5])\n",
+    "plot": "pvt_change5",
+    "independentlyTranslatable": true,
+    "note": "The BARE LEVEL (ta.pvt's LEVEL is a cumulative-from-first-bar, unseeded accumulator, same architecture class as ta.obv and ta.accdist) is NOT what this observation's script translates. Only a WINDOWED DELTA (pvt - pvt[k]) cancels the unknown seed, mirroring the already-shipped obvN(k) / boundedObvAgainstOwnAverage pattern -- and that windowed-delta SPELLING is itself independently translatable through the ordinary door (contextBoundedPlan), which is exactly what this script exercises. This is EXACTLY the blind-corpus script's actual need (ta.pvt > ta.pvt[10])."
+  },
+  "engine": {
+    "formula": "pvtN(5)",
+    "ast": {
+      "type": "call",
+      "name": "pvtN",
+      "args": [
+        {
+          "type": "num",
+          "value": 5
+        }
+      ]
+    }
+  },
+  "market": {
+    "symbol": "SPY",
+    "timeframe": "1D",
+    "bars": [
+      {
+        "date": "2026-08-17",
+        "o": 776.18,
+        "h": 776.78,
+        "l": 772.51,
+        "c": 772.67,
+        "v": 34360000,
+        "t": "1786924800"
+      },
+      {
+        "date": "2026-08-18",
+        "o": 768.7,
+        "h": 769.5,
+        "l": 766.92,
+        "c": 767.45,
+        "v": 43920000,
+        "t": "1787011200"
+      },
+      {
+        "date": "2026-08-19",
+        "o": 770.36,
+        "h": 772.47,
+        "l": 768.1,
+        "c": 769.06,
+        "v": 40310000,
+        "t": "1787097600"
+      },
+      {
+        "date": "2026-08-20",
+        "o": 765.96,
+        "h": 768.15,
+        "l": 762.04,
+        "c": 762.6,
+        "v": 45520000,
+        "t": "1787184000"
+      },
+      {
+        "date": "2026-08-21",
+        "o": 766.05,
+        "h": 767.85,
+        "l": 764.17,
+        "c": 765.72,
+        "v": 39190000,
+        "t": "1787270400"
+      },
+      {
+        "date": "2026-08-24",
+        "o": 764.78,
+        "h": 765.22,
+        "l": 762.08,
+        "c": 763.47,
+        "v": 32430000,
+        "t": "1787529600"
+      },
+      {
+        "date": "2026-08-25",
+        "o": 766.16,
+        "h": 766.78,
+        "l": 763.05,
+        "c": 765.91,
+        "v": 27420000,
+        "t": "1787616000"
+      },
+      {
+        "date": "2026-08-26",
+        "o": 764.73,
+        "h": 767.35,
+        "l": 763.93,
+        "c": 766.08,
+        "v": 28750000,
+        "t": "1787702400"
+      },
+      {
+        "date": "2026-08-27",
+        "o": 768.5,
+        "h": 772.36,
+        "l": 767.16,
+        "c": 771.1,
+        "v": 34560000,
+        "t": "1787788800"
+      },
+      {
+        "date": "2026-08-28",
+        "o": 771.76,
+        "h": 775.3,
+        "l": 768.31,
+        "c": 769.35,
+        "v": 36740000,
+        "t": "1787875200"
+      },
+      {
+        "date": "2026-08-31",
+        "o": 767.33,
+        "h": 768.0,
+        "l": 764.72,
+        "c": 767.05,
+        "v": 38810000,
+        "t": "1788134400"
+      },
+      {
+        "date": "2026-09-01",
+        "o": 762.01,
+        "h": 764.67,
+        "l": 759.48,
+        "c": 761.78,
+        "v": 41130000,
+        "t": "1788220800"
+      },
+      {
+        "date": "2026-09-02",
+        "o": 762.45,
+        "h": 766.43,
+        "l": 761.73,
+        "c": 765.16,
+        "v": 29570000,
+        "t": "1788307200"
+      },
+      {
+        "date": "2026-09-03",
+        "o": 767.9,
+        "h": 774.03,
+        "l": 767.45,
+        "c": 773.17,
+        "v": 43530000,
+        "t": "1788393600"
+      },
+      {
+        "date": "2026-09-04",
+        "o": 772.01,
+        "h": 772.87,
+        "l": 769.0,
+        "c": 770.19,
+        "v": 34050000,
+        "t": "1788480000"
+      }
+    ]
+  },
+  "input": {
+    "kind": "real",
+    "note": "pvt_change5 = ta.pvt - ta.pvt[5] (the builtin's own 5-bar windowed delta, real chart OHLCV) plotted alongside pvt_deltaSumCandReal5 = math.sum(realPvtDelta,5) where realPvtDelta = ta.change(close)/close[1]*volume -- TradingView's own published reference-manual EXAMPLE source f_pvt() => ta.cum((ta.change(close)/close[1])*volume), built from real close/volume (never the script's synthetic o/h/l/c/v -- ta.pvt is a bare builtin that cannot be redirected to a custom source)."
+  },
+  "vendor": {
+    "readDecimals": 2,
+    "values": {
+      "1786924800": {
+        "pvt_change5": -10168.44,
+        "pvt_deltaSumCandReal5": -10168.44
+      },
+      "1787011200": {
+        "pvt_change5": -189494.98,
+        "pvt_deltaSumCandReal5": -189494.98
+      },
+      "1787097600": {
+        "pvt_change5": -188041.55,
+        "pvt_deltaSumCandReal5": -188041.55
+      },
+      "1787184000": {
+        "pvt_change5": -819043.27,
+        "pvt_deltaSumCandReal5": -819043.27
+      },
+      "1787270400": {
+        "pvt_change5": -596611.65,
+        "pvt_deltaSumCandReal5": -596611.65
+      },
+      "1787529600": {
+        "pvt_change5": -529492.73,
+        "pvt_deltaSumCandReal5": -529492.73
+      },
+      "1787616000": {
+        "pvt_change5": -145132.33,
+        "pvt_deltaSumCandReal5": -145132.33
+      },
+      "1787702400": {
+        "pvt_change5": -223306.93,
+        "pvt_deltaSumCandReal5": -223306.93
+      },
+      "1787788800": {
+        "pvt_change5": 385504.37,
+        "pvt_deltaSumCandReal5": 385504.37
+      },
+      "1787875200": {
+        "pvt_change5": 141782.32,
+        "pvt_deltaSumCandReal5": 141782.32
+      },
+      "1788134400": {
+        "pvt_change5": 121051.34,
+        "pvt_deltaSumCandReal5": 121051.34
+      },
+      "1788220800": {
+        "pvt_change5": -249145.84,
+        "pvt_deltaSumCandReal5": -249145.84
+      },
+      "1788307200": {
+        "pvt_change5": -124342.89,
+        "pvt_deltaSumCandReal5": -124342.89
+      },
+      "1788393600": {
+        "pvt_change5": 104916.13,
+        "pvt_deltaSumCandReal5": 104916.13
+      },
+      "1788480000": {
+        "pvt_change5": 57053.06,
+        "pvt_deltaSumCandReal5": 57053.06
+      }
+    }
+  },
+  "provenance": {
+    "platform": "TradingView",
+    "platformVersion": "Pine v5, web (TradingView Premium)",
+    "who": "owner",
+    "when": "2026-09-06",
+    "chartUrl": null,
+    "rawArtifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/04_accdist_pvt_builtin_vs_real_candidates_exact_match.jpg",
+    "note": "LIMITATION DISCLOSED: same CSV-download-blocked environment note as the falling/kcw/accdist observations in this batch -- raw artifact is a Table View screenshot, not a CSV. pvt_change5 === pvt_deltaSumCandReal5 exactly on all 15/15 real SPY trading days visible (max abs delta 0.00 at 2 read decimals) -- this is STEADY-STATE agreement; INITIALIZATION AGREEMENT (the true first-valid-bar / prior-close-at-inception behavior) is explicitly NOT claimed, per the tranche's instruction, since it cannot be observed from a 15-row window deep into SPY's real history. CLASSIFICATION: VENDOR-PARITY VERIFIED -- STEADY-STATE, LIMITED SAMPLE. This is the highest-value implementation target of the whole batch: ta.pvt's LEVEL is as fundamentally unimplementable as ta.obv's and ta.accdist's (the same obvN-mirrored reasoning: cumulative from the first bar, no absolute seed), but the blind-corpus script volume-obv-accumulation-divergence's actual need -- pvtRising = ta.pvt > ta.pvt[10] -- is EXACTLY the windowed-delta shape verified here (pvt - pvt[k] > 0), unlike ta.accdist's EMA-based corpus need which no bounded-delta primitive can service."
+  }
+}

@@ -101,8 +101,8 @@ const ACCEPTED = FILES.filter((f) => {
  *
  *  21 -> 27 IS VENDOR PARITY TRANCHE 2, LANE B (2026-09-06): `ta.rising`,
  *  `ta.median`, `ta.percentrank` and `ta.bbw` declared, each resolved by a
- *  real TradingView capture (`closedTable.json::_functions_vendor_parity_
- *  resolutions`), not by guessing to close this gap. MEASURED, not assumed
+ *  real TradingView capture (`closedTable.json::_functions_vendor_parity_resolutions`),
+ *  not by guessing to close this gap. MEASURED, not assumed
  *  higher: the remaining 21 misses are blocked by OTHER unimplemented names
  *  this authorization does not cover — `syminfo.mintick` (9), `ta.valuewhen`
  *  (arity, not a missing name), `ta.falling` (rising's twin, deliberately
@@ -127,8 +127,14 @@ const ACCEPTED = FILES.filter((f) => {
  *  3` now recovers on RAW translation — it needed no offer at all, since
  *  `contextBoundedPlan` is a compile-time static identity, not an
  *  assisted-edit — so it counts here too. See `FLOOR`, below, for the
- *  raw-side accounting of the same change. */
-const ACCEPT_FLOOR = 37
+ *  raw-side accounting of the same change.
+ *
+ *  ⭐⭐ 37 -> 38 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06),
+ *  tracking `FLOOR`'s 28 -> 29 move one-for-one: `candles-doji-at-extension`
+ *  needed no assisted offer either, since `ta.falling`'s translation is a
+ *  RAW gain like `ta.barssince`'s. See `FLOOR`'s own note for the full
+ *  accounting of what did and did not move in this tranche. */
+const ACCEPT_FLOOR = 38
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -146,15 +152,15 @@ const UNSERVED_PROBES = Object.freeze({
   // `SERVED_CONTROLS` below — each now resolves, so a probe for it here
   // would fail this file's own staleness check ("a name may sit in this
   // roster only while a minimal script using it actually refuses").
-  // `ta.falling` deliberately STAYS: it is `rising`'s twin and was NOT part
-  // of this authorization's four named functions.
-  'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS — BATCH 1 (2026-09-06) MOVED
+  // `ta.falling` and `ta.kcw` OUT of this roster too, for the same reason —
+  // see `SERVED_CONTROLS`'s own note.
   'ta.cmf': 'plot(ta.cmf(21) > 0.1 ? 1 : 0)',
   'ta.obv': 'plot(ta.obv > 1000 ? 1 : 0)',
+  'ta.accdist': 'plot(ta.accdist > 1000 ? 1 : 0)',
   'ta.supertrend': '[st, dir] = ta.supertrend(3.0, 10)\nplot(dir < 0 and st > 0 ? 1 : 0)',
   'ta.valuewhen': 'plot(ta.valuewhen(close > open, close, 0) > 10 ? 1 : 0)',
   'ta.cci': 'plot(ta.cci(close, 20) > 100 ? 1 : 0)',
-  'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
   'request.security': 'plot(request.security(syminfo.tickerid, "D", close) > 10 ? 1 : 0)',
   'syminfo.mintick': 'plot(high - low > syminfo.mintick ? 1 : 0)',
 })
@@ -174,6 +180,15 @@ const SERVED_CONTROLS = Object.freeze({
   'ta.bbw': 'plot(ta.bbw(close, 20, 2) > 0.1 ? 1 : 0)',
   'ta.percentrank': 'plot(ta.percentrank(close, 10) > 50 ? 1 : 0)',
   'ta.median': 'plot(ta.median(close, 4) > 10 ? 1 : 0)',
+  // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS — BATCH 1 (2026-09-06) — resolved by
+  // real TradingView capture (`tests/fixtures/vendor/observations/
+  // ta-falling-close3-2026-09-06.json` / `ta-kcw-close20-2-2026-09-06.json`).
+  // `ta.pvt`'s windowed-delta rewrite is proven separately, through the
+  // comparison shape a member actually writes — see `pine.batch1VendorBacked
+  // .test.js`'s `ta.pvt` describe block — a bare `ta.pvt` probe here would
+  // correctly still refuse (the LEVEL stays excluded, exactly like `ta.obv`).
+  'ta.falling': 'plot(ta.falling(close, 3) ? 1 : 0)',
+  'ta.kcw': 'plot(ta.kcw(close, 20, 2.0) > 0.1 ? 1 : 0)',
 })
 
 /** ⭐ 2026-09-04 — 20 → 21 / 27 → 28: A VENUE-QUALIFIED TICKER.
@@ -212,8 +227,29 @@ const SERVED_CONTROLS = Object.freeze({
  *  `barssince` call — neither reduces to any finite comparison at all, and
  *  both are recorded as execution-model capability gaps, not fixed. See
  *  `pine.blindCorpusDecomposition.test.js`. */
+/** ⭐⭐ 28 -> 29 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06):
+ *  `ta.falling` declared (`interpret.js::windowFallingMonotone`, resolved by
+ *  an INDEPENDENT real vendor capture rather than assumed symmetry with
+ *  `ta.rising` — see `closedTable.json`'s `falling_resolution`), `ta.kcw`
+ *  declared (`BUILTIN_CALL_TREE.kcw`, composed from already-declared `ema`
+ *  and `ta.tr`'s own expansion), and the `ta.pvt` windowed-delta rewrite
+ *  declared (`pvtN`, mirroring `obvN` exactly). `candles-doji-at-extension`
+ *  needed only `ta.falling` and now translates RAW, needing no offer at all.
+ *  MEASURED, not assumed higher: `volatility-range-contraction-base` needs
+ *  BOTH `ta.kcw` and `ta.falling` and STILL misses — its real remaining
+ *  blocker is `request.security`, an unrelated pre-existing gap — and
+ *  `volume-obv-accumulation-divergence` needed only `ta.pvt`'s windowed
+ *  delta (now served) but its SAME boolean expression also reads `ta.obv`'s
+ *  bare LEVEL (`obvLine = ta.obv`, used in `obvNewHigh`/`obvLine > obvSig`),
+ *  which stays permanently refused for the reason `_functions_excluded.obv`
+ *  states — a genuine secondary blocker, not a partial implementation.
+ *  `ta.cmf` and `ta.accdist` were deliberately NOT implemented:
+ *  `volume-dollar-volume-money-flow` (which needs both) correctly still
+ *  misses. See `tests/test_vendor_parity_batch1.py` and
+ *  `pine.batch1VendorBacked.test.js` for the vendor evidence and mutation
+ *  controls behind each of these three. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 28
+const FLOOR = 29
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
