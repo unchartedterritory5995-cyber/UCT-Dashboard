@@ -20,6 +20,7 @@ import csv
 import io
 import json
 import logging
+import hmac
 import os
 from datetime import datetime
 from typing import Any
@@ -165,7 +166,10 @@ def notebook_validation_report(request: Request) -> dict[str, Any]:
     # instruction is never to request credentials or weaken auth to get one).
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    if not (expected and auth == f"Bearer {expected}"):
+    # Constant-time: `==` short-circuits at the first differing byte and leaks
+    # a prefix by timing. The `expected` guard stays first and deliberately is
+    # not constant-time — whether a secret is configured is a deployment fact.
+    if not (expected and hmac.compare_digest(auth, f"Bearer {expected}")):
         from api.services.auth_service import validate_session
         user = validate_session(request.cookies.get("uct_session"))
         if not user or user.get("role") != "admin":
