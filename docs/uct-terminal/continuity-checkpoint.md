@@ -6,57 +6,108 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-**Seam 17 Remainder (Journal Symbol Input Assist V1)** merge/deploy —
-owner-directed (resolved the design-space question the debt ledger had
-flagged as needing a check-in: build one small shared always-visible
-autocomplete input, not adapt `SymbolSearch.jsx`). Seam 1 (read-side
-half, a real WRITE to production identity data) was the program before
-it; Seam 19 (TickerActions Dedicated Scope + Convergence V1,
-owner-directed, overriding an earlier HOLDING state) before that. Full
-re-anchor report delivered to the owner in-conversation earlier; this
-doc keeps only the load-bearing conclusions. Both re-anchor MUST-FIX
-trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam 30) plus
-the keyboard accessibility program plus Compare Coverage V1 (scoped via
-an explicit owner check-in, price-only) plus Seam 20 (Wire + MyStocksHub
-Insights row navigation) plus Feature-Flag Governance Sweep plus Seam 25
-plus Seam 21 plus the `CommandPalette.jsx` jsonFetcher fix plus Seam 19
-plus Seam 1 (read-side half) plus **Seam 17 Remainder** are now closed.
-**Seam 17 Remainder shipped a NEW shared component**
-(`SecuritySymbolInput.jsx`) rather than adapting `SymbolSearch.jsx` —
-reuses the canonical `/api/ticker-search` contract for live suggestions
-while typing, but NEVER requires resolution to save (free-form entry for
-delisted/renamed/historical/uncovered symbols stays fully permissive, no
-frontend dot/hyphen canonicalization, three distinct non-blocking search
-states). Wired into both `AddPositionModal.jsx`/`AddTradeModal.jsx`;
-existing test files mock it at the boundary (established convention) so
-their own save/validation tests stay isolated; new dedicated tests cover
-the component's own behavior plus real end-to-end integration. **Seam
-19's dedicated Phase A found the real live surface was 3 components, not
-the 4 files the ledger named** — `FeedView.jsx` delegates entirely to
-`CalendarDayTable.jsx` for earnings rows (one wiring point covers both);
-`WeekView.jsx`'s only live row-renderer is `EarningsTile.jsx`. Two
-dead-code discoveries along the way, left untouched (zero member value):
-`FeedView.jsx`'s `PrintTape`/`CompactCluster` and `WeekView.jsx`'s
-`WeekRow` are all defined with zero JSX call-sites. **Seam 1's own
-dry-run against real production data disproved one of its own
-implementation assumptions before the real write ran** — see the Seam 1
-debt-ledger entry below; the empirical-check design (verify against
-Massive's live reference API, never assume from a suffix pattern) is
-what caught it. **A fresh re-scan of the debt ledger after Seam 17
-Remainder found the remaining pool unchanged and still thinned to items
-that each carry a real reason not to pick them up autonomously**:
-Seam 6/7/8/11/14 (each explicitly recorded as "not a bounded V1" / needs
-its own Phase A / architecture decision), Seam 13 (touches
-`PositionDetailPage.jsx`, which the concurrent, unrelated
-Notebook-platform session has been actively iterating on this same
-session — a protected-parallel-program conflict risk, not a technical
-blocker), Seam 18/22/24 (needs a product decision or is gated), Seam
-3/4/27 (explicitly LOW-PRIORITY, "stop escalating"). Awareness
-Reachability Restoration V1 remains deliberately SKIPPED pending a
-genuine owner monetization/entitlement decision (see the top-of-file
-section) -- do not resolve it unilaterally. **HOLDING** — this is a
-re-derivation of the same genuinely-exhausted conclusion reached after
-Seam 1, not a new finding; do not manufacture activity against it.
+**Seam 11** merge/deploy — a dedicated, owner-authorized Phase A
+(POSITION ↔ RELATED TRADES architecture review). **Seam 17 Remainder**
+(Journal Symbol Input Assist V1) was the program before it; Seam 1
+(read-side half, a real WRITE to production identity data) before that;
+Seam 19 (TickerActions Dedicated Scope + Convergence V1) before that.
+Full re-anchor report delivered to the owner in-conversation earlier;
+this doc keeps only the load-bearing conclusions. Both re-anchor
+MUST-FIX trust defects (Seam 28, Seam 29), Alert Durability V1 (Seam
+30), the keyboard accessibility program, Compare Coverage V1, Seam 20,
+Feature-Flag Governance Sweep, Seam 25, Seam 21, the `CommandPalette.jsx`
+jsonFetcher fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, and
+now **Seam 11** are all closed. Full per-program implementation detail
+for everything through Seam 17 Remainder lives in "CURRENT ACCEPTED"
+below and in the debt ledger — not re-summarized here again; this
+section now covers Seam 11 in full since it's the newest and most
+architecturally significant.
+
+**Seam 11 — POSITION ↔ RELATED TRADES, RESOLVED not via new plumbing but
+via a REFRAMING the dedicated Phase A discovered.** The ledger classified
+this ABSENT_NO_SAFE_INFERENCE / ARCHITECTURE DECISION: broker-synced
+(and CSV-imported) closed trades carry a structurally-random
+`f"manual-{uuid.uuid4()}"` `position_id` sentinel (`trades.py::
+bulk_insert_trades`, shared by both sources), and the corresponding open
+`j2_positions` row is DELETED (not `closed_at`-stamped) the moment the
+broker stops holding it (`balances.py::reconcile_positions`) — confirmed
+both by code trace AND by direct production evidence (all 10 live
+broker-sourced `j2_positions` rows are currently OPEN; zero closed
+broker position rows exist despite 5,891 broker-sourced `j2_trades`
+rows). **The Phase A's central, decisive finding: `PositionDetailPage.jsx`
+already ships `HistorySection.jsx`, ALREADY correctly implementing
+ACCOUNT + SECURITY TRADE HISTORY (the directive's "Option B") for every
+trade source** — it filters by `symbol === sym` over an already
+account-scoped `trades` array (`useJ2Trades()` → `GET /api/j2/trades?
+account_id=...` → `list_trades_for_user`'s real `WHERE account_id = ?`),
+never touching the broken `position_id` at all, so it was never actually
+broken. Exact position lineage (the directive's "Option A") was
+DEFINITIVELY ruled out as unrecoverable for broker data — not merely
+unbuilt — by enumerating the RAW SnapTrade activity payload's own
+top-level JSON keys directly from production
+(`j2_broker_activities.raw_json`, 2,000-row sample, field NAMES only,
+zero values read): `id, symbol, option_symbol, currency, type,
+description, amount, price, units, fee, fx_rate,
+external_reference_id, settlement_date, trade_date, institution,
+option_type` — no position/lot/order-grouping field exists at the
+provider AT ALL (`external_reference_id` is present but NULL in 100% of
+sampled rows). SnapTrade's own `id` (a real per-transaction identifier)
+is captured and preserved forever in `raw_json` but is dropped at the
+`snaptrade_adapter.py::to_equity_fill` conversion boundary — propagating
+it would let a trade reference its exact constituent raw activities
+(a real, optional future enhancement, NOT required for Seam 11 and NOT
+built this round) but would NOT by itself solve exact lineage, since
+the provider has no lot-grouping concept to recover. The MANUAL
+close-position path (`trades.py::close_position`) already IS exact
+lineage today, correctly (`position_id` = a genuine FK, verified by
+authenticated lookup) — confirmed untouched, and confirmed via
+production data to have literally never fired even once in this
+database's whole history (0 of 5,891 trades have a non-sentinel
+`position_id`) — a real, notable, but non-blocking fact about actual
+usage, not a defect. **The one genuine gap: dishonest-by-omission
+labeling** — the section said bare "History," which a member could
+misread as "the trades that built/closed this exact position," untrue
+after a close-then-reopen cycle (which the same `bkpos:{account}:
+{symbol}:{side}` external_id key cannot distinguish — confirmed the
+sharpest real limit on ever achieving Option A for broker data, schema
+or no schema change). **Fix, merge `ab69e2cee`/`228d8caeb`**: added an
+honest caption ("Trade history for this security in this account — not
+limited to this specific position") per the directive's own suggested
+exact wording; title/behavior/tests otherwise unchanged. Zero schema
+change, zero migration, zero `position_id`/sentinel touched, zero
+financial calculation changed, zero P&L/cost-basis/quantity/broker-ID
+mutation of any kind — this fully satisfies Section XIX's own
+pre-authorization for the "the recommended model is ACCOUNT+SECURITY
+TRADE HISTORY, deterministic from existing canonical data" case, so
+implementation proceeded without a stop. 7 new tests
+(`HistorySection.test.jsx`, standalone unit coverage: honest-caption
+text, symbol-scoped-not-position_id-scoped proof via a synthetic
+sentinel-bearing trade fixture, close-then-reopen dual-lifecycle
+rendering, unchanged click-through/keyboard/empty-state behavior); full
+`journal-2-0/` regression green (183 files/1,721 tests, up from
+182/1,714); clean production build. Production data audit was READ-ONLY
+throughout (SQLite opened `mode=ro` — a write attempt would raise, not
+silently succeed) and never printed member-identifying values — only
+aggregate counts and structural field-name/shape inventories.
+**Options are cleanly out of scope by construction, not exclusion**:
+`j2_option_strategies` carries its full lifecycle (open→closed,
+`net_exit`/`pnl_*`) on ONE row — no separate position/trade split, no
+sentinel, no analogous problem exists there.
+
+**A fresh re-scan of the debt ledger after Seam 11 found the remaining
+pool thinned further but still not exhausted of everything — HOLDING**:
+Seam 6/7/8/14 each still need their own Phase A or a real architecture
+decision; Seam 13 still risks colliding with the concurrent Notebook
+session (still actively landing commits — Wave G, Thesis Intelligence,
+on `origin/master` during this very program); Seam 18/22/24 still need
+a product decision or are gated; Seam 3/4/27 remain explicitly
+LOW-PRIORITY. Awareness Reachability Restoration V1 remains deliberately
+SKIPPED pending a genuine owner monetization/entitlement decision (see
+the top-of-file section) — do not resolve it unilaterally. Pattern
+Vision interrupt condition re-checked and still does not apply
+(`PATTERN_VISION_ENABLED=1` live-read, evidence window Mon 9/7/Tue
+9/8/Wed 9/9 has not started). S7 NVDA interrupt condition re-checked and
+still does not apply (`alert_fires` table: 0 rows).
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -2040,6 +2091,45 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   — that table is now the single authority on what remains open vs. closed
   vs. deliberately out of scope; do not re-derive it from scratch again
   soon.
+  **A full re-scan after Seam 1 found nothing further bounded — HOLDING —
+  until the owner explicitly directed Seam 17 Remainder** (build one
+  small shared always-visible autocomplete input, resolving the
+  design-space question flagged above) — **ACCEPTED + LIVE, merge
+  `3421567c6`/`473e6f42f`**: new component `SecuritySymbolInput.jsx`,
+  reuses the canonical `/api/ticker-search` contract, never requires
+  resolution to save. See the Seam 17 debt-ledger entry (RESOLVED) for
+  full detail. **A fresh re-scan after Seam 17 Remainder again found the
+  pool unchanged — HOLDING again — until the owner explicitly authorized
+  a dedicated Phase A for Seam 11** (POSITION ↔ RELATED TRADES
+  architecture + convergence review, read-only investigation first,
+  implementation gated on Phase A proving a deterministic,
+  non-migrating, non-heuristic solution) — **RESOLVED, merge
+  `ab69e2cee`/`228d8caeb`**. The dedicated Phase A (codebase trace +
+  read-only production aggregate audit, `mode=ro` SQLite connection,
+  zero member-identifying values ever read) found the premise needed
+  reframing: `PositionDetailPage.jsx` already ships `HistorySection.jsx`,
+  which already correctly implements ACCOUNT + SECURITY TRADE HISTORY
+  (never touching the broken `position_id` sentinel) for every trade
+  source; exact position lineage was definitively ruled out as
+  unrecoverable for broker data by reading SnapTrade's raw activity
+  payload directly (no position/lot/order-grouping field exists at the
+  provider). The one real gap — a bare "History" label that could be
+  misread as claiming exact lineage — was closed with an honest caption,
+  per the directive's own suggested wording. Full detail in the
+  top-of-file "Last verified" section and the Seam 11 debt-ledger entry
+  (RESOLVED) above/below. **A fresh re-scan of the debt ledger after
+  Seam 11 found the remaining pool thinned further (Seam 11 and Seam 17
+  both now closed since the post-Seam-1 scan) but still not
+  exhausted of every remaining Phase-A/product-decision-gated item —
+  HOLDING.** Seam 6/7/8/14 each still need their own Phase A or a real
+  architecture decision; Seam 13 still risks colliding with the
+  concurrent Notebook session (Wave G, Thesis Intelligence, still
+  actively landing); Seam 18/22/24 still need a product decision or are
+  gated; Seam 3/4/27 remain explicitly LOW-PRIORITY. Pattern Vision and
+  S7 interrupt conditions re-checked live and still do not apply. Do not
+  manufacture activity against a genuinely thinned-but-still-gated
+  ledger — the next eligible unblocked item, if any, needs its own fresh
+  read of this section, not an assumption from this snapshot.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -2164,33 +2254,29 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   aborts stop-watch/earnings-proximity too) is exactly what shipped — see
   "CURRENT ACCEPTED" above. Kept as a record; do not re-open unless a
   concrete regression is found.
-- **Seam 11 — broker-synced closed trades carry an inert `position_id`
-  sentinel, so "Position → Related (closing) Trades" cannot be built safely
-  (surfaced by Journal / Trade Lifecycle Convergence V1's Phase A,
-  2026-09-06, classified ABSENT_NO_SAFE_INFERENCE, NOT fixed — deliberately
-  out of scope for that program's narrow V1).** `j2_trades.position_id` is a
-  genuine FK to `j2_positions.id` for the MANUAL close path
-  (`trades.py::close_position`) but a structurally random
-  `f"manual-{uuid.uuid4()}"` sentinel for every broker-synced trade
-  (`trades.py::bulk_insert_trades`, called from `broker/reconstruct.py`) —
-  confirmed by direct code read, matching the exact literal the router's own
-  comment (`journal_two.py:961`) documents. Compounding: the corresponding
-  OPEN `j2_positions` row is typically DELETED once the broker no longer
-  holds it (`balances.py::reconcile_positions`), not closed_at-stamped, so
-  by the time the trade exists there is often no position row left to link
-  to at all. Since broker sync is the dominant, live production path, this
-  makes a real "click into a position, see what it closed into" feature
-  impossible without either (a) a schema/behavior change at broker-sync
-  time — stop deleting `j2_positions` rows on close, stamp a real
-  `position_id` in `bulk_insert_trades` instead of a UUID sentinel — or (b)
-  an explicit product decision that broker positions simply never show a
-  "resulting trade." Both are real architecture/product decisions, not a
-  bounded V1 — needs its own dedicated audit + authorization before any fix.
-  **Scope CONFIRMED WIDER by the 2026-09-06 Whole-Product Strategic
-  Re-Anchor: `bulk_insert_trades(..., source="csv")` is not gated by
-  source, so CSV-imported trades carry the identical inert sentinel — this
-  is not broker-sync-specific.** Reclassified ARCHITECTURE DECISION (was
-  ABSENT_NO_SAFE_INFERENCE); still not a bounded V1.
+- **Seam 11 — RESOLVED 2026-09-06, merge `ab69e2cee`/`228d8caeb`
+  (dedicated Phase A + Convergence Review, owner-authorized).** Was:
+  broker-synced (and CSV-imported) closed trades carry an inert
+  `position_id` sentinel, classified ARCHITECTURE DECISION, not a
+  bounded V1. **The dedicated Phase A found the premise needed
+  reframing, not new plumbing**: `PositionDetailPage.jsx` ALREADY ships
+  `HistorySection.jsx`, already correctly implementing ACCOUNT + SECURITY
+  TRADE HISTORY for every trade source (symbol-filtered over an
+  already account-scoped list, never touching `position_id`) — it was
+  never actually broken. Exact position lineage was DEFINITIVELY ruled
+  out as unrecoverable for broker data (not merely unbuilt) by reading
+  SnapTrade's raw activity payload directly from production: its
+  top-level keys carry no position/lot/order-grouping field at all — the
+  provider itself has no such concept to propagate. The genuine gap was
+  labeling honesty (a bare "History" header could be misread as "trades
+  that built this exact position," untrue post close-then-reopen). Fixed
+  by adding an explicit caption, per the directive's own suggested exact
+  wording — title, data, and all existing behavior unchanged. Manual
+  close_position()'s real FK-based lineage (already correct, Option A for
+  that one path) is untouched. Zero schema change, zero migration, zero
+  `position_id` touched. 7 new tests, full `journal-2-0/` regression
+  green (183/1,721), clean build. Full detail in the top-of-file
+  "Last verified" section above.
 - **Seam 12 — RESOLVED by Journal ↔ Research Return-Context + Notes
   Draft-Loss Fix, merge `d6a99c708`/`119908685`, 2026-09-06.** The fix
   described here (a `from=trade:{id}`/`from=position:{sym}` query marker on
@@ -2594,9 +2680,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`),
    Ticker Search Identity Convergence V1 / Seam 16 (merge
    `8ebb6f076`/`910eca619`), Seam 19 (merge `7a0dd2a78`/`66f6e34f2`),
-   Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`), and
-   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`) are all
-   ACCEPTED + LIVE as of this checkpoint —
+   Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`),
+   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), and Seam 11 (merge
+   `ab69e2cee`/`228d8caeb`) are all ACCEPTED + LIVE as of this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
