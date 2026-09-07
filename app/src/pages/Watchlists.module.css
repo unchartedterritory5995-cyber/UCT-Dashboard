@@ -1552,6 +1552,32 @@
   .chartPeriodBtn { padding: 3px 7px; font-size: 9px; }
 }
 
+/* ── An EMBEDDED host keeps its own box on phones ──
+   The two blocks above are the STANDALONE page's phone layout: `/watchlists`
+   stacks the list OVER a chart, so `.leftPanel` is capped (45vh, then 38vh) to
+   leave the chart room below it, and `.page` drops to `overflow: visible` so the
+   stacked column can grow the page scroll.
+
+   Neither is true of an embedded host. There the list IS the whole widget and
+   the chart is a SEPARATE surface (its own widget on /charts, the other pane
+   behind the drill's List/Chart toggle), so the cap left the list squeezed into
+   a 262px window with ~46% of a 390px phone screen blank below it. Measured in
+   the breadth drill at 390x844: pane 785px tall, list body 262px.
+   Every render site is such a host — BreadthDrillList, WatchlistWidget,
+   ScannerResults, PeriodSortResults, EtfHoldingsResults.
+
+   Two specificity facts make this block correct, and both are load-bearing:
+   - `.pageEmbedded` and `.page` are BOTH (0,1,0), so the responsive block above
+     wins on SOURCE ORDER alone. ⛔ These overrides must stay BELOW it — moving
+     them up silently restores `overflow: visible` on the widget.
+   - `.pageEmbedded > .leftPanel` is (0,2,0) and outranks the bare `.leftPanel`
+     inside the media queries, so `max-height` is settled at EVERY breakpoint
+     without restating one. ⛔ Do not "fix" this by adding a phone breakpoint
+     here — a cap re-stated per width is how the 768/480 pair drifted from the
+     canonical 640/1024 tiers in the first place. */
+.pageEmbedded { overflow: hidden; }
+.pageEmbedded > .leftPanel { max-height: none; border-bottom: none; }
+
 /* ── Live tick flash ── quick bold (+ green/red bg tint on the % column) each
    time a cell's value updates, mirroring the Theme Tracker's ReturnCell. The tint
    rides this content-sized inner box so it hugs the value (a small rounded box),
