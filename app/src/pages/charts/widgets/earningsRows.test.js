@@ -10,8 +10,7 @@ import { describe, it, expect } from 'vitest'
 import {
   fmtEps, fmtSales, fmtPct, shortLabel,
   growthCell, surpriseCell,
-  buildRows, hiddenCount, snapshotFacts, qualityFacts, annualTrendRows,
-  expansionModel,
+  buildRows, hiddenCount, nextReportNote, qualityFacts, expansionModel,
 } from './earningsRows'
 
 // ── fixtures ────────────────────────────────────────────────────────────────
@@ -260,40 +259,34 @@ describe('history depth', () => {
 })
 
 
-describe('snapshot strip — forward-looking only', () => {
-  it('states what is coming next', () => {
-    const facts = snapshotFacts(intel({ summary: {
-      next_report_date: '2026-09-30', next_report_label: 'FY2026 Q4',
-      next_eps_estimate: 31.28, next_revenue_estimate: 5.078e10,
-    } }))
-    expect(facts.map(f => [f.label, f.value])).toEqual([
-      ['Next report', 'Sep 30'], ['EPS est', '$31.28'], ['Sales est', '$50.78B'],
-    ])
-    // short form, matching the table beside it at the width where space is tightest
-    expect(facts[0].sub).toBe('FY26 Q4')
+describe('next report — the one fact the table does not already state', () => {
+  it('reads the scheduled date', () => {
+    expect(nextReportNote(intel({ summary: { next_report_date: '2026-09-30' } })))
+      .toEqual({ label: 'Next report', value: 'Sep 30' })
   })
 
-  it('carries no retrospective facts — those live in Earnings Quality', () => {
-    const facts = snapshotFacts(intel({ summary: {
-      next_report_date: '2026-09-30',
-      eps_accel_quarters: 3, eps_trend: 'accelerating', double_beat_streak: 3,
-    } }))
-    expect(facts.map(f => f.key)).toEqual(['next'])
+  it('says TBD when a forward quarter exists with no scheduled date', () => {
+    expect(nextReportNote(intel({ summary: {} })).value).toBe('Date TBD')
   })
 
-  it('falls back to the fiscal period when no date is scheduled', () => {
-    const facts = snapshotFacts(intel({ summary: { next_report_label: 'FY2026 Q4' } }))
-    expect(facts[0]).toMatchObject({ value: 'FY2026 Q4', sub: null })
+  it('returns nothing when there is no forward quarter at all', () => {
+    expect(nextReportNote(intel({ estimates: [], summary: {} }))).toBeNull()
+    expect(nextReportNote(null)).toBeNull()
   })
 
-  it('renders nothing at all without forward data', () => {
-    expect(snapshotFacts(intel({ summary: {} }))).toEqual([])
-    expect(snapshotFacts(null)).toEqual([])
+  it('adds no confirmed/estimated marker — the source does not provide one', () => {
+    // FMP future rows and the Finnhub calendar both hand us a bare date with no
+    // scheduling status, so any "EST" or "confirmed" tag would be invented.
+    const v = nextReportNote(intel({ summary: { next_report_date: '2026-09-30' } })).value
+    expect(v).toBe('Sep 30')
+    expect(v).not.toMatch(/est|confirm/i)
   })
 
-  it('omits only what is missing', () => {
-    const facts = snapshotFacts(intel({ summary: { next_eps_estimate: 3.1 } }))
-    expect(facts.map(f => f.key)).toEqual(['eps'])
+  it('rides on the Estimates section head, not a strip above the table', () => {
+    const rows = buildRows(intel({ summary: { next_report_date: '2026-09-30' } }), 'quarterly', 8)
+    const est = rows.find(r => r.kind === 'section' && r.title === 'Estimates')
+    expect(est.meta).toEqual({ label: 'Next report', value: 'Sep 30' })
+    expect(rows.find(r => r.kind === 'section' && r.title === 'Reported').meta).toBeNull()
   })
 })
 
@@ -380,27 +373,24 @@ describe('Earnings Quality — retrospective, and only when meaningful', () => {
 })
 
 
-describe('annual trend inside the quarterly view', () => {
-  const withAnnual = (n) => intel({ annual: { estimates: [], reported:
-    Array.from({ length: n }, (_, i) => ({
-      fiscal_year: 2025 - i, label: `FY${2025 - i}`, estimate: false,
-      eps: 5 - i, revenue: 3e10, eps_yoy_pct: 20,
-    })) } })
+describe('quarterly and annual do not duplicate each other', () => {
+  const both = intel({ annual: { estimates: [], reported: Array.from({ length: 9 }, (_, i) => ({
+    fiscal_year: 2025 - i, label: `FY${2025 - i}`, estimate: false, eps: 5 - i, revenue: 3e10,
+  })) } })
 
-  it('caps at four years — the Annual tab is where depth belongs', () => {
-    expect(annualTrendRows(withAnnual(9))).toHaveLength(4)
+  it('the quarterly page carries NO annual section', () => {
+    const titles = buildRows(both, 'quarterly', 8)
+      .filter(r => r.kind === 'section').map(r => r.title)
+    expect(titles).toEqual(['Estimates', 'Reported'])
   })
 
-  it('uses the same row shape as the table above it', () => {
-    const r = annualTrendRows(withAnnual(4))[0]
-    expect(Object.keys(r)).toEqual(expect.arrayContaining(
-      ['label', 'eps', 'epsGrowth', 'sales', 'salesGrowth']))
-    expect(r.expandable).toBe(false)
+  it('the annual page shows the fiscal history WHOLE, never truncated to 8', () => {
+    const yrs = buildRows(both, 'annual', 8).filter(r => r.kind === 'row')
+    expect(yrs).toHaveLength(9)
   })
 
-  it('does not render a trend from a single year', () => {
-    expect(annualTrendRows(withAnnual(1))).toEqual([])
-    expect(annualTrendRows(null)).toEqual([])
+  it('offers no deeper-history control on the annual page', () => {
+    expect(hiddenCount(both, 'annual', 8)).toBe(0)
   })
 })
 

@@ -175,23 +175,38 @@ describe('the value language', () => {
 })
 
 
-describe('the snapshot strip', () => {
-  it('states what is coming next, in plain language', async () => {
-    mockApi({ intel: payload({
-      summary: { next_report_date: '2026-09-30', next_report_label: 'FY2026 Q4',
-        next_eps_estimate: 31.28, next_revenue_estimate: 5.078e10 },
-    }) })
+describe('next report lives on the Estimates head, not a strip', () => {
+  it('annotates the Estimates section with the date', async () => {
+    mockApi({ intel: payload({ summary: { next_report_date: '2026-09-30' } }) })
     render(<DockEarnings sym="MU" />)
-    expect(await screen.findByText('Sep 30')).toBeInTheDocument()
-    expect(screen.getByText('$31.28')).toBeInTheDocument()
-    expect(screen.getByText('$50.78B')).toBeInTheDocument()
+    await screen.findByText('Estimates')
+    // NB: `etSectionTitle` itself matches [class*="etSection"], so climb to the
+    // head via the parent element rather than closest().
+    const head = screen.getByText('Estimates').parentElement
+    expect(head.className).toMatch(/etSection_/)
+    expect(within(head).getByText('Next report')).toBeInTheDocument()
+    expect(within(head).getByText('Sep 30')).toBeInTheDocument()
   })
 
-  it('does not render at all when nothing forward is known', async () => {
-    mockApi({ intel: payload({ summary: {} }) })
+  it('no longer renders a strip above the table', async () => {
+    mockApi({ intel: payload({ summary: { next_report_date: '2026-09-30' } }) })
     render(<DockEarnings sym="MU" />)
     await screen.findByText('FY2026 Q3')
     expect(document.querySelector('[class*="etStrip"]')).toBeNull()
+  })
+
+  it('does not repeat the EPS and Sales estimates above the table', async () => {
+    // They are already the next row down; saying them twice was the duplication
+    // this pass removed.
+    mockApi({ intel: payload({
+      estimates: [estimate(2026, 4, { eps_estimate: 31.28, revenue_estimate: 5.078e10 })],
+      summary: { next_report_date: '2026-09-30', next_eps_estimate: 31.28,
+        next_revenue_estimate: 5.078e10 },
+    }) })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('FY2026 Q3')
+    expect(screen.getAllByText('$31.28')).toHaveLength(1)
+    expect(screen.getAllByText('$50.78B')).toHaveLength(1)
   })
 })
 
@@ -226,6 +241,14 @@ describe('Earnings Quality', () => {
     expect(document.querySelector('[class*="etQSpark"] svg')).toBeTruthy()
   })
 
+  it('is absent in Annual mode — every fact in it is a QUARTERLY signal', async () => {
+    mockApi({ intel: quality() })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Earnings quality')
+    fireEvent.click(screen.getByText('Annual'))
+    await waitFor(() => expect(screen.queryByText('Earnings quality')).toBeNull())
+  })
+
   it('is absent entirely when consensus and margin are unavailable', async () => {
     mockApi({ intel: payload({ summary: {} }) })
     render(<DockEarnings sym="MU" />)
@@ -235,142 +258,66 @@ describe('Earnings Quality', () => {
 })
 
 
-describe('annual trend on the quarterly page', () => {
-  const withTrend = () => payload({ annual: { estimates: [], reported: [
-    { fiscal_year: 2025, label: 'FY2025', estimate: false, eps: 7.59, revenue: 3.738e10, eps_yoy_pct: 984 },
-    { fiscal_year: 2024, label: 'FY2024', estimate: false, eps: 0.7, revenue: 2.511e10, eps_yoy_pct: null, eps_yoy_note: 'turned_profitable' },
-    { fiscal_year: 2023, label: 'FY2023', estimate: false, eps: -5.34, revenue: 1.554e10, eps_yoy_pct: null, eps_yoy_note: 'turned_negative' },
-  ] } })
-
-  it('gives the quarterly page long-term context', async () => {
-    mockApi({ intel: withTrend() })
-    render(<DockEarnings sym="MU" />)
-    expect(await screen.findByText('Annual trend')).toBeInTheDocument()
-    expect(screen.getByText('FY2025')).toBeInTheDocument()
-    expect(screen.getByText('Profitable')).toBeInTheDocument()
+describe('deeper history is a toggle', () => {
+  const twelve = () => payload({
+    estimates: [],
+    quarters: Array.from({ length: 12 }, (_, i) => quarter(2026 - Math.floor(i / 4), 4 - (i % 4))),
   })
 
-  it('shares the table geometry — five cells, like every other row', async () => {
-    mockApi({ intel: withTrend() })
-    render(<DockEarnings sym="MU" />)
-    await screen.findByText('Annual trend')
-    for (const row of rows()) expect(row.children).toHaveLength(5)
-  })
-
-  it('is NOT repeated in Annual mode, where the table already is the annual view', async () => {
-    mockApi({ intel: withTrend() })
-    render(<DockEarnings sym="MU" />)
-    await screen.findByText('Annual trend')
-    fireEvent.click(screen.getByText('Annual'))
-    await waitFor(() => expect(screen.queryByText('Annual trend')).toBeNull())
-  })
-})
-
-
-describe('row expansion', () => {
-  beforeEach(() => mockApi())
-
-  it('opens a reported quarter into an actual-vs-estimate comparison', async () => {
-    render(<DockEarnings sym="MU" />)
-    const row = await screen.findByText('FY2026 Q3')
-    fireEvent.click(row.closest('[class*="etRow"]'))
-    // 'Actual' appears once per compared metric (EPS and Revenue).
-    await waitFor(() => expect(screen.getAllByText('Actual')).toHaveLength(2))
-    expect(screen.getAllByText('Estimate').length).toBeGreaterThan(0)
-    expect(screen.getByText('Beat by 8.7%')).toBeInTheDocument()
-    expect(screen.getByText('24.4%')).toBeInTheDocument()          // net margin
-  })
-
-  it('keeps only one row open at a time', async () => {
-    render(<DockEarnings sym="MU" />)
-    const q3 = await screen.findByText('FY2026 Q3')
-    fireEvent.click(q3.closest('[class*="etRow"]'))
-    await waitFor(() => expect(document.querySelectorAll('[class*="etDetail"]')).toHaveLength(1))
-    fireEvent.click(screen.getByText('FY2026 Q2').closest('[class*="etRow"]'))
-    await waitFor(() => expect(document.querySelectorAll('[class*="etDetail"]')).toHaveLength(1))
-  })
-
-  it('closes on a second click', async () => {
-    render(<DockEarnings sym="MU" />)
-    const q3 = await screen.findByText('FY2026 Q3')
-    const row = q3.closest('[class*="etRow"]')
-    fireEvent.click(row)
-    await waitFor(() => expect(document.querySelector('[class*="etDetail"]')).toBeTruthy())
-    fireEvent.click(row)
-    await waitFor(() => expect(document.querySelector('[class*="etDetail"]')).toBeNull())
-  })
-
-  it('does not expand an estimate row — there is no actual to compare', async () => {
-    render(<DockEarnings sym="MU" />)
-    const q4 = await screen.findByText('FY2026 Q4')
-    fireEvent.click(q4.closest('[class*="etRow"]'))
-    expect(document.querySelector('[class*="etDetail"]')).toBeNull()
-  })
-
-  it('keeps the filings caveat honest', async () => {
-    mockApi({ filings: { filings: [
-      { form: '8-K', label: 'Earnings release', url: 'https://x/8k', filed: '2026-06-25' },
-      { form: '10-Q', label: 'Quarterly report', url: 'https://x/10q', filed: '2026-07-01' },
-    ] } })
-    render(<DockEarnings sym="MU" />)
-    fireEvent.click((await screen.findByText('FY2026 Q3')).closest('[class*="etRow"]'))
-    await waitFor(() => expect(screen.getByText('Open earnings report →')).toBeInTheDocument())
-    expect(screen.getByText(/not yet mapped to this specific quarter/)).toBeInTheDocument()
-  })
-})
-
-
-describe('history depth', () => {
-  it('shows eight reported quarters and offers the rest', async () => {
-    const twelve = Array.from({ length: 12 }, (_, i) =>
-      quarter(2026 - Math.floor(i / 4), 4 - (i % 4)))
-    mockApi({ intel: payload({ quarters: twelve, estimates: [] }) })
+  it('opens to twelve and closes back to eight', async () => {
+    mockApi({ intel: twelve() })
     render(<DockEarnings sym="MU" />)
     await screen.findByText('Reported')
     expect(rows()).toHaveLength(8)
     fireEvent.click(screen.getByText('Show 4 more'))
     await waitFor(() => expect(rows()).toHaveLength(12))
+    fireEvent.click(screen.getByText('Show less'))
+    await waitFor(() => expect(rows()).toHaveLength(8))
   })
 
-  it('offers nothing extra when there is no deeper history', async () => {
+  it('closes a quarter that was opened among the extra four', async () => {
+    mockApi({ intel: twelve() })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Reported')
+    fireEvent.click(screen.getByText('Show 4 more'))
+    await waitFor(() => expect(rows()).toHaveLength(12))
+    fireEvent.click(rows()[10])                     // an extra-four row
+    await waitFor(() => expect(document.querySelector('[class*="etDetail"]')).toBeTruthy())
+    fireEvent.click(screen.getByText('Show less'))
+    // It must not stay open invisibly.
+    await waitFor(() => expect(document.querySelector('[class*="etDetail"]')).toBeNull())
+  })
+
+  it('leaves a quarter open when it survives the collapse', async () => {
+    mockApi({ intel: twelve() })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Reported')
+    fireEvent.click(screen.getByText('Show 4 more'))
+    await waitFor(() => expect(rows()).toHaveLength(12))
+    fireEvent.click(rows()[1])                      // inside the first eight
+    await waitFor(() => expect(document.querySelector('[class*="etDetail"]')).toBeTruthy())
+    fireEvent.click(screen.getByText('Show less'))
+    await waitFor(() => expect(rows()).toHaveLength(8))
+    expect(document.querySelector('[class*="etDetail"]')).toBeTruthy()
+  })
+
+  it('offers no control when there is nothing deeper', async () => {
     mockApi()
     render(<DockEarnings sym="MU" />)
     await screen.findByText('FY2026 Q3')
     expect(screen.queryByText(/Show \d+ more/)).toBeNull()
-  })
-})
-
-
-describe('annual mode', () => {
-  const annual = payload({
-    annual: {
-      estimates: [{ fiscal_year: 2027, label: 'FY2027', estimate: true, eps: 12, revenue: 5e10, eps_yoy_pct: 20 }],
-      reported: [
-        { fiscal_year: 2025, label: 'FY2025', estimate: false, eps: 4, revenue: 3e10, eps_yoy_pct: 100 },
-        { fiscal_year: 2024, label: 'FY2024', estimate: false, eps: 2, revenue: 2e10, eps_yoy_pct: -20 },
-      ],
-    },
+    expect(screen.queryByText('Show less')).toBeNull()
   })
 
-  it('reuses the same table architecture', async () => {
-    mockApi({ intel: annual })
+  it('resets to eight when the mode changes', async () => {
+    mockApi({ intel: twelve() })
     render(<DockEarnings sym="MU" />)
-    await screen.findByText('FY2026 Q3')
+    await screen.findByText('Reported')
+    fireEvent.click(screen.getByText('Show 4 more'))
+    await waitFor(() => expect(rows()).toHaveLength(12))
     fireEvent.click(screen.getByText('Annual'))
-    await screen.findByText('FY2025')
-    // Same five columns, only the first one renamed.
-    expect(headLabels()).toEqual(['Year', 'EPS', 'EPS YoY', 'Sales', 'Sales YoY'])
-    for (const row of rows()) expect(row.children).toHaveLength(5)
-  })
-
-  it('keeps the estimates-above-reported structure', async () => {
-    mockApi({ intel: annual })
-    render(<DockEarnings sym="MU" />)
-    await screen.findByText('FY2026 Q3')
-    fireEvent.click(screen.getByText('Annual'))
-    await screen.findByText('FY2025')
-    const labels = [...rows()].map(r => r.querySelector('[class*="etPeriodFull"]').textContent)
-    expect(labels).toEqual(['FY2027', 'FY2025', 'FY2024'])
+    fireEvent.click(screen.getByText('Quarterly'))
+    await waitFor(() => expect(rows()).toHaveLength(8))
   })
 })
 

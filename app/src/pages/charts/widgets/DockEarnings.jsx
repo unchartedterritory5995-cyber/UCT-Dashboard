@@ -30,11 +30,10 @@
  *   /api/earnings-intel/{sym}     quarters · estimates · annual · summary
  *   /api/filings/{sym}/primary    documents, lazily, only on row expansion
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import {
-  buildRows, hiddenCount, snapshotFacts, qualityFacts, annualTrendRows,
-  expansionModel, shortLabel,
+  buildRows, hiddenCount, qualityFacts, expansionModel, shortLabel,
 } from './earningsRows'
 import Spark from './Spark'
 import styles from './dockPanels.module.css'
@@ -179,13 +178,35 @@ function Detail({ q, sym }) {
   )
 }
 
+/* A section head, optionally carrying an annotation on the right (the next
+   report date beside ESTIMATES) and a caveat beneath (estimate-over-estimate
+   growth). The annotation is data, so it is deliberately NOT gold — the gold
+   belongs to the heading, and two golds on one line would compete. */
+function SectionHead({ row }) {
+  return (
+    <div className={styles.etSection}>
+      <span className={styles.etSectionTitle}>{row.title}</span>
+      {row.meta && (
+        <span className={styles.etSectionMeta}>
+          <span className={styles.etSectionMetaK}>{row.meta.label}</span>
+          <span className={styles.etSectionMetaV}>{row.meta.value}</span>
+        </span>
+      )}
+      {row.note && <span className={styles.etSectionNote}>{row.note}</span>}
+    </div>
+  )
+}
+
 /* Earnings Quality — a label/value list, not a card grid. Two columns where
    there is room, one where there is not; the container query does the switch. */
 function Quality({ facts }) {
   if (!facts.length) return null
   return (
     <>
-      <div className={styles.etSection}>Earnings quality</div>
+      {/* Same head component as the table's sections — a bare text child would
+          miss .etSectionTitle and render at body size, which is exactly what it
+          did until this was caught on screen. */}
+      <SectionHead row={{ title: 'Earnings quality' }} />
       <div className={styles.etQuality}>
         {facts.map(f => (
           <div key={f.key} className={styles.etQRow} title={f.hint || undefined}>
@@ -212,6 +233,8 @@ export default function DockEarnings({ sym }) {
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
   const [openKey, setOpenKey] = useState(null)
   const [methodOpen, setMethodOpen] = useState(false)
+  const bodyRef = useRef(null)
+  const moreRef = useRef(null)
 
   const { data: intel, isLoading } = useSWR(
     sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
@@ -231,13 +254,42 @@ export default function DockEarnings({ sym }) {
   }, [])
 
   const rows = useMemo(() => buildRows(intel, mode, limit), [intel, mode, limit])
-  const snapshot = useMemo(() => snapshotFacts(intel), [intel])
-  const quality = useMemo(() => qualityFacts(intel), [intel])
-  // Long-term context belongs on the quarterly page; in Annual mode the table
-  // above IS the annual view, so repeating it would be duplication.
-  const trend = useMemo(
-    () => (mode === 'quarterly' ? annualTrendRows(intel) : []), [intel, mode])
+  // Every fact in Earnings Quality is derived from QUARTERS — an acceleration
+  // run, a beat rate, a margin against the year-ago quarter. Rendering
+  // "2 quarters" under a table of fiscal years asks the reader to change unit
+  // mid-page, so the block belongs to the quarterly view only.
+  const quality = useMemo(
+    () => (mode === 'quarterly' ? qualityFacts(intel) : []), [intel, mode])
   const hidden = hiddenCount(intel, mode, limit)
+  const expanded = limit > DEFAULT_LIMIT
+
+  /* Deeper history is a TOGGLE, not a one-way door. Collapsing also has to tidy
+     up after itself: a quarter opened among the extra four would otherwise stay
+     open invisibly, and four rows vanishing under the reader's scroll position
+     is a jump we can simply cancel out. */
+  const toggleHistory = useCallback(() => {
+    const body = bodyRef.current
+    const before = moreRef.current && body
+      ? moreRef.current.getBoundingClientRect().top - body.getBoundingClientRect().top
+      : null
+    setLimit(prev => {
+      const next = prev > DEFAULT_LIMIT ? DEFAULT_LIMIT : DEEP_LIMIT
+      if (next < prev) {
+        const kept = new Set(buildRows(intel, mode, next)
+          .filter(r => r.kind === 'row').map(r => r.key))
+        setOpenKey(k => (k && kept.has(k) ? k : null))
+      }
+      return next
+    })
+    if (before != null) {
+      requestAnimationFrame(() => {
+        const after = moreRef.current && bodyRef.current
+          ? moreRef.current.getBoundingClientRect().top - bodyRef.current.getBoundingClientRect().top
+          : null
+        if (after != null) bodyRef.current.scrollTop += after - before
+      })
+    }
+  }, [intel, mode])
   const meta = intel?.meta || {}
   const cal = meta.fiscal_calendar || {}
 
@@ -260,21 +312,6 @@ export default function DockEarnings({ sym }) {
         </div>
       </div>
 
-      {/* What is coming — one compact line above the table, never cards. Only
-          facts that genuinely exist appear; with none of them the strip does not
-          render at all, rather than showing placeholders. */}
-      {snapshot.length > 0 && (
-        <div className={styles.etStrip}>
-          {snapshot.map(f => (
-            <span key={f.key} className={styles.etStripItem}>
-              <span className={styles.etStripK}>{f.label}</span>
-              <span className={styles.etStripV}>{f.value}</span>
-              {f.sub && <span className={styles.etStripSub}>{f.sub}</span>}
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className={styles.etTable}>
         <div className={styles.etHead}>
           <span>{mode === 'annual' ? 'Year' : 'Period'}</span>
@@ -294,7 +331,7 @@ export default function DockEarnings({ sym }) {
           </span>
         </div>
 
-        <div className={styles.etBody}>
+        <div className={styles.etBody} ref={bodyRef}>
           {isLoading && !intel ? (
             <div className={styles.finSkeleton} aria-label="Loading earnings">
               {Array.from({ length: 10 }).map((_, i) => <div key={i} className={styles.finSkelRow} />)}
@@ -310,32 +347,20 @@ export default function DockEarnings({ sym }) {
             <>
               {rows.map(r => (
                 r.kind === 'section'
-                  ? (
-                    <div key={r.key} className={styles.etSection}>
-                      {r.title}
-                      {r.note && <span className={styles.etSectionNote}>{r.note}</span>}
-                    </div>
-                  )
+                  ? <SectionHead key={r.key} row={r} />
                   : <Row key={r.key} row={r} sym={sym}
                       open={openKey === r.key}
                       onToggle={() => setOpenKey(openKey === r.key ? null : r.key)} />
               ))}
 
-              {hidden > 0 && (
-                <button type="button" className={styles.etMore}
-                  onClick={() => setLimit(DEEP_LIMIT)}>
-                  Show {Math.min(hidden, DEEP_LIMIT - DEFAULT_LIMIT)} more
+              {(hidden > 0 || expanded) && (
+                <button type="button" className={styles.etMore} ref={moreRef}
+                  onClick={toggleHistory}>
+                  {expanded ? 'Show less' : `Show ${Math.min(hidden, DEEP_LIMIT - DEFAULT_LIMIT)} more`}
                 </button>
               )}
 
               <Quality facts={quality} />
-
-              {trend.length > 0 && (
-                <>
-                  <div className={styles.etSection}>Annual trend</div>
-                  {trend.map(r => <Row key={r.key} row={r} sym={sym} open={false} onToggle={undefined} />)}
-                </>
-              )}
 
               <button type="button" className={styles.finMethodBtn} onClick={() => setMethodOpen(o => !o)}>
                 {methodOpen ? 'Hide data & methodology' : 'Data & methodology'}

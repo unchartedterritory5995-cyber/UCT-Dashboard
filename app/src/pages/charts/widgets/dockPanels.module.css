@@ -579,26 +579,6 @@
    ───────────────────────────────────────────────────────────────────────── */
 .earn { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #f0efea); }
 
-/* ── the 3-second strip — one line, never a dashboard above the table ────── */
-.etStrip {
-  flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline;
-  gap: 3px 14px; padding: 2px 12px 7px;
-  /* A hairline so the strip reads as its own band rather than running into the
-     column header directly beneath it. */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-}
-.etStripItem { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
-.etStripK {
-  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
-  color: var(--text-muted, #cfcac0);
-}
-.etStripV {
-  font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
-  font-variant-numeric: tabular-nums;
-}
-/* The fiscal period beside the date — context, never mistakable for the date. */
-.etStripSub { font-size: 9px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
-
 /* ── the table ───────────────────────────────────────────────────────────── */
 .etTable {
   /* period · EPS · EPS YoY · Sales · Sales YoY.
@@ -637,7 +617,10 @@
 
 .etRow {
   padding: 5px var(--et-pad);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  /* 0.035 -> 0.03, matching .finRow exactly: with the strip gone the rules were
+     the loudest chrome left on the page, and the two tabs should share one
+     hairline weight. */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   cursor: pointer;
 }
 .etRow:hover { background: rgba(255, 255, 255, 0.03); }
@@ -697,16 +680,33 @@
 
 /* ── sections — the gold structural layer, matching Financials ───────────── */
 .etSection {
-  padding: 10px var(--et-pad) 4px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  padding: 10px var(--et-pad) 5px;
+}
+.etSectionTitle {
+  flex: 1 1 auto;
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--accent, #c9a84c);
+}
+/* The next report date, riding on the ESTIMATES head. Deliberately NOT gold:
+   gold is the heading's, and a second gold on the same line would compete for
+   the same glance. Label uppercase-muted, value in the panel's value tier — so
+   it reads as a fact, not a second heading. */
+.etSectionMeta { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.etSectionMetaK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etSectionMetaV {
+  font-size: 10.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
 }
 .etRow + .etSection { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
 /* A caveat that belongs to the whole section, said ONCE rather than repeated on
    every row it applies to. Sentence case and un-tracked, so it reads as prose
    beside the uppercase gold head rather than as a second heading. */
 .etSectionNote {
-  display: block; margin-top: 3px;
+  flex: 1 0 100%; margin-top: 1px;
   font-size: 9.5px; font-weight: 400; letter-spacing: 0; text-transform: none;
   line-height: 1.4; color: var(--text-muted, #cfcac0);
 }
@@ -729,13 +729,16 @@
   display: grid;
   grid-template-columns: 1fr;
   column-gap: 22px;
-  padding: 0 var(--et-pad, 12px);
+  padding: 0 var(--et-pad, 12px) 2px;
 }
 .etQRow {
   display: flex; align-items: baseline; gap: 8px;
-  padding: 3.5px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
+/* The block should end on its content, not on a rule hanging under the last
+   pair — in one column that is the final row, in two it is the last of each. */
+.etQRow:last-child { border-bottom: 0; }
 .etQKey {
   flex: 1; min-width: 0;
   font-size: 11px; color: var(--text, #f0efea);
@@ -823,7 +826,6 @@
      five columns their room at the narrowest usable width. */
   .etPeriodFull, .etHeadFull { display: none; }
   .etPeriodShort, .etHeadShort { display: inline; }
-  .etStrip { gap: 2px 10px; }
   .etCompareTitle { flex-basis: 44px; }
 }
 /* Above ~470px the slack has to go SOMEWHERE, and letting the two level columns

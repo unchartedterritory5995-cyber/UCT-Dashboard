@@ -158,7 +158,30 @@ function annualRow(a) {
   }
 }
 
-const section = (title, note) => ({ kind: 'section', key: `s-${title}`, title, note })
+const section = (title, { note = null, meta = null } = {}) =>
+  ({ kind: 'section', key: `s-${title}`, title, note, meta })
+
+/**
+ * The next report date, for the ESTIMATES section head.
+ *
+ * This is the ONE fact the old snapshot strip carried that the table below does
+ * not already state — the EPS and Sales estimates it also showed are literally
+ * the next row down. So the date moves here, beside the estimates it belongs to,
+ * and the strip goes away.
+ *
+ * ⚠️ No confirmed/estimated marker. FMP's future `stable/earnings` rows and the
+ * Finnhub calendar both hand us a bare date with no scheduling status, so any
+ * "confirmed" or "EST" tag would be a confidence signal we invented. A plain
+ * date claims nothing; the methodology panel names the source.
+ */
+export function nextReportNote(intel) {
+  const s = intel?.summary || {}
+  const when = fmtDateShort(s.next_report_date)
+  if (when) return { label: 'Next report', value: when }
+  // A forward quarter with consensus but no scheduled date is a real state.
+  if ((intel?.estimates || []).length) return { label: 'Next report', value: 'Date TBD' }
+  return null
+}
 
 /**
  * Build the ordered row list for the table.
@@ -180,14 +203,16 @@ export function buildRows(intel, mode = 'quarterly', limit = 8) {
     const rep = (intel.annual?.reported) || []
     if (est.length) {
       const projected = est.filter(a => a.yoy_basis === 'vs_estimate')
-      rows.push(section('Estimates', projected.length
+      rows.push(section('Estimates', { note: projected.length
         ? `Growth for ${projected.map(a => a.label).join(' and ')} compares one consensus estimate with another, not with a reported result.`
-        : null))
+        : null }))
       est.forEach(a => rows.push(annualRow(a)))
     }
     if (rep.length) {
       rows.push(section('Reported'))
-      rep.slice(0, limit).forEach(a => rows.push(annualRow(a)))
+      // NOT capped. The Annual tab is the long-term view; truncating the fiscal
+      // history here would leave the product with nowhere that shows it whole.
+      rep.forEach(a => rows.push(annualRow(a)))
     }
     return rows
   }
@@ -195,7 +220,7 @@ export function buildRows(intel, mode = 'quarterly', limit = 8) {
   const est = intel.estimates || []
   const rep = intel.quarters || []
   if (est.length) {
-    rows.push(section('Estimates'))
+    rows.push(section('Estimates', { meta: nextReportNote(intel) }))
     est.forEach(q => rows.push(quarterRow(q, { estimate: true })))
   }
   if (rep.length) {
@@ -205,61 +230,11 @@ export function buildRows(intel, mode = 'quarterly', limit = 8) {
   return rows
 }
 
-/** Long-term context for the QUARTERLY view: the same five columns at annual
- *  resolution, a few years deep. Eight quarters show the current cycle; these
- *  show whether the cycle is a recovery, a peak or a new level — a question the
- *  quarterly rows cannot answer, and one the user should not have to change
- *  tabs to ask. Capped hard, because the Annual tab is where depth belongs. */
-export const ANNUAL_TREND_YEARS = 4
-
-export function annualTrendRows(intel) {
-  const rep = (intel?.annual?.reported) || []
-  if (rep.length < 2) return []
-  return rep.slice(0, ANNUAL_TREND_YEARS).map(annualRow)
-}
-
-/** How many reported periods exist beyond the current limit. */
+/** How many reported quarters exist beyond the current limit. Quarterly only —
+ *  the annual history is never truncated. */
 export function hiddenCount(intel, mode, limit) {
-  const all = mode === 'annual' ? (intel?.annual?.reported || []) : (intel?.quarters || [])
-  return Math.max(0, all.length - limit)
-}
-
-// ── the snapshot strip: what is coming ──────────────────────────────────────
-/**
- * The forward-looking strip that sits above the table.
- *
- * Deliberately ONLY about what is expected next. Acceleration and beat rates
- * were candidates here too, but they are retrospective and they already have a
- * home in Earnings Quality below the table — putting them in both places would
- * have made the page feel longer without making it say more. So the strip
- * answers "what is coming", Quality answers "how good has this been", and
- * neither repeats the other.
- *
- * Returns ONLY entries whose data genuinely exists. With no consensus at all it
- * returns nothing and the strip does not render — never a row of placeholders.
- */
-export function snapshotFacts(intel) {
-  const s = intel?.summary || {}
-  const out = []
-  const when = fmtDateShort(s.next_report_date)
-  if (when || s.next_report_label) {
-    out.push({
-      key: 'next',
-      label: 'Next report',
-      value: when || s.next_report_label,
-      // The period is useful context but must never be mistaken for the date.
-      // Short form always: it sits beside a table that uses the short form at
-      // the width where the strip is tightest, and "FY26 Q4" is unambiguous.
-      sub: when && s.next_report_label ? shortLabel(s.next_report_label) : null,
-    })
-  }
-  if (s.next_eps_estimate != null) {
-    out.push({ key: 'eps', label: 'EPS est', value: fmtEps(s.next_eps_estimate) })
-  }
-  if (s.next_revenue_estimate != null) {
-    out.push({ key: 'rev', label: 'Sales est', value: fmtSales(s.next_revenue_estimate) })
-  }
-  return out
+  if (mode === 'annual') return 0
+  return Math.max(0, (intel?.quarters || []).length - limit)
 }
 
 // ── Earnings Quality: how good has this run been ────────────────────────────
