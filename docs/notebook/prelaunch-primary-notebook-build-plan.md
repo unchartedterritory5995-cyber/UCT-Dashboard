@@ -3476,3 +3476,483 @@ is high-confidence-source-only (ticker/embed/mention/entity, never prose
 substring inference); every creation/search/filter/favorite/saved-view path
 Wave H touches reuses the existing mechanism composed with an entity
 constraint, never a second implementation.
+
+---
+
+## Wave I — Attachments + PDF / Financial Document Research Foundation — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave I's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction — the single most load-bearing finding this checkpoint turned on
+
+**Attachments are NOT absent. A production-grade, security-reviewed backend
+for note attachments — including PDF — already exists, and one specific,
+narrow gap (zero live authoring UI for non-image files) is the actual
+highest-leverage target, not a from-scratch build.** Read before assuming
+otherwise, per the directive's own §11/§222-1 instruction:
+
+- **Storage backend**: `attachment_root.py` — ONE authority, `$DATA_DIR/
+  j2_attachments` on the Railway persistent volume (a real 2026-08-13
+  incident is recorded in-file: attachments used to live on the *container*
+  filesystem and were wiped every redeploy; fixed before this session).
+  Binary storage is filesystem, not R2/S3 and not SQLite — R2 is used
+  elsewhere in this codebase (bars snapshots, catalyst backups) but the
+  established convention for note media specifically is `DATA_DIR`, matching
+  `auth.db`/`bars.db`'s own house convention. **Wave I keeps this
+  convention** — introducing R2 as primary storage for PDFs alone would
+  fracture one attachment tree into two backends for no member-visible
+  benefit.
+- **PDF is already an allowed, size-limited, MIME-validated attachment
+  type.** `notes.py`'s `_ALLOWED_FILE_MIMES` includes `application/pdf`
+  (also txt/csv/md/zip/mp3/m4a/docx/xlsx) at a 25MB ceiling
+  (`_MAX_FILE_BYTES`); images (png/jpg/gif/webp) are capped at 5MB
+  (`_MAX_IMAGE_BYTES`). `save_note_attachment_bytes`/`save_note_image_bytes`
+  validate MIME *before* reading the body, enforce size, and run
+  `assert_import_headroom()` (below) before ever writing a byte.
+- **File identity is the filesystem path itself — no metadata table.**
+  Images are content-hash-named (`sha256[:32]`, so a byte-identical
+  re-upload is a free no-op); files are `uuid4().hex`-named. There is no
+  `j2_note_attachments` row anywhere — an attachment's only representation
+  is (a) the file on disk under `{user}/notes/{note_id}/{inline|hero|file}/`
+  and (b) a reference to its filename inside the owning note's `body_json`.
+  **This answers checkpoint items 6/7/12 (ownership/identity/data model) by
+  precedent**: the existing model IS note-owned, filename-keyed, and
+  reference-counted by full-corpus regex scan (see GC below) rather than a
+  relational table — Wave I extends this model rather than replacing it with
+  a new attachment-id table, because introducing one now would create the
+  exact "two implementations of one membership question" defect class this
+  program has repeatedly found and fixed (Wave H's own ticker-filter parity
+  bug is the most recent instance).
+- **Path-traversal / tenant-isolation security is already solved,
+  correctly.** `serve_note_image_path` does root-anchored containment
+  checking (never anchored on the caller-constructed `base` path — the
+  file's own docstring names exactly why that distinction matters) plus
+  single-path-segment validation on every caller-supplied component. The
+  serve router checks `user["id"] != user_id_param` before ever calling it.
+  Nothing here needs to be rebuilt for PDF specifically.
+- **A real, structured TipTap attachment node already exists —
+  `AttachmentChip`** (`lib/attachmentChip.js`): a block atom node with
+  `href`/`name`/`size` attrs, parsed/rendered as a real downloadable chip,
+  never a bare markdown link. It is registered in the editor's extension
+  set and is actively used by the Notion/Obsidian/Evernote/generic
+  IMPORTERS (`lib/importer/*`) — an imported file attachment is a REAL file
+  in `_ATTACHMENT_ROOT`, uploaded through the exact same `/images`/
+  `/attachments` endpoints a live author would use. There is no legacy/
+  incompatible imported-attachment representation to reconcile (closes
+  checkpoint items 11/141/142 by direct evidence).
+- **THE GAP: `AttachmentChip` has zero live-authoring entry point.**
+  `NoteEditorPage.jsx`'s `handlePaste`/`handleDrop` are hard-gated to
+  `type.startsWith('image/')` — a dropped or pasted PDF is silently
+  ignored today. There is no slash command, toolbar button, or file picker
+  for a non-image file anywhere in the live editor. `lib/tiptap.js` exports
+  `uploadInlineImage`; there is no `uploadNoteAttachment` counterpart at
+  all. **The backend has supported PDF attachments since before this wave;
+  a member has never been able to reach it.** This is Wave I's single
+  highest-leverage, most member-visible target — not a new subsystem, a
+  missing wire, the same defect shape Wave H found in `CommandPalette.jsx`'s
+  ticker-search and `FolderSidebar`'s starter views.
+- **Export/portability is already fully solved for the existing attachment
+  model.** `notes_export.py` bundles `attachmentChip`/image/hero URLs that
+  match the app's own attachment-route shape into the export ZIP under
+  `attachments/{user}/{note}/{sub}/{filename}`, root-anchored containment
+  re-checked (same pattern as the serve route), with an explicit
+  total-bytes cap per export and honest per-file failure reasons ("file
+  missing on the attachment volume", "left out: export attachment size cap
+  reached") rather than silent omission. **No export changes are needed for
+  PDF** — it already flows through this exact generic pipeline the moment a
+  chip exists in the body.
+- **Orphan cleanup and account/GDPR deletion already exist and are already
+  correct for the current model**, with one real gap found this checkpoint
+  (see below). `attachment_gc.py` (age-gated 48h, dry-run-capable,
+  reference-counted by regex-scanning EVERY note's raw `body_json` text for
+  this user for the 32-hex-filename pattern) removes files no note
+  references any more. `account_purge.py` synchronously `shutil.rmtree()`s
+  the entire per-user attachment directory (both primary and legacy roots,
+  covering notebook AND trade attachments in one removal) — full,
+  synchronous, immediate deletion on account deletion, not eventual-GC.
+  `j2_attachments_backup.py` tars the current tree to R2 nightly as an
+  off-site DR archive (never restores on boot — archival only, unchanged by
+  this wave).
+- **REAL GAP FOUND THIS CHECKPOINT: the GC's reference scan does not cover
+  Wave C version history.** `attachment_gc._referenced_names()` scans only
+  the CURRENT `j2_notes.body_json` (+ `j2_capture_inbox`), never
+  `j2_note_versions.body_json`. A member who attaches a PDF, saves (Wave C
+  captures a version), then removes the attachment from the current body
+  will — 48+ hours later — have the underlying file GC'd, silently breaking
+  any OLDER Wave C version's ability to ever be restored with that
+  attachment intact, even though Wave C's own contract is "restore never
+  erases history." **In scope for Wave I**: widen `_referenced_names()` to
+  also scan `j2_note_versions.body_json` for the user, the same pattern
+  already used for the current-notes and capture-inbox scans — a small,
+  surgical fix, not a new subsystem.
+- **`assert_import_headroom()`/`notes_quota.py` is a live-derived, not
+  hardcoded, disk guard** — the required reserve is `(1 - disk_watchdog.
+  CRIT_PCT/100) * <volume's real total bytes>`, read live off
+  `disk_watchdog.py` (default `CRIT_PCT=90`), against the volume the
+  attachment root's nearest EXISTING ancestor actually sits on. **Correction
+  to this session's own Wave H closure language**: "requires ~50GB free" was
+  this LOCAL dev box's number (10% of its own 465GB drive), not a fixed
+  constant — on the real 78.42GB production volume the same formula yields
+  a ~7.84GB reserve. Wave I reuses this exact guard unchanged for every new
+  write path (it already covers `save_note_attachment_bytes` for every MIME
+  type, PDF included) and, per directive §180/§217, will check local disk
+  headroom explicitly before generating any test PDF fixtures, having just
+  lived through the consequence of not doing so.
+- **A maintained PDF-text-extraction library is already a working, tested
+  dependency in this exact codebase** — `pypdf` (confirmed installed,
+  6.15.0, importable) — used today by `api/services/voice_document_service.py`
+  for a *separate, unrelated* Compass "Document Q&A" feature (chunk + embed
+  a PDF/text for semantic search, zero note/ticker/thesis association,
+  its own `voice_documents` table). Its `_extract_text_from_pdf` already
+  demonstrates the exact safe pattern Wave I needs (per-page `try/except`,
+  a maintained library, best-effort-empty-string on failure) but joins all
+  pages into one blob with no page boundary — **not directly reusable
+  as-is** (violates the page-identity requirement) but its per-page loop is
+  the right shape to adapt. **Real gap found**: `pypdf` is NOT pinned in
+  `requirements.txt` despite being a real runtime dependency of shipped
+  code — Wave I pins it explicitly (in scope, one line, closes a genuine
+  latent "works on my machine" risk for a feature that already ships).
+- **Zero OCR packages present anywhere** in `requirements.txt` or the
+  `journal_two` tree — confirms OCR is genuinely greenfield, exactly the
+  directive's own Wave J boundary, not something Wave I is quietly
+  expected to half-build.
+- **No frontend PDF-viewer library exists anywhere in `app/src`** (no
+  pdfjs/react-pdf/PDFViewer). Every modern browser (Chrome/Firefox/Edge/
+  Safari) renders a PDF natively via `<iframe>`/`<embed src=".../file.pdf">`
+  with built-in page navigation, zoom, and find-in-document — **Wave I's
+  PDF preview uses the native browser viewer inside a Sheet/modal, zero new
+  frontend dependency**, per the directive's own explicit "do not build an
+  Adobe Acrobat clone" instruction.
+- **No DELETE endpoint exists for a generic attachment** (only `DELETE
+  /notes/{note_id}/hero`). Removing an inline image or file attachment
+  today can only happen by deleting the node from the TipTap doc client-
+  side (ordinary editor node deletion) — the underlying file's physical
+  removal is entirely deferred to the age-gated GC. **This is an existing,
+  reasonable, already-consistent answer to checkpoint items 60/153**
+  (detach-from-note vs. delete-the-file, kept as two different timescales
+  on purpose) — Wave I keeps this model rather than inventing an immediate-
+  delete affordance and its own confirmation UX for a reversible action.
+- **FTS5**: `j2_notes_fts` is a standalone (non-external-content) mirror
+  scoped to notes. Per the directive's own §39-42 instruction ("do not join
+  extracted documents into j2_notes FTS in a way that destroys source
+  identity"), document-page text gets its OWN FTS5 virtual table, unioned/
+  sectioned at the search-result layer, never merged into the notes index.
+
+### Ownership / architecture decisions (checkpoint items 1-63, grouped)
+
+**1-12 (ownership/identity/data model).** Attachment = note-owned by
+construction (directory path), file identity = filename (content-hash for
+images, uuid4 for files) — **kept, not replaced.** No new
+`j2_note_attachments` metadata table. The one new piece of state Wave I
+introduces is **document processing metadata**: a small table,
+`j2_note_documents` (user_id, note_id, attachment_url — the exact
+`/api/j2/notes/attachments/...` path already embedded in the chip, acting
+as the natural key since no attachment id exists — status, page_count,
+extraction_version, created_at, processed_at), plus `j2_note_document_pages`
+(document_id, page_number, text, PRIMARY KEY(document_id, page_number)) for
+page-aware text. This is the SMALLEST possible addition that gives text
+extraction stable page identity without inventing a parallel attachment-
+identity system alongside the one that already works. `attachment_url` is
+the join key back to the chip — not a new id the chip needs to carry.
+
+**13-17 (file identity, storage key security, file type policy, size
+limit, MIME validation).** All already solved, unchanged (see reconstruction
+above). PDF, PNG/JPG/GIF/WebP, TXT/CSV/MD/ZIP/MP3/M4A/DOCX/XLSX remain the
+supported set; DOCX/XLSX get upload+download only (no preview/extraction —
+matches the directive's own "do not claim preview unless architecture
+exists" instruction). MIME validation is Content-Type-header-based, not
+byte-signature magic — a real, pre-existing, narrow gap (a renamed `.exe`
+sent with a spoofed `Content-Type: application/pdf` header would currently
+pass) that predates this wave; closing it (a `pypdf`-based "does this
+actually parse as a PDF" structural check, run before persisting) is
+IN SCOPE for the PDF path specifically, since Wave I is already touching
+PDF processing and the fix is nearly free there — general magic-byte
+validation for every other MIME type is OUT of scope (pre-existing,
+unrelated to documents).
+
+**18-29 (PDF first-class, no-OCR-for-native-text, OCR boundary, upload UX,
+drag/drop, file picker, progress, success/failure).** PDF is first-class:
+preview + native text extraction with page identity, no OCR. Upload UX:
+extend the EXISTING `handleDrop`/`handlePaste` to accept the same
+`_ALLOWED_FILE_MIMES` set (not just images) and add ONE discoverable entry
+point — a toolbar "Attach file" button (mirrors the existing image-insert
+affordance's visual language) — rather than a slash command AND a button
+AND a menu item. Reuses the existing upload endpoint and error-surfacing
+pattern (`alert()` on failure today — Wave I upgrades this one path to the
+non-blocking toast pattern already used elsewhere in Notebook, since a
+raw `alert()` for a multi-second PDF upload is a worse experience than the
+image case it was copied from).
+
+**30-38 (PDF parser safety, preview, preview context, document route, page
+identity, text extraction, extraction storage, extraction version, original
+authoritative).** Parser safety: reuse `pypdf` (already vetted in
+production via `voice_document_service.py`), wrap every page extraction in
+try/except (matching its established pattern), bound total pages processed
+and enforce a processing timeout. Preview: a `Sheet` (existing mobile-
+proven primitive) hosting a native `<iframe>` at the attachment's own
+authenticated serve URL — no new route required for the modal case. A
+dedicated full route (`/journal/notebook/documents/:noteId/:filename?page=N`)
+is ALSO added, since deep-linkable page citations are explicitly named as a
+near-term Wave (future AI citation, §91/§162/§190) dependency and the
+marginal cost is one route, not a new subsystem. Text extraction is async
+(processing happens in a background thread off the upload request path,
+matching the existing pattern other Journal 2.0 processing jobs use —
+never blocking the upload response); pages/status live in the two new
+tables above; original file remains the sole authoritative artifact,
+extracted text is explicitly rebuildable (re-run extraction against the
+unchanged original) and never the other way around.
+
+**39-43 (document search, semantics, scope, page result, find-within-PDF).**
+Document search SHIPS this wave (lexical only, no vectors) — a new,
+separate `j2_note_document_pages_fts` FTS5 table, tenant-scoped, joined
+back to `(note_id, attachment_url, page_number)`. Search UI: a `Type`
+section split (Notes / Documents), not a blended single score — matching
+the directive's own explicit ranking-clarity instruction and this
+program's own house lesson (never merge two differently-scaled result
+types into one arbitrary score). A document result opens the PDF viewer at
+the matched page via the route above. Find-within-PDF: the native browser
+PDF viewer already provides Ctrl+F; no second search engine is built for
+it.
+
+**44-59 (attachment node, portability, images, screenshots, caption,
+source URL, filename, duplicates, cross-note reuse, Ticker Workspace
+integration, Home integration, thesis evidence, whole-document evidence,
+fact boundary).** `AttachmentChip` stays the node — no schema change to it;
+Wave I keys new document metadata off its existing `href`. Portability:
+already solved (see reconstruction). Images: existing inline/hero system
+untouched, not migrated into the new document tables (only PDFs get
+extraction/pages — a JPG has no "pages"). Screenshots: already first-class
+via the existing image path — no change needed. Caption: OUT of scope this
+wave (no existing capture-comment pattern to reuse cheaply here; a
+plain-text caption on the chip itself is a 1-line future addition, not
+blocking anything else). Source URL/provenance: not fabricated — manual
+uploads carry only `uploaded_at` (real) and never a fabricated
+`document_date`. Duplicates/cross-note reuse: kept exactly as today
+(per-note upload, content-hash dedup for images already free, files get a
+fresh uuid4 — NOT changed to content-hash this wave, since the file GC's
+`_UPLOAD_NAME_RE` and reference-scan already assume uuid4 shape for files
+and changing it is an unrelated, unforced refactor). **Ticker Workspace
+integration**: a bounded "Documents" section (mirroring Notes/Facts —
+5-item cap, "View all" escape hatch to the owning notes) IS added, deriving
+membership through the owning note's EXISTING ticker/embed/mention
+relationship — a document never carries its own ticker metadata, exactly
+per checkpoint item 54's own instruction. **Research Home**: NOT touched —
+per checkpoint item 55's own "Home should remain calm" instruction, no
+"Recent Documents" section ships this wave; no evidence yet that documents
+specifically need continuation-surface treatment beyond what Recents
+already gives their owning notes. **Thesis evidence**: NOT extended this
+wave — Wave G's evidence target types (note, fact) are frozen per Wave G's
+own closure; adding a `document` target type is a real, clean extension
+point this wave's new stable `(note_id, attachment_url)` identity makes
+possible, but is explicitly deferred to avoid re-opening a wave the
+directive told us to freeze, and because whole-document evidence is
+explicitly named as less precise than the page-level version this wave's
+own page tables make possible next. **Wave F fact boundary**: unchanged —
+no auto-fact extraction from document text, ever, matching Wave F's own
+frozen "deliberate observation, never auto-explosion" contract.
+
+**60-68 (version-history interaction, removal vs. deletion, history
+retention, restore, trash, note-restore, hard purge, object-storage
+deletion failure, tombstone/cleanup, account deletion).** The Wave-C-
+history GC gap above is the one real fix. Removal/detach vs. physical
+deletion: kept as today (see reconstruction). Trash/restore: already
+correct by construction (soft-delete doesn't touch `body_json`, so the GC's
+reference scan already protects a trashed note's attachments; this wave's
+new document/page rows key off `note_id` and get the identical protection
+for free — no new trash-awareness code needed). Hard purge: the trash-purge
+→ attachment-GC nightly ordering already exists; this wave's new document/
+page rows are deleted synchronously in the SAME `DELETE FROM j2_notes`
+statement's neighborhood in `purge_expired_deleted_notes` (a few more
+`DELETE ... WHERE note_id = ?` lines, not a new mechanism). Account
+deletion: `account_purge.py`'s `purge_user_data` gets the two new tables
+added to its `_DIRECT_USER_TABLES`-style list (schema-driven, zero bespoke
+code, the exact pattern Wave G's own evidence table already proved out).
+Object-storage deletion failure / tombstone: the existing GC's `dry_run`
+mode + age gate + per-file try/except already IS this contract — reused,
+not reinvented.
+
+**69-76 (tenant isolation, signed URLs, cache headers, download
+disposition, PDF active content, SVG, office docs, CSV).** Tenant isolation
+already enforced end-to-end for serving; the new page-text-search endpoint
+and document routes get the SAME `user["id"] != user_id_param`-style check
+before any read. No signed URLs are introduced (the existing model is a
+cookie-authenticated same-origin route, not pre-signed object-storage
+URLs — consistent with "primary storage is DATA_DIR filesystem," not R2).
+Download disposition: existing `FileResponse` already serves attachments;
+inline preview uses the SAME serve route (no `Content-Disposition:
+attachment` forced) so the browser's native PDF viewer renders it, download
+still available via the existing chip. PDF active content: rely on the
+browser's own PDF-sandbox behavior (Chrome/Firefox/Edge do not execute
+embedded PDF JavaScript by default in their built-in viewers) — no custom
+sandboxing layer built. SVG: NOT added to the allowed image MIME set this
+wave (it isn't today either) — no change, no new risk introduced. Office
+docs/CSV: download-only, as decided above.
+
+**77-90, 105-109 (extraction quality/normalization/table extraction,
+document metadata, filing/transcript future, document domain model).**
+Extraction quality: tested against real multi-page/multi-column financial
+PDFs during implementation (representative fixtures, not one synthetic
+page); table STRUCTURE is explicitly not claimed — reading-order text only,
+stated precisely in any status/UI copy. Normalization: preserve `$ % - ( )`
+and decimal punctuation; strip only null bytes and collapse excess
+whitespace. Metadata: page count only (reliably extractable); PDF-embedded
+title/author/dates are NOT surfaced as trustworthy provenance — only
+`uploaded_at` (real, UCT-observed) is ever shown as a date. Filing/
+transcript future integration and system-derived document type: explicitly
+OUT of scope — Wave I's `j2_note_documents` schema doesn't preclude a
+future `source_type`/`provenance` column, but nothing populates one this
+wave; a manually uploaded PDF never claims to be a verified "10-K."
+
+**91-99, 123-126 (page citation foundation, excerpt capture, highlights,
+internal links to document, rename, checksum, integrity, preview
+derivatives, thumbnails, future AI/hybrid retrieval, future external
+capture, future mobile share).** Page identity is preserved from the start
+(the whole point of the page table) — this alone is the foundation future
+citation/AI work needs; nothing further is built now. Excerpt capture,
+highlights/annotations, and a document-link picker are explicitly deferred
+to Wave J per the directive's own §92-94/§189-190 boundary — building any
+of them now risks exactly the "imprecise feature shipped right before the
+precise one" trap the directive itself warns against. Checksum: NOT added
+this wave (no current duplicate-detection or integrity-verification job
+that would consume it — the existing content-hash-for-images/uuid4-for-
+files identity scheme already serves the immediate need). Thumbnails:
+OUT of scope (directive's own "do not spend a wave building thumbnail
+generation" instruction) — a PDF icon + filename in the compact attachment
+card is sufficient. Future external capture/mobile share: the new
+`save_note_attachment_bytes`/`save_note_image_bytes` functions ALREADY
+accept raw bytes independent of the FastAPI `UploadFile` wrapper (the
+`_bytes` variants exist specifically so router-level callers can adapt any
+transport) — already reusable by a future non-multipart entry point, no
+change needed.
+
+**100-104, 143-160 (note UI, multiple attachments, section vs. inline,
+Ticker Workspace/search discoverability, document type, financial document
+type, entry points, drag/drop, file picker, progress, upload
+success/failure, size limit, mime/magic, malicious file, PDF parser
+safety, preview surfaces, empty/loading/error states, visual design).**
+Compact attachment card (icon + filename + size + "Open"), inline at point
+of use — NOT a separate consolidated attachment section, since the
+existing chip is already inline-first and a second list would be a second
+implementation of "where do my files live in this note." Financial
+document TYPE labeling (Filing/Presentation/Report/Other): OUT of scope —
+optional metadata the directive itself says must never add upload
+friction, and there is no current consumer that would use it. Empty/
+loading/error states follow the SAME honest-copy discipline this whole
+program has enforced since Wave 0 — "Uploading…", "Processing…", "Text
+couldn't be processed" (document still usable), "Couldn't upload
+[file]. Your note is unchanged." (never a raw exception).
+
+**110-122, 127-133 (attachment vs. document distinction, data model,
+source of truth hierarchy, note-version source of truth, replace/edit
+file, password-protected/corrupt/huge/zero-text PDFs, OCR future contract/
+confidence, storage quotas, rate limiting, idempotency, upload
+transaction, storage consistency audit).** ATTACHMENT (existing, unchanged)
+vs. DOCUMENT (new: an attachment whose type — currently just PDF — supports
+extraction) is exactly the distinction this checkpoint's new two-table
+addition encodes; a `document` row only exists for a PDF attachment, never
+for an image/CSV/DOCX. Source-of-truth hierarchy is explicit: original
+file authoritative > `j2_note_document_pages` text derived/rebuildable >
+the new FTS5 index derived/rebuildable — nothing here is nested more than
+one level deep. No in-place PDF editing, ever. Password-protected/corrupt/
+huge/zero-text PDFs: each produces an honest `processing_failed`/`no_text`
+status, never a crash, never a fabricated result (test matrix below).
+`text_origin` on the page table is `'native'` for this wave, with the
+column already shaped to accept `'ocr'` later — Wave J's stated contract
+(item 121) without Wave J's own work. Storage quotas/rate limiting:
+`assert_import_headroom()` already the quota gate; no new per-account byte
+quota UI ships (out of scope, no current plan-tier hook to attach it to).
+Upload transaction: write-then-DB-finalize, matching the existing image/
+file save functions' own sequence (disk write happens, THEN the router
+returns success) — a failure between disk write and function return
+already can't half-succeed today (single synchronous call), and the new
+document-processing row is created only AFTER the attachment upload itself
+already returned 200, so a stuck/failed extraction can never corrupt or
+block the underlying attachment.
+
+**134-142, 218-219 (portability recap, ZIP/path safety, duplicate
+filenames, Unicode, single/full export, import/roundtrip, imported
+attachments, legacy files, migration, rollback).** Already solved (see
+reconstruction) — no changes required for PDF specifically; verified, not
+rebuilt. Migration: fully additive (two new tables, zero changes to
+`j2_notes`/`j2_note_versions` schemas). Rollback: disabling the new upload
+UI leaves every existing attachment fully functional (nothing here changes
+how an existing chip is stored or served); the two new tables can be
+dropped with zero impact on notes/attachments themselves if ever needed.
+
+**161-178, 179-180, 210-217 (navigation/URL state, deep links, preview
+auth, document-page API, search security/trash/ticker-trash, caption
+search, filename search, snippets, ranking benchmark, performance —
+upload/extraction/search/storage/note-open/workspace, extraction
+batching, temp files, disk headroom guard, test matrices).** Full
+Home→Workspace→Note→Document→Back chain preserves context, matching
+Wave H's own just-proven navigation pattern. Every new read (document
+metadata, page text, search) re-authorizes by `user_id` — no exceptions.
+**Temp files (§179, directly informed by this session's own disk-full
+incident)**: PDF processing uses `tempfile.TemporaryDirectory()` (auto-
+cleaned on both normal completion AND exception, by Python's own context-
+manager contract) — never a bare `%TEMP%` path with manual cleanup that can
+leak on a crash. Extraction batching: bounded concurrency (a small
+semaphore, matching the existing `ThreadPoolExecutor`-based patterns
+elsewhere in this codebase — e.g. theme_performance's `_MAX_WORKERS`) —
+never one unbounded thread per upload. Disk headroom: checked explicitly
+before generating any test PDF fixtures (this session's own incident is
+the reason this line exists at all) — fixtures are small, representative,
+synthetic-but-real multi-page PDFs, not bulk-generated.
+
+**181-193, 220-227 (logging/privacy, rights, SEC filings, research
+reports, collaboration/offline/document-AI/citation future, OCR handoff,
+competitor matrix, financial advantage test, production plan, exit
+gates, certification, presumptive Wave J).** No document text or filenames
+in logs beyond attachment id/size/status. No external AI processing of
+document content this wave. Rights: manual user uploads proceed under
+existing platform terms (no vendor-content conflation); SEC/filing/
+report-source integration explicitly NOT built this wave (no current UCT
+filings-capture door to bridge from — a real, separate future integration,
+not a checkpoint blocker). Collaboration/offline/document-AI/citation:
+architecture leaves room (stable page identity, a real `text_origin`
+column) without building any of it now. Competitor matrix and the
+financial-advantage live-browser proof are executed as part of closure,
+matching every prior wave's own evidence bar.
+
+### No MATERIAL architecture/security/ownership contradiction found.
+
+The directive's own repeated caution — do not assume attachments are
+absent — was exactly right: they are not. Every storage, security, export,
+backup, and cleanup primitive Wave I needs already exists and is reused,
+not duplicated. The only genuinely new primitives are two small metadata
+tables (`j2_note_documents`, `j2_note_document_pages`), one new FTS5
+table, the live-authoring upload wiring for non-image files, a PDF preview
+Sheet + document route, and the async extraction job — plus two small,
+real, surgical fixes to pre-existing gaps found this session (the Wave-C-
+history GC scan, the unpinned `pypdf` dependency). Proceeding directly to
+implementation.
+
+### Recommended vertical slices (directive §223, adapted to this checkpoint's actual findings)
+
+1. **Live attachment authoring** — extend drop/paste to non-image
+   `_ALLOWED_FILE_MIMES`, add the "Attach file" toolbar entry point, a
+   `uploadNoteAttachment` frontend helper, toast-based (not `alert()`)
+   error surfacing. Highest member-visible value, zero new backend.
+2. **PDF preview** — the Sheet-hosted native `<iframe>` viewer + the
+   dedicated document route, wired from an `AttachmentChip` click when its
+   extension is `.pdf`.
+3. **Native text extraction + page model** — `j2_note_documents` +
+   `j2_note_document_pages`, async extraction via `pypdf` (pinned),
+   honest status states, the Wave-C-history GC fix, `pypdf` requirements.txt
+   pin.
+4. **Document search** — `j2_note_document_pages_fts`, sectioned search
+   UI, page-targeted deep links.
+5. **Ticker Workspace integration + lifecycle** — the bounded Documents
+   section, trash/purge/account-deletion wiring for the two new tables.
+6. **Mobile/tablet/accessibility + resource-safety** — phone/tablet PDF
+   viewer pass, keyboard/ARIA on every new control, temp-file lifecycle
+   adversarial tests.
+7. **Full test matrix + real-browser E2E** — backend/frontend/search/
+   security/performance matrices per directive §211-217, live proof of the
+   financial-advantage workflow (§193/§227).
+8. **Closure + production merge/deploy + certification report.**
+
+If a MATERIAL architecture/security/ownership contradiction remains: STOP
+and report it. None found. Proceeding directly.
