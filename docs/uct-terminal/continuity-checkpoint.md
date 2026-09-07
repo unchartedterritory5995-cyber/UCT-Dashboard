@@ -6,100 +6,98 @@
 > than appending to them.
 
 **Last verified:** 2026-09-07, against live git + Railway state, post
-**Seam 14** merge/deploy (Ticker Search Surface Convergence V1). Prior
-programs this session, most recent first: Seam 11 (Position ↔ Related
-Trades, honest labeling), Seam 17 Remainder (Journal Symbol Input Assist
-V1), Seam 1 read-side half (a real WRITE to production identity data),
-Seam 19 (TickerActions Dedicated Scope + Convergence V1) — full detail
-for all of these lives in "CURRENT ACCEPTED" below and the debt ledger,
-not re-summarized here again. Both re-anchor MUST-FIX trust defects
-(Seam 28, Seam 29), Alert Durability V1 (Seam 30), the keyboard
+**Seam 6** merge/deploy (Chart Session / Extended-Hours Temporal
+Convergence V1). Prior programs this session, most recent first: Seam
+14 (Ticker Search Surface Convergence V1), Seam 11 (Position ↔ Related
+Trades, honest labeling), Seam 17 Remainder (Journal Symbol Input
+Assist V1), Seam 1 read-side half (a real WRITE to production identity
+data), Seam 19 (TickerActions Dedicated Scope + Convergence V1) — full
+detail for all of these lives in "CURRENT ACCEPTED" below and the debt
+ledger, not re-summarized here again. Both re-anchor MUST-FIX trust
+defects (Seam 28, Seam 29), Alert Durability V1 (Seam 30), the keyboard
 accessibility program, Compare Coverage V1, Seam 20, Feature-Flag
 Governance Sweep, Seam 25, Seam 21, the `CommandPalette.jsx` jsonFetcher
-fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, Seam 11, and
-now **Seam 14** are all closed. This section covers Seam 14 in full
-since it's the newest.
+fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, Seam 11, Seam
+14, and now **Seam 6** are all closed. This section covers Seam 6 in
+full since it's the newest.
 
-**Seam 14 — TICKER SEARCH SURFACE CONVERGENCE, RESOLVED via a bounded,
-evidence-driven V1, not a blanket rewrite.** A dedicated Phase A
-inventoried every live `/api/ticker-search` consumer and found the
-ledger's "7+ duplicated implementations" framing needed real
-correction, not just re-confirmation: most surfaces are legitimately
-distinct by the directive's own test ("does this reimplement search/
-identity/ranking semantics that SHOULD come from the shared contract?")
-— `CommandPalette.jsx`/`SymbolSearch.jsx` are the canonical global
-search / security picker (unchanged); `tickerMention.js` ($TICKER
-community-post autocomplete) is ARCHITECTURALLY FORCED duplication (a
-TipTap Suggestion plugin cannot mount a React hook); `CalendarHeader.jsx`'s
-search resolves a ticker's next-report date and jumps calendar weeks —
-feature-specific selection semantics, not a symbol picker at all.
-**Two genuine, confirmed bugs found and fixed**: `modelbook/shared/
-ChartExampleKit.jsx`'s exported `TickerSearchInput` (My Playbook) and
-`SetupsView.jsx`'s own byte-identical copy-pasted local duplicate (Setup
-Library) both had ZERO keyboard navigation (mouse/touch only) and ZERO
-stale-response protection — an inline fetch/debounce reimplementation
-that never adopted the ALREADY-EXISTING, ALREADY-SHIPPED shared hook
-(`useTickerSuggest.js`, purpose-built for exactly this reuse case,
-previously adopted by exactly ONE consumer: Watchlists' `TickerCombobox.
-jsx`). Both now consume the hook directly — fixing both bugs — while
-keeping their own CSS module / lightweight visual wrapper, preserving
-this session's own established principle (Journal Symbol Input Assist
-V1) that different interaction models can share a search CONTRACT
-without sharing a visible COMPONENT. **Writing direct test coverage for
-`useTickerSuggest.js` itself (previously ZERO, despite being live
-production code) caught a real, previously-undiscovered gap in the hook**:
-it relied SOLELY on `AbortController` for stale-response protection, no
-independent sequence guard — harmless in real browsers (which honor
-`AbortSignal` correctly) but a genuine robustness gap, caught the moment
-a test used a hand-rolled fetch mock that ignores the signal (mirroring
-`CommandPalette.jsx`'s own established test pattern). Fixed with the
-same `reqIdRef` guard `CommandPalette.jsx`/`SecuritySymbolInput.jsx`
-already use — benefits all three consumers (`TickerCombobox` included)
-for free, zero observable behavior change in real browsers.
-**`SwitchTickerBox` (`TickerPopup.jsx`) and `MobileSymbolSheet.jsx` are
-real, confirmed duplication too, but NOT converged this round** — both
-have meaningfully different Enter-key/empty-state semantics from
-`useTickerSuggest`'s established consumption pattern (`SwitchTickerBox`'s
-"typed beats un-navigated hover" Enter priority; `useTickerSuggest`
-returns a non-empty `POPULAR_TICKERS` list even for an empty query, which
-would newly show a dropdown on bare focus) on a MUCH higher-traffic
-surface (every `TickerPopup` instance app-wide) — forcing convergence
-risked a real behavior change for comparatively low payoff versus the
-two admin-only forms fixed here, which had ACTUAL bugs, not just
-duplicated-but-correctly-working code. Left explicitly recorded as a
-future candidate (Section VII of the directive already permitted this:
-"Do not assume they must be rewritten"), not silently dropped.
-**A genuine ledger inaccuracy surfaced and corrected**:
-`ComparisonPicker.jsx` (the `ChartToolbar` "⇄ compare symbols" popover)
-was recorded LEGACY_DEAD/zero-live-search-as-a-retirement-candidate — it
-is NEITHER dead (confirmed live: `StockChart.jsx` → `ChartToolbar.jsx`
-line 1443 → `ComparisonPicker.jsx`, on every chart in the app) NOR was
-its 7-hardcoded-ticker (`QQQ, SPY, IWM, DIA, NDX, VIX, BTC-USD`),
-zero-live-search gap silently fixed as a side effect — **whether it
-should get live search or be retired in favor of the `SymbolSearch`-based
-Compare flow (which DOES have full live search, 8 call sites, fixed by
-this session's own Seam 15) is a real product/UX choice, OWNER DECISION
-REQUIRED, not resolved unilaterally.** 26 new tests across 4 new files
-(`useTickerSuggest.test.js`, `ChartExampleKit.tickerSearch.test.jsx`,
-`SetupsView.tickerSearch.test.jsx`) covering keyboard nav, stale-response
-protection (the signal-ignoring-mock pattern), ARIA, unchanged prop
-contracts, typed-value fallback, error degradation; broad regression
-across ModelBook + hooks + Watchlists green (43 tests); clean production
-build; production-verified (commit SHA match + the compiled ModelBook
-chunk carries the new `role="combobox"`/`tickerSearch` markers that
-didn't exist in the prior build).
+**Seam 6 — CHART SESSION / EXTENDED-HOURS TEMPORAL CONVERGENCE,
+RESOLVED — a real defect, not architecture-duplication-only.** A
+dedicated Phase A (codebase trace + an EXECUTED fixed-clock diagnostic
+comparing `app/src/utils/extSession.js` against S11's canonical
+`marketClock.js::sessionState()` for every weekend/holiday/early-close/
+out-of-coverage case, mirroring the ALREADY-ACCEPTED `marketSession.js`
+convergence — merge `b94678b4a` — as the explicit template) found THREE
+confirmed, member-visible defects, the same class that fix already
+addressed once: (1) **WRONG SESSION SELECTION** — a full NYSE holiday
+during would-be regular hours read as `'rth'` (the market is actually
+fully closed); (2) **WRONG DATA REQUEST** — the extended-hours
+`anchorDate` on a holiday evening, and MOST SEVERELY in the pre-4am
+window the day AFTER a holiday, pointed AT the holiday itself instead
+of the last real trading day — `StockChart.jsx` feeds this `anchorDate`
+into a real bars fetch (`useSessionExtBars`) and the bar-time the
+synthesized candle attaches to (`anchorNoonSec`→`computeBarTime`), so
+this was never cosmetic; (3) **WRONG EXTENDED-HOURS TOGGLE** — a real
+NYSE early-close day (1:00pm ET) still read as `'rth'` for ~3 more
+hours against the old hardcoded 4:00pm threshold. **Today (2026-09-07)
+happened to be a live, real instance of defect #1 — Labor Day —
+confirmed via the same diagnostic run against the actual date.** Fix,
+merge `c27abb45c`/`73f56ba37`: mirrors `marketSession.js`'s own
+already-accepted convergence exactly — that file's equivalent private
+helpers aren't exported, so this is a SECOND small instance of the same
+pattern on the same shared `nyseCalendar.js` primitives
+(`hasCoverage`/`holidayOn`/`earlyCloseOn`), not a reimplementation of
+calendar truth and not a new shared module (the established precedent
+didn't extract one either). Preserves the chart's own distinct 3-state
+`pre`/`rth`/`post` display-policy semantics (S11 owns WHAT SESSION
+EXISTS; the chart still owns its OWN display policy, per the
+directive's own explicit separation) rather than importing S11's
+4-state `closed` concept wholesale. Outside `nyseCalendar.js`'s covered
+years (2026 only), behavior degrades EXACTLY to the prior weekday-only/
+hardcoded-16:00 logic — confirmed via the diagnostic, never a guess,
+never a throw. **All 3 real consumers** (`ChartPane.jsx`,
+`GridChartCell.jsx`, `StockChart.jsx`) read `getExtSession`'s result
+purely by reference — zero direct edits needed, all inherit the fix
+automatically (confirmed: their own existing test suites, 38 tests, all
+still green unchanged). **A stale ledger note corrected**:
+`LiveFlow.jsx`/`LiveFlow_admin.jsx` were recorded "partner-owned, no
+edit without ack" — a live import-graph check confirmed BOTH are now
+fully dead (`LiveFlow.jsx` redirects to `/live-massive`;
+`LiveFlow_admin.jsx` has zero importers outside its own test file), so
+that protection note was stale; neither was touched regardless since
+neither had anything relevant to fix. `LiveFlowMassive.jsx`'s
+superficially similar weekday-only check is a DIFFERENT, deliberately-
+justified pattern (its own docstring: "a wrong holiday table would be
+worse than the double fetch it saves") — correctly left alone, not the
+same defect. `extSession.js` had ZERO prior direct test coverage — 17
+new fixed-clock tests added (mirrors `marketSession.intraday.test.js`'s
+own established convention); adjacent regression across
+`extSession.cached.test.js`, both `marketSession.js` suites,
+`marketClock.test.js`, and all 3 consumers' own test files: 116 tests
+green, zero regressions; clean build; production-verified via commit
+SHA match (a pure backend-logic change with no new UI string to grep,
+and the directive explicitly forbids manipulating the market clock in
+production — commit-SHA match plus the pre-merge green suite is the
+appropriate verification tier here, same as it was for the Seam 1 doc
+correction earlier this session).
 
-**A fresh re-scan of the debt ledger after Seam 14 found the remaining
-pool thinned further but still not exhausted — HOLDING**: Seam 6/7/8
-each still need their own Phase A or a real architecture decision (Seam
-14 itself is now RESOLVED, not on this list); Seam 13 still risks
+**A fresh re-scan of the debt ledger after Seam 6 found the remaining
+pool thinned further but still not exhausted — HOLDING**: Seam 7/8 each
+still need their own Phase A or a real architecture decision (Seam 6
+itself is now RESOLVED, not on this list) — **re-ranked with fresh
+evidence per the directive's own Section XXIX: SEAM 8 before SEAM 7,
+unchanged from the prior bias** (Seam 8 concerns member-visible
+evidence precision, already half-fixed; Seam 7 remains a pure
+architectural duplication with zero demonstrated live defect — no new
+evidence surfaced by Seam 6's work touches either, so the expected
+ranking holds as-is, not re-derived from scratch); Seam 13 still risks
 colliding with the concurrent Notebook session (still actively landing
 commits — Wave G, Thesis Intelligence, on `origin/master` during this
 very program); Seam 18/22/24 still need a product decision or are
-gated, and the new `ComparisonPicker.jsx` live-search-or-retire question
-joins that list; Seam 3/4/27 remain explicitly LOW-PRIORITY.
-`SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
-recorded, NOT-bounded-for-a-quick-V1 candidate (needs either a
+gated, joined by the `ComparisonPicker.jsx` live-search-or-retire
+question (Seam 14); Seam 3/4/27 remain explicitly LOW-PRIORITY.
+`SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence (Seam 14) remains
+a real, recorded, NOT-bounded-for-a-quick-V1 candidate (needs either a
 `useTickerSuggest` opt-in-flag extension or a careful surgical
 adaptation preserving exact Enter-key semantics — real, if small,
 design work, not urgent). Awareness Reachability Restoration V1 remains
@@ -2234,19 +2232,30 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   weekend-only/hardcoded-16:00 date math — the fix described here (a
   one-function reuse, no new calendar framework) is exactly what shipped. Kept
   as a record; do not re-open unless a concrete regression is found.
-- **Seam 6 — duplicated weekend-only walk-back date loops beyond
-  `marketSession.js` (surfaced by Temporal / Freshness Truth Convergence V1's
-  Phase A, 2026-09-05/06).** The same structural defect class Seam 2 had
-  (skip weekends only, never NYSE holidays) also exists independently in
-  `app/src/utils/extSession.js::_prevTradingDay()` — which drives the
-  pre/post-market toggle on EVERY chart in the app, a materially larger blast
-  radius than `marketSession.js` itself — and in
-  `app/src/pages/LiveFlow.jsx`/`LiveFlow_admin.jsx::mostRecentMarketDay()`
-  (the latter is Ravi's partner-owned surface — no edit without ack). Neither
-  received the exhaustive per-scenario proof this program ran on
-  `marketSession.js`, so neither is a responsible V1 candidate yet — needs its
-  own Phase A-style trace first. Not urgent (no demonstrated live defect
-  found for either in this program's bounded check).
+- **Seam 6 — RESOLVED 2026-09-07, merge `c27abb45c`/`73f56ba37` (Chart
+  Session / Extended-Hours Temporal Convergence V1).** Was: the same
+  structural defect class Seam 2 had (skip weekends only, never NYSE
+  holidays) also existed independently in
+  `app/src/utils/extSession.js::_prevTradingDay()`. **The dedicated
+  Phase A found this WAS a real, member-visible defect, not just
+  duplication** — an executed fixed-clock diagnostic proved three
+  concrete cases: a holiday during would-be regular hours read as
+  `'rth'`; the extended-hours anchor date on a holiday evening (and,
+  most severely, in the pre-4am window the day after a holiday) pointed
+  at the closed holiday instead of the last real trading day — feeding a
+  real bars fetch in `StockChart.jsx`, not cosmetic; and a real
+  early-close day misreported `'rth'` for ~3 extra hours. Fixed by
+  mirroring `marketSession.js`'s own already-accepted convergence onto
+  `nyseCalendar.js`'s primitives exactly. All 3 real consumers
+  (`ChartPane.jsx`/`GridChartCell.jsx`/`StockChart.jsx`) inherited the
+  fix by reference, zero direct edits. **The "LiveFlow.jsx/
+  LiveFlow_admin.jsx, Ravi's partner-owned surface, no edit without
+  ack" note above was STALE** — a live import-graph check confirmed
+  both are now fully dead (LiveFlow.jsx redirects to `/live-massive`;
+  LiveFlow_admin.jsx has zero importers). 17 new tests (extSession.js
+  had zero prior coverage), 116-test adjacent regression green, clean
+  build, production-verified via commit SHA match. Full detail in the
+  top-of-file "Last verified" section above.
 - **Seam 7 — two independently hand-maintained NYSE holiday tables (surfaced
   by Temporal / Freshness Truth Convergence V1's Phase A, 2026-09-05/06).**
   `app/src/lib/marketClock/nyseCalendar.js` (`COVERED_YEARS=[2026]` only) and
@@ -2756,8 +2765,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `8ebb6f076`/`910eca619`), Seam 19 (merge `7a0dd2a78`/`66f6e34f2`),
    Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`),
    Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), Seam 11 (merge
-   `ab69e2cee`/`228d8caeb`), and Seam 14 (merge `7837b782a`/`e96fe1107`)
-   are all ACCEPTED + LIVE as of this checkpoint —
+   `ab69e2cee`/`228d8caeb`), Seam 14 (merge `7837b782a`/`e96fe1107`), and
+   Seam 6 (merge `c27abb45c`/`73f56ba37`) are all ACCEPTED + LIVE as of
+   this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
