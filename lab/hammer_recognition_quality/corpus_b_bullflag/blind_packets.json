@@ -1,0 +1,930 @@
+[
+  {
+    "case_id": "case_0000",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0000.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 5.82,
+      "pct_of_52w_high": 90.94,
+      "pct_above_52w_low": 232.57,
+      "sma10": 5.827,
+      "sma20": 5.62,
+      "sma50": 4.2544,
+      "vol_20d_avg": 240295.0,
+      "vol_50d_avg": 220184.0,
+      "adr_pct_21d": 9.719,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0001",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0001.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 31.46,
+      "pct_of_52w_high": 94.65,
+      "pct_above_52w_low": 45.72,
+      "sma10": 30.909,
+      "sma20": 31.246,
+      "sma50": 30.6346,
+      "vol_20d_avg": 30739.1,
+      "vol_50d_avg": 44867.6,
+      "adr_pct_21d": 2.825,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0002",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0002.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 32.74,
+      "pct_of_52w_high": 90.69,
+      "pct_above_52w_low": 116.68,
+      "sma10": 33.442,
+      "sma20": 32.852,
+      "sma50": 28.4644,
+      "vol_20d_avg": 28046470.0,
+      "vol_50d_avg": 21358362.0,
+      "adr_pct_21d": 3.804,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0003",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0003.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 20.87,
+      "pct_of_52w_high": 83.75,
+      "pct_above_52w_low": 72.76,
+      "sma10": 23.065,
+      "sma20": 22.5045,
+      "sma50": 19.0541,
+      "vol_20d_avg": 6115415.0,
+      "vol_50d_avg": 4452310.0,
+      "adr_pct_21d": 4.07,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0004",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0004.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 3.76,
+      "pct_of_52w_high": 55.7,
+      "pct_above_52w_low": 226.96,
+      "sma10": 3.878,
+      "sma20": 3.855,
+      "sma50": 3.9836,
+      "vol_20d_avg": 3994155.0,
+      "vol_50d_avg": 3715254.0,
+      "adr_pct_21d": 5.641,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0005",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0005.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 52.05,
+      "pct_of_52w_high": 89.93,
+      "pct_above_52w_low": 251.69,
+      "sma10": 54.392,
+      "sma20": 50.979,
+      "sma50": 45.2876,
+      "vol_20d_avg": 1513665.0,
+      "vol_50d_avg": 1096960.0,
+      "adr_pct_21d": 6.332,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0006",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0006.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 7.18,
+      "pct_of_52w_high": 88.53,
+      "pct_above_52w_low": 897.22,
+      "sma10": 6.132,
+      "sma20": 5.185,
+      "sma50": 4.1034,
+      "vol_20d_avg": 12316915.0,
+      "vol_50d_avg": 12905888.0,
+      "adr_pct_21d": 10.863,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0007",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0007.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 21.93,
+      "pct_of_52w_high": 58.02,
+      "pct_above_52w_low": 83.82,
+      "sma10": 21.558,
+      "sma20": 22.2785,
+      "sma50": 19.7444,
+      "vol_20d_avg": 55660.0,
+      "vol_50d_avg": 83728.0,
+      "adr_pct_21d": 3.544,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0008",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0008.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 45.78,
+      "pct_of_52w_high": 83.71,
+      "pct_above_52w_low": 70.69,
+      "sma10": 46.244,
+      "sma20": 44.344,
+      "sma50": 39.9492,
+      "vol_20d_avg": 12649984.3,
+      "vol_50d_avg": 10075915.7,
+      "adr_pct_21d": 3.035,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0009",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0009.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 6.56,
+      "pct_of_52w_high": 51.86,
+      "pct_above_52w_low": 37.24,
+      "sma10": 6.682,
+      "sma20": 6.5705,
+      "sma50": 6.0932,
+      "vol_20d_avg": 115330.0,
+      "vol_50d_avg": 96502.0,
+      "adr_pct_21d": 3.371,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0010",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0010.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 22.39,
+      "pct_of_52w_high": 91.99,
+      "pct_above_52w_low": 56.35,
+      "sma10": 21.892,
+      "sma20": 21.3105,
+      "sma50": 20.6696,
+      "vol_20d_avg": 2169985.0,
+      "vol_50d_avg": 2223934.0,
+      "adr_pct_21d": 1.538,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0011",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0011.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 61.35,
+      "pct_of_52w_high": 86.52,
+      "pct_above_52w_low": 61.96,
+      "sma10": 59.774,
+      "sma20": 59.7235,
+      "sma50": 56.352,
+      "vol_20d_avg": 254240.0,
+      "vol_50d_avg": 264472.0,
+      "adr_pct_21d": 2.535,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0012",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0012.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 37.13,
+      "pct_of_52w_high": 81.73,
+      "pct_above_52w_low": 190.53,
+      "sma10": 41.624,
+      "sma20": 38.2405,
+      "sma50": 32.4362,
+      "vol_20d_avg": 43355.0,
+      "vol_50d_avg": 25510.0,
+      "adr_pct_21d": 2.703,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0013",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0013.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 27.4,
+      "pct_of_52w_high": 87.32,
+      "pct_above_52w_low": 129.67,
+      "sma10": 28.816,
+      "sma20": 29.1785,
+      "sma50": 28.5452,
+      "vol_20d_avg": 38550.0,
+      "vol_50d_avg": 51368.0,
+      "adr_pct_21d": 3.51,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0014",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0014.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.25,
+      "pct_of_52w_high": 85.23,
+      "pct_above_52w_low": 118.45,
+      "sma10": 2.214,
+      "sma20": 2.2865,
+      "sma50": 1.8748,
+      "vol_20d_avg": 2771550.0,
+      "vol_50d_avg": 2255942.0,
+      "adr_pct_21d": 8.466,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0015",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0015.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 5.92,
+      "pct_of_52w_high": 95.18,
+      "pct_above_52w_low": 132.16,
+      "sma10": 5.94,
+      "sma20": 5.839,
+      "sma50": 5.443,
+      "vol_20d_avg": 1351805.0,
+      "vol_50d_avg": 1252892.0,
+      "adr_pct_21d": 3.998,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0016",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0016.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 15.28,
+      "pct_of_52w_high": 95.26,
+      "pct_above_52w_low": 65.55,
+      "sma10": 15.286,
+      "sma20": 15.4045,
+      "sma50": 14.6884,
+      "vol_20d_avg": 1882380.0,
+      "vol_50d_avg": 2195596.0,
+      "adr_pct_21d": 2.925,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0017",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0017.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 97.01,
+      "pct_of_52w_high": 88.88,
+      "pct_above_52w_low": 141.8,
+      "sma10": 99.361,
+      "sma20": 100.7785,
+      "sma50": 85.7432,
+      "vol_20d_avg": 2669245.0,
+      "vol_50d_avg": 1978574.0,
+      "adr_pct_21d": 5.67,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0018",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0018.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 14.85,
+      "pct_of_52w_high": 54.36,
+      "pct_above_52w_low": 19.52,
+      "sma10": 15.739,
+      "sma20": 16.278,
+      "sma50": 17.7522,
+      "vol_20d_avg": 2961625.0,
+      "vol_50d_avg": 3698784.0,
+      "adr_pct_21d": 2.938,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0019",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0019.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 4.9,
+      "pct_of_52w_high": 82.49,
+      "pct_above_52w_low": 105.88,
+      "sma10": 5.2,
+      "sma20": 4.8815,
+      "sma50": 4.6384,
+      "vol_20d_avg": 48139940.0,
+      "vol_50d_avg": 38065030.0,
+      "adr_pct_21d": 4.688,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0020",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0020.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.43,
+      "pct_of_52w_high": 61.52,
+      "pct_above_52w_low": 140.59,
+      "sma10": 2.82,
+      "sma20": 2.768,
+      "sma50": 1.936,
+      "vol_20d_avg": 2618275.0,
+      "vol_50d_avg": 1451794.0,
+      "adr_pct_21d": 13.379,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0021",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0021.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 87.76,
+      "pct_of_52w_high": 95.55,
+      "pct_above_52w_low": 61.53,
+      "sma10": 86.337,
+      "sma20": 86.386,
+      "sma50": 83.3166,
+      "vol_20d_avg": 5179150.0,
+      "vol_50d_avg": 6423064.0,
+      "adr_pct_21d": 2.243,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0022",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0022.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 57.61,
+      "pct_of_52w_high": 73.53,
+      "pct_above_52w_low": 234.75,
+      "sma10": 56.224,
+      "sma20": 55.932,
+      "sma50": 58.759,
+      "vol_20d_avg": 83697.8,
+      "vol_50d_avg": 109371.1,
+      "adr_pct_21d": 3.734,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0023",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0023.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 11.475,
+      "pct_of_52w_high": 62.43,
+      "pct_above_52w_low": 114.89,
+      "sma10": 11.8335,
+      "sma20": 12.7357,
+      "sma50": 13.8218,
+      "vol_20d_avg": 699085.0,
+      "vol_50d_avg": 591846.0,
+      "adr_pct_21d": 6.853,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0024",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0024.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 70.63,
+      "pct_of_52w_high": 98.02,
+      "pct_above_52w_low": 107.43,
+      "sma10": 65.19,
+      "sma20": 56.46,
+      "sma50": 49.3517,
+      "vol_20d_avg": 2812405.0,
+      "vol_50d_avg": 2822782.0,
+      "adr_pct_21d": 5.505,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0025",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0025.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 57.49,
+      "pct_of_52w_high": 60.56,
+      "pct_above_52w_low": 11.01,
+      "sma10": 58.804,
+      "sma20": 57.542,
+      "sma50": 58.6788,
+      "vol_20d_avg": 1504465.0,
+      "vol_50d_avg": 1355012.0,
+      "adr_pct_21d": 2.802,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0026",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0026.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 121.71,
+      "pct_of_52w_high": 88.07,
+      "pct_above_52w_low": 42.43,
+      "sma10": 125.317,
+      "sma20": 123.59,
+      "sma50": 116.3736,
+      "vol_20d_avg": 2162505.0,
+      "vol_50d_avg": 2844940.0,
+      "adr_pct_21d": 2.15,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0027",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0027.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 9.54,
+      "pct_of_52w_high": 77.56,
+      "pct_above_52w_low": 445.14,
+      "sma10": 11.256,
+      "sma20": 10.82,
+      "sma50": 9.071,
+      "vol_20d_avg": 176140.0,
+      "vol_50d_avg": 223440.0,
+      "adr_pct_21d": 8.391,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0028",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0028.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 2.37,
+      "pct_of_52w_high": 69.91,
+      "pct_above_52w_low": 157.61,
+      "sma10": 2.167,
+      "sma20": 2.094,
+      "sma50": 1.8076,
+      "vol_20d_avg": 7148865.0,
+      "vol_50d_avg": 7277966.0,
+      "adr_pct_21d": 7.03,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0029",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0029.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 566.19,
+      "pct_of_52w_high": 79.41,
+      "pct_above_52w_low": 27.71,
+      "sma10": 568.73,
+      "sma20": 581.0095,
+      "sma50": 578.3642,
+      "vol_20d_avg": 93315.0,
+      "vol_50d_avg": 107850.0,
+      "adr_pct_21d": 2.52,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0030",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0030.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 21.265,
+      "pct_of_52w_high": 70.95,
+      "pct_above_52w_low": 62.58,
+      "sma10": 20.8505,
+      "sma20": 21.0568,
+      "sma50": 19.3272,
+      "vol_20d_avg": 448194.1,
+      "vol_50d_avg": 561955.6,
+      "adr_pct_21d": 3.722,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0031",
+    "family": "bull_flag",
+    "chart_file": "charts/case_0031.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention)",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.classical.bull_flag",
+        "function": "detect_bull_flag",
+        "repo_commit": "e9330ade6"
+      }
+    },
+    "neutral_context": {
+      "last_close": 149.67,
+      "pct_of_52w_high": 74.65,
+      "pct_above_52w_low": 35.29,
+      "sma10": 156.283,
+      "sma20": 164.133,
+      "sma50": 163.4782,
+      "vol_20d_avg": 2102005.0,
+      "vol_50d_avg": 3227504.0,
+      "adr_pct_21d": 3.004,
+      "n_bars_available": 400
+    }
+  }
+]

@@ -1,0 +1,226 @@
+{
+  "case_0000": {
+    "symbol": "AP",
+    "as_of_t": 20260129,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 73.26,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0001": {
+    "symbol": "FXNC",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 60.34,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0002": {
+    "symbol": "B",
+    "as_of_t": 20251010,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 77.67,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0003": {
+    "symbol": "RELY",
+    "as_of_t": 20260519,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0004": {
+    "symbol": "ATAI",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0005": {
+    "symbol": "CGON",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 75.95,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0006": {
+    "symbol": "TMC",
+    "as_of_t": 20250626,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0007": {
+    "symbol": "RCKY",
+    "as_of_t": 20250626,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0008": {
+    "symbol": "B",
+    "as_of_t": 20260903,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 66.66,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0009": {
+    "symbol": "SHIP",
+    "as_of_t": 20250626,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 71.47,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0010": {
+    "symbol": "SMFG",
+    "as_of_t": 20260519,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0011": {
+    "symbol": "WOR",
+    "as_of_t": 20250625,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0012": {
+    "symbol": "IMOS",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0013": {
+    "symbol": "RCKY",
+    "as_of_t": 20251013,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0014": {
+    "symbol": "ATAI",
+    "as_of_t": 20250626,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 57.43,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0015": {
+    "symbol": "TDAY",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 73.57,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0016": {
+    "symbol": "OI",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0017": {
+    "symbol": "RMBS",
+    "as_of_t": 20251013,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 63.57,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0018": {
+    "symbol": "RELY",
+    "as_of_t": 20251013,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0019": {
+    "symbol": "BTG",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0020": {
+    "symbol": "ZNTL",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 86.62,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0021": {
+    "symbol": "GM",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 72.67,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0022": {
+    "symbol": "IMOS",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 71.05,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0023": {
+    "symbol": "TENX",
+    "as_of_t": 20260519,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0024": {
+    "symbol": "FROG",
+    "as_of_t": 20260519,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 66.85,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0025": {
+    "symbol": "GMED",
+    "as_of_t": 20251013,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0026": {
+    "symbol": "PAYX",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 63.38,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0027": {
+    "symbol": "AP",
+    "as_of_t": 20260518,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0028": {
+    "symbol": "GEVO",
+    "as_of_t": 20251013,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 66.14,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0029": {
+    "symbol": "CVCO",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0030": {
+    "symbol": "FOXF",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 72.67,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  },
+  "case_0031": {
+    "symbol": "ARES",
+    "as_of_t": 20260130,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here'."
+  }
+}
