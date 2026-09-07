@@ -151,6 +151,29 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     </div>
   )
 
+  // ⛔ A FAILED LOAD IS NOT AN EMPTY RESULT. Rendering the table here would show
+  // "No stocks matched this filter" — a confident, wrong answer that reads as a
+  // quiet market. One dropped request (a pod restart mid-deploy will do it) is
+  // enough. Say what happened and offer the retry instead.
+  if (drill?.error) {
+    return (
+      <div className={styles.wrap}>
+        <div className={styles.errorPane} role="alert">
+          <div className={styles.errorTitle}>Couldn&rsquo;t load this list</div>
+          <p className={styles.errorBody}>
+            The request for {drill.label || 'these stocks'} didn&rsquo;t come back.
+            This is a loading problem, not an empty result.
+          </p>
+          {drill.onRetry && (
+            <button type="button" className={styles.retryBtn} onClick={drill.onRetry}>
+              Try again
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.wrap}>
       {/* The grouping controls live INSIDE the widget, not in the modal's bar, so
@@ -203,7 +226,9 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
             scanFooter={scanFooter}
-            scanEmptyText={drill?.items ? 'No stocks matched this filter.' : 'Loading…'}
+            // `loading` is "not answered yet"; a genuinely empty answer is the
+            // only thing allowed to say nothing matched.
+            scanEmptyText={drill?.loading ? 'Loading…' : 'No stocks matched this filter.'}
           />
         </ChartsSymContext.Provider>
       </div>

@@ -20,7 +20,7 @@ const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-up
 // charts workspace machinery — a complete WorkspaceContext (drillWorkspace.js),
 // WidgetHost, Watchlists in scan mode, ChartWidget.
 
-export default function BreadthDrillModal({ drill, latestDate, onClose }) {
+export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose }) {
   const { prefs, setPref } = usePreferences()
   // Same expression ChartsWorkspace uses, deliberately — not a near-equivalent.
   const chartsTheme = prefs?.charts_theme || 'default'
@@ -136,7 +136,13 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
     live: !!drill?.live,
     asOf: drill?.asOf ?? null,
     latestDate: latestDate ?? null,
-  }), [drill, latestDate])
+    // `loading` is items === null (not yet answered); `error` is a request that
+    // FAILED. Neither is an empty result, and the list must not render either
+    // one as "nothing matched".
+    loading: drill?.items == null && !drill?.error,
+    error: drill?.error ?? null,
+    onRetry: onRetry ?? null,
+  }), [drill, latestDate, onRetry])
 
   // Escape closes. Bound on the overlay's own document so a popped-out widget's
   // window cannot swallow it.

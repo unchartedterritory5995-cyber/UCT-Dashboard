@@ -119,6 +119,40 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
   })
 })
 
+describe('BreadthDrillList — a failed load is NOT an empty result', () => {
+  it('⛔⛔ shows a load error, never "no stocks matched"', () => {
+    // openDrill used to `.catch()` into `items: []`, so ONE dropped request — a
+    // pod restart mid-deploy will do it — told the member the market was quiet.
+    // That is a confident wrong answer about the market, from a network blip.
+    mount({ ...LIVE, items: [], error: 'load' })
+    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.getByText(/couldn’t load this list/i)).toBeTruthy()
+    expect(screen.queryByTestId('watchlists-probe')).toBeNull()
+  })
+
+  it('offers a retry that calls back into the page', async () => {
+    const onRetry = vi.fn()
+    const user = userEvent.setup()
+    mount({ ...LIVE, items: [], error: 'load', onRetry })
+    await user.click(screen.getByRole('button', { name: /try again/i }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('NON-VACUITY: a genuinely empty result still renders the table', () => {
+    // If the error branch swallowed the empty case too, "nothing matched" would
+    // become unreachable and this test would be the only thing to notice.
+    mount({ ...LIVE, items: [], error: null })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('watchlists-probe')).toBeTruthy()
+    expect(lastProps.scanEmptyText).toMatch(/no stocks matched/i)
+  })
+
+  it('a list still loading says so, and does not claim nothing matched', () => {
+    mount({ ...LIVE, items: [], loading: true })
+    expect(lastProps.scanEmptyText).toMatch(/loading/i)
+  })
+})
+
 describe('BreadthDrillList — historical vs live quotes', () => {
   it('⭐ a HISTORICAL drill pins its quotes to the snapshot day', () => {
     mount(HISTORICAL)

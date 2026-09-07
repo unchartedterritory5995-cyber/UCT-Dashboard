@@ -690,16 +690,44 @@ export default function Breadth() {
   // Takes the ROW, not a date: only the row knows whether it is the live one,
   // and `drillTarget` needs that to pick between the live endpoint, the dated
   // one, and the session a carried metric came from.
+  // ⛔ A FAILED LOAD IS NOT AN EMPTY RESULT. This used to `.catch()` into
+  // `items: []`, which renders as "No stocks matched this filter" — a confident,
+  // wrong answer. A pod restart mid-request (every deploy) or one dropped
+  // connection told the member the market was quiet. `error` keeps the two
+  // states apart and the list offers a retry instead of a lie.
+  const loadDrill = useCallback((url) => {
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(data => setDrill(prev => (prev && prev.url === url
+        ? { ...prev, items: data.items ?? [], error: null }
+        : prev)))
+      .catch(() => setDrill(prev => (prev && prev.url === url
+        ? { ...prev, items: [], error: 'load' }
+        : prev)))
+  }, [])
+
   const openDrill = useCallback((row, col, live = null) => {
     const target = drillTarget(row, col, live)
     if (!target) return
+    // `url` is kept so a retry re-runs THIS request, and so a response that
+    // arrives after the user has opened a different cell is discarded rather
+    // than painted into the wrong drill.
     setDrill({ date: target.date, label: col.label, live: target.live,
-               asOf: target.live ? live?.asOf ?? null : null, items: null })
-    fetch(target.url)
-      .then(r => r.json())
-      .then(data => setDrill(prev => prev ? { ...prev, items: data.items ?? [] } : null))
-      .catch(() => setDrill(prev => prev ? { ...prev, items: [] } : null))
-  }, [])
+               asOf: target.live ? live?.asOf ?? null : null,
+               url: target.url, items: null, error: null })
+    loadDrill(target.url)
+  }, [loadDrill])
+
+  const retryDrill = useCallback(() => {
+    setDrill(prev => {
+      if (!prev?.url) return prev
+      loadDrill(prev.url)
+      return { ...prev, items: null, error: null }
+    })
+  }, [loadDrill])
 
   const AAII_KEYS = new Set(['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread'])
 
@@ -832,7 +860,7 @@ export default function Breadth() {
         </div>
         {drill && (
           <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)} />
           </Suspense>
         )}
       </div>
@@ -1213,7 +1241,7 @@ export default function Breadth() {
       )}
       {drill && (
           <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)} />
           </Suspense>
         )}
     </div>
