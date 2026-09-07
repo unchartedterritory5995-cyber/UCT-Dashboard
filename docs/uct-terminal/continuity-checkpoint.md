@@ -6,42 +6,57 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-**Seam 1 (read-side half)** merge/deploy — a real WRITE to production
-identity data (`entity_master.db`), not a UI/code-only change like every
-program before it this session. Seam 19 (TickerActions Dedicated Scope +
-Convergence V1, owner-directed, overriding an earlier HOLDING state) was
-the program before it. Full re-anchor report delivered to the owner
-in-conversation earlier; this doc keeps only the load-bearing
-conclusions. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29)
-plus Alert Durability V1 (Seam 30) plus the keyboard accessibility
-program plus Compare Coverage V1 (scoped via an explicit owner check-in,
-price-only) plus Seam 20 (Wire + MyStocksHub Insights row navigation)
-plus Feature-Flag Governance Sweep plus Seam 25 plus Seam 21 plus the
-`CommandPalette.jsx` jsonFetcher fix plus Seam 19 plus **Seam 1
-(read-side half)** are now closed. **Seam 19's dedicated Phase A found
-the real live surface was 3 components, not the 4 files the ledger
-named** — `FeedView.jsx` delegates entirely to `CalendarDayTable.jsx`
-for earnings rows (one wiring point covers both); `WeekView.jsx`'s only
-live row-renderer is `EarningsTile.jsx`. Two dead-code discoveries along
-the way, left untouched (zero member value): `FeedView.jsx`'s
-`PrintTape`/`CompactCluster` and `WeekView.jsx`'s `WeekRow` are all
-defined with zero JSX call-sites. **Seam 1's own dry-run against real
-production data disproved one of its own implementation assumptions
-before the real write ran** — see the Seam 1 debt-ledger entry below;
-the empirical-check design (verify against Massive's live reference API,
-never assume from a suffix pattern) is what caught it. **A re-scan of
-the debt ledger after Seam 19 found the remaining pool has thinned to
-items that each carry a real reason not to pick them up autonomously**:
-Seam 6/7/8/11/14/17-remainder (each explicitly recorded as "not a
-bounded V1" / needs its own Phase A / architecture decision), Seam 13
-(touches `PositionDetailPage.jsx`, which the concurrent, unrelated
+**Seam 17 Remainder (Journal Symbol Input Assist V1)** merge/deploy —
+owner-directed (resolved the design-space question the debt ledger had
+flagged as needing a check-in: build one small shared always-visible
+autocomplete input, not adapt `SymbolSearch.jsx`). Seam 1 (read-side
+half, a real WRITE to production identity data) was the program before
+it; Seam 19 (TickerActions Dedicated Scope + Convergence V1,
+owner-directed, overriding an earlier HOLDING state) before that. Full
+re-anchor report delivered to the owner in-conversation earlier; this
+doc keeps only the load-bearing conclusions. Both re-anchor MUST-FIX
+trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam 30) plus
+the keyboard accessibility program plus Compare Coverage V1 (scoped via
+an explicit owner check-in, price-only) plus Seam 20 (Wire + MyStocksHub
+Insights row navigation) plus Feature-Flag Governance Sweep plus Seam 25
+plus Seam 21 plus the `CommandPalette.jsx` jsonFetcher fix plus Seam 19
+plus Seam 1 (read-side half) plus **Seam 17 Remainder** are now closed.
+**Seam 17 Remainder shipped a NEW shared component**
+(`SecuritySymbolInput.jsx`) rather than adapting `SymbolSearch.jsx` —
+reuses the canonical `/api/ticker-search` contract for live suggestions
+while typing, but NEVER requires resolution to save (free-form entry for
+delisted/renamed/historical/uncovered symbols stays fully permissive, no
+frontend dot/hyphen canonicalization, three distinct non-blocking search
+states). Wired into both `AddPositionModal.jsx`/`AddTradeModal.jsx`;
+existing test files mock it at the boundary (established convention) so
+their own save/validation tests stay isolated; new dedicated tests cover
+the component's own behavior plus real end-to-end integration. **Seam
+19's dedicated Phase A found the real live surface was 3 components, not
+the 4 files the ledger named** — `FeedView.jsx` delegates entirely to
+`CalendarDayTable.jsx` for earnings rows (one wiring point covers both);
+`WeekView.jsx`'s only live row-renderer is `EarningsTile.jsx`. Two
+dead-code discoveries along the way, left untouched (zero member value):
+`FeedView.jsx`'s `PrintTape`/`CompactCluster` and `WeekView.jsx`'s
+`WeekRow` are all defined with zero JSX call-sites. **Seam 1's own
+dry-run against real production data disproved one of its own
+implementation assumptions before the real write ran** — see the Seam 1
+debt-ledger entry below; the empirical-check design (verify against
+Massive's live reference API, never assume from a suffix pattern) is
+what caught it. **A fresh re-scan of the debt ledger after Seam 17
+Remainder found the remaining pool unchanged and still thinned to items
+that each carry a real reason not to pick them up autonomously**:
+Seam 6/7/8/11/14 (each explicitly recorded as "not a bounded V1" / needs
+its own Phase A / architecture decision), Seam 13 (touches
+`PositionDetailPage.jsx`, which the concurrent, unrelated
 Notebook-platform session has been actively iterating on this same
 session — a protected-parallel-program conflict risk, not a technical
 blocker), Seam 18/22/24 (needs a product decision or is gated), Seam
 3/4/27 (explicitly LOW-PRIORITY, "stop escalating"). Awareness
 Reachability Restoration V1 remains deliberately SKIPPED pending a
 genuine owner monetization/entitlement decision (see the top-of-file
-section) -- do not resolve it unilaterally.
+section) -- do not resolve it unilaterally. **HOLDING** — this is a
+re-derivation of the same genuinely-exhausted conclusion reached after
+Seam 1, not a new finding; do not manufacture activity against it.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -708,10 +723,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     check per the authorization's explicit instruction — a delisted, renamed,
     or entirely fictional ticker still saves unchanged (regression-tested).
     **Seam 17's ORIGINAL framing (AddPositionModal.jsx/AddTradeModal.jsx are
-    bare text inputs with no autocomplete/search UI) is NOT closed and was
-    never attempted** — that is a real, separate, larger UI initiative;
-    do not conflate "the spelling-divergence risk is closed" with "Seam 17 is
-    closed."
+    bare text inputs with no autocomplete/search UI) was NOT closed by THIS
+    program** — that was a real, separate, larger UI initiative at the time.
+    **It IS now closed, by Seam 17 Remainder (Journal Symbol Input Assist V1,
+    2026-09-06) — see the Seam 17 debt-ledger entry below (RESOLVED) and the
+    top-of-file summary.**
   - **Priority 2 (Seam 1 — PARTIALLY resolved, honestly bounded).** The
     write-time half of Seam 1 (manual `.strip().upper()` vs broker-sync's
     additional dot-to-hyphen step producing two spellings of one security) is
@@ -1757,6 +1773,82 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   trust defects are closed, and what remains is genuinely external
   dependencies, owner decisions, or work needing its own dedicated Phase
   A before it can even be scoped.
+  **The owner then explicitly resolved Seam 17-remainder's own
+  design-space question** (the directive: build one small shared
+  ALWAYS-VISIBLE symbol autocomplete input, reusing the canonical search
+  contract but never requiring resolution to save — NOT an adaptation of
+  `SymbolSearch.jsx`'s click-to-open shape) → **Seam 17 Remainder
+  (Journal Symbol Input Assist V1) — ACCEPTED + LIVE, merge
+  `3421567c6`/`473e6f42f`**: new component `SecuritySymbolInput.jsx`
+  (`app/src/pages/journal-2-0/components/`) — a controlled text input with
+  a 200ms-debounced `/api/ticker-search` suggestion dropdown, stale-response
+  protection via BOTH an `AbortController` AND a `reqIdRef` sequence guard
+  (mirrors `CommandPalette.jsx`'s own belt-and-suspenders pattern — a
+  fetch mock that ignores `AbortSignal` still can't land a stale result),
+  full keyboard nav (Arrow/Enter/Escape, combobox/listbox ARIA), and three
+  never-collapsed, never-blocking search states (found/no-match/failed —
+  a failed search degrades silently to bare-input capability, matching
+  `SymbolSearch.jsx`'s own catch-branch degradation). No frontend
+  dot/hyphen canonicalization of any kind — whatever the backend search
+  contract returns (or doesn't) is exactly what's shown/used, preserving
+  Identity Normalization V1's deliberate choice not to make active-
+  universe existence a write requirement. Wired into both
+  `AddPositionModal.jsx` and `AddTradeModal.jsx`'s "Symbol *" field
+  (autoFocus/disabled semantics preserved from the bare inputs they
+  replaced). Existing `AddPositionModal.test.jsx`/`AddTradeModal.test.jsx`
+  mock the new component at the boundary (matches the established
+  `TickerActions.jsx` shallow-mock convention) so those files keep testing
+  the modals' own save/validation logic in isolation, unaffected by the
+  new component's real debounced fetch; two new dedicated integration
+  test files (`AddPositionModal.symbolAssist.test.jsx`/
+  `AddTradeModal.symbolAssist.test.jsx`) render the REAL component end to
+  end (typed suggestion → canonical-symbol-on-select → save; free-form
+  unresolved symbol → save unblocked; failed search → save unblocked; a
+  single debounced request per settled query, filtered against the
+  modal's OTHER unrelated mount-time fetches which share the same
+  `global.fetch` mock in these tests). `SecuritySymbolInput.test.jsx`
+  covers the component standalone: debounce coalescing, the stale-response
+  guard (hand-rolled fetch mock that does NOT honor `AbortSignal`, proving
+  correctness doesn't depend on that), all three search states, keyboard
+  nav, click/touch selection, and identity-safety representative inputs
+  (BRK.B/BRK-B/lowercase/ordinary/unknown-delisted-like — confirming
+  selection writes exactly what the search contract returned, free-typed
+  text flows through completely unchanged, and no dot/hyphen rewriting
+  happens anywhere in the component). 18+7+22 tests across the 3 new/2
+  extended files; full `journal-2-0/` regression (182 files/1,714 tests)
+  green; clean production build. **A genuine gotcha found and fixed
+  along the way, not just informational:** `vi.useFakeTimers()` breaks
+  Testing Library's own `asyncUtilTimeout` (itself `setTimeout`-based per
+  `test-setup.js`'s own header comment), hanging every `findBy`/`waitFor`
+  until vitest's outer `testTimeout` instead of resolving — switched to
+  real timers throughout (mirrors `CommandPalette.test.jsx`'s own
+  established convention) rather than fighting fake-timer/async-utility
+  interaction. **Production-verified**: deployed commit SHA matches
+  (`473e6f42fd07ff588d3a2cbf079a8b64b3cf6548`); the compiled
+  `AddPositionModal-*.js` lazy chunk carries the component's distinctive
+  disclosure string ("Not found in current search") and the
+  `/api/ticker-search?q=` fetch call; live `GET /api/ticker-search?q=NVDA`
+  confirmed the backend contract healthy. Per the release sequence's own
+  explicit instruction, no real position/trade was created to "prove"
+  verification — read-only checks only.
+  **A fresh re-scan of the debt ledger after Seam 17 Remainder found the
+  remaining pool UNCHANGED from the post-Seam-1 scan — HOLDING again.**
+  Seam 6/7/8/11/14 still each need their own Phase A or a real
+  architecture/product decision; Seam 13 still risks colliding with the
+  concurrent Notebook session (still actively landing commits this same
+  session — Wave F, Financial Fact/Snapshot Ledger, on `origin/master`
+  during this very program); Seam 18/22/24 still need a product decision
+  or are gated; Seam 3/4/27 remain explicitly LOW-PRIORITY. Pattern
+  Vision interrupt condition re-checked and still does not apply
+  (`PATTERN_VISION_ENABLED=1` live-read, evidence window Mon 9/7/Tue
+  9/8/Wed 9/9 has not started — today is still 2026-09-06). S7 NVDA
+  interrupt condition re-checked and still does not apply (`alert_fires`
+  table: 0 rows). This satisfies the standing directive's own completion
+  standard for a second consecutive re-scan: important workflows are
+  coherent, known material trust defects are closed, and what remains is
+  genuinely external dependencies, owner decisions, or work needing its
+  own dedicated Phase A before it can even be scoped. Do not manufacture
+  activity against a genuinely exhausted ledger.
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -2165,22 +2257,30 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   narrowly-scoped query-side alias match so a literal dot-form query still
   finds the now-single canonical row. See "CURRENT ACCEPTED" above. Kept as
   a record; do not re-open unless a concrete regression is found.
-- **Seam 17 — AddPositionModal.jsx/AddTradeModal.jsx symbol fields are bare,
-  unvalidated text inputs — PARTIALLY addressed by Identity Normalization
-  Hardening V1, merge `9c1bff81f`, 2026-09-06; the ORIGINAL framing below is
-  STILL OPEN and was never attempted.** What closed: the concrete
-  data-integrity failure mode (a manually-entered spelling silently diverging
-  from a broker-synced spelling for the same real security) — see "CURRENT
-  ACCEPTED" above. What did NOT close and remains a real gap: the frontend
-  fields themselves are still bare text inputs with no autocomplete and no
-  existence check against the ticker universe (a mistyped, entirely
-  non-existent symbol is still silently accepted — this was a DELIBERATE
-  non-fix per the authorization, which explicitly forbade a hard
-  existence-check on these fields; AddTrade specifically must keep accepting
-  delisted/renamed historical tickers). Fix shape for the remainder: wire
-  SymbolSearch (or a validated variant, non-blocking on unknown tickers) into
-  these two fields as a genuinely separate UI initiative — do not conflate
-  with the spelling-safety fix that already shipped.
+- **Seam 17 — RESOLVED 2026-09-06, merge `3421567c6`/`473e6f42f`
+  (Seam 17 Remainder, Journal Symbol Input Assist V1).** Was:
+  AddPositionModal.jsx/AddTradeModal.jsx symbol fields were bare,
+  unvalidated text inputs — PARTIALLY addressed earlier by Identity
+  Normalization Hardening V1 (merge `9c1bff81f`), which closed the
+  concrete data-integrity failure mode (a manually-entered spelling
+  silently diverging from a broker-synced spelling for the same real
+  security — see "CURRENT ACCEPTED" above) but explicitly left the
+  frontend fields themselves as bare text inputs with no autocomplete,
+  by design (that program's authorization forbade touching the UI shape).
+  **Now closed**: a new shared component `SecuritySymbolInput.jsx`
+  (`app/src/pages/journal-2-0/components/`) wired into both fields —
+  live `/api/ticker-search` suggestions while typing, canonical symbol
+  written on selection, but resolution is NEVER required to save.
+  **Deliberately still no hard existence check** — this is ASSISTIVE
+  identity UX, not validation, per the owner's own explicit directive:
+  a delisted, renamed, or entirely non-existent symbol is still silently
+  accepted on save (AddTrade specifically must keep accepting
+  delisted/renamed historical tickers; Identity Normalization V1's own
+  deliberate choice not to make active-universe existence a write
+  requirement is preserved, not revisited). Full implementation detail
+  (component design, stale-response guard, test coverage, production
+  verification) is in the "CURRENT ACTIVE PROGRAM" section above — do not
+  re-open unless a concrete regression is found.
 - **`CommandPalette.jsx`'s missing `r.ok` check — RESOLVED 2026-09-06,
   merge `dba97b6f7`/`2f0107dc0`.** Was: `fetch('/api/ticker-search?...').
   then(r => r.json())` never checked `r.ok`, so a non-2xx error body
@@ -2491,9 +2591,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `897e53cc5`), Shared Multi-Security Grounding Architecture V1 (merge
    `271f79664`/`4c8b24c74`), Journal ↔ Research Return-Context + Notes
    Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`), Awareness
-   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`), and
+   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`),
    Ticker Search Identity Convergence V1 / Seam 16 (merge
-   `8ebb6f076`/`910eca619`) are all ACCEPTED + LIVE as of this checkpoint —
+   `8ebb6f076`/`910eca619`), Seam 19 (merge `7a0dd2a78`/`66f6e34f2`),
+   Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`), and
+   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`) are all
+   ACCEPTED + LIVE as of this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
