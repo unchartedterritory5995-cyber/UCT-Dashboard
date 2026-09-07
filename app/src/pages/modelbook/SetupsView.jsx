@@ -1,9 +1,10 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import useTickerMeta from '../../hooks/useTickerMeta'
+import useTickerSuggest from '../../hooks/useTickerSuggest'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { useAuth } from '../../context/AuthContext'
 import { GRADES } from '../../constants/setupGroups'
@@ -339,46 +340,84 @@ function PlaybookModal({ setup, onClose }) {
 // ── Charted examples (right pane) ──────────────────────────────────────────────
 // Predictive ticker input backed by /api/ticker-search (same source as the
 // Charts hub autocomplete). Picking a result also auto-fills the company name.
-function TickerSearchInput({ value, onChange, onPick }) {
+//
+// Seam 14 (Ticker Search Surface Convergence, 2026-09-06): rebuilt on the
+// shared useTickerSuggest hook (previously an inline fetch/debounce copy,
+// byte-identical to shared/ChartExampleKit.jsx's own TickerSearchInput --
+// fixed there too, same shape). Fixes two real, confirmed gaps this form
+// field had: zero keyboard navigation and zero stale-response protection.
+// Own CSS module kept (not a shared visual component) -- only the search
+// DATA/behavior converges, per this session's own established principle
+// (Journal Symbol Input Assist V1) that different interaction models can
+// reuse the same search contract without reusing the same visible component.
+export function TickerSearchInput({ value, onChange, onPick }) {
   const [open, setOpen] = useState(false)
-  const [results, setResults] = useState([])
-  const timer = useRef(null)
-  function handleChange(e) {
-    const v = e.target.value.toUpperCase()
-    onChange(v)
-    clearTimeout(timer.current)
-    if (!v.trim()) { setResults([]); setOpen(false); return }
-    timer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(v.trim())}&limit=8`, { credentials: 'include' })
-        const j = await r.json()
-        setResults(j?.results || [])
-        setOpen(true)
-      } catch { setResults([]) }
-    }, 150)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const listboxId = useId()
+  const { results } = useTickerSuggest(value, { enabled: open })
+
+  const pick = (r) => {
+    onPick(r)
+    setOpen(false)
+    setActiveIdx(-1)
   }
-  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const handleKeyDown = (e) => {
+    if (!open || !results.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      if (activeIdx >= 0 && results[activeIdx]) {
+        e.preventDefault()
+        pick(results[activeIdx])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      setOpen(false)
+      setActiveIdx(-1)
+    }
+  }
+
+  const showDrop = open && results.length > 0
   return (
     <div className={styles.tickerSearch}>
       <input
-        className={styles.exInput} value={value} placeholder="Ticker" required
-        onChange={handleChange}
-        onFocus={() => results.length > 0 && setOpen(true)}
+        className={styles.exInput}
+        value={value}
+        placeholder="Ticker"
+        required
+        role="combobox"
+        aria-expanded={showDrop}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={showDrop && activeIdx >= 0 ? `${listboxId}-opt-${activeIdx}` : undefined}
+        onChange={(e) => { onChange(e.target.value.toUpperCase()); setOpen(true); setActiveIdx(-1) }}
+        onFocus={() => { if (value?.trim()) setOpen(true) }}
+        onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-      {open && results.length > 0 && (
-        <div className={styles.tickerDrop}>
-          {results.map(r => (
-            <button
-              key={r.ticker} type="button" className={styles.tickerRow}
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => { onPick(r); setOpen(false) }}
-            >
-              <span className={styles.tickerSym}>{r.ticker}</span>
-              {r.name && <span className={styles.tickerName}>{r.name}</span>}
-            </button>
+      {showDrop && (
+        <ul id={listboxId} role="listbox" className={styles.tickerDrop}>
+          {results.map((r, i) => (
+            <li key={r.ticker} id={`${listboxId}-opt-${i}`} role="option" aria-selected={i === activeIdx}>
+              <button
+                type="button"
+                className={`${styles.tickerRow} ${i === activeIdx ? styles.tickerRowActive : ''}`}
+                onMouseEnter={() => setActiveIdx(i)}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => pick(r)}
+              >
+                <span className={styles.tickerSym}>{r.ticker}</span>
+                {r.name && <span className={styles.tickerName}>{r.name}</span>}
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

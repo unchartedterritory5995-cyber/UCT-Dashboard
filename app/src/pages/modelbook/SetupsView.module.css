@@ -1232,6 +1232,9 @@
   border-radius: var(--radius-lg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
   overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 .tickerRow {
   display: flex;
@@ -1244,7 +1247,7 @@
   padding: 7px 10px;
   cursor: pointer;
 }
-.tickerRow:hover { background: var(--ut-gold-dim); }
+.tickerRow:hover, .tickerRowActive { background: var(--ut-gold-dim); }
 .tickerSym { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--ut-gold); }
 .tickerName {
   font-family: var(--font-sans);
