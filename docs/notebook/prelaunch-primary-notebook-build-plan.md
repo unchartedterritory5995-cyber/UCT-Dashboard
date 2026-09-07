@@ -4130,3 +4130,366 @@ fixed:**
   Research Home's empty state).
 - No document TYPE labeling (Filing/Presentation/Report/Other) — correctly
   out of scope per the entry checkpoint (§110-122 decision), not a gap.
+
+---
+
+## WAVE J — DOCUMENT INTELLIGENCE II: PAGE-AWARE EVIDENCE + EXCERPTS + HIGHLIGHTS + ANNOTATIONS + OCR FALLBACK — Entry Checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of this checkpoint's research, reconstruction, or the
+implementation that follows it. Disk checked before starting (~139GB free —
+healthy; no cleanup needed this wave).
+
+**Product framing, taken as given, not re-litigated:** the job is not "add
+OCR" — it is "turn financial source documents into durable, citable research
+evidence." OCR is a fallback ingestion path for documents that lack native
+text, not the organizing idea. Every decision below is judged against the
+directive's own north star: find the passage → preserve it → know where it
+came from → explain why it matters → connect it to a thesis → classify
+supports/opposes → return to the exact source later.
+
+### Current-reality reconstruction (directive §8)
+
+- **`j2_note_documents`/`j2_note_document_pages`/FTS** (Wave I): a document
+  row keyed `(note_id, attachment_url)` since attachments carry no id of
+  their own; pages keyed `(document_id, page_number)`; a standalone FTS5
+  mirror with its own rowid-map table (the SAME pattern `j2_notes_fts` uses
+  for its own TEXT-primary-key table, confirmed by direct comparison this
+  session). `text_origin` already accepts `'native'`/`'ocr'` — built for
+  this wave, unused until now.
+- **`DocumentPreviewSheet.jsx`** (Wave I): a plain `<iframe src={pdfUrl}>`
+  inside the existing `Sheet` `fullscreen` variant. **Live-verified this
+  session, not assumed:** clicked into a real preview, then ran
+  `frame.contentDocument.body.innerText.length` — same-origin access
+  succeeds, but the body reports **zero characters** of text. Chrome's
+  built-in PDF viewer renders pages as an opaque internal surface, not a
+  real DOM text layer — `window.getSelection()` inside that iframe returns
+  nothing usable. This is not a theoretical constraint; it is the measured,
+  reproduced reason a native-viewer excerpt-capture feature cannot be built
+  without changing the viewer.
+- **Wave G thesis evidence** (`j2_thesis_evidence` + `thesis_evidence.py`):
+  `target_type` is an **open string**, already `'note' | 'fact'`, validated
+  against a `TARGET_TYPES` tuple in one file. Adding `'document_excerpt'` is
+  a one-line tuple change plus one new branch in `_target_exists` — the
+  exact extension point the Wave G checkpoint's own comment (`'note' |
+  'fact' (open string — checkpoint 17)`) was written to invite. `caption` on
+  the evidence edge already exists and is DISTINCT in scope from anything an
+  excerpt itself would carry (resolves checkpoint item 75 by precedent: Wave
+  F's own `fact_observations.caption` — "why I captured this" — already
+  coexists with `thesis_evidence.caption` — "why this supports/opposes THIS
+  thesis" — as two different fields on two different tables; excerpts follow
+  the identical shape).
+- **`ThesisSection.jsx`**: evidence rows render a `note` target as a
+  navigable link (via `notePath`) and a `fact` target as a plain label — no
+  existence-resolution step for either (a `fact` whose row was deleted still
+  renders its stale caption with no "no longer available" state — a latent,
+  pre-existing gap this wave does not need to fix for facts, but must not
+  repeat for excerpts, per the directive's own §57 instruction).
+- **Wave D links / Wave F facts node convention**
+  (`noteLinkNode.jsx`/`financialFactNode.jsx`): both are atom nodes storing
+  **only an id**, resolved live via a batched-per-note SWR hook
+  (`useNoteFacts`) and rendered by a `NodeViewWrapper` card component
+  (`FinancialFactView.jsx`) with an explicit "no longer available" fallback
+  state. This is the exact shape to reuse for a `documentExcerpt` node — the
+  captured text lives in its own durable row (immutability, checkpoint
+  §14), the node just references it by id (checkpoint §11 resolved:
+  smallest robust model = id-only node + a durable table holding the actual
+  capture).
+- **`notes.py::extract_plain_text`**: `financialFact`/`noteLink` nodes are
+  silent in note-body search (their durable text lives in a separate table,
+  searchable through its own mechanism) — `attachmentChip` contributes a
+  short bracketed marker (`[file: name]`). `documentExcerpt` follows the
+  `attachmentChip` shape for a short inline marker, with its real search
+  surface built the same way Wave I built document-page search (its own
+  FTS index), not by inflating note-body search.
+- **`account_purge.py::_DIRECT_USER_TABLES`**: flat list of every `j2_*`
+  table with a direct `user_id` column, one DELETE per table, no ordering
+  dependency — `j2_note_excerpts` (+ its FTS/map tables, handled the same
+  way `j2_note_document_pages_fts`'s own map table already is) slots in
+  exactly the same way.
+- **`notes_export.py::_resolve_thesis_evidence_by_note`**: already resolves
+  `note`/`fact` targets to human-readable labels at export time via two
+  small batch queries — the exact function `document_excerpt` extends with
+  a third batch query (document name + page number).
+- **Existing text/highlight primitives elsewhere in UCT**: Wave B's
+  find-in-note uses ephemeral ProseMirror decorations for match highlighting
+  (never persisted into saved content) — a real precedent for
+  "highlight = a rendering decoration over stable text," but it operates on
+  the NOTE's own ProseMirror doc, not a PDF's rendered pages, so it is not
+  directly reusable machinery — only a validated pattern (decorations, not
+  DOM mutation, for temporary/derived visual emphasis).
+- **Screenshot/image attachment handling**: images already upload via
+  `uploadInlineImage`/`ALLOWED_IMAGE_MIMES` (Wave I widened this further).
+  No OCR runs on them today.
+- **Existing OCR/vision infrastructure**: **none dedicated to OCR**, but a
+  real, production precedent for sending an image to an external vision-
+  capable model exists (`api/services/voice_chart_vision.py`, GPT-4o,
+  chart-pattern reading, already shipped and running). This is relevant to
+  checkpoint items 21/22/35/36 below — extending an ALREADY-approved
+  image-to-external-vision-model data flow to text extraction is not a
+  novel privacy decision in kind, though a member's uploaded financial
+  document is plausibly more sensitive than a chart screenshot, and that
+  distinction is not waved away below.
+- **`@tanstack/react-virtual`**: already an `app/package.json` dependency,
+  currently unused anywhere in the codebase (per CLAUDE.md's own "Known
+  remaining" note) — directly reusable for page virtualization (checkpoint
+  item 64) with zero new dependency.
+- **No `pdfjs-dist`/`react-pdf`/any PDF-rendering library currently
+  installed.**
+
+### PDF viewer architecture decision (checkpoint items 1-2, directive §9-10) — the load-bearing decision this whole wave rests on
+
+**Resolved with live evidence, not assumption: the native iframe viewer
+cannot support text selection at all** (measured above — zero characters of
+text in the accessible DOM). Excerpt/highlight/annotation capture is
+therefore structurally impossible without a real text-layer renderer.
+**`pdfjs-dist` (Mozilla's own PDF.js) is required** — not for elegance, but
+because it is the only path to a genuine, selectable text layer this
+codebase can reasonably ship. Decision: add `pdfjs-dist` as a normal npm
+dependency; render each page as a canvas (visual layer) with an absolutely-
+positioned, invisible, real-text `<span>`-per-glyph text layer on top
+(PDF.js's own standard `TextLayerBuilder` recipe) so native `Selection`/
+`Range` APIs work exactly as they do over any other web text. **Migration
+safety (directive §10):** the EXISTING `DocumentPreviewSheet` (iframe) is
+preserved as the fallback/simple path and is NOT deleted — a new
+`PdfDocumentViewer.jsx` component (canvas + text layer + selection popover)
+replaces the `<iframe>` INSIDE the same `Sheet` `fullscreen` wrapper, same
+`Open in new tab`/`Download` actions, same `#page=N` deep-link contract
+(now handled by PDF.js's own page-scroll API instead of the browser's PDF
+fragment convention — functionally equivalent, verified live). Fullscreen
+Sheet behavior, mobile/tablet usability, and authorization are all
+UNCHANGED (the viewer still fetches the exact same authenticated
+attachment URL — no new auth surface).
+
+### Excerpt / highlight / annotation data model (checkpoint items 3-16, directive §11-16, §71-74)
+
+**One underlying object serves both excerpt and highlight** (checkpoint
+item 15 resolved: a highlight IS an excerpt — "durable selected source
+text" and "visual marker inside the document" are two facets of the same
+row, not two storage systems). New table:
+
+```
+j2_note_excerpts (
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL,
+  note_id        TEXT NOT NULL,       -- destination note (mirrors j2_fact_observations' own note-owned shape)
+  document_id    TEXT NOT NULL,       -- FK -> j2_note_documents.id
+  page_number    INTEGER NOT NULL,
+  captured_text  TEXT NOT NULL,       -- immutable, exactly what was selected (checkpoint §14)
+  quote_prefix   TEXT,                -- short surrounding context, robust re-anchoring (checkpoint §13/§71)
+  quote_suffix   TEXT,
+  char_start     INTEGER,             -- supplementary best-effort offsets (checkpoint §13, never load-bearing alone)
+  char_end       INTEGER,
+  annotation     TEXT,                -- user's SOURCE annotation ("why this matters") -- distinct from evidence.caption
+  created_at     TEXT NOT NULL,
+  modified_at    TEXT                 -- stamped only when annotation is edited (checkpoint §74)
+)
+```
+
+- **Excerpt identity (checkpoint §11):** the smallest robust model is
+  id + user_id + document_id + page_number + captured_text + quote context —
+  NOT text alone (checkpoint's own explicit warning), and not pixel
+  rectangles alone. `char_start`/`char_end` ride along as a fast-path
+  re-anchor hint; `quote_prefix`/`quote_suffix` are the ROBUST fallback
+  (checkpoint §71: a text-quote-with-context selector survives whitespace/
+  hyphenation drift that raw offsets do not) — this is deliberately the
+  well-known "Text Quote Selector" shape (W3C Web Annotation Data Model's
+  own approach to the identical problem), not invented from scratch.
+- **Page is the citation unit (checkpoint §12):** every member-facing
+  surface renders `{Document Title} · p.{N}` — never an internal id/offset.
+  Internal anchors stay internal.
+- **Source-text immutability (checkpoint §14):** `captured_text` is written
+  once at creation and never rewritten by a future re-extraction pass —
+  Wave I's own `extraction_version` bump mechanism can regenerate
+  `j2_note_document_pages`, but an existing excerpt's `captured_text` is
+  independent of that table from the moment it's captured. Trust over
+  reconstruction, exactly as the directive instructs.
+- **Two-caption precedent confirmed (checkpoint §16/§75):** `annotation`
+  (on the excerpt) = "why THIS passage matters," portable across every
+  thesis that later cites it; `j2_thesis_evidence.caption` (unchanged,
+  already exists) = "why THIS excerpt supports/opposes THIS particular
+  thesis" — can differ per thesis for the SAME excerpt (checkpoint §73,
+  directly enabled by keeping them on separate rows/tables).
+- **Excerpt ownership/ note_id (checkpoint §56):** mirrors
+  `j2_fact_observations` exactly — `note_id` is the destination chosen at
+  save time (defaults to the note the document was opened from, per
+  checkpoint §21's fast path), not necessarily the document's own owning
+  note. An excerpt is referenceable by any of the user's theses via
+  `j2_thesis_evidence`, regardless of which note captured it — same
+  cross-note-reference shape Wave G's own fact-evidence already has today
+  (verified: `_target_exists('fact', ...)` checks only user ownership, not
+  note co-location).
+- **Lifecycle (checkpoint §57):** cascade-delete `j2_note_excerpts` when the
+  owning `j2_note_documents` row is deleted — a 4th level added to Wave I's
+  existing note→document→pages→FTS trigger chain. This is a deliberate
+  choice, not a default: if the source document is genuinely gone, a
+  citation claiming it still exists would be dishonest (directive's own
+  §57 instruction). Any note/thesis-evidence row still referencing a
+  deleted excerpt id degrades via the SAME "no longer available" pattern
+  `FinancialFactView` already established for a deleted fact — not a new
+  UX idiom.
+- **Excerpt-node insertion (checkpoint §10/§24):** a new `documentExcerpt`
+  TipTap atom node, id-only (`excerptId`), resolved live via a new batched
+  `useNoteExcerpts(noteId)` hook (mirrors `useNoteFacts` exactly) and
+  rendered by `ExcerptView.jsx` (mirrors `FinancialFactView.jsx`'s card
+  shape: quote text, source citation line, annotation, remove button, and
+  an explicit "This excerpt's source is no longer available" fallback).
+
+### Note insertion UX / fast paths (checkpoint items 20-22, directive §20-26)
+
+**Low-friction flow, no 6-field form:** select text in the PDF viewer →
+a small selection popover appears (`Save excerpt`) → a lightweight inline
+form asks only for: destination (defaults to **current note** if the
+document was opened from one — checkpoint §21 — or the current
+ticker-context research note if opened from the Ticker Workspace —
+checkpoint §22, reusing Wave H's EXISTING dynamic membership, no new hidden
+system) + optional stance (Supports/Opposes/none, only shown when a thesis
+destination is selected) + optional annotation. Vocabulary stays
+"Save excerpt" / "Add as evidence" — never invented jargon (checkpoint
+§23). Visual design: quieter than authored thesis prose, distinct from
+`financialFact`/`noteLink` chips via typography/citation-line hierarchy,
+not a bright color badge (checkpoint §25). Quote-length: no hard cap, but a
+soft warning past ~2 paragraphs discourages whole-page copying (checkpoint
+§26/§63 — the document remains authoritative source, not a copy-paste
+target).
+
+### Thesis evidence integration (checkpoint items 17-19, directive §17-19)
+
+`document_excerpt` becomes a first-class `target_type` in
+`j2_thesis_evidence` (one tuple entry + one `_target_exists` branch, per
+the reconstruction above). `ThesisSection.jsx`'s existing 2-way picker
+(Note / Captured fact) gains a third option (Document Excerpt), sourced
+from `useNoteExcerpts` the same way the fact picker already sources
+`useNoteFacts` — no new "universal asset manager" (checkpoint §19
+explicitly warns against one). Evidence rows for an excerpt target render
+the citation line (`{Document} · p.{N}`) + a truncated quote, clicking
+opens `DocumentPreviewSheet` at the exact page with the passage scrolled
+into view and briefly emphasized (checkpoint §28/§29 — the single highest-
+value exit gate named in the directive). Whole-document evidence
+(`target_type='document'` pointing at a `j2_note_documents.id`) is
+deliberately NOT added this wave — checkpoint §18 prefers precise excerpt
+evidence, and nothing in this wave's real E2E workflow needs the coarser
+form; it can be added later with zero migration cost if real demand
+appears.
+
+### OCR (checkpoint items 21-28, 33-44, directive §33-44) — SCOPED, EXPLICITLY DEFERRED
+
+This is the one deliberate, recorded scope decision this checkpoint makes
+against the directive's own title. Reasoning: OCR requires its own genuine
+engine/cost/privacy decision (checkpoint items 21-23) that deserves the
+SAME deliberate treatment every other irreversible-feeling decision in this
+program has received — not a rushed add-on at the tail of an already-large
+PDF.js viewer migration. Concretely:
+- **Engine candidates identified, not yet chosen**: the existing
+  `voice_chart_vision.py` precedent (GPT-4o vision, already production-
+  approved for chart screenshots) is the lowest-new-surface-area option;
+  local OCR (e.g. Tesseract) avoids any external transmission but adds a
+  new system dependency and materially weaker accuracy on financial
+  tables/dense text; a dedicated cloud OCR API is a third option not yet
+  evaluated. None is selected this session.
+- **Privacy (checkpoint §36) is NOT resolved**: a scanned 10-K or investor
+  deck is plausibly more sensitive than a chart screenshot, and "we already
+  send images to GPT-4o for charts" is not, by itself, sufficient
+  authorization to send a member's private financial document to the same
+  or a different external provider without an explicit decision to that
+  effect. This checkpoint declines to make that call as a side-effect of
+  building excerpts.
+- **What this wave DOES ship in OCR's favor, at zero extra cost**: the
+  entire excerpt/highlight/annotation/citation/thesis-evidence architecture
+  above is built so that an OCR-sourced page (`text_origin='ocr'`) would
+  slot into `j2_note_document_pages` identically to a native one — the SAME
+  page model, the SAME FTS index, the SAME excerpt/citation system
+  (checkpoint §33's own explicit requirement: no parallel OCR silo). A
+  future OCR pass needs zero schema change and zero excerpt-model rework —
+  only a new extraction path writing into existing tables. This is
+  precisely the same "prepare, don't build" discipline Wave I applied to
+  `text_origin` itself.
+- **Zero-text/scanned-PDF UX (checkpoint §27/§38)**: Wave I's existing
+  honest `no_text` status is UNCHANGED and remains the correct, honest
+  answer for a scanned PDF this wave — no OCR runs automatically, no
+  document is silently left half-searchable while pretending otherwise.
+- Recorded as explicit residual debt in the final certification, not
+  hidden.
+
+### Search integration (checkpoint items 29-32, 45-49, directive §45-49)
+
+- **Ticker-constrained document search (checkpoint §30/§46)**: reuses Wave
+  H's `_documents_for_symbols` membership predicate directly — inside the
+  NVDA Research workspace, document/excerpt search scopes to NVDA-linked
+  documents only. No second search engine.
+- **Excerpt search (checkpoint §31/§47)**: a small new FTS index
+  (`j2_note_excerpts_fts` + a rowid-map table, the SAME pattern
+  `j2_notes_fts_map`/`j2_note_document_pages_fts_map` already establish for
+  a TEXT-primary-keyed source table) over `captured_text` + `annotation`.
+  Sidebar search gains a THIRD section ("Evidence") alongside the existing
+  "Notes" and "Documents" sections (checkpoint §48 — no ambiguous result
+  rows; every row states its type + page).
+- **Wave I's existing document search is UNCHANGED** — filename search,
+  page-aware snippets, sectioned results, owning-note navigation all
+  continue exactly as shipped (checkpoint §78 non-regression requirement).
+- **Document type / SEC filing workflow (checkpoint §41/§42/§49-50)**: both
+  remain explicitly out of scope this wave, unchanged from Wave I's own
+  decision — no current stable rights-cleared filing-source integration to
+  bridge from, and document-type labeling has no consumer yet that would
+  use it.
+
+### Lifecycle, security, rights (checkpoint items 56-63, directive §56-63, §104-108)
+
+- **Trash/restore/purge**: `j2_note_excerpts` added to
+  `account_purge.py::_DIRECT_USER_TABLES`; cascade-delete via the note→
+  document→pages chain already covers the excerpt's ultimate dependency;
+  trashing/restoring the OWNING NOTE behaves exactly like every other
+  note-scoped sidecar table already does (excluded while trashed, usable
+  again on restore — no new mechanism needed, verified against the
+  existing pattern rather than re-derived).
+- **Security (checkpoint §37/§104-107)**: every new endpoint re-verifies
+  `user_id` ownership of BOTH the excerpt and any referenced document/note,
+  mirroring `thesis_evidence.py`'s existing two-sided re-verification
+  discipline exactly (never trust a client-supplied id as authorization).
+  `text_origin` is server-computed only — never accepted from a client
+  payload (checkpoint §105).
+- **Rights (checkpoint §62-63)**: manually-uploaded documents remain
+  private user content under existing platform terms (Wave I's own
+  unchanged rights classification) — excerpt capture doesn't change that
+  boundary. No encouragement of wholesale document copying (the soft
+  quote-length warning above).
+- **Export (checkpoint §60-61)**: `notes_export.py` extended — single-note
+  and full-library export both render excerpts with their citation line and
+  annotation in the existing portable markdown convention (mirroring the
+  existing evidence-export block's own plain-text shape, not a new format
+  invented for this).
+
+### Mobile / tablet / accessibility (checkpoint items 33-36, directive §83-86)
+
+Text selection over a REAL DOM text layer (PDF.js) works via the browser's
+native long-press-to-select on touch devices — genuinely better than the
+native iframe's zero-selection baseline, not merely "acceptable." This will
+be live-verified at phone and tablet widths as part of this wave's own E2E
+pass, not assumed from the desktop result.
+
+### If a MATERIAL contradiction remains
+
+None found. The viewer-selection constraint (the one item explicitly
+flagged as potentially blocking) is real, measured, and resolved by the
+PDF.js decision above — not a contradiction, a confirmed requirement.
+Proceeding directly to implementation.
+
+### Recommended vertical slices (directive §117, resequenced from current architecture)
+
+1. **PDF.js viewer + real text selection** — the technical foundation
+   everything else depends on; ships first.
+2. **Excerpt/highlight/annotation data model** — `j2_note_excerpts` +
+   lifecycle + the `documentExcerpt` node + `ExcerptView`.
+3. **Note insertion + source navigation** — save-excerpt flow, click-to-
+   source with page + passage emphasis.
+4. **Thesis evidence integration** — `document_excerpt` target type,
+   evidence picker's third option, changelog event, export.
+5. **Search integration** — excerpt FTS + sectioned sidebar results,
+   ticker-constrained document/excerpt search.
+6. **Lifecycle + security + export** — account-purge, tenant
+   re-verification, portable citation export.
+7. **Mobile/tablet + full test matrix + real-browser E2E.**
+8. **Closure + production merge/deploy + certification report.**
+
+**OCR fallback is explicitly OUT of this wave's delivered scope** (see
+above) — recorded as residual debt, not silently dropped.
