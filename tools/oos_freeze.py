@@ -42,7 +42,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STAGING = ROOT / "tests" / "fixtures" / "pine_oos_staging"
 FROZEN = ROOT / "tests" / "fixtures" / "pine_oos"
-LOCAL_ONLY = ROOT / "tests" / "fixtures" / "pine_oos_local"
 TIERS = ["high_engagement", "mid_engagement", "long_tail"]
 QUOTA = {"high_engagement": 20, "mid_engagement": 20, "long_tail": 20}
 NEAR_DUP = 0.85
@@ -346,14 +345,39 @@ def main():
         return 0
 
     # ── apply ────────────────────────────────────────────────────────────────
+    #
+    # ⭐ ONE DIRECTORY TO MEASURE, A LICENCE SPLIT INSIDE IT.
+    #
+    # An earlier draft wrote the redistributable scripts to one directory and the
+    # rest to another, which satisfies the copyright rule and quietly breaks the
+    # measurement: the Layer A harness reads ONE corpus directory, so half the
+    # frozen corpus would silently not be measured -- and a corpus that measures
+    # 24 of 60 while reporting rates over 60 is precisely the accounting defect
+    # this program keeps finding.
+    #
+    # So every frozen script lands in ONE directory and a `.gitignore` inside it
+    # excludes the non-redistributable ones from git BY NAME. Measurement sees all
+    # 60; git carries only what its licence contemplates; and MANIFEST.json (which
+    # IS committed) records the URL plus both hashes for all 60, so anyone can
+    # re-fetch the withheld ones and verify they got the identical bytes.
     FROZEN.mkdir(parents=True, exist_ok=True)
-    LOCAL_ONLY.mkdir(parents=True, exist_ok=True)
+    withheld = []
     for c, e in zip(selected, entries):
-        dest_dir = FROZEN if e["storage"] == "git" else LOCAL_ONLY
         stem = f"{c['tier']}__{c['file']}"
-        shutil.copy2(c["path"], dest_dir / stem)
-        (dest_dir / stem).with_suffix(".json").write_text(
+        shutil.copy2(c["path"], FROZEN / stem)
+        (FROZEN / stem).with_suffix(".json").write_text(
             json.dumps(e, indent=2), encoding="utf-8")
+        if e["storage"] != "git":
+            withheld.append(stem)
+    _header = (
+        "# Scripts whose recorded licence does not contemplate redistribution.",
+        "# They are frozen, measured and hashed like every other corpus member --",
+        "# MANIFEST.json carries each one's source URL and SHA-256 -- but their",
+        "# text is held locally only and never committed.",
+        "# Re-fetch from the manifest URL and verify against sha256_source.",
+    )
+    (FROZEN / ".gitignore").write_text(
+        chr(10).join(list(_header) + sorted(withheld)) + chr(10), encoding="utf-8")
     manifest = {
         "freeze_id": freeze_id,
         "frozen_at": datetime.datetime.now().astimezone().isoformat(),
@@ -367,7 +391,8 @@ def main():
     (FROZEN / "MANIFEST.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (STAGING / "_freeze_log.txt").write_text("\n".join(log), encoding="utf-8")
     say(f"\nWrote {FROZEN / 'MANIFEST.json'}")
-    say(f"Frozen (git): {FROZEN}   Frozen (local-only): {LOCAL_ONLY}")
+    say(f"Frozen corpus: {FROZEN}  ({len(entries)} scripts, all measurable)")
+    say(f"Withheld from git by licence: {len(withheld)} (named in {FROZEN / '.gitignore'})")
     return 0
 
 
