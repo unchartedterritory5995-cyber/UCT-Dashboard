@@ -1077,7 +1077,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const prices = useMemo(() => {
     void readoutTick   // recompute when a fresh readout arrives
     const idxKeys = idxQuotes ? Object.keys(idxQuotes) : []
-    if (!hasFreshReadouts() && idxKeys.length === 0) return feedPrices
+    // ⛔ THE OVERRIDE MUST BE PART OF THIS BAIL-OUT CONDITION. This fast path
+    // exists so an ordinary watchlist does no work when nothing augments the
+    // feed — but a pinned quote IS something augmenting the feed. Omitting it
+    // here made `quoteOverride` dead code on the ONLY path that normally runs
+    // (no chart readouts, no index rows), and the breadth drill shipped with
+    // Price, Vol and % Chg blank on every row. Caught in the browser, not by a
+    // test: every fixture that exercised the merge happened to have readouts.
+    const hasOverride = !!quoteOverride && Object.keys(quoteOverride).length > 0
+    if (!hasFreshReadouts() && idxKeys.length === 0 && !hasOverride) return feedPrices
     const merged = { ...feedPrices }
     if (hasFreshReadouts()) {
       for (const sym of Object.keys(merged)) {
