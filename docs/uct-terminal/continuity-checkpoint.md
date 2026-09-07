@@ -5,18 +5,19 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state, post Alert
-Durability V1 (Seam 30) merge/deploy -- the fourth item down the priority
-stack from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR
-(13-lens multi-agent current-state review + synthesis, ~3.9M subagent
-tokens, 699 tool calls, zero lens failures). Full re-anchor report
-delivered to the owner in-conversation; this doc keeps only the load-
-bearing conclusions, not the full 30-section report. Both re-anchor
-MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 are now
-closed. Watchlists/PositionsTable Keyboard Accessibility V1 is next;
-Awareness Reachability Restoration V1 remains deliberately SKIPPED pending
-a genuine owner monetization/entitlement decision (see the top-of-file
-section) -- do not resolve it unilaterally.
+**Last verified:** 2026-09-06, against live git + Railway state, post
+Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 merge/
+deploy -- the fifth item down the priority stack from the same-day owner-
+authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent current-
+state review + synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens
+failures). Full re-anchor report delivered to the owner in-conversation;
+this doc keeps only the load-bearing conclusions, not the full 30-section
+report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
+Alert Durability V1 (Seam 30) plus this keyboard accessibility program are
+now closed. Compare Coverage V1 is next; Awareness Reachability
+Restoration V1 remains deliberately SKIPPED pending a genuine owner
+monetization/entitlement decision (see the top-of-file section) -- do not
+resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -69,11 +70,14 @@ Restoration V1 (SKIPPED, owner monetization/entitlement decision pending,
 do not resolve unilaterally) → Alert Durability V1 (Seam 30) ✅ resolved
 same day, merge `56d4707e1`/`8779618af` — non-S7 alerts were fully lost on
 every redeploy; fixed via a dual-write bridge mirroring S7's own already-
-proven durable-receipts pattern → **now: Watchlists/PositionsTable Keyboard
-Accessibility V1** (Seam 5's sequel — AlertBell's fix was real but
-genuinely isolated; `PositionsTable.jsx`/`Watchlists.jsx`/`TradesTable.jsx`
-are all still keyboard-inaccessible on higher-traffic, paid-core surfaces)
-→ Compare Coverage V1 (canonical Compare page has ZERO
+proven durable-receipts pattern → Watchlists/PositionsTable/TradesTable
+Keyboard Accessibility V1 ✅ resolved same day, merge
+`3a149404e`/`5d0b82e97` (Seam 5's sequel — AlertBell's fix was real but
+genuinely isolated; all three surfaces were still keyboard-inaccessible on
+higher-traffic, paid-core surfaces; a `<tr>`/`<td>` variant of the fix was
+needed to avoid breaking table role semantics — see "CURRENT ACCEPTED" for
+the exact correction) → **now: Compare Coverage V1** (canonical Compare
+page has ZERO
 price/technical data — a named north-star pillar can't answer "which one's
 the stronger stock"; also reconcile/retire the disconnected
 `ComparisonPicker.jsx`) → Calendar TickerActions Reuse V2 (Seams 19/20) →
@@ -145,10 +149,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `8779618afd3ff5856ad80f7329d4e352c4b4c7ee`
-  (Alert Durability V1's own merge -- this file's own update is a docs-only
-  blob-swap on top of this SHA; drift since then is unrelated concurrent
-  work -- re-check overlap before trusting this SHA is still current).
+- **origin/master (last verified):** `5d0b82e9717eeb7bf553bb4ac762eedff5abcc9e`
+  (Keyboard Accessibility V1's own merge -- this file's own update is a
+  docs-only blob-swap on top of this SHA; drift since then is unrelated
+  concurrent work -- re-check overlap before trusting this SHA is still
+  current).
 - Dozens of concurrent worktrees exist under `C:\Users\Patrick\uct-worktrees\` and
   `C:\Users\Patrick\uct-dashboard\.worktrees\` from other independent sessions —
   drift on master is constant and expected; re-check overlap immediately before
@@ -1368,6 +1373,61 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     Restoration (a separate, still-skipped item — durably storing an
     alert and making the Awareness *engine's own insights* reachable are
     different problems; this program did not touch the Awareness engine).
+- **Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1** —
+  IMPLEMENTED + ACCEPTED + LIVE, merge `3a149404e` (code) / `5d0b82e97`
+  (merge-to-master), deployed 2026-09-06 (pure frontend, verified via
+  build-confirmation + deploy-success, matching Seam 5/Seam 12's own
+  precedent for frontend-only fixes). Fifth item down the re-anchor's
+  priority stack.
+  - **Root cause, confirmed by direct code read across all three files
+    before writing any fix:** AlertBell's fix (Seam 5) closed one instance
+    of "an element with real click behavior and no keyboard semantics,"
+    but the same defect class was independently live on three higher-
+    traffic, paid-core surfaces the re-anchor named: `Watchlists.jsx`'s
+    per-symbol row (`onSelect`/`onToggleGroup`), its 4 watchlist-group
+    disclosure headers (own lists, flagged, tag-color lists ×2), and its
+    column-sort header, all bare `<div onClick>`/`<span onClick>`;
+    `PositionsTable.jsx`'s desktop `<tr onClick>` row AND phone
+    `<div onClick>` card; `TradesTable.jsx`'s desktop `<td onClick>`
+    symbol-cell (its own phone `TradeCard` was ALREADY a real `<button>` —
+    a genuine within-feature inconsistency, not a blanket miss).
+  - **Fix reuses Seam 5's exact shape where the element has no competing
+    native semantics** (`role="button"` + `tabIndex={0}` + `onKeyDown`
+    handling Enter/Space, calling the SAME handler the existing `onClick`
+    already used) — applied to Watchlists' row/headers (headers also get
+    `aria-expanded`, the standard disclosure-control pattern) and
+    PositionsTable's phone card.
+  - **⚠️ Deliberately did NOT apply `role="button"` to the PositionsTable
+    `<tr>` or the TradesTable `<td>` — a real correction made mid-program,
+    worth remembering for any FUTURE keyboard-accessibility fix on a table
+    element:** overriding a `<tr>`/`<td>`'s native row/cell role breaks
+    table-structure enumeration for real assistive tech, and immediately
+    broke this repo's own `getAllByRole('row')` tests the first time it
+    was tried (3 real test failures, caught and fixed in the same pass,
+    before merge — not a production incident). Those two elements get
+    `tabIndex` + `onKeyDown` ONLY (no `role`, no `aria-label`) — this still
+    closes the actual reported gap (no keyboard path to activate the
+    element AT ALL) without trading it for a different accessibility
+    regression. **Any future fix of this exact shape on a `<tr>`/`<td>`/
+    `<th>` must use this narrower variant, not the AlertBell/div default.**
+  - **Tests:** 31 new across the three components' own existing test files
+    (`Watchlists.keyboard.test.jsx` new; `PositionsTable.test.jsx`,
+    `PositionsTable.phone.test.jsx`, `TradesTable.test.jsx` extended) —
+    Enter/Space activation, an unrelated key doing nothing, the row-vs-
+    actions-cell click guard proven to also cover a bubbled keyboard
+    Enter, `role="row"` confirmed to survive on both table components. All
+    pre-existing tests remain green (84 total across the touched suites).
+    Clean lint (zero NEW errors — all pre-existing issues in these large,
+    actively-evolving files are untouched) and a clean production build.
+  - **Explicitly did NOT touch:** the several backdrop-click-to-dismiss
+    `<div onClick>` elements in `Watchlists.jsx` (modals/popovers/context
+    menus) — a different, lower-priority category with an existing
+    keyboard alternative (each modal already has a real, focusable Cancel
+    button) — this program scoped to the elements the re-anchor actually
+    named as primary; `TradesTable.jsx`'s already-correct column-sort
+    `<button>` (needed no change); any drag-and-drop column-reordering
+    behavior (mouse-only, out of scope, unrelated to the sort action fixed
+    here).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1498,11 +1558,12 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 ## CURRENT ACTIVE PROGRAM
 
-- **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) —
-  ALL DONE, ACCEPTED + LIVE. Watchlists/PositionsTable Keyboard
-  Accessibility V1 — STARTING NOW**, continuing directly down the
-  re-anchor's own priority stack per the standing directive (no new
-  ledger-scan needed — the re-anchor already did that scan; see below).
+- **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
+  Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 — ALL
+  DONE, ACCEPTED + LIVE. Compare Coverage V1 — STARTING NOW**, continuing
+  directly down the re-anchor's own priority stack per the standing
+  directive (no new ledger-scan needed — the re-anchor already did that
+  scan; see below).
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1513,7 +1574,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   implement ANY version of Awareness Reachability Restoration until the
   owner has answered it.**
   See the new Seam 28/29/30 debt-ledger entries above for full scope of
-  what shipped.
+  what shipped, and the new Keyboard Accessibility V1 entry for that
+  program's own detail.
   Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
   before this point, in order: Technical Ask AI Phase A →
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE (zero code) → AI Search Raw-Pattern
@@ -1531,26 +1593,38 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   — ACCEPTED + LIVE, merge `efe64acfb`/`c3128e010` →
   **Outage-Integrity Threading (Seam 29)** — ACCEPTED + LIVE, merge
   `ec095a23d`/`0e690583b` → **Alert Durability V1 (Seam 30)** — ACCEPTED +
-  LIVE, merge `56d4707e1`/`8779618af` (see "CURRENT ACCEPTED" above for
-  all three) → now Watchlists/PositionsTable Keyboard Accessibility V1
-  (Awareness Reachability Restoration V1 still skipped, see above).
-  **Bounded Phase A required before this program's implementation**:
-  re-verify the re-anchor's own mobile-ux lens finding — `Watchlists.jsx`'s
-  22+ bare `<div onClick>` interactive elements (confirm the count and the
-  exact rows: list-open toggles are the ones named as primary) and
-  `PositionsTable.jsx`'s both desktop `<tr onClick>` and phone-card
-  keyboard-inaccessibility — against CURRENT code before writing any fix;
-  the re-anchor's own counts/line numbers may have drifted. Reuse the EXACT
-  fix shape already shipped and proven for Seam 5 (`role="button"` +
-  `tabIndex={0}` + an `onKeyDown` handling Enter/Space, calling the SAME
-  handler the existing `onClick` already uses) — do not invent a new
-  accessibility pattern. `TradesTable.jsx`'s desktop-only gap was also
-  named by the re-anchor as the same defect class; fold it in if bounded,
-  split it out if it turns out to need its own investigation.
+  LIVE, merge `56d4707e1`/`8779618af` → **Watchlists/PositionsTable/
+  TradesTable Keyboard Accessibility V1** — ACCEPTED + LIVE, merge
+  `3a149404e`/`5d0b82e97` (see "CURRENT ACCEPTED" above for all four) →
+  now Compare Coverage V1 (Awareness Reachability Restoration V1 still
+  skipped, see above).
+  **Compare Coverage V1's actual scope, re-derived from the re-anchor's own
+  words (do NOT assume beyond this without re-reading the delivered
+  report):** the canonical `/research/:sym/compare/:comparator` page has
+  ZERO price/technical data — a named north-star pillar can't answer
+  "which one's the stronger stock" — and a second, disconnected chart-
+  overlay `ComparisonPicker.jsx` never cross-links with it (4-lens
+  convergence: capability-b, competitive, search-command, technical-
+  scanner). **Bounded Phase A required before any fix**: re-read
+  `api/services/research/comparison.py`'s current 4-composer scope
+  (fundamentals/estimates/ratings/analyst — confirmed by its own module
+  docstring as a deliberate, closed list from Cross-Security Comparison
+  V1's own Phase A) and determine the NARROWEST correct way to add price/
+  technical data — do not assume "add a 5th composer" is right without
+  checking whether price/relative-performance data already exists
+  elsewhere in a reusable shape (e.g. the same live-price/bars endpoints
+  Research's own page already uses). Separately assess `ComparisonPicker.jsx`
+  (chart-overlay Compare): is retiring/redirecting it to the canonical
+  page bounded, or does it need its own investigation? The re-anchor
+  reclassified it OBSOLETE-OR-SUPERSEDED, not HIGH-VALUE-NEXT — confirm
+  that classification still holds before deciding scope. Do not reopen
+  Seam 14 (broad search-implementation consolidation) or any Comparison V1
+  identity/self-exclusion work — both are explicitly closed, unrelated
+  scope.
   **Next in the priority stack after this program** (all independent of
   Pattern Vision's gate, Awareness Reachability Restoration still excluded
-  pending owner input): Compare Coverage V1 → Calendar TickerActions Reuse
-  V2 → Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
+  pending owner input): Calendar TickerActions Reuse V2 (Seams 19/20) →
+  Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
   live `BROKER_BALANCE_HISTORY_ENABLED=1`).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
