@@ -2747,3 +2747,175 @@ exists except a small typed evidence-relationship table and a nullable
 restore-marker column, exactly the minimal-new-primitive outcome directive
 §10/§25/§63 asked to prove before building anything larger. Proceeding
 directly to implementation.
+
+---
+
+### Wave G — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the PERMANENT session rule: no fork/subagent dispatch for any
+part of Wave G's research, architecture, implementation, testing, browser
+verification, git reconciliation, or deployment.
+
+**Delivered, per the 48-point entry checkpoint above:** `j2_thesis_evidence`
+(typed supports/opposes evidence, note-or-fact target, tenant-re-verified on
+BOTH the thesis note and the target before any write, soft-deleted via
+`removed_at`) + a cascade-delete trigger; `thesis_evidence.py` (add/list/
+remove — no update path, matching Wave F's own "immutability by omission"
+idiom for the fields that must never silently change); `restored_from_
+version_id` on `j2_note_versions` (nullable, stamped only by
+`restore_note_version`'s existing forced-capture path) threaded through
+`_maybe_capture_version`/`update_note`/`restore_note_version`;
+`thesis_changelog.py` (a COMPUTED READ over five existing authoritative
+sources — Wave C version-pair diffs restricted to the four user-set builtin
+properties, Wave F fact `observed_at`, the new evidence table's own
+timestamps, Wave 3 embed `captured_at` + `resolve_trade_ref`, and the
+restore marker — zero new event-sourcing table, exactly what checkpoint
+§22/24 set out to prove); a `GET /notes/{id}/thesis-summary` aggregated
+endpoint (evidence + a bounded changelog slice, one request); `ThesisSection.
+jsx` (progressive-disclosure evidence list + a `CollapsibleSection` changelog,
+rendering ONLY for a thesis-shaped note — Research Type Long/Short, the
+legacy `thesis` tag, or existing evidence/changelog activity, never on an
+ordinary note); a new `thesis` Long/Short template (Bull/Bear/Assumptions/
+Catalysts/"What would prove me wrong," deliberately no direction field in the
+body); a one-line connective fix to `AddPositionModal.jsx`'s pre-trade flow
+(sets `builtin:research_type` alongside the existing `thesis` tag, best-effort,
+closing checkpoint decision 4's "indistinguishable from any other creation
+path" requirement); export front-matter (`thesis_evidence:`, live links only,
+human-readable target labels — never a bare id); and four starter saved views
+via a small "Add thesis starter views" affordance (shown only while a member
+has zero saved views of their own, gone the moment they have any).
+
+**A real, load-bearing constraint was discovered DURING implementation, not
+anticipated at the checkpoint — recorded here rather than silently patched
+over:** the entry checkpoint's own §48 named "Theses With Open Positions"
+(`trade_ref` is_not_empty) and an OR-based "Research Type is Long OR Short"
+condition as two of the four starter views. Building them revealed
+`property_filter_sql` structurally EXCLUDES `financial_derived` properties
+(including `builtin:trade_ref`) from filtering by design, and the filter
+mechanism is AND-only (no OR/groups), both deliberate Wave E decisions this
+wave correctly declined to relitigate by building a second query mechanism
+just for two starter views. The shipped four — Active Theses, **High
+Confidence** (substituted in), Needs Review, Invalidated Theses — are exactly
+Wave G's own governing directive's ORIGINAL suggested list (§44: "Active
+Theses, High-Confidence, Needs Review, Invalidated, Linked-to-Open-Positions")
+minus the one infeasible item, not an invented substitute.
+
+**The coalescing-based noise-avoidance design, proven live, not just
+asserted:** in the real browser, setting Thesis Status to Watching then
+immediately to Active (two rapid edits, well inside the 30-minute default
+coalescing window) produced exactly ONE changelog entry — "Status changed to
+active" — never a spurious intermediate "changed to watching." This is a
+direct, observed consequence of `_content_transition_events` diffing
+CONSECUTIVE CAPTURED version checkpoints (not every edit): when an
+intermediate edit is coalesced away by Wave C's existing capture gate, the
+diff naturally reports the full old→final transition, which is the honest
+summary of what a member would actually want to see, not noise. No new
+"debounce the changelog" logic was needed — the noise avoidance is a free
+consequence of reusing Wave C's existing mechanism exactly as designed,
+directly confirming checkpoint decision 24's premise.
+
+**The pre-trade AddPositionModal flow, proven live end-to-end (not just the
+direct Notebook path):** opened "Log open position," entered TSLA/100/$250,
+typed a new thesis title, selected "+ New note," and submitted. The resulting
+position was created, the thesis note was created bearing the `thesis` tag
+AND (confirmed via direct API read) `propertiesJson: {"builtin:research_type":
+"long_thesis"}` with zero manual step, and opening that note showed the
+existing "TSLA · open position" Linked Trade indicator, the pre-set Research
+Type property, and a live "+ Add evidence"/Changelog section — a thesis note
+from this entry point is now genuinely indistinguishable from one created any
+other way, closing the exact gap checkpoint decision 4 named.
+
+**Evidence add/remove, proven live:** created a second note, opened the
+Investment Thesis note, clicked "+ Add evidence," searched (confirmed
+self-exclusion — the note's own title never appears as a candidate target for
+itself), selected the second note, set stance to Supports, added a caption,
+saved — the evidence row rendered immediately with a green SUPPORTS pill and
+a clickable note-link caption, and "Evidence added (supports)" appeared in the
+changelog. Removed it via the × control — the row disappeared and "Evidence
+removed" appended to the changelog (newest-first, correctly ordered above the
+earlier entries). Switching the evidence-target picker to "Captured fact"
+with zero facts yet on the note showed the honest empty state — "Capture a
+financial fact in this note first (try /price)" — never a blank or broken
+picker; live fact-target selection itself was not exercised this pass (same
+disclosed environment limitation as Wave F: no `MASSIVE_API_KEY` in this
+sandbox), covered instead by `test_add_evidence_pointing_to_a_fact` and the
+router-level equivalent.
+
+**Tenant isolation, proven at both the unit and router level:** a user cannot
+add evidence targeting another user's note or fact (`ThesisEvidenceValidationError`,
+never a silent no-op link); cannot add evidence to a thesis note they don't
+own; cannot remove another user's evidence (404, not a foreign-key leak); the
+changelog and thesis-summary endpoints are scoped by `user_id` on every read,
+verified with real cross-user router requests matching Wave D/E/F's own
+isolation-test pattern exactly.
+
+**Migration/trash/purge:** no fabricated backfill — an existing `thesis`-tagged
+note without `research_type` set is not silently mutated (decision 4's dual
+recognition means it still qualifies as thesis-shaped without a write).
+`j2_thesis_evidence` cascade-deletes on note hard-purge (verified via a direct
+`DELETE FROM j2_notes` test) and is covered automatically by the schema-driven
+generic account-purge test with zero bespoke code (3/3 passing with the new
+table live in `_DIRECT_USER_TABLES`).
+
+**Non-regression:** 67 new backend tests (23 service-level in
+`test_wave_g_thesis.py`, 9 router-level in `test_journal_two_thesis_router.py`,
+5 export tests) + 26 new frontend tests (9 `ThesisSection.test.jsx`, 2
+`notebookTemplates.test.js` additions, plus the existing 111-test regression
+pass across `PropertiesSection`/`FolderSidebar`/`NotebookTab`/
+`AddPositionModal` confirming zero breakage), all passing. Full backend
+regression: 2,216 passed, 1 pre-existing environment-only failure (the SAME
+disk-headroom class `test_notes_import.py::test_save_note_attachment_stores_
+and_caps` has failed on every prior wave's closure run on this box — confirmed
+unrelated by direct reproduction, not assumed). `test_journal_two_account_
+purge.py`: 3/3.
+
+**Mobile:** `tools/mobile_audit.py` sweep against `/journal/notebook` (general)
+and the specific thesis note detail view — 0 horizontal-overflow combos on
+both; all 13 sub-44px small-targets found on the note-detail view are
+pre-existing editor/toolbar chrome (Show folders, Search notes, Ask this
+note, formatting buttons, Restore/Discard) — none belong to `ThesisSection`
+(the evidence remove button, stance toggles, and changelog chevron are all
+absent from the small-target list). `ThesisSection.module.css` follows the
+codebase's canonical `@media (max-width: 640px)` breakpoint (changelog rows
+stack date-over-text) and reuses `PropertiesSection`'s already-mobile-proven
+row/control patterns rather than inventing new ones.
+
+**Accessibility:** the evidence remove button is a real `<button
+aria-label="Remove evidence">`; the stance and target-type toggles use
+`role="group"` with `aria-label`; the changelog reuses `CollapsibleSection`'s
+existing `aria-expanded`/`aria-controls` semantics unchanged; native form
+controls throughout (no custom listbox/combobox debt, matching
+`PropertiesSection`'s own established discipline).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** No
+architecture-level contradiction against the entry checkpoint's 48 decisions.
+No scope added beyond the checkpoint (no diff/preview UI embedded inline in a
+changelog row — it links the version pair, one click from Wave C's existing
+diff view; no cross-note fact browser for evidence — scoped to facts already
+on the same note; no `j2_verdicts` changelog source — a real, separately
+tracked gap, not silently dropped, see the gap ledger's new G-073b row).
+**Explicitly recorded, not fixed:**
+- The evidence-target-fact picker only searches facts already captured on the
+  SAME thesis note, not a cross-note fact browser — a deliberate v1 scope
+  decision (checkpoint's own "prove the smallest version first" discipline),
+  not an oversight.
+- Live capture of a `financial_fact`-typed evidence target was not exercised
+  in the browser this pass (no `MASSIVE_API_KEY` in this sandbox — the same
+  disclosed limitation Wave F recorded); covered at the unit/router level
+  instead.
+- A `thesis_edited` changelog row does not render its diff inline — it links
+  `(fromVersionId, toVersionId)`, and Wave C's existing diff view is one click
+  away via "View changes" (not yet wired as a literal clickable action in
+  `ThesisSection.jsx` — the data is present, the click handler is not).
+- `j2_verdicts` (Compass pre-trade verdicts) is not yet a 6th changelog
+  source — split out as gap-ledger row G-073b rather than silently marking
+  G-073 fully done.
+- Zero real member usage evidence for anything in this wave (Day 0, same cap
+  every prior wave's closure has honestly carried).
+
+**Wave G's core contracts are now FROZEN per the directive:** Model A (thesis
+= note + existing structured properties + existing typed relationships, no
+`j2_theses` table), the evidence table's two-target-type/two-stance shape,
+the computed-read changelog's five source classes, and the
+Research-Type-not-a-body-field template convention — none of these were
+redesigned by this pass.

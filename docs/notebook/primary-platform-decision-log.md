@@ -1506,6 +1506,113 @@ duplicated here.
 
 ---
 
+### 2026-09-07 — WAVE G: Thesis Intelligence + Thesis Changelog — implemented, tested, real-browser E2E verified, merged, deployed, production-verified
+
+Built directly per the standing PERMANENT session rule (unbroken since Process
+incident #2): no fork/subagent dispatch for any part of Wave G's research,
+architecture, implementation, testing, browser verification, git
+reconciliation, or deployment.
+
+**The load-bearing finding this wave turned on:** the current-reality
+reconstruction (mandatory before any source mutation, per the directive's own
+"do not assume the original roadmap's 'thesis is a bare tag' remains true"
+instruction) found that claim was ALREADY STALE — Wave E had already shipped
+real structured thesis properties (Status/Confidence/Research Type/Review
+Date) and Wave 3 had already shipped typed trade/position relationships, both
+fully functional, both simply never connected to each other or to the `thesis`
+tag. This resolved the directive's own §9 THESIS OWNERSHIP QUESTION decisively
+in favor of Model A (thesis = existing note + existing primitives, no
+`j2_theses` table) by direct evidence rather than by architectural preference
+— exactly the "prove it, don't assume it" discipline the directive itself
+demanded before allowing any source mutation.
+
+**What shipped:** `j2_thesis_evidence` (the one genuinely new structural
+primitive — typed supports/opposes evidence pointing at another note or a
+Wave F fact, tenant-re-verified on both sides, soft-deleted) + a
+`restored_from_version_id` marker on `j2_note_versions`; a COMPUTED-READ
+Thesis Changelog (`thesis_changelog.py`) assembled from five existing
+authoritative sources with zero new event-sourcing table — Wave C version-pair
+diffs, Wave F fact `observed_at`, the new evidence table's own timestamps,
+Wave 3 embed/trade data, and the restore marker; a `ThesisSection.jsx` UI
+(evidence + changelog, rendering only for a thesis-shaped note); a Long/Short
+Thesis template with direction deliberately left OUT of the body (it lives in
+the Research Type property, never duplicated); a one-line connective fix to
+`AddPositionModal.jsx` so a thesis note created via the pre-trade flow sets
+Research Type automatically; and four starter saved views via Wave E's
+existing saved-view mechanism.
+
+**A real constraint discovered mid-implementation, corrected rather than
+silently designed around:** two of the checkpoint's own four proposed starter
+views (`trade_ref is_not_empty`; `research_type` OR-matching Long/Short) proved
+infeasible against `property_filter_sql`'s actual, deliberate constraints
+(financial_derived properties are not filterable at all; the filter is
+AND-only, no OR/groups) — discovered by attempting to build them, not assumed
+in advance. Rather than build a second query mechanism for two starter views,
+the shipped set reverted to the governing directive's OWN original suggested
+list (§44) minus the one infeasible item: Active Theses, High Confidence,
+Needs Review, Invalidated Theses.
+
+**The core noise-avoidance guarantee, proven live rather than merely
+asserted:** two rapid Thesis Status edits (Watching→Active) in the real
+browser produced exactly ONE changelog entry, not two — a free, observed
+consequence of the changelog diffing consecutive CAPTURED version checkpoints
+(Wave C's existing coalescing gate) rather than every individual edit. The
+full pre-trade flow was also exercised end-to-end through the real
+`AddPositionModal` UI (not just the direct Notebook path): a position + thesis
+note created together, Research Type confirmed set via direct API read
+(`long_thesis`), the note showing its Linked Trade property, evidence
+section, and changelog immediately on open.
+
+**Tenant isolation, idempotency-equivalent evidence discipline, migration/
+purge, mobile, and accessibility results:** all verified at both the unit
+and live-browser/API level; the schema-driven generic account-purge test
+automatically covers the one new table with zero bespoke code (3/3 passing).
+67 new backend tests + 26 new frontend tests, all passing. Full backend
+regression: 2,216 passed, 1 pre-existing environment-only failure (the same
+disk-headroom class every prior wave's closure run has carried on this box,
+confirmed unrelated by direct reproduction).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT** — no
+architecture-level contradiction against the entry checkpoint's 48 decisions;
+no scope added beyond it. **Explicitly recorded, not fixed:** the evidence
+fact-target picker is scoped to facts already on the same note (a deliberate
+v1 simplification); live fact-target evidence capture wasn't exercised in the
+browser (no `MASSIVE_API_KEY` in this sandbox — the same disclosed limitation
+Wave F recorded); a `thesis_edited` changelog row links its version pair but
+doesn't render the diff inline yet (Wave C's diff view is one click away, not
+embedded); `j2_verdicts` is not yet a changelog source (split out as gap-ledger
+row G-073b rather than silently marked done alongside G-073's other four
+sources).
+
+**Production closure:** same isolated-temporary-worktree process as every
+prior wave (`git worktree add ... -b <tmp-branch> origin/master`, never
+switching this worktree's own branch). Master had not moved since the last
+check — clean `--no-ff` merge, zero conflicts. Re-fetched `origin/master`
+immediately before pushing, confirmed still an ancestor of the merge commit.
+Pushed as `7317aec03` (implementation `1dbf7e8e2` + the earlier entry-
+checkpoint commit `a5dac2a8a`, both carried by the merge). Temp worktree
+removed (the same Windows file-lock → PowerShell `Remove-Item -Recurse
+-Force` + `git worktree prune` fallback this pattern always needs on this
+box).
+
+Railway `web` picked up the push automatically; watched `railway status
+--json` (web service specifically, via a Python-based parse of the actual
+GraphQL shape — `environments.edges[0].node.serviceInstances.edges[]`, not
+the flat `.deployments` shape an earlier jq-based check incorrectly assumed)
+through to **SUCCESS**. `latestDeployment.meta.commitHash` reads
+`7317aec03` — byte-identical to `origin/master`'s HEAD. Fresh-process
+confirmed via `GET /api/health` on `uctintelligence.com`. New Wave G routes
+(`POST/GET /notes/{id}/evidence`, `DELETE /evidence/{id}`, `GET
+/notes/{id}/thesis-summary`) verified returning real, auth-gated `401
+application/json` in production, not the SPA catch-all.
+
+Verification detail (the coalescing-noise-avoidance live proof, the starter-
+views constraint discovery, tenant-isolation/mobile/accessibility results)
+lives in `prelaunch-primary-notebook-build-plan.md`'s Wave G closure section,
+not duplicated here.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
