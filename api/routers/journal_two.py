@@ -2100,6 +2100,62 @@ def delete_note_fact_endpoint(fact_id: str, user: dict = Depends(get_current_use
     return {"ok": True}
 
 
+# ── Wave G (Thesis Intelligence + Thesis Changelog) ─────────────────────────
+from api.services.journal_two import thesis_evidence, thesis_changelog
+
+
+@router.post("/notes/{note_id}/evidence")
+def add_thesis_evidence_endpoint(
+    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        evidence = thesis_evidence.add_evidence(
+            user["id"], note_id,
+            target_type=body.get("targetType"), target_id=body.get("targetId"),
+            stance=body.get("stance"), caption=body.get("caption"),
+        )
+    except thesis_evidence.ThesisEvidenceValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"evidence": evidence}
+
+
+@router.get("/notes/{note_id}/evidence")
+def list_thesis_evidence_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"evidence": thesis_evidence.list_note_evidence(user["id"], note_id)}
+
+
+@router.delete("/evidence/{evidence_id}")
+def remove_thesis_evidence_endpoint(evidence_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    removed = thesis_evidence.remove_evidence(user["id"], evidence_id)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"evidence": removed}
+
+
+# Bounded slice of the changelog surfaced by the aggregated summary below --
+# a full research history is available via a future "load more"; the
+# summary itself must never do an unbounded read on every note open
+# (checkpoint decision 37).
+_THESIS_SUMMARY_CHANGELOG_LIMIT = 30
+
+
+@router.get("/notes/{note_id}/thesis-summary")
+def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """ONE aggregated read for the thesis surfaces on a note -- evidence +
+    a bounded recent-changelog slice + linked trade/position resolution --
+    batched in a single request (checkpoint decision 37), mirroring Wave F's
+    own batched current-value-resolution pattern and Wave E's saved-view
+    resolution. 404 only if the note itself doesn't resolve for this user;
+    an empty thesis (no evidence/changelog yet) returns empty lists, not an
+    error (checkpoint decision 31)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    evidence = thesis_evidence.list_note_evidence(user["id"], note_id)
+    changelog = thesis_changelog.get_thesis_changelog(user["id"], note_id)[:_THESIS_SUMMARY_CHANGELOG_LIMIT]
+    return {"evidence": evidence, "changelog": changelog}
+
+
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
 # Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
 # (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).

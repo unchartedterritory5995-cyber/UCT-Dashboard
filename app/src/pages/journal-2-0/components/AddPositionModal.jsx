@@ -331,6 +331,23 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           if (!noteRes.ok) throw new Error(`Could not create the thesis note (${noteRes.status})`)
           const noteBody = await noteRes.json()
           thesisNoteId = noteBody?.note?.id || null
+          // Wave G checkpoint §4: also set Research Type so a thesis note
+          // created via this pre-trade flow is indistinguishable from one
+          // created any other way -- best-effort, a failure here still
+          // leaves a perfectly usable thesis note (just without the
+          // Thesis Evidence/Changelog section until a property is set by
+          // hand). 'Short' maps to short_thesis; every other side (today
+          // only 'Long') maps to long_thesis.
+          if (thesisNoteId) {
+            fetch(`/api/j2/notes/${thesisNoteId}`, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                properties: { 'builtin:research_type': side === 'Short' ? 'short_thesis' : 'long_thesis' },
+              }),
+            }).catch(() => {})
+          }
         }
       }
 

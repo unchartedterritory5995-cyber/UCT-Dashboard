@@ -1,0 +1,311 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import CollapsibleSection from '../CollapsibleSection'
+import UIcon from '../../../../components/ui/UIcon'
+import useThesisSummary from '../../hooks/useThesisSummary'
+import useNoteFacts from '../../hooks/useNoteFacts'
+import { notePath } from '../../../../hooks/useNoteBacklinks'
+import styles from './ThesisSection.module.css'
+
+const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
+
+/** Checkpoint decision 4/39: a note only grows this section once it is
+ * genuinely being used as a thesis -- Research Type set to Long/Short
+ * Thesis, the legacy Wave 3 'thesis' tag, OR it already carries evidence/
+ * changelog activity (so the section never vanishes out from under a
+ * thesis whose Research Type gets cleared later). An ordinary note never
+ * shows an "Add evidence" invitation it has no use for (north star:
+ * "not administrative," no giant panel on every note). */
+function isThesisShaped(note, evidence, changelog) {
+  if (!note) return false
+  const researchType = note.propertiesJson?.['builtin:research_type']
+  if (THESIS_RESEARCH_TYPES.has(researchType)) return true
+  if (Array.isArray(note.tags) && note.tags.includes('thesis')) return true
+  if (evidence.length > 0 || changelog.length > 0) return true
+  return false
+}
+
+function eventLabel(e) {
+  switch (e.type) {
+    case 'thesis_edited':
+      return 'Thesis edited'
+    case 'restored': {
+      const d = e.restoredFromVersionAt ? new Date(e.restoredFromVersionAt).toLocaleDateString() : null
+      return d ? `Restored to the version from ${d}` : 'Restored an earlier version'
+    }
+    case 'property_changed': {
+      const names = {
+        'builtin:thesis_status': 'Status', 'builtin:confidence': 'Confidence',
+        'builtin:research_type': 'Research Type', 'builtin:review_date': 'Review Date',
+      }
+      const label = names[e.propertyId] || e.propertyId
+      return `${label} changed${e.to ? ` to ${e.to}` : ''}`
+    }
+    case 'evidence_added':
+      return `Evidence added (${e.stance})`
+    case 'evidence_removed':
+      return 'Evidence removed'
+    case 'fact_captured':
+      return `Captured ${e.factLabel || e.factType} for ${e.ticker}`
+    case 'position_linked':
+      return `Linked to ${e.symbol || 'a trade'}`
+    case 'trade_closed':
+      return `Trade closed${e.symbol ? ` — ${e.symbol}` : ''}${e.result ? ` (${e.result})` : ''}`
+    default:
+      return e.type
+  }
+}
+
+/**
+ * Wave G — Thesis Evidence + Thesis Changelog. Sits below PropertiesSection,
+ * above the editor body (checkpoint §39), and renders nothing at all for a
+ * note that isn't being used as a thesis (see isThesisShaped above).
+ *
+ * Evidence follows PropertiesSection's own progressive-disclosure idiom
+ * exactly: empty state is a single small "+ Add evidence" link, not a
+ * permanent panel. The changelog is a CollapsibleSection (Analytics' own
+ * accordion, reused rather than a bespoke one) that shows an honest empty
+ * state rather than nothing (checkpoint §31) once the note IS a thesis --
+ * that's the one place this section deliberately shows itself with nothing
+ * in it, because "no changes yet" is itself informative for a thesis.
+ */
+export default function ThesisSection({ noteId, note }) {
+  const { evidence, changelog, isLoading, refresh } = useThesisSummary(noteId)
+  const { facts } = useNoteFacts(noteId)
+  const navigate = useNavigate()
+
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [stance, setStance] = useState('supports')
+  const [targetType, setTargetType] = useState('note')
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [caption, setCaption] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (targetType !== 'note' || selected || !query.trim()) { setResults([]); return undefined }
+    let alive = true
+    setSearching(true)
+    const t = setTimeout(() => {
+      fetch(`/api/j2/notes?q=${encodeURIComponent(query.trim())}&limit=8&sort=updated`, { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : { notes: [] }))
+        .then((body) => { if (alive) setResults((body?.notes || []).filter((n) => n.id !== noteId)) })
+        .catch(() => { if (alive) setResults([]) })
+        .finally(() => { if (alive) setSearching(false) })
+    }, 300)
+    return () => { alive = false; clearTimeout(t) }
+  }, [query, targetType, selected, noteId])
+
+  const shaped = useMemo(() => isThesisShaped(note, evidence, changelog), [note, evidence, changelog])
+
+  if (isLoading || !shaped) return null
+
+  const resetPicker = () => {
+    setPickerOpen(false)
+    setStance('supports')
+    setTargetType('note')
+    setQuery('')
+    setResults([])
+    setSelected(null)
+    setCaption('')
+    setError(null)
+  }
+
+  const submit = async () => {
+    if (!selected) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/j2/notes/${noteId}/evidence`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetType, targetId: selected.id, stance, caption: caption.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.detail || 'Could not add evidence')
+      }
+      await refresh()
+      resetPicker()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async (evidenceId) => {
+    await fetch(`/api/j2/evidence/${evidenceId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    await refresh()
+  }
+
+  return (
+    <div className={styles.wrap} data-export-exclude>
+      <div className={styles.evidenceBlock}>
+        {evidence.length > 0 && (
+          <ul className={styles.evidenceList}>
+            {evidence.map((e) => (
+              <li key={e.id} className={styles.evidenceRow}>
+                <span className={`${styles.stancePill} ${e.stance === 'supports' ? styles.supports : styles.opposes}`}>
+                  {e.stance === 'supports' ? 'Supports' : 'Opposes'}
+                </span>
+                {e.targetType === 'note' ? (
+                  <button type="button" className={styles.evidenceLink} onClick={() => navigate(notePath(e.targetId))}>
+                    <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+                    {e.caption || 'Linked note'}
+                  </button>
+                ) : (
+                  <span className={styles.evidenceLabel}>{e.caption || 'Captured fact'}</span>
+                )}
+                <button
+                  type="button"
+                  className={styles.removeBtn}
+                  onClick={() => remove(e.id)}
+                  aria-label="Remove evidence"
+                >
+                  <UIcon name="x" size={11} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!pickerOpen ? (
+          <button type="button" className={styles.addLink} onClick={() => setPickerOpen(true)}>
+            <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+            Add evidence
+          </button>
+        ) : (
+          <div className={styles.picker}>
+            <div className={styles.pickerRow}>
+              <div className={styles.stanceToggle} role="group" aria-label="Evidence stance">
+                <button
+                  type="button"
+                  className={`${styles.stanceBtn} ${stance === 'supports' ? styles.stanceBtnActive : ''}`}
+                  onClick={() => setStance('supports')}
+                >
+                  Supports
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.stanceBtn} ${stance === 'opposes' ? styles.stanceBtnActive : ''}`}
+                  onClick={() => setStance('opposes')}
+                >
+                  Opposes
+                </button>
+              </div>
+              <div className={styles.stanceToggle} role="group" aria-label="Evidence type">
+                <button
+                  type="button"
+                  className={`${styles.stanceBtn} ${targetType === 'note' ? styles.stanceBtnActive : ''}`}
+                  onClick={() => { setTargetType('note'); setSelected(null) }}
+                >
+                  Note
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.stanceBtn} ${targetType === 'fact' ? styles.stanceBtnActive : ''}`}
+                  onClick={() => { setTargetType('fact'); setSelected(null) }}
+                >
+                  Captured fact
+                </button>
+              </div>
+            </div>
+
+            {targetType === 'note' ? (
+              selected ? (
+                <div className={styles.selectedRow}>
+                  <span>{selected.title || 'Untitled'}</span>
+                  <button type="button" className={styles.clearSel} onClick={() => setSelected(null)}>Change</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    placeholder="Search notes…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    autoFocus
+                  />
+                  {searching && <div className={styles.hint}>Searching…</div>}
+                  {results.length > 0 && (
+                    <ul className={styles.resultsList}>
+                      {results.map((n) => (
+                        <li key={n.id}>
+                          <button type="button" className={styles.resultItem} onClick={() => setSelected({ id: n.id, title: n.title })}>
+                            {n.title || 'Untitled'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )
+            ) : (
+              selected ? (
+                <div className={styles.selectedRow}>
+                  <span>{selected.title}</span>
+                  <button type="button" className={styles.clearSel} onClick={() => setSelected(null)}>Change</button>
+                </div>
+              ) : facts.length ? (
+                <ul className={styles.resultsList}>
+                  {facts.map((f) => (
+                    <li key={f.id}>
+                      <button
+                        type="button"
+                        className={styles.resultItem}
+                        onClick={() => setSelected({ id: f.id, title: `${f.ticker} ${f.factLabel}` })}
+                      >
+                        {f.ticker} — {f.factLabel}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className={styles.hint}>Capture a financial fact in this note first (try /price).</div>
+              )
+            )}
+
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Why this matters (optional)"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+            />
+
+            {error && <div className={styles.error}>{error}</div>}
+
+            <div className={styles.pickerActions}>
+              <button type="button" className={styles.cancelBtn} onClick={resetPicker}>Cancel</button>
+              <button type="button" className={styles.saveBtn} onClick={submit} disabled={!selected || saving}>
+                {saving ? 'Saving…' : 'Add evidence'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <CollapsibleSection id={`thesis-changelog-${noteId}`} title="Changelog" defaultOpen={false}>
+        {changelog.length === 0 ? (
+          <div className={styles.emptyChangelog}>Changes will appear here as this thesis evolves.</div>
+        ) : (
+          <ul className={styles.changelogList}>
+            {changelog.map((e, i) => (
+              <li key={`${e.type}-${e.at}-${i}`} className={styles.changelogRow}>
+                <span className={styles.changelogDate}>{new Date(e.at).toLocaleDateString()}</span>
+                <span className={styles.changelogText}>{eventLabel(e)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CollapsibleSection>
+    </div>
+  )
+}

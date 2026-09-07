@@ -1258,3 +1258,71 @@ def test_a_notes_facts_never_appear_in_another_notes_export():
     zf = zipfile.ZipFile(io.BytesIO(blob))
     assert "financial_facts:" not in zf.read("Thesis B.md").decode("utf-8")
     assert "financial_facts:" in zf.read("Thesis A.md").decode("utf-8")
+
+
+# ── Wave G: thesis evidence export ───────────────────────────────────────────
+
+def test_full_export_renders_thesis_evidence_pointing_at_a_note():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Datacenter capex note", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", caption="strong capex", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" in body
+    assert "stance: supports" in body
+    assert "target: Datacenter capex note" in body
+    assert "note: strong capex" in body
+
+
+def test_full_export_renders_thesis_evidence_pointing_at_a_fact():
+    from api.services.journal_two import thesis_evidence as ev
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    c.commit()
+    fact = facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    ev.add_evidence("u1", "n1", target_type="fact", target_id=fact["id"], stance="opposes", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "stance: opposes" in body
+    assert "target: NVDA Price" in body
+
+
+def test_removed_evidence_never_appears_in_export():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Other note", _doc(_para("y")))
+    c.commit()
+    e = ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    ev.remove_evidence("u1", e["id"], conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" not in body
+
+
+def test_single_note_export_also_renders_thesis_evidence():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Other note", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    assert "thesis_evidence:" in content.decode("utf-8")
+
+
+def test_a_notes_evidence_never_appears_in_another_notes_export():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis A", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Thesis B", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "thesis_evidence:" not in zf.read("Thesis B.md").decode("utf-8")
+    assert "thesis_evidence:" in zf.read("Thesis A.md").decode("utf-8")

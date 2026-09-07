@@ -62,6 +62,7 @@ _DIRECT_USER_TABLES = (
     "j2_note_saved_views",
     "j2_fact_observations",
     "j2_note_fact_refs",
+    "j2_thesis_evidence",
     "j2_capture_inbox",
     "j2_public_profiles",
     "j2_note_shares",
