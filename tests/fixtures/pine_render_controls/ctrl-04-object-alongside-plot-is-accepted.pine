@@ -1,0 +1,17 @@
+//@version=5
+// THE OTHER DIRECTION OF THE REFUSAL CONTROL -- this script MUST be ACCEPTED.
+// ctrl-02 proves the door can refuse. On its own that is half a control: a door
+// that refuses EVERYTHING also passes it, and an over-refusal is invisible
+// (`lesson_an_over_refusal_is_invisible`) -- nobody files a bug for an indicator
+// they were told could not be imported.
+//
+// This one carries a drawing object AND a real plot. The plot is contentful, so
+// the correct answer is to accept it and draw the line. Measured: CHART_RENDERABLE.
+//
+// It is ALSO the presentation-loss case in the flesh: the label is silently
+// dropped and the member gets a line. That is a C0.7 finding, not a refusal --
+// which is exactly why it must not be filed as one.
+indicator("Control Object Alongside Plot", overlay = true)
+if barstate.islast
+    label.new(bar_index, high, "hi")
+plot(close, title = "Close", color = color.orange)

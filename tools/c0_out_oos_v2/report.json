@@ -1,0 +1,1616 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tools/c0_oos_fixtures",
+  "rows": [
+    {
+      "script": "high_engagement__02-waddah-attar-explosion-lazybear",
+      "timings_ms": {
+        "goto": 2397,
+        "open_builder": 14,
+        "new_formula": 8,
+        "import_tab": 19,
+        "paste": 13,
+        "translate": 0,
+        "apply": 14,
+        "save_click": 2
+      },
+      "definitions_before": 8,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#a0522d"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__02-waddah-attar-explosi",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[0].args[1].args[0]: \"mult\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, dayofweek, ho",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    },
+    {
+      "script": "high_engagement__03-supertrend-kivancozbilgic",
+      "timings_ms": {
+        "goto": 2393,
+        "open_builder": 7,
+        "new_formula": 5,
+        "import_tab": 14,
+        "paste": 23,
+        "translate": 0,
+        "apply": 15,
+        "save_click": 3
+      },
+      "definitions_before": 8,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "markers",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#4caf50",
+          "#4caf50",
+          "#4caf50",
+          "#f23645",
+          "#f23645",
+          "#f23645",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 20
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__03-supertrend-kivancozb",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": null,
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[0].args[0].args[1].args[0].args[1].args[1].args[0].args[0].args[0].args[1].args[0]: \"Multiplier\" \u2014 this table declares close, hig",
+        "repaintBadge": null,
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "the read-back cannot name a value the table does not declare at $.args[0].args[0].args[1].args[0].args[1].args[1].args[0].args[0].args[0].args[1].args[0]: \"Multiplier\" \u2014 this table declares close, hig"
+    },
+    {
+      "script": "high_engagement__04-ttm-squeeze-greeny",
+      "timings_ms": {
+        "goto": 2398,
+        "open_builder": 13,
+        "new_formula": 10,
+        "import_tab": 32,
+        "paste": 28,
+        "translate": 0,
+        "apply": 12,
+        "save_click": 8,
+        "save_roundtrip": 530,
+        "instance_persist": 531,
+        "reopen": 2416,
+        "render": 251
+      },
+      "definitions_before": 8,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__04-ttm-squeeze-greeny",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_5269f241a5bb",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_5269f241a5bb:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_5269f241a5bb:1",
+          "plotKey": "value",
+          "text": "high_engagem -5.93",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 9,
+      "screenshot": "tools\\c0_out_oos_v2\\high_engagement__04-ttm-squeeze-greeny.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "high_engagement__10-rsi-divergence-faytterro",
+      "timings_ms": {
+        "goto": 2391,
+        "open_builder": 23,
+        "new_formula": 11,
+        "import_tab": 43,
+        "paste": 43,
+        "translate": 0,
+        "apply": 19,
+        "save_click": 10,
+        "save_roundtrip": 536,
+        "instance_persist": 538,
+        "reopen": 2427,
+        "render": 248
+      },
+      "definitions_before": 9,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "50",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__10-rsi-divergence-faytt",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_6f08499b8279",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_6f08499b8279:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_6f08499b8279:1",
+          "plotKey": "value",
+          "text": "high_engagem 54.95",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 10,
+      "screenshot": "tools\\c0_out_oos_v2\\high_engagement__10-rsi-divergence-faytterro.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "high_engagement__11-vumanchu-cipher-a-vumanchu",
+      "timings_ms": {
+        "goto": 2647,
+        "open_builder": 16,
+        "new_formula": 20,
+        "import_tab": 22,
+        "paste": 38,
+        "translate": 0,
+        "apply": 31,
+        "save_click": 15,
+        "save_roundtrip": 560,
+        "instance_persist": 546,
+        "reopen": 2445,
+        "render": 269
+      },
+      "definitions_before": 10,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#00ff00",
+          "#ff0000"
+        ],
+        "plotRowInputs": 24
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__11-vumanchu-cipher-a-vu",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_6603b4987120",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "ema_1",
+          "ema_2",
+          "ema_3",
+          "ema_4",
+          "ema_5",
+          "ema_6",
+          "ema_7",
+          "ema_8",
+          "ema_8_",
+          "long_ema_signal",
+          "short_ema_signal",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true
+      },
+      "instance_persisted": [
+        "inst:u_6603b4987120:1"
+      ],
+      "render_settled": true,
+      "chips_after": 12,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "value",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_1",
+          "text": "high_engagem 739.99",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_2",
+          "text": "high_engagem 740.03",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_3",
+          "text": "high_engagem 740.47",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_4",
+          "text": "high_engagem 740.55",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_5",
+          "text": "high_engagem 740.35",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_6",
+          "text": "high_engagem 739.91",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_7",
+          "text": "high_engagem 738.98",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_8",
+          "text": "high_engagem 737.11",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "ema_8_",
+          "text": "high_engagem 737.11",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "long_ema_signal",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_6603b4987120:1",
+          "plotKey": "short_ema_signal",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 11,
+      "screenshot": "tools\\c0_out_oos_v2\\high_engagement__11-vumanchu-cipher-a-vumanchu.png",
+      "declared_plots": [
+        "value",
+        "ema_1",
+        "ema_2",
+        "ema_3",
+        "ema_4",
+        "ema_5",
+        "ema_6",
+        "ema_7",
+        "ema_8",
+        "ema_8_",
+        "long_ema_signal",
+        "short_ema_signal"
+      ],
+      "drawn_plots": [
+        "value",
+        "ema_1",
+        "ema_2",
+        "ema_3",
+        "ema_4",
+        "ema_5",
+        "ema_6",
+        "ema_7",
+        "ema_8",
+        "ema_8_",
+        "long_ema_signal",
+        "short_ema_signal"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 12
+    },
+    {
+      "script": "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody",
+      "timings_ms": {
+        "goto": 2406,
+        "open_builder": 11,
+        "new_formula": 10,
+        "import_tab": 41,
+        "paste": 27,
+        "translate": 0,
+        "apply": 13,
+        "save_click": 5
+      },
+      "definitions_before": 11,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 12
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__12-cm-ultimate-rsi-mtf-",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $: \"upLine\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, dayofweek, hour, isdaily, isintrada",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    },
+    {
+      "script": "high_engagement__14-heikin-ashi-candle-overlay-bjorgum",
+      "timings_ms": {
+        "goto": 2483,
+        "open_builder": 16,
+        "new_formula": 31,
+        "import_tab": 26,
+        "paste": 51,
+        "translate": 279,
+        "apply": 9,
+        "save_click": 9,
+        "save_roundtrip": 547,
+        "instance_persist": 551,
+        "reopen": 2694,
+        "render": 238
+      },
+      "definitions_before": 11,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__14-heikin-ashi-candle-o",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_a8dd87e9ca6e",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "close"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "close"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "close",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_a8dd87e9ca6e:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_a8dd87e9ca6e:1",
+          "plotKey": "value",
+          "text": "high_engagem 744.24",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a8dd87e9ca6e:1",
+          "plotKey": "close",
+          "text": "high_engagem 744.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 12,
+      "screenshot": "tools\\c0_out_oos_v2\\high_engagement__14-heikin-ashi-candle-overlay-bjorgum.png",
+      "declared_plots": [
+        "value",
+        "close"
+      ],
+      "drawn_plots": [
+        "value",
+        "close"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "high_engagement__22-reversal-probability-profile-algoalpha",
+      "timings_ms": {
+        "goto": 2379,
+        "open_builder": 14,
+        "new_formula": 24,
+        "import_tab": 56,
+        "paste": 49,
+        "translate": 287
+      },
+      "definitions_before": 12,
+      "instances_before": 0,
+      "chips_before": 0,
+      "result": "IMPORT_BLOCKED",
+      "detail": "Apply never became enabled",
+      "refusal": "LINE 181, COLUMN 6 `ta.pivothigh` returns its value `rightbars` after the pivot, so this engine has to know that number when it builds the formula \u2014 write it as"
+    },
+    {
+      "script": "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "timings_ms": {
+        "goto": 2399,
+        "open_builder": 13,
+        "new_formula": 21,
+        "import_tab": 39,
+        "paste": 60,
+        "translate": 0,
+        "apply": 16,
+        "save_click": 11,
+        "save_roundtrip": 562,
+        "instance_persist": 37,
+        "reopen": 2636,
+        "render": 221
+      },
+      "definitions_before": 12,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "0",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "histogram",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 12
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "high_engagement__24-coppock-curve-multi-",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_c8c5a4cdb192",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "zero_cross_down",
+          "coppock",
+          "histogram",
+          "zero_up",
+          "zero_down"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "coppock",
+          "histogram",
+          "value",
+          "zero_cross_down",
+          "zero_down",
+          "zero_up"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": true
+      },
+      "instance_persisted": [
+        "inst:u_c8c5a4cdb192:1"
+      ],
+      "render_settled": true,
+      "chips_after": 6,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "value",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "zero_cross_down",
+          "text": "high_engagem 0.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "coppock",
+          "text": "high_engagem -1.36",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "histogram",
+          "text": "high_engagem -1.36",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "zero_up",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_c8c5a4cdb192:1",
+          "plotKey": "zero_down",
+          "text": "high_engagem",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 13,
+      "screenshot": "tools\\c0_out_oos_v2\\high_engagement__24-coppock-curve-multi-filter-markittick.png",
+      "declared_plots": [
+        "value",
+        "zero_cross_down",
+        "coppock",
+        "histogram",
+        "zero_up",
+        "zero_down"
+      ],
+      "drawn_plots": [
+        "value",
+        "zero_cross_down",
+        "coppock",
+        "histogram",
+        "zero_up",
+        "zero_down"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 6
+    },
+    {
+      "script": "long_tail__13-volatility-of-returns",
+      "timings_ms": {
+        "goto": 2383,
+        "open_builder": 17,
+        "new_formula": 16,
+        "import_tab": 33,
+        "paste": 33,
+        "translate": 0,
+        "apply": 17,
+        "save_click": 3
+      },
+      "definitions_before": 13,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#2962ff",
+          "#787b86"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "long_tail__13-volatility-of-returns",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[0]: \"showMa\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, dayofweek, hour, isdaily, i",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    },
+    {
+      "script": "long_tail__16-spy-position-helper",
+      "timings_ms": {
+        "goto": 2457,
+        "open_builder": 16,
+        "new_formula": 29,
+        "import_tab": 26,
+        "paste": 41,
+        "translate": 427,
+        "apply": 16,
+        "save_click": 8,
+        "save_roundtrip": 563,
+        "instance_persist": 549,
+        "reopen": 2414,
+        "render": 261
+      },
+      "definitions_before": 13,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#ff9800"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "long_tail__16-spy-position-helper",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_b53a5d765ccd",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_b53a5d765ccd:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_b53a5d765ccd:1",
+          "plotKey": "value",
+          "text": "long_tail__1 690.08",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 14,
+      "screenshot": "tools\\c0_out_oos_v2\\long_tail__16-spy-position-helper.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "mid_engagement__07-3way-bollinger-trend",
+      "timings_ms": {
+        "goto": 2353,
+        "open_builder": 17,
+        "new_formula": 31,
+        "import_tab": 42,
+        "paste": 41,
+        "translate": 344,
+        "apply": 11,
+        "save_click": 2
+      },
+      "definitions_before": 14,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 6
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__07-3way-bollinger-trend",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[1].args[1].args[0]: \"bandStdevMult\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, dayo",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    },
+    {
+      "script": "mid_engagement__09-relative-volume-breakout-context",
+      "timings_ms": {
+        "goto": 2457,
+        "open_builder": 28,
+        "new_formula": 7,
+        "import_tab": 39,
+        "paste": 85,
+        "translate": 299,
+        "apply": 11,
+        "save_click": 12,
+        "save_roundtrip": 572,
+        "instance_persist": 536,
+        "reopen": 2424,
+        "render": 325
+      },
+      "definitions_before": 14,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "0",
+        "placement": "pane",
+        "styleSelects": [
+          "stepline",
+          "stepline"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__09-relative-volume-break",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_2970f5c2d2fe",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "prior_lower_rail",
+          "levels"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "prior_lower_rail"
+        ],
+        "guide_plot_keys": [
+          "levels"
+        ],
+        "tree_keys": [
+          "prior_lower_rail",
+          "value"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_2970f5c2d2fe:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_2970f5c2d2fe:1",
+          "plotKey": "value",
+          "text": "mid_engageme 760.40",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_2970f5c2d2fe:1",
+          "plotKey": "prior_lower_rail",
+          "text": "mid_engageme 716.58",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 15,
+      "screenshot": "tools\\c0_out_oos_v2\\mid_engagement__09-relative-volume-breakout-context.png",
+      "declared_plots": [
+        "value",
+        "prior_lower_rail"
+      ],
+      "drawn_plots": [
+        "value",
+        "prior_lower_rail"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "mid_engagement__13-spma-trend",
+      "timings_ms": {
+        "goto": 2390,
+        "open_builder": 11,
+        "new_formula": 10,
+        "import_tab": 21,
+        "paste": 86,
+        "translate": 291,
+        "apply": 14,
+        "save_click": 6
+      },
+      "definitions_before": 15,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#ffffff",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 10
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__13-spma-trend",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": null,
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[1].args[2].args[0].args[1]: \"GateInp\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, da",
+        "repaintBadge": null,
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "the read-back cannot name a value the table does not declare at $.args[1].args[2].args[0].args[1]: \"GateInp\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, da"
+    },
+    {
+      "script": "mid_engagement__14-master-line-lite",
+      "timings_ms": {
+        "goto": 2485,
+        "open_builder": 22,
+        "new_formula": 38,
+        "import_tab": 18,
+        "paste": 18,
+        "translate": 329,
+        "apply": 11,
+        "save_click": 3
+      },
+      "definitions_before": 15,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#787b86",
+          "#787b86",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 14
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__14-master-line-lite",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[0]: \"showBand\" \u2014 this table declares close, high, low, open, volume, its clock is barindex, dayofmonth, dayofweek, hour, isdaily,",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    },
+    {
+      "script": "mid_engagement__17-volume-surge-radar",
+      "timings_ms": {
+        "goto": 2557,
+        "open_builder": 26,
+        "new_formula": 45,
+        "import_tab": 39,
+        "paste": 73,
+        "translate": 460,
+        "apply": 15,
+        "save_click": 7,
+        "save_roundtrip": 548,
+        "instance_persist": 541,
+        "reopen": 2413,
+        "render": 224
+      },
+      "definitions_before": 15,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line",
+          "histogram"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__17-volume-surge-radar",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_28f434a475fa",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "value",
+          "volume"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_28f434a475fa:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_28f434a475fa:1",
+          "plotKey": "value",
+          "text": "mid_engageme -0.77",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_28f434a475fa:1",
+          "plotKey": "volume",
+          "text": "mid_engageme 50673300.00",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 16,
+      "screenshot": "tools\\c0_out_oos_v2\\mid_engagement__17-volume-surge-radar.png",
+      "declared_plots": [
+        "value",
+        "volume"
+      ],
+      "drawn_plots": [
+        "value",
+        "volume"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "mid_engagement__19-oliver-kell-volume-monitor",
+      "timings_ms": {
+        "goto": 2384,
+        "open_builder": 10,
+        "new_formula": 21,
+        "import_tab": 27,
+        "paste": 33,
+        "translate": 292,
+        "apply": 91,
+        "save_click": 6,
+        "save_roundtrip": 538,
+        "instance_persist": 551,
+        "reopen": 2401,
+        "render": 398
+      },
+      "definitions_before": 16,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "histogram",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 4
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__19-oliver-kell-volume-mo",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_a493053743ed",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value",
+          "volume_ma"
+        ],
+        "chip_plot_keys": [
+          "value",
+          "volume_ma"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [
+          "value",
+          "volume_ma"
+        ],
+        "scan_plot": "value",
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_a493053743ed:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_a493053743ed:1",
+          "plotKey": "value",
+          "text": "mid_engageme 50673300.00",
+          "hidden": false,
+          "drewNothing": false
+        },
+        {
+          "instanceId": "inst:u_a493053743ed:1",
+          "plotKey": "volume_ma",
+          "text": "mid_engageme 64679985.00",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 17,
+      "screenshot": "tools\\c0_out_oos_v2\\mid_engagement__19-oliver-kell-volume-monitor.png",
+      "declared_plots": [
+        "value",
+        "volume_ma"
+      ],
+      "drawn_plots": [
+        "value",
+        "volume_ma"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 2
+    },
+    {
+      "script": "mid_engagement__22-rsi-levels-regime-map",
+      "timings_ms": {
+        "goto": 2411,
+        "open_builder": 16,
+        "new_formula": 10,
+        "import_tab": 22,
+        "paste": 53,
+        "translate": 555,
+        "apply": 20,
+        "save_click": 34
+      },
+      "definitions_before": 17,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line",
+          "line"
+        ],
+        "colors": [
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c",
+          "#c9a84c"
+        ],
+        "plotRowInputs": 24
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "mid_engagement__22-rsi-levels-regime-map",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": "Fix the plots above to save.",
+        "formulaError": "the read-back cannot name a value the table does not declare at $.args[1].args[0].args[0].args[1].args[0].args[0].args[0].args[1].args[1]: \"lv3\" \u2014 did you mean `lv1` or `lv2`? \u2014 this table declares cl",
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "Fix the plots above to save."
+    }
+  ],
+  "bars_probe": 300
+}

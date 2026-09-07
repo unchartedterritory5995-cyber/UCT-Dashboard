@@ -1,0 +1,9 @@
+//@version=5
+// NON-VACUITY CONTROL FOR THE RENDER GATE -- this script MUST NOT draw.
+// Its window reaches back further than any history the chart loads, so every
+// bar of its column is NaN, `planBindings` gives the plot no series, and
+// `legendChips` stamps the chip `data-computed="false"`. If the harness reports
+// this as CHART_RENDERABLE, the render gate cannot distinguish drawing from not
+// drawing and no number it produces means anything.
+indicator("Control Window Exceeds History", overlay = false)
+plot(ta.sma(close, 100000), title = "Empty", color = color.purple, linewidth = 2)

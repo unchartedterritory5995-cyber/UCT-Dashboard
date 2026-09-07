@@ -1,0 +1,255 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tests/fixtures/pine_render_controls",
+  "rows": [
+    {
+      "script": "ctrl-01-window-exceeds-history",
+      "timings_ms": {
+        "goto": 2416,
+        "open_builder": 21,
+        "new_formula": 9,
+        "import_tab": 27,
+        "paste": 76,
+        "translate": 333,
+        "apply": 15,
+        "save_click": 2
+      },
+      "definitions_before": 6,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#9c27b0"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-01-window-exceeds-history",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": null,
+        "formulaError": "exceeds the lookback budget \u2014 this formula measures 100000 and the cap is 960",
+        "repaintBadge": null,
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "exceeds the lookback budget \u2014 this formula measures 100000 and the cap is 960"
+    },
+    {
+      "script": "ctrl-02-no-contentful-output",
+      "timings_ms": {
+        "goto": 2389,
+        "open_builder": 11,
+        "new_formula": 9,
+        "import_tab": 23,
+        "paste": 38,
+        "translate": 269
+      },
+      "definitions_before": 6,
+      "instances_before": 0,
+      "chips_before": 0,
+      "result": "IMPORT_BLOCKED",
+      "detail": "Apply never became enabled",
+      "refusal": "THIS SCRIPT the pasted script offers no plot and no alert condition to filter on"
+    },
+    {
+      "script": "ctrl-02-unsupported-object",
+      "timings_ms": {
+        "goto": 2469,
+        "open_builder": 15,
+        "new_formula": 15,
+        "import_tab": 47,
+        "paste": 22,
+        "translate": 273,
+        "apply": 10,
+        "save_click": 8,
+        "save_roundtrip": 532,
+        "instance_persist": 552,
+        "reopen": 2509,
+        "render": 330
+      },
+      "definitions_before": 6,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#ff9800"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-02-unsupported-object",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_b07229a8b041",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_b07229a8b041:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_b07229a8b041:1",
+          "plotKey": "value",
+          "text": "ctrl-02-unsu 746.77",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 7,
+      "screenshot": "tools\\c0_ctrl2\\ctrl-02-unsupported-object.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "CHART_RENDERABLE",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "ctrl-03-non-finite-column",
+      "timings_ms": {
+        "goto": 2414,
+        "open_builder": 15,
+        "new_formula": 38,
+        "import_tab": 28,
+        "paste": 42,
+        "translate": 285,
+        "apply": 16,
+        "save_click": 11,
+        "save_roundtrip": 536,
+        "instance_persist": 32,
+        "reopen": 2436,
+        "render": 25609
+      },
+      "definitions_before": 7,
+      "instances_before": 0,
+      "chips_before": 0,
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#9c27b0"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-03-non-finite-column",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_920c887213d0",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false
+      },
+      "instance_persisted": [
+        "inst:u_920c887213d0:1"
+      ],
+      "render_settled": false,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_920c887213d0:1",
+          "plotKey": "value",
+          "text": "ctrl-03-non-",
+          "hidden": false,
+          "drewNothing": true
+        }
+      ],
+      "persisted_defs": 8,
+      "screenshot": "tools\\c0_ctrl2\\ctrl-03-non-finite-column.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [
+        "value"
+      ],
+      "result": "CHART_PARTIAL",
+      "detail": "1/1 plot(s) computed nothing: ['value']",
+      "cleanup_removed": 1
+    }
+  ],
+  "bars_probe": 300
+}

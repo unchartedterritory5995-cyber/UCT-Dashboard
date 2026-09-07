@@ -1,0 +1,14 @@
+//@version=5
+// NON-VACUITY CONTROL FOR THE IMPORT GATE -- this script MUST be refused.
+// It draws a label and nothing else: there is no contentful output for the
+// product to carry, which is what the `pine:presentation-only` guard exists to
+// catch. If the harness reports this importable, its Apply step is not reading a
+// real refusal and every IMPORT result it prints is unearned.
+//
+// (Its predecessor here paired `label.new` WITH a `plot(close)` and was ACCEPTED
+// and drawn -- correctly, since the plot is real content. That is a
+// presentation-loss case, not a refusal case, and conflating the two is how a
+// control ends up proving nothing.)
+indicator("Control No Contentful Output", overlay = true)
+if barstate.islast
+    label.new(bar_index, high, "hi")
