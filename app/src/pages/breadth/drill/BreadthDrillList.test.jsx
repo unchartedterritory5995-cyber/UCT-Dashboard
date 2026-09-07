@@ -28,6 +28,12 @@ vi.mock('../grouping/useGroupMeta', () => ({
   }),
 }))
 
+// The bar warmer is a real network+IDB module; probe it instead of running it.
+const deepCalls = []
+vi.mock('../../../utils/prefetchBars', () => ({
+  prefetchListDeep: (syms, opts) => { deepCalls.push({ syms, opts }) },
+}))
+
 import BreadthDrillList from './BreadthDrillList'
 import { DrillSourceContext } from './DrillSourceContext'
 import { WorkspaceContext } from '../../charts/WorkspaceContext'
@@ -300,5 +306,61 @@ describe('the widget it replicates — ScannerResults is the reference', () => {
       expect(src.includes(p), `ScannerResults still passes ${p}`).toBe(true)
       expect(lastProps[p], `BreadthDrillList passes ${p}`).not.toBeUndefined()
     }
+  })
+})
+
+
+// ── Bar prefetch ────────────────────────────────────────────────────────────
+// ⛔ THIS WAS A REGRESSION, not a new feature. `CLAUDE.md` records prefetch as
+// wired into the DrillModal this component replaced, and both sibling ad-hoc
+// lists still warm (PeriodSortResults, EtfHoldingsResults call prefetchListDeep).
+// The rebuild shipped with none, so every row click was a cold fetch — the drill
+// was slower than the widget it is supposed to BE, and slower than what it
+// replaced. Nothing on screen says so, which is why it needs a rail.
+describe('it warms the bars the user is about to open', () => {
+  beforeEach(() => { deepCalls.length = 0 })
+
+  it('warms every symbol in the cell once the list arrives', () => {
+    mount({ items: ITEMS, label: 'Up 4%+', date: '2026-09-04' })
+    expect(deepCalls.length).toBeGreaterThan(0)
+    expect(deepCalls[0].syms).toEqual(['AEHR', 'COHU', 'SRPT'])
+  })
+
+  it('does NOT re-warm the same cell on a re-render', () => {
+    const drill = { items: ITEMS, label: 'Up 4%+', date: '2026-09-04' }
+    const { rerender } = mount(drill)
+    const after = deepCalls.length
+    rerender(
+      <WorkspaceContext.Provider value={ws()}>
+        <DrillSourceContext.Provider value={drill}>
+          <BreadthDrillList color="A" />
+        </DrillSourceContext.Provider>
+      </WorkspaceContext.Provider>,
+    )
+    expect(deepCalls.length, 'warm is keyed on the CELL, not the render').toBe(after)
+  })
+
+  it('warms again when a DIFFERENT cell is opened', () => {
+    mount({ items: ITEMS, label: 'Up 4%+', date: '2026-09-04' })
+    const after = deepCalls.length
+    mount({ items: ITEMS, label: 'Down 4%+', date: '2026-09-04' })
+    expect(deepCalls.length).toBeGreaterThan(after)
+  })
+
+  it('gives what is ON SCREEN priority over the background trickle', () => {
+    mount({ items: ITEMS, label: 'Up 4%+', date: '2026-09-04' })
+    expect(typeof lastProps.onScanVisibleSyms).toBe('function')
+    deepCalls.length = 0
+    lastProps.onScanVisibleSyms(['COHU', 'SRPT'])
+    expect(deepCalls).toHaveLength(1)
+    expect(deepCalls[0].syms).toEqual(['COHU', 'SRPT'])
+    expect(deepCalls[0].opts?.priority, 'the row you are about to click must jump the queue').toBe(true)
+  })
+
+  it('an empty visible window warms nothing', () => {
+    mount({ items: ITEMS, label: 'Up 4%+', date: '2026-09-04' })
+    deepCalls.length = 0
+    lastProps.onScanVisibleSyms([])
+    expect(deepCalls).toHaveLength(0)
   })
 })

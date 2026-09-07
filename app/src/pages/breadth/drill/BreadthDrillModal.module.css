@@ -14,6 +14,11 @@
   padding: 24px;
 }
 
+/* The panel takes programmatic focus on open (tabIndex -1) so the dialog is
+   announced and Tab starts inside it; that focus is not a keyboard landing spot,
+   so it shows no ring. Controls inside keep their own focus styles. */
+.dialog:focus { outline: none; }
+
 .dialog {
   background: var(--bg-elevated, #1d1f23);
   border: 1px solid var(--border, #2a2c31);

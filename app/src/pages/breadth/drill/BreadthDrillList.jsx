@@ -5,6 +5,7 @@ import useBreadthGrouping from '../grouping/useBreadthGrouping'
 import { ChartsSymContext } from '../../charts/ChartsSymContext'
 import { useWorkspace } from '../../charts/WorkspaceContext'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
+import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
 import styles from './BreadthDrillList.module.css'
 
@@ -141,6 +142,31 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     if (!groupSyms?.[color]) setGroupSym?.(color, first)
   }, [items, color, groupSyms, setGroupSym])
 
+  // ⭐ WARM THE BARS THE USER IS ABOUT TO OPEN. Clicking a row swaps the paired
+  // chart's symbol, and with nothing warmed every click is a cold fetch. The drill
+  // this replaced DID prefetch (CLAUDE.md records it under the bars cache), and both
+  // sibling ad-hoc lists still do — PeriodSortResults and EtfHoldingsResults. Same
+  // helper as theirs on purpose: `prefetchListDeep` warms Daily FIRST (the timeframe
+  // the chart is showing) then W/M, is idle-deferred, bounded, and self-capping at
+  // DEEP_WARM_CAP — so a 2,667-name universe drill costs no more than a 40-name cell.
+  const warmedRef = useRef(null)
+  useEffect(() => {
+    const syms = items.map(i => String(tickerOf(i) || '').toUpperCase()).filter(Boolean)
+    if (!syms.length) return
+    // Keyed on the CELL, not the array identity, so a re-render never re-warms.
+    const key = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}|${syms.length}`
+    if (warmedRef.current === key) return
+    warmedRef.current = key
+    prefetchListDeep(syms)
+  }, [items, drill?.label, drill?.date, drill?.live])
+
+  // What is ON SCREEN jumps ahead of that background trickle, so the row you are
+  // about to click is warm before you reach it. `prefetchListDeep` dedupes over a
+  // 5-minute window and is bounded, so firing this per scroll is cheap.
+  const warmVisible = useCallback((syms) => {
+    if (syms?.length) prefetchListDeep(syms, { cap: 60, priority: true })
+  }, [])
+
   const stockCount = items.length
   const scanFooter = (
     <div className={styles.footer}>
@@ -226,6 +252,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
             scanFooter={scanFooter}
+            onScanVisibleSyms={warmVisible}
             // `loading` is "not answered yet"; a genuinely empty answer is the
             // only thing allowed to say nothing matched.
             scanEmptyText={drill?.loading ? 'Loading…' : 'No stocks matched this filter.'}

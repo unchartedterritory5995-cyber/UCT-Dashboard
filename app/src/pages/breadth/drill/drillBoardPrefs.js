@@ -61,8 +61,14 @@ export function parseBoard(raw, seedChartOpts = {}) {
   return { split, widgets }
 }
 
+// The split's travel. Exported because the divider reports them to assistive
+// tech as aria-valuemin/max: retyping the numbers there would put a second
+// authority over one value, and the pair that drifts is the one nobody can see.
+export const SPLIT_MIN = 240
+export const SPLIT_MAX = 760
+
 export function clampSplit(px) {
-  return Math.max(240, Math.min(760, Math.round(px)))
+  return Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, Math.round(px)))
 }
 
 export function serializeBoard(board) {

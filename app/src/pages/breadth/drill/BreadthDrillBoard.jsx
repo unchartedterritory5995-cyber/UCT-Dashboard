@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import WidgetHost from '../../charts/WidgetHost'
-import { clampSplit, LIST_WIDGET_ID } from './drillBoardPrefs'
+import { clampSplit, LIST_WIDGET_ID, SPLIT_MIN, SPLIT_MAX } from './drillBoardPrefs'
 import styles from './BreadthDrillBoard.module.css'
 
 // Two REAL charts-workspace widgets in a resizable split.
@@ -69,6 +69,25 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
     }
   }, [dragging, onBoardChange])
 
+  // The divider is a real control, so it has to work without a pointer. A
+  // `role="separator"` that is focusable is an ARIA widget: it MUST be reachable
+  // (tabIndex) and MUST report its value, which is why SPLIT_MIN/MAX are imported
+  // rather than retyped. Shift takes bigger steps, Home/End go to the stops.
+  const onDividerKey = useCallback((e) => {
+    const step = e.shiftKey ? 64 : 16
+    let next = null
+    if (e.key === 'ArrowLeft') next = (b) => b.split - step
+    else if (e.key === 'ArrowRight') next = (b) => b.split + step
+    else if (e.key === 'Home') next = () => SPLIT_MIN
+    else if (e.key === 'End') next = () => SPLIT_MAX
+    else return
+    e.preventDefault()
+    // stopPropagation: the watchlist binds arrows on `window` for row navigation,
+    // and resizing the pane must not also walk the selection.
+    e.stopPropagation()
+    onBoardChange(b => ({ ...b, split: clampSplit(next(b)) }))
+  }, [onBoardChange])
+
   const listWidget = widgets.find(w => w.id === LIST_WIDGET_ID)
   const chartWidget = widgets.find(w => w.id !== LIST_WIDGET_ID)
   // A popped widget is rendered by the MODAL into its own window, so the board
@@ -122,10 +141,15 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
         <div
           className={`${styles.divider}${dragging ? ' ' + styles.dividerActive : ''}`}
           onPointerDown={onDividerDown}
+          onKeyDown={onDividerKey}
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize list panel"
-          title="Drag to resize"
+          aria-valuenow={Math.round(split)}
+          aria-valuemin={SPLIT_MIN}
+          aria-valuemax={SPLIT_MAX}
+          tabIndex={0}
+          title="Drag to resize, or focus and use the arrow keys"
         />
       )}
       {!chartPopped && (

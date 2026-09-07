@@ -12,6 +12,12 @@ import WidgetHost from '../../charts/WidgetHost'
 import { DRILL_BOARD_PREF, LIST_WIDGET_ID, parseBoard, serializeBoard } from './drillBoardPrefs'
 import styles from './BreadthDrillModal.module.css'
 
+const FOCUSABLE = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+  'select:not([disabled])', 'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site and try again.'
 
 // The breadth cell drill: a two-widget charts board in an overlay.
@@ -152,18 +158,68 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // ── Focus ───────────────────────────────────────────────────────────────────
+  // `aria-modal` tells assistive tech the rest of the page is inert; it does NOT
+  // move or contain focus. Without the three things below, opening the drill left
+  // focus on the breadth cell behind it — so a screen reader announced nothing,
+  // Tab walked the page UNDER the overlay, and closing dropped focus to the top
+  // of the document instead of the cell you came from.
+  const dialogRef = useRef(null)
+  useEffect(() => {
+    const opener = document.activeElement
+    // Focus the PANEL, not its first control: a dialog that opens with some button
+    // focused announces that button's label instead of the dialog's, and a stray
+    // Enter would activate it.
+    dialogRef.current?.focus()
+    return () => {
+      // Back to the cell that opened this, so a keyboard user resumes where they
+      // were. `isConnected` guards a cell that re-rendered away while open.
+      if (opener && typeof opener.focus === 'function' && opener.isConnected) opener.focus()
+    }
+  }, [])
+
+  // Tab must not escape into the page behind the overlay. Bound to the PANEL, not
+  // the window, so a popped-out widget in its own window is unaffected.
+  const onDialogKeyDown = useCallback((e) => {
+    if (e.key !== 'Tab') return
+    const root = dialogRef.current
+    if (!root) return
+    const all = Array.from(root.querySelectorAll(FOCUSABLE))
+    // `offsetParent` drops display:none controls — which is how the phone-only
+    // List/Chart toggle stays out of the DESKTOP tab cycle without a second
+    // breakpoint read. ⛔ But jsdom does no layout and reports null for EVERY
+    // element, so filtering blindly leaves zero nodes and pins focus to the panel.
+    // Fall back to the unfiltered set: a layout this code cannot measure must
+    // never be allowed to strand a keyboard user.
+    const visible = all.filter(el => el.offsetParent !== null)
+    const nodes = visible.length ? visible : all
+    if (!nodes.length) { e.preventDefault(); root.focus(); return }
+    const first = nodes[0]
+    const last = nodes[nodes.length - 1]
+    const here = root.ownerDocument.activeElement
+    if (e.shiftKey && (here === first || here === root)) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && here === last) { e.preventDefault(); first.focus() }
+  }, [])
+
   const count = source.items.length
   const whenLabel = source.live ? 'LIVE' : source.date
 
   return (
-    <div
-      className={styles.overlay}
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${source.label} constituents`}
-    >
-      <div className={styles.dialog} onClick={e => e.stopPropagation()}>
+    // ⛔ The dialog role belongs to the PANEL, not the backdrop. It was on this
+    // overlay, which meant the accessible dialog included the dimmed background and
+    // its click-to-close — so the region announced as the dialog was not the region
+    // the user could actually operate.
+    <div className={styles.overlay} onClick={onClose}>
+      <div
+        className={styles.dialog}
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${source.label} constituents`}
+        onKeyDown={onDialogKeyDown}
+        onClick={e => e.stopPropagation()}
+      >
         <div className={styles.bar}>
           <span className={styles.title}>
             {source.label}
