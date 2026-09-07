@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "12-setup-grader.pine",
+  "title": "Setup Grader - HIGH MED LOW Filter",
+  "author": "Trding_AI",
+  "source_url": "https://www.tradingview.com/script/wfVeTpLg-Setup-Grader-HIGH-MED-LOW-Filter/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "3 days ago (relative date shown on page; no absolute date displayed; header comment states v1.0.0 (2026-09-08))",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 128,
+  "complexity_bucket": "long",
+  "sha256_source": "7763dbedb646cda916593a7a05a7f3eb4e0e8cade15c398ace1556da8c6e4368",
+  "sha256_normalized": "50b5179a20702c52dd10962eb0581a69a0adb4836e7ceb37845f565672d7aff1",
+  "storage": "git"
+}

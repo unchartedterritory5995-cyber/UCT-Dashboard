@@ -209,9 +209,18 @@ export function measureScript(name, source) {
   // INVALID_SOURCE is decided from the SOURCE, before any acceptance question,
   // because a strategy()/library() script is out of the declared scope rather
   // than a compatibility failure.
+  // ⛔ A LIBRARY IS OUT OF SCOPE. AN INDICATOR THAT IMPORTS ONE IS NOT.
+  // `library()` declares an artifact that is not an indicator at all, so it is
+  // INVALID_SOURCE — out of the declared market target, not a compatibility
+  // failure. But a script that declares `indicator()` and `import`s a library IS
+  // the thing we are measuring: it is a real custom indicator, and refusing it
+  // because its dependency never arrived is a TRUTHFUL refusal of an incomplete
+  // artifact, not a statement that the script was invalid. Filing it under
+  // INVALID_SOURCE would quietly move a real capability gap (we do not resolve
+  // library imports) out of the compatibility accounting entirely.
   let outcome
-  if (demand.hasLibraryCall || demand.hasImport) outcome = 'INVALID_SOURCE'
-  else if (raw.declaration === 'strategy' || (!raw.declaration && demand.hasStrategyCall)) outcome = 'INVALID_SOURCE'
+  if (demand.hasLibraryCall) outcome = 'INVALID_SOURCE'
+  else if (raw.declaration === 'strategy' || (!raw.declaration && demand.hasStrategyCall && !demand.hasImport)) outcome = 'INVALID_SOURCE'
   else if (raw.threw || (assisted && assisted.threw)) outcome = 'UNKNOWN_NEEDS_ADJUDICATION'
   else if (raw.ok) outcome = 'RAW_ACCEPTED'
   else if (assisted && assisted.ok) outcome = 'ASSISTED_ACCEPTED'

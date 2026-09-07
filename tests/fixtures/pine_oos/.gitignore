@@ -1,0 +1,35 @@
+# Scripts whose recorded licence does not contemplate redistribution.
+# They are frozen, measured and hashed like every other corpus member --
+# MANIFEST.json carries each one's source URL and SHA-256 -- but their
+# text is held locally only and never committed.
+# Re-fetch from the manifest URL and verify against sha256_source.
+high_engagement__02-waddah-attar-explosion-lazybear.pine
+high_engagement__03-supertrend-kivancozbilgic.pine
+high_engagement__04-ttm-squeeze-greeny.pine
+high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo.pine
+high_engagement__11-vumanchu-cipher-a-vumanchu.pine
+high_engagement__12-cm-ultimate-rsi-mtf-chrismoody.pine
+high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine
+high_engagement__14-heikin-ashi-candle-overlay-bjorgum.pine
+high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd.pine
+high_engagement__19-anchored-vwap-stuehmer.pine
+high_engagement__21-parabolic-sar-deviation-bigbeluga.pine
+high_engagement__24-coppock-curve-multi-filter-markittick.pine
+long_tail__01-ny-macro-status.pine
+long_tail__10-mtf-supply-demand.pine
+long_tail__14-vwap-z-score-oscillator.pine
+long_tail__15-agreed-upon-dol.pine
+long_tail__16-spy-position-helper.pine
+long_tail__18-deltalabs-equal-highs-equal-lows.pine
+long_tail__19-session-fibs-falcon-ai.pine
+long_tail__20-cot-pulse-cloud-trend.pine
+mid_engagement__01-zeiierman-trend-pressure.pine
+mid_engagement__03-volatility-supply-demand-zones.pine
+mid_engagement__04-cisd-order-block.pine
+mid_engagement__05-supertrend-fibonacci-ote.pine
+mid_engagement__07-3way-bollinger-trend.pine
+mid_engagement__08-hourly-alpha-profile-terminal.pine
+mid_engagement__09-relative-volume-breakout-context.pine
+mid_engagement__10-smc-engine.pine
+mid_engagement__15-multi-timeframe-ma-forecast.pine
+mid_engagement__23-distilled-htf-po3.pine

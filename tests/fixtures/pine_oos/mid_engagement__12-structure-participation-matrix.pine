@@ -1,0 +1,450 @@
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/
+// © MQLSoftware
+//@version=6
+//
+// Structure Participation Matrix [MQLSoftware]
+//
+// Free/open-source analytical overlay. It confirms strict swing breaks on closed
+// bars, freezes four measurements of the completed structural leg and records one
+// neutral post-break outcome after a fixed number of bars. It does not create
+// entries, stops, targets, position sizing or execution instructions.
+//
+// ORIGINAL CONTRIBUTION
+//   1. Strict confirmed structure: a swing is eligible only after a symmetric
+//      strict-extremum window has closed. Equal highs/lows do not qualify.
+//   2. Frozen structural-leg ledger: displacement efficiency, final close
+//      commitment, relative chart volume and a price/volume participation-balance
+//      proxy are measured over the completed leg and frozen at the break close.
+//   3. Post-break matrix: after a fixed confirmed-bar window, each scored event is
+//      latched once as HELD or FAILED and counted by its frozen score bucket.
+//
+// DATA LIMITATION
+// "RVOL" uses the chart feed's reported/tick volume. "BAL" weights that volume by
+// directional close location inside each bar. It is a transparent OHLCV proxy, not
+// bid/ask delta, order flow, a footprint or a forecast.
+//
+// NO-REPAINT CONTRACT
+// Pivots, breaks, scores, outcomes, matrix counters, markers and alert flags change
+// only inside barstate.isconfirmed. A break marker is never back-plotted. Historical
+// pivot anchoring is drawn only after the pivot and break are both confirmed. Frozen
+// event values are never recomputed. No request.security() path exists in v1.
+
+// Release contract: keep the full shorttitle and require a clean 0-error/0-warning compile.
+indicator("Structure Participation Matrix [MQLSoftware]", shorttitle="MQLSoftware - Structure Participation Matrix", overlay=true, max_bars_back=5000, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+color NS_WHITE = color.rgb(225, 230, 240)
+color NS_LBL   = color.rgb(170, 178, 195)
+color NS_SEC   = color.rgb( 90,  98, 115)
+color NS_BG    = color.new(color.rgb(  8, 11, 18),  4)
+color NS_ROW   = color.new(color.rgb( 16, 20, 30),  6)
+color NS_INK   = color.rgb( 10,  14,  22)
+
+color SPM_UP_DEF    = #00E5A8
+color SPM_DN_DEF    = #FF3D71
+color SPM_WEAK_DEF  = #FFB020
+color SPM_MIXED_DEF = #5B8CFF
+color SPM_BACK_DEF  = #A855F7
+color SPM_STRONG_DEF= #00E5FF
+
+float W_EFF   = 0.30
+float W_CLOSE = 0.25
+float W_RVOL  = 0.25
+float W_BAL   = 0.20
+
+// ─── INPUTS ───────────────────────────────────────────────────────────────────
+var string GRP_STR = "◆ Confirmed Structure"
+var string GRP_PAR = "◆ Participation Model"
+var string GRP_OUT = "◆ Outcome Matrix"
+var string GRP_VIS = "◆ Visual"
+
+int swingStrength = input.int(3, "Strict Swing Strength", group=GRP_STR, minval=2, maxval=20,
+     tooltip="Symmetric confirmation delay. A strength of 3 requires three older and three newer closed bars around the pivot. Ties are rejected, and the level becomes eligible only after the right-side window closes.")
+float breakBufferAtr = input.float(0.10, "Break Buffer (ATR)", group=GRP_STR, minval=0.0, maxval=2.0, step=0.05,
+     tooltip="A break requires a confirmed close this many ATRs beyond the latest confirmed strict swing. Wicks alone do not trigger events.")
+int atrLength = input.int(14, "ATR Length", group=GRP_STR, minval=5, maxval=100)
+int maxLegBars = input.int(750, "Maximum Measured Leg Bars", group=GRP_STR, minval=25, maxval=3000,
+     tooltip="Safety bound for dynamic history access. If the opposite confirmed swing is older, the break is still shown but remains UNSCORED and is excluded from the matrix.")
+
+int closeWindow = input.int(5, "Final Close Window", group=GRP_PAR, minval=1, maxval=20,
+     tooltip="Number of final leg bars averaged for directional close commitment. A close near the high helps an up leg; a close near the low helps a down leg.")
+int volumeBaseline = input.int(50, "Volume Median Baseline", group=GRP_PAR, minval=10, maxval=300,
+     tooltip="Relative participation compares average chart volume per leg bar with this rolling median. Every measured leg bar must have valid reported/tick volume or the event remains UNSCORED.")
+
+int evaluationBars = input.int(10, "Outcome Window (confirmed bars)", group=GRP_OUT, minval=2, maxval=100,
+     tooltip="Exactly this many closed bars after a break, the event is latched HELD if price is still on the broken side of the level, otherwise FAILED.")
+int minimumSample = input.int(10, "Minimum Sample to Display", group=GRP_OUT, minval=3, maxval=100,
+     tooltip="Below this resolved sample size, the matrix prints collecting instead of a percentage.")
+
+bool showLevels = input.bool(true, "Broken Levels", group=GRP_VIS)
+bool showLabels = input.bool(true, "Event Labels", group=GRP_VIS)
+bool showRail = input.bool(true, "Latest Four-Component Rail", group=GRP_VIS,
+     tooltip="Shows one compact PATH, CLOSE, VOL and BAL strip for the latest scored event.")
+bool showHistoricalRails = input.bool(false, "Historical Detailed Rails", group=GRP_VIS,
+     tooltip="Opt-in detail layer. When enabled, retained historical events also keep their component strips; calculations never depend on this setting.")
+bool showLegShade = input.bool(true, "Structural Leg Shading", group=GRP_VIS)
+bool showOutcomes = input.bool(true, "Outcome Markers", group=GRP_VIS)
+bool showPanel = input.bool(true, "Latest Event + Matrix", group=GRP_VIS)
+int keepEvents = input.int(8, "Maximum Retained Events", group=GRP_VIS, minval=0, maxval=60,
+     tooltip="Bounds chart objects only. Matrix calculations continue for the loaded chart history even after old drawings retire.")
+string panelPosition = input.string("Top Right", "Panel Position", group=GRP_VIS, options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"])
+string panelTextSize = input.string("Small", "Panel Text Size", group=GRP_VIS, options=["Tiny", "Small", "Normal"])
+color upColor = input.color(SPM_UP_DEF, "Break Up", group=GRP_VIS, inline="c1")
+color downColor = input.color(SPM_DN_DEF, "Break Down", group=GRP_VIS, inline="c1")
+color weakColor = input.color(SPM_WEAK_DEF, "Weak", group=GRP_VIS, inline="c2")
+color backedColor = input.color(SPM_BACK_DEF, "Backed", group=GRP_VIS, inline="c2")
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+f_clamp(float value) =>
+    math.max(0.0, math.min(100.0, value))
+
+f_normalizeScore(float score) =>
+    math.round(f_clamp(score) * 10.0) / 10.0
+
+f_strictHigh(int strength) =>
+    float result = na
+    if bar_index >= strength * 2
+        float candidate = high[strength]
+        bool strict = not na(candidate)
+        for i = 1 to strength
+            strict := strict and candidate > high[strength + i] and candidate > high[strength - i]
+        result := strict ? candidate : na
+    result
+
+f_strictLow(int strength) =>
+    float result = na
+    if bar_index >= strength * 2
+        float candidate = low[strength]
+        bool strict = not na(candidate)
+        for i = 1 to strength
+            strict := strict and candidate < low[strength + i] and candidate < low[strength - i]
+        result := strict ? candidate : na
+    result
+
+f_bucket(float score) =>
+    score < 40.0 ? 0 : score < 60.0 ? 1 : score < 80.0 ? 2 : 3
+
+f_bucketName(int bucket) =>
+    bucket == 0 ? "<40" : bucket == 1 ? "40–59" : bucket == 2 ? "60–79" : "80+"
+
+f_quality(float score) =>
+    score < 40.0 ? "LOW" : score < 60.0 ? "MODERATE" : score < 80.0 ? "HIGH" : "VERY HIGH"
+
+f_scoreColor(float score) =>
+    score < 40.0 ? weakColor : score < 60.0 ? SPM_MIXED_DEF : score < 80.0 ? backedColor : SPM_STRONG_DEF
+
+f_value(float value) =>
+    na(value) ? "—" : str.tostring(value, "#.0")
+
+f_rate(int held, int total) =>
+    total >= minimumSample ? str.tostring(100.0 * held / total, "#") + "%" : "collecting"
+
+f_rateBar(int held, int total) =>
+    float rate = total > 0 ? 100.0 * held / total : na
+    total < minimumSample ? "·····" : rate < 20.0 ? "▰▱▱▱▱" : rate < 40.0 ? "▰▰▱▱▱" : rate < 60.0 ? "▰▰▰▱▱" : rate < 80.0 ? "▰▰▰▰▱" : "▰▰▰▰▰"
+
+f_trimLines(array<line> items, int maximum) =>
+    while items.size() > maximum
+        line.delete(items.shift())
+
+f_trimLabels(array<label> items, int maximum) =>
+    while items.size() > maximum
+        label.delete(items.shift())
+
+f_trimBoxes(array<box> items, int maximum) =>
+    while items.size() > maximum
+        box.delete(items.shift())
+
+// ─── SERIES LEDGER ────────────────────────────────────────────────────────────
+float atr = ta.atr(atrLength)
+float pivotHigh = f_strictHigh(swingStrength)
+float pivotLow = f_strictLow(swingStrength)
+
+float barPath = na(close[1]) ? 0.0 : math.abs(close - close[1])
+float barRange = high - low
+float closeLocation = barRange > 0 ? (2.0 * close - high - low) / barRange : 0.0
+float chartVolume = na(volume) ? 0.0 : volume
+float validVolumeSample = na(volume) ? 0.0 : 1.0
+float cumulativePath = ta.cum(barPath)
+float cumulativeVolume = ta.cum(chartVolume)
+float cumulativeBalance = ta.cum(chartVolume * closeLocation)
+float cumulativeVolumeCoverage = ta.cum(validVolumeSample)
+float medianVolume = ta.median(volume, volumeBaseline)
+
+// ─── CONFIRMED STRUCTURE STATE ────────────────────────────────────────────────
+var float latestHigh = na
+var int latestHighBar = na
+var bool highArmed = false
+var float latestLow = na
+var int latestLowBar = na
+var bool lowArmed = false
+
+// Pending outcome records only. Resolved records are folded into the matrix and removed.
+var array<int> pendingBreakBar = array.new_int()
+var array<int> pendingDirection = array.new_int()
+var array<float> pendingLevel = array.new_float()
+var array<int> pendingBucket = array.new_int()
+
+var array<int> bucketCount = array.new_int(4, 0)
+var array<int> bucketHeld = array.new_int(4, 0)
+var int unscoredEvents = 0
+
+var string latestDirection = "—"
+var float latestScore = na
+var float latestEfficiency = na
+var float latestCommitment = na
+var float latestRvol = na
+var float latestBalance = na
+var string latestState = "WAITING FOR BREAK"
+var int latestEventBar = na
+var label latestHeroLabel = na
+var string latestCompactText = ""
+
+var array<line> eventLines = array.new<line>()
+var array<label> mainLabels = array.new<label>()
+var array<label> railLabels = array.new<label>()
+var array<label> outcomeLabels = array.new<label>()
+var array<box> eventBoxes = array.new<box>()
+
+bool newBreakEvent = false
+bool newBreakUp = false
+bool newBreakDown = false
+bool newBackedBreak = false
+bool newHeldOutcome = false
+bool newFailedOutcome = false
+
+// ─── EVENT FREEZE ─────────────────────────────────────────────────────────────
+if barstate.isconfirmed
+    // A strict pivot becomes eligible only now, after its full right-side delay.
+    if not na(pivotHigh)
+        latestHigh := pivotHigh
+        latestHighBar := bar_index - swingStrength
+        highArmed := true
+    if not na(pivotLow)
+        latestLow := pivotLow
+        latestLowBar := bar_index - swingStrength
+        lowArmed := true
+
+    bool atrReady = not na(atr) and atr > 0
+    bool breakUp = atrReady and highArmed and not na(latestHigh) and close > latestHigh + breakBufferAtr * atr
+    bool breakDown = atrReady and lowArmed and not na(latestLow) and close < latestLow - breakBufferAtr * atr
+
+    if breakUp or breakDown
+        int direction = breakUp ? 1 : -1
+        float brokenLevel = breakUp ? latestHigh : latestLow
+        int levelBar = breakUp ? latestHighBar : latestLowBar
+        int oppositeBar = breakUp ? latestLowBar : latestHighBar
+        float oppositePrice = breakUp ? latestLow : latestHigh
+        int legBars = na(oppositeBar) ? na : bar_index - oppositeBar
+        int legCount = na(legBars) ? na : legBars + 1
+        bool legReady = not na(legBars) and legBars >= 1 and legBars <= maxLegBars and legCount <= 4999
+
+        float efficiency = na
+        float commitment = na
+        float relativeParticipation = na
+        float balanceProxy = na
+        float participationScore = na
+
+        if legReady
+            float pathSum = cumulativePath - nz(cumulativePath[legBars], 0.0)
+            float directionalNet = direction * (close - close[legBars])
+            efficiency := pathSum > 0 ? f_clamp(100.0 * math.max(directionalNet, 0.0) / pathSum) : 0.0
+
+            int finalBars = math.min(closeWindow, legCount)
+            float commitmentSum = 0.0
+            int commitmentN = 0
+            for j = 0 to 19
+                if j < finalBars
+                    float localRange = high[j] - low[j]
+                    float directionalLocation = localRange > 0 ? (direction == 1 ? (close[j] - low[j]) / localRange : (high[j] - close[j]) / localRange) : 0.5
+                    commitmentSum += 100.0 * directionalLocation
+                    commitmentN += 1
+            commitment := commitmentN > 0 ? f_clamp(commitmentSum / commitmentN) : na
+
+            float legVolume = cumulativeVolume - nz(cumulativeVolume[legCount], 0.0)
+            float legBalance = cumulativeBalance - nz(cumulativeBalance[legCount], 0.0)
+            float legVolumeCoverage = cumulativeVolumeCoverage - nz(cumulativeVolumeCoverage[legCount], 0.0)
+            float averageLegVolume = legCount > 0 ? legVolume / legCount : na
+            bool volumeReady = legVolumeCoverage == legCount and not na(medianVolume) and medianVolume > 0 and legVolume > 0
+            relativeParticipation := volumeReady ? f_clamp(50.0 * averageLegVolume / medianVolume) : na
+            balanceProxy := volumeReady ? f_clamp(50.0 + 50.0 * direction * legBalance / legVolume) : na
+
+            if volumeReady and not na(efficiency) and not na(commitment)
+                // Freeze one normalized value. Display, bucket, quality, color and alert
+                // all consume this same one-decimal score, including threshold edges.
+                participationScore := f_normalizeScore(W_EFF * efficiency + W_CLOSE * commitment + W_RVOL * relativeParticipation + W_BAL * balanceProxy)
+
+        int scoreBucket = na(participationScore) ? -1 : f_bucket(participationScore)
+        string directionText = direction == 1 ? "BREAK UP" : "BREAK DOWN"
+        string directionGlyph = direction == 1 ? "▲" : "▼"
+        string compactEventText = na(participationScore) ? directionGlyph + " " + directionText + " · UNSCORED" : directionGlyph + " " + str.tostring(participationScore, "#.0") + " · " + f_quality(participationScore)
+        string heroEventText = na(participationScore) ? directionGlyph + " " + directionText + "\nUNSCORED · LEG/VOLUME UNAVAILABLE" : directionGlyph + " " + directionText + " · " + str.tostring(participationScore, "#.0") + "\n" + f_quality(participationScore) + " PARTICIPATION"
+        color directionColor = direction == 1 ? upColor : downColor
+        color scoreColor = na(participationScore) ? NS_SEC : f_scoreColor(participationScore)
+
+        // Freeze latest-event values before any display decision.
+        latestDirection := directionText
+        latestScore := participationScore
+        latestEfficiency := efficiency
+        latestCommitment := commitment
+        latestRvol := relativeParticipation
+        latestBalance := balanceProxy
+        latestState := "PENDING @+" + str.tostring(evaluationBars)
+        latestEventBar := bar_index
+
+        pendingBreakBar.push(bar_index)
+        pendingDirection.push(direction)
+        pendingLevel.push(brokenLevel)
+        pendingBucket.push(scoreBucket)
+        if scoreBucket < 0
+            unscoredEvents += 1
+
+        if showLevels
+            // xloc.bar_index rejects coordinates more than 10,000 bars back. Clip only
+            // the visual start; the frozen level/event ledger remains unchanged.
+            int levelDrawBar = math.max(levelBar, bar_index - 9999)
+            line levelLine = line.new(levelDrawBar, brokenLevel, bar_index + evaluationBars, brokenLevel, xloc=xloc.bar_index, extend=extend.none, color=color.new(directionColor, 12), width=2)
+            eventLines.push(levelLine)
+        if showLegShade and legReady
+            float shadeTop = math.max(oppositePrice, close)
+            float shadeBottom = math.min(oppositePrice, close)
+            box legBox = box.new(oppositeBar, shadeTop, bar_index, shadeBottom, xloc=xloc.bar_index, bgcolor=color.new(directionColor, 92), border_color=color.new(directionColor, 78))
+            eventBoxes.push(legBox)
+        if showLabels and keepEvents > 0
+            // Preserve one clear hierarchy: the prior hero becomes a compact
+            // historical chip before the new latest-event hero is created.
+            if not na(latestHeroLabel)
+                label.set_text(latestHeroLabel, latestCompactText)
+                label.set_size(latestHeroLabel, size.tiny)
+            float eventY = direction == 1 ? high + 0.70 * atr : low - 0.70 * atr
+            label eventLabel = label.new(bar_index, eventY, heroEventText, xloc=xloc.bar_index, style=direction == 1 ? label.style_label_down : label.style_label_up, color=color.new(scoreColor, 2), textcolor=NS_INK, size=size.small)
+            mainLabels.push(eventLabel)
+            latestHeroLabel := eventLabel
+            latestCompactText := compactEventText
+        if showRail and not na(participationScore)
+            // Default: only the latest full rail survives. Historical rails are
+            // an explicit visual opt-in and never affect the frozen ledger.
+            if not showHistoricalRails
+                f_trimLabels(railLabels, 0)
+            float railY = direction == 1 ? low - 0.55 * atr : high + 0.55 * atr
+            string railText = "PATH " + f_value(efficiency) + "  │  CLOSE " + f_value(commitment) + "  │  VOL " + f_value(relativeParticipation) + "  │  BAL " + f_value(balanceProxy)
+            label railLabel = label.new(math.max(0, bar_index - 3), railY, railText, xloc=xloc.bar_index, style=direction == 1 ? label.style_label_up : label.style_label_down, color=color.new(scoreColor, 6), textcolor=NS_INK, size=size.tiny)
+            railLabels.push(railLabel)
+
+        f_trimLines(eventLines, keepEvents)
+        f_trimBoxes(eventBoxes, keepEvents)
+        f_trimLabels(mainLabels, keepEvents)
+        int railLimit = showHistoricalRails ? keepEvents : (keepEvents > 0 ? 1 : 0)
+        f_trimLabels(railLabels, railLimit)
+
+        newBreakEvent := true
+        newBreakUp := direction == 1
+        newBreakDown := direction == -1
+        newBackedBreak := not na(participationScore) and participationScore >= 60.0
+        if breakUp
+            highArmed := false
+        if breakDown
+            lowArmed := false
+
+    // Outcomes are evaluated once, exactly after the configured confirmed-bar window.
+    int pendingIndex = pendingBreakBar.size() - 1
+    while pendingIndex >= 0
+        int eventBar = pendingBreakBar.get(pendingIndex)
+        if bar_index >= eventBar + evaluationBars
+            int eventDirection = pendingDirection.get(pendingIndex)
+            float eventLevel = pendingLevel.get(pendingIndex)
+            int eventBucket = pendingBucket.get(pendingIndex)
+            bool held = eventDirection == 1 ? close > eventLevel : close < eventLevel
+
+            if eventBucket >= 0
+                bucketCount.set(eventBucket, bucketCount.get(eventBucket) + 1)
+                if held
+                    bucketHeld.set(eventBucket, bucketHeld.get(eventBucket) + 1)
+
+            string outcomeText = (held ? "HELD @" : "FAILED @") + str.tostring(evaluationBars)
+            if eventBar == latestEventBar
+                latestState := outcomeText
+            if showOutcomes
+                label outcomeLabel = label.new(bar_index, eventLevel, (held ? "✓ " : "✕ ") + outcomeText, xloc=xloc.bar_index, style=label.style_label_left, color=color.new(held ? upColor : downColor, 8), textcolor=NS_INK, size=size.tiny)
+                outcomeLabels.push(outcomeLabel)
+                f_trimLabels(outcomeLabels, keepEvents)
+
+            newHeldOutcome := newHeldOutcome or held
+            newFailedOutcome := newFailedOutcome or not held
+            pendingBreakBar.remove(pendingIndex)
+            pendingDirection.remove(pendingIndex)
+            pendingLevel.remove(pendingIndex)
+            pendingBucket.remove(pendingIndex)
+        pendingIndex -= 1
+
+// Display toggles never gate calculations. Turning a layer off removes retained drawings.
+if not showLevels
+    f_trimLines(eventLines, 0)
+if not showLegShade
+    f_trimBoxes(eventBoxes, 0)
+if not showLabels
+    f_trimLabels(mainLabels, 0)
+if not showRail
+    f_trimLabels(railLabels, 0)
+else if not showHistoricalRails
+    f_trimLabels(railLabels, keepEvents > 0 ? 1 : 0)
+if not showOutcomes
+    f_trimLabels(outcomeLabels, 0)
+
+// ─── MATRIX PANEL ─────────────────────────────────────────────────────────────
+string panelPos = panelPosition == "Top Left" ? position.top_left : panelPosition == "Bottom Right" ? position.bottom_right : panelPosition == "Bottom Left" ? position.bottom_left : position.top_right
+string panelSize = panelTextSize == "Tiny" ? size.tiny : panelTextSize == "Normal" ? size.normal : size.small
+var table matrix = table.new(panelPos, 4, 11, bgcolor=NS_BG, frame_color=color.new(SPM_STRONG_DEF, 38), frame_width=2, border_color=color.new(NS_SEC, 72), border_width=1)
+
+if barstate.isfirst
+    table.merge_cells(matrix, 0, 0, 3, 0)
+    table.merge_cells(matrix, 1, 2, 3, 2)
+    table.merge_cells(matrix, 0, 9, 3, 9)
+
+if barstate.islast
+    table.clear(matrix, 0, 0, 3, 10)
+    if showPanel
+        string latestDirectionText = latestDirection == "BREAK UP" ? "▲ BREAK UP" : latestDirection == "BREAK DOWN" ? "▼ BREAK DOWN" : "WAITING"
+        string latestQualityText = na(latestScore) ? "NO SCORE" : f_quality(latestScore)
+        color latestOutcomeColor = latestState == "HELD @" + str.tostring(evaluationBars) ? upColor : latestState == "FAILED @" + str.tostring(evaluationBars) ? downColor : NS_LBL
+        table.cell(matrix, 0, 0, "SPM · CURRENT CHART", text_color=NS_WHITE, text_size=panelSize, bgcolor=NS_BG)
+        table.cell(matrix, 0, 1, "LATEST", text_color=NS_LBL, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 1, 1, latestDirectionText, text_color=latestDirection == "BREAK UP" ? upColor : latestDirection == "BREAK DOWN" ? downColor : NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 2, 1, na(latestScore) ? "UNSCORED" : str.tostring(latestScore, "#.0") + " / 100", text_color=na(latestScore) ? NS_SEC : f_scoreColor(latestScore), text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 3, 1, latestQualityText, text_color=na(latestScore) ? NS_SEC : f_scoreColor(latestScore), text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 0, 2, "ENDPOINT", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        string endpointText = latestState == "PENDING @+" + str.tostring(evaluationBars) ? "PENDING · CHECK @ +" + str.tostring(evaluationBars) + " BARS" : latestState == "HELD @" + str.tostring(evaluationBars) ? "HELD · CHECKED @ +" + str.tostring(evaluationBars) + " BARS" : latestState == "FAILED @" + str.tostring(evaluationBars) ? "FAILED · CHECKED @ +" + str.tostring(evaluationBars) + " BARS" : latestState
+        table.cell(matrix, 1, 2, endpointText, text_color=latestOutcomeColor, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 0, 3, "PATH EFF.\n" + f_value(latestEfficiency), text_color=NS_LBL, text_size=panelSize)
+        table.cell(matrix, 1, 3, "CLOSE\n" + f_value(latestCommitment), text_color=NS_LBL, text_size=panelSize)
+        table.cell(matrix, 2, 3, "REL VOL\n" + f_value(latestRvol), text_color=NS_LBL, text_size=panelSize)
+        table.cell(matrix, 3, 3, "BALANCE\n" + f_value(latestBalance), text_color=NS_LBL, text_size=panelSize)
+        table.cell(matrix, 0, 4, "BUCKET", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 1, 4, "EVENTS", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 2, 4, "HELD @" + str.tostring(evaluationBars), text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 3, 4, "RATE MAP", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        for bucket = 0 to 3
+            int resolvedN = bucketCount.get(bucket)
+            int heldN = bucketHeld.get(bucket)
+            int row = 5 + bucket
+            color bucketColor = bucket == 0 ? weakColor : bucket == 1 ? SPM_MIXED_DEF : bucket == 2 ? backedColor : SPM_STRONG_DEF
+            color bucketBg = color.new(bucketColor, 92)
+            table.cell(matrix, 0, row, f_bucketName(bucket) + " · " + (bucket == 0 ? "LOW" : bucket == 1 ? "MODERATE" : bucket == 2 ? "HIGH" : "VERY HIGH"), text_color=bucketColor, text_size=panelSize, bgcolor=bucketBg)
+            table.cell(matrix, 1, row, str.tostring(resolvedN), text_color=NS_WHITE, text_size=panelSize, bgcolor=bucketBg)
+            table.cell(matrix, 2, row, f_rate(heldN, resolvedN), text_color=resolvedN >= minimumSample ? NS_WHITE : NS_SEC, text_size=panelSize, bgcolor=bucketBg)
+            table.cell(matrix, 3, row, f_rateBar(heldN, resolvedN), text_color=resolvedN >= minimumSample ? bucketColor : NS_SEC, text_size=panelSize, bgcolor=bucketBg)
+        bool volumeDataReady = not na(medianVolume) and medianVolume > 0 and not na(volume)
+        table.cell(matrix, 0, 9, "LOADED HISTORY · CLOSED BARS", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_BG)
+        table.cell(matrix, 0, 10, "VOLUME PROXY", text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 1, 10, volumeDataReady ? "AVAILABLE" : "UNAVAILABLE", text_color=volumeDataReady ? upColor : weakColor, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 2, 10, "UNSCORED " + str.tostring(unscoredEvents), text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+        table.cell(matrix, 3, 10, "MIN SAMPLE " + str.tostring(minimumSample), text_color=NS_SEC, text_size=panelSize, bgcolor=NS_ROW)
+
+// ─── ALERTS — SAME FROZEN FLAGS AS MARKERS ───────────────────────────────────
+alertcondition(newBreakEvent, "Confirmed Structure Break", "SPM: a confirmed structure break was frozen on bar close")
+alertcondition(newBreakUp, "Confirmed Structure Break Up", "SPM: confirmed structure break up")
+alertcondition(newBreakDown, "Confirmed Structure Break Down", "SPM: confirmed structure break down")
+alertcondition(newBackedBreak, "Participation-Backed Structure Break", "SPM: confirmed structure break froze with a participation score of 60 or higher")
+alertcondition(newHeldOutcome, "Structure Break Outcome Held", "SPM: a confirmed structure break evaluation latched HELD")
+alertcondition(newFailedOutcome, "Structure Break Outcome Failed", "SPM: a confirmed structure break evaluation latched FAILED")

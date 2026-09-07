@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "10-mtf-supply-demand.pine",
+  "title": "MTF Supply & Demand (PropFirmGorilla)",
+  "author": "propfirmgorilla",
+  "source_url": "https://www.tradingview.com/script/dQKLMDeG-MTF-Supply-Demand-PropFirmGorilla/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 185,
+  "complexity_bucket": "long",
+  "sha256_source": "d2f36d90354c62e35f2fd64fa1c920010894782bca47725e3df32aa15814d20c",
+  "sha256_normalized": "61a9c9efd023d0681670338def85b99986d7f98e83c905c88cba8bbcdd8d4219",
+  "storage": "local-only"
+}

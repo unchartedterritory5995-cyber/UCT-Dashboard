@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "06-sector-rotation-leadership-persistence.pine",
+  "title": "Sector Rotation - Leadership Persistence [Dots3Red]",
+  "author": "Dots3Red",
+  "source_url": "https://www.tradingview.com/script/pVIAaEEY-Sector-Rotation-Leadership-Persistence-Dots3Red/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 hours ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 177,
+  "complexity_bucket": "long",
+  "sha256_source": "1c8e0e72474ef172389983fcaa446b37b6e386d66877b71910410de1c40ea46e",
+  "sha256_normalized": "cf62e01a1fbf32a3bc06da01b9adc0a3655dbec44ec88f2514abc4b501c094e3",
+  "storage": "git"
+}

@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "22-rsi-levels-regime-map.pine",
+  "title": "RSI Levels & Regime Map Heatmap & Cardwell Reversal Signals",
+  "author": "Market_Logic_India",
+  "source_url": "https://www.tradingview.com/script/qx65gxhc-RSI-Levels-Regime-Map-Heatmap-Cardwell-Reversal-Signals/",
+  "retrieved_at": "2026-09-07T13:30:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment)",
+  "publish_or_update_date": "shown as \"Updated Jul 18\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 380,
+  "complexity_bucket": "long",
+  "sha256_source": "955bff65b57a85a56677777c23d420045981a93481d1211c5e155679aea9429d",
+  "sha256_normalized": "719a7ebf92a387b4cf7f0a7983c1753a997820253b87bdb7cff997c8c07eca91",
+  "storage": "git"
+}

@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "15-linear-regression-channel-lonesometheblue.pine",
+  "title": "Linear Regression Channel",
+  "author": "LonesomeTheBlue",
+  "source_url": "https://www.tradingview.com/script/efXI515C-Linear-Regression-Channel/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v4",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "Dec 15, 2020 (page badge shows \"Updated Oct 4, 2021\"; TradingView Editors' Picks)",
+  "declared_type": "study",
+  "capture_method": null,
+  "non_comment_lines": 76,
+  "complexity_bucket": "medium",
+  "sha256_source": "ef45b079724e74a11d2d7e1e2674b2d96fc0f249935cee4f5c303adc49ac5e64",
+  "sha256_normalized": "038740fc4272c17076ca6991bb2310bef902d4e5a29f6a5097cda93895c75b3c",
+  "storage": "git"
+}

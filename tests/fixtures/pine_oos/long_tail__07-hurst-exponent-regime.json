@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "07-hurst-exponent-regime.pine",
+  "title": "Hurst Exponent Regime [RC Tools]",
+  "author": "RC-Tools",
+  "source_url": "https://www.tradingview.com/script/rRaGrzof-Hurst-Exponent-Regime-RC-Tools/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 114,
+  "complexity_bucket": "long",
+  "sha256_source": "ebb3b7a0959cbca58254998e16825c5d80781f80fe1d217c92ba9b72b757845f",
+  "sha256_normalized": "5e7a14bc0369d684cade04532bae453b25aebd2190df6aa10679cee193b39129",
+  "storage": "git"
+}

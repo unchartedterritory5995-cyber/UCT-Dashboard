@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "24-coppock-curve-multi-filter-markittick.pine",
+  "title": "Coppock Curve Multi-Filter [MarkitTick]",
+  "author": "MarkitTick",
+  "source_url": "https://www.tradingview.com/script/Ua5pRxsd-Coppock-Curve-Multi-Filter-MarkitTick/",
+  "retrieved_at": "2026-09-07T17:09:53Z",
+  "pine_version": "6",
+  "license": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (stated in script header)",
+  "publish_or_update_date": "2026-09-02T17:01:20Z",
+  "declared_type": "indicator",
+  "capture_method": "pine-facade source endpoint (PUB;ac14c8a194c54061991912f6a152a671/last) fetched with browser User-Agent; SHA-256 cross-checked byte-for-byte against an independent DOM line-walk of the TradingView source viewer (per-line textContent joined with newlines, NBSP normalized to space)",
+  "non_comment_lines": 450,
+  "complexity_bucket": "long",
+  "sha256_source": "b2d3cb9902331b8b249d29ecac10e595663c7797880ed97d1fbd25807e49e472",
+  "sha256_normalized": "e87b97e2ef4fa0cf7bd27987a4c7b9e05f2ed3966d206cdefad8140b162b0e62",
+  "storage": "local-only"
+}

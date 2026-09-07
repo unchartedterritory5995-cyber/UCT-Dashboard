@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "10-rsi-divergence-faytterro.pine",
+  "title": "RSI Divergence",
+  "author": "faytterro",
+  "source_url": "https://www.tradingview.com/script/hfVa19WB/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "Dec 1, 2022 (page badge shows \"Updated May 13, 2025\"; many release notes in between)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 134,
+  "complexity_bucket": "long",
+  "sha256_source": "09a5ba05d7fb364c655f52ab138be5b6559aa1f780361b9ae8f97f25d4fa18aa",
+  "sha256_normalized": "6b88159dcf5d63988d9f0eb3cd6356f4628b46ae3c5e5fcadcd0d7e83e30ff76",
+  "storage": "git"
+}

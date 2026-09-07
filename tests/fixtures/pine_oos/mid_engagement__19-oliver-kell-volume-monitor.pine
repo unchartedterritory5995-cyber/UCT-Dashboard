@@ -1,0 +1,76 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © chardogg74
+
+//@version=6
+indicator("Oliver Kell - Volume Monitor", shorttitle="OK_Volume", overlay=false, format=format.volume)
+
+// =====================================================================
+// 1. INPUTS & THEME CONFIGURATION
+// =====================================================================
+grp_theme    = "Theme & Aesthetics"
+theme_mode   = input.string("Victory Book (Light)", "Color Theme", options=["Victory Book (Light)", "Swing Report (Dark)"], group=grp_theme)
+
+bool is_dark = theme_mode == "Swing Report (Dark)"
+
+// Background Sync
+bgcolor(is_dark ? color.rgb(19, 23, 34) : color.rgb(255, 255, 255), title="Volume Background")
+
+// Volume Colors
+color vol_col_light = color.rgb(210, 210, 210) // Light gray
+color vol_col_dark  = color.rgb(31, 119, 180)  // Swing Report Blue
+color vol_color     = is_dark ? vol_col_dark : vol_col_light
+
+// =====================================================================
+// 2. MOVING AVERAGE
+// =====================================================================
+grp_ma = "Volume Moving Average"
+ma_len = input.int(20, "Volume MA Length", group=grp_ma)
+
+float vol_ma = ta.sma(volume, ma_len)
+color ma_color = is_dark ? color.white : color.black
+
+float bar_range  = high - low
+float close_pos  = bar_range > 0 ? (close - low) / bar_range : 0.5
+
+// =====================================================================
+// 3. SIGNAL DEFINITIONS
+// =====================================================================
+grp_sigs      = "Signal Settings"
+vol_mult      = input.float(1.5, "Acc/Dist Vol Multiplier", step=0.1, group=grp_sigs, tooltip="Volume must be this many times the MA to trigger an arrow.")
+show_acc_dist = input.bool(true, "Show Accumulation/Distribution Arrows", group=grp_sigs)
+show_hvc      = input.bool(true, "Show High Volume Close (HVC)", group=grp_sigs)
+show_wcoc     = input.bool(true, "Show Weekly Change of Character (Magenta - Weekly Only)", group=grp_sigs)
+
+// Basic Up/Down Logic
+bool is_up_day   = close > close[1]
+bool is_down_day = close < close[1]
+
+// Accumulation & Distribution (Legend Signals)
+bool is_acc  = is_up_day   and (volume >= vol_ma * vol_mult)
+bool is_dist = is_down_day and (volume >= vol_ma * vol_mult)
+
+// High Volume Close (HVC)
+bool is_hvc = (volume >= vol_ma * 2.0) and (close_pos >= 0.80)
+
+// Weekly Change of Character (WCOC) - Restricted strictly to weekly charts
+bool is_wcoc = show_wcoc and timeframe.isweekly and (volume >= vol_ma * 3.0)
+
+// =====================================================================
+// 4. PLOTTING
+// =====================================================================
+// Histogram style with linewidth=4 for maximum thickness in Dark Mode
+plot(is_dark ? volume : na, "Volume (Dark)", color=vol_color, style=plot.style_histogram, linewidth=4)
+plot(not is_dark ? volume : na, "Volume (Light)", color=vol_color, style=plot.style_columns)
+
+plot(vol_ma, "Volume MA", color=ma_color, linewidth=1)
+
+// Position arrows higher up on the bar (75% height)
+float upper_vol = volume * 0.75
+
+// Native offset = -1 shifts the arrow to the left so its tip touches the target bar
+plotchar(is_wcoc ? upper_vol : na, "WCOC", char="➔", location=location.absolute, color=color.fuchsia, size=size.small, offset=-1)
+plotchar(show_acc_dist and is_acc and not is_wcoc ? upper_vol : na, "Accumulation", char="➔", location=location.absolute, color=color.rgb(0, 230, 118), size=size.small, offset=-1)
+plotchar(show_acc_dist and is_dist and not is_wcoc ? upper_vol : na, "Distribution", char="➔", location=location.absolute, color=color.red, size=size.small, offset=-1)
+
+if show_hvc and is_hvc
+    label.new(bar_index, volume, "HVC", color=color.new(color.white, 100), textcolor=is_dark ? color.white : color.black, style=label.style_none, size=size.tiny, yloc=yloc.price)

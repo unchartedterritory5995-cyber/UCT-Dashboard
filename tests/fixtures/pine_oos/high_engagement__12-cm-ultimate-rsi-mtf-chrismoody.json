@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "12-cm-ultimate-rsi-mtf-chrismoody.pine",
+  "title": "CM_Ultimate RSI Multi Time Frame",
+  "author": "ChrisMoody",
+  "source_url": "https://www.tradingview.com/script/mBKF9wUj-CM-Ultimate-RSI-Multi-Time-Frame/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+  "license": "not stated",
+  "publish_or_update_date": "Aug 25, 2014",
+  "declared_type": "study",
+  "capture_method": null,
+  "non_comment_lines": 41,
+  "complexity_bucket": "medium",
+  "sha256_source": "6f3a4c22abad7712a704f6cd5807cd170ea11d71157da2f2c8c92b8dc75758ed",
+  "sha256_normalized": "d4b2f5742d7716c69a7fa0635b1e429906b1eae13dd83e0fb1032b07488ea977",
+  "storage": "local-only"
+}

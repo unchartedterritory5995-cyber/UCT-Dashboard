@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "04-ttm-squeeze-greeny.pine",
+  "title": "TTM Squeeze",
+  "author": "Greeny",
+  "source_url": "https://www.tradingview.com/script/eFs5kf8F-TTM-Squeeze/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+  "license": "not stated",
+  "publish_or_update_date": "Jul 20, 2014",
+  "declared_type": "study",
+  "capture_method": null,
+  "non_comment_lines": 13,
+  "complexity_bucket": "short",
+  "sha256_source": "98baaa23005fcb4ec92b4cb016f09c7fefc15684154247d69d6684dc19b6fa52",
+  "sha256_normalized": "d30f7075ac9a1068ed0ad62541ce8ef9cd6e84f7f05814fc3274b12e070d95b9",
+  "storage": "local-only"
+}

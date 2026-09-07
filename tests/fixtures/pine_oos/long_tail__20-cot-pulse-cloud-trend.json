@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "20-cot-pulse-cloud-trend.pine",
+  "title": "COT Pulse Cloud Trend",
+  "author": "DSandi",
+  "source_url": "https://www.tradingview.com/script/KcelvBj1-COT-Pulse-Cloud-Trend/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "6",
+  "license": "not stated",
+  "publish_or_update_date": "2026-08-28",
+  "declared_type": "indicator",
+  "capture_method": "pine-facade JSON source field for PUB;1ca439d5e6704e88813789d58ae80988, cross-checked byte-for-byte (SHA-256 400fa70ce58fcaa8087932f2f2e21b8eabc83d3438d1dffd57fb109cf5750c5c) against an independent in-page Monaco per-line textContent DOM walk with U+00A0 normalized to U+0020; both yield 262 identical lines",
+  "non_comment_lines": 102,
+  "complexity_bucket": "long",
+  "sha256_source": "400fa70ce58fcaa8087932f2f2e21b8eabc83d3438d1dffd57fb109cf5750c5c",
+  "sha256_normalized": "c925ec08cf772c61b1e5285aecd57b6e224f5a164d46924578e6b36b37e49312",
+  "storage": "local-only"
+}

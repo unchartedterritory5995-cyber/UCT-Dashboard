@@ -1,0 +1,385 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © KioseffTrading
+
+//@version=5
+indicator("Cross Correlation Scanner", precision = 12, overlay = true, max_bars_back = 1000)
+
+
+k       = input.int   (defval = 1, title = "Start Lag", minval = 1, inline = "1")
+ke      = input.int   (defval = 5, title = "End Lag",   minval = 2, inline = "1")
+norm    = input.bool  (defval = true , title = "Normalize Result"), 
+all     = input.bool  (defval = false, title = "Normalize Overlapping Segments Only")
+center  = input.bool  (defval = true, title = "Center Mean")
+iso     = input.bool  (defval = false, title = "Isolate Asset")
+typex   = input.string(defval = "Absolute Difference", title = "Cross Correlation Data Display", options = ["Absolute Difference", "Greatest Sum"])
+results = input.int   (defval = 20, minval = 1, maxval = 99) - 1
+size    = input.int   (defval = 100, minval = 3, title = "Bars for Correlation")
+colS    = input.color (defval = #6929F2, title = "Gradient Start Color", inline = "Col")
+colE    = input.color (defval = #14D990, title = "Gradient End Color"  , inline = "Col")
+
+cust  = input.bool  (defval = false, title = "Use Custom Symbols", group = "Custom Symbols")
+
+sym1  = input.symbol(defval = "MSFT", title = "Symbol 1 ", group = "Custom Symbols"),sym2  = input.symbol(defval = "AAPL", title = "Symbol 2 ", group = "Custom Symbols") 
+sym3  = input.symbol(defval = "SPY",  title = "Symbol 3 ", group = "Custom Symbols"),sym4  = input.symbol(defval = "QQQ",  title = "Symbol 4 ", group = "Custom Symbols") 
+sym5  = input.symbol(defval = "V",    title = "Symbol 5 ", group = "Custom Symbols"),sym6  = input.symbol(defval = "MA",   title = "Symbol 6 ", group = "Custom Symbols") 
+sym7  = input.symbol(defval = "ADBE", title = "Symbol 7 ", group = "Custom Symbols"),sym8  = input.symbol(defval = "Z",    title = "Symbol 8 ", group = "Custom Symbols") 
+sym9  = input.symbol(defval = "INTU", title = "Symbol 9 ", group = "Custom Symbols"),sym10 = input.symbol(defval = "AMZN", title = "Symbol 10", group = "Custom Symbols")
+sym11 = input.symbol(defval = "NFLX", title = "Symbol 11", group = "Custom Symbols"),sym12 = input.symbol(defval = "TSLA", title = "Symbol 12", group = "Custom Symbols")
+sym13 = input.symbol(defval = "SHOP", title = "Symbol 13", group = "Custom Symbols"),sym14 = input.symbol(defval = "IWM",  title = "Symbol 14", group = "Custom Symbols")
+sym15 = input.symbol(defval = "DIS",  title = "Symbol 15", group = "Custom Symbols"),sym16 = input.symbol(defval = "WMT",  title = "Symbol 16", group = "Custom Symbols")
+sym17 = input.symbol(defval = "KO",   title = "Symbol 17", group = "Custom Symbols"),sym18 = input.symbol(defval = "BAC",  title = "Symbol 18", group = "Custom Symbols")
+sym19 = input.symbol(defval = "KR",   title = "Symbol 19", group = "Custom Symbols"),sym20 = input.symbol(defval = "NVDA", title = "Symbol 20", group = "Custom Symbols")
+
+import RicardoSantos/MathOperator/2
+import kaigouthro/hsvColor/15       as kai
+
+method float (int id) => float(id)
+
+var allMat   = matrix.new<float>(20, size, 0), var isoClose = array.new_float(size) 
+   
+lcp = switch iso 
+
+    true => 20 * (ke - k + 1)
+    =>      (20 * 19 / 2) * (ke - k + 1)
+
+finStr = matrix.new<string>(2, lcp), var setArr = array.new_int(1, 0)
+
+[s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20] = switch 
+
+    cust                      =>   [sym1, sym2, sym3, sym4, sym5, sym6, sym7, sym8, sym9, sym10, sym11, sym12, sym13, sym14, sym15, sym16, sym17, sym18, sym19, sym20]
+
+    syminfo.type == "forex"   =>   [ "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY", "AUDJPY", "EURCHF", "USDHKD", 
+                                     "USDSGD", "USDSEK", "USDNOK", "USDMXN", "NZDJPY", "USDZAR", "USDDKK"]
+    
+    syminfo.type == "futures" =>   [ "ES1!", "NQ1!", "YM1!", "ZB1!", "ZN1!", "ZF1!", "ZT1!", "6E1!", "6A1!", "6B1!", "6J1!", "6S1!", "6C1!", "CL1!", "NG1!", "RB1!", 
+                                     "HO1!", "GC1!", "SI1!", "HG1!"]
+    
+    syminfo.type == "crypto"  =>   [ "BTCUSDT.P", "ETHUSDT.P", "BNBUSDT.P", "XRPUSDT.P", "ADAUSDT.P", "DOGEUSDT.P", "SOLUSDT.P", "TRXUSDT.P", "TONUSDT.P", "DOTUSDT.P", "MATICUSDT.P", "LTCUSDT.P", 
+                                     "SHIBUSDT.P", "QNTUSDT.P", "BCHUSDT.P", "AVAXUSDT.P", "ATOMUSDT.P", "LINKUSDT.P", "XLMUSDT.P", "XMRUSDT.P"]
+    
+    =>                             ["XLY", "XLRE", "XLP", "XLU", "XLE", "XLC", "XLF", "XLV", "XLI", "XLK", "XLB", "IBUY", "PAVE", "EBIZ", "TAN", "OIH", "HERO", 
+                                     "KBE", "KBWD", "IHI"]
+
+
+strArr = array.from( s1 + "/", s2+ "/" , s3+ "/" , s4+ "/" , s5 + "/", s6 + "/", s7 + "/", s8 + "/", s9 + "/", s10+ "/", 
+                     s11+ "/", s12+ "/", s13+ "/", s14+ "/", s15+ "/", s16+ "/", s17+ "/", s18+ "/", s19+ "/", s20+ "/")
+
+method noPrefix (string id) => 
+    
+
+    string = switch cust
+        
+        true => str.substring(id, str.pos(id, ":") + 1)
+        =>      id
+
+    string := switch syminfo.type 
+
+        "crypto" => str.contains(string, ".P") ? str.replace_all(string, "USDT.P", "") : str.replace_all(string, "USD", "")
+        =>          string
+    
+    string 
+
+output(a, b) => 
+
+    switch typex 
+
+        "Absolute Difference" => math.abs(a - b)
+        =>                                a + b
+
+normType(a, b, y, z) =>
+
+    calc = math.sqrt(a * b)
+
+    [normed, normed1] = switch norm
+
+        false            => [1, 1]
+        true and not all => [calc, calc]
+        true and     all => [calc, math.sqrt(y * z)]   
+
+    [normed, normed1]
+
+method crossCor (matrix <float> id, iterationS, iterationE) => 
+
+    if not iso
+
+        for m = k to ke
+
+            for i = iterationS to iterationE
+
+                if i > allMat.rows() - 1
+                    break
+
+                a     = allMat.row(i), Amean  = a.avg()
+
+                if center
+                    for j = 0 to a.size() - 1
+                        a.set(j, a.get(j) - Amean)
+
+                for x = i + 1 to allMat.rows() - 1
+
+                    if x > allMat.rows() - 1
+                        break
+
+                    b     = allMat.row(x), Bmean  = b.avg()
+
+                    varSums = matrix.new<float>(6, a.size())
+
+                    for j = 0 to a.size() - 1 
+
+                        if center 
+                            b.set(j, b.get(j) - Bmean)
+
+                        varSums.set(2, j, math.pow(a.get(j), 2))
+                        varSums.set(3, j, math.pow(b.get(j), 2))
+
+
+                    for j = 0 to a.size() - (m + 1)
+
+                        varSums.set(0, j, a.get(j) * b.get(j + m))
+                        varSums.set(1, j, a.get(j + m) * b.get(j))
+
+                        if norm and all  
+
+                            varSums.set(3, j, math.pow(b.get(j + m), 2))
+                            varSums.set(4, j, math.pow(a.get(j + m), 2)) 
+                            varSums.set(5, j, math.pow(b.get(j),     2))
+
+    
+                    [normed, normed1] = normType(varSums.row(2).sum(), varSums.row(3).sum(), varSums.row(4).sum(), varSums.row(5).sum())
+
+                    ccf1prod   = varSums.row(0).sum() / normed
+                    ccf1nprod  = varSums.row(1).sum() / normed1
+
+                    value      = output(ccf1prod, ccf1nprod)
+
+                    set = setArr.first()
+
+                    id    .set (0, set, value    )
+                    id    .set (1, set, ccf1prod )
+                    id    .set (2, set, ccf1nprod)
+
+                    newString = str.substring(strArr.get(x).noPrefix(), 0, str.length(strArr.get(x).noPrefix()) - 1)
+                    finStr.set (0, set, strArr.get(i).noPrefix() + newString)
+                    finStr.set (1, set, str.tostring(m))
+
+                    setArr.set(0, setArr.first() + 1)
+
+    if iso 
+
+        Amean = isoClose.avg()
+
+        if center 
+            for j = 0 to isoClose.size() -1
+                isoClose.set(j, isoClose.get(j) - Amean)
+
+        for m = k to ke
+ 
+            for x = 0 to allMat.rows() - 1
+
+                varSums = matrix.new<float>(6, isoClose.size())
+
+                b  = allMat.row(x), Bmean  = b.avg()
+
+                for j = 0 to isoClose.size() - 1 
+
+                    if center
+                        b.set(j, b.get(j) - Bmean)
+
+                    varSums.set(2, j, math.pow(isoClose.get(j), 2))
+                    varSums.set(3, j, math.pow(b.get(j)       , 2))
+
+    
+                for j = 0 to isoClose.size() - (m + 1)
+
+                    varSums.set(0, j, isoClose.get(j) * b.get(j + m))
+                    varSums.set(1, j, isoClose.get(j + m) * b.get(j))
+
+                    if norm and all
+
+                        varSums.set(3, j, math.pow(b.get(j + m) , 2))
+                        varSums.set(4, j, math.pow(isoClose.get(j + m), 2))
+                        varSums.set(5, j, math.pow(b.get(j)     , 2))
+
+                calc = math.sqrt(varSums.row(2).sum() * varSums.row(3).sum())
+
+                [normed, normed1] = normType(varSums.row(2).sum(), varSums.row(3).sum(), varSums.row(4).sum(), varSums.row(5).sum())
+ 
+                ccf1prod   = varSums.row(0).sum() / normed
+                ccf1nprod  = varSums.row(1).sum() / normed1
+
+                value = output(ccf1prod, ccf1nprod)
+
+                set = setArr.first()
+
+                id    .set (0, set, value    )
+                id    .set (1, set, ccf1prod )
+                id    .set (2, set, ccf1nprod)
+                finStr.set (0, set, syminfo.ticker + "/" + str.substring(strArr.get(x).noPrefix(), 0, str.length(strArr.get(x).noPrefix()) - 1))
+                finStr.set (1, set, str.tostring(m))
+
+                setArr.set(0, setArr.first() + 1)
+
+logg = math.log(close / close[1]), var conditionMat = matrix.new<bool>(size, 2, false)
+
+req (string, col) => 
+
+    [log, difference, class, dom] = request.security(string, "", [math.log(close / close[1]), time, syminfo.type, timeframe.change("D") ? 1 : 0])
+
+    if barstate.islastconfirmedhistory
+
+        for x = 0 to allMat.columns() - 1
+            allMat.set(col, x, log[size - x - 1])
+            
+            if difference[x] - difference[x + 1] > timeframe.in_seconds(timeframe.period) * 1000
+                if dom[x] == 0
+                    conditionMat.set(col, 0, true)
+
+            if x.float().equal(0)
+                if class != syminfo.type
+                    conditionMat.set(col, 1, true)
+
+req(s1, 0  ), req(s2 , 1 ), req(s3,  2 ), req(s4,  3 )
+req(s5, 4  ), req(s6 , 5 ), req(s7,  6 ), req(s8,  7 )
+req(s9, 8  ), req(s10, 9 ), req(s11, 10), req(s12, 11)
+req(s13, 12), req(s14, 13), req(s15, 14), req(s16, 15)
+req(s17, 16), req(s18, 17), req(s19, 18), req(s20, 19)
+
+method isoPush (array<float> id) => 
+
+    if barstate.islastconfirmedhistory
+        for i = 0 to isoClose.size() - 1
+            id.set(i, logg[size - i - 1])
+
+isoClose.isoPush()
+
+type sortedCorr 
+    float  main 
+    float  kP
+    float  kN 
+    string pair
+    string lag 
+
+method updateTable (table tab, int x) =>
+
+    for i = 0 to 3
+
+        str = switch 
+
+            i.float().equal(0) => "Symbol"
+            i.float().equal(1) => "Lag"
+            i.float().equal(2) => "+"
+            i.float().equal(3) => "-"
+
+        tab.cell(x * 20 + i + 1, 0, str, text_color = color.white, text_size = size.small)
+
+method outside (float id) => 
+
+    id.under(-1) or id.over(1)
+
+
+if barstate.islastconfirmedhistory
+
+    hiLoMat = matrix.new<float>(2, 0)
+    hiLoMat.add_col(0, array.from(-1e8, 1e8))
+
+    for i = 0 to size - 1
+
+        hiLoMat.set(0, 0, math.max(hiLoMat.get(0, 0), high[i]))
+        hiLoMat.set(1, 0, math.min(hiLoMat.get(1, 0), low [i]))
+
+    box.new(bar_index - size - 1, hiLoMat.max(), bar_index, hiLoMat.min(), bgcolor = color.new(#6929F2, 75), border_color = #00000000)
+
+    finMat = matrix.new<float>(3, lcp), start = math.floor(allMat.rows() / 4)
+
+    switch iso 
+
+        true => finMat.crossCor(0, allMat.rows() - 1)
+        
+        => 
+             finMat.crossCor(0        ,     start    ),
+             finMat.crossCor(start + 1,     start * 2),
+             finMat.crossCor(start * 2 + 1, start * 3),
+             finMat.crossCor(start * 3 + 1, start * 4),
+             finMat.crossCor(start * 4 + 1, allMat.rows() - 1)
+
+
+    crossCopy = finMat.row(0).copy(), crossCopy.sort(order.descending), 
+                     pairs = matrix.new<sortedCorr>(5, 0),
+
+           rowSearch0 = finMat.row(0), 
+    r1   = finMat.row(1), r2   = finMat.row(2)
+    str1 = finStr.row(0), str2 = finStr.row(1)
+
+    for i = 0 to math.min(crossCopy.size() - 1, results)
+        for x = 0 to finStr.columns() - 1
+            if crossCopy.get(i).equal(rowSearch0.get(x))
+
+                pairs.add_col(pairs.columns(), array.from(
+
+                                                 sortedCorr.new(rowSearch0  .get(x)),
+                                                 sortedCorr.new(kP   =  r1  .get(x)),
+                                                 sortedCorr.new(kN   =  r2  .get(x)),
+                                                 sortedCorr.new(pair =  str1.get(x)),
+                                                 sortedCorr.new(lag  =  str2.get(x))
+                 ))
+
+    var tab = table.new(position.bottom_right, 99, 99, frame_color = color.white, frame_width = 1, border_color = color.white, border_width = 1)
+
+    count = 0, col = 20, tab.updateTable(count)
+
+    for i = 0 to results
+
+        if i.float().over(0) and (i % col).float().equal(0)
+
+            count += 1
+            tab.updateTable(count)
+ 
+        kaicol = kai.hsv_gradient(i, 0, results, color.new(colS, 50), color.new(colE, 50))
+        
+        tab.cell(count * 20 + 1, i % col + 1, pairs.get(3, i).pair, bgcolor = kaicol, text_size = size.small, text_color = color.white)
+        tab.cell(count * 20 + 2, i % col + 1, pairs.get(4, i).lag , bgcolor = kaicol, text_size = size.small, text_color = color.white)
+        
+        form = switch norm 
+
+            false => "0.000000"
+            =>        "0.000"
+
+        tab.cell(count * 20 + 3, i % col + 1, str.tostring(pairs.get(1, i).kP, form) + (pairs.get(1, i).kP.outside() ? "(!)" : ""), 
+                                     bgcolor = kaicol, text_size = size.small, text_color = color.white)
+        
+        tab.cell(count * 20 + 4, i % col + 1, str.tostring(pairs.get(2, i).kN, form) + (pairs.get(2, i).kN.outside() ? "(!)" : ""), 
+                                     bgcolor = kaicol, text_size = size.small, text_color = color.white)
+
+    var tab2 = table.new(position.top_right, 99, 99, frame_color = color.white, frame_width = 1, border_color = color.white, border_width = 1)
+    tab2.cell(0, 0, text_color = color.white, text = "Lag Pair/Asset Tested: " + str.tostring(lcp), bgcolor = #00000000, text_size = size.small)
+
+    col1 = conditionMat.col(0), col2 = conditionMat.col(1)
+
+    if col1.some()
+        gaps = ""
+        for i = 0 to col1.size() - 1 
+            if col1.get(i) == true 
+
+                gaps += str.substring(strArr.get(i).noPrefix(), 0, str.length(strArr.get(i).noPrefix()) - 1) + ", "
+                
+        tab2.cell(0, 1, text = "WARNING: Gapped Data Detected" + "\n" + gaps, text_color = color.red, text_size = size.small)
+    
+    if col2.some()
+
+        diff = ""
+
+        fin = switch syminfo.type
+
+            "crypto"  => "Cryptos"
+            "stock"   => "Stocks"
+            "futures" => "Futures"
+            "forex"   => "Forex"
+            =>           syminfo.type            
+
+        for i = 0 to col2.size() - 1 
+            if col2.get(i) == true 
+
+                diff += str.substring(strArr.get(i).noPrefix(), 0, str.length(strArr.get(i).noPrefix()) - 1) + ", "
+                
+            tab2.cell(0, 2, text = "WARNING: The Following Symbols Are Not " + fin + "\n" + diff +"\nPlease Ensure There Are Not Time Gaps Between Symbols", 
+                                         text_color = color.red, text_size = size.small)

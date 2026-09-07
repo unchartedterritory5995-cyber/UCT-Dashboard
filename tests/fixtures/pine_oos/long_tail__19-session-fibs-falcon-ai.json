@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "19-session-fibs-falcon-ai.pine",
+  "title": "Session Fibs | Falcon AI",
+  "author": "thefalconai",
+  "source_url": "https://www.tradingview.com/script/dHjOZP9H-Session-Fibs-Falcon-AI/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "CC-BY-NC-4.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 83,
+  "complexity_bucket": "medium",
+  "sha256_source": "cd0725019a5dce4b83f9097ce985e78ea333620b7af48bf27668ca490e61f079",
+  "sha256_normalized": "6e2308b881503565d6b42b5e3d8faa189493f9e7d73384a9397561f40cc18fab",
+  "storage": "local-only"
+}

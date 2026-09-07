@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "17-db-seasonal-by-date-range.pine",
+  "title": "DB Seasonal by Date Range",
+  "author": "dbb",
+  "source_url": "https://www.tradingview.com/script/bTIi45L8-DB-Seasonal-by-Date-Range/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 185,
+  "complexity_bucket": "long",
+  "sha256_source": "10b7a0e1daf93b55660609637896a13c04804eee77ac790c21fdca029a638065",
+  "sha256_normalized": "20ded401bb199791d8566ee0d69d592965340badc5ece265268676d9ebac7bad",
+  "storage": "git"
+}

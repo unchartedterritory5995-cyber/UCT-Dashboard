@@ -1,0 +1,249 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// at https://mozilla.org/MPL/2.0/
+
+// ═══════════════════════════════════════════════════════════════
+// Setup Grader — HIGH / MED / LOW Filter · v1.0.0
+// Educational trade-quality filter. Grades the current bar HIGH,
+// MED, or LOW based on five well-known technical conditions —
+// so you stop taking every fired signal and start filtering for
+// the ones with actual confluence.
+//
+// The five checks (each toggleable, each worth 1 point):
+// 1. TREND · price above/below its 50-EMA
+// 2. HTF TREND · same check on a higher timeframe (default 4h)
+// 3. MOMENTUM · RSI(14) directional agreement with trend
+// 4. PULLBACK · price within N × ATR of the 20-EMA
+// 5. VOLUME · current bar volume above its 20-bar average
+//
+// Grades BOTH long and short bias on every bar; the stronger side
+// wins. Prints a big HIGH / MED / LOW label at the last bar plus a
+// breakdown table showing which checks passed.
+//
+// No buy/sell signals · no performance claims · not financial
+// advice. Companion to the Trding.ai indicator suite.
+// ═══════════════════════════════════════════════════════════════
+//
+// v1.0.0 (2026-09-08) — Initial release. Five checks · dual-side
+// grading · configurable HIGH/MED thresholds · breakdown table ·
+// HIGH-grade alerts · brand palette (green / gold / red / navy).
+//
+// ═══════════════════════════════════════════════════════════════
+
+//@version=6
+indicator("Setup Grader — HIGH / MED / LOW Filter", shorttitle="SetupGrade", overlay=true, max_labels_count=100)
+
+// ═══════════════════════════════════════════════════════════════
+// PALETTE (Trding_AI brand)
+// ═══════════════════════════════════════════════════════════════
+var color C_HIGH = #7AB648 // Trding green (bright)
+var color C_MED = #5C8E33 // Trding green-2 (muted · still directional, lower conviction)
+var color C_LOW = #DC2626 // Warning red
+var color C_NAVY = #1A2240 // Trding navy
+var color C_TEXT = color.white
+var color C_BG_HI = color.new(#7AB648, 82)
+var color C_BG_MD = color.new(#5C8E33, 85)
+var color C_BG_LO = color.new(#DC2626, 90)
+
+// ═══════════════════════════════════════════════════════════════
+// INPUTS
+// ═══════════════════════════════════════════════════════════════
+// --- Trend (trading timeframe) ---
+gTrend = "1 · Trend (trading timeframe)"
+emaTrendLen = input.int(50, "Trend EMA length", minval=5, maxval=400, group=gTrend)
+useTrend = input.bool(true, "Enable Trend check", group=gTrend)
+
+// --- Higher-timeframe trend ---
+gHTF = "2 · Higher-Timeframe Trend"
+htf = input.timeframe("240", "Higher timeframe", group=gHTF, tooltip="4h default. Use blank ('') for chart TF (disables HTF check functionally).")
+htfEmaLen = input.int(50, "HTF EMA length", minval=5, maxval=400, group=gHTF)
+useHTF = input.bool(true, "Enable Higher-TF check", group=gHTF)
+
+// --- Momentum ---
+gMomo = "3 · Momentum (RSI)"
+rsiLen = input.int(14, "RSI length", minval=2, maxval=100, group=gMomo)
+rsiBullMin = input.float(50.0, "Bull RSI floor (long check)", minval=1, maxval=99, group=gMomo)
+rsiBearMax = input.float(50.0, "Bear RSI ceiling (short check)", minval=1, maxval=99, group=gMomo)
+useMomo = input.bool(true, "Enable Momentum check", group=gMomo)
+
+// --- Pullback ---
+gPull = "4 · Pullback (in-zone entry)"
+emaPullLen = input.int(20, "Pullback EMA length", minval=5, maxval=200, group=gPull)
+atrLen = input.int(14, "ATR length", minval=2, maxval=100, group=gPull)
+atrMult = input.float(1.0, "ATR multiple from EMA", minval=0.1, maxval=5.0, step=0.1, group=gPull)
+usePull = input.bool(true, "Enable Pullback check", group=gPull)
+
+// --- Volume ---
+gVol = "5 · Volume"
+volAvgLen = input.int(20, "Volume SMA length", minval=2, maxval=200, group=gVol)
+useVol = input.bool(true, "Enable Volume check", group=gVol)
+
+// --- Grading thresholds ---
+gGrade = "Grading Thresholds"
+highThresh = input.int(4, "HIGH threshold (points)", minval=1, maxval=5, group=gGrade, tooltip="Raise to 5 for a stricter regime.")
+medThresh = input.int(3, "MED threshold (points)", minval=1, maxval=5, group=gGrade, tooltip="Must be ≤ HIGH threshold. Lower to loosen the filter.")
+
+// --- Display ---
+gDisp = "Display"
+showLabel = input.bool(true, "Show grade label at last bar", group=gDisp)
+showTable = input.bool(true, "Show breakdown table", group=gDisp)
+colorBg = input.bool(true, "Color background on HIGH / MED bars", group=gDisp, tooltip="LOW bars are never painted — reduces chart noise.")
+colorBars = input.bool(false, "Color bars by grade", group=gDisp)
+showMarkers = input.bool(true, "Show HIGH-grade transition markers", group=gDisp, tooltip="Fires when grade crosses INTO HIGH. GREEN triangle UP below bar for LONG bias · RED triangle DOWN above bar for SHORT bias.")
+showMedMarkers = input.bool(false, "Also show MED-grade markers (dimmer)", group=gDisp, tooltip="OPTIONAL · small muted triangles when grade crosses INTO MED. OFF by default because MED transitions are noisier than HIGH.")
+markerCooldown = input.int(10, "Minimum bars between markers", minval=0, maxval=500, group=gDisp, tooltip="Suppresses markers that fire too close to a prior marker (any direction). 0 = fire every transition · 10 = wait 10 bars (default) · higher = fewer, more meaningful markers. Applies to both HIGH and MED markers, LONG and SHORT.")
+labelSizeIn = input.string("normal", "Grade label size", options=["tiny","small","normal","large","huge"], group=gDisp, tooltip="Size of the HIGH/MED/LOW label plotted on the current bar. Default: normal.")
+labelSize = labelSizeIn == "tiny" ? size.tiny : labelSizeIn == "small" ? size.small : labelSizeIn == "large" ? size.large : labelSizeIn == "huge" ? size.huge : size.normal
+tablePos = input.string("top_right", "Table position", options=["top_right","top_left","bottom_right","bottom_left","middle_right","middle_left"], group=gDisp)
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+f_pt(enabled, cond) => enabled and cond ? 1 : 0
+
+f_tblPos(s) =>
+    switch s
+        "top_left" => position.top_left
+        "top_right" => position.top_right
+        "bottom_left" => position.bottom_left
+        "bottom_right" => position.bottom_right
+        "middle_left" => position.middle_left
+        "middle_right" => position.middle_right
+        => position.top_right
+
+// ═══════════════════════════════════════════════════════════════
+// BASE METRICS (trading timeframe)
+// ═══════════════════════════════════════════════════════════════
+emaT = ta.ema(close, emaTrendLen)
+emaP = ta.ema(close, emaPullLen)
+atr = ta.atr(atrLen)
+rsi = ta.rsi(close, rsiLen)
+volAvg = ta.sma(volume, volAvgLen)
+
+// ═══════════════════════════════════════════════════════════════
+// HIGHER TIMEFRAME (single request.security tuple · lookahead_off)
+// ═══════════════════════════════════════════════════════════════
+[htfClose, htfEma] = request.security(syminfo.tickerid, htf, [close, ta.ema(close, htfEmaLen)], lookahead=barmerge.lookahead_off)
+
+// ═══════════════════════════════════════════════════════════════
+// PER-BAR CHECKS
+// ═══════════════════════════════════════════════════════════════
+// Long side
+chkTrendL = close > emaT
+chkHTFL = htfClose > htfEma
+chkMomoL = rsi >= rsiBullMin
+chkPullL = math.abs(close - emaP) <= (atrMult * atr)
+chkVolL = volume > volAvg
+
+// Short side
+chkTrendS = close < emaT
+chkHTFS = htfClose < htfEma
+chkMomoS = rsi <= rsiBearMax
+chkPullS = math.abs(close - emaP) <= (atrMult * atr) // pullback is direction-agnostic
+chkVolS = volume > volAvg // volume expansion is direction-agnostic
+
+// ═══════════════════════════════════════════════════════════════
+// SCORING
+// ═══════════════════════════════════════════════════════════════
+scoreL = f_pt(useTrend, chkTrendL) + f_pt(useHTF, chkHTFL) + f_pt(useMomo, chkMomoL) + f_pt(usePull, chkPullL) + f_pt(useVol, chkVolL)
+scoreS = f_pt(useTrend, chkTrendS) + f_pt(useHTF, chkHTFS) + f_pt(useMomo, chkMomoS) + f_pt(usePull, chkPullS) + f_pt(useVol, chkVolS)
+
+enabledCount = (useTrend ? 1 : 0) + (useHTF ? 1 : 0) + (useMomo ? 1 : 0) + (usePull ? 1 : 0) + (useVol ? 1 : 0)
+
+bestScore = math.max(scoreL, scoreS)
+dir = scoreL >= scoreS ? "LONG" : "SHORT"
+grade = bestScore >= highThresh ? "HIGH" : bestScore >= medThresh ? "MED" : "LOW"
+gradeColor = grade == "HIGH" ? C_HIGH : grade == "MED" ? C_MED : C_LOW
+gradeBg = grade == "HIGH" ? C_BG_HI : grade == "MED" ? C_BG_MD : C_BG_LO
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER · BACKGROUND + BAR COLOR
+// ═══════════════════════════════════════════════════════════════
+// Background: paint HIGH/MED only (LOW bars stay clean · reduces wallpaper effect)
+bgcolor(colorBg and grade != "LOW" ? gradeBg : na, title="Grade background")
+barcolor(colorBars and grade == "HIGH" ? C_HIGH : colorBars and grade == "MED" ? C_MED : na)
+
+// Direction-aware transition markers · fire only when grade CROSSES INTO a higher tier
+// HIGH LONG = GREEN triangle UP (below bar) · bullish setup
+// HIGH SHORT = RED triangle DOWN (above bar) · bearish setup
+// MED LONG = muted-green tri UP (below bar) · opt-in
+// MED SHORT = muted-red tri DOWN (above bar) · opt-in
+// Suppresses noise · only marks meaningful setup formation moments · respects direction
+gradeRank = grade == "HIGH" ? 3 : grade == "MED" ? 2 : 1
+gradeRankPrev = ta.valuewhen(barstate.isconfirmed, gradeRank[1], 0)
+
+// Cooldown gate · suppresses markers that fire too close to a prior marker
+var int lastMarkerBar = -1000
+cooldownOk = markerCooldown == 0 or (bar_index - lastMarkerBar) >= markerCooldown
+
+crossedHighLong = showMarkers and gradeRank == 3 and gradeRankPrev < 3 and dir == "LONG" and cooldownOk
+crossedHighShort = showMarkers and gradeRank == 3 and gradeRankPrev < 3 and dir == "SHORT" and cooldownOk
+crossedMedLong = showMedMarkers and gradeRank == 2 and gradeRankPrev < 2 and dir == "LONG" and cooldownOk
+crossedMedShort = showMedMarkers and gradeRank == 2 and gradeRankPrev < 2 and dir == "SHORT" and cooldownOk
+
+// Update cooldown timer whenever ANY marker actually fires
+if crossedHighLong or crossedHighShort or crossedMedLong or crossedMedShort
+    lastMarkerBar := bar_index
+
+plotshape(crossedHighLong, title="HIGH Long", location=location.belowbar, style=shape.triangleup, color=C_HIGH, size=size.small, offset=0)
+plotshape(crossedHighShort, title="HIGH Short", location=location.abovebar, style=shape.triangledown, color=C_LOW, size=size.small, offset=0)
+plotshape(crossedMedLong, title="MED Long", location=location.belowbar, style=shape.triangleup, color=C_MED, size=size.tiny, offset=0)
+plotshape(crossedMedShort, title="MED Short", location=location.abovebar, style=shape.triangledown, color=color.new(C_LOW, 40), size=size.tiny, offset=0)
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER · LAST-BAR LABEL
+// ═══════════════════════════════════════════════════════════════
+var label gradeLabel = na
+if barstate.islast and showLabel
+    label.delete(gradeLabel)
+    txt = grade + " " + dir + " " + str.tostring(bestScore) + " / " + str.tostring(enabledCount)
+    gradeLabel := label.new(bar_index, high, text=txt, style=label.style_label_lower_left, color=gradeColor, textcolor=C_TEXT, size=labelSize)
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER · BREAKDOWN TABLE
+// ═══════════════════════════════════════════════════════════════
+var table gradeTable = table.new(f_tblPos(tablePos), 3, 7, border_width=1, border_color=C_NAVY)
+
+f_tick(enabled, cond) => enabled ? (cond ? "✓" : "✗") : "—"
+f_tickCol(enabled, cond) => enabled ? (cond ? C_HIGH : C_LOW) : color.gray
+
+if barstate.islast and showTable
+    // Header row
+    table.cell(gradeTable, 0, 0, "Check", text_color=C_TEXT, bgcolor=C_NAVY, text_size=size.small)
+    table.cell(gradeTable, 1, 0, "LONG", text_color=C_TEXT, bgcolor=C_NAVY, text_size=size.small)
+    table.cell(gradeTable, 2, 0, "SHORT", text_color=C_TEXT, bgcolor=C_NAVY, text_size=size.small)
+
+    // Rows 1-5 · one per check
+    dimBg = color.new(C_NAVY, 70)
+    table.cell(gradeTable, 0, 1, "1 · Trend", text_color=C_TEXT, bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 1, 1, f_tick(useTrend, chkTrendL), text_color=f_tickCol(useTrend, chkTrendL), bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 2, 1, f_tick(useTrend, chkTrendS), text_color=f_tickCol(useTrend, chkTrendS), bgcolor=dimBg, text_size=size.small)
+
+    table.cell(gradeTable, 0, 2, "2 · HTF", text_color=C_TEXT, bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 1, 2, f_tick(useHTF, chkHTFL), text_color=f_tickCol(useHTF, chkHTFL), bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 2, 2, f_tick(useHTF, chkHTFS), text_color=f_tickCol(useHTF, chkHTFS), bgcolor=dimBg, text_size=size.small)
+
+    table.cell(gradeTable, 0, 3, "3 · Momo", text_color=C_TEXT, bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 1, 3, f_tick(useMomo, chkMomoL), text_color=f_tickCol(useMomo, chkMomoL), bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 2, 3, f_tick(useMomo, chkMomoS), text_color=f_tickCol(useMomo, chkMomoS), bgcolor=dimBg, text_size=size.small)
+
+    table.cell(gradeTable, 0, 4, "4 · Pullback", text_color=C_TEXT, bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 1, 4, f_tick(usePull, chkPullL), text_color=f_tickCol(usePull, chkPullL), bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 2, 4, f_tick(usePull, chkPullS), text_color=f_tickCol(usePull, chkPullS), bgcolor=dimBg, text_size=size.small)
+
+    table.cell(gradeTable, 0, 5, "5 · Volume", text_color=C_TEXT, bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 1, 5, f_tick(useVol, chkVolL), text_color=f_tickCol(useVol, chkVolL), bgcolor=dimBg, text_size=size.small)
+    table.cell(gradeTable, 2, 5, f_tick(useVol, chkVolS), text_color=f_tickCol(useVol, chkVolS), bgcolor=dimBg, text_size=size.small)
+
+    // Grade summary row
+    summaryL = (dir == "LONG" ? grade + " · " : "") + str.tostring(scoreL) + "/" + str.tostring(enabledCount)
+    summaryS = (dir == "SHORT" ? grade + " · " : "") + str.tostring(scoreS) + "/" + str.tostring(enabledCount)
+    table.cell(gradeTable, 0, 6, "GRADE", text_color=C_TEXT, bgcolor=C_NAVY, text_size=size.small)
+    table.cell(gradeTable, 1, 6, summaryL, text_color=C_TEXT, bgcolor=(dir == "LONG" ? gradeColor : color.new(color.gray, 60)), text_size=size.small)
+    table.cell(gradeTable, 2, 6, summaryS, text_color=C_TEXT, bgcolor=(dir == "SHORT" ? gradeColor : color.new(color.gray, 60)), text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════
+// ALERTS · HIGH grade prints only (no signal generation)
+// ═══════════════════════════════════════════════════════════════
+alertcondition(grade == "HIGH" and dir == "LONG", title="HIGH Long Grade", message="Setup Grader: HIGH grade LONG bias on {{ticker}} {{interval}}")
+alertcondition(grade == "HIGH" and dir == "SHORT", title="HIGH Short Grade", message="Setup Grader: HIGH grade SHORT bias on {{ticker}} {{interval}}")

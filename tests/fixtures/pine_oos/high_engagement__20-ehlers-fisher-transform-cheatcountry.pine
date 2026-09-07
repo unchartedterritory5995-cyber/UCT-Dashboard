@@ -1,0 +1,29 @@
+//@version=4
+// Copyright (c) 2019-present, Franklin Moormann (cheatcountry)
+// Ehlers Fisher Transform Indicator [CC] script may be freely distributed under the MIT license.
+study("Ehlers Fisher Transform Indicator [CC]", overlay=false)
+
+inp = input(title="Source", type=input.source, defval=hl2)
+res = input(title="Resolution", type=input.resolution, defval="")
+rep = input(title="Allow Repainting?", type=input.bool, defval=false)
+bar = input(title="Allow Bar Color Change?", type=input.bool, defval=true)
+src = security(syminfo.tickerid, res, inp[rep ? 0 : barstate.isrealtime ? 1 : 0])[rep ? 0 : barstate.isrealtime ? 0 : 1]
+length = input(title="Length", type=input.integer, defval=10, minval=1)
+
+maxSrc = highest(src, length)
+minSrc = lowest(src, length)
+
+sto = maxSrc - minSrc != 0 ? (src - minSrc) / (maxSrc - minSrc) : 0
+v1 = 0.0
+v1 := max(min((0.33 * 2 * (sto - 0.5)) + (0.67 * nz(v1[1])), 0.999), -0.999)
+
+fish = 0.0
+fish := (0.5 * log((1 + v1) / (1 - v1))) + (0.5 * nz(fish[1]))
+
+sig = fish > nz(fish[1]) ? 1 : fish < nz(fish[1]) ? -1 : 0
+alertcondition(crossover(sig, 0), "Buy Signal", "Bullish Change Detected")
+alertcondition(crossunder(sig, 0), "Sell Signal", "Bearish Change Detected")
+fishColor = sig > 0 ? color.green : sig < 0 ? color.red : color.black
+barcolor(bar ? fishColor : na)
+plot(fish, title="FisherTransform", color=fishColor, linewidth=2)
+plot(fish[1], title="Signal", color=color.black, linewidth=1)

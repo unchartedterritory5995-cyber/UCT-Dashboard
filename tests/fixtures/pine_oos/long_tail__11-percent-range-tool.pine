@@ -1,0 +1,104 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © graefe
+//@version=6
+indicator(title = "Percent Range Tool", overlay = true)
+
+const int con_lineCount = 20
+const int con_halfCount = con_lineCount / 2
+const int con_lineWidth = 1
+
+const string con_grpCalculation = "Calculation"
+const string con_grpAppearance = "Appearance"
+
+const string con_lengthTooltip = "Lookback window used to find the highest high and the lowest low. The widest of the two distances defines the 100% level."
+const string con_offsetTooltip = "Number of bars between the current bar and the right-hand end of the levels. The levels are always placed to the right of the current bar."
+const string con_extendTooltip = "Carries every level to the left across the whole chart, so each percentage can be read against past price action. The staggered lengths only remain visible while this is off."
+const string con_sizeTooltip = "Font size of the percentage labels."
+
+// Line style and line length per level; both arrays hold exactly con_lineCount entries and are mirrored around the middle, so the display looks the same above and below the close
+var string[] con_lineStyles = array.from(line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid, line.style_dotted, line.style_solid)
+var int[] con_lineLengths = array.from(38, 22, 28, 22, 28, 22, 28, 22, 28, 22, 22, 28, 22, 28, 22, 28, 22, 28, 22, 38)
+
+// Creates one percent level and its label once and afterwards only repositions them (line.set_xy/label.set_xy) instead of building them anew on every call; a level whose price would land at zero or below is deleted and returned as empty ids so it can be rebuilt later, and the label sits to the right of the line end at the same height
+f_drawPercentLine(line lineId, label labelId, float priceLevel, string labelText, int offsetBars, int lengthBars, bool extendLeft, string lineStyle, color lineColor, int lineWidth, string labelSize) =>
+    int cal_barRight = bar_index + offsetBars
+    int cal_barLeft = cal_barRight - (lengthBars - 1)
+    string cal_lineExtend = extendLeft ? extend.left : extend.none
+
+    line outp_lineId = lineId
+    label outp_labelId = labelId
+
+    if priceLevel <= 0
+        line.delete(outp_lineId)
+        label.delete(outp_labelId)
+        outp_lineId := na
+        outp_labelId := na
+    else
+        if na(outp_lineId)
+            outp_lineId := line.new(cal_barLeft, priceLevel, cal_barRight, priceLevel, xloc = xloc.bar_index, extend = cal_lineExtend, color = lineColor, width = lineWidth, style = lineStyle)
+        else
+            line.set_xy1(outp_lineId, cal_barLeft, priceLevel)
+            line.set_xy2(outp_lineId, cal_barRight, priceLevel)
+            line.set_extend(outp_lineId, cal_lineExtend)
+            line.set_color(outp_lineId, lineColor)
+            line.set_style(outp_lineId, lineStyle)
+            line.set_width(outp_lineId, lineWidth)
+
+        if na(outp_labelId)
+            outp_labelId := label.new(cal_barRight, priceLevel, labelText,
+                 xloc = xloc.bar_index,
+                 style = label.style_label_left,
+                 color = color.new(chart.bg_color, 100),
+                 textcolor = lineColor,
+                 size = labelSize)
+        else
+            label.set_xy(outp_labelId, cal_barRight, priceLevel)
+            label.set_text(outp_labelId, labelText)
+            label.set_textcolor(outp_labelId, lineColor)
+            label.set_size(outp_labelId, labelSize)
+
+    [outp_lineId, outp_labelId]
+
+int inp_lookbackLength = input.int(defval = 600, title = "Length", minval = 1, maxval = 5000, group = con_grpCalculation, tooltip = con_lengthTooltip)
+int inp_lineOffset = input.int(defval = 100, title = "Offset", minval = 0, maxval = 500, group = con_grpAppearance, tooltip = con_offsetTooltip)
+bool inp_extendLeft = input.bool(defval = false, title = "Extend Levels to the Left", group = con_grpAppearance, tooltip = con_extendTooltip)
+color inp_lineColor = input.color(defval = color.new(#a0a0a0, 20), title = "Line Color", group = con_grpAppearance)
+string inp_labelSize = input.string(defval = size.tiny, title = "Label Size", options = [size.tiny, size.small, size.normal, size.large, size.huge], group = con_grpAppearance, tooltip = con_sizeTooltip)
+
+// Clamp the lookback length to the number of bars actually available, so the levels are also formed on short charts
+int cal_availableBars = bar_index + 1
+int cal_effectiveLength = math.max(1, math.min(inp_lookbackLength, cal_availableBars))
+
+float cal_highestHigh = ta.highest(high, cal_effectiveLength)
+float cal_lowestLow = ta.lowest(low, cal_effectiveLength)
+
+// Percentage distance from the close to both extremes; the wider of the two defines the 100% level and with it the whole scale
+float cal_distanceHigh = (cal_highestHigh - close) / close * 100
+float cal_distanceLow = (close - cal_lowestLow) / close * 100
+float cal_maxDistance = math.max(cal_distanceHigh, cal_distanceLow)
+
+var line[] outp_lines = array.new_line(con_lineCount, na)
+var label[] outp_labels = array.new_label(con_lineCount, na)
+
+// Draw on the last bar only: ten levels above and ten below the close, spread across the widest distance in equal steps
+if barstate.islast
+    for i = 0 to con_lineCount - 1
+        float cal_percentValue = i < con_halfCount ? cal_maxDistance * (con_halfCount - i) / con_halfCount : -cal_maxDistance * (i - con_halfCount + 1) / con_halfCount
+        float cal_priceLevel = close + close * (cal_percentValue / 100.0)
+        string cal_labelText = str.tostring(cal_percentValue, "#.##") + "%"
+
+        [outp_lineId, outp_labelId] = f_drawPercentLine(
+             array.get(outp_lines, i),
+             array.get(outp_labels, i),
+             cal_priceLevel,
+             cal_labelText,
+             inp_lineOffset,
+             array.get(con_lineLengths, i),
+             inp_extendLeft,
+             array.get(con_lineStyles, i),
+             inp_lineColor,
+             con_lineWidth,
+             inp_labelSize)
+
+        array.set(outp_lines, i, outp_lineId)
+        array.set(outp_labels, i, outp_labelId)

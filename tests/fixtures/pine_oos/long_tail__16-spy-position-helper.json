@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "16-spy-position-helper.pine",
+  "title": "SPY Position Helper v1",
+  "author": "Daughter_of_the_water",
+  "source_url": "https://www.tradingview.com/script/AC5HkrwL-SPY-Position-Helper-v1/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 206,
+  "complexity_bucket": "long",
+  "sha256_source": "5f226015b14f83d9a5ed9c70fcbd4e4d7bf097d519f01dd288159bea3499bdce",
+  "sha256_normalized": "de3f7a58c8789141dd6c5881b79e79bc8202de6eec1cd0a446fad40229404fdd",
+  "storage": "local-only"
+}

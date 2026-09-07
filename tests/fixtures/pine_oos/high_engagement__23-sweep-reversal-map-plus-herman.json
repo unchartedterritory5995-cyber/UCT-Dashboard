@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "23-sweep-reversal-map-plus-herman.pine",
+  "title": "Sweep Reversal Map+ [Herman]",
+  "author": "helmans13",
+  "source_url": "https://www.tradingview.com/script/kQTW8mzu-Sweep-Reversal-Map-Herman/",
+  "retrieved_at": "2026-09-07T17:09:53Z",
+  "pine_version": "6",
+  "license": "Mozilla Public License 2.0 (stated in script header as \"MPL-2.0\")",
+  "publish_or_update_date": "2026-09-01T17:17:44Z",
+  "declared_type": "indicator",
+  "capture_method": "pine-facade source endpoint (PUB;e37dfc9f8483425f90066f6bd29bc6df/last) fetched with browser User-Agent; SHA-256 cross-checked byte-for-byte against an independent DOM line-walk of the TradingView source viewer (per-line textContent joined with newlines, NBSP normalized to space)",
+  "non_comment_lines": 172,
+  "complexity_bucket": "long",
+  "sha256_source": "01e5947f43b49a92116db541766364fa5eb12d453ee531f58c56d8c5799a78ce",
+  "sha256_normalized": "1a8742913a1a29bc3bd2113a133c55e7f287a2da90d65ce0aae33f23fcfd25de",
+  "storage": "git"
+}

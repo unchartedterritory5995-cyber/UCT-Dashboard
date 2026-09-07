@@ -1,0 +1,164 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © faytterro
+
+//@version=6
+indicator('RSI Divergence', overlay = false, max_lines_count = 500, calc_bars_count = 5000)
+max_bars_back(time,500)
+rsilen = input.int(14, title = 'rsi length')
+rsisrc = input(close, title = 'source')
+x = ta.rsi(rsisrc, rsilen)
+len = input.int(25, title = 'RSI Divergence length', maxval = 500)
+src = close
+extrapolation = 0
+
+// for ax+b
+xo = 0.0
+yo = 0.0
+xyo = 0.0
+xxo = 0.0
+for i = 0 to len - 1 by 1
+    xo := xo + i / len
+    yo := yo + x[len - 1 - i] / len
+    xyo := xyo + i * x[len - 1 - i] / len
+    xxo := xxo + i * i / len
+    xxo
+dnm = ta.lowest(low, 200)
+dizi = array.new_float(len * 2 + 1 + extrapolation)
+linedizi = array.new_line()
+a = (xo * yo - xyo) / (xo * xo - xxo)
+b = yo - a * xo
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi, i, a * i + b)
+
+//// for src
+// for ax+b
+mo = 0.0
+xo2 = 0.0
+yo2 = 0.0
+xyo2 = 0.0
+xxo2 = 0.0
+for i = 0 to len - 1 by 1
+    mo := mo + (high[len - 1 - i]-low[len - 1 - i]) / len
+    xo2 := xo2 + i / len
+    yo2 := yo2 + src[len - 1 - i] / len
+    xyo2 := xyo2 + i * src[len - 1 - i] / len
+    xxo2 := xxo2 + i * i / len
+    xxo2
+
+dizi2 = array.new_float(len * 2 + 1 + extrapolation)
+linedizi2 = array.new_line()
+a2 = (xo2 * yo2 - xyo2) / (xo2 * xo2 - xxo2)
+b2 = yo2 - a * xo2
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi2, i, a2 * i + b2)
+ttk = array.get(dizi, 0) < array.get(dizi, 1) and array.get(dizi2, 0) > array.get(dizi2, 1) ? 1 : array.get(dizi, 0) > array.get(dizi, 1) and array.get(dizi2, 0) < array.get(dizi2, 1) ? -1 : 0
+cg = array.get(dizi, 0) < array.get(dizi, 1) and array.get(dizi2, 0) > array.get(dizi2, 1) // and ta.highest(ttk[1],len/2)<1)
+cr = array.get(dizi, 0) > array.get(dizi, 1) and array.get(dizi2, 0) < array.get(dizi2, 1)
+
+cr := cr and  array.get(dizi2, 0) - array.get(dizi2, 24) < -mo and array.get(dizi, 0) - array.get(dizi, 24) > 5
+cg := cg and array.get(dizi2, 0) - array.get(dizi2, 24) > mo and array.get(dizi, 0) - array.get(dizi, 24) < -5
+ // and ta.lowest(ttk[1],len/2)>-1)
+//bgcolor(color = cg and ta.highest(ttk[1], len / 2) < 1 ? color.rgb(76, 175, 79, 50) : cr and ta.lowest(ttk[1], len / 2) > -1 ? color.rgb(255, 82, 82, 50) : na, offset = 0, display = display.none)
+plot(x, color = color.rgb(200, 87, 194))
+
+// for ax+b
+xo3 = 0.0
+yo3 = 0.0
+xyo3 = 0.0
+xxo3 = 0.0
+for i = 0 to len - 1 by 1
+    xo3 := xo3 + i / len
+    yo3 := yo3 + x[len - 1 - i + ta.barssince(cg)] / len
+    xyo3 := xyo3 + i * x[len - 1 - i + ta.barssince(cg)] / len
+    xxo3 := xxo3 + i * i / len
+    xxo3
+
+dizi3 = array.new_float(len * 2 + 1 + extrapolation)
+linedizi3 = array.new_line()
+a3 = (xo3 * yo3 - xyo3) / (xo3 * xo3 - xxo3)
+b3 = yo3 - a3 * xo3
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi3, i, a3 * i + b3)
+
+// for ax+b
+xo4 = 0.0
+yo4 = 0.0
+xyo4 = 0.0
+xxo4 = 0.0
+for i = 0 to len - 1 by 1
+    xo4 := xo4 + i / len
+    yo4 := yo4 + x[len - 1 - i + ta.barssince(cr)] / len
+    xyo4 := xyo4 + i * x[len - 1 - i + ta.barssince(cr)] / len
+    xxo4 := xxo4 + i * i / len
+    xxo4
+
+dizi4 = array.new_float(len * 2 + 1 + extrapolation)
+linedizi4 = array.new_line()
+a4 = (xo4 * yo4 - xyo4) / (xo4 * xo4 - xxo4)
+b4 = yo4 - a4 * xo4
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi4, i, a4 * i + b4)
+
+for i = 0 to len-1
+    cg:= cg and not cg[i+1]
+    cr:= cr and not cr[i+1]
+
+if cg
+    line.new(ta.valuewhen(cg, bar_index, 0) - len +1, ta.valuewhen(cg, array.get(dizi3, 0), 0), ta.valuewhen(cg, bar_index, 0), ta.valuewhen(cg, array.get(dizi3, len - 1), 0), color = color.rgb(0, 255, 0), width = 1)
+    label.new(bar_index,close, "Positive \nDivergence", xloc.bar_index, yloc.belowbar, color.green, label.style_label_up, color.rgb(255, 255, 255), size.normal, text.align_center, na, font.family_default, true)
+    alert("Positive \nDivergence", alert.freq_once_per_bar_close)
+if cr
+    line.new(ta.valuewhen(cr, bar_index, 0) - len +1, ta.valuewhen(cr, array.get(dizi4, 0), 0), ta.valuewhen(cr, bar_index, 0), ta.valuewhen(cr, array.get(dizi4, len - 1), 0), color = color.rgb(255, 0, 0, 0), width = 1)
+    label.new(bar_index,close, "Negative \nDivergence", xloc.bar_index, yloc.abovebar, color.red, label.style_label_down, color.white, size.normal, text.align_center, na, font.family_default, true)
+    alert("Negative \nDivergence", alert.freq_once_per_bar_close)
+alertcondition(cg, title = 'RSI Buy')
+alertcondition(cr, title = 'RSI Sell')
+hline(50, color = color.new(#787B86, 50))
+rs = hline(30)
+rss = hline(70)
+fill(rs, rss, color = color.rgb(126, 87, 194, 90), title = 'RSI Background Fill')
+
+// for ax+b
+xo5 = 0.0
+yo5 = 0.0
+xyo5 = 0.0
+xxo5 = 0.0
+for i = 0 to len - 1 by 1
+    xo5 := xo5 + i / len
+    yo5 := yo5 + src[len - 1 - i + ta.barssince(cg)] / len
+    xyo5 := xyo5 + i * src[len - 1 - i + ta.barssince(cg)] / len
+    xxo5 := xxo5 + i * i / len
+    xxo5
+
+dizi5 = array.new_float(len * 2 + 1 + extrapolation)
+linedizi5 = array.new_line()
+a5 = (xo5 * yo5 - xyo5) / (xo5 * xo5 - xxo5)
+b5 = yo5 - a5 * xo5
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi5, i, a5 * i + b5)
+
+if cg
+    line.new(ta.valuewhen(cg, bar_index, 0) - len +1, ta.valuewhen(cg, array.get(dizi5, 0), 0), ta.valuewhen(cg, bar_index, 0), ta.valuewhen(cg, array.get(dizi5, len - 1), 0), color = color.rgb(255, 0, 0), width = 1, force_overlay = true)
+
+// for ax+b
+xo6 = 0.0
+yo6 = 0.0
+xyo6 = 0.0
+xxo6 = 0.0
+for i = 0 to len - 1 by 1
+    xo6 := xo6 + i / len
+    yo6 := yo6 + src[len - 1 - i + ta.barssince(cr)] / len
+    xyo6 := xyo6 + i * src[len - 1 - i + ta.barssince(cr)] / len
+    xxo6 := xxo6 + i * i / len
+    xxo6
+
+dizi6 = array.new_float(len * 2 + 1 + extrapolation)
+linedizi6 = array.new_line()
+a6 = (xo6 * yo6 - xyo6) / (xo6 * xo6 - xxo6)
+b6 = yo6 - a6 * xo6
+for i = 0 to len - 1 + extrapolation by 1
+    array.set(dizi6, i, a6 * i + b6)
+
+
+if cr
+    line.new(ta.valuewhen(cr, bar_index, 0) - len +1, ta.valuewhen(cr, array.get(dizi6, 0), 0), ta.valuewhen(cr, bar_index, 0), ta.valuewhen(cr, array.get(dizi6, len - 1), 0), color = color.rgb(0, 255, 0, 0), width = 1, force_overlay = true)

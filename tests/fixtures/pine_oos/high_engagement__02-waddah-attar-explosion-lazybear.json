@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "02-waddah-attar-explosion-lazybear.pine",
+  "title": "Waddah Attar Explosion [LazyBear]",
+  "author": "LazyBear",
+  "source_url": "https://www.tradingview.com/script/iu3kKWDI-Waddah-Attar-Explosion-LazyBear/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+  "license": "not stated",
+  "publish_or_update_date": "Oct 10, 2014",
+  "declared_type": "study",
+  "capture_method": null,
+  "non_comment_lines": 28,
+  "complexity_bucket": "short",
+  "sha256_source": "851684c200bc41efc448b1fb3b8dfdc0321fde298626a47b89858d0b087ae369",
+  "sha256_normalized": "f772cbebb72f5514b37bab043a4980c0724dcce9a18751bf362f3524ddb4c5b2",
+  "storage": "local-only"
+}

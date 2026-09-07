@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "03-volatility-supply-demand-zones.pine",
+  "title": "Volatility Supply and Demand Zones",
+  "author": "X_smart",
+  "source_url": "https://www.tradingview.com/script/MIUcoyUu-Volatility-Supply-and-Demand-Zones/",
+  "retrieved_at": "2026-09-07T09:30:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"2 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 226,
+  "complexity_bucket": "long",
+  "sha256_source": "9e67df29eb9a60669397c3c026008b20635685c71860a92ea9c667495645536b",
+  "sha256_normalized": "9699a9bd9f47e5dc9ad5dc1613e93cc4933815947465d0c086921e072386980d",
+  "storage": "local-only"
+}

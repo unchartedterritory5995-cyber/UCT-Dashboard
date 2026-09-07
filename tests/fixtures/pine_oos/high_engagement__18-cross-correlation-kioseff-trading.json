@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "18-cross-correlation-kioseff-trading.pine",
+  "title": "Cross Correlation [Kioseff Trading]",
+  "author": "KioseffTrading",
+  "source_url": "https://www.tradingview.com/script/4iriNqgS-Cross-Correlation-Kioseff-Trading/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v5",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "Sep 3, 2023 (page badge shows \"Updated Sep 4, 2023\")",
+  "declared_type": "indicator",
+  "capture_method": "Browser DOM capture: clicked the script page's \"Source code\" tab, then joined the rendered code viewer's per-line <span> elements' textContent with \\n (U+00A0 normalised to U+0020, no page-text/accessibility-tree extraction). Transferred to disk byte-exact via a URL-fragment handoff to a localhost sink and verified with an end-to-end FNV-1a checksum against the in-page value.",
+  "non_comment_lines": 241,
+  "complexity_bucket": "long",
+  "sha256_source": "204654cea6ca72c50758c691ac1c00f4049820a7a6554d78a1d257f4c8b4613d",
+  "sha256_normalized": "a1d1c2233730537d97a933439b4c37cbb16683607103f04d994880513289c876",
+  "storage": "git"
+}

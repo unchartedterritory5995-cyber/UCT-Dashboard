@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "14-vwap-z-score-oscillator.pine",
+  "title": "VWAP Z-Score Oscillator",
+  "author": "tgregg75",
+  "source_url": "https://www.tradingview.com/script/Jxs0GSaH-VWAP-Z-Score-Oscillator/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "3 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 97,
+  "complexity_bucket": "long",
+  "sha256_source": "deaeeeca9cfc404ec5dd249f4abc5d6618ebe8a0697ac5685a6d0838c0d3639f",
+  "sha256_normalized": "ad91ac92fec745e1d78490a13e626d7921137ffab1a136f2ca3a0b979e1a89bf",
+  "storage": "local-only"
+}

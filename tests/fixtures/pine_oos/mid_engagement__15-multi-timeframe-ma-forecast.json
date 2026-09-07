@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "15-multi-timeframe-ma-forecast.pine",
+  "title": "Multi-Timeframe MA Forecast",
+  "author": "SkyHighTA",
+  "source_url": "https://www.tradingview.com/script/A2tQnlxC-Multi-Timeframe-MA-Forecast/",
+  "retrieved_at": "2026-09-07T11:55:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"4 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 246,
+  "complexity_bucket": "long",
+  "sha256_source": "a8c3a5e9743be02b436ed026c59d4e71c69c930df136d5268c7d0f11014318f2",
+  "sha256_normalized": "801975abdbc35f98e9da3069b1cb4954705505ad0defc0994fe0c456341e4308",
+  "storage": "local-only"
+}

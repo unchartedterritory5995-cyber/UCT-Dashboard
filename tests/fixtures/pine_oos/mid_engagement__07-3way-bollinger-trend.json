@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "07-3way-bollinger-trend.pine",
+  "title": "3-Way Bollinger Trend [ZynAlgo]",
+  "author": "ZynAlgo",
+  "source_url": "https://www.tradingview.com/script/LM69E8gZ-3-Way-Bollinger-Trend-ZynAlgo/",
+  "retrieved_at": "2026-09-07T10:15:00Z",
+  "pine_version": "v6",
+  "license": "not stated",
+  "publish_or_update_date": "shown as \"2 days ago\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 314,
+  "complexity_bucket": "long",
+  "sha256_source": "87f490ceb329389f999f4cf4b21a02b415ece8f8e4f7582c25c728c2b56324dd",
+  "sha256_normalized": "8c4c4be154c0bd87ca65844f9b3fb6937499944a731660a1f3df82d124fafe69",
+  "storage": "local-only"
+}

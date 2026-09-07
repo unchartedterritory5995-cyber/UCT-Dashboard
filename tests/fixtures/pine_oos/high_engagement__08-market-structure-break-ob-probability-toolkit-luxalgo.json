@@ -1,0 +1,18 @@
+{
+  "tier": "high_engagement",
+  "file": "08-market-structure-break-ob-probability-toolkit-luxalgo.pine",
+  "title": "Market Structure Break & OB Probability Toolkit [LuxAlgo]",
+  "author": "LuxAlgo",
+  "source_url": "https://www.tradingview.com/script/ObcbP092-Market-Structure-Break-OB-Probability-Toolkit-LuxAlgo/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)",
+  "publish_or_update_date": "Feb 2 (year not shown on page, badge reads \"Feb 2\")",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 235,
+  "complexity_bucket": "long",
+  "sha256_source": "f5d364a99ef1e45499df314c266910ccbd8093ecfb801e5ce0d36aff9f53668e",
+  "sha256_normalized": "740547ad58abad5961649c22c6f24ffcd6298a6a99bbbb18b47cffaf8916384c",
+  "storage": "local-only"
+}

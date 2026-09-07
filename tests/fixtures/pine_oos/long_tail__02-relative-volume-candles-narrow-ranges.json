@@ -1,0 +1,18 @@
+{
+  "tier": "long_tail",
+  "file": "02-relative-volume-candles-narrow-ranges.pine",
+  "title": "Relative Volume Candles & Narrow Ranges",
+  "author": "AnyMinute",
+  "source_url": "https://www.tradingview.com/script/Pkgxgdm6-Relative-Volume-Candles-Narrow-Ranges/",
+  "retrieved_at": "2026-09-07T00:00:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0",
+  "publish_or_update_date": "2 days ago (relative date shown on page; no absolute date displayed)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 96,
+  "complexity_bucket": "long",
+  "sha256_source": "fed001d6f2bbf22e4ebcc7eee94a1d81f39a0c196cca19e609cef4bb96527c35",
+  "sha256_normalized": "0a3461182e2031a1ea92c29ed33c43156a42fd2b59458614008cd5830775ee0a",
+  "storage": "git"
+}

@@ -1,0 +1,18 @@
+{
+  "tier": "mid_engagement",
+  "file": "18-market-profile-tpo.pine",
+  "title": "Market Profile TPO [vault]",
+  "author": "curtal",
+  "source_url": "https://www.tradingview.com/script/VlRSQGzY-Market-Profile-TPO-vault/",
+  "retrieved_at": "2026-09-07T12:25:00Z",
+  "pine_version": "v6",
+  "license": "Mozilla Public License 2.0 (declared in script header comment; comment also credits \"\u00a9 Edward \u2014 reworked / optimized build\")",
+  "publish_or_update_date": "shown as \"Aug 26\" at retrieval time (2026-09-07)",
+  "declared_type": "indicator",
+  "capture_method": null,
+  "non_comment_lines": 299,
+  "complexity_bucket": "long",
+  "sha256_source": "82111b29b9f50908bb9801a957ebb2231ae1885f465c1c8f144644844a9e2d09",
+  "sha256_normalized": "2b9139f4ebf649e554e6d968711ec4c4386fffd35a2a5ebf4fc5f6dce6250b27",
+  "storage": "git"
+}
