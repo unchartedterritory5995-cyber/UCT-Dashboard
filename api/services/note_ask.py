@@ -1,35 +1,44 @@
-"""Ask Current Note (Wave 2, P0-5) — bounded-context Q&A over ONE already-
-authorized note.
+"""Ask Current Note — the RESERVATION LEDGER for the Ask surface.
 
-POST /api/j2/notes/{note_id}/ask/stream (see api/routers/journal_two.py)
+Cost caps and daily per-member limits for every Ask scope, plus the provider
+client. Nothing here builds a prompt.
 
-Copies `ai_search_personal.py`'s `assemble() -> SYNTH_SYSTEM() -> synthesize()`
-shape verbatim (per architecture spec §8.1) — same reserve/refund cost-cap
-idiom, same streaming-synthesis idiom. Two deliberate differences:
+⛔ SLICE 6 REMOVED THIS MODULE'S PROMPT BUILDER, AND THAT WAS THE POINT.
+It used to copy `ai_search_personal.py`'s `assemble() -> SYNTH_SYSTEM() ->
+synthesize()` shape, which meant `SYNTH_SYSTEM(note_title, note_block)`
+interpolated the member's note title and up to 20,000 characters of note body
+straight into `system=`. Member content sat in the instruction layer, so a
+sentence inside a PDF a member had pasted into a note was read as a peer of
+the rules it addressed -- the defect measured in
+tests/test_note_ask_prompt_boundary.py. Every Ask scope now builds prompts
+through api/services/journal_two/ask_prompt.py, whose system-prompt builder
+takes no arguments at all, and the note reaches the model as ranked, citable
+blocks inside the evidence fence.
 
-  - NO Freshness Firewall. `ai_search_personal.py`'s system prompt says "the
-    LIVE DESK figures are authoritative — never override a live number with a
-    stale personal one." Notebook needs the OPPOSITE contract: a note's stated
-    fact is a historical claim (what the member believed/wrote at the time),
-    and the model must never silently "correct" it against anything newer.
-  - Context is the single note's own `bodyPlain` — nothing else. No live
-    desk data, no web draft, no other note. Tenant isolation is therefore
-    structural: `get_note(user_id, note_id)` is the only gate needed, because
-    there is no cross-row retrieval to leak (architecture spec §8.1).
+The two contracts that were RIGHT are preserved upstream, not deleted:
+  - NO Freshness Firewall. A note's stated fact is a historical claim; the
+    model must never silently "correct" it against anything newer. This now
+    lives in ask_prompt's HISTORICAL CLAIMS rule, where it covers every scope.
+  - Tenant isolation is structural -- ownership is checked before retrieval,
+    and every retrieval query carries `user_id`.
 
-Own reserve/refund counters — deliberately NOT shared with
+Own reserve/refund counters, deliberately NOT shared with
 `ai_search_personal`'s budget (a different feature, a different spend to cap).
+Env names are unchanged (NOTE_ASK_SYNTH_*) so migrating the prompt path could
+not quietly move a deployed knob.
 """
+
 from __future__ import annotations
 
 import os
 import threading
 from typing import Optional
 
-# Longest note content handed to the model. Generous for a single note (this
-# is the ONLY context, not a supplement to a web draft) while still bounding
-# token cost against a pathological giant note.
-_NOTE_BODY_CAP = 20000
+# The note-context ceiling moved to ask_retrieval.NOTE_SCOPE_MAX_CHARS when
+# Slice 6 replaced the 20k system-message blob with ranked, citable blocks.
+# Same number, so the model still sees as much of a note as it ever did --
+# what changed is that the LEAST relevant blocks are what a long note loses,
+# instead of everything past character 20,000.
 
 _SYNTH_MODEL = os.environ.get("NOTE_ASK_SYNTH_MODEL", "claude-sonnet-5")
 _SYNTH_MAX_TOKENS = int(os.environ.get("NOTE_ASK_SYNTH_MAX_TOKENS", "700"))
@@ -82,14 +91,6 @@ def refund_ask(user_id) -> None:
         _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
 
 
-def assemble_note_block(body_plain: Optional[str]) -> str:
-    """The note's own plain-text content, capped. This IS the context —
-    unlike ai_search_personal's supplementary personal block, there is
-    nothing else in this prompt."""
-    text = (body_plain or "").strip()
-    return text[:_NOTE_BODY_CAP]
-
-
 def _async_client():
     import anthropic
     from api.services import llm_timeouts
@@ -98,49 +99,3 @@ def _async_client():
         timeout=llm_timeouts.seconds("NOTE_ASK_LLM_TIMEOUT_SECS",
                                      llm_timeouts.REQUEST_PATH_LONG),
     )
-
-
-def SYNTH_SYSTEM(note_title: str, note_block: str) -> str:
-    from api.routers.ai_search import _SAFETY_BLOCKS
-    return (
-        "You are answering a question about ONE specific private note a UCT "
-        "member wrote in their own Notebook.\n\n" + _SAFETY_BLOCKS + "\n\n"
-        "GROUNDING — the only rule that matters here: answer using ONLY the "
-        "NOTE CONTENT below. If the note does not address the question, say so "
-        "plainly (e.g. \"this note doesn't mention that\") rather than guessing "
-        "or filling the gap from general knowledge. Never invent a fact, price, "
-        "date, or figure that is not written in the note.\n\n"
-        "HISTORICAL-CLAIM CONTRACT (the opposite of a live-data assistant): the "
-        "note's content is a historical claim — what the member believed or "
-        "observed at the time they wrote it. Do NOT silently \"correct\" a "
-        "stated fact against anything you know happened since, and do not "
-        "append live/current data the note itself doesn't contain. If useful, "
-        "you may note that something may be dated, but never override it.\n\n"
-        "CITATION FORMAT: when you state something the note says, quote the "
-        "exact short phrase from the note in \"double quotes\" so the member "
-        "can see it came from their own writing. Keep quotes short (a phrase, "
-        "not a paragraph) and verbatim — do not paraphrase inside quote marks.\n\n"
-        f"=== NOTE TITLE ===\n{note_title or '(untitled)'}\n\n"
-        f"=== NOTE CONTENT (private; this member's own writing) ===\n{note_block}"
-    )
-
-
-async def synthesize(query: str, note_title: str, note_block: str, history):
-    """Streams token deltas from a note-scoped Anthropic call. LOCKED config:
-    no `temperature` kwarg (Sonnet tier 400s on it), thinking disabled,
-    explicit timeout — mirrors ai_search_personal.synthesize."""
-    system = SYNTH_SYSTEM(note_title, note_block)
-    msgs = []
-    for h in (history or [])[-3:]:
-        if isinstance(h, dict) and h.get("q") and h.get("a"):
-            msgs.append({"role": "user", "content": str(h["q"])[:300]})
-            msgs.append({"role": "assistant", "content": str(h["a"])[:1200]})
-    msgs.append({"role": "user", "content": query})
-    client = _async_client()
-    async with client.messages.stream(
-        model=_SYNTH_MODEL, max_tokens=_SYNTH_MAX_TOKENS, system=system,
-        messages=msgs, thinking={"type": "disabled"},
-        timeout=_SYNTH_TIMEOUT,     # NO temperature (Sonnet tier 400s)
-    ) as stream:
-        async for delta in stream.text_stream:
-            yield delta

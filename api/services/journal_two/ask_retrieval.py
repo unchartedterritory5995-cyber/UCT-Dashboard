@@ -39,6 +39,11 @@ from api.services.journal_two import ask_ranking as rk
 from api.services.journal_two import note_citation_text as nct
 from api.services.journal_two.notes_search import fts_match_expr
 
+# Ask Current Note showed up to this many characters of the note before Wave K
+# (note_ask._NOTE_BODY_CAP). Kept, so migrating the scope onto typed evidence
+# cannot quietly shrink what the model can see -- only reorder what survives.
+NOTE_SCOPE_MAX_CHARS = 20000
+
 # ── Query intents (§19). Small and inspectable; NOT an agent planner. ────────
 INTENT_STRUCTURED = "structured_research_query"
 INTENT_ENTITY = "security_research"
@@ -212,9 +217,43 @@ def _best_note_passage(doc, expr: str):
     return text[:200].strip(), None, ev.CITE_NOTE_ONLY
 
 
+# Words that cannot decide whether a passage ANSWERS a question. Kept small
+# and English-only on purpose: this is not stemming or stopword removal for
+# retrieval (FTS already does its own), it exists so the no-answer decision
+# is not satisfied by "about" appearing somewhere in a note.
+_QUERY_STOPWORDS = frozenset({
+    "the", "and", "for", "was", "were", "what", "when", "where", "which",
+    "who", "why", "how", "did", "does", "do", "have", "has", "had", "about",
+    "with", "from", "that", "this", "these", "those", "there", "here", "into",
+    "say", "said", "tell", "any", "all", "are", "you", "your", "our", "his",
+    "her", "its", "their", "them", "they", "not", "but", "can", "could",
+    "would", "should", "will", "shall", "may", "might", "must", "get", "got",
+})
+
+
 def _terms(expr: str) -> list[str]:
-    return [t.strip('"') for t in (expr or "").replace(" OR ", " ").replace(" AND ", " ").split()
-            if t.strip('"')]
+    """Bare words out of an FTS MATCH expression.
+
+    ⛔ THE TRAILING `*` IS PART OF THE SYNTAX, NOT THE WORD. `fts_match_expr`
+    ends with a prefix-match operator -- `"what" "did" "about" "margins"*` --
+    so stripping only quotes left the LAST term as `margins"*`, which matches
+    nothing. That term is the one the member most likely cared about (it is the
+    word they were still typing), and every consumer of this helper was
+    affected: `_best_note_passage` fell through to anchoring a citation on
+    whichever stopword happened to appear first in the note.
+    """
+    out = []
+    for raw in (expr or "").replace(" OR ", " ").replace(" AND ", " ").split():
+        word = raw.strip().rstrip("*").strip('"').strip()
+        if word:
+            out.append(word)
+    return out
+
+
+def _content_terms(query: str) -> list[str]:
+    """The words a passage must contain to count as ANSWERING the question."""
+    return [t for t in _terms(fts_match_expr(query) or "")
+            if len(t) > 2 and t.lower() not in _QUERY_STOPWORDS]
 
 
 def _document_pages(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
@@ -604,7 +643,10 @@ def retrieve_document(user_id: str, document_id: str, query: str, *,
                  + _excerpts_scoped(conn, user_id, document_id, query, limit))
         for i in items:
             i["relevance"] = QUERY_MATCH
-        pk = rk.packet(items, query, max_items=limit)
+        # Same reasoning as the note scope: inside ONE document there is
+        # nothing for a diversity cap to protect, and capping pages would hide
+        # matches from the very document the member is reading.
+        pk = rk.packet(items, query, max_items=limit, max_per_type=limit)
         merged, matched = pk["evidence"], pk["answer_evidence"]
         return {
             "document": document_id, "evidence": merged, "coverage": cov,
@@ -612,6 +654,132 @@ def retrieve_document(user_id: str, document_id: str, query: str, *,
             "independent_sources": pk["independent_sources"],
             "no_answer": pk["no_answer"],
             "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Slice 6: Ask Current Note ────────────────────────────────────────────────
+# Wave 2 shipped this scope by pasting up to 20k characters of note body into
+# the SYSTEM message. That is the prompt-boundary defect Slice 5 measured, and
+# it also made precise citation impossible: there was no addressable unit to
+# cite, so the model was asked to quote a phrase and the panel scraped its
+# output with a regex.
+#
+# ⛔ THE FIX IS NOT "RETRIEVE LESS". One note is small enough to show whole,
+# and narrowing to matching passages would cost real recall on exactly the
+# questions this scope is good at ("what did I conclude here?"). So the note
+# is still presented in full -- but as BLOCKS, each already carrying its own
+# ProseMirror range. Ranking decides which blocks survive the character
+# budget, so what gets dropped is the least relevant text rather than
+# whatever happened to be past character 20,000.
+
+_MIN_BLOCK_CHARS = 2
+
+
+def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
+    """The note, split into citable units at canonical block boundaries.
+
+    Each block gets a real pm_range, so every citation this scope can produce
+    is verifiable before it navigates. Blocks that mention a query term score
+    higher and therefore survive truncation first; the rest are still sent, in
+    document order, because the member asked about THIS note.
+    """
+    flat = nct.flatten(doc)
+    text = flat["text"]
+    if not text:
+        return []
+    fp = nct.fingerprint(doc)
+    terms = [t.lower() for t in _content_terms(q)]
+
+    out: list[dict[str, Any]] = []
+    cursor = 0
+    for raw in text.split(nct.BLOCK_SEPARATOR):
+        start, end = cursor, cursor + len(raw)
+        cursor = end + len(nct.BLOCK_SEPARATOR)
+        body = raw.strip()
+        if len(body) < _MIN_BLOCK_CHARS:
+            continue
+        rng = nct.pm_range(start, end, flat["spans"])
+        if rng is None:
+            continue
+        low = body.lower()
+        hits = sum(1 for t in terms if t in low)
+        out.append({
+            "text": body, "hits": hits,
+            "location": {**rng, "fingerprint": fp,
+                         "snippet_start": start, "snippet_end": end},
+        })
+    return out
+
+
+def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
+                  conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask Current Note, on the same typed-evidence contract as every scope.
+
+    ⛔ NO-ANSWER IS STILL POSSIBLE HERE. A note that does not discuss what was
+    asked must produce "this note does not mention that", and the honest
+    signal for it is whether any block matched -- not whether the note has
+    text. Blocks are still all returned as evidence so the model can read the
+    whole note; `query_matches` is what decides the refusal.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT id, user_id, title, ticker, body_json FROM j2_notes"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            # Tenant scoping is structural: a note the member does not own is
+            # indistinguishable from one that does not exist.
+            return {"note": note_id, "evidence": [], "coverage": {"exists": False},
+                    "query_matches": 0, "independent_sources": 0,
+                    "no_answer": True, "no_answer_reason": "note_not_found"}
+        row = dict(row)
+        doc = _json(row.get("body_json"))
+        blocks = _note_blocks(doc, query)
+        matched = sum(1 for b in blocks if b["hits"])
+
+        # ⛔ NO PRE-RANK TRUNCATION. Slicing blocks in DOCUMENT order before
+        # ranking would reintroduce exactly the Wave 2 failure this scope
+        # exists to fix: the relevant paragraph at the end of a long note gets
+        # cut before anything has judged it. Every block becomes a candidate;
+        # the budget decides what survives, by relevance.
+        items = []
+        for i, b in enumerate(blocks):
+            e = ev.from_note(row, snippet=b["text"], location=b["location"],
+                             citation_validity=ev.CITE_EXACT,
+                             score=float(b["hits"]))
+            # Each block is its own citable passage, so identity must be per
+            # block -- otherwise lineage dedupe would collapse the note to one
+            # row and the member could only ever be sent to one place in it.
+            e["source_id"] = f"{row['id']}#b{i}"
+            e["lineage_key"] = f"note:{row['id']}#b{i}"
+            e["relevance"] = QUERY_MATCH if b["hits"] else ENTITY_CONTEXT
+            items.append(e)
+
+        cov = {"exists": True, "blocks": len(blocks), "matched_blocks": matched,
+               "has_text": bool(blocks)}
+        # ⛔ NO PER-TYPE CAP IN A SINGLE-SOURCE SCOPE. The diversity cap exists
+        # so one document cannot crowd out the member's own note in a
+        # corpus-wide answer. Here every candidate IS the same note by
+        # construction, so the default cap of 4 would silently reduce any note
+        # to four paragraphs.
+        pk = rk.packet(items, query, max_items=limit,
+                       max_chars=NOTE_SCOPE_MAX_CHARS, max_per_type=limit)
+        answers = pk["answer_evidence"]
+        return {
+            "note": note_id, "title": row.get("title") or "",
+            "evidence": pk["evidence"], "coverage": cov,
+            "query_matches": len(answers),
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if answers else "not_in_this_note",
             "evidence_chars": pk["chars"], "dropped": pk["dropped"],
         }
     finally:

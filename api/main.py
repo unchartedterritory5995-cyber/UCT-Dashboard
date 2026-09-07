@@ -6870,7 +6870,15 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
-        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # Ask Current Note token stream
+        or path == "/api/j2/ask/stream"                  # unified Ask token stream
+        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
+        # Compass chat SSE family (cancel/confirm/*_onboarding/stream all
+        # return text/event-stream) and the curated flow tail. Both were
+        # MISSING until the rail below started deriving SSE routes from the
+        # app instead of trusting a hand-typed list -- the same defect class
+        # this repo keeps paying for.
+        or (path.startswith("/api/j2/accounts/") and "/coach/chat/" in path)
+        or path == "/api/live/massive/curated-stream"
         or path == "/api/j2/notes/export"        # already-DEFLATE zip, streamed
         or path.startswith("/assets/")
         or path.startswith("/fonts/")   # .woff2 is already compressed

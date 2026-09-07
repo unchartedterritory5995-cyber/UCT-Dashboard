@@ -4,8 +4,15 @@ multi-user isolation tests.
 Real router, real DB (tmp path), real require_paid gate (dependency override
 on get_current_user_with_plan, its INPUT, never on require_paid itself —
 overriding the gate means never running it, per the same lesson recorded in
-test_ai_search_audit_fixes.py). synthesize() is monkeypatched to an async
-generator so no real Anthropic call is ever made.
+test_ai_search_audit_fixes.py).
+
+⛔ THE SEAM MOVED IN SLICE 6. `note_ask.synthesize` no longer exists: this
+module is now only the reservation ledger, because its prompt builder put
+member note text into `system=`. The transport is
+`ask_service.synthesize(kwargs)`, which takes an ALREADY-BUILT request and so
+has no way to assemble a prompt at all. Everything these tests actually assert
+-- reserve/refund, the caps, 402/404/422/429, tenant isolation, telemetry --
+is unchanged and still runs against the real router.
 """
 from __future__ import annotations
 
@@ -17,6 +24,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.services import note_ask
+from api.services.journal_two import ask_service
 from api.services.journal_two.db import ensure_schema
 
 PAID = {"id": "u1", "email": "paid@example.test", "role": "member", "plan": "pro"}
@@ -34,21 +42,37 @@ def _reset_note_ask_counters():
     note_ask._synth_spend = 0.0
 
 
-async def _fake_ok_synthesize(query, note_title, note_block, history):
-    yield "The note says "
-    yield '"margins compressed" '
-    yield "in Q3."
+async def _fake_ok_synthesize(kwargs):
+    yield "Margins compressed "
+    yield "in Q3 [1]."
 
 
-async def _fake_raising_synthesize(query, note_title, note_block, history):
+async def _fake_raising_synthesize(kwargs):
     if False:
         yield ""  # pragma: no cover — makes this a real async generator
     raise RuntimeError("boom")
 
 
-async def _fake_empty_synthesize(query, note_title, note_block, history):
+async def _fake_empty_synthesize(kwargs):
     if False:
         yield ""  # pragma: no cover
+
+
+def _body(text):
+    """A TipTap doc the note-scope retriever can actually split into blocks.
+
+    ⛔ NOT AN EMPTY DOC. Wave 2 sent the whole note to the model regardless, so
+    an empty note still produced an answer; Slice 6 answers from retrieved
+    blocks, so an empty note now correctly refuses WITHOUT a provider call.
+    A test that wants the synthesis path must give the note something to find.
+    """
+    return {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": text}]}]}
+
+
+def _note_with_body(c, title, text):
+    return c.post("/api/j2/notes",
+                  json={"title": title, "bodyJson": _body(text)}).json()["note"]
 
 
 @pytest.fixture()
@@ -63,7 +87,7 @@ def two_user_clients(tmp_path, monkeypatch):
     ensure_schema(conn)
     conn.close()
     monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
-    monkeypatch.setattr(note_ask, "synthesize", _fake_ok_synthesize)
+    monkeypatch.setattr(ask_service, "synthesize", _fake_ok_synthesize)
 
     def _client_for(user):
         app = FastAPI()
@@ -94,7 +118,7 @@ def client(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
     monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
-    monkeypatch.setattr(note_ask, "synthesize", _fake_ok_synthesize)
+    monkeypatch.setattr(ask_service, "synthesize", _fake_ok_synthesize)
 
     app = FastAPI()
     app.include_router(journal_two.router)
@@ -143,51 +167,56 @@ def test_global_cap_blocks_regardless_of_per_user_room(monkeypatch):
     assert note_ask.reserve_ask("u1") is False
 
 
-def test_assemble_note_block_caps_length():
-    huge = "x" * 50000
-    out = note_ask.assemble_note_block(huge)
-    assert len(out) == note_ask._NOTE_BODY_CAP
-
-
-def test_assemble_note_block_handles_none():
-    assert note_ask.assemble_note_block(None) == ""
-
-
-# ── Semantic: the system prompt says the right things ────────────────────
-
-def test_system_prompt_has_historical_claim_contract_not_freshness_firewall():
-    system = note_ask.SYNTH_SYSTEM("My NVDA thesis", "margins compressed in Q3")
-    assert "HISTORICAL-CLAIM" in system
-    assert "historical claim" in system
-    # The literal ai_search_personal.py phrase must NOT be copied — Notebook
-    # needs the opposite contract (architecture spec §8.1).
-    assert "FRESHNESS FIREWALL" not in system
-    assert "never override a live number with a stale personal one" not in system
-
-
-def test_system_prompt_forbids_fabrication_and_names_the_note():
-    system = note_ask.SYNTH_SYSTEM("Q3 Earnings Prep", "revenue beat, guidance cut")
-    assert "Never invent a fact" in system
-    assert "Q3 Earnings Prep" in system
-    assert "revenue beat, guidance cut" in system
-
-
-def test_system_prompt_includes_citation_quoting_instruction():
-    system = note_ask.SYNTH_SYSTEM("t", "body")
-    assert "double quotes" in system.lower() or "\"double quotes\"" in system
-
-
 # ── HTTP integration: happy path, validation, ownership ───────────────────
 
-def test_ask_current_note_happy_path_streams_delta_then_final(client):
-    note = client.post("/api/j2/notes", json={"title": "NVDA thesis",
-                                                "bodyJson": {"type": "doc", "content": []}}).json()["note"]
-    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "what did I say about margins"})
+def test_ask_current_note_happy_path_streams_sources_delta_then_final(client):
+    note = _note_with_body(client, "NVDA thesis", "margins compressed in Q3")
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream",
+                    json={"query": "what did I say about margins"})
     assert r.status_code == 200
     events = _events(r)
+    # sources arrive FIRST so the client can validate a handle the moment it
+    # appears, rather than after the answer has been rendered.
+    assert events[0]["type"] == "sources"
+    assert events[0]["scopeLabel"] == "This note"
+    assert events[0]["sources"], "the note block should have been retrieved"
     assert any(e["type"] == "delta" for e in events)
     final = [e for e in events if e["type"] == "final"][0]
-    assert "margins compressed" in final["answer"]
+    assert "Margins compressed" in final["answer"]
+    assert final["cited"] == [1] and final["invalidCitations"] == []
+
+
+def test_an_empty_note_refuses_without_calling_the_model(client, monkeypatch):
+    """⛔ NO ANSWER MEANS NO PROVIDER CALL. Paying a model to say "I could not
+    find that" asks the one component able to invent an answer to decline to."""
+    called = {"n": 0}
+
+    async def _must_not_run(kwargs):
+        called["n"] += 1
+        yield "should never be produced"
+
+    monkeypatch.setattr(ask_service, "synthesize", _must_not_run)
+    note = client.post("/api/j2/notes", json={"title": "empty"}).json()["note"]
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream",
+                    json={"query": "what did I say about margins"})
+    assert r.status_code == 200
+    events = _events(r)
+    assert called["n"] == 0
+    assert events[0]["noAnswer"] is True
+    final = [e for e in events if e["type"] == "final"][0]
+    assert "couldn\'t find that in this note" in final["answer"]
+
+
+def test_a_refusal_does_not_burn_the_daily_allowance(client, monkeypatch):
+    # No provider call means no cost, so it must not spend the member's cap.
+    monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 1)
+    note = client.post("/api/j2/notes", json={"title": "empty"}).json()["note"]
+    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "anything at all"})
+    assert r1.status_code == 200
+    # The one paid slot is still available for a question that can be answered.
+    real = _note_with_body(client, "NVDA", "margins compressed in Q3")
+    r2 = client.post(f"/api/j2/notes/{real['id']}/ask/stream", json={"query": "margins"})
+    assert r2.status_code == 200
 
 
 def test_empty_query_rejected(client):
@@ -218,7 +247,7 @@ def test_free_user_is_rejected_with_402(tmp_path, monkeypatch):
     ensure_schema(conn)
     conn.close()
     monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
-    monkeypatch.setattr(note_ask, "synthesize", _fake_ok_synthesize)
+    monkeypatch.setattr(ask_service, "synthesize", _fake_ok_synthesize)
 
     app = FastAPI()
     app.include_router(journal_two.router)
@@ -232,36 +261,36 @@ def test_free_user_is_rejected_with_402(tmp_path, monkeypatch):
     note = c.post("/api/j2/notes", json={"title": "t"}).json()["note"]
     r = c.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "anything"})
     assert r.status_code == 402
-    assert r.json()["detail"] == "Ask Current Note requires a paid plan"
+    assert r.json()["detail"] == "Notebook Ask requires a paid plan"
 
 
 def test_rate_limit_returns_429(client, monkeypatch):
     monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 0)
-    note = client.post("/api/j2/notes", json={"title": "t"}).json()["note"]
-    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "anything"})
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert r.status_code == 429
 
 
 def test_failed_synthesis_refunds_the_reservation(client, monkeypatch):
     monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 1)
-    monkeypatch.setattr(note_ask, "synthesize", _fake_raising_synthesize)
-    note = client.post("/api/j2/notes", json={"title": "t"}).json()["note"]
-    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q1"})
+    monkeypatch.setattr(ask_service, "synthesize", _fake_raising_synthesize)
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert r1.status_code == 200  # the stream itself opens fine; the error is IN the SSE body
     events = _events(r1)
     assert any(e["type"] == "error" for e in events)
     # The failed call must have been refunded -- a second call still fits under cap=1.
-    r2 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q2"})
+    r2 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert r2.status_code == 200
 
 
 def test_empty_answer_refunds_the_reservation(client, monkeypatch):
     monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 1)
-    monkeypatch.setattr(note_ask, "synthesize", _fake_empty_synthesize)
-    note = client.post("/api/j2/notes", json={"title": "t"}).json()["note"]
-    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q1"})
+    monkeypatch.setattr(ask_service, "synthesize", _fake_empty_synthesize)
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert r1.status_code == 200
-    r2 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q2"})
+    r2 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert r2.status_code == 200  # refunded, so this still fits under cap=1
 
 
@@ -276,8 +305,8 @@ def test_a_member_cannot_ask_about_another_members_note(two_user_clients):
 
 def test_isolation_does_not_leak_via_error_message(two_user_clients):
     c1, c2 = two_user_clients
-    note = c1.post("/api/j2/notes", json={"title": "secret thesis on NVDA"}).json()["note"]
-    r = c2.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "q"})
+    note = _note_with_body(c1, "secret thesis on NVDA", "margins compressed in Q3")
+    r = c2.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
     assert "secret thesis" not in r.text
     assert "NVDA" not in r.text
 
@@ -286,21 +315,36 @@ def test_isolation_does_not_leak_via_error_message(two_user_clients):
 # gate" entry, 2026-09-06) ─────────────────────────────────────────────────
 
 def test_a_successful_ask_logs_the_stage_a_validation_event(client):
+    """Stage A telemetry survives the unification under ONE event name with a
+    `scope` field. The historical series is `j2:notebook_ask_current_note_used`;
+    from Slice 6 it continues as `j2:notebook_ask_used` with scope='note'."""
     from api.services import auth_db
-    note = client.post("/api/j2/notes", json={"title": "margins note"}).json()["note"]
-    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "what happened to margins"})
+    note = _note_with_body(client, "margins note", "margins compressed in Q3")
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream",
+                    json={"query": "what happened to margins"})
     assert r.status_code == 200
 
     conn = sqlite3.connect(auth_db._DB_PATH)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
         "SELECT action, details FROM activity_log"
-        " WHERE user_id = ? AND action = 'j2:notebook_ask_current_note_used'",
+        " WHERE user_id = ? AND action = 'j2:notebook_ask_used'",
         (PAID["id"],),
     ).fetchall()
     conn.close()
     assert len(rows) == 1
     details = json.loads(rows[0]["details"])
-    assert details == {"settled": True, "hadAnswer": True}
+    assert details["settled"] is True and details["hadAnswer"] is True
+    assert details["scope"] == "note"
+    assert details["sources"] >= 1 and details["citedCount"] == 1
+    assert details["hallucinatedCitation"] is False
+
+    # ⛔ AGGREGATE ONLY. The question, the answer, the note body and the note
+    # TITLE are all member content; a telemetry row is not the place for any
+    # of them. The route this replaced logged `query={query!r}` to the process
+    # log -- that was a defect, not a precedent.
+    blob = json.dumps(details).lower()
+    for secret in ("margins", "what happened", "compressed", "q3", "margins note"):
+        assert secret not in blob, f"telemetry leaked member content: {secret!r}"
     # Privacy contract: never the question text or the note content.
     assert "margins" not in rows[0]["details"]
