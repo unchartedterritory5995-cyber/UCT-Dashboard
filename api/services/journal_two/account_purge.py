@@ -58,6 +58,8 @@ _DIRECT_USER_TABLES = (
     "j2_note_recents",
     "j2_note_versions",
     "j2_note_links",
+    "j2_note_properties",
+    "j2_note_saved_views",
     "j2_capture_inbox",
     "j2_public_profiles",
     "j2_note_shares",

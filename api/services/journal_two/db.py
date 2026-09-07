@@ -805,6 +805,55 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_links_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_note_links WHERE note_id = old.id OR target_note_id = old.id;
 END;
 
+-- ── Wave E (Structured Research Properties / Saved Views) ──────────────────
+-- Property DEFINITIONS only -- a small, per-user table (a handful to a few
+-- dozen rows, never one row per note). A note's actual property VALUES live
+-- in j2_notes.properties_json (see the ALTER below), keyed by THIS table's
+-- id, never by name -- renaming a property or one of its select options
+-- touches exactly one row here, zero note rows, mirroring the Wave D
+-- note-link stable-id lesson and Notion's own confirmed ID-based property/
+-- option model (see the Wave E entry checkpoint's competitor research).
+-- Built-in financial properties (Ticker, Sector, Trade-Relationship, etc.)
+-- are NOT rows in this table at all -- they're code-defined constants
+-- resolved from data this app already has (see note_properties.py) and never
+-- persisted twice.
+CREATE TABLE IF NOT EXISTS j2_note_properties (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url
+    options_json TEXT,                    -- select/multi_select only: [{id,label,color}]
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_properties_user
+    ON j2_note_properties(user_id, deleted_at, sort_order);
+
+-- Saved views over the Notebook list -- mirrors screener_saved_screens.py's
+-- shape (the one existing "saved view" precedent in this codebase): a
+-- stable id + an opaque spec_json blob, simple update-in-place CRUD. Unlike
+-- screener's account-wide auth.db table, this is Notebook-scoped and lives
+-- in journal_two's own DB with a TEXT uuid id, matching every other j2_*
+-- table's id convention. spec_json stores property_id/option_id references
+-- only, never names/labels -- the same rename-survival guarantee as the
+-- properties themselves, never a saved QUERY STRING (the Evernote
+-- saved-search anti-pattern this session's competitor research flagged).
+CREATE TABLE IF NOT EXISTS j2_note_saved_views (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    view_type   TEXT NOT NULL DEFAULT 'list',   -- 'list'|'table'
+    spec_json   TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_saved_views_user
+    ON j2_note_saved_views(user_id, deleted_at, sort_order);
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note
@@ -1324,6 +1373,17 @@ _PHASE_2_ALTERS = [
     # 4 destinations.
     "ALTER TABLE j2_capture_inbox ADD COLUMN caption TEXT",
     "ALTER TABLE j2_capture_inbox ADD COLUMN trade_ref TEXT",
+    # Wave E (Structured Research Properties) — one JSON object per note,
+    # keyed by j2_note_properties.id (or a builtin:<key> constant), never by
+    # name. NULL for every existing note (additive, no fabricated values) --
+    # only ever written by a member explicitly setting a property.
+    "ALTER TABLE j2_notes ADD COLUMN properties_json TEXT",
+    # Wave E checkpoint §26: user-set property values ARE versioned, on the
+    # same coalescing gate as title/subtitle/body_plain (see
+    # _versioned_content_of/_maybe_capture_version) -- a deliberate choice,
+    # not a silent gap. NULL for every version captured before this column
+    # existed (those notes simply had no properties yet in Wave E's absence).
+    "ALTER TABLE j2_note_versions ADD COLUMN properties_json TEXT",
 ]
 
 
