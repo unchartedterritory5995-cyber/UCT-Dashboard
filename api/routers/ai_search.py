@@ -1168,6 +1168,32 @@ def _ctx_call_recap(sym: str) -> str:
     return f"{sym} earnings call{q} (UCT transcript-grounded recap): " + " | ".join(bits)
 
 
+def _posture_asof_label(row: dict) -> str:
+    """`snapshot_date`/`bars_asof` made human-legible for the model to see.
+
+    Seam 25 (2026-09-06): `_ctx_posture` labeled its whole block only "UCT
+    nightly snapshot" with no date, so a silently-failed nightly build job
+    was undetectable to the model and the member alike. The two dates are
+    surfaced DISTINCTLY on purpose — they answer different questions (when
+    did the build run vs. what day's closing bar these technicals are
+    computed from) and can diverge: `snapshot_builder.py`'s own header notes
+    ~21.7% of rows carry bars a session older than their snapshot_date.
+    `built_at` (the same moment as `snapshot_date`, just an epoch int) is
+    deliberately not rendered a second time — it would restate `snapshot_date`
+    in a less legible form, not add a new fact.
+    """
+    parts = []
+    sd = row.get("snapshot_date")
+    if sd:
+        parts.append(f"built {sd}")
+    ba = row.get("bars_asof")
+    if ba:
+        s = str(ba)
+        parts.append(f"bars asof {s[:4]}-{s[4:6]}-{s[6:]}" if len(s) == 8 and s.isdigit()
+                     else f"bars asof {s}")
+    return f", {', '.join(parts)}" if parts else ""
+
+
 def _ctx_posture(sym: str) -> str:
     """Technical posture off the nightly screener snapshot — one SQLite row.
     NULLs render as absent (rs_rank in particular is routinely NULL)."""
@@ -1212,7 +1238,8 @@ def _ctx_posture(sym: str) -> str:
         bits.append(f"short float {row['short_float_pct']:.1f}%")
     if row.get("theme"):
         bits.append(f"theme: {row['theme']}")
-    return f"{sym} technical posture (UCT nightly snapshot): " + ", ".join(bits) if bits else ""
+    label = f"UCT nightly snapshot{_posture_asof_label(row)}"
+    return f"{sym} technical posture ({label}): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_verdict(sym: str) -> str:
