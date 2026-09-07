@@ -107,6 +107,61 @@ function fmtDayTitle(iso) {
     .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
+// ── Wave F: /price captures the note's own ticker's CURRENT price as an
+// immutable financial fact -- mirrors /chart's own "type a symbol → instant
+// insert, no modal" shape, but the resulting node holds a reference (factId)
+// to a real backend row rather than reconstructable params: a fact capture
+// is a real API call (checkpoint decision 30), so the command handler is
+// async, unlike every other slash command in this file. ────────────────────
+const FACT_SYMBOL_RE = /^[A-Za-z][A-Za-z.\-]{0,9}$/
+
+export function factItems(query) {
+  const raw = String(query || '')
+  const tokens = raw.trim().split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
+  // Same two-regime rail as widgetItems: a single token is a PREFIX match
+  // (completion, nothing to eat yet); once args/prose follow, only the exact
+  // type name matches (prefix + args would arm the Enter-trap this file's
+  // own header comment warns about).
+  if (singleToken ? !'price'.startsWith(first) : first !== 'price') return []
+  const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
+  if (!rest) {
+    return [{
+      title: 'Price',
+      description: 'Type a symbol — e.g. /price NVDA',
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertContent('/price ').run()
+      },
+    }]
+  }
+  const symTokens = rest.split(/\s+/).filter(Boolean)
+  if (symTokens.length !== 1 || !FACT_SYMBOL_RE.test(symTokens[0])) return []
+  const symbol = symTokens[0].toUpperCase()
+  return [{
+    title: `Price — ${symbol}`,
+    description: 'Capture the current price as a financial fact',
+    command: async ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      const noteId = editor?.storage?.uctJournalWidgets?.noteId
+      if (!noteId) return
+      try {
+        const res = await fetch(`/api/j2/notes/${noteId}/facts`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: symbol, factType: 'price' }),
+        })
+        if (!res.ok) return
+        const { fact } = await res.json()
+        editor.chain().focus().insertContent({ type: 'financialFact', attrs: { factId: fact.id } }).run()
+      } catch {
+        // A failed capture must not corrupt the note (directive §48) --
+        // nothing was inserted; the member sees nothing changed and can retry.
+      }
+    },
+  }]
+}
+
 // ── Widget embeds (Journal Widgets) ─────────────────────────────────────────
 // Registry-driven: every menus.journal type appears here automatically. The
 // query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
@@ -302,10 +357,11 @@ export const SlashMenuExtension = Extension.create({
         items: ({ query }) => {
           const q = (query || '').toLowerCase()
           const widgets = widgetItems(query)
-          if (!q) return [...ITEMS, ...widgets]
-          // Widget items match on their own tokenized rules (args after the
-          // type name would defeat a plain substring filter).
-          return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets]
+          const factCaptures = factItems(query)
+          if (!q) return [...ITEMS, ...widgets, ...factCaptures]
+          // Widget/fact items match on their own tokenized rules (args after
+          // the type name would defeat a plain substring filter).
+          return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets, ...factCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

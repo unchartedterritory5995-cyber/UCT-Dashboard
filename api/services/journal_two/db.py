@@ -876,6 +876,73 @@ CREATE TABLE IF NOT EXISTS j2_capture_inbox (
 CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
     ON j2_capture_inbox(user_id, created_at DESC);
 
+-- ── Wave F (Financial Fact / Snapshot Ledger + Temporal Semantics) ─────────
+-- The authoritative, IMMUTABLE store of a captured financial observation.
+-- NOTE-OWNED (not shared across notes -- entry checkpoint decision 24): one
+-- row belongs to exactly one note_id, which is what lets purge cascade
+-- cleanly (two AFTER DELETE triggers below) with zero reference-counting.
+-- There is deliberately NO update path for value_number/value_text/unit/
+-- observed_at anywhere in note_facts.py -- a fact is INSERTed once; a second
+-- observation of the same logical series is a SECOND row, never an
+-- overwrite (checkpoint decision 8/19 -- this is the entire point of the
+-- ledger). `caption` is the one genuinely-editable field (a user annotation,
+-- never the observed value itself).
+CREATE TABLE IF NOT EXISTS j2_fact_observations (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    note_id         TEXT NOT NULL,
+    entity_id       TEXT,                  -- entity_master canonical id; NULL when resolve() was
+                                            -- not_found/ambiguous -- never blocks capture (checkpoint 9)
+    ticker          TEXT NOT NULL,          -- display symbol as captured, always present
+    fact_type       TEXT NOT NULL,          -- registry key (fact_registry.py) -- 'price'|'user_note'|...
+    period          TEXT,                   -- canonical fiscal period string, NULL for point-in-time facts
+    value_number    REAL,
+    value_text      TEXT,
+    unit            TEXT NOT NULL,          -- 'usd_per_share'|'text'|... (registry-controlled per fact_type)
+    currency        TEXT NOT NULL DEFAULT 'USD',
+    scale           TEXT,                   -- reserved, unused by every Wave F initial fact type
+    temporal_mode   TEXT NOT NULL,          -- 'live'|'snapshot'|'live_and_snapshot'|'reference_only'
+    observed_at     TEXT NOT NULL,          -- ISO 8601 UTC -- when UCT/the member captured this
+    source_as_of    TEXT,                   -- ISO 8601 UTC, provider's own as-of time; NULL unless the
+                                            -- provider genuinely exposes one (never fabricated)
+    source          TEXT NOT NULL,          -- 'user'|'uct_derived'|'massive'|'fmp'
+    source_ref      TEXT,                   -- e.g. a j2_trades.id for a uct_derived fact
+    rights_class    TEXT NOT NULL,          -- 'independent'|'conditional'|'blocked'
+    idempotency_key TEXT,                   -- nullable; one capture INTENT, reused across its own retries
+    caption         TEXT,                   -- user free-text annotation; the one editable field
+    created_at      TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_fact_observations_idem
+    ON j2_fact_observations(user_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_j2_fact_observations_note
+    ON j2_fact_observations(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_fact_observations_user_entity_type
+    ON j2_fact_observations(user_id, entity_id, fact_type, observed_at);
+
+-- Note-content sidecar for financialFact nodes -- same "rebuildable
+-- projection, never edited directly" contract as j2_note_embeds/
+-- j2_note_links, kept in sync by notes._sync_note_fact_refs at the same
+-- call sites those two already use.
+CREATE TABLE IF NOT EXISTS j2_note_fact_refs (
+    note_id   TEXT NOT NULL,
+    user_id   TEXT NOT NULL,
+    position  INTEGER NOT NULL,
+    fact_id   TEXT NOT NULL,
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_fact_refs_fact
+    ON j2_note_fact_refs(fact_id);
+
+-- Cascade on note hard-delete -- matches j2_notes_versions_ad/
+-- j2_notes_favorites_ad's exact style. Facts are note-owned (no reference
+-- counting needed): when the owning note is purged, its facts go with it.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fact_refs_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_fact_refs WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_notes_fact_observations_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_fact_observations WHERE note_id = old.id;
+END;
+
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
 -- row so a revoked link stays dead instead of being re-mintable by accident.

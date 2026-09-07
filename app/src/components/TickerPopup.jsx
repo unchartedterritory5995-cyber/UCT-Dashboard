@@ -48,6 +48,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [anchored, setAnchored] = useState(true)
   useEffect(() => { if (modalOpen) setAnchored(true) }, [modalOpen])
   const [flagToast, setFlagToast] = useState(null)
+  const [captureToast, setCaptureToast] = useState(null)
+  const [capturing, setCapturing] = useState(false)
   const [compareSymbol, setCompareSymbol] = useState('')
 
   // Header symbol search. The popup opens on the caller's `sym`, but the header
@@ -100,6 +102,28 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     const t = setTimeout(() => setFlagToast(null), 1500)
     return () => clearTimeout(t)
   }, [flagToast])
+
+  // Clear capture toast after 2.5s (longer than flagToast -- this one names
+  // a destination note, worth a beat longer to read).
+  useEffect(() => {
+    if (!captureToast) return
+    const t = setTimeout(() => setCaptureToast(null), 2500)
+    return () => clearTimeout(t)
+  }, [captureToast])
+
+  // Wave F: "Save price to Notebook" (checkpoint decision 29's second
+  // material entry point, alongside the note editor's own /price command).
+  const captureCurrentPrice = async () => {
+    if (capturing) return
+    setCapturing(true)
+    try {
+      const { capturePriceToNotebook } = await import('../pages/journal-2-0/lib/captureFinancialFact')
+      const msg = await capturePriceToNotebook(activeSym)
+      setCaptureToast(msg)
+    } finally {
+      setCapturing(false)
+    }
+  }
 
   useEffect(() => {
     if (!modalOpen) return
@@ -213,6 +237,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                     <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                   </span>
                 )}
+                {captureToast && (
+                  <span className={styles.flagToast}>
+                    <UIcon name="camera" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{captureToast}
+                  </span>
+                )}
                 {/* The journal, visible from the app's universal ticker
                     surface: "4 entries" → click through to them. Keyed to
                     activeSym, so searching another ticker in place re-points
@@ -242,6 +271,18 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   aria-label={`Ask AI about ${activeSym}`}
                 >
                   <UIcon name="sparkle" size={14} />
+                </button>
+                {/* Wave F: capture this ticker's CURRENT price as an immutable
+                    financial fact into the member's Notebook (last-active
+                    note, or a fresh one) — checkpoint decision 29. */}
+                <button
+                  className={styles.actionBtn}
+                  onClick={captureCurrentPrice}
+                  disabled={capturing}
+                  title="Save price to Notebook"
+                  aria-label={`Save ${activeSym}'s current price to Notebook`}
+                >
+                  <UIcon name="camera" size={14} />
                 </button>
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
                   <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />

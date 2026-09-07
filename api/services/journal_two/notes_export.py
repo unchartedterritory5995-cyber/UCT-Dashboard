@@ -676,6 +676,20 @@ def _front_matter(
         lines.append("properties:")
         for item in properties:
             lines.append(f"  {_yaml_scalar(item['name'])}: {_yaml_scalar(item['value'])}")
+    # Wave F: every captured financial fact, IMMUTABLE-observation values
+    # only (never a live current-value lookup -- an export is a durable
+    # artifact, directive §82). One block per fact so ticker/label/value/
+    # observed-at/caption all survive, not flattened into one opaque line.
+    facts = extra.get("financial_facts") or []
+    if facts:
+        lines.append("financial_facts:")
+        for item in facts:
+            lines.append(f"  - ticker: {_yaml_scalar(item['ticker'])}")
+            lines.append(f"    fact: {_yaml_scalar(item['label'])}")
+            lines.append(f"    value: {_yaml_scalar(item['value'])}")
+            lines.append(f"    observed: {item['observedAt']}")
+            if item.get("caption"):
+                lines.append(f"    note: {_yaml_scalar(item['caption'])}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -811,6 +825,49 @@ def _resolve_note_related_data(
     return favorites, tickers_out, linked_trades_by_note, properties_by_note
 
 
+def _format_fact_value(value: Any, unit: str) -> str:
+    if unit in ("usd_per_share", "usd") and isinstance(value, (int, float)):
+        return f"${value:.2f}"
+    if unit == "percent" and isinstance(value, (int, float)):
+        return f"{value:.2f}%"
+    return str(value)
+
+
+def _resolve_facts_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, str]]]:
+    """Wave F — one-shot, whole-export prefetch of every captured financial
+    fact, keyed by note (facts are note-owned, checkpoint decision 24, so a
+    plain `note_id IN (...)` batch query is exact and complete -- no join to
+    a sidecar needed the way properties needs `j2_note_properties`). Only the
+    IMMUTABLE observation is exported (never a live current-value lookup --
+    an export is a durable artifact, not a live view, and directive §82
+    requires the archived meaning to survive without a network call)."""
+    if not note_ids:
+        return {}
+    from api.services.journal_two import fact_registry
+    placeholders = ",".join("?" for _ in note_ids)
+    rows = conn.execute(
+        f"SELECT note_id, ticker, fact_type, value_number, value_text, unit,"
+        f" observed_at, caption FROM j2_fact_observations"
+        f" WHERE user_id = ? AND note_id IN ({placeholders}) ORDER BY note_id, observed_at",
+        (user_id, *note_ids),
+    ).fetchall()
+    out: dict[str, list[dict[str, str]]] = {}
+    for r in rows:
+        value = r["value_number"] if r["value_number"] is not None else r["value_text"]
+        fdef = fact_registry.get_fact_type(r["fact_type"])
+        label = fdef.label if fdef else r["fact_type"]
+        out.setdefault(r["note_id"], []).append({
+            "ticker": r["ticker"],
+            "label": label,
+            "value": _format_fact_value(value, r["unit"]),
+            "observedAt": r["observed_at"],
+            "caption": r["caption"] or None,
+        })
+    return out
+
+
 #
 # Round-trip self-identification (2026-09-02 adversarial audit, finding A4).
 #
@@ -895,6 +952,7 @@ def _write_notes_archive(
     favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
         conn, user_id, [r["id"] for r in rows],
     )
+    facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
@@ -973,6 +1031,7 @@ def _write_notes_archive(
             ],
             "linked_trades": linked_trades_by_note.get(row["id"], []),
             "properties": properties_by_note.get(row["id"], []),
+            "financial_facts": facts_by_note.get(row["id"], []),
         }
         zf.writestr(
             f"{path}.md",
@@ -1120,6 +1179,7 @@ def build_single_note_export(
         favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
             conn, user_id, [note_id],
         )
+        facts_by_note = _resolve_facts_by_note(conn, user_id, [note_id])
 
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -1166,6 +1226,7 @@ def build_single_note_export(
             ],
             "linked_trades": linked_trades_by_note.get(note_id, []),
             "properties": properties_by_note.get(note_id, []),
+            "financial_facts": facts_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
 
