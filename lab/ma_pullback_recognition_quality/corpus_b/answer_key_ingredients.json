@@ -1,0 +1,1002 @@
+{
+  "case_0000": {
+    "symbol": "TTEK",
+    "as_of_t": 20251020,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "mixed",
+      "rs_trend": "flat",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "EEFT",
+    "as_of_t": 20260130,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "stacked_bearish",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "LXRX",
+    "as_of_t": 20251020,
+    "detector_fired": true,
+    "detector_top_confidence": 71.75,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 1.4132,
+      "ema_slope_pct_per_bar": 0.9288,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20251017,
+      "distance_to_ema_pct": -1.64,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20251017,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.5565,
+      "atr14": 0.12,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 71.75,
+      "minervini_sepa_grade": "B",
+      "geom_score": 80.0,
+      "vol_score": 85.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "CTBI",
+    "as_of_t": 20260130,
+    "detector_fired": true,
+    "detector_top_confidence": 65.65,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 60.0584,
+      "ema_slope_pct_per_bar": 0.3564,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260129,
+      "distance_to_ema_pct": 0.069,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260129,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 1.0449,
+      "atr14": 1.8393,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 65.65,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 35.0,
+      "ctx_score": 47.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "ARKK",
+    "as_of_t": 20260807,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "STNG",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 68.85,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 78.7231,
+      "ema_slope_pct_per_bar": 0.1149,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 397,
+      "pullback_bar_t": 20260902,
+      "distance_to_ema_pct": -0.779,
+      "reclaim_bar_idx": 397,
+      "reclaim_bar_t": 20260902,
+      "bars_since_reclaim": 2,
+      "pullback_volume_ratio": 1.0494,
+      "atr14": 2.1286,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 68.85,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 35.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "FCBC",
+    "as_of_t": 20260702,
+    "detector_fired": true,
+    "detector_top_confidence": 79.75,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 44.0535,
+      "ema_slope_pct_per_bar": 0.2408,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260701,
+      "distance_to_ema_pct": 0.106,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260701,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.6133,
+      "atr14": 1.0957,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 79.75,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 85.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0007": {
+    "symbol": "FFIN",
+    "as_of_t": 20251020,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "stacked_bearish",
+      "rs_trend": "flat",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0008": {
+    "symbol": "BVS",
+    "as_of_t": 20260807,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "down",
+      "reject_reason": "rs_trend_not_up",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0009": {
+    "symbol": "VIST",
+    "as_of_t": 20251020,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "mixed",
+      "rs_trend": "flat",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0010": {
+    "symbol": "VRTX",
+    "as_of_t": 20260130,
+    "detector_fired": true,
+    "detector_top_confidence": 76.0,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 463.0533,
+      "ema_slope_pct_per_bar": 0.177,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260130,
+      "distance_to_ema_pct": 1.068,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260130,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 0.7888,
+      "atr14": 11.75,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.0,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0011": {
+    "symbol": "MASI",
+    "as_of_t": 20250402,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0012": {
+    "symbol": "SYBT",
+    "as_of_t": 20260702,
+    "detector_fired": true,
+    "detector_top_confidence": 76.0,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 74.7105,
+      "ema_slope_pct_per_bar": 0.3017,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 397,
+      "pullback_bar_t": 20260630,
+      "distance_to_ema_pct": 0.722,
+      "reclaim_bar_idx": 397,
+      "reclaim_bar_t": 20260630,
+      "bars_since_reclaim": 2,
+      "pullback_volume_ratio": 0.8401,
+      "atr14": 2.05,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.0,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0013": {
+    "symbol": "AKR",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 81.35,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 20.7227,
+      "ema_slope_pct_per_bar": 0.3348,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260427,
+      "distance_to_ema_pct": 0.711,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260427,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.5668,
+      "atr14": 0.4207,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 81.35,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 85.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0014": {
+    "symbol": "JACK",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stacked_bullish",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0015": {
+    "symbol": "BCO",
+    "as_of_t": 20260130,
+    "detector_fired": true,
+    "detector_top_confidence": 76.25,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 123.7082,
+      "ema_slope_pct_per_bar": 0.2572,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260129,
+      "distance_to_ema_pct": 0.26,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260129,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.86,
+      "atr14": 2.4821,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.25,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 55.0,
+      "ctx_score": 75.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0016": {
+    "symbol": "YPF",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 81.35,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 51.22,
+      "ema_slope_pct_per_bar": 0.1783,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260904,
+      "distance_to_ema_pct": 0.254,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260904,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 0.6674,
+      "atr14": 1.7907,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 81.35,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 85.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0017": {
+    "symbol": "DOUG",
+    "as_of_t": 20260807,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0018": {
+    "symbol": "STXS",
+    "as_of_t": 20260129,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "mixed",
+      "rs_trend": "flat",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0019": {
+    "symbol": "GSK",
+    "as_of_t": 20251020,
+    "detector_fired": true,
+    "detector_top_confidence": 81.35,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 42.9213,
+      "ema_slope_pct_per_bar": 0.3304,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20251017,
+      "distance_to_ema_pct": 0.976,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20251017,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.6825,
+      "atr14": 0.9236,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 81.35,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 85.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0020": {
+    "symbol": "HOG",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 76.0,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 27.391,
+      "ema_slope_pct_per_bar": 0.2494,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260904,
+      "distance_to_ema_pct": 0.361,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260904,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 0.7287,
+      "atr14": 0.8664,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.0,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0021": {
+    "symbol": "M",
+    "as_of_t": 20250626,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "stacked_bearish",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0022": {
+    "symbol": "HTO",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 76.25,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 63.4852,
+      "ema_slope_pct_per_bar": 0.0929,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260904,
+      "distance_to_ema_pct": 0.701,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260904,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 0.9992,
+      "atr14": 1.2243,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.25,
+      "minervini_sepa_grade": "C",
+      "geom_score": 100.0,
+      "vol_score": 55.0,
+      "ctx_score": 75.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0023": {
+    "symbol": "NVS",
+    "as_of_t": 20260702,
+    "detector_fired": true,
+    "detector_top_confidence": 77.6,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 152.918,
+      "ema_slope_pct_per_bar": 0.2179,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260701,
+      "distance_to_ema_pct": 0.198,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260701,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.799,
+      "atr14": 3.035,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 77.6,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0024": {
+    "symbol": "VFC",
+    "as_of_t": 20260130,
+    "detector_fired": true,
+    "detector_top_confidence": 67.25,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 19.3676,
+      "ema_slope_pct_per_bar": 0.2335,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260130,
+      "distance_to_ema_pct": 0.89,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260130,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 1.0754,
+      "atr14": 0.8964,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 67.25,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 35.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0025": {
+    "symbol": "EQT",
+    "as_of_t": 20251017,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "mixed",
+      "rs_trend": "up",
+      "reject_reason": "not_stacked_bullish",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0026": {
+    "symbol": "AJG",
+    "as_of_t": 20260806,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stacked_bullish",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0027": {
+    "symbol": "DCBO",
+    "as_of_t": 20260807,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "mixed",
+      "rs_trend": "up",
+      "reject_reason": "not_stacked_bullish",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0028": {
+    "symbol": "DAC",
+    "as_of_t": 20260427,
+    "detector_fired": true,
+    "detector_top_confidence": 76.0,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 116.3116,
+      "ema_slope_pct_per_bar": 0.2068,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 399,
+      "pullback_bar_t": 20260427,
+      "distance_to_ema_pct": 1.271,
+      "reclaim_bar_idx": 399,
+      "reclaim_bar_t": 20260427,
+      "bars_since_reclaim": 0,
+      "pullback_volume_ratio": 0.8076,
+      "atr14": 2.8421,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.0,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0029": {
+    "symbol": "FLNG",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 73.85,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 30.6473,
+      "ema_slope_pct_per_bar": 0.2882,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20260427,
+      "distance_to_ema_pct": 0.172,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20260427,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.8993,
+      "atr14": 0.8021,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 73.85,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 55.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0030": {
+    "symbol": "MNTN",
+    "as_of_t": 20260903,
+    "detector_fired": true,
+    "detector_top_confidence": 76.0,
+    "pipeline_trace": {
+      "n_bars": 323,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 12.3455,
+      "ema_slope_pct_per_bar": 0.9599,
+      "pullback_bars_checked": [
+        320,
+        321,
+        322
+      ],
+      "pullback_bar_idx": 321,
+      "pullback_bar_t": 20260902,
+      "distance_to_ema_pct": 0.361,
+      "reclaim_bar_idx": 321,
+      "reclaim_bar_t": 20260902,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.7827,
+      "atr14": 0.6518,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 76.0,
+      "minervini_sepa_grade": "B",
+      "geom_score": 100.0,
+      "vol_score": 70.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0031": {
+    "symbol": "LINC",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "mixed",
+      "rs_trend": "up",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0032": {
+    "symbol": "EBC",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "mixed",
+      "rs_trend": "down",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0033": {
+    "symbol": "BTBT",
+    "as_of_t": 20251020,
+    "detector_fired": true,
+    "detector_top_confidence": 65.85,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 3.6325,
+      "ema_slope_pct_per_bar": 1.5323,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20251017,
+      "distance_to_ema_pct": -5.023,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20251017,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.8781,
+      "atr14": 0.4261,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 65.85,
+      "minervini_sepa_grade": "C",
+      "geom_score": 80.0,
+      "vol_score": 55.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0034": {
+    "symbol": "SOCL",
+    "as_of_t": 20260427,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 4,
+      "ma_alignment": "mixed",
+      "rs_trend": "up",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0035": {
+    "symbol": "IMNM",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 85.1,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 22.8711,
+      "ema_slope_pct_per_bar": 0.5862,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 397,
+      "pullback_bar_t": 20260424,
+      "distance_to_ema_pct": -1.448,
+      "reclaim_bar_idx": 397,
+      "reclaim_bar_t": 20260424,
+      "bars_since_reclaim": 2,
+      "pullback_volume_ratio": 0.4987,
+      "atr14": 1.0416,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 85.1,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 100.0,
+      "ctx_score": 63.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0036": {
+    "symbol": "IP",
+    "as_of_t": 20260702,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "mixed",
+      "rs_trend": "up",
+      "reject_reason": "not_stacked_bullish",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0037": {
+    "symbol": "VREX",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "down",
+      "reject_reason": "rs_trend_not_up",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0038": {
+    "symbol": "WIW",
+    "as_of_t": 20260903,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 1,
+      "ma_alignment": "stacked_bearish",
+      "rs_trend": "flat",
+      "reject_reason": "not_stage_2",
+      "final_fired": false
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0039": {
+    "symbol": "ROG",
+    "as_of_t": 20251020,
+    "detector_fired": true,
+    "detector_top_confidence": 79.75,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "trend_stage": 2,
+      "ma_alignment": "stacked_bullish",
+      "rs_trend": "up",
+      "ema_21": 83.0547,
+      "ema_slope_pct_per_bar": 0.2844,
+      "pullback_bars_checked": [
+        397,
+        398,
+        399
+      ],
+      "pullback_bar_idx": 398,
+      "pullback_bar_t": 20251017,
+      "distance_to_ema_pct": 0.681,
+      "reclaim_bar_idx": 398,
+      "reclaim_bar_t": 20251017,
+      "bars_since_reclaim": 1,
+      "pullback_volume_ratio": 0.5347,
+      "atr14": 2.6371,
+      "reject_reason": null,
+      "final_fired": true,
+      "final_confidence": 79.75,
+      "minervini_sepa_grade": "A",
+      "geom_score": 100.0,
+      "vol_score": 85.0,
+      "ctx_score": 55.0
+    },
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}
