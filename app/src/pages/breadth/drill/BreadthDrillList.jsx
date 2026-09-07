@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useId } from 'react'
+import { useMemo, useCallback, useId, useEffect, useRef } from 'react'
 import Watchlists from '../../Watchlists'
 import GroupControls from '../grouping/GroupControls'
 import useBreadthGrouping from '../grouping/useBreadthGrouping'
@@ -84,13 +84,19 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     return Object.keys(out).length ? out : null
   }, [items, groups])
 
-  // ⭐ A HISTORICAL DRILL PINS ITS QUOTES. The snapshot for 2026-09-04 is what
-  // those stocks did THAT DAY; streaming today's price into it would relabel
-  // history as the present. A LIVE drill passes nothing and streams normally,
-  // exactly like any other watchlist.
-  const isHistorical = !drill?.live && !!drill?.date && drill.date !== drill?.latestDate
+  // ⭐ A RECORDED DRILL PINS ITS QUOTES. The snapshot for 2026-09-04 holds what
+  // those stocks did THAT DAY; streaming a later price into it would relabel
+  // history as the present. Only the LIVE row streams.
+  //
+  // ⛔ This deliberately does NOT exempt the newest recorded day. An earlier
+  // version did — reasoning that "today's snapshot is today, so let it tick" —
+  // and it shipped a drill whose Price, Vol and % Chg were ALL em-dashes,
+  // because a recorded day plus a closed market means there are no live quotes
+  // to fall back to. The bespoke table this replaces always rendered the
+  // snapshot's own numbers; a recorded day is a recorded day.
+  const isRecorded = !drill?.live && !!drill?.date
   const quoteOverride = useMemo(() => {
-    if (!isHistorical) return null
+    if (!isRecorded) return null
     const out = {}
     for (const it of items) {
       const sym = String(tickerOf(it) || '').toUpperCase()
@@ -102,7 +108,21 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       }
     }
     return out
-  }, [isHistorical, items])
+  }, [isRecorded, items])
+
+  // Paint the FIRST row on open. The drill's items arrive after mount (the list
+  // is fetched), so seeding the colour group at mount seeds it with nothing and
+  // the chart is left showing whatever symbol it had last — which shipped as a
+  // chart displaying a ticker that was not even in the list. Seeds once, and
+  // only while the group is empty, so a user's own selection is never stomped.
+  const seededSymRef = useRef(false)
+  useEffect(() => {
+    if (seededSymRef.current || !color) return
+    const first = items.length ? String(tickerOf(items[0]) || '').toUpperCase() : ''
+    if (!first) return
+    seededSymRef.current = true
+    if (!groupSyms?.[color]) setGroupSym?.(color, first)
+  }, [items, color, groupSyms, setGroupSym])
 
   const stockCount = items.length
   const scanFooter = (

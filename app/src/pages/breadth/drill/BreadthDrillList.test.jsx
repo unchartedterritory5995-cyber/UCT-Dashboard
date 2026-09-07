@@ -110,11 +110,51 @@ describe('BreadthDrillList — historical vs live quotes', () => {
     expect(lastProps.quoteOverride).toBeNull()
   })
 
-  it('the NEWEST recorded day is not history — it streams too', () => {
-    // drill.date === latestDate means the snapshot's day IS the current session's
-    // rightmost bar; pinning it would freeze a list that should still tick.
+  it('⛔ the NEWEST recorded day pins TOO — this shipped blank once', () => {
+    // A previous version exempted drill.date === latestDate, reasoning that
+    // today's snapshot should tick. On a closed market there are no live quotes
+    // to fall back to, so Price/Vol/%Chg rendered as em-dashes for EVERY row —
+    // caught only in the browser. A recorded day is a recorded day.
     mount({ ...HISTORICAL, date: '2026-09-04' })
-    expect(lastProps.quoteOverride).toBeNull()
+    expect(lastProps.quoteOverride).not.toBeNull()
+    expect(lastProps.quoteOverride.AEHR).toEqual({ price: 86.26, change_pct: 13.1, volume: null })
+  })
+
+  it('every row gets a pinned quote, so none can render blank', () => {
+    mount(HISTORICAL)
+    for (const [t] of ITEMS.map(i => [i.t])) {
+      expect(lastProps.quoteOverride[t], `${t} has a pinned quote`).toBeDefined()
+    }
+  })
+})
+
+describe('BreadthDrillList — the chart paints the first row on open', () => {
+  it('seeds the colour group once the async items arrive', async () => {
+    // Items land AFTER mount, so seeding at mount seeds nothing and the chart
+    // keeps whatever symbol it had — it shipped showing a ticker not in the list.
+    const calls = []
+    const { rerender } = render(
+      <WorkspaceContext.Provider value={ws({ setGroupSym: (c, s) => calls.push([c, s]) })}>
+        <DrillSourceContext.Provider value={{ ...LIVE, items: [] }}>
+          <BreadthDrillList color="A" />
+        </DrillSourceContext.Provider>
+      </WorkspaceContext.Provider>,
+    )
+    expect(calls).toEqual([])
+    rerender(
+      <WorkspaceContext.Provider value={ws({ setGroupSym: (c, s) => calls.push([c, s]) })}>
+        <DrillSourceContext.Provider value={LIVE}>
+          <BreadthDrillList color="A" />
+        </DrillSourceContext.Provider>
+      </WorkspaceContext.Provider>,
+    )
+    expect(calls).toEqual([['A', 'AEHR']])
+  })
+
+  it('does not stomp a symbol the group already holds', () => {
+    const calls = []
+    mount(LIVE, ws({ groupSyms: { A: 'NVDA', B: null, C: null, D: null }, setGroupSym: (c, s) => calls.push([c, s]) }))
+    expect(calls).toEqual([])
   })
 })
 
