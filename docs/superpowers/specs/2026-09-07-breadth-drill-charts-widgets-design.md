@@ -368,7 +368,26 @@ Consequences:
 
 ---
 
-## 5. Theme grouping — the one gap
+## 5. Theme grouping — RESOLVED, and better than this section predicted
+
+> **Implemented 2026-09-07.** The section below is kept as the reasoning that led
+> here, but its central worry was wrong in the right direction: the ranking
+> authority already existed. `api/services/groups.py::resolve_primary_theme`
+> decides which of a ticker's themes is *the* one — owner memberships outrank
+> engine ones, then tier, then smallest theme, factor buckets excluded — and
+> `ticker_meta` already displays that answer. So `/api/breadth/industries` gained
+> a `themes` map that CALLS it rather than re-ranking, which means the drill's
+> theme can never disagree with the theme shown anywhere else.
+>
+> Two constraints the implementation had to respect:
+> - It is **one SQLite query per ticker**, so it runs through `asyncio.to_thread`.
+>   134 sequential queries on the single shared event loop is the 2026-07-01 524
+>   outage class. A rail spies on `to_thread` and fails if it is ever inlined.
+> - A ticker in no theme returns **`None`, never a missing key** — the client
+>   buckets it as `Unclassified`. Dropping the key would silently shrink the drill
+>   below the count on the cell that opened it.
+
+## 5b. The original reasoning (superseded)
 
 `useGroupMeta` fetches `/api/breadth/industries` and returns
 `{ industries, sectors }` only. **There is no per-ticker theme map**, so Theme
@@ -504,7 +523,23 @@ These cannot be engineered away and should be stated rather than discovered:
 
 ---
 
-## 10. Open question for the owner
+## 10. Open question for the owner — CLOSED
 
-Section 5 — extend `/api/breadth/industries` with a `themes` map now, or ship
-Sector/Industry first and add Theme in a follow-up?
+Section 5's question ("extend the endpoint now, or follow up?") was answered by
+building it: the owner said do all of it properly, and the theme authority turned
+out to already exist, so it landed in the same pass. Nothing is outstanding here.
+
+## 11. What is built, and what is still unproven
+
+Built and pushed on `feat/breadth-drill-charts-widgets`:
+the drill board, both widgets, the workspace host + its drift rail, theme
+grouping, per-widget pop-out, and the deletion of the bespoke table (323 JSX
+lines), its CSS (66 classes) and `GroupSummaryStrip`.
+
+⚠️ **Unproven: this has never rendered in a browser.** All evidence to date is
+code-level plus suite counts. A faithful local run is not possible — local
+`C:\data\breadth_monitor.db` is 12KB (the real snapshots live on Railway), so a
+sandboxed backend has nothing to drill into, and pointing a local server at the
+real `C:\data` would write to the owner's live files. Verification therefore
+happens after deploy, against production, and the live side-by-side against
+`/charts` is the acceptance step this design has been aiming at throughout.
