@@ -610,3 +610,116 @@ def retrieve_document(user_id: str, document_id: str, query: str, *,
     finally:
         if owned:
             conn.close()
+
+
+# ── Slice 4: Ask Security Research ───────────────────────────────────────────
+
+def retrieve_entity_research(user_id: str, symbol: str, query: str, *,
+                             limit: int = 8,
+                             conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask THIS security's research (§11). The scope is PRESELECTED.
+
+    The member is already inside NVDA Research, so they should not have to type
+    "NVDA" -- and critically, the scope must not be a substring filter. This
+    reuses Wave H's canonical membership verbatim: resolve the symbol through
+    entity_master, expand aliases, then match on the note's own ticker OR a
+    chart embed OR a prose mention. A note that only ever says "$NVDA" in a
+    sentence is in scope; an AMD note that happens to mention margins is not.
+
+    Unlike the corpus-wide entry point this does NOT sniff the query for a
+    ticker -- the caller already knows the security, so there is no reason to probe.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        try:
+            from api.services.journal_two.ticker_research import resolve_research_symbols
+            entity = resolve_research_symbols(symbol)
+        except Exception:  # noqa: BLE001
+            entity = {"symbol": symbol, "entityId": None, "displayName": None,
+                      "symbols": [symbol]}
+
+        note_ids = _entity_note_ids(conn, user_id, entity)
+        cov = coverage(conn, user_id)
+        cov["notes_in_scope"] = len(note_ids)
+
+        if not note_ids:
+            return {"entity": entity, "evidence": [], "coverage": cov,
+                    "query_matches": 0, "independent_sources": 0,
+                    "no_answer": True, "no_answer_reason": "no_research_on_this_security"}
+
+        items: list[dict[str, Any]] = []
+        expr = fts_match_expr(query)
+        if expr:
+            items += _notes(conn, user_id, expr, limit, note_ids)
+            # Documents and excerpts belonging to THIS security's notes only.
+            items += _entity_documents(conn, user_id, note_ids, query, limit)
+        for i in items:
+            i["relevance"] = QUERY_MATCH
+
+        ctx = (_thesis_states(conn, user_id, note_ids, 3)
+               + _facts(conn, user_id, entity, 5))
+        for i in ctx:
+            i["relevance"] = ENTITY_CONTEXT
+        items += ctx
+
+        by_source = {f"{i['source_type']}:{i['source_id']}": i for i in items}
+        thesis_ids = [i["source_id"] for i in items if i["source_type"] == ev.THESIS_STATE]
+        items += _thesis_edge_evidence(conn, user_id, thesis_ids, by_source)
+
+        merged = ev.dedupe(items)
+        merged.sort(key=lambda i: (i.get("curation", 0), i.get("score", 0.0)), reverse=True)
+        merged = merged[:limit]
+        matched = [i for i in merged if i.get("relevance") == QUERY_MATCH]
+        return {
+            "entity": entity, "evidence": merged, "coverage": cov,
+            "query_matches": len(matched),
+            "independent_sources": ev.independent_source_count(matched),
+            "no_answer": not matched,
+            "no_answer_reason": None if matched else "no_supporting_evidence",
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
+                      limit: int) -> list[dict[str, Any]]:
+    """Pages and saved excerpts from documents attached to THIS security's
+    notes. Scoped by note membership, so an unrelated security's filing cannot
+    leak in on a shared phrase."""
+    if not note_ids:
+        return []
+    expr = fts_match_expr(q)
+    if expr is None:
+        return []
+    ph = ",".join("?" * len(note_ids))
+    out: list[dict[str, Any]] = []
+    for r in conn.execute(
+        "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+        " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " d.name AS name"
+        " FROM j2_note_document_pages_fts p"
+        " JOIN j2_note_documents d ON d.id = p.document_id"
+        " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+        f" AND d.note_id IN ({ph})"
+        " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+        (expr, user_id, *note_ids, limit),
+    ).fetchall():
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6))
+    for r in conn.execute(
+        "SELECT e.*, d.name AS document_name FROM j2_note_excerpts_fts f"
+        " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+        " JOIN j2_note_documents d ON d.id = e.document_id"
+        " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+        f" AND e.note_id IN ({ph})"
+        " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+        (expr, user_id, *note_ids, limit),
+    ).fetchall():
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out

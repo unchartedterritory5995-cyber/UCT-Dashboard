@@ -550,3 +550,85 @@ class TestAskDocument:
         corpus.commit()
         r = ar.retrieve_document(U, "d1", "mid-seventies range", conn=corpus)
         assert r["evidence"] == []
+
+
+# ── Slice 4: Ask Security Research ───────────────────────────────────────────
+
+class TestAskSecurityResearch:
+    """Scope is PRESELECTED by the workspace the member is already in.
+
+    The property that matters is that scope is canonical MEMBERSHIP, not a
+    substring filter -- an AMD note mentioning margins must not answer an NVDA
+    question, and an NVDA note that only says "$NVDA" in prose must.
+    """
+
+    def test_the_member_does_not_have_to_type_the_ticker(self, corpus):
+        r = ar.retrieve_entity_research(U, "NVDA", "customer concentration", conn=corpus)
+        assert "n_risk" in _ids(r)
+        assert r["no_answer"] is False
+
+    def test_an_unrelated_securitys_note_never_leaks_in(self, corpus):
+        # n_amd contains "gross margin normalization" -- a strong lexical match
+        # for this query -- and must still be excluded from NVDA scope.
+        r = ar.retrieve_entity_research(U, "NVDA", "gross margin normalization",
+                                        conn=corpus)
+        assert "n_amd" not in _ids(r)
+
+    def test_the_same_query_under_the_other_security_returns_ITS_note(self, corpus):
+        # The control: proves the exclusion above is scope, not a broken query.
+        r = ar.retrieve_entity_research(U, "AMD", "gross margin normalization",
+                                        conn=corpus)
+        assert "n_amd" in _ids(r)
+
+    def test_membership_reaches_a_note_linked_only_by_a_prose_mention(self, corpus):
+        # Wave H semantics: ticker field OR embed OR mention. This note has a
+        # DIFFERENT ticker and is in scope only via the mention sidecar.
+        corpus.execute(
+            "INSERT INTO j2_notes VALUES ('n_mention',?,'Sector note','SOXX',?,?,'{}',NULL,'2026-09-07')",
+            (U, json.dumps(_doc("Capacity constraints affect the whole accelerator complex.")),
+             "Capacity constraints affect the whole accelerator complex."))
+        corpus.execute("INSERT INTO j2_notes_fts VALUES ('n_mention',?,'Sector note',?)",
+                       (U, "Capacity constraints affect the whole accelerator complex."))
+        corpus.execute("INSERT INTO j2_note_mentions VALUES ('n_mention',?,'NVDA')", (U,))
+        corpus.commit()
+        r = ar.retrieve_entity_research(U, "NVDA", "capacity constraints", conn=corpus)
+        assert "n_mention" in _ids(r)
+
+    def test_a_security_with_no_research_says_so_rather_than_guessing(self, corpus):
+        r = ar.retrieve_entity_research(U, "TSLA", "what do I think", conn=corpus)
+        assert r["no_answer"] is True
+        assert r["no_answer_reason"] == "no_research_on_this_security"
+        assert r["evidence"] == []
+
+    def test_thesis_state_and_facts_arrive_as_context_not_as_the_answer(self, corpus):
+        r = ar.retrieve_entity_research(U, "NVDA", "margin pressure", conn=corpus)
+        assert r["no_answer"] is True, "no NVDA note discusses margin pressure lexically"
+        assert r["evidence"], "but the thesis/fact context is still offered"
+        assert all(e["relevance"] == ar.ENTITY_CONTEXT for e in r["evidence"])
+
+    def test_counter_evidence_keeps_its_stance_in_entity_scope(self, corpus):
+        r = ar.retrieve_entity_research(U, "NVDA", "gross margins normalize", conn=corpus)
+        assert "opposes" in {e.get("stance") for e in r["evidence"]}
+
+    def test_entity_scope_is_tenant_scoped(self, corpus):
+        r = ar.retrieve_entity_research(OTHER, "NVDA", "customer concentration",
+                                        conn=corpus)
+        assert _ids(r) <= {"n_other"}
+        assert all(e["user_id"] == OTHER for e in r["evidence"])
+
+    def test_coverage_reports_how_much_of_the_corpus_was_in_scope(self, corpus):
+        r = ar.retrieve_entity_research(U, "NVDA", "risks", conn=corpus)
+        assert r["coverage"]["notes_in_scope"] >= 1
+        assert r["coverage"]["notes_in_scope"] <= r["coverage"]["notes_searchable"]
+
+    def test_no_ticker_probing_happens_in_entity_scope(self, corpus, monkeypatch):
+        # The caller already knows the security, so the query must not be
+        # sniffed for tickers at all -- one resolution, of the given symbol.
+        calls = []
+        import api.services.journal_two.ticker_research as tr
+        monkeypatch.setattr(tr, "resolve_research_symbols",
+                            lambda s: calls.append(s) or
+                            {"symbol": s, "entityId": None, "symbols": [s]})
+        ar.retrieve_entity_research(U, "NVDA", "CUSTOM CONCEN PRESSU margins",
+                                    conn=corpus)
+        assert calls == ["NVDA"]
