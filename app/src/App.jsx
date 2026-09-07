@@ -35,6 +35,7 @@ import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
 // every link a member sent resolved to the catch-all 404 below.
 import { SHARED_FORMULA_ROUTE, FORMULA_LIBRARY_PATH } from './pages/formulas/formulaShareLink'
+import { createRoutePrefetcher, attachRoutePrefetch } from './routePrefetch'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -117,7 +118,7 @@ const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/Communi
 const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
 // LOCAL REDESIGN PROTOTYPE — /community points at the new Floor design.
 // To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
-const Community = lazy(() => import('./pages/community/CommunityRedesign'))
+const Community = lazyPage('/community', () => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
@@ -133,16 +134,21 @@ const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsW
 // this against lazy()'s own import, an unregistered path warms nothing, and a
 // failed prefetch is swallowed here so lazyWithRetry still owns the real load
 // (its stale-chunk reload must fire on the RENDER path, not on this warm).
-try {
-  const here = window.location.pathname
-  let best = null
-  for (const key of pageImporters.keys()) {
-    if (here === key || here.startsWith(key + '/')) {
-      if (!best || key.length > best.length) best = key
-    }
-  }
-  if (best) { const p = pageImporters.get(best)(); if (p && p.catch) p.catch(() => {}) }
-} catch { /* never let a prefetch break boot */ }
+// Warm the CURRENT route's chunk, and warm the NEXT one on pointer/focus/touch
+// intent so a click finds the module already resolved and the route-level
+// <Suspense> below never blanks the shell. See routePrefetch.js for the
+// measurements and the why.
+const routePrefetcher = createRoutePrefetcher(pageImporters, {
+  getConnection: () => (typeof navigator !== 'undefined' ? navigator.connection : null),
+})
+// Deferred one microtask, NOT called inline: `lazyPage` registers a route as its
+// `const` executes, so an inline call here would only ever see the routes declared
+// ABOVE this line and silently skip the rest (/support sits ~60 lines below). A
+// microtask runs after the whole module body, so every registration is in no
+// matter where the next one is added, and it still fires long before React mounts
+// or auth answers.
+Promise.resolve().then(() => routePrefetcher.prefetch(window.location.pathname))
+if (typeof document !== 'undefined') attachRoutePrefetch(document, routePrefetcher)
 const ChartRender = lazy(() => import('./pages/ChartRender'))
 const DiscordActivity = lazy(() => import('./pages/DiscordActivity'))
 const CatalystsRender = lazy(() => import('./pages/CatalystsRender'))
@@ -160,7 +166,7 @@ const MoversRender = lazy(() => import('./pages/MoversRender'))
 const BuzzRender = lazy(() => import('./pages/BuzzRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
-const Support = lazy(() => import('./pages/Support'))
+const Support = lazyPage('/support', () => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
