@@ -1,0 +1,194 @@
+{
+  "case_0000": {
+    "symbol": "SPRB",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0001": {
+    "symbol": "CCCC",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0002": {
+    "symbol": "UNF",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0003": {
+    "symbol": "CCBG",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0004": {
+    "symbol": "KIE",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0005": {
+    "symbol": "SUPV",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0006": {
+    "symbol": "ARI",
+    "as_of_t": 20260903,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0007": {
+    "symbol": "FIBK",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0008": {
+    "symbol": "FXI",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0009": {
+    "symbol": "ISRG",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0010": {
+    "symbol": "BIDU",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0011": {
+    "symbol": "AWI",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0012": {
+    "symbol": "RDZN",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0013": {
+    "symbol": "AEO",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0014": {
+    "symbol": "LUNR",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0015": {
+    "symbol": "RLI",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0016": {
+    "symbol": "TEX",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0017": {
+    "symbol": "MOMO",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0018": {
+    "symbol": "USA",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0019": {
+    "symbol": "OGN",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0020": {
+    "symbol": "BNT",
+    "as_of_t": 20250821,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0021": {
+    "symbol": "SOR",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0022": {
+    "symbol": "OMC",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0023": {
+    "symbol": "SOBO",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0024": {
+    "symbol": "SOR",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0025": {
+    "symbol": "FLNC",
+    "as_of_t": 20251216,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0026": {
+    "symbol": "CDRO",
+    "as_of_t": 20260904,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0027": {
+    "symbol": "VIR",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0028": {
+    "symbol": "PML",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0029": {
+    "symbol": "VRTX",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0030": {
+    "symbol": "ELMD",
+    "as_of_t": 20250822,
+    "detector_last_bar_fired": false,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  },
+  "case_0031": {
+    "symbol": "AIRJ",
+    "as_of_t": 20260428,
+    "detector_last_bar_fired": true,
+    "note": "Same field as corpus_b/answer_key_ingredients.json -- re-rendered, not re-evaluated."
+  }
+}

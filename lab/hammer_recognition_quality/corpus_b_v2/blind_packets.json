@@ -1,0 +1,866 @@
+[
+  {
+    "case_id": "case_0000",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0000_morphology.png",
+    "context_chart_file": "charts/case_0000_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 8.2,
+      "pct_of_52w_high": 0.24,
+      "pct_above_52w_low": 7.89,
+      "sma10": 8.8147,
+      "sma20": 196.3323,
+      "sma50": 366.8704,
+      "vol_20d_avg": 2057.2,
+      "vol_50d_avg": 856.2,
+      "adr_pct_21d": 13.684,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0001",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0001_morphology.png",
+    "context_chart_file": "charts/case_0001_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 3.745,
+      "pct_of_52w_high": 72.44,
+      "pct_above_52w_low": 121.6,
+      "sma10": 3.9345,
+      "sma20": 3.987,
+      "sma50": 3.9118,
+      "vol_20d_avg": 2295566.1,
+      "vol_50d_avg": 3114482.5,
+      "adr_pct_21d": 5.831,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0002",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0002_morphology.png",
+    "context_chart_file": "charts/case_0002_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 275.17,
+      "pct_of_52w_high": 89.73,
+      "pct_above_52w_low": 86.35,
+      "sma10": 281.503,
+      "sma20": 285.1035,
+      "sma50": 284.0128,
+      "vol_20d_avg": 212550.0,
+      "vol_50d_avg": 181010.0,
+      "adr_pct_21d": 1.685,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0003",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0003_morphology.png",
+    "context_chart_file": "charts/case_0003_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 44.81,
+      "pct_of_52w_high": 98.2,
+      "pct_above_52w_low": 38.39,
+      "sma10": 43.487,
+      "sma20": 42.328,
+      "sma50": 41.2936,
+      "vol_20d_avg": 61410.0,
+      "vol_50d_avg": 52026.0,
+      "adr_pct_21d": 2.63,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0004",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0004_morphology.png",
+    "context_chart_file": "charts/case_0004_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 60.54,
+      "pct_of_52w_high": 98.81,
+      "pct_above_52w_low": 15.6,
+      "sma10": 59.438,
+      "sma20": 59.302,
+      "sma50": 58.416,
+      "vol_20d_avg": 1986775.0,
+      "vol_50d_avg": 1992070.0,
+      "adr_pct_21d": 1.283,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0005",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0005_morphology.png",
+    "context_chart_file": "charts/case_0005_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 8.92,
+      "pct_of_52w_high": 52.78,
+      "pct_above_52w_low": 96.48,
+      "sma10": 9.442,
+      "sma20": 9.494,
+      "sma50": 9.2562,
+      "vol_20d_avg": 651595.0,
+      "vol_50d_avg": 815406.0,
+      "adr_pct_21d": 5.124,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0006",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0006_morphology.png",
+    "context_chart_file": "charts/case_0006_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 6.88,
+      "pct_of_52w_high": 61.21,
+      "pct_above_52w_low": 7.0,
+      "sma10": 6.87,
+      "sma20": 6.848,
+      "sma50": 7.8304,
+      "vol_20d_avg": 2972337.6,
+      "vol_50d_avg": 4889079.0,
+      "adr_pct_21d": 1.601,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0007",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0007_morphology.png",
+    "context_chart_file": "charts/case_0007_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 37.85,
+      "pct_of_52w_high": 93.23,
+      "pct_above_52w_low": 30.07,
+      "sma10": 37.143,
+      "sma20": 37.693,
+      "sma50": 38.2264,
+      "vol_20d_avg": 878392.6,
+      "vol_50d_avg": 1105257.0,
+      "adr_pct_21d": 1.72,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0008",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0008_morphology.png",
+    "context_chart_file": "charts/case_0008_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 39.24,
+      "pct_of_52w_high": 99.85,
+      "pct_above_52w_low": 55.16,
+      "sma10": 38.388,
+      "sma20": 38.047,
+      "sma50": 37.463,
+      "vol_20d_avg": 28576080.0,
+      "vol_50d_avg": 27867506.0,
+      "adr_pct_21d": 0.852,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0009",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0009_morphology.png",
+    "context_chart_file": "charts/case_0009_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 366.7,
+      "pct_of_52w_high": 60.72,
+      "pct_above_52w_low": 11.6,
+      "sma10": 371.002,
+      "sma20": 381.71,
+      "sma50": 381.0142,
+      "vol_20d_avg": 2283520.0,
+      "vol_50d_avg": 3121348.0,
+      "adr_pct_21d": 2.741,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0010",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0010_morphology.png",
+    "context_chart_file": "charts/case_0010_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 90.01,
+      "pct_of_52w_high": 77.43,
+      "pct_above_52w_low": 20.48,
+      "sma10": 88.705,
+      "sma20": 87.9165,
+      "sma50": 87.7868,
+      "vol_20d_avg": 3818320.0,
+      "vol_50d_avg": 3606834.0,
+      "adr_pct_21d": 2.165,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0011",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0011_morphology.png",
+    "context_chart_file": "charts/case_0011_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 184.66,
+      "pct_of_52w_high": 89.61,
+      "pct_above_52w_low": 50.9,
+      "sma10": 185.07,
+      "sma20": 185.3625,
+      "sma50": 190.583,
+      "vol_20d_avg": 305220.0,
+      "vol_50d_avg": 311212.0,
+      "adr_pct_21d": 1.992,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0012",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0012_morphology.png",
+    "context_chart_file": "charts/case_0012_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 1.295,
+      "pct_of_52w_high": 50.59,
+      "pct_above_52w_low": 59.68,
+      "sma10": 1.424,
+      "sma20": 1.4325,
+      "sma50": 1.3211,
+      "vol_20d_avg": 269918.0,
+      "vol_50d_avg": 446447.2,
+      "adr_pct_21d": 5.807,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0013",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0013_morphology.png",
+    "context_chart_file": "charts/case_0013_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 17.37,
+      "pct_of_52w_high": 61.03,
+      "pct_above_52w_low": 87.38,
+      "sma10": 18.727,
+      "sma20": 18.1995,
+      "sma50": 19.3112,
+      "vol_20d_avg": 4916195.0,
+      "vol_50d_avg": 5653128.0,
+      "adr_pct_21d": 4.186,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0014",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0014_morphology.png",
+    "context_chart_file": "charts/case_0014_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 8.965,
+      "pct_of_52w_high": 35.93,
+      "pct_above_52w_low": 99.22,
+      "sma10": 9.32,
+      "sma20": 10.2065,
+      "sma50": 10.7226,
+      "vol_20d_avg": 8647825.0,
+      "vol_50d_avg": 8014034.0,
+      "adr_pct_21d": 6.595,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0015",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0015_morphology.png",
+    "context_chart_file": "charts/case_0015_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 52.14,
+      "pct_of_52w_high": 67.5,
+      "pct_above_52w_low": 2.0,
+      "sma10": 56.106,
+      "sma20": 57.0455,
+      "sma50": 58.9812,
+      "vol_20d_avg": 733160.0,
+      "vol_50d_avg": 719834.0,
+      "adr_pct_21d": 2.37,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0016",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0016_morphology.png",
+    "context_chart_file": "charts/case_0016_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 61.89,
+      "pct_of_52w_high": 86.56,
+      "pct_above_52w_low": 80.7,
+      "sma10": 61.143,
+      "sma20": 61.322,
+      "sma50": 62.513,
+      "vol_20d_avg": 1061085.0,
+      "vol_50d_avg": 1403812.0,
+      "adr_pct_21d": 4.128,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0017",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0017_morphology.png",
+    "context_chart_file": "charts/case_0017_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 5.37,
+      "pct_of_52w_high": 62.51,
+      "pct_above_52w_low": 6.34,
+      "sma10": 5.5585,
+      "sma20": 5.6675,
+      "sma50": 5.8319,
+      "vol_20d_avg": 685788.8,
+      "vol_50d_avg": 593783.5,
+      "adr_pct_21d": 2.51,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0018",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0018_morphology.png",
+    "context_chart_file": "charts/case_0018_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 6.17,
+      "pct_of_52w_high": 84.06,
+      "pct_above_52w_low": 9.4,
+      "sma10": 6.166,
+      "sma20": 6.0855,
+      "sma50": 6.2034,
+      "vol_20d_avg": 1460320.0,
+      "vol_50d_avg": 1520774.0,
+      "adr_pct_21d": 1.205,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0019",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0019_morphology.png",
+    "context_chart_file": "charts/case_0019_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 6.97,
+      "pct_of_52w_high": 40.45,
+      "pct_above_52w_low": 12.78,
+      "sma10": 7.149,
+      "sma20": 7.3045,
+      "sma50": 7.829,
+      "vol_20d_avg": 4815565.0,
+      "vol_50d_avg": 6305550.0,
+      "adr_pct_21d": 4.183,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0020",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0020_morphology.png",
+    "context_chart_file": "charts/case_0020_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 42.75,
+      "pct_of_52w_high": 93.1,
+      "pct_above_52w_low": 46.76,
+      "sma10": 43.365,
+      "sma20": 43.9785,
+      "sma50": 42.5964,
+      "vol_20d_avg": 12825.0,
+      "vol_50d_avg": 15723.0,
+      "adr_pct_21d": 1.498,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0021",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0021_morphology.png",
+    "context_chart_file": "charts/case_0021_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 46.14,
+      "pct_of_52w_high": 91.53,
+      "pct_above_52w_low": 19.35,
+      "sma10": 47.441,
+      "sma20": 47.2625,
+      "sma50": 46.1924,
+      "vol_20d_avg": 12245.0,
+      "vol_50d_avg": 9950.0,
+      "adr_pct_21d": 2.394,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0022",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0022_morphology.png",
+    "context_chart_file": "charts/case_0022_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 76.88,
+      "pct_of_52w_high": 88.2,
+      "pct_above_52w_low": 15.91,
+      "sma10": 77.505,
+      "sma20": 76.5495,
+      "sma50": 78.2156,
+      "vol_20d_avg": 4425715.0,
+      "vol_50d_avg": 5284612.0,
+      "adr_pct_21d": 2.348,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0023",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0023_morphology.png",
+    "context_chart_file": "charts/case_0023_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 37.05,
+      "pct_of_52w_high": 94.95,
+      "pct_above_52w_low": 48.14,
+      "sma10": 37.408,
+      "sma20": 37.2015,
+      "sma50": 36.876,
+      "vol_20d_avg": 512554.3,
+      "vol_50d_avg": 636299.7,
+      "adr_pct_21d": 2.133,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0024",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0024_morphology.png",
+    "context_chart_file": "charts/case_0024_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 46.47,
+      "pct_of_52w_high": 92.18,
+      "pct_above_52w_low": 5.14,
+      "sma10": 46.653,
+      "sma20": 46.6275,
+      "sma50": 46.2222,
+      "vol_20d_avg": 11552.9,
+      "vol_50d_avg": 10919.2,
+      "adr_pct_21d": 1.376,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0025",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0025_morphology.png",
+    "context_chart_file": "charts/case_0025_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 21.31,
+      "pct_of_52w_high": 82.44,
+      "pct_above_52w_low": 515.9,
+      "sma10": 22.857,
+      "sma20": 20.193,
+      "sma50": 19.0567,
+      "vol_20d_avg": 6539260.0,
+      "vol_50d_avg": 7693494.0,
+      "adr_pct_21d": 10.755,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0026",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0026_morphology.png",
+    "context_chart_file": "charts/case_0026_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 9.11,
+      "pct_of_52w_high": 88.79,
+      "pct_above_52w_low": 75.87,
+      "sma10": 8.9385,
+      "sma20": 8.9857,
+      "sma50": 9.1983,
+      "vol_20d_avg": 19301.9,
+      "vol_50d_avg": 22172.8,
+      "adr_pct_21d": 2.469,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0027",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0027_morphology.png",
+    "context_chart_file": "charts/case_0027_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 4.58,
+      "pct_of_52w_high": 31.7,
+      "pct_above_52w_low": 10.23,
+      "sma10": 4.4325,
+      "sma20": 4.7168,
+      "sma50": 5.1247,
+      "vol_20d_avg": 1054060.0,
+      "vol_50d_avg": 1122200.0,
+      "adr_pct_21d": 4.794,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0028",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0028_morphology.png",
+    "context_chart_file": "charts/case_0028_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 7.2,
+      "pct_of_52w_high": 75.63,
+      "pct_above_52w_low": 1.41,
+      "sma10": 7.155,
+      "sma20": 7.182,
+      "sma50": 7.2794,
+      "vol_20d_avg": 454710.0,
+      "vol_50d_avg": 333332.0,
+      "adr_pct_21d": 0.855,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0029",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0029_morphology.png",
+    "context_chart_file": "charts/case_0029_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 430.14,
+      "pct_of_52w_high": 84.21,
+      "pct_above_52w_low": 18.66,
+      "sma10": 435.353,
+      "sma20": 438.175,
+      "sma50": 456.3674,
+      "vol_20d_avg": 1091595.0,
+      "vol_50d_avg": 1301604.0,
+      "adr_pct_21d": 2.103,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0030",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0030_morphology.png",
+    "context_chart_file": "charts/case_0030_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 20.27,
+      "pct_of_52w_high": 57.0,
+      "pct_above_52w_low": 47.53,
+      "sma10": 19.407,
+      "sma20": 18.985,
+      "sma50": 19.6102,
+      "vol_20d_avg": 45005.0,
+      "vol_50d_avg": 78246.0,
+      "adr_pct_21d": 3.466,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0031",
+    "family": "hammer",
+    "morphology_chart_file": "charts/case_0031_morphology.png",
+    "context_chart_file": "charts/case_0031_context.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "morphology_bars_shown": 16,
+      "context_bars_shown": 90,
+      "n_bars_available": 400,
+      "candidate_marker": "a neutral gray dashed vertical line marks the candidate bar (always the rightmost bar) identically on both views, regardless of the true label",
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- a small number of cases may show a raw data discontinuity; flag AMBIGUOUS-INSUFFICIENT if the chart itself looks internally inconsistent (e.g. price jumps orders of magnitude with no gradual transition) rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 3.14,
+      "pct_of_52w_high": 46.52,
+      "pct_above_52w_low": 41.44,
+      "sma10": 3.182,
+      "sma20": 3.0015,
+      "sma50": 3.147,
+      "vol_20d_avg": 342905.0,
+      "vol_50d_avg": 354426.0,
+      "adr_pct_21d": 6.815,
+      "n_bars_available": 400
+    }
+  }
+]
