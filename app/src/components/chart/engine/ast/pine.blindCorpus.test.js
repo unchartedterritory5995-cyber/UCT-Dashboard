@@ -173,8 +173,15 @@ const SERVED_CONTROLS = Object.freeze({
  *  against a whole number is decided by that many bars, so `pine:state` left this
  *  exam's guard histogram entirely. It widened no vocabulary — a genuine running
  *  total still refuses, and that control is the first test in the new file. */
+/** ⭐ 2026-09-06 — RISK-004 blind-corpus decomposition tranche: re-running this
+ *  exam against current HEAD found `PASSING.length` already at 27 (Vendor
+ *  Parity Tranche 2 Lane B had moved it there on 2026-09-05, but this
+ *  constant was never ratcheted to match — a bookkeeping lag, not a
+ *  regression). Corrected here per that tranche's explicit "a trivial
+ *  bookkeeping/documentation error required to report the truth" allowance.
+ *  No engine behavior changed; only this floor's own honesty. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 21
+const FLOOR = 27
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {
