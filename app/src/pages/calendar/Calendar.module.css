@@ -2021,6 +2021,18 @@
   border-radius: 10px;
   padding: 14px;
 }
+/* Seam 20 (Calendar TickerActions Reuse V2): the row is now a real
+   <button> -- same UA-chrome reset EventCard.jsx's own .evtCard uses,
+   composed alongside .hubInsightRow (which already declares its own
+   background/border, so those need no reset here). */
+.hubInsightRowBtn {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .hubInsightSym {
   font-size: 14px;
   font-weight: 800;

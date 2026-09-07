@@ -12,7 +12,7 @@
 // Per-tab unseen count badge shown on the tab button.
 // Mobile: stacked layout (no horizontal scroll needed).
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import {
@@ -312,16 +312,28 @@ function InsightsTab({ mineSyms }) {
 }
 
 function InsightForSym({ sym }) {
+  const navigate = useNavigate()
   const { data } = useSentiment(sym)
 
+  // Seam 20 (Calendar TickerActions Reuse V2, 2026-09-06): the Insights
+  // tab was the same shape as the pre-fix Wire -- a live, ticker-scoped
+  // row with zero click behavior. Same structurally-simple fix
+  // EventCard.jsx already got: the row itself becomes a real <button>,
+  // native-keyboard-safe by construction, navigating to the same
+  // canonical Research destination.
   return (
-    <div className={styles.hubInsightRow}>
+    <button
+      type="button"
+      className={`${styles.hubInsightRow} ${styles.hubInsightRowBtn}`}
+      onClick={() => navigate(`/research/${sym}`)}
+      title={`View ${sym} in Research`}
+    >
       <div className={styles.hubInsightSym}>{sym}</div>
       {data
         ? <SentimentGaugeDisplay data={data} />
         : <div className={styles.hubCallLoading}>Loading…</div>
       }
-    </div>
+    </button>
   )
 }
 

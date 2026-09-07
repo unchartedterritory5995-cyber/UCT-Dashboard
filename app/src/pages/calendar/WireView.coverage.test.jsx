@@ -10,6 +10,7 @@
 //     scream "missing" about rows nobody ever recorded)
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('./useWire', () => ({ useWire: () => globalThis.__wire }))
 vi.mock('./useWireCoverage', () => ({
@@ -23,6 +24,12 @@ const row = (sym, seen) => ({
   eps_act: 1.2, eps_est: 1.1, rev_act: 100, rev_est: 99,
 })
 
+// Seam 20 (Calendar TickerActions Reuse V2): WireView rows are now real
+// <button>s navigating via useNavigate, which requires a Router ancestor.
+function renderWire() {
+  return render(<MemoryRouter><WireView /></MemoryRouter>)
+}
+
 const cov = (extra = {}) => ({
   market_date: '2026-08-11', is_current_session: true, measured: true,
   reported: 99, on_feed_with_numbers: 99,
@@ -33,7 +40,7 @@ describe('WireView coverage trust line', () => {
   it('says complete, with the measured count', () => {
     globalThis.__wire = { data: { rows: [row('SE', 1000)], expected: 1 } }
     globalThis.__wireCov = { data: cov() }
-    render(<WireView />)
+    renderWire()
     const line = screen.getByTestId('wire-coverage')
     expect(line.textContent).toMatch(/Complete/)
     expect(line.textContent).toMatch(/99 reported/)
@@ -44,7 +51,7 @@ describe('WireView coverage trust line', () => {
     globalThis.__wireCov = {
       data: cov({ missing_from_feed: ['SLAB', 'BGS'], ok: false }),
     }
-    render(<WireView />)
+    renderWire()
     const line = screen.getByTestId('wire-coverage')
     expect(line.textContent).toMatch(/SLAB/)
     expect(line.textContent).toMatch(/BGS/)
@@ -55,7 +62,7 @@ describe('WireView coverage trust line', () => {
     const many = Array.from({ length: 12 }, (_, i) => `S${String(i).padStart(2, '0')}`)
     globalThis.__wire = { data: { rows: [row('SE', 1000)], expected: 2 } }
     globalThis.__wireCov = { data: cov({ missing_from_feed: many, ok: false }) }
-    render(<WireView />)
+    renderWire()
     const line = screen.getByTestId('wire-coverage')
     expect(line.textContent).toMatch(/S07/)
     expect(line.textContent).not.toMatch(/S08/)
@@ -65,7 +72,7 @@ describe('WireView coverage trust line', () => {
   it('renders unmeasured as UNKNOWN, never as clean', () => {
     globalThis.__wire = { data: { rows: [row('SE', 1000)], expected: 1 } }
     globalThis.__wireCov = { data: cov({ measured: false }) }
-    render(<WireView />)
+    renderWire()
     const line = screen.getByTestId('wire-coverage')
     expect(line.textContent).toMatch(/unverified/i)
     expect(line.textContent).not.toMatch(/✓ Complete/)
@@ -74,14 +81,14 @@ describe('WireView coverage trust line', () => {
   it('does not render at all for a non-current session', () => {
     globalThis.__wire = { data: { rows: [row('SE', 1000)], expected: 1 } }
     globalThis.__wireCov = { data: cov({ is_current_session: false, missing_from_feed: ['GHOST'] }) }
-    render(<WireView />)
+    renderWire()
     expect(screen.queryByTestId('wire-coverage')).toBeNull()
   })
 
   it('still shows the trust line on the empty pre-print view', () => {
     globalThis.__wire = { data: { rows: [], expected: 37 } }
     globalThis.__wireCov = { data: cov({ reported: 0 }) }
-    render(<WireView />)
+    renderWire()
     expect(screen.getByTestId('wire-coverage')).toBeInTheDocument()
     expect(screen.getByText(/37 reporters/)).toBeInTheDocument()
   })

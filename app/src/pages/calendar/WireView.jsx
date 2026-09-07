@@ -8,6 +8,7 @@
 // upgrade-in-place promise would break. Significance instead drives visual
 // WEIGHT — a big mover renders loud, a small one renders quiet, both stay put.
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styles from './WireView.module.css'
 import { useWire } from './useWire'
 import { useWireCoverage } from './useWireCoverage'
@@ -83,6 +84,7 @@ function CoverageLine({ cov }) {
 }
 
 export default function WireView({ dateStr }) {
+  const navigate = useNavigate()
   const { data } = useWire(dateStr)
   const { data: cov } = useWireCoverage(dateStr)
   const rows = data?.rows ?? []
@@ -113,8 +115,21 @@ export default function WireView({ dateStr }) {
       <CoverageLine cov={cov} />
       {ordered.map(r => {
         const mv = r.move_pct
+        // Seam 20 (Calendar TickerActions Reuse V2, 2026-09-06): the Wire
+        // was a live, ticker-scoped, first-listed calendar view with zero
+        // click behavior on any row -- not even a chart popup. Same
+        // structurally-simple fix EventCard.jsx already got: the row
+        // itself becomes a real <button>, native-keyboard-safe by
+        // construction, navigating to the same canonical Research
+        // destination.
         return (
-          <div key={r.sym} className={`${styles.row} ${weightOf(r)}`}>
+          <button
+            key={r.sym}
+            type="button"
+            className={`${styles.row} ${styles.rowBtn} ${weightOf(r)}`}
+            onClick={() => navigate(`/research/${r.sym}`)}
+            title={`View ${r.sym} in Research`}
+          >
             <span className={styles.time}>{fmtTime(r.first_seen_at)}</span>
             <span className={styles.sym} data-testid="wire-sym">{r.sym}</span>
             <span className={mv != null && mv < 0 ? styles.down : styles.up}>
@@ -132,7 +147,7 @@ export default function WireView({ dateStr }) {
                 {' · '}Rev {fmtNum(r.rev_act)} vs {fmtNum(r.rev_est)}
               </span>
             )}
-          </div>
+          </button>
         )
       })}
     </div>

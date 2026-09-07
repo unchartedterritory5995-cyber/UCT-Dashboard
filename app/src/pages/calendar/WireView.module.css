@@ -18,6 +18,23 @@
   min-height: var(--tap-min, 44px);
 }
 
+/* Seam 20: the row is now a real <button> (Calendar TickerActions Reuse
+   V2) -- reset the UA button chrome the same way EventCard.jsx's own
+   .evtCard does, while keeping .row's grid layout intact. */
+.rowBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border, #222);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rowBtn:hover {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+}
+
 .time {
   color: var(--color-text-muted, #8a8a8a);
   font-variant-numeric: tabular-nums;
