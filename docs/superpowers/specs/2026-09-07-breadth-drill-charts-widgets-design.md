@@ -134,6 +134,27 @@ High · % from Low · Daily Closing Range · Dollar Volume · **Sector** ·
 **Industry** · **Theme** · 5-Day Change · 30-Day Change · 60-Day Change · 90-Day
 Change · Attention — plus Reset columns.
 
+### 2.5 Second sweep — menus and handlers
+
+A second live pass opened the menus the first missed.
+
+- **Chart right-click menu** carries nine items, two of which the design had not
+  accounted for: **Send to Journal** and **Send to Journal (choose where)…**.
+  Both route through `sendCaptureToJournal`, which reads `getCaptureState()` off
+  `chartApiById` — so they are a second, independent reason that member must be
+  real rather than stubbed.
+- **Ask AI is safe.** `ChartWidget:445-451` deliberately does *not* use
+  `aiSearchBus`; it navigates to the canonical `/research/:sym?section=ai` route,
+  with a comment explaining that a security-scoped AI action must mean the same
+  canonical Ask AI everywhere. An inert `aiSearchBus` therefore costs nothing.
+- **The watchlist's right-click is the COLUMNS menu everywhere in the table** —
+  header row and data rows alike. There is no separate per-symbol right-click
+  menu on this path; the per-symbol actions live elsewhere in the row UI.
+- ⚠️ **`/ai-search` has the same latent bug.** `AiSearchPage.jsx:284` does
+  `{ ...WORKSPACE_FALLBACK, aiSearchBus: busRef.current }`, so it inherits the
+  four-member gap too. Fixing `WORKSPACE_FALLBACK` (§8) repairs that host for
+  free.
+
 ⭐ **Two findings that change the plan:**
 
 1. **Sector, Industry and Theme are already watchlist columns.** The grouping
@@ -291,11 +312,14 @@ the behaviour every optional column already has.
 ### 4.2 Changed (shared frontend — the only three)
 
 1. **`app/src/pages/Watchlists.jsx`** — two additions:
-   - a `groupMode` prop, `'accordion' | 'multi'`, **defaulting to
+   - a **`groupExpand`** prop, `'accordion' | 'multi'`, **defaulting to
      `'accordion'`**. Only the `toggleGroupExpand` reducer and the initial
      expanded set change. Scanner and Period-Sort pass nothing and are
      byte-identical afterward; breadth passes `'multi'` for all-groups-open with
      per-group collapse.
+     ⚠️ Named `groupExpand`, **not** `groupMode` as an earlier draft of this spec
+     said: `Watchlists.jsx` already has a local `const groupMode = scanMode &&
+     scanGroups && …` boolean, and a prop of that name would shadow it.
    - **`atr` and `a50` added to `EXTRA_COLS`** (+ `COL_LABELS`, `COL_META`,
      `COL_FULL_MINW`) so ATR% and 50SMA become columns every watchlist can show.
      Additive — no existing column, order or stored layout changes, and a list
@@ -405,7 +429,10 @@ Visual parity is the easy half. This section is the functional contract.
 | Colour groups (link / unlink, cycle) | `groupSyms` / `setGroupSym` | ✅ real |
 | Crosshair sync | `crosshairBus` | ✅ real |
 | Hotkey arbitration (one TF keypress retimes one chart) | `activeChartRef` | ✅ real |
-| Right-click menu — Set alert · Reset view · Chart settings · AI search | `createAlert`, `paneRef` | ✅ |
+| Right-click menu, full inventory captured live: **Set alert @ $x · Send to Journal · Send to Journal (choose where)… · Reset view · Watermark settings · Chart settings · Chart template ▸ · Add widget ▸ · Ask AI about SYM** | see rows below | ✅ except Add widget |
+| ↳ Ask AI | canonical `navigate('/research/:sym?section=ai')` — **not** `aiSearchBus` (ChartWidget:445-451 says so explicitly) | ✅ works |
+| ↳ Send to Journal (both) | `sendCaptureToJournal` + `getCaptureState()` via `chartApiById` | ✅ **only because `chartApiById` is real** (§3.1) |
+| ↳ Add widget ▸ | `floatNewWidget` | ❌ inert — §7.2 |
 | Context-aware settings targets — watermark · axis · MA · volume · candles · canvas | `paneRef.openSettings(target)` | ✅ |
 | Saved chart-settings templates (`chart_templates`) | pref | ✅ |
 | Alerts scoped to this chart | `chartId` | ✅ host supplies a stable id |

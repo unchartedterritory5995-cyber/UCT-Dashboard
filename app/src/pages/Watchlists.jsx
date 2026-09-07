@@ -121,6 +121,9 @@ const COL_META = {
   grpcount: { def: 60, min: 44 },
   // View Holdings (ETF): the holding's weight in the fund (fed via metaOverride).
   weight: { def: 74, min: 50 },
+  // Volatility + trend-distance. Available to EVERY list; fed via metaOverride by
+  // callers that already compute them (the breadth drill), blank elsewhere.
+  atr: { def: 66, min: 46 }, a50: { def: 76, min: 54 },
   // Watchlist Intelligence V1: deterministic "why is this active" badge.
   attention: { def: 84, min: 60 },
 }
@@ -138,12 +141,14 @@ const COL_LABELS = {
   periodchg: ['% Change', '% Chg'],
   grpcount: ['Stocks', 'Stocks'],
   weight: ['Weight %', 'Wt %'],
+  atr: ['ATR %', 'ATR%'], a50: ['% from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
 }
 const COL_FULL_MINW = {
   sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40, weight: 56,
+  atr: 44, a50: 96,
   attention: 60,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
@@ -168,6 +173,8 @@ const EXTRA_COLS = [
   { key: 'perf60d', label: '60-Day Change' },
   { key: 'perf90d', label: '90-Day Change' },
   { key: 'attention', label: 'Attention' },
+  { key: 'atr', label: 'ATR %' },
+  { key: 'a50', label: '% from 50SMA' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
@@ -346,7 +353,7 @@ const WatchRow = React.memo(function WatchRow({
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
-  weight = null,
+  weight = null, atr = null, a50 = null,
   notable = false, intelStatus = null, intelFacts = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx, onAttention,
@@ -460,6 +467,12 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : ''}</span>
     // ETF holding weight % (View Holdings panel; fed via metaOverride).
     if (key === 'weight') return <span key="weight" className={styles.metaCell}>{weight != null ? `${weight.toFixed(2)}%` : '—'}</span>
+    // ATR % — a magnitude, never signed, so it gets a plain cell (not pctCell,
+    // whose green/red tint would imply a direction volatility does not have).
+    if (key === 'atr') return <span key="atr" className={styles.metaCell}>{Number.isFinite(atr) ? `${Number(atr).toFixed(1)}%` : '—'}</span>
+    // Distance from the 50-day — signed, so it reads as a tinted % like the
+    // other directional columns.
+    if (key === 'a50') return pctCell('a50', a50)
     // Watchlist Intelligence V1: a bell badge when any deterministic fact fired
     // (earnings proximity, new filing, analyst action, notable price move) —
     // opens a popover listing each fact + its evidence date/source/freshness.
@@ -616,7 +629,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion' }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -636,11 +649,40 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // expand inline to its member stocks (like Theme Tracker). scanGroups maps name → members[].
   const groupMode = scanMode && scanGroups && typeof scanGroups === 'object'
   const [expandedGroups, setExpandedGroups] = useState(() => new Set())
-  // Accordion: only ONE group's stocks are open at a time — clicking a new group
-  // closes whichever was open (clicking the open group collapses it).
+  // Two group-expansion modes, because two surfaces want opposite things:
+  //   'accordion' (DEFAULT — Custom-Period Sort, Scanner): ONE group open at a
+  //     time. You are drilling into one theme; the others are noise.
+  //   'multi' (the breadth drill): ALL groups open, each independently
+  //     collapsible. Seeing which industries dominate the cohort IS the read —
+  //     an accordion hides exactly the comparison the surface exists to make.
+  // ⛔ The default must stay 'accordion' so every existing caller is unchanged.
+  const multiExpand = groupExpand === 'multi'
   const toggleGroupExpand = useCallback((name) => {
-    setExpandedGroups(prev => (prev.has(name) ? new Set() : new Set([name])))
-  }, [])
+    setExpandedGroups(prev => {
+      if (multiExpand) {
+        const next = new Set(prev)
+        if (next.has(name)) next.delete(name); else next.add(name)
+        return next
+      }
+      return prev.has(name) ? new Set() : new Set([name])
+    })
+  }, [multiExpand])
+  // In 'multi' the groups start OPEN. Seeded off the group names themselves (not
+  // a mount-once effect) so a list whose groups arrive async — or whose grouping
+  // dimension changes from Industry to Sector — opens the NEW set rather than
+  // staying collapsed. Keyed on the joined names so re-seeding happens exactly
+  // when the set of groups actually changes. The key is JSON rather than a
+  // joined string because an industry/sector/theme name can contain any
+  // punctuation ("Farm & Heavy Construction Machinery"), so no separator
+  // character is safe; the SEED reads the object directly.
+  const groupNamesKey = multiExpand && scanGroups ? JSON.stringify(Object.keys(scanGroups).sort()) : ''
+  const seededGroupsRef = useRef(null)
+  useEffect(() => {
+    if (!multiExpand) return
+    if (seededGroupsRef.current === groupNamesKey) return
+    seededGroupsRef.current = groupNamesKey
+    setExpandedGroups(new Set(scanGroups ? Object.keys(scanGroups) : []))
+  }, [multiExpand, groupNamesKey])
   const scanWl = useMemo(
     () => (scanMode
       ? { id: '__scan__', name: pickName || 'Scan',
@@ -1806,6 +1848,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
       if (key === 'weight') return Number.isFinite(m?.weight) ? m.weight : null
+      if (key === 'atr') return Number.isFinite(m?.atr) ? m.atr : null
+      if (key === 'a50') return Number.isFinite(m?.a50) ? m.a50 : null
       // Watchlist Intelligence: sort key is a plain (notable ? 1 : 0) — never a
       // weighted/opaque score. Symbols with no intel data yet (still loading)
       // sort as not-notable rather than sinking to the bottom via a null.
@@ -2027,6 +2071,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         periodchg={perfLive('period')}
         grpcount={metaData[sym]?.group_count ?? null}
         weight={metaData[sym]?.weight ?? null}
+        atr={metaData[sym]?.atr ?? null}
+        a50={metaData[sym]?.a50 ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
