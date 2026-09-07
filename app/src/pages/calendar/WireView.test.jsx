@@ -4,7 +4,7 @@
 //   • order is by ARRIVAL and never by move size (a row must not jump)
 //   • significance drives visual WEIGHT only
 //   • before the first print the view says what is expected, never blank
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -17,6 +17,20 @@ vi.mock('react-router-dom', async (importOriginal) => {
 vi.mock('./useWire', () => ({ useWire: () => globalThis.__wire }))
 vi.mock('./useWireCoverage', () => ({
   useWireCoverage: () => (globalThis.__wireCov ?? { data: null }),
+}))
+
+// Seam 19: same shallow-mock convention CalendarDayTable.test.jsx/
+// EarningsCard.test.jsx already use for TickerActions -- the real menu's
+// own behavior is TickerActions.jsx's own test responsibility; this file
+// proves the WIRING (scoped to the sym span, not the whole row).
+const mockLongPressProps = vi.fn(() => ({}))
+const mockCloseMenu = vi.fn()
+let mockMenu = null
+vi.mock('../../components/TickerActions', () => ({
+  default: ({ menu, onClose }) => menu
+    ? <div data-testid="ticker-menu" onClick={onClose}>{menu.sym}</div>
+    : null,
+  useTickerActions: () => ({ menu: mockMenu, openMenu: vi.fn(), closeMenu: mockCloseMenu, longPressProps: mockLongPressProps }),
 }))
 
 import WireView from './WireView'
@@ -136,5 +150,30 @@ describe('WireView -- Seam 20, row click-through to Research (Calendar TickerAct
     expect(btn.tagName).toBe('BUTTON')
     expect(btn).not.toHaveAttribute('disabled')
     expect(btn).toHaveAttribute('title', 'View NVDA in Research')
+  })
+})
+
+describe('WireView -- Seam 19, TickerActions reuse', () => {
+  beforeEach(() => { mockMenu = null; mockLongPressProps.mockClear(); mockCloseMenu.mockClear() })
+
+  it('scopes long-press/right-click to the sym span, threading each row\'s own symbol', () => {
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000), row('AMD', 3000)], expected: 2 } }
+    renderWire()
+    expect(mockLongPressProps).toHaveBeenCalledWith('NVDA')
+    expect(mockLongPressProps).toHaveBeenCalledWith('AMD')
+  })
+
+  it('the row click-to-navigate behavior is completely unchanged', () => {
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
+    renderWire()
+    fireEvent.click(screen.getByText('NVDA').closest('button'))
+    expect(mockNavigate).toHaveBeenCalledWith('/research/NVDA')
+  })
+
+  it('an open menu renders via the shared TickerActionsMenu', () => {
+    mockMenu = { sym: 'NVDA', x: 0, y: 0 }
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
+    renderWire()
+    expect(screen.getByTestId('ticker-menu')).toHaveTextContent('NVDA')
   })
 })
