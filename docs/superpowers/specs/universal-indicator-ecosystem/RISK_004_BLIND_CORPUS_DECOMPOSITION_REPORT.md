@@ -2291,9 +2291,9 @@ not the corpus counts themselves.
 
 ## 13. Commit
 
-`[to be filled by the commit that lands this reconciliation]` — evidence,
-docs, and one test file (`sentence.test.js`) changed; no product code
-changed, per this reconciliation's own explicit instruction.
+`31d5a19a2` on `worktree-indicator-ecosystem` — evidence, docs, and one
+test file (`sentence.test.js`) changed; no product code changed, per this
+reconciliation's own explicit instruction.
 
 ## 14. Recommendation: architecture capability next, or a new out-of-sample
 corpus next
