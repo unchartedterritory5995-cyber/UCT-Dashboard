@@ -6,111 +6,120 @@
 > than appending to them.
 
 **Last verified:** 2026-09-07, against live git + Railway state, post
-**Seam 6** merge/deploy (Chart Session / Extended-Hours Temporal
-Convergence V1). Prior programs this session, most recent first: Seam
-14 (Ticker Search Surface Convergence V1), Seam 11 (Position ↔ Related
-Trades, honest labeling), Seam 17 Remainder (Journal Symbol Input
-Assist V1), Seam 1 read-side half (a real WRITE to production identity
-data), Seam 19 (TickerActions Dedicated Scope + Convergence V1) — full
-detail for all of these lives in "CURRENT ACCEPTED" below and the debt
-ledger, not re-summarized here again. Both re-anchor MUST-FIX trust
-defects (Seam 28, Seam 29), Alert Durability V1 (Seam 30), the keyboard
-accessibility program, Compare Coverage V1, Seam 20, Feature-Flag
-Governance Sweep, Seam 25, Seam 21, the `CommandPalette.jsx` jsonFetcher
-fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, Seam 11, Seam
-14, and now **Seam 6** are all closed. This section covers Seam 6 in
-full since it's the newest.
+**Seam 8** merge/deploy (Price-Move Evidence Timestamp Convergence V1).
+Prior programs this session, most recent first: Seam 6 (Chart Session /
+Extended-Hours Temporal Convergence V1), Seam 14 (Ticker Search Surface
+Convergence V1), Seam 11 (Position ↔ Related Trades, honest labeling),
+Seam 17 Remainder (Journal Symbol Input Assist V1), Seam 1 read-side
+half (a real WRITE to production identity data), Seam 19 (TickerActions
+Dedicated Scope + Convergence V1) — full detail for all of these lives
+in "CURRENT ACCEPTED" below and the debt ledger, not re-summarized here
+again. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29), Alert
+Durability V1 (Seam 30), the keyboard accessibility program, Compare
+Coverage V1, Seam 20, Feature-Flag Governance Sweep, Seam 25, Seam 21,
+the `CommandPalette.jsx` jsonFetcher fix, Seam 19, Seam 1 (read-side
+half), Seam 17 Remainder, Seam 11, Seam 14, Seam 6, and now **Seam 8**
+are all closed. This section covers Seam 8 in full since it's the
+newest; Seam 6 is condensed (full detail in "CURRENT ACCEPTED" below).
+
+**Seam 8 — PRICE-MOVE EVIDENCE TIMESTAMP CONVERGENCE, RESOLVED — the
+fix was already half-built, just discarded.** A dedicated Phase A
+(explicit **Absolute Trust Rule**: never manufacture an `as_of`;
+explicit **ZERO new external market-data requests** requirement — "if
+fixing Seam 8 requires a separate quote request per symbol: STOP and
+report") traced the full pipeline for all three Attention consumers
+(Watchlist, Portfolio/J2, Position Detail) end-to-end and found
+`massive.py::_MassiveRestClient.get_batch_quotes` **already computes**
+each ticker's own vendor observation timestamp
+(`_ticker_observed_at`, live-validated to agree with `lastTrade.t`
+within ~1s) — it was only ever folded into an aggregate result-level
+freshness classification and discarded per-ticker. Fix, merge
+`22452cff7`/`dbd08ece6`: stamp it onto each ticker's own dict
+(`t["_observed_at"]`, `massive.py`) and thread it through
+`live_prices.py` (new public `observed_at` field on the live path;
+explicitly `None` on the closed-market/weekend/holiday fallback, which
+has no per-symbol observation to report — `_session_closes()` doesn't
+track which calendar date each map represents, and widening that
+shared cached contract was explicitly out of this V1's scope) → both
+Attention consumer paths (`journal_two.py`'s `positions_attention`
+threads `price_observed_at` from the SAME `live` dict already fetched
+for `changes`; `watchlists.py`'s `IntelRequest` gains an optional
+`price_observed_at` field) → `watchlist_intelligence.py`'s
+`_price_move_fact`, which converts the epoch-seconds observation to an
+ET-calendar `YYYY-MM-DD` date (matching every OTHER fact kind's own
+`as_of` convention — confirmed via exhaustive grep that every consumer
+renders `as_of` via bare string interpolation, never `new Date()`
+parsing). **ZERO new provider calls, confirmed** — this satisfies the
+directive's strictest constraint about as cleanly as possible: "stop
+discarding a value already in hand," not "build new infrastructure."
+Every new parameter is optional/additive (`observed_at`/
+`price_observed_at`/`priceObservedAt` default `None`/`{}` throughout);
+a caller that omits it — every caller before Seam 8 — gets byte-
+identical behavior. `useWatchlistIntelligence.js`'s new
+`priceObservedAt` param deliberately stays OUT of the SWR key (an
+inline closure-based fetcher defined inside the hook body, mirroring
+`changes`'s own existing off-key design rationale) — a first draft that
+put it in the key would have refetched the whole intelligence batch on
+every ~15s live-price tick; caught and fixed by re-reading the hook's
+own existing comment before committing. Non-vacuity-checked via the
+established safe-stash pattern: 19 of 21 new/changed test assertions
+genuinely fail without the implementation (the 2 that pass are
+implementation-independent: "no observed_at supplied" and "degrades
+gracefully"). 76 backend tests green (`test_watchlist_intelligence.py`,
+`test_journal_two_positions_attention.py`, new
+`test_live_prices_observed_at.py`, all `test_live_prices_*.py`
+siblings) + 6 frontend tests green
+(`Watchlists.intelligence.test.jsx`); clean build; production-verified
+via BOTH commit-SHA match AND a read-only `GET /api/live-prices` check
+(safe — reads, never manipulates, any clock or price) confirming
+`observed_at` is genuinely present in the deployed response schema,
+correctly `null` today (2026-09-07, Labor Day, closed market) exactly
+as the closed-market-fallback design intends.
 
 **Seam 6 — CHART SESSION / EXTENDED-HOURS TEMPORAL CONVERGENCE,
-RESOLVED — a real defect, not architecture-duplication-only.** A
-dedicated Phase A (codebase trace + an EXECUTED fixed-clock diagnostic
-comparing `app/src/utils/extSession.js` against S11's canonical
-`marketClock.js::sessionState()` for every weekend/holiday/early-close/
-out-of-coverage case, mirroring the ALREADY-ACCEPTED `marketSession.js`
-convergence — merge `b94678b4a` — as the explicit template) found THREE
-confirmed, member-visible defects, the same class that fix already
-addressed once: (1) **WRONG SESSION SELECTION** — a full NYSE holiday
-during would-be regular hours read as `'rth'` (the market is actually
-fully closed); (2) **WRONG DATA REQUEST** — the extended-hours
-`anchorDate` on a holiday evening, and MOST SEVERELY in the pre-4am
-window the day AFTER a holiday, pointed AT the holiday itself instead
-of the last real trading day — `StockChart.jsx` feeds this `anchorDate`
-into a real bars fetch (`useSessionExtBars`) and the bar-time the
-synthesized candle attaches to (`anchorNoonSec`→`computeBarTime`), so
-this was never cosmetic; (3) **WRONG EXTENDED-HOURS TOGGLE** — a real
-NYSE early-close day (1:00pm ET) still read as `'rth'` for ~3 more
-hours against the old hardcoded 4:00pm threshold. **Today (2026-09-07)
-happened to be a live, real instance of defect #1 — Labor Day —
-confirmed via the same diagnostic run against the actual date.** Fix,
-merge `c27abb45c`/`73f56ba37`: mirrors `marketSession.js`'s own
-already-accepted convergence exactly — that file's equivalent private
-helpers aren't exported, so this is a SECOND small instance of the same
-pattern on the same shared `nyseCalendar.js` primitives
-(`hasCoverage`/`holidayOn`/`earlyCloseOn`), not a reimplementation of
-calendar truth and not a new shared module (the established precedent
-didn't extract one either). Preserves the chart's own distinct 3-state
-`pre`/`rth`/`post` display-policy semantics (S11 owns WHAT SESSION
-EXISTS; the chart still owns its OWN display policy, per the
-directive's own explicit separation) rather than importing S11's
-4-state `closed` concept wholesale. Outside `nyseCalendar.js`'s covered
-years (2026 only), behavior degrades EXACTLY to the prior weekday-only/
-hardcoded-16:00 logic — confirmed via the diagnostic, never a guess,
-never a throw. **All 3 real consumers** (`ChartPane.jsx`,
-`GridChartCell.jsx`, `StockChart.jsx`) read `getExtSession`'s result
-purely by reference — zero direct edits needed, all inherit the fix
-automatically (confirmed: their own existing test suites, 38 tests, all
-still green unchanged). **A stale ledger note corrected**:
-`LiveFlow.jsx`/`LiveFlow_admin.jsx` were recorded "partner-owned, no
-edit without ack" — a live import-graph check confirmed BOTH are now
-fully dead (`LiveFlow.jsx` redirects to `/live-massive`;
-`LiveFlow_admin.jsx` has zero importers outside its own test file), so
-that protection note was stale; neither was touched regardless since
-neither had anything relevant to fix. `LiveFlowMassive.jsx`'s
-superficially similar weekday-only check is a DIFFERENT, deliberately-
-justified pattern (its own docstring: "a wrong holiday table would be
-worse than the double fetch it saves") — correctly left alone, not the
-same defect. `extSession.js` had ZERO prior direct test coverage — 17
-new fixed-clock tests added (mirrors `marketSession.intraday.test.js`'s
-own established convention); adjacent regression across
-`extSession.cached.test.js`, both `marketSession.js` suites,
-`marketClock.test.js`, and all 3 consumers' own test files: 116 tests
-green, zero regressions; clean build; production-verified via commit
-SHA match (a pure backend-logic change with no new UI string to grep,
-and the directive explicitly forbids manipulating the market clock in
-production — commit-SHA match plus the pre-merge green suite is the
-appropriate verification tier here, same as it was for the Seam 1 doc
-correction earlier this session).
+RESOLVED, merge `c27abb45c`/`73f56ba37` — a real defect, not
+architecture-duplication-only.** Found THREE confirmed, member-visible
+defects mirroring `marketSession.js`'s own already-accepted
+convergence (merge `b94678b4a`): wrong session selection on a full
+NYSE holiday, wrong extended-hours data-request anchor date (fed into a
+real bars fetch, never cosmetic), wrong early-close toggle threshold.
+Today (2026-09-07, Labor Day) was a live, real instance of defect #1,
+confirmed via an executed fixed-clock diagnostic against the actual
+date. 116 tests green; production-verified via commit-SHA match (a
+pure backend-logic change, directive forbids manipulating the market
+clock in production). Full detail in "CURRENT ACCEPTED" below and the
+Seam 6 debt-ledger entry (RESOLVED).
 
-**A fresh re-scan of the debt ledger after Seam 6 found the remaining
-pool thinned further but still not exhausted — HOLDING**: Seam 7/8 each
-still need their own Phase A or a real architecture decision (Seam 6
-itself is now RESOLVED, not on this list) — **re-ranked with fresh
-evidence per the directive's own Section XXIX: SEAM 8 before SEAM 7,
-unchanged from the prior bias** (Seam 8 concerns member-visible
-evidence precision, already half-fixed; Seam 7 remains a pure
-architectural duplication with zero demonstrated live defect — no new
-evidence surfaced by Seam 6's work touches either, so the expected
-ranking holds as-is, not re-derived from scratch); Seam 13 still risks
-colliding with the concurrent Notebook session (still actively landing
-commits — Wave G, Thesis Intelligence, on `origin/master` during this
-very program); Seam 18/22/24 still need a product decision or are
+**A fresh re-scan of the debt ledger after Seam 8 found the remaining
+pool thinned further still but not fully exhausted — HOLDING.** Per the
+directive's own Section XXIX, **Seam 7 is next to re-rank with fresh
+evidence** — re-ranked, not started: it still has **zero demonstrated
+live defect** (the two NYSE holiday tables verified byte-for-byte
+identical on all of 2026's real dates — coincidence, not construction),
+and the directive itself warns not to assume it needs implementation
+("the correct answer may be NO MATERIAL FIX NEEDED. Do not refactor for
+theoretical purity"). Its own dedicated Phase A needs a real
+architecture decision (which authority wins; whether the frontend
+should fetch the calendar instead of bundling it) — reported here for
+owner scoping, not started unilaterally. Seam 13 still risks colliding
+with the concurrent Notebook session (still actively landing commits on
+`origin/master`); Seam 18/22/24 still need a product decision or are
 gated, joined by the `ComparisonPicker.jsx` live-search-or-retire
-question (Seam 14); Seam 3/4/27 remain explicitly LOW-PRIORITY.
-`SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence (Seam 14) remains
-a real, recorded, NOT-bounded-for-a-quick-V1 candidate (needs either a
-`useTickerSuggest` opt-in-flag extension or a careful surgical
-adaptation preserving exact Enter-key semantics — real, if small,
-design work, not urgent). Awareness Reachability Restoration V1 remains
-deliberately SKIPPED pending a genuine owner monetization/entitlement
-decision (see the top-of-file section) — do not resolve it
-unilaterally. **Pattern Vision's evidence window has now STARTED but
-NOT completed**: today is 2026-09-07 (Mon 9/7, the holiday-safety day)
-— `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET ACCEPTED;
-Tue 9/8 (real session #1) and Wed 9/9 (real session #2) have not
-happened yet. Re-check this gate specifically at the start of the next
-program — it is the closest live external event to firing. S7 NVDA
-interrupt condition re-checked and still does not apply (`alert_fires`
-table: 0 rows).
+question (Seam 14); `SwitchTickerBox`/`MobileSymbolSheet.jsx`
+convergence remains a real, recorded, not-yet-bounded future candidate;
+Seam 3/4/27 remain explicitly LOW-PRIORITY. Awareness Reachability
+Restoration V1 remains deliberately SKIPPED pending a genuine owner
+monetization/entitlement decision. **Pattern Vision's evidence window
+is mid-flight, NOT completed**: today (2026-09-07, Mon, the
+holiday-safety-observation day) is explicitly NOT a real acceptance
+session per the directive's own caveat — `PATTERN_VISION_ENABLED=1`
+live-read, still LIVE/NOT YET ACCEPTED; Tue 9/8 and Wed 9/9 haven't
+happened yet. Re-check this gate at the start of whatever comes next —
+it is the closest live external event to actually firing this week. S7
+NVDA interrupt condition re-checked live and still does not apply
+(`alert_fires` table: 0 rows). **HOLDING** — continuing under the
+Continuous Execution Directive means reporting this honestly rather
+than manufacturing activity against a genuinely gated pool.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -554,8 +563,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   evidence timestamp exists anywhere in the current pipeline — confirmed by
   tracing `live_prices.py`/`journal_two.py`/the frontend `changes` hooks end
   to end; all three consumers already null-guard `as_of`). Full per-ticker
-  timestamp threading (2 endpoint contracts + 1 frontend hook) remains
-  DEFERRED. Zero public API contract changes across all 8 other confirmed
+  timestamp threading (2 endpoint contracts + 1 frontend hook) remained
+  DEFERRED at the time (now RESOLVED — see Seam 8, merge
+  `22452cff7`/`dbd08ece6`, 2026-09-07). Zero public API contract changes across all 8 other confirmed
   production callers of the two touched modules; zero frontend files
   touched. 7 backend files changed (4 source + 3 test), 328 focused +
   adjacent tests passing (2 pre-existing exact-equality miss-dict assertions
@@ -2173,6 +2183,68 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   interrupt condition re-checked live and still does not apply. Do not
   manufacture activity against a genuinely thinned-but-still-gated
   ledger.
+  **The owner then explicitly directed a dedicated Phase A for Seam 6**
+  (Chart Session / Extended-Hours Temporal Convergence V1, mirroring the
+  already-accepted `marketSession.js` convergence as the explicit template,
+  explicit "do not assume a fix is required merely because duplicate time
+  logic exists") — **RESOLVED, merge `c27abb45c`/`73f56ba37`**. Found THREE
+  confirmed, member-visible defects (wrong session selection on a full
+  holiday, wrong extended-hours data-request anchor date, wrong early-close
+  toggle threshold) — the same class Seam 6's own template fix already
+  addressed once. Today (2026-09-07, Labor Day) was a live, real instance of
+  defect #1, confirmed via the same fixed-clock diagnostic run against the
+  actual date. Full detail in the top-of-file "Last verified" section and
+  the Seam 6 debt-ledger entry (RESOLVED) above/below.
+  **A fresh re-scan after Seam 6 found the pool thinned further — HOLDING —
+  until the owner explicitly directed a dedicated Phase A for Seam 8**
+  (Price-Move Evidence Timestamp Convergence V1, re-ranked ahead of Seam 7
+  per the directive's own Section XXIX, explicit **Absolute Trust Rule**:
+  never manufacture an `as_of`, explicit **ZERO new external market-data
+  requests** requirement, implementation authorized automatically if Phase A
+  proves READY/READY WITH CONDITIONS) — **RESOLVED, merge
+  `22452cff7`/`dbd08ece6`**. Phase A found the fix already half-built:
+  `massive.py::get_batch_quotes` already computes each ticker's own vendor
+  observation timestamp, previously discarded after folding into an
+  aggregate freshness classification — stamping it per-ticker and threading
+  it through to `_price_move_fact` needed zero new provider calls, exactly
+  satisfying the directive's strictest constraint. Full detail in the
+  top-of-file "Last verified" section and the Seam 8 debt-ledger entry
+  (RESOLVED) above.
+  **Per the directive's own Section XXIX, Seam 7 is next to re-rank with
+  fresh evidence — re-ranked here, NOT re-implemented.** Seam 7 (dual NYSE
+  calendar tables — `nyseCalendar.js` COVERED_YEARS=[2026] only vs.
+  `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` 2025-2027) still has **zero
+  demonstrated live defect** (verified byte-for-byte identical on all of
+  2026's real dates, coincidence not construction) — the directive itself
+  warns not to assume it needs implementation and that "no material fix
+  needed" may be the correct Phase A finding. Seam 6's resolution (which
+  DID touch calendar-adjacent code, `extSession.js`) surfaced no new
+  evidence bearing on Seam 7's own cross-stack ownership question. **This
+  checkpoint reports Seam 7 HOLDING, not started** — its own dedicated
+  Phase A (which requires a real architecture decision: which authority
+  wins, whether the frontend should fetch the calendar instead of bundling
+  it) needs its own explicit scope, matching how every other architecture-
+  decision-gated item in this ledger (Seam 18/22/24, `ComparisonPicker.jsx`)
+  has been handled — reported for owner decision, not unilaterally resolved.
+  **A fresh re-scan of the debt ledger after Seam 8 found the remaining pool
+  thinned further still (Seam 6 and Seam 8 both now closed) but not fully
+  exhausted.** Seam 7 needs a real architecture decision (above); Seam 13
+  still risks colliding with the concurrent Notebook session; Seam 18/22/24
+  still need a product decision or are gated, joined by the
+  `ComparisonPicker.jsx` live-search-or-retire question (Seam 14);
+  `SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
+  recorded, not-yet-bounded future candidate; Seam 3/4/27 remain explicitly
+  LOW-PRIORITY. Pattern Vision's evidence window is mid-flight (today is
+  still Mon 2026-09-07, the holiday-safety-observation day per the
+  directive's own explicit caveat — NOT a real acceptance session; Tue 9/8
+  and Wed 9/9 haven't happened yet); `PATTERN_VISION_ENABLED=1` live-read,
+  still LIVE/NOT YET ACCEPTED. S7 (NVDA alert) interrupt condition
+  re-checked live and still does not apply
+  (`alert_fires` table still 0 rows). **HOLDING** per the standing
+  directive's own completion standard — continuing under the Continuous
+  Execution Directive means reporting status honestly when the remaining
+  pool is genuinely gated on owner decisions or external events, not
+  manufacturing activity against it.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -2270,21 +2342,37 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   the frontend should fetch the calendar instead of bundling it) — explicitly
   out of scope for a bounded V1, not urgent.
 - **Seam 8 — `_price_move_fact()`'s evidence date is wall-clock, not source-
-  derived — PARTIALLY RESOLVED by Attention Source-Integrity Hardening V1,
-  merge `dc2cdc906`, 2026-09-06.** The narrow, zero-migration half shipped:
-  `as_of=datetime.date.today().isoformat()` → `as_of=None` (an honest
-  "no reliable evidence date" rather than a fabricated wall-clock stamp; all
-  three consumers already null-guard `as_of`). The full fix — deriving a
-  real per-symbol evidence timestamp from a live-price snapshot — remains
-  DEFERRED: Phase A traced the entire pipeline (`live_prices.py`,
-  `journal_two.py`'s `positions_attention` endpoint, `watchlists.py`'s
-  `IntelRequest.changes`, the frontend `changesForIntel` hook) and confirmed
-  no trustworthy per-symbol timestamp exists anywhere in it today —
-  `changes` is a bare `{SYM: pct}` dict end-to-end. Closing it requires
-  widening 2 backend endpoint contracts + 1 frontend hook, which fails the
-  "small, additive, no broad caller migration" gate. Fix shape: add a real
-  observed-at field to `live_prices.py`'s response and thread it through
-  both endpoints into `_price_move_fact`.
+  derived — FULLY RESOLVED, merge `22452cff7`/`dbd08ece6`, 2026-09-07 (Price-
+  Move Evidence Timestamp Convergence V1).** Attention Source-Integrity
+  Hardening V1 (merge `dc2cdc906`) had already shipped the narrow honest-
+  `None` half; this closed the remainder Phase A had deferred. **The premise
+  needed correction, not just re-verification**: Phase A found
+  `massive.py::_MassiveRestClient.get_batch_quotes` ALREADY computes each
+  ticker's own vendor observation timestamp (`_ticker_observed_at`, live-
+  validated to agree with `lastTrade.t` within ~1s) — it was just folded into
+  an aggregate result-level freshness classification and discarded per-
+  ticker. Fix: stamp it onto each ticker's own dict (`_observed_at`) and
+  thread it through `live_prices.py` (`observed_at` field, live path +
+  `None` on the closed-market fallback) → both Attention consumer paths
+  (`journal_two.py`'s `positions_attention`, `watchlists.py`'s `IntelRequest`
+  → `Watchlists.jsx`'s `changesForIntel`-mirroring `observedAtForIntel`) →
+  `_price_move_fact`, which converts the epoch to an ET calendar date
+  matching every other fact kind's `as_of` convention. **ZERO new provider
+  calls** — the timestamp was already in hand inside the exact batch call
+  both consumer paths already make. Every new parameter optional/additive;
+  a caller omitting it (every caller before Seam 8, and the closed-market
+  fallback, which has no per-symbol observation to report) gets byte-
+  identical behavior. `useWatchlistIntelligence.js`'s new `priceObservedAt`
+  param deliberately stays OUT of the SWR key (an inline closure-based
+  fetcher, mirroring `changes`'s own existing off-key design) — an earlier
+  draft that put it in the key would have refetched the whole batch every
+  ~15s live-price tick; caught and fixed before committing. Non-vacuity-
+  checked via safe-stash: 19 of 21 new assertions genuinely fail without the
+  implementation. 76 backend + 6 frontend tests green; clean build;
+  production-verified via commit-SHA match AND a read-only
+  `GET /api/live-prices` check confirming `observed_at` is genuinely present
+  in the live schema (honest `null` today, 2026-09-07 Labor Day — the
+  closed-market fallback path, exactly as designed).
 - **Seam 9 — analyst-action and earnings-proximity total-source-outage paths
   left `status="ok"` — RESOLVED by Attention Source-Integrity Hardening V1,
   merge `dc2cdc906`, 2026-09-06.** Both MATERIAL TRUST BUGs fixed via the
@@ -2696,14 +2784,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
 - Watchlist filing-watch creation action
-- S8 Freshness Presentation Consistency — price-move and earnings-proximity source-side freshness derivation (Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped it into Seam 8 (price-move `as_of`, PARTIALLY RESOLVED — see Seam 8 above) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity, RESOLVED — see Seam 9 above); only Seam 8's full per-ticker timestamp threading remains open, needing a real backend-contract change across 2 endpoints + 1 frontend hook)
+- S8 Freshness Presentation Consistency — RESOLVED. Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped it into Seam 8 (price-move `as_of`, now FULLY RESOLVED — merge `22452cff7`/`dbd08ece6`, see Seam 8 above) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity, RESOLVED — see Seam 9 above); both halves now closed.
 - `research_url` for `ai_deep_report`/`ai_briefing` (Alert Return-to-Research Consistency V1 Phase A) — both hardcode/fall back to the literal placeholder symbol `"AI"`, which collides with the real NYSE ticker for C3.ai, Inc.; wiring a route here would silently misroute to a wrong real company. `ai_briefing` additionally has split identity (`r['sym'] or 'AI'`) with no field to distinguish a real per-ticker briefing from the placeholder after the fact.
 - `research_url` for `exposure_gate` (Alert Return-to-Research Consistency V1 Phase A) — `exposure_gate_watch.py` bypasses `deliver_alert_payload` entirely via a direct `add_alert` call; feature-flag OFF by default (`EXPOSURE_GATE_WATCH_ENABLED='0'`); syntactically a real tradable ETF ticker but semantically a macro gate-level alert, not a personal-security signal — a product-scope decision, not a technical blocker.
 - Reactivating `stop_hit`/`scanner_match` or implementing `ep_resolved` (Alert Return-to-Research Consistency V1 Phase A) — all three are dead/nonexistent code (zero live callers, or no implementation at all); out of scope regardless of research-routing.
 - Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
 - Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
 - Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
-- Watchlist Attention freshness hardening — see Seam 8/Seam 9 above (S8 / Attention Freshness Propagation V1 Phase A superseded and precisely re-scoped this item from Temporal / Freshness Truth Convergence V1 Phase A's original framing)
+- Watchlist Attention freshness hardening — RESOLVED, see Seam 8/Seam 9 above (S8 / Attention Freshness Propagation V1 Phase A superseded and precisely re-scoped this item from Temporal / Freshness Truth Convergence V1 Phase A's original framing; both now closed)
 - Portfolio/Position Attention freshness parity — RESOLVED by S8 / Attention
   Freshness Propagation V1, merge `0d1c1d5bf`, 2026-09-05/06.
   `PortfolioAttentionBanner.jsx`/`PositionDetailPage.jsx` now render each
@@ -2766,8 +2854,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`),
    Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), Seam 11 (merge
    `ab69e2cee`/`228d8caeb`), Seam 14 (merge `7837b782a`/`e96fe1107`), and
-   Seam 6 (merge `c27abb45c`/`73f56ba37`) are all ACCEPTED + LIVE as of
-   this checkpoint —
+   Seam 6 (merge `c27abb45c`/`73f56ba37`), and Seam 8 (merge
+   `22452cff7`/`dbd08ece6`) are all ACCEPTED + LIVE as of this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
@@ -2786,9 +2874,13 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
    Architecture (Comparison leg), Journal ↔ Research Return-Context + Notes
    Draft-Loss Fix (Seam 12), Awareness Scan-Abort Hardening (Seam 10),
-   Ticker Search Identity Convergence (Seam 16), or the Whole-Product
-   Convergence Review from scratch — their findings above are current as of
-   this checkpoint
+   Ticker Search Identity Convergence (Seam 16), Chart Session /
+   Extended-Hours Temporal Convergence (Seam 6), Price-Move Evidence
+   Timestamp Convergence (Seam 8), or the Whole-Product Convergence
+   Review from scratch — their findings above are current as of this
+   checkpoint. **Seam 7 (dual NYSE calendar tables) has NOT had its own
+   Phase A run yet** — it is re-ranked as HOLDING/next, not resolved; do
+   not skip its Phase A on the assumption Seam 6/8 already covered it.
    (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
    from it once unblocked, do not re-audit); verify against live code only
    where something here looks stale.
