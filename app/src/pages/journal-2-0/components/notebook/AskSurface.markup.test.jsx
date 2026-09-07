@@ -1,9 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import NoteAskPanel from './NoteAskPanel'
 
 // ─────────────────────────────────────────────────────────────────────────
 // WAVE K SLICE 5 — RETRIEVED CONTENT IS DATA, NEVER INSTRUCTION.
@@ -63,7 +61,7 @@ describe('the Journal 2.0 surface never hands untrusted content to the HTML pars
     // Non-vacuity: a sweep that walked an empty directory would pass silently
     // and read as coverage forever.
     expect(files.length).toBeGreaterThan(30)
-    expect(files.some(f => f.endsWith('NoteAskPanel.jsx'))).toBe(true)
+    expect(files.some(f => f.endsWith('AskPanel.jsx'))).toBe(true)
     expect(files.some(f => f.endsWith('FolderSidebar.jsx'))).toBe(true)
   })
 
@@ -93,65 +91,17 @@ describe('the Journal 2.0 surface never hands untrusted content to the HTML pars
   })
 })
 
-// ── The demonstration: hostile source content renders as inert text ────────
-
-function sseBody(events) {
-  const enc = new TextEncoder()
-  return new ReadableStream({
-    start(c) {
-      for (const ev of events) c.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`))
-      c.close()
-    },
-  })
-}
-
-beforeEach(() => {
-  if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = function () {}
-})
-
-async function askWith(answerText) {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: true, status: 200, body: sseBody([{ type: 'delta', text: answerText }]),
-  })
-  const dom = document.createElement('div')
-  document.body.appendChild(dom)
-  render(<NoteAskPanel noteId="n1" getEditorDom={() => dom} />)
-  fireEvent.click(screen.getByRole('button', { name: /ask a question about this note/i }))
-  fireEvent.change(screen.getByPlaceholderText(/what did i say about/i), {
-    target: { value: 'what does the filing say' },
-  })
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
-  return screen.findByTestId('note-ask-answer')
-}
-
-describe('a citation quoting hostile source text is inert', () => {
-  it('renders script markup from a source as literal text', async () => {
-    const out = await askWith('The document says "<script>alert(1)</script>" verbatim.')
-    expect(out.querySelector('script')).toBeNull()
-    expect(out.textContent).toContain('<script>alert(1)</script>')
-  })
-
-  it('renders an onerror image payload as literal text, creating no element', async () => {
-    const payload = '<img src=x onerror=alert(1)>'
-    const out = await askWith(`The page contains "${payload}" on line 3.`)
-    expect(out.querySelector('img')).toBeNull()
-    expect(out.textContent).toContain(payload)
-  })
-
-  it('a malicious document name inside a citation stays text', async () => {
-    // Source labels are filenames. This one is legal on every OS.
-    const label = '<iframe src=javascript:alert(1)></iframe>.pdf'
-    const out = await askWith(`See "${label}" for the figure.`)
-    expect(out.querySelector('iframe')).toBeNull()
-    expect(out.textContent).toContain(label)
-  })
-
-  it('the markup is text in the accessible name too, not just the visible label', async () => {
-    // aria-label is interpolated from the same untrusted string; a screen
-    // reader user must get the same inert content, not a different one.
-    await askWith('It says "<script>x</script>" here.')
-    const chip = screen.getByRole('button', { name: /^Jump to this in the note:/ })
-    expect(chip.getAttribute('aria-label')).toContain('<script>x</script>')
-    expect(chip.querySelector('script')).toBeNull()
-  })
-})
+// ── Where the render cases live now ────────────────────────────────────────
+//
+// This file used to render NoteAskPanel and assert that a script tag, an
+// onerror image and an <iframe> filename all came back as inert text. That
+// component is DELETED — its quote-regex citation contract was the Slice 0
+// baseline defect — and the equivalent cases now run against the component
+// that replaced it:
+//
+//   AskPanel.test.jsx
+//     "a hostile source label renders as text, in the accessible name too"
+//     "an injection payload in the answer renders as text"
+//
+// The sweep above is the part that had to stay here: it is the only rail that
+// covers components Slice 6 has not written yet.

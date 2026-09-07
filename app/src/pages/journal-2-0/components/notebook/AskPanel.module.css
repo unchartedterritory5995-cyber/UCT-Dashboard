@@ -1,0 +1,270 @@
+/* Wave K Slice 6 — the one Ask surface.
+   Touch tier is <=1024 (not <=640): a tablet is a touch device and a floor
+   restored only at <=640 leaves tablet broken. */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.askToggle {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #232932);
+  background: transparent;
+  color: var(--color-text-muted, #9b9684);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.askToggle:hover {
+  color: var(--color-text-strong, #d8d2c2);
+  border-color: var(--color-accent, #c9a84c);
+}
+
+.panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  background: var(--color-bg-elev, #14161b);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Scope is legible text, never a colour or an icon-only affordance — a
+   wrong-scope answer is a trust defect, so the member can always read what
+   was searched. */
+.scopeChip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.10);
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  border-radius: 5px;
+  padding: 3px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #9b9684);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  flex: none;
+}
+.closeBtn:hover { color: var(--color-text-strong, #d8d2c2); }
+
+.inputRow {
+  display: flex;
+  gap: 6px;
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #232932);
+  background: var(--color-bg, #0e1014);
+  color: var(--color-text, #c8c3b4);
+  font-size: 13px;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent, #c9a84c);
+}
+.askBtn {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--color-accent, #c9a84c);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.askBtn:disabled { opacity: 0.45; cursor: default; }
+
+.errorMsg {
+  font-size: 12px;
+  color: var(--color-danger, #f87171);
+  line-height: 1.5;
+}
+
+/* Surfaced only when the system KNOWS it did not search everything. A banner
+   on every answer trains members to ignore the one that matters. */
+.coverage {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--color-warning, #d8b26a);
+  background: rgba(216, 178, 106, 0.08);
+  border: 1px solid rgba(216, 178, 106, 0.22);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.answer {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--color-text, #c8c3b4);
+  max-height: 320px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.citationChip {
+  display: inline;
+  padding: 1px 5px;
+  margin: 0 1px;
+  border-radius: 4px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  background: rgba(201, 168, 76, 0.12);
+  color: var(--color-accent, #c9a84c);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+.citationChip:hover {
+  background: rgba(201, 168, 76, 0.22);
+  border-color: var(--color-accent, #c9a84c);
+}
+
+.sources {
+  border-top: 1px solid var(--color-border, #232932);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sourcesTitle {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #9b9684);
+  margin-bottom: 2px;
+}
+.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text, #c8c3b4);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.sourceRow:hover {
+  border-color: var(--color-border, #232932);
+  background: rgba(255, 255, 255, 0.03);
+}
+.sourceNum {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: rgba(201, 168, 76, 0.16);
+  color: var(--color-accent, #c9a84c);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.sourceLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Precision is stated in words, never by colour alone. */
+.sourceApprox {
+  flex: none;
+  font-size: 10px;
+  color: var(--color-text-muted, #9b9684);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* TOUCH TIER — <=1024, covering tablet as well as phone. */
+@media (max-width: 1024px) {
+  .askToggle,
+  .askBtn,
+  .closeBtn,
+  .sourceRow,
+  .citationChip {
+    min-height: var(--tap-min, 44px);
+  }
+  .askToggle, .askBtn { padding: 0 14px; }
+  .closeBtn { min-width: var(--tap-min, 44px); }
+  .input { height: var(--tap-min, 44px); font-size: 16px; /* no iOS zoom */ }
+  .citationChip { padding: 4px 8px; }
+}
+
+/* PHONE — the panel becomes a sheet anchored to the viewport rather than a
+   popover that would hang off the edge of a 390px screen. */
+@media (max-width: 640px) {
+  .wrap { display: block; }
+  .panel {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    top: auto;
+    width: auto;
+    max-width: none;
+    max-height: 72vh;
+    overflow-y: auto;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .answer { max-height: none; }
+}

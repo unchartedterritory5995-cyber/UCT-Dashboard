@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import useNotebookHome from '../../hooks/useNotebookHome'
+import AskPanel from './AskPanel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import styles from './ResearchHome.module.css'
 
@@ -112,6 +113,15 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
 
   return (
     <div className={styles.home} data-export-exclude>
+      {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
+          answers "what was I working on, and where do I resume?" -- Ask is
+          one affordance on that page, not the page. */}
+      <div className={styles.askRow}>
+        <AskPanel scope="notebook" onNavigate={(s) => {
+          const id = s?.navigation?.note_id
+          if (id) openNote({ id })
+        }} />
+      </div>
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />

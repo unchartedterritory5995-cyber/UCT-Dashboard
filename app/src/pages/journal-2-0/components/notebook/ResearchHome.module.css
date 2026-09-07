@@ -150,3 +150,10 @@
     flex-wrap: wrap;
   }
 }
+
+/* Ask is an entry point on Research Home, not its centrepiece. */
+.askRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}

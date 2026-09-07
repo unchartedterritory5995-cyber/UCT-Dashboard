@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
@@ -27,7 +27,8 @@ import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
-import NoteAskPanel from './NoteAskPanel'
+import AskPanel from './AskPanel'
+import { PRECISE_STATES } from '../../lib/askCitation'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -823,6 +824,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // combined backend endpoint already does both atomically, so this is
   // just the client-side mirror (insert the returned excerptId) plus the
   // upload-failure toast idiom every other capture path in this file uses.
+  /**
+   * Land on a cited passage -- or honestly decline to.
+   *
+   * The panel has already re-read the text at the destination in the LIVE
+   * doc (unsaved edits included). A state outside PRECISE_STATES means the
+   * passage moved, was duplicated, or is gone.
+   *
+   * NEVER JUMP TO AN UNVERIFIED POSITION. A failed precise citation is
+   * preferable to a confident mis-navigation: landing on the wrong paragraph
+   * looks exactly like landing on the right one.
+   */
+  const jumpToCitation = useCallback((source, resolved) => {
+    const ed = editorRef.current
+    if (!ed || source?.navigation?.kind !== 'note') return
+    if (!resolved || !PRECISE_STATES.has(resolved.state)) return
+    ed.chain().focus()
+      .setTextSelection({ from: resolved.from, to: resolved.to })
+      .scrollIntoView()
+      .run()
+  }, [])
+
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
     if (!ed) return
@@ -1289,6 +1311,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         excerpts={previewExcerpts}
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+        documentId={previewDoc?.documentId}
       />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
@@ -1319,7 +1342,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
           </button>
           <NoteLinkedTradeChips noteId={noteId} />
-          <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
+          <AskPanel
+            scope="note"
+            target={noteId}
+            /* The LIVE doc, unsaved edits included -- it is where the member
+               would actually land, so it is what a citation must verify
+               against. */
+            getEditorDoc={() => editorRef.current?.state?.doc}
+            onNavigate={jumpToCitation}
+          />
           <button
             type="button"
             className={styles.chromeBtn}

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
+import AskPanel from './AskPanel'
 import PdfDocumentViewer from './PdfDocumentViewer'
 import styles from './DocumentPreviewSheet.module.css'
 
@@ -19,6 +20,7 @@ import styles from './DocumentPreviewSheet.module.css'
 export default function DocumentPreviewSheet({
   open, href, name, page, onClose,
   excerpts = [], onSaveExcerpt, emphasizeExcerptId,
+  documentId = null,
 }) {
   const viewerRef = useRef(null)
   if (!href) return null
@@ -44,6 +46,19 @@ export default function DocumentPreviewSheet({
           <a className={styles.actionLink} href={href} download={name || undefined}>
             <UIcon name="download" size={13} gold={false} /> Download
           </a>
+          {/* Ask stays IN document context -- a member should not have to
+              leave the PDF to ask a question about it, and a citation lands
+              back in this same viewer. */}
+          {documentId && (
+            <AskPanel
+              scope="document"
+              target={documentId}
+              onNavigate={(source) => {
+                const p = source?.navigation?.page_number
+                if (p) viewerRef.current?.scrollToPage?.(p)
+              }}
+            />
+          )}
         </div>
       </div>
       <PdfDocumentViewer

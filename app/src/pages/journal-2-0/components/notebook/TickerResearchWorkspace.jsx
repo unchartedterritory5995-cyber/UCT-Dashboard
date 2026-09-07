@@ -4,6 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -111,6 +112,11 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           <div className={styles.subtitle}>My Research</div>
         </div>
         <div className={styles.headerActions}>
+          {/* The scope is PRESELECTED. The member is already inside NVDA
+              Research, so they should not have to type "NVDA" or configure a
+              filter to ask about it. */}
+          <AskPanel scope="security" target={identity.symbol}
+                    onOpenNote={onOpenNote} />
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewNote} disabled={creating}>
             <UIcon name="plus" size={13} gold={false} /> New note
           </button>
@@ -235,6 +241,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         href={previewDoc?.href}
         name={previewDoc?.name}
         onClose={() => setPreviewDoc(null)}
+        documentId={previewDoc?.documentId}
       />
     </div>
   )
