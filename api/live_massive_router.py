@@ -3886,9 +3886,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # /flow Discord command asks for "all".
     _lb_cap = 400 if only_ticker else 31
     lookback_days = max(1, min(int(lookback_days or 1), _lb_cap))   # range picker: up to 31 (was 5); up to 400 for a single ticker
-    if lookback_days <= 1:
+    if lookback_days <= 1 and not only_ticker:
+        # Market-wide live feed: the 1-day default stays literally today (its
+        # callers already handle an empty out-of-hours read).
         target_dates = [today]
     else:
+        # Resolve the window against the SESSIONS THAT ACTUALLY HAVE DATA, not the
+        # calendar. For a single-ticker /flow with the default window (1 day), this
+        # means the last TRADING day: on a weekend / holiday / long weekend / before
+        # today's tape starts, `/flow TICKER` with no window picked shows the last
+        # working day's flow instead of an empty card.
         _c = sqlite3.connect(DB_PATH, timeout=10)
         try:
             all_dates = [r[0] for r in _c.execute(
