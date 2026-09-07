@@ -610,3 +610,28 @@ describe('a prehydrate that never answers still yields a page', () => {
     expect(block).toContain('fetchPrehydrate(')
   })
 })
+
+// ── "already held" must mean THIS view, not any view ────────────────────────
+describe('a range change is never served from another range rows', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the hasRows argument is KEYED to the view being loaded', () => {
+    // `_hasRows` never flips back, and in the policy `hasRows` is checked
+    // BEFORE `isRangeChange` — so an unkeyed value silently converts every
+    // later range switch into "already held" and the worker keeps the old
+    // range's rows. Measured on prod: 1d -> 5d -> 1d never fetched 1d.
+    const call = src.slice(src.indexOf('const _tapePlan = shouldFetchTape({'),
+                           src.indexOf('if (!_tapePlan.fetch)'))
+    expect(call).toMatch(/hasRows:\s*_hasRows\.current\s*&&\s*getLoadedKey\(\) === snapshotKey\(csvFile\)/)
+  })
+
+  it('CONTROL: the policy really does rank hasRows above a range change', () => {
+    // If this ever stops being true the rail above is guarding nothing and
+    // should be revisited rather than left passing for a stale reason.
+    expect(shouldFetchTape({ deferEnabled: true, hasRows: true, isRangeChange: true }))
+      .toEqual({ fetch: false, reason: 'already-held' })
+    expect(shouldFetchTape({ deferEnabled: true, hasRows: false, isRangeChange: true }))
+      .toEqual({ fetch: true, reason: 'range-change' })
+  })
+})

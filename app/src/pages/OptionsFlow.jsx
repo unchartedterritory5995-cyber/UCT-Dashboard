@@ -1460,7 +1460,17 @@ export default function OptionsFlowDashboard() {
       // pass it is still false, so the plan asks whether one is even possible
       // for this view rather than whether it has landed yet.
       prehydrateAvailable: _prehydrated.current || _preFired,
-      hasRows: _hasRows.current,
+      // ⛔ VIEW-SCOPED, not "have we ever loaded rows". `_hasRows` is a
+      // mount-lifetime flag: it flips true on the first successful load and
+      // never flips back. Passed raw it OUTRANKS `isRangeChange`, so after any
+      // tape load a range switch stopped fetching that range's tape and the
+      // worker sat on the previous range's rows while the prehydrate painted
+      // the new view. Measured on prod: 1d -> 5d -> 1d logged `already-held`
+      // and never fetched the 1d tape, leaving the worker on the 5d rowset.
+      //
+      // The `held` branch above already returns early when the worker holds
+      // THIS view, so the only honest answer here is a keyed one.
+      hasRows: _hasRows.current && getLoadedKey() === snapshotKey(csvFile),
       isRangeChange: _rangeOnlyChange || fetchDaysAtStart !== 1,
       demanded: tapeDemanded,
       silent,
