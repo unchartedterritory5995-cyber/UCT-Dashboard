@@ -138,6 +138,22 @@ test('RVOL renders from a directly-supplied ratio, with no raw volume anywhere',
   expect(screen.getByText('7.0x')).toBeTruthy()
 })
 
+test('ATR % and % from 50SMA render from metaOverride', () => {
+  // Both are breadth-only fields with no live source at all, so if the override
+  // does not reach them the columns are permanently em-dashes — which is exactly
+  // what the drill showed until this was pinned.
+  render(
+    <Watchlists
+      embedded pickList="__scan__" pickName="UP 4%+" scanSymbols={SYMS}
+      quoteOverride={PINNED}
+      metaOverride={{ NX: { atr: 4.7, a50: 3.6 }, BBCP: { atr: 4.6, a50: 0.8 } }}
+      defaultColCfg={{ order: ['flag', 'sym', 'price', 'atr', 'a50'] }}
+    />,
+  )
+  expect(screen.getByText('4.7%')).toBeTruthy()   // ATR %
+  expect(screen.getByText('+3.60%')).toBeTruthy() // % from 50SMA, signed + tinted
+})
+
 test('an empty override object does not count as augmenting the feed', () => {
   // The bail-out must still fire for `{}` — otherwise every ordinary watchlist
   // pays for a merge that changes nothing.
