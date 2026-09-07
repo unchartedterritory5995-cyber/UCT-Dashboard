@@ -304,6 +304,23 @@ def dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         merged["absorbed"] = (cur.get("absorbed") or []) + [
             {"source_type": loser["source_type"], "source_id": loser["source_id"]}
         ]
+        # ⛔ COLLAPSE THE SOURCE COUNT, NOT THE TEXT. Measured by the Slice 8
+        # real-model E2E: a member saves "down 240 basis points sequentially"
+        # from a page that reads "Gross margin was 73.5% in the quarter, down
+        # 240 basis points...". Dedupe correctly keeps ONE source -- the saved
+        # excerpt, which is the more curated record -- but keeping only its
+        # text discarded the sentence containing the actual figure, so the
+        # answer could no longer state it. Curating a quote must not make the
+        # rest of its page invisible.
+        #
+        # The citation still points at the saved excerpt (its precision is why
+        # it won); the wider text rides along as context the synthesizer may
+        # read and quote.
+        win_text = winner.get("text") or ""
+        lose_text = loser.get("text") or ""
+        if len(lose_text) > len(win_text):
+            merged["payload"] = {**merged.get("payload", {}),
+                                 "source_context": lose_text}
         # A stance discovered on either record is a real fact about the edge.
         merged["stance"] = winner.get("stance") or loser.get("stance")
         best[key] = merged

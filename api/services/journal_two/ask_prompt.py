@@ -162,7 +162,10 @@ _PAYLOAD_FIELDS = {
                         "unit", "currency", "period", "caption"),
     ev.THESIS_STATE: ("status", "confidence", "research_type", "review_date",
                       "supports_count", "opposes_count"),
-    ev.DOCUMENT_EXCERPT: ("annotation", "evidence_caption"),
+    ev.DOCUMENT_EXCERPT: ("annotation", "evidence_caption", "source_context"),
+    # `source_context` is the wider page text a saved excerpt was taken from.
+    # It is CONTEXT, not the citation -- the citation still resolves to the
+    # passage the member actually saved.
     ev.NOTE: (),
     ev.DOCUMENT_PAGE: (),
 }

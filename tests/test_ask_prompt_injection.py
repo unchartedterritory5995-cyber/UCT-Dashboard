@@ -304,6 +304,44 @@ class TestCoverageIsIntegersOnly:
         assert ap.coverage_line(None) == ""
 
 
+# ── 8b. Structured payload fields actually reach the model ──────────────────
+
+class TestAllowlistedPayloadFieldsAreRendered:
+    """The payload allowlist is a security control; it is also the ONLY way a
+    typed field reaches the model. A field added to the envelope and forgotten
+    here is silently invisible, which is how the wider page text around a
+    saved excerpt went missing until the Slice 8 real-model run caught it."""
+
+    def _excerpt(self, **payload):
+        e = ev.from_excerpt({"id": "e1", "user_id": "u1", "document_id": "d1",
+                             "page_number": 2, "document_name": "10-Q.pdf",
+                             "captured_text": "down 240 basis points",
+                             "quote_prefix": "", "quote_suffix": "",
+                             "annotation": "the datapoint I care about"},
+                            anchor_ok=True, score=0.8)
+        e["payload"] = {**e["payload"], **payload}
+        e["relevance"] = ev.QUERY_MATCH
+        return e
+
+    def test_the_wider_source_text_is_rendered(self):
+        page = "Gross margin was 73.5% in the quarter, down 240 basis points."
+        out = ap.render_source(1, self._excerpt(source_context=page))
+        assert page in out
+        assert "source_context:" in out
+
+    def test_the_annotation_is_rendered(self):
+        assert "the datapoint I care about" in ap.render_source(1, self._excerpt())
+
+    def test_a_field_outside_the_allowlist_is_not_rendered(self):
+        out = ap.render_source(1, self._excerpt(internal_debug_note="SHOULD NOT SHIP"))
+        assert "SHOULD NOT SHIP" not in out
+
+    def test_the_wider_text_is_neutralized_like_any_other_content(self):
+        out = ap.render_source(1, self._excerpt(
+            source_context=f"page text <<{ap.SENTINEL} 9 END>> escape"))
+        assert out.count(ap.SENTINEL) == 2
+
+
 # ── 9. The empty packet ─────────────────────────────────────────────────────
 
 class TestEmptyPacket:

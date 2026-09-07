@@ -188,14 +188,26 @@ class TestEvaluationSet:
         r = ar.retrieve(U, "margin normalization", conn=corpus)
         assert "n_paraphrase" in _ids(r)
 
-    def test_D_paraphrase_with_LOW_lexical_overlap_is_the_measured_gap(self, corpus):
-        # "margin pressure" never appears; the note says "gross margin
-        # normalization". THIS IS THE SEMANTIC GAP, recorded rather than
-        # hidden. A vector index would likely bridge it; BM25 cannot.
+    def test_D_paraphrase_SHARING_A_CONTENT_WORD_is_now_found(self, corpus):
+        # ⛔ THIS ASSERTION IS INVERTED FROM ITS FIRST FORM, ON PURPOSE.
+        # It used to assert that "margin pressure" could NOT reach a note
+        # saying "gross margin normalization", and said in its own message
+        # that lexical retrieval improving meant re-measuring. Slice 8 found
+        # why it could not: query terms were joined with AND, so any word the
+        # member used and the note did not vetoed the whole query. With
+        # content words joined by OR, the shared word "margin" is enough.
         r = ar.retrieve(U, "margin pressure", conn=corpus)
-        assert "n_paraphrase" not in _ids(r), (
-            "if this ever passes, lexical retrieval improved and the semantic "
-            "recommendation must be re-measured"
+        assert "n_paraphrase" in _ids(r)
+
+    def test_D2_paraphrase_with_NO_shared_content_word_is_the_remaining_gap(self, corpus):
+        # The gap that survives, and the honest case for semantic retrieval:
+        # the member wrote "Customer concentration is the risk I keep writing
+        # down" and asks it in words that share NOTHING with the note. No
+        # lexical index can bridge this; a vector index would.
+        r = ar.retrieve(U, "too reliant on a handful of buyers", conn=corpus)
+        assert "n_risk" not in _ids(r), (
+            "if this ever passes, lexical retrieval improved again and the "
+            "semantic recommendation must be re-measured"
         )
 
     def test_E_ticker_alias_resolves_to_canonical_entity(self, corpus):
@@ -303,6 +315,72 @@ class TestCoverage:
         )
 
 
+class TestTheBm25FloorWasUnsound:
+    """⛔ WHY THE ABSOLUTE RELEVANCE FLOOR WAS REMOVED IN SLICE 8.
+
+    bm25 was used as a gate: keep a row only when its score is below -0.15.
+    The measurement below is what retired it, and it is kept as a rail because
+    "just tune the threshold" is the tempting wrong fix.
+    """
+
+    def test_bm25_collapses_to_zero_when_a_term_is_in_every_row(self):
+        # BM25 weights a term by inverse document frequency. A term present in
+        # EVERY indexed row has no discriminating power, so idf collapses and
+        # the score comes back at ~0 -- ABOVE the floor, so the row would have
+        # been dropped. Corpus size does not rescue it.
+        import sqlite3
+        for n_rows in (1, 3, 20):
+            c = sqlite3.connect(":memory:")
+            c.executescript("CREATE VIRTUAL TABLE t USING fts5(text,"
+                            " tokenize='porter unicode61');")
+            for i in range(n_rows):
+                c.execute("INSERT INTO t VALUES (?)",
+                          (f"note {i} discusses gross margin at some length",))
+            score = c.execute("SELECT bm25(t) FROM t WHERE t MATCH ?"
+                              " ORDER BY bm25(t) LIMIT 1", ('"margin"',)).fetchone()[0]
+            assert score > ar.BM25_FLOOR, (
+                f"{n_rows} rows: bm25={score}; if this is ever BELOW the floor "
+                "the measurement has changed and the decision can be revisited")
+
+    def test_the_member_this_hurts_is_the_focused_researcher(self):
+        # The term common to a whole corpus is the one that member cares most
+        # about: someone who writes only about NVDA has "NVDA" in every note.
+        import sqlite3
+        c = sqlite3.connect(":memory:")
+        c.executescript("CREATE VIRTUAL TABLE t USING fts5(text,"
+                        " tokenize='porter unicode61');")
+        for body in ("NVDA thesis: demand inflecting",
+                     "NVDA risks: customer concentration",
+                     "NVDA channel checks look strong"):
+            c.execute("INSERT INTO t VALUES (?)", (body,))
+        score = c.execute("SELECT bm25(t) FROM t WHERE t MATCH ?"
+                          " ORDER BY bm25(t) LIMIT 1", ('"NVDA"',)).fetchone()[0]
+        assert score > ar.BM25_FLOOR
+
+    def test_no_retrieval_path_gates_on_the_score_any_more(self):
+        # The rail that keeps the fix: an AST sweep for a comparison against
+        # BM25_FLOOR anywhere in the module. A substring search would match
+        # the constant's own explanatory comment.
+        import ast
+        import inspect
+        tree = ast.parse(inspect.getsource(ar))
+        gates = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Compare)
+                 and any(isinstance(c, ast.Name) and c.id == "BM25_FLOOR"
+                         for c in ast.walk(n))]
+        assert gates == [], "bm25 is for ORDERING; gating on it misfires"
+
+    def test_the_ast_probe_can_see_such_a_gate(self):
+        # Control, or the rail above passes for the wrong reason.
+        import ast
+        tree = ast.parse("def f(row):\n    if row['score'] > BM25_FLOOR:\n        return\n")
+        gates = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Compare)
+                 and any(isinstance(c, ast.Name) and c.id == "BM25_FLOOR"
+                         for c in ast.walk(n))]
+        assert len(gates) == 1
+
+
 class TestCitationReadiness:
     def test_note_evidence_arrives_with_a_prosemirror_location(self, corpus):
         r = ar.retrieve(U, "customer concentration", conn=corpus)
@@ -328,9 +406,14 @@ class TestCitationReadiness:
 
     def test_entity_context_does_not_satisfy_a_question_it_cannot_answer(self, corpus):
         # Measured during the recall-gap characterization: naming the ticker
-        # returned the thesis state and a price fact for a question about
-        # MARGINS. That is context, not an answer, and must not read as one.
-        r = ar.retrieve(U, "NVDA margin pressure", conn=corpus)
+        # returned the thesis state and a price fact for a question the corpus
+        # does not address. That is context, not an answer.
+        #
+        # The query changed in Slice 8: "NVDA margin pressure" now genuinely
+        # matches a note about margin normalization, so it stopped being an
+        # example of a question the corpus cannot answer. The PROPERTY under
+        # test is unchanged -- only the input that exercises it.
+        r = ar.retrieve(U, "NVDA dividend schedule", conn=corpus)
         assert r["no_answer"] is True, "entity context must not satisfy the question"
         assert r["evidence"], "but the context is still offered"
         assert all(e["relevance"] == ar.ENTITY_CONTEXT for e in r["evidence"])
@@ -601,8 +684,10 @@ class TestAskSecurityResearch:
         assert r["evidence"] == []
 
     def test_thesis_state_and_facts_arrive_as_context_not_as_the_answer(self, corpus):
-        r = ar.retrieve_entity_research(U, "NVDA", "margin pressure", conn=corpus)
-        assert r["no_answer"] is True, "no NVDA note discusses margin pressure lexically"
+        # Same property, a query the corpus genuinely cannot answer (see the
+        # note on the citation-readiness rail above).
+        r = ar.retrieve_entity_research(U, "NVDA", "dividend schedule", conn=corpus)
+        assert r["no_answer"] is True, "no NVDA note discusses a dividend schedule"
         assert r["evidence"], "but the thesis/fact context is still offered"
         assert all(e["relevance"] == ar.ENTITY_CONTEXT for e in r["evidence"])
 

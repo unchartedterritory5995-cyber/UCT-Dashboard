@@ -166,6 +166,53 @@ class TestLineage:
         assert independent_source_count([a, b, c]) == 3
 
 
+class TestDedupeCollapsesTheCountNotTheText:
+    """⛔ MEASURED BY THE SLICE 8 REAL-MODEL E2E.
+
+    A member saves "down 240 basis points sequentially" from a page reading
+    "Gross margin was 73.5% in the quarter, down 240 basis points...". Dedupe
+    correctly keeps ONE source -- the saved excerpt, the more curated record --
+    but keeping only ITS text discarded the sentence with the actual figure,
+    and the model could no longer state it. Curating a quote must not make the
+    rest of its page invisible.
+    """
+
+    PAGE_TEXT = ("Gross margin was 73.5% in the quarter, down 240 basis points "
+                 "sequentially, reflecting a higher mix of systems revenue.")
+
+    def _pair(self):
+        page = from_document_page(PAGE_ROW, snippet=self.PAGE_TEXT)
+        excerpt = from_excerpt(EXCERPT_ROW, anchor_ok=True)
+        return page, excerpt
+
+    def test_the_wider_page_text_survives_as_context(self):
+        page, excerpt = self._pair()
+        merged = dedupe([page, excerpt])
+        assert len(merged) == 1
+        assert merged[0]["payload"]["source_context"] == self.PAGE_TEXT
+
+    def test_the_citation_still_points_at_what_the_member_saved(self):
+        # The excerpt won because its citation is precise; carrying the page
+        # text must not move the citation to the page.
+        page, excerpt = self._pair()
+        merged = dedupe([page, excerpt])
+        assert merged[0]["source_type"] == DOCUMENT_EXCERPT
+        assert merged[0]["text"] == EXCERPT_ROW["captured_text"]
+        assert merged[0]["citation_validity"] == CITE_EXACT
+
+    def test_it_is_still_one_source(self):
+        page, excerpt = self._pair()
+        assert independent_source_count(dedupe([page, excerpt])) == 1
+
+    def test_a_shorter_absorbed_record_adds_no_context(self):
+        # Only a LONGER text is worth carrying; the reverse would bury the
+        # curated passage under a snippet of itself.
+        page = from_document_page(PAGE_ROW, snippet="short")
+        excerpt = from_excerpt(EXCERPT_ROW, anchor_ok=True)
+        merged = dedupe([page, excerpt])
+        assert "source_context" not in merged[0].get("payload", {})
+
+
 class TestStance:
     def test_stance_lives_on_a_copy_not_on_the_shared_passage(self):
         exc = from_excerpt(EXCERPT_ROW, anchor_ok=True)

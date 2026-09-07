@@ -56,10 +56,27 @@ INTENT_HISTORICAL = "historical_intent_unsupported"
 QUERY_MATCH = ev.QUERY_MATCH
 ENTITY_CONTEXT = ev.ENTITY_CONTEXT
 
-# Relevance floor. bm25() in SQLite returns NEGATIVE numbers where more
-# negative is a better match, so a candidate is kept when its score is below
-# this. A weak lexical brush must not become "evidence" (§20).
-BM25_FLOOR = -0.15
+# ⛔ RETIRED AS A GATE, KEPT AS A NUMBER FOR THE RAIL THAT EXPLAINS WHY.
+#
+# bm25() was used as an absolute relevance floor: keep a row only when its
+# score is below -0.15. Measured during the Slice 8 real-model E2E, that is
+# unsound, and not because of tuning.
+#
+# BM25 weights a term by inverse document frequency. When a term appears in
+# EVERY indexed row, its idf collapses and the score comes back at -0.0000 --
+# above the floor, so the row is DROPPED. Measured across corpora of 1, 2, 3,
+# 5 and 20 rows: identical result every time. Two consequences, both bad:
+#
+#   - a single-page document, or a member with few notes, has every term in
+#     every row, so their matches score ~0 and were silently discarded;
+#   - for a focused researcher the term common to their WHOLE corpus ("NVDA")
+#     is the term they care most about, and it is exactly the one idf zeroes.
+#
+# Precision does not need an absolute threshold. It comes from two things that
+# are corpus-size independent: query stopwords are removed before matching, so
+# a hit is always on a content word, and the evidence budget bounds how much
+# reaches an answer. bm25 still ORDERS candidates, which is what it is good at.
+BM25_FLOOR = -0.15  # retained: tests/test_ask_retrieval.py measures the misfire
 
 _HISTORICAL_MARKERS = (
     "before earnings", "back then", "at the time", "used to think",
@@ -182,8 +199,6 @@ def _notes(conn, user_id: str, expr: str, limit: int,
     out: list[dict[str, Any]] = []
     for r in conn.execute(sql, params).fetchall():
         row = dict(r)
-        if row["score"] > BM25_FLOOR:
-            continue
         doc = _json(row.get("body_json"))
         snippet, location, validity = _best_note_passage(doc, expr)
         out.append(ev.from_note(row, snippet=snippet, location=location,
@@ -254,6 +269,76 @@ def _content_terms(query: str) -> list[str]:
     """The words a passage must contain to count as ANSWERING the question."""
     return [t for t in _terms(fts_match_expr(query) or "")
             if len(t) > 2 and t.lower() not in _QUERY_STOPWORDS]
+
+
+def _substantive_terms(query: str, entity: dict[str, Any] | None) -> list[str]:
+    """The content words that are NOT just the security's own name.
+
+    ⛔ NAMING A SECURITY IS NOT ASKING A QUESTION ABOUT IT. Every note the
+    member wrote about NVDA contains "NVDA", so under OR matching any question
+    that names the ticker matches all of them -- and `no_answer` could never
+    be True for a ticker-named question, which is exactly the failure §20
+    forbids: handing synthesis a pile of context and calling it an answer.
+    "NVDA margin pressure" is answered by a note about margins; it is only
+    CONTEXTUALISED by a note that merely says NVDA.
+    """
+    if not entity:
+        return _content_terms(query)
+    names = {str(sym).upper() for sym in (entity.get("symbols") or [])}
+    names.add(str(entity.get("symbol") or "").upper())
+    display = str(entity.get("displayName") or "")
+    names.update(w.upper() for w in display.split() if len(w) > 2)
+    return [t for t in _content_terms(query) if t.upper() not in names]
+
+
+def _answers_the_question(item: dict[str, Any], substantive: list[str]) -> bool:
+    """Did this evidence match on something other than the security's name?"""
+    if not substantive:
+        # The whole question WAS the security name ("NVDA"). Then the
+        # member's research about it is a legitimate answer.
+        return True
+    hay = f"{item.get('label') or ''} {item.get('text') or ''}".lower()
+    return any(t.lower() in hay for t in substantive)
+
+
+def ask_match_expr(query: str) -> str | None:
+    """The FTS expression for a QUESTION, which is not the same thing as the
+    expression for a search box.
+
+    ⛔ FOUND BY THE SLICE 8 REAL-MODEL E2E, AND IT WAS SEVERE.
+    `fts_match_expr` joins terms with a space, and FTS5 reads a space as AND.
+    That is right for the search box it was written for -- you type "gross
+    margin" and want rows containing both. It is catastrophic for a question,
+    because a question is made of words the corpus does not contain:
+
+        "what was gross margin in the quarter?"
+          -> '"what" "was" "gross" "margin" "in" "the" "quarter"*'
+          -> 0 rows, against a page that literally reads
+             "Gross margin was 73.5% in the quarter"
+
+    So Ask Document, Ask Notebook and Ask Security Research answered "I
+    couldn't find that" for essentially every naturally-phrased question, and
+    only keyword queries worked. The Slice 1 eval set did not catch it because
+    its queries were written keyword-shaped -- the inputs were shaped like the
+    implementation, so the measurement agreed with itself
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    The fix keeps the CONTENT words and joins them with OR. Precision does not
+    come from demanding every token; it comes from BM25_FLOOR, which is what
+    the floor was always for. A term the member typed but never wrote about
+    simply contributes nothing instead of vetoing the whole query.
+
+    ⛔ NOT a change to `fts_match_expr`. That helper belongs to the member's
+    search box, where AND is correct and where changing recall would change a
+    surface Wave K was told not to touch.
+    """
+    words = _content_terms(query)
+    if not words:
+        # A question made only of stopwords ("what about it?") has nothing to
+        # retrieve on. Returning None makes the caller refuse rather than
+        # matching the entire corpus on "the".
+        return None
+    return " OR ".join(f'"{w}"' for w in words)
 
 
 def _document_pages(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
@@ -442,7 +527,7 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
             for i in items:
                 i["relevance"] = QUERY_MATCH
         else:
-            expr = fts_match_expr(query)
+            expr = ask_match_expr(query)
             if expr:
                 items += _notes(conn, user_id, expr, limit, member_note_ids)
                 items += _document_pages(conn, user_id, query, limit)
@@ -453,8 +538,13 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
             # top-k when the corpus has no answer. They join only when the
             # question actually reached this research: either the text search
             # found something, or a security the member writes about was named.
+            # ⛔ PER ITEM, NOT UNIFORMLY. A note that matched only because it
+            # says "NVDA" is context about the security, not an answer to the
+            # question asked about it.
+            substantive = _substantive_terms(query, entity)
             for i in items:
-                i["relevance"] = QUERY_MATCH
+                i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                                  else ENTITY_CONTEXT)
             if items or entity:
                 ctx = (_thesis_states(conn, user_id, member_note_ids, 3)
                        + _facts(conn, user_id, entity, 5))
@@ -541,12 +631,13 @@ def _anchor_ok(conn, user_id: str, excerpt_row: dict) -> bool:
 def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
                            limit: int) -> list[dict[str, Any]]:
     """Page hits WITHIN one document. Tenant scoping stays inside the query."""
-    expr = fts_match_expr(q)
+    expr = ask_match_expr(q)
     if expr is None:
         return []
     rows = conn.execute(
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name, d.note_id AS note_id"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
@@ -568,7 +659,7 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
 def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
                      limit: int) -> list[dict[str, Any]]:
     """Saved excerpts WITHIN one document, each anchor-verified."""
-    expr = fts_match_expr(q)
+    expr = ask_match_expr(q)
     if expr is None:
         return []
     rows = conn.execute(
@@ -641,6 +732,8 @@ def retrieve_document(user_id: str, document_id: str, query: str, *,
 
         items = (_document_pages_scoped(conn, user_id, document_id, query, limit)
                  + _excerpts_scoped(conn, user_id, document_id, query, limit))
+        # Inside ONE document there is no security name to discount: every
+        # page that matched is a page of the document the member is reading.
         for i in items:
             i["relevance"] = QUERY_MATCH
         # Same reasoning as the note scope: inside ONE document there is
@@ -825,13 +918,18 @@ def retrieve_entity_research(user_id: str, symbol: str, query: str, *,
                     "no_answer": True, "no_answer_reason": "no_research_on_this_security"}
 
         items: list[dict[str, Any]] = []
-        expr = fts_match_expr(query)
+        expr = ask_match_expr(query)
         if expr:
             items += _notes(conn, user_id, expr, limit, note_ids)
             # Documents and excerpts belonging to THIS security's notes only.
             items += _entity_documents(conn, user_id, note_ids, query, limit)
+        # ⛔ THE SCOPE IS ALREADY THE SECURITY. A note matching only because
+        # it says "NVDA" tells the member nothing they did not know by being
+        # here -- it is context about this security, not an answer.
+        substantive = _substantive_terms(query, entity)
         for i in items:
-            i["relevance"] = QUERY_MATCH
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
 
         ctx = (_thesis_states(conn, user_id, note_ids, 3)
                + _facts(conn, user_id, entity, 5))
@@ -865,7 +963,7 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
     leak in on a shared phrase."""
     if not note_ids:
         return []
-    expr = fts_match_expr(q)
+    expr = ask_match_expr(q)
     if expr is None:
         return []
     ph = ",".join("?" * len(note_ids))
@@ -873,6 +971,7 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
     for r in conn.execute(
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
