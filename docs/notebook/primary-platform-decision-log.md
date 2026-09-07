@@ -1630,6 +1630,139 @@ not duplicated here.
 
 ---
 
+## Wave H — Research Home + Ticker Research Workspace + Continuation UX (2026-09-07)
+
+**The directive's own central open question (§11: Notebook vs. Company Page
+ownership of the per-ticker workspace) resolved by direct evidence, not
+assumption.** The entry checkpoint's reconstruction found a real, mature,
+paid "Company Page" (`ResearchPage.jsx`, 10 market-data tabs) already existed
+and was previously undocumented in `CLAUDE.md`. This settled the split
+decisively: Notebook owns "my research about this security" (private),
+Company Page owns "live financial information" (market data), bridged by one
+new "My Research" tab mounting the SAME `TickerResearchWorkspace` component
+Notebook's own route uses — never a second implementation. Every other major
+primitive the wave needed (bounded favorites/recents, the property-filter
+query layer, the ticker/embed/mention membership predicate, `entity_master`,
+Wave 3's typed trade/position relationships) was reused, not duplicated; the
+only genuinely new primitives were two read-only aggregation endpoints and
+one new page component.
+
+**Two real, load-bearing defects were found live in the browser during this
+wave's own E2E verification — not anticipated at the checkpoint, both fixed
+with regression coverage, recorded here rather than silently patched over:**
+1. A ticker-filter parity bug: the Notebook list's `?ticker=` filter — the
+   exact query the ticker workspace's own "View all Notes" link navigates
+   to — used strict `j2_notes.ticker` column equality, while the workspace's
+   own membership query answers the richer "ticker column OR embed OR
+   cashtag mention" union. A note related to NVDA only through a `$NVDA`
+   prose mention correctly appeared in the NVDA workspace but silently
+   vanished from the list reached by clicking "View all Notes" from that
+   exact workspace. Fixed by widening `_notes_filter_sql`'s `ticker` branch
+   to the same OR-of-EXISTS pattern already established for `embed_symbol`/
+   `symbol_in`. Regression test added; re-verified live via a direct API
+   comparison and the actual "View all" UI click, both before and after.
+2. A sub-44px touch-target defect on the workspace's own new chrome (the
+   "Notebook" back-link and "View all" link), found via `tools/
+   mobile_audit.py` against the two new routes. Fixed with padding + an
+   equal-and-opposite negative margin inside the existing `@media
+   (max-width: 1024px)` touch tier; re-audited clean (0 small-targets) on
+   phone, phone390, and tablet.
+
+**A genuine Wave-G-era wiring bug was also found and fixed while touching
+adjacent code:** `onAddStarterViews` had been defined in Wave G but never
+actually passed to `<FolderSidebar>` — the "Add thesis starter views"
+affordance was dead code in production despite passing component-level
+tests (which supplied the prop directly, bypassing the missing wiring).
+
+**A disk-full incident occurred mid-session, unrelated to any code change,
+and is recorded here because it materially affected this wave's own
+verification process.** The machine's `C:` drive reached **0 bytes free**
+(465GB drive, confirmed via `Get-PSDrive`) partway through this wave's E2E
+pass, blocking further sandbox launches. Root-caused (with explicit, narrow
+user authorization) to 19 leftover `uct_e2e_sandbox_*` temp directories from
+this program's own repeated test-server launches across every prior wave;
+17 were removed (the 2 still in active use by a running sandbox process
+were identified by exact process-start-time correlation and deliberately
+left untouched), recovering ~13GB. **13GB, not the ~50GB a disk-headroom
+safety guard in `notes_quota.py` requires, remained after cleanup** — the
+sandbox dirs were confirmed NOT the primary consumer; ~110 unrelated
+parallel git worktrees on the same machine are the far larger, out-of-scope
+consumer, left untouched per the user's own explicit instruction to stop
+and investigate rather than delete further. This is the SAME root cause
+class the 2026-09-05 Wave-0 baseline and every prior wave's closure has
+already recorded (`assert_import_headroom()` refusing byte-level writes
+below the reserve threshold) — reproduced identically here, not a new
+defect, and self-resolves whenever free space rises back above the reserve.
+
+**Full real-browser E2E, proven live, not just asserted (directive
+§159-173):** the financial-differentiation claim end-to-end (thesis creation
+with Ticker/Status set → automatic workspace assembly with zero manual
+linking → New Note/New Thesis pre-fill → captured fact and open-position
+trade link both surfacing in the same view); dynamic membership (clearing a
+note's only qualifying `Ticker` property live removed it from the workspace,
+re-proven after a session-forced sandbox restart); multi-entity zero-
+duplication (one note carrying `$NVDA` and `$AMD` cashtags in body text,
+with no ticker property or embeds, correctly appearing in BOTH workspaces
+from the same underlying row); the "View all Notes" round-trip (correctly
+parity-matched after the fix above) and the "All notes" sidebar click
+correctly clearing the ticker filter; Research Home's populated state and,
+separately, its honest empty state on a low-data account; the Company
+Page's "My Research" tab bridge; command-palette entry (`Ctrl+K` → "home" →
+"Open Notebook" as the top match); and full Home → Workspace → Note → Back
+→ Workspace → Back → Home browser-history correctness.
+
+**Non-regression:** 31 new backend tests (22 service-level, 8 router-level,
+1 ticker-filter-parity regression), all passing. Full `journal_two` +
+router regression: every non-passing test individually root-caused to
+either the pre-existing disk-headroom class above or one pre-existing,
+unrelated Obsidian-parity fixture-staleness issue in a different import
+subsystem this wave never touched — zero Wave H regressions. Frontend: 55
+new/updated tests across `ResearchHome.test.jsx`, `TickerResearchWorkspace.
+test.jsx`, `ResearchPage.test.jsx`, `NotebookTab.test.jsx`, all passing;
+full repo-wide vitest re-run: 7 pre-existing, individually-confirmed-
+unrelated failures (a `/api/ticker-search` unchecked-fetch violation from a
+2026-09-03 commit, an unrelated "floor2" reachability item, and five other
+files with zero relationship to Notebook/Journal/Research code) — zero
+Wave H regressions there either.
+
+**Production closure:** same isolated-temporary-worktree process as every
+prior wave. `git worktree add ... -b tmp-wave-h-merge origin/master`, clean
+`--no-ff` merge of `notebook-primary-platform` (commit `810c78b91`), zero
+conflicts, producing merge commit `3f514c09f`. Re-fetched `origin/master`
+immediately before pushing, confirmed still an ancestor. Pushed directly to
+`master`. Temp worktree removed via the standard Windows file-lock →
+`cd` back to the primary worktree → PowerShell `Remove-Item -Recurse
+-Force` fallback this pattern always needs on this box.
+
+Railway `web` picked up the push automatically; watched `railway status
+--json` (web service, Python-parsed GraphQL shape) through to **SUCCESS**.
+`latestDeployment.meta.commitHash` reads `66dd0a934` — ONE commit ahead of
+`3f514c09f` (an unrelated concurrent session's "continuity: Seam 6" commit
+landed and rode the same build; directly confirmed via `git merge-base
+--is-ancestor 3f514c09f origin/master` that Wave H's own commits are fully
+included, not superseded or lost — the same benign concurrent-session
+landing pattern every prior wave's closure has recorded). Fresh-process
+confirmed via `GET /api/health` on `uctintelligence.com`
+(`uptime_seconds: 22` moments after the flip to SUCCESS). New Wave H routes
+(`GET /api/j2/notebook/home`, `GET /api/j2/notes/research/{symbol}/summary`)
+verified returning real, auth-gated `401 application/json` in production,
+not the SPA catch-all; the new frontend route
+(`/journal/notebook/research/NVDA`) resolves 200. Production bundles
+(`NotebookTab-DGrdpJyj.js`, `TickerResearchWorkspace-ChOtuWsa.js`, both
+fetched live via their real chunk names resolved from the main entry
+bundle, not guessed) contain the shipped UI copy: "Nothing needs your
+attention" (Research Home's empty state), "No research on", "New thesis",
+"View all". LOCKED `broker_sync` merge invariant re-checked: `grep -c
+broker_sync api/main.py` reads 10, unchanged from every prior wave's own
+post-merge reading, comfortably above the documented ≥7 floor.
+
+Verification detail (the live browser E2E sequence, the two defects' exact
+reproduction steps, the mobile audit numbers, the disk-incident recovery
+steps) lives in `prelaunch-primary-notebook-build-plan.md`'s Wave H closure
+section, not duplicated here.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
