@@ -124,6 +124,20 @@ test('NON-VACUITY: without the override the same render has no prices at all', (
   expect(screen.queryByText('10.50')).toBeNull()
 })
 
+test('RVOL renders from a directly-supplied ratio, with no raw volume anywhere', () => {
+  // The derived form needs avg_vol_20d AND a live q.volume; a recorded breadth
+  // drill has neither, so without the direct path the column is always blank.
+  render(
+    <Watchlists
+      embedded pickList="__scan__" pickName="UP 4%+" scanSymbols={SYMS}
+      quoteOverride={PINNED}
+      metaOverride={{ NX: { rvol: 700 } }}
+      defaultColCfg={{ order: ['flag', 'sym', 'price', 'chg', 'rvol'] }}
+    />,
+  )
+  expect(screen.getByText('7.0x')).toBeTruthy()
+})
+
 test('an empty override object does not count as augmenting the feed', () => {
   // The bail-out must still fire for `{}` — otherwise every ordinary watchlist
   // pays for a merge that changes nothing.

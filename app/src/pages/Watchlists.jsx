@@ -1859,6 +1859,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const m = metaData?.[s]
       if (key === 'rvol') {
+        // Prefer a directly-supplied ratio, exactly as the cell does — otherwise
+        // sorting a drill by RVOL would order every row as null while the column
+        // visibly shows values.
+        if (Number.isFinite(m?.rvol)) return m.rvol
         const av = m?.avg_vol_20d, v = q?.volume
         return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
       }
@@ -2060,9 +2064,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // RVOL: today's LIVE volume vs the 20-session average (from the meta batch), as a %.
     // Live-updates because q.volume ticks; null until the average has loaded.
     const _avg20 = metaData[sym]?.avg_vol_20d
-    const rvolVal = (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
-      ? (q.volume / _avg20) * 100
-      : null
+    // A caller that ALREADY knows the ratio can supply `rvol` directly via
+    // metaOverride — the breadth drill's payload carries `vr` (relative volume)
+    // but no raw volume, so the derived form below can never resolve for it.
+    // Stored as a PERCENT to match the derived form (the cell divides by 100).
+    const _rvolDirect = metaData[sym]?.rvol
+    const rvolVal = Number.isFinite(_rvolDirect)
+      ? _rvolDirect
+      : (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
+        ? (q.volume / _avg20) * 100
+        : null
     return (
       <WatchRow
         key={sym}

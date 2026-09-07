@@ -23,6 +23,14 @@ const pctOf = (r) => r?.pct
 // absent, which is a fresh identity on every render and churns every memo below.
 const NO_ITEMS = []
 
+// First-run column layout. Sorted by % change desc because that is what a
+// breadth cell IS — the stocks that moved — and it matches the order the
+// endpoint already returns.
+const DRILL_DEFAULT_COLS = {
+  order: ['flag', 'sym', 'price', 'chg', 'rvol'],
+  sort: { key: 'chg', dir: 'desc' },
+}
+
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
   const drill = useDrillSource()
@@ -76,6 +84,12 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       if (it.n != null) entry.name = it.n
       if (Number.isFinite(it.atr)) entry.atr = it.atr
       if (Number.isFinite(it.a50)) entry.a50 = it.a50
+      // `vr` IS relative volume — the "1.7x" the retired table showed in its VOL
+      // column. The watchlist's Vol column means RAW volume, which this payload
+      // does not carry, so without this the ratio would be the one piece of
+      // information the new surface shows LESS of than the old one. RVOL is
+      // stored as a percent (the cell divides by 100).
+      if (Number.isFinite(it.vr)) entry.rvol = it.vr * 100
       if (Object.keys(entry).length) out[sym] = entry
     }
     if (groups) {
@@ -170,6 +184,13 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             // All industries open at once, each independently collapsible —
             // seeing which dominate the cohort IS the read.
             groupExpand="multi"
+            // FIRST-RUN columns only. `colStorageKey` is deliberately absent, so
+            // this list stores under the GLOBAL watchlist key — a user who has
+            // ever arranged their watchlist columns sees exactly that arrangement
+            // here, which is the whole point. This default applies only when
+            // there is no saved layout yet, and it leads with RVOL rather than
+            // Vol because a recorded drill carries the ratio, not raw volume.
+            defaultColCfg={DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
             scanFooter={scanFooter}

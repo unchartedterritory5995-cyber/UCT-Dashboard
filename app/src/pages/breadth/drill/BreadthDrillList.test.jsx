@@ -92,6 +92,25 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
     })
   })
 
+  it('⛔ maps `vr` to RVOL — the ratio the retired table showed as "1.7x"', () => {
+    // The watchlist's Vol column means RAW volume, which this payload does not
+    // carry. Without this mapping the ratio is the ONE piece of information the
+    // new surface shows less of than the old one. RVOL is a percent; the cell
+    // divides by 100, so 1.7x is stored as 170.
+    mount(LIVE)
+    expect(lastProps.metaOverride.AEHR.rvol).toBe(170)
+    expect(lastProps.metaOverride.SRPT.rvol).toBeCloseTo(240)
+  })
+
+  it('leads with RVOL, not Vol, when the user has no saved column layout', () => {
+    mount(LIVE)
+    expect(lastProps.defaultColCfg.order).toContain('rvol')
+    expect(lastProps.defaultColCfg.order).not.toContain('vol')
+    // …but the list still stores under the GLOBAL watchlist key, so a user who
+    // HAS arranged their columns sees that arrangement instead.
+    expect(lastProps.colStorageKey).toBeUndefined()
+  })
+
   it('offers no dead back button — there is no picker to return to', () => {
     mount(LIVE)
     expect(lastProps.onExitPick).toBeUndefined()
