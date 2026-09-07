@@ -115,6 +115,69 @@ Directive means reporting this honestly rather than manufacturing
 activity against a genuinely gated pool. No independent, bounded,
 unblocked work remains identified as of this checkpoint.
 
+## ⛔⛔ FORMAL HOLD CHECKPOINT (owner-issued, 2026-09-07, post-Seam-7) —
+## READ THIS FIRST, ABOVE EVEN THE RE-ANCHOR BELOW
+
+**CURRENT ACTIVE PROGRAM: NONE — LEGITIMATE EXTERNAL-GATE HOLD.** The
+owner explicitly accepted the post-Seam-7 remaining-work scan and issued
+a formal hold: no clearly material, bounded, unblocked Terminal product
+gap remains. Every item in the debt ledger is EXTERNAL GATE, OWNER/
+PRODUCT DECISION, CONCURRENT PROGRAM COLLISION, EXPLICIT LOW-PRIORITY
+DEBT, or OPTIONAL HARDENING. **A future session must NOT**: start
+another architecture review, launch another multi-agent re-anchor, pick
+up a low-priority seam merely to stay busy, touch gated technical work
+prematurely, or reopen a resolved seam without concrete regression
+evidence. Do not manufacture activity to fill this hold period.
+
+- **PRIMARY NEXT HINGE:** Pattern Vision real-session evidence.
+  `PATTERN_VISION_ENABLED=1`, LIVE, NOT YET ACCEPTED. Monday 2026-09-07
+  (today, at hold time) is HOLIDAY-SAFETY OBSERVATION ONLY and does
+  **NOT** count as one of the two required real sessions.
+- **NEXT OBSERVATION: Tuesday 2026-09-08 — real session #1.** Observe
+  naturally — do not manufacture detections, manually invoke activity,
+  relax criteria, or accept Pattern Vision after only this one session.
+  Record the evidence faithfully.
+- **FINAL REQUIRED OBSERVATION: Wednesday 2026-09-09 — real session #2.**
+  Only after this genuine second session is complete does the
+  already-planned final Pattern Vision acceptance classification run,
+  against actual evidence, classified honestly as either LIVE + ACCEPTED
+  or LIVE + NOT ACCEPTED / REMEDIATION REQUIRED — as earned, not assumed.
+- **PRIORITY INTERRUPT ON ACCEPTANCE (LIVE + ACCEPTED):** move immediately
+  to **Technical Research Release Review** (currently IMPLEMENTED +
+  TESTED, PARKED — do NOT auto-merge solely because Pattern Vision
+  passed: fetch fresh master, inspect drift, reconcile only if clean,
+  re-run bounded tests, verify its confirmed-pattern contract still
+  matches the now-accepted Pattern Vision system, then classify release
+  readiness). If it passes: merge, deploy, production-verify, update
+  continuity. **Then resume Technical Ask AI** — Phase A is ALREADY
+  COMPLETE, do NOT repeat it; resume directly from the recorded
+  specification (9th technical domain, confirmed Pattern Vision verdicts
+  only, existing grounding gate, freshness/staleness handling, no raw
+  pattern feed, no on-demand Vision, no scanner invocation) and
+  implement/test/release under the existing acceptance protocol.
+- **IF PATTERN VISION DOES NOT PASS:** do not force Technical Research or
+  Technical Ask AI into production. Record the exact failure evidence.
+  Determine the smallest evidence-based remediation program. Do not
+  reopen unrelated Terminal convergence work.
+- **SECONDARY EXTERNAL INTERRUPT: a natural S7 filing event.** S7 remains
+  WAITING ON NATURAL EXTERNAL EVENT — no genuine newer NVDA filing has
+  fired the required Stage 2 path yet. Do NOT replay, fabricate, mutate
+  the baseline, mint a fake session, or force the evaluator. If a genuine
+  filing occurs during the hold, preserve the natural evidence and
+  prioritize: REAL SEC DOCUMENT → S7 EVALUATOR → DURABLE FIRE → DELIVERY
+  → MEMBER ALERT → RESEARCH RETURN → REPEAT EVALUATION → ZERO DUPLICATE
+  → report. Do NOT automatically merge the parked Stage 4/5 UI.
+- **Other programs during the hold:** protect concurrent Notebook work;
+  do not pick up Seam 13 while a real semantic collision remains; do not
+  independently decide unresolved product-policy items; do not spend the
+  hold on Seam 3/4/27 or other explicitly low-priority debt.
+
+**No additional engineering action is authorized merely to fill the hold
+period.** A resuming session's first move is to re-check Pattern
+Vision's live flag/evidence state and S7's `alert_fires` row count —
+both live-checkable in under a minute — before assuming anything above
+is still current.
+
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
 
@@ -2964,4 +3027,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    specced) remain BLOCKED_ON_PATTERN_VISION_ACCEPTANCE regardless of this
    directive — that gate is external, not something continuous execution can
    route around; resume either only from its recorded spec once Pattern
-   Vision resolves.
+   Vision resolves. **As of the post-Seam-7 scan (2026-09-07), the owner
+   formally invoked exactly this directive's own "no independent work left"
+   stop condition — see the "⛔⛔ FORMAL HOLD CHECKPOINT" section near the
+   top of this file for the exact current hold state, next hinge date, and
+   what is/is not authorized during it.**
