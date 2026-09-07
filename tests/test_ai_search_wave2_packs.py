@@ -28,6 +28,39 @@ def test_ctx_posture_renders_only_non_null(monkeypatch):
     assert ai._ctx_posture("NVDA") == ""
 
 
+# ── Seam 25 (2026-09-06): freshness disclosure, so a silently-stale nightly
+# build reads as stale to the model rather than as an undated "UCT nightly
+# snapshot" ─────────────────────────────────────────────────────────────────
+def test_ctx_posture_discloses_snapshot_and_bars_dates(monkeypatch):
+    import api.services.screener.snapshot_db as sdb
+    row = {"pct_vs_sma20": 4.2, "snapshot_date": "2026-09-05",
+           "bars_asof": "20260904"}
+    monkeypatch.setattr(sdb, "get_row", lambda s: dict(row))
+    out = ai._ctx_posture("NVDA")
+    assert "built 2026-09-05" in out, out
+    assert "bars asof 2026-09-04" in out, out
+
+
+def test_ctx_posture_freshness_fields_absent_are_not_invented(monkeypatch):
+    """CONTROL — same rule as everywhere else in this pack: no key, no fact."""
+    import api.services.screener.snapshot_db as sdb
+    row = {"pct_vs_sma20": 4.2}
+    monkeypatch.setattr(sdb, "get_row", lambda s: dict(row))
+    out = ai._ctx_posture("NVDA")
+    assert out.startswith("NVDA technical posture (UCT nightly snapshot):"), out
+    assert "built" not in out and "bars asof" not in out
+
+
+def test_ctx_posture_a_lone_snapshot_date_is_still_worth_having(monkeypatch):
+    """CONTROL — one date present must not be dropped for lack of the other."""
+    import api.services.screener.snapshot_db as sdb
+    row = {"pct_vs_sma20": 4.2, "snapshot_date": "2026-09-05", "bars_asof": None}
+    monkeypatch.setattr(sdb, "get_row", lambda s: dict(row))
+    out = ai._ctx_posture("NVDA")
+    assert "built 2026-09-05" in out, out
+    assert "bars asof" not in out
+
+
 def test_ctx_call_recap_reads_store_only(monkeypatch):
     import api.services.call_recap_store as store
     monkeypatch.setattr(store, "get", lambda s, q=None: {
