@@ -7684,6 +7684,23 @@ export function translatePine(source, opts = {}) {
     }
     if (BLOCK_KEYWORDS.has(word)) {
       notes.push(noteOf('pine:block', REFUSALS['pine:block'], first))
+      // 🔴🔴 SILENT_WRONG_RESULT GUARD — a top-level `for`/`while`/switch this
+      // walker cannot fold is exactly the case the closing pass (below) exists
+      // to catch, but the closing pass runs ONCE, after every statement has
+      // already been walked. Any ordinary binding built *before* it runs
+      // (`screen = ... and distDays <= 3 and ...`) captures `new Map(env)` —
+      // a SNAPSHOT — at that moment, and the Resolver later reads a name
+      // through such a binding using ITS OWN stored snapshot
+      // (`this.env = bound.env`, not the live env) — so a correction the
+      // closing pass makes afterward can never reach it. Forcing the block's
+      // mutated names opaque HERE, the instant the walk gives up on them,
+      // means every snapshot taken from this point on already sees the
+      // refusal. Confirmed reproduction: `volume-dollar-volume-money-flow.pine`
+      // silently folded `distDays` (mutated only inside this loop) to its
+      // pre-loop value `0` inside `screen`'s formula instead of refusing.
+      for (const name of mutatorTargets(stmt.body)) {
+        forceOpaque(name, 'pine:reassign', locate(first), name)
+      }
       continue
     }
 

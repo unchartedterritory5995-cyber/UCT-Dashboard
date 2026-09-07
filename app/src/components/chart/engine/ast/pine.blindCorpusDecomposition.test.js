@@ -521,7 +521,17 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     + 'pine.blindCorpus.test.js\'s FLOOR/ACCEPT_FLOOR for the authoritative, '
     + 'currently-maintained running total — this count is preserved here as a '
     + 'point-in-time snapshot of the RISK-004 tranche\'s own claim, not '
-    + 'silently re-typed to the new number.', () => {
+    + 'silently re-typed to the new number. '
+    + '🔴🔴 19 -> 21 IS THE ONE EXCEPTION (RISK-043, 2026-09-07): unlike every '
+    + 'other update to this snapshot, this is not new capability moving the '
+    + 'number — it is a CORRECTNESS FIX exposing that two of the 19 were '
+    + 'already silently, confidently wrong (a for-loop-mutated scalar read '
+    + 'through an intermediate binding, folded to its pre-loop value instead '
+    + 'of refusing). volume-pocket-pivot-up-volume and '
+    + 'meanrev-consecutive-down-closes-exhaustion move from the passing set '
+    + 'into misses, correctly, at guard pine:reassign. See '
+    + 'pine.forLoopReassignSilentWrongResult.test.js for the mechanism and '
+    + 'permanent regression net.', () => {
     const files = fs.readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.pine'))
     const misses = []
     for (const f of files) {
@@ -534,7 +544,10 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     expect(misses).toContain('breakout-flat-base-pivot-breakout') // unsound nz sentinel — stays a miss
     expect(misses).toContain('recency-breakout-hold-since-trigger') // numeric window use — stays a miss
     expect(misses).toContain('recency-fresh-golden-cross') // barssince vs barssince — stays a miss
-    expect(misses.length).toBe(19)
+    // 🔴🔴 RISK-043 (2026-09-07): two prior silent false-passes now correctly refuse.
+    expect(misses).toContain('volume-pocket-pivot-up-volume')
+    expect(misses).toContain('meanrev-consecutive-down-closes-exhaustion')
+    expect(misses.length).toBe(21)
   })
 })
 

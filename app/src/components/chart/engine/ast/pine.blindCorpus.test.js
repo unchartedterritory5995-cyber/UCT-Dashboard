@@ -133,8 +133,28 @@ const ACCEPTED = FILES.filter((f) => {
  *  tracking `FLOOR`'s 28 -> 29 move one-for-one: `candles-doji-at-extension`
  *  needed no assisted offer either, since `ta.falling`'s translation is a
  *  RAW gain like `ta.barssince`'s. See `FLOOR`'s own note for the full
- *  accounting of what did and did not move in this tranche. */
-const ACCEPT_FLOOR = 38
+ *  accounting of what did and did not move in this tranche.
+ *
+ *  🔴🔴 38 -> 36 IS A CORRECTNESS CORRECTION, NOT A REGRESSION (RISK-043,
+ *  2026-09-07): `volume-pocket-pivot-up-volume` and
+ *  `meanrev-consecutive-down-closes-exhaustion` were both COUNTED HERE, and
+ *  both were SILENT_WRONG_RESULT the entire time. Each mutates a scalar
+ *  inside a top-level `for` loop (`maxDownVol`, `downCount`) and reads it
+ *  afterward through an ordinary intermediate binding
+ *  (`screen = ... volume > maxDownVol ...` / `streak = downCount >= minDown`)
+ *  rather than directly inside the output call. The translator's closing-pass
+ *  safety net for an un-foldable loop mutation ran once, AFTER the whole
+ *  script had already been walked — too late for a binding made earlier in
+ *  program order, which had already captured a stale, pre-loop snapshot of
+ *  the mutated name and silently folded it into a compile-time constant. See
+ *  `FLOOR`'s own note on the same tranche, and the permanent regression net
+ *  at `pine.forLoopReassignSilentWrongResult.test.js`. The floor drops
+ *  because two scripts that used to be silently, confidently wrong are now
+ *  correctly refused — this is the engine getting MORE honest, not less
+ *  capable, and this program's own correctness policy ranks that above the
+ *  headline count. Do not restore these two to ACCEPTED without first
+ *  implementing genuine loop-carried-state execution (not authorized). */
+const ACCEPT_FLOOR = 36
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -248,8 +268,21 @@ const SERVED_CONTROLS = Object.freeze({
  *  misses. See `tests/test_vendor_parity_batch1.py` and
  *  `pine.batch1VendorBacked.test.js` for the vendor evidence and mutation
  *  controls behind each of these three. */
-/** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 29
+/** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it —
+ *  EXCEPT for a documented correctness correction, below.
+ *
+ *  🔴🔴 29 -> 27 IS THE SAME CORRECTNESS CORRECTION AS `ACCEPT_FLOOR`'s
+ *  38 -> 36 (RISK-043, 2026-09-07), one-for-one: `volume-pocket-pivot-up-volume`
+ *  and `meanrev-consecutive-down-closes-exhaustion` were both counted as RAW
+ *  passes and both were SILENT_WRONG_RESULT — a scalar mutated inside a
+ *  top-level `for` loop, read afterward through an intermediate binding, and
+ *  silently folded to its pre-loop value instead of refusing. See
+ *  `ACCEPT_FLOOR`'s note for the full mechanism and
+ *  `pine.forLoopReassignSilentWrongResult.test.js` for the permanent
+ *  regression net. This is a correctness improvement lowering a headline
+ *  number, not a capability regression — do not chase the number back up by
+ *  reverting the fix. */
+const FLOOR = 27
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {

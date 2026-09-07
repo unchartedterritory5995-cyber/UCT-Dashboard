@@ -64,7 +64,17 @@ describe('the community corpus, by name', () => {
     '13-relative-strength-vs-benchmark-spy.pine',
     '15-inside-bar.pine',
     '16-nr4-nr7.pine',
-    '17-pocket-pivot-breakout.pine',
+    // 🔴🔴 `17-pocket-pivot-breakout.pine` REMOVED (RISK-043, 2026-09-07) — it
+    // was a SILENT_WRONG_RESULT, not a real pass. `ppchk` is mutated inside a
+    // top-level `for` loop (`ppchk += 1`), then read by an `if ppchk < 1 and
+    // greenday: ispp := true` block whose condition the translator could not
+    // fold — before the fix, the loop's un-foldable mutation was only caught
+    // by a closing-pass safety net that ran too late for the earlier `if`
+    // statement's own body, which had already captured a stale, pre-loop
+    // `ppchk` and silently baked it into `ispp`. See
+    // `pine.forLoopReassignSilentWrongResult.test.js` for the mechanism and
+    // permanent regression net; see `pine.community.guards.test.js` for where
+    // this script now lives (correctly refused, `pine:reassign`).
     '18-minervini-trend-template.pine',
     // ⭐⭐ TWO REFUSALS DEEP, and neither was the one the blocker table named.
     // It cleared `pine:request` when a ternary timeframe learned to fold its own

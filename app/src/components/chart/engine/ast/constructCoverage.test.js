@@ -155,7 +155,15 @@ describe('🔴 THE RATCHET — a construct may only ever reach FURTHER', () => {
     'persistent-state': 14,    // of 29 that use it
     'user-defined-fn': 11,    // of 24 that use it
     'bounded-loop': 5,     // of 13 that use it
-    collections: 4,     // of 10 that use it
+    // 🔴🔴 4 → 3 ON 2026-09-07 IS THE ONE DOCUMENTED EXCEPTION TO "NEVER LOWER
+    // ONE" (RISK-043): `17-pocket-pivot-breakout.pine` (array.new/array.set/
+    // array.get) was one of the 4 and was never a real translate — it silently
+    // folded a for-loop-mutated scalar to its pre-loop value instead of
+    // refusing (SILENT_WRONG_RESULT). It now correctly refuses `pine:reassign`
+    // (see `doorScorecard.test.js`'s RULED entry and
+    // `pine.forLoopReassignSilentWrongResult.test.js`). This is a correctness
+    // fix lowering a headline number, not a construct-coverage regression.
+    collections: 3,     // of 10 that use it
     'drawing-objects': 7,     // of 23 that use it
     'session-clock': 1,     // of 7 that use it
     'type-cast': 0,     // of 5 that use it

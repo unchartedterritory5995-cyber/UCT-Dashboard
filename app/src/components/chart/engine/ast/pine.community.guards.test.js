@@ -89,6 +89,22 @@ const REFUSES = Object.freeze({
   // moment a second lag appeared. Both are widened now and it TRANSLATES, so its
   // row moved to `pine.community.test.js`'s roster.
   '14-earnings-gap-ups.pine': ['pine:no-output', null, null],
+  // 🔴🔴 ADDED (RISK-043, 2026-09-07) — WAS MISSING FROM THIS MAP ENTIRELY,
+  // because it used to sit in `pine.community.test.js`'s TRANSLATES roster,
+  // and it should never have: `ppchk` is mutated inside a top-level `for`
+  // loop (`ppchk += 1`), then read by `if ppchk < 1 and greenday: ispp :=
+  // true`, a top-level `if` whose CONDITION depends on the loop-mutated name.
+  // The translator's closing-pass safety net for an un-foldable loop
+  // mutation used to run once, after the whole script was walked — too late
+  // for this `if` statement, which is walked earlier in program order and
+  // had already captured a stale, pre-loop `ppchk` (still `0`). The script
+  // silently computed `ppchk < 1` as always-true instead of refusing —
+  // SILENT_WRONG_RESULT, not a real pass. See
+  // `pine.forLoopReassignSilentWrongResult.test.js` for the traced mechanism
+  // and the permanent regression net; the fix forces every name a top-level
+  // `for`/`while`/switch mutates opaque the instant the walk gives up on the
+  // block, instead of deferring that correction to end-of-program.
+  '17-pocket-pivot-breakout.pine': ['pine:reassign', 24, 'for'],
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
   // in `closedTable.json` and not in `PINE_INEXPRESSIBLE` either.

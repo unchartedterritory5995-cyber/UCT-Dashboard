@@ -2145,10 +2145,11 @@ exactly** — proof that the candidate formula is what TradingView's `ta.pvt`
 computes, independent of and unaffected by this session's own external
 volume-transcription rounding.
 
-**Is the ~25-unit residual PROVEN, not merely asserted, to be caused by
-display-rounding?** A direct sensitivity calculation, run against the real
-bar data for the max-absolute-delta row (2026-08-24), rather than argued
-qualitatively:
+**Is the ~25-unit residual caused by display-rounding?** A direct sensitivity
+calculation, run against the real bar data for the max-absolute-delta row
+(2026-08-24), rather than argued qualitatively — bounding, not proving, the
+residual, since the exact unrounded vendor volume was never independently
+recovered:
 
 ```
 date        prevClose  close    frac       volume       term            +/-5000-share sensitivity
@@ -2168,16 +2169,22 @@ bound** implied by TradingView's own display-rounding granularity — squarely
 consistent with 5 independent, partially-cancelling per-day rounding errors
 (the expected shape when errors are not systematically biased), and small
 relative to the bound a systematic (non-rounding) formula error would need
-to explain. This is offered as PROVEN, not asserted: the calculation
-directly uses this artifact's own real bar data and TradingView's own
-documented display precision, not an assumed cause.
+to explain. The calculation directly uses this artifact's own real bar data
+and TradingView's own documented display precision, not an assumed cause —
+but it establishes a BOUND consistent with the observed residual, not a
+causal proof: the exact unrounded vendor volume was never independently
+recovered and shown to eliminate the residual, so rounding remains the
+consistent explanation rather than the demonstrated one.
 
-**Status, precisely**: the residual is CONSISTENT WITH, AND FULLY BOUNDED
-BY, volume-display-rounding — a real, calculated, artifact-specific proof,
-not a label applied by default. Where a document states only "volume-rounding
-artifact" without this calculation attached (Addendum 4's own §9/§13), that
-language is now backed by this section rather than standing as an assumption
-— see §12 for exactly which documents carry the pointer.
+**Status, precisely**: CONSISTENT WITH DISPLAY-VOLUME ROUNDING AND BOUNDED
+BY THE MEASURED ROUNDING SENSITIVITY; NO FORMULA DISAGREEMENT OBSERVED. This
+is a real, calculated, artifact-specific bound, not a label applied by
+default — but it is not causal proof, and should not be described as such.
+Where a document states only "volume-rounding artifact" without this
+calculation attached (Addendum 4's own §9/§13), that language is now backed
+by this section's bound, precisely worded, rather than standing as an
+unqualified assumption — see §12 for exactly which documents carry the
+pointer.
 
 ## 6. Raw-artifact evidence limitation (preserved, re-stated precisely)
 
