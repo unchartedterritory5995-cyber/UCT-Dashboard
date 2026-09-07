@@ -1649,7 +1649,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return out
   }, [attentionVisible, allTickers, prices])
-  const { intelData } = useWatchlistIntelligence(attentionVisible ? allTickers : [], changesForIntel)
+  // Seam 8 (2026-09-07): the SAME live-price payload changesForIntel already
+  // reads also carries each symbol's vendor observation timestamp
+  // (prices[s].observed_at) -- riding along here gives price_move facts a
+  // real evidence date instead of the honest-but-empty as_of:null they had
+  // before. Not part of useWatchlistIntelligence's SWR key, same reasoning
+  // as changesForIntel itself (see the hook's own comment).
+  const observedAtForIntel = useMemo(() => {
+    if (!attentionVisible) return {}
+    const out = {}
+    for (const s of allTickers) {
+      const oa = prices[s]?.observed_at
+      if (Number.isFinite(oa)) out[s] = oa
+    }
+    return out
+  }, [attentionVisible, allTickers, prices])
+  const { intelData } = useWatchlistIntelligence(attentionVisible ? allTickers : [], changesForIntel, observedAtForIntel)
   // Scan-provided per-symbol fields (e.g. the IPO scan's ipo_date for EVERY result,
   // beyond the meta batch's 100-ticker cap) merge over the batch meta so the column
   // + its sort see every row.

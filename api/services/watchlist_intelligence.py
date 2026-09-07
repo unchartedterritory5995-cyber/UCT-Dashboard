@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime
 import logging
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
 
@@ -42,22 +43,37 @@ def _fact(kind: str, label: str, as_of: Optional[str], source: str, freshness: s
     return {"kind": kind, "label": label, "as_of": as_of, "source": source, "freshness": freshness}
 
 
-def _price_move_fact(sym: str, change_pct: Optional[float]) -> Optional[dict]:
+def _price_move_fact(sym: str, change_pct: Optional[float], observed_at: Optional[float] = None) -> Optional[dict]:
     if change_pct is None or not isinstance(change_pct, (int, float)):
         return None
     if abs(change_pct) < _PRICE_MOVE_THRESHOLD_PCT:
         return None
     sign = "+" if change_pct >= 0 else ""
-    # No evidence timestamp accompanies `change_pct` anywhere in the current
-    # pipeline (S9 Phase A, 2026-09-06) -- `changes` is a bare {SYM: pct}
-    # dict end-to-end, so a stamped date here would be wall-clock, not
-    # evidence-derived (the prior `date.today()` misrepresented a Saturday
-    # call on a Friday closed-market carryover move as "today"). Honest
-    # `None` (consumers already null-guard `as_of`) until a real per-symbol
-    # timestamp is threaded through -- deferred, see Seam 8.
+    # Seam 8 (2026-09-07): `observed_at` is the vendor's own epoch-seconds
+    # observation timestamp for this symbol's live quote, threaded through
+    # from live_prices.py -> massive.py::get_batch_quotes's already-computed
+    # per-ticker value (zero new provider call -- see the continuity
+    # checkpoint for the full trace). Converted to an ET calendar date to
+    # match every OTHER fact kind's own `as_of` convention (a bare
+    # YYYY-MM-DD string, per `_analyst_fact`/`_filing_fact` above -- never a
+    # raw timestamp, which no consumer's rendering expects). Prior to Seam 8
+    # this was unconditionally `None` because `changes` was a bare {SYM: pct}
+    # dict with no evidence timestamp anywhere in the pipeline (S9 Phase A,
+    # 2026-09-06) -- a caller that still only supplies `changes` (no
+    # `observed_at`) gets the EXACT same `as_of=None` as before, e.g. the
+    # closed-market fallback path, which has no per-symbol observation to
+    # report and deliberately stays honest rather than guessing.
+    as_of = None
+    if isinstance(observed_at, (int, float)) and observed_at > 0:
+        try:
+            as_of = datetime.datetime.fromtimestamp(
+                observed_at, tz=ZoneInfo("America/New_York"),
+            ).date().isoformat()
+        except (ValueError, OSError, OverflowError):
+            as_of = None
     return _fact(
         "price_move", f"Moving {sign}{change_pct:.1f}% today",
-        as_of=None,
+        as_of=as_of,
         source="live price", freshness="fresh",
     )
 
@@ -181,15 +197,25 @@ def _rating_context(sym: str) -> dict:
     return ctx
 
 
-def get_intelligence_for_symbols(tickers: list[str], changes: Optional[dict[str, float]] = None) -> dict[str, dict]:
+def get_intelligence_for_symbols(
+    tickers: list[str],
+    changes: Optional[dict[str, float]] = None,
+    price_observed_at: Optional[dict[str, float]] = None,
+) -> dict[str, dict]:
     """{SYM: {status, notable, facts, context}} for every requested symbol.
 
     status: "ok" (every source reachable) | "partial" (some sources failed,
     some facts may still be present) | "unavailable" (every source failed).
     Never conflates "zero facts fired" with "we couldn't check" -- a caller
     reads `status`, not the emptiness of `facts`, to tell those apart.
+
+    `price_observed_at` (Seam 8, 2026-09-07): optional, additive, per-symbol
+    vendor observation epoch (seconds) alongside `changes` -- a caller that
+    doesn't supply it (every caller before Seam 8) gets byte-identical
+    behavior to before.
     """
     changes = changes or {}
+    price_observed_at = price_observed_at or {}
     symbols = [(t or "").upper().strip() for t in (tickers or []) if t]
     symbols = list(dict.fromkeys(symbols))  # dedupe, keep order
     if not symbols:
@@ -203,7 +229,7 @@ def get_intelligence_for_symbols(tickers: list[str], changes: Optional[dict[str,
         sources_total = 3  # analyst, filing, earnings (price-move is caller-supplied, not a "source" that can fail)
         sources_failed = 0
 
-        pm = _price_move_fact(sym, changes.get(sym))
+        pm = _price_move_fact(sym, changes.get(sym), price_observed_at.get(sym))
         if pm:
             facts.append(pm)
 
