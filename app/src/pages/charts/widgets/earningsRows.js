@@ -205,48 +205,141 @@ export function buildRows(intel, mode = 'quarterly', limit = 8) {
   return rows
 }
 
+/** Long-term context for the QUARTERLY view: the same five columns at annual
+ *  resolution, a few years deep. Eight quarters show the current cycle; these
+ *  show whether the cycle is a recovery, a peak or a new level — a question the
+ *  quarterly rows cannot answer, and one the user should not have to change
+ *  tabs to ask. Capped hard, because the Annual tab is where depth belongs. */
+export const ANNUAL_TREND_YEARS = 4
+
+export function annualTrendRows(intel) {
+  const rep = (intel?.annual?.reported) || []
+  if (rep.length < 2) return []
+  return rep.slice(0, ANNUAL_TREND_YEARS).map(annualRow)
+}
+
 /** How many reported periods exist beyond the current limit. */
 export function hiddenCount(intel, mode, limit) {
   const all = mode === 'annual' ? (intel?.annual?.reported || []) : (intel?.quarters || [])
   return Math.max(0, all.length - limit)
 }
 
-// ── the 3-second strip ──────────────────────────────────────────────────────
+// ── the snapshot strip: what is coming ──────────────────────────────────────
 /**
- * Facts for the one-line summary strip, in plain language.
+ * The forward-looking strip that sits above the table.
  *
- * Returns ONLY the entries whose data is genuinely present — never a
- * placeholder. A company with no scheduled date and no acceleration run yields
- * an empty list, and the strip does not render at all.
+ * Deliberately ONLY about what is expected next. Acceleration and beat rates
+ * were candidates here too, but they are retrospective and they already have a
+ * home in Earnings Quality below the table — putting them in both places would
+ * have made the page feel longer without making it say more. So the strip
+ * answers "what is coming", Quality answers "how good has this been", and
+ * neither repeats the other.
+ *
+ * Returns ONLY entries whose data genuinely exists. With no consensus at all it
+ * returns nothing and the strip does not render — never a row of placeholders.
  */
-export function summaryFacts(intel) {
+export function snapshotFacts(intel) {
   const s = intel?.summary || {}
   const out = []
   const when = fmtDateShort(s.next_report_date)
-  if (when) out.push({ key: 'next', label: 'Next report', value: when })
-  else if (s.next_report_label) out.push({ key: 'next', label: 'Next report', value: s.next_report_label })
-
-  if (s.next_eps_estimate != null) {
-    out.push({ key: 'est', label: 'EPS estimate', value: fmtEps(s.next_eps_estimate) })
-  }
-  // "EPS accel ×4" was cryptic; a trader should not have to decode the strip.
-  if (s.eps_accel_quarters > 0 && s.eps_trend) {
+  if (when || s.next_report_label) {
     out.push({
-      key: 'accel',
-      label: s.eps_trend === 'decelerating' ? 'EPS slowing' : 'EPS accelerating',
-      value: `${s.eps_accel_quarters} ${s.eps_accel_quarters === 1 ? 'qtr' : 'qtrs'}`,
-      accent: s.eps_trend === 'accelerating',
+      key: 'next',
+      label: 'Next report',
+      value: when || s.next_report_label,
+      // The period is useful context but must never be mistaken for the date.
+      // Short form always: it sits beside a table that uses the short form at
+      // the width where the strip is tightest, and "FY26 Q4" is unambiguous.
+      sub: when && s.next_report_label ? shortLabel(s.next_report_label) : null,
+    })
+  }
+  if (s.next_eps_estimate != null) {
+    out.push({ key: 'eps', label: 'EPS est', value: fmtEps(s.next_eps_estimate) })
+  }
+  if (s.next_revenue_estimate != null) {
+    out.push({ key: 'rev', label: 'Sales est', value: fmtSales(s.next_revenue_estimate) })
+  }
+  return out
+}
+
+// ── Earnings Quality: how good has this run been ────────────────────────────
+const MIN_BEAT_SAMPLE = 3        // two quarters is an anecdote, not a rate
+
+/**
+ * The retrospective assessment block.
+ *
+ * Every entry is gated on the data being MEANINGFUL, not merely present:
+ * a beat rate needs a real sample, an acceleration count needs a genuine run,
+ * and a margin delta needs a year-ago quarter to compare with. The block itself
+ * is suppressed below two facts, because a section heading over one number is
+ * chrome pretending to be research.
+ */
+export function qualityFacts(intel) {
+  const s = intel?.summary || {}
+  const out = []
+
+  const accel = (n, trend, label) => {
+    if (!(n > 0) || !trend) return null
+    return {
+      key: label, label,
+      value: `${n} ${n === 1 ? 'quarter' : 'quarters'}`,
+      arrow: trend === 'accelerating' ? '↑' : '↓',
+      tone: trend === 'accelerating' ? 'up' : 'down',
+      hint: trend === 'accelerating'
+        ? 'Consecutive quarters in which the year-over-year growth RATE rose.'
+        : 'Consecutive quarters in which the year-over-year growth RATE fell.',
+    }
+  }
+  const e = accel(s.eps_accel_quarters, s.eps_trend, 'EPS acceleration')
+  const r = accel(s.rev_accel_quarters, s.rev_trend, 'Sales acceleration')
+  if (e) out.push(e)
+  if (r) out.push(r)
+
+  if (s.eps_beats_of >= MIN_BEAT_SAMPLE) {
+    out.push({
+      key: 'epsbeat', label: 'EPS beat rate',
+      value: `${s.eps_beats} of ${s.eps_beats_of}`,
+      tone: s.eps_beats * 2 >= s.eps_beats_of ? 'up' : 'down',
+      hint: 'Quarters that beat the EPS consensus, out of those where a comparable consensus existed.',
+    })
+  }
+  if (s.rev_beats_of >= MIN_BEAT_SAMPLE) {
+    out.push({
+      key: 'revbeat', label: 'Sales beat rate',
+      value: `${s.rev_beats} of ${s.rev_beats_of}`,
+      tone: s.rev_beats * 2 >= s.rev_beats_of ? 'up' : 'down',
+      hint: 'Quarters that beat the revenue consensus, out of those where a comparable consensus existed.',
     })
   }
   if (s.double_beat_streak > 0) {
     out.push({
-      key: 'streak',
-      label: 'Beat both',
-      value: `${s.double_beat_streak} ${s.double_beat_streak === 1 ? 'qtr' : 'qtrs'}`,
-      accent: true,
+      key: 'double', label: 'Beat both',
+      value: `${s.double_beat_streak} straight`,
+      tone: 'up',
+      hint: 'Consecutive most-recent quarters beating BOTH the EPS and the revenue consensus. A quarter that cannot be scored ends the run rather than counting as a miss.',
     })
   }
-  return out
+  if (s.net_margin_pct != null) {
+    out.push({
+      key: 'margin', label: 'Net margin',
+      value: `${Number(s.net_margin_pct).toFixed(1)}%`,
+      series: s.net_margin_series || null,
+      hint: 'Net income as a share of revenue in the latest reported quarter.',
+    })
+  }
+  if (s.net_margin_delta_pp != null) {
+    const d = Number(s.net_margin_delta_pp)
+    out.push({
+      key: 'marginyoy', label: 'Margin vs year ago',
+      // Percentage POINTS: 60% to 68% is +8pp, and "+13%" would be a different
+      // and misleading claim.
+      value: `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(d).toFixed(1)} pts`,
+      tone: d > 0 ? 'up' : d < 0 ? 'down' : 'none',
+      hint: 'Change in net margin against the same fiscal quarter one year earlier, in percentage points.',
+    })
+  }
+  // One fact under its own heading is chrome, not research.
+  return out.length >= 2 ? out : []
 }
 
 // ── row expansion ───────────────────────────────────────────────────────────

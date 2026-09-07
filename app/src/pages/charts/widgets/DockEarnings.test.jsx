@@ -175,22 +175,94 @@ describe('the value language', () => {
 })
 
 
-describe('the summary strip', () => {
-  it('states the next report in plain language', async () => {
+describe('the snapshot strip', () => {
+  it('states what is coming next, in plain language', async () => {
     mockApi({ intel: payload({
-      summary: { next_report_date: '2026-11-19', eps_accel_quarters: 4, eps_trend: 'accelerating' },
+      summary: { next_report_date: '2026-09-30', next_report_label: 'FY2026 Q4',
+        next_eps_estimate: 31.28, next_revenue_estimate: 5.078e10 },
     }) })
     render(<DockEarnings sym="MU" />)
-    expect(await screen.findByText('Nov 19')).toBeInTheDocument()
-    expect(screen.getByText('EPS accelerating')).toBeInTheDocument()
-    expect(screen.getByText('4 qtrs')).toBeInTheDocument()
+    expect(await screen.findByText('Sep 30')).toBeInTheDocument()
+    expect(screen.getByText('$31.28')).toBeInTheDocument()
+    expect(screen.getByText('$50.78B')).toBeInTheDocument()
   })
 
-  it('does not render at all when nothing reliable is known', async () => {
+  it('does not render at all when nothing forward is known', async () => {
     mockApi({ intel: payload({ summary: {} }) })
     render(<DockEarnings sym="MU" />)
     await screen.findByText('FY2026 Q3')
     expect(document.querySelector('[class*="etStrip"]')).toBeNull()
+  })
+})
+
+
+describe('Earnings Quality', () => {
+  const quality = (over = {}) => payload({ summary: {
+    eps_accel_quarters: 3, eps_trend: 'accelerating',
+    rev_accel_quarters: 2, rev_trend: 'accelerating',
+    eps_beats: 4, eps_beats_of: 5, rev_beats: 4, rev_beats_of: 5,
+    double_beat_streak: 3, net_margin_pct: 68.1, net_margin_delta_pp: 12.4,
+    ...over,
+  } })
+
+  it('renders the retrospective block below the table', async () => {
+    mockApi({ intel: quality() })
+    render(<DockEarnings sym="MU" />)
+    expect(await screen.findByText('Earnings quality')).toBeInTheDocument()
+    expect(screen.getByText('EPS acceleration')).toBeInTheDocument()
+    expect(screen.getByText('Sales acceleration')).toBeInTheDocument()
+    // EPS and Sales beat rates both read '4 of 5' here.
+    expect(screen.getAllByText('4 of 5')).toHaveLength(2)
+    expect(screen.getByText('EPS beat rate')).toBeInTheDocument()
+    expect(screen.getByText('Sales beat rate')).toBeInTheDocument()
+    expect(screen.getByText('68.1%')).toBeInTheDocument()
+    expect(screen.getByText('+12.4 pts')).toBeInTheDocument()
+  })
+
+  it('draws a margin sparkline only when there is a series', async () => {
+    mockApi({ intel: quality({ net_margin_series: [20, 24, 28, 33, 41, 68] }) })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Earnings quality')
+    expect(document.querySelector('[class*="etQSpark"] svg')).toBeTruthy()
+  })
+
+  it('is absent entirely when consensus and margin are unavailable', async () => {
+    mockApi({ intel: payload({ summary: {} }) })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('FY2026 Q3')
+    expect(screen.queryByText('Earnings quality')).toBeNull()
+  })
+})
+
+
+describe('annual trend on the quarterly page', () => {
+  const withTrend = () => payload({ annual: { estimates: [], reported: [
+    { fiscal_year: 2025, label: 'FY2025', estimate: false, eps: 7.59, revenue: 3.738e10, eps_yoy_pct: 984 },
+    { fiscal_year: 2024, label: 'FY2024', estimate: false, eps: 0.7, revenue: 2.511e10, eps_yoy_pct: null, eps_yoy_note: 'turned_profitable' },
+    { fiscal_year: 2023, label: 'FY2023', estimate: false, eps: -5.34, revenue: 1.554e10, eps_yoy_pct: null, eps_yoy_note: 'turned_negative' },
+  ] } })
+
+  it('gives the quarterly page long-term context', async () => {
+    mockApi({ intel: withTrend() })
+    render(<DockEarnings sym="MU" />)
+    expect(await screen.findByText('Annual trend')).toBeInTheDocument()
+    expect(screen.getByText('FY2025')).toBeInTheDocument()
+    expect(screen.getByText('Profitable')).toBeInTheDocument()
+  })
+
+  it('shares the table geometry — five cells, like every other row', async () => {
+    mockApi({ intel: withTrend() })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Annual trend')
+    for (const row of rows()) expect(row.children).toHaveLength(5)
+  })
+
+  it('is NOT repeated in Annual mode, where the table already is the annual view', async () => {
+    mockApi({ intel: withTrend() })
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('Annual trend')
+    fireEvent.click(screen.getByText('Annual'))
+    await waitFor(() => expect(screen.queryByText('Annual trend')).toBeNull())
   })
 })
 

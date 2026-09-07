@@ -10,7 +10,8 @@ import { describe, it, expect } from 'vitest'
 import {
   fmtEps, fmtSales, fmtPct, shortLabel,
   growthCell, surpriseCell,
-  buildRows, hiddenCount, summaryFacts, expansionModel,
+  buildRows, hiddenCount, snapshotFacts, qualityFacts, annualTrendRows,
+  expansionModel,
 } from './earningsRows'
 
 // ── fixtures ────────────────────────────────────────────────────────────────
@@ -259,52 +260,147 @@ describe('history depth', () => {
 })
 
 
-describe('summary strip — only real facts, in plain language', () => {
-  it('reads the next report and the estimate', () => {
-    const facts = summaryFacts(intel({
-      summary: { next_report_date: '2026-11-19', next_eps_estimate: 3.1 },
-    }))
+describe('snapshot strip — forward-looking only', () => {
+  it('states what is coming next', () => {
+    const facts = snapshotFacts(intel({ summary: {
+      next_report_date: '2026-09-30', next_report_label: 'FY2026 Q4',
+      next_eps_estimate: 31.28, next_revenue_estimate: 5.078e10,
+    } }))
     expect(facts.map(f => [f.label, f.value])).toEqual([
-      ['Next report', 'Nov 19'], ['EPS estimate', '$3.10'],
+      ['Next report', 'Sep 30'], ['EPS est', '$31.28'], ['Sales est', '$50.78B'],
     ])
+    // short form, matching the table beside it at the width where space is tightest
+    expect(facts[0].sub).toBe('FY26 Q4')
   })
 
-  it('spells acceleration out instead of "EPS accel ×4"', () => {
-    const facts = summaryFacts(intel({
-      summary: { eps_accel_quarters: 4, eps_trend: 'accelerating' },
-    }))
-    expect(facts[0]).toMatchObject({ label: 'EPS accelerating', value: '4 qtrs', accent: true })
+  it('carries no retrospective facts — those live in Earnings Quality', () => {
+    const facts = snapshotFacts(intel({ summary: {
+      next_report_date: '2026-09-30',
+      eps_accel_quarters: 3, eps_trend: 'accelerating', double_beat_streak: 3,
+    } }))
+    expect(facts.map(f => f.key)).toEqual(['next'])
   })
 
-  it('says slowing rather than accelerating when the trend is down', () => {
-    const facts = summaryFacts(intel({
-      summary: { eps_accel_quarters: 2, eps_trend: 'decelerating' },
-    }))
-    expect(facts[0]).toMatchObject({ label: 'EPS slowing', value: '2 qtrs', accent: false })
+  it('falls back to the fiscal period when no date is scheduled', () => {
+    const facts = snapshotFacts(intel({ summary: { next_report_label: 'FY2026 Q4' } }))
+    expect(facts[0]).toMatchObject({ value: 'FY2026 Q4', sub: null })
+  })
+
+  it('renders nothing at all without forward data', () => {
+    expect(snapshotFacts(intel({ summary: {} }))).toEqual([])
+    expect(snapshotFacts(null)).toEqual([])
+  })
+
+  it('omits only what is missing', () => {
+    const facts = snapshotFacts(intel({ summary: { next_eps_estimate: 3.1 } }))
+    expect(facts.map(f => f.key)).toEqual(['eps'])
+  })
+})
+
+
+describe('Earnings Quality — retrospective, and only when meaningful', () => {
+  const rich = (over = {}) => intel({ summary: {
+    eps_accel_quarters: 3, eps_trend: 'accelerating',
+    rev_accel_quarters: 2, rev_trend: 'accelerating',
+    eps_beats: 4, eps_beats_of: 5, rev_beats: 4, rev_beats_of: 5,
+    double_beat_streak: 3,
+    net_margin_pct: 68.1, net_margin_delta_pp: 12.4,
+    ...over,
+  } })
+
+  it('reports EPS and Sales acceleration with a direction', () => {
+    const f = qualityFacts(rich())
+    expect(f[0]).toMatchObject({ label: 'EPS acceleration', value: '3 quarters', arrow: '↑', tone: 'up' })
+    expect(f[1]).toMatchObject({ label: 'Sales acceleration', value: '2 quarters', arrow: '↑' })
+  })
+
+  it('marks deceleration with a down arrow', () => {
+    const f = qualityFacts(rich({ eps_trend: 'decelerating' }))
+    expect(f[0]).toMatchObject({ arrow: '↓', tone: 'down' })
   })
 
   it('singularises one quarter', () => {
-    const facts = summaryFacts(intel({
-      summary: { eps_accel_quarters: 1, eps_trend: 'accelerating' },
-    }))
-    expect(facts[0].value).toBe('1 qtr')
+    expect(qualityFacts(rich({ eps_accel_quarters: 1 }))[0].value).toBe('1 quarter')
   })
 
-  it('describes the beat streak without cryptic notation', () => {
-    const facts = summaryFacts(intel({ summary: { double_beat_streak: 6 } }))
-    expect(facts[0]).toMatchObject({ label: 'Beat both', value: '6 qtrs' })
+  it('states beat rates as a fraction of what was scoreable', () => {
+    const f = qualityFacts(rich())
+    expect(f.find(x => x.key === 'epsbeat')).toMatchObject({ value: '4 of 5', tone: 'up' })
+    expect(f.find(x => x.key === 'revbeat')).toMatchObject({ value: '4 of 5' })
   })
 
-  it('returns nothing rather than placeholders when nothing is known', () => {
-    expect(summaryFacts(intel({ summary: {} }))).toEqual([])
-    expect(summaryFacts(null)).toEqual([])
+  it('suppresses a beat rate computed from too small a sample', () => {
+    // Two quarters is an anecdote, not a rate.
+    const f = qualityFacts(rich({ eps_beats: 2, eps_beats_of: 2, rev_beats_of: 2 }))
+    expect(f.some(x => x.key === 'epsbeat')).toBe(false)
+    expect(f.some(x => x.key === 'revbeat')).toBe(false)
   })
 
-  it('omits only the missing facts, keeping the rest', () => {
-    const facts = summaryFacts(intel({
-      summary: { next_report_date: '2026-11-19', double_beat_streak: 3 },
-    }))
-    expect(facts.map(f => f.key)).toEqual(['next', 'streak'])
+  it('turns a majority-miss rate red', () => {
+    expect(qualityFacts(rich({ eps_beats: 1, eps_beats_of: 5 }))
+      .find(x => x.key === 'epsbeat').tone).toBe('down')
+  })
+
+  it('reports net margin in percent and its change in POINTS', () => {
+    const f = qualityFacts(rich())
+    expect(f.find(x => x.key === 'margin').value).toBe('68.1%')
+    expect(f.find(x => x.key === 'marginyoy')).toMatchObject({ value: '+12.4 pts', tone: 'up' })
+  })
+
+  it('signs a margin contraction', () => {
+    expect(qualityFacts(rich({ net_margin_delta_pp: -3.5 }))
+      .find(x => x.key === 'marginyoy')).toMatchObject({ value: '−3.5 pts', tone: 'down' })
+  })
+
+  it('attaches the margin series for a sparkline when one exists', () => {
+    const f = qualityFacts(rich({ net_margin_series: [20, 24, 28, 33, 41, 68] }))
+    expect(f.find(x => x.key === 'margin').series).toHaveLength(6)
+    expect(qualityFacts(rich()).find(x => x.key === 'margin').series).toBeNull()
+  })
+
+  it('omits an acceleration run that does not exist', () => {
+    const f = qualityFacts(rich({ eps_accel_quarters: null, eps_trend: null }))
+    expect(f.some(x => x.key === 'EPS acceleration')).toBe(false)
+  })
+
+  it('suppresses the whole block when only one fact survives', () => {
+    // A heading over a single number is chrome, not research.
+    expect(qualityFacts(intel({ summary: { net_margin_pct: 68.1 } }))).toEqual([])
+  })
+
+  it('renders with just margin and its delta — two real facts', () => {
+    const f = qualityFacts(intel({ summary: { net_margin_pct: 68.1, net_margin_delta_pp: 4.2 } }))
+    expect(f.map(x => x.key)).toEqual(['margin', 'marginyoy'])
+  })
+
+  it('returns nothing for an empty payload', () => {
+    expect(qualityFacts(null)).toEqual([])
+    expect(qualityFacts(intel({ summary: {} }))).toEqual([])
+  })
+})
+
+
+describe('annual trend inside the quarterly view', () => {
+  const withAnnual = (n) => intel({ annual: { estimates: [], reported:
+    Array.from({ length: n }, (_, i) => ({
+      fiscal_year: 2025 - i, label: `FY${2025 - i}`, estimate: false,
+      eps: 5 - i, revenue: 3e10, eps_yoy_pct: 20,
+    })) } })
+
+  it('caps at four years — the Annual tab is where depth belongs', () => {
+    expect(annualTrendRows(withAnnual(9))).toHaveLength(4)
+  })
+
+  it('uses the same row shape as the table above it', () => {
+    const r = annualTrendRows(withAnnual(4))[0]
+    expect(Object.keys(r)).toEqual(expect.arrayContaining(
+      ['label', 'eps', 'epsGrowth', 'sales', 'salesGrowth']))
+    expect(r.expandable).toBe(false)
+  })
+
+  it('does not render a trend from a single year', () => {
+    expect(annualTrendRows(withAnnual(1))).toEqual([])
+    expect(annualTrendRows(null)).toEqual([])
   })
 })
 

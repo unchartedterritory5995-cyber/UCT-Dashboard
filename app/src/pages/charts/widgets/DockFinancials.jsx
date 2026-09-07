@@ -27,6 +27,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import Spark from './Spark'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -249,28 +250,6 @@ function longPeriod(p, annual) {
   return `${annual ? 'Fiscal year' : 'Fiscal quarter'} ended ${nice}`
 }
 
-// ── sparkline: thin, flat-capped, trend-coloured, never a mini chart ─────────
-function Spark({ series }) {
-  const pts = series.filter(v => v != null)
-  if (pts.length < 2) return <span className={styles.sparkEmpty} />
-  const min = Math.min(...pts), max = Math.max(...pts), rng = (max - min) || 1
-  const W = 46, H = 15, PAD = 1.5
-  const step = W / (pts.length - 1)
-  const y = v => PAD + (H - PAD * 2) - ((v - min) / rng) * (H - PAD * 2)
-  const d = pts.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-  const up = pts[pts.length - 1] >= pts[0]
-  const lastX = ((pts.length - 1) * step).toFixed(1)
-  return (
-    <svg className={styles.spark} width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
-      <polyline points={d} fill="none" stroke={up ? 'var(--dock-up-text,#3fc885)' : 'var(--dock-down-text,#f1696e)'}
-        strokeWidth="1.25" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {/* the newest point — anchors the eye to "where it ended up" */}
-      <circle cx={lastX} cy={y(pts[pts.length - 1])} r="1.5"
-        fill={up ? 'var(--dock-up-text,#3fc885)' : 'var(--dock-down-text,#f1696e)'} />
-    </svg>
-  )
-}
-
 /** Resolve the period list actually being displayed, newest-first. TTM mode uses
  *  the rolling TTM series so its sparkline and history are real trailing values,
  *  not the raw quarters. */
@@ -341,7 +320,9 @@ function Line({ item, periods, annual, mode, revenues, extraCols, openKey, setOp
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen() } }}
       >
         <span className={styles.finLabel} title={tip || undefined}>{item.label}</span>
-        {item.k && !item.m ? <Spark series={series.slice().reverse()} /> : <span className={styles.sparkEmpty} />}
+        {item.k && !item.m
+          ? <span className={styles.spark}><Spark series={series.slice().reverse()} /></span>
+          : <span className={styles.sparkEmpty} />}
         {/* Prior periods — revealed only when the panel is wide enough (§19). */}
         {extraCols.map(i => (
           <span key={i} className={styles.finPrev} title={longPeriod(periods[i]?.period, annual)}>

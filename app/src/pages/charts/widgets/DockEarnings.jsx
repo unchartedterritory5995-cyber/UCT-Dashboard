@@ -33,8 +33,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import {
-  buildRows, hiddenCount, summaryFacts, expansionModel, shortLabel,
+  buildRows, hiddenCount, snapshotFacts, qualityFacts, annualTrendRows,
+  expansionModel, shortLabel,
 } from './earningsRows'
+import Spark from './Spark'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -177,6 +179,33 @@ function Detail({ q, sym }) {
   )
 }
 
+/* Earnings Quality — a label/value list, not a card grid. Two columns where
+   there is room, one where there is not; the container query does the switch. */
+function Quality({ facts }) {
+  if (!facts.length) return null
+  return (
+    <>
+      <div className={styles.etSection}>Earnings quality</div>
+      <div className={styles.etQuality}>
+        {facts.map(f => (
+          <div key={f.key} className={styles.etQRow} title={f.hint || undefined}>
+            <span className={styles.etQKey}>{f.label}</span>
+            {f.series && (
+              <span className={styles.etQSpark}>
+                <Spark series={f.series} width={38} height={13} />
+              </span>
+            )}
+            <span className={`${styles.etQVal} ${TONE[f.tone] || ''}`}>
+              {f.value}
+              {f.arrow && <span className={styles.etQArrow}>{f.arrow}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 // ── panel ───────────────────────────────────────────────────────────────────
 export default function DockEarnings({ sym }) {
   const [mode, setMode] = useState('quarterly')
@@ -202,7 +231,12 @@ export default function DockEarnings({ sym }) {
   }, [])
 
   const rows = useMemo(() => buildRows(intel, mode, limit), [intel, mode, limit])
-  const facts = useMemo(() => summaryFacts(intel), [intel])
+  const snapshot = useMemo(() => snapshotFacts(intel), [intel])
+  const quality = useMemo(() => qualityFacts(intel), [intel])
+  // Long-term context belongs on the quarterly page; in Annual mode the table
+  // above IS the annual view, so repeating it would be duplication.
+  const trend = useMemo(
+    () => (mode === 'quarterly' ? annualTrendRows(intel) : []), [intel, mode])
   const hidden = hiddenCount(intel, mode, limit)
   const meta = intel?.meta || {}
   const cal = meta.fiscal_calendar || {}
@@ -226,15 +260,16 @@ export default function DockEarnings({ sym }) {
         </div>
       </div>
 
-      {/* The 3-second read, on one line. Only facts that genuinely exist appear;
-          with none of them the strip does not render at all, rather than showing
-          placeholders. */}
-      {facts.length > 0 && (
+      {/* What is coming — one compact line above the table, never cards. Only
+          facts that genuinely exist appear; with none of them the strip does not
+          render at all, rather than showing placeholders. */}
+      {snapshot.length > 0 && (
         <div className={styles.etStrip}>
-          {facts.map(f => (
+          {snapshot.map(f => (
             <span key={f.key} className={styles.etStripItem}>
               <span className={styles.etStripK}>{f.label}</span>
-              <span className={`${styles.etStripV}${f.accent ? ' ' + styles.etGold : ''}`}>{f.value}</span>
+              <span className={styles.etStripV}>{f.value}</span>
+              {f.sub && <span className={styles.etStripSub}>{f.sub}</span>}
             </span>
           ))}
         </div>
@@ -291,6 +326,15 @@ export default function DockEarnings({ sym }) {
                   onClick={() => setLimit(DEEP_LIMIT)}>
                   Show {Math.min(hidden, DEEP_LIMIT - DEFAULT_LIMIT)} more
                 </button>
+              )}
+
+              <Quality facts={quality} />
+
+              {trend.length > 0 && (
+                <>
+                  <div className={styles.etSection}>Annual trend</div>
+                  {trend.map(r => <Row key={r.key} row={r} sym={sym} open={false} onToggle={undefined} />)}
+                </>
               )}
 
               <button type="button" className={styles.finMethodBtn} onClick={() => setMethodOpen(o => !o)}>

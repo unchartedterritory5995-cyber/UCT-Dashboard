@@ -72,7 +72,9 @@ _log = logging.getLogger(__name__)
 #       to quarter_basis. Caught in validation BY this rule — v4 payloads kept
 #       serving the old shape from disk until the bump, which is precisely the
 #       failure the comment above warns about.
-_KIND = "earnings_intel_v5"
+#   v6: per-quarter net_margin_delta_pp, plus margin facts and series on the
+#       summary, for the Earnings Quality block.
+_KIND = "earnings_intel_v6"
 _STALE_MAX = 45 * 86400
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
@@ -395,6 +397,12 @@ def _build(sym: str) -> dict:
         q["eps_yoy_pct"], q["eps_yoy_note"] = eps_yoy, eps_note
         q["rev_yoy_pct"], q["rev_yoy_note"] = rev_yoy, rev_note
         q["yoy_basis"] = "vs_actual" if prior else None
+        # Margin moves in PERCENTAGE POINTS, not percent: 60% → 68% is +8pp, and
+        # calling it "+13%" would be a different (and misleading) statement.
+        pm = prior.get("net_margin_pct") if prior else None
+        q["net_margin_delta_pp"] = (
+            q["net_margin_pct"] - pm
+            if (q.get("net_margin_pct") is not None and pm is not None) else None)
 
         # A surprise is only computed when both sides share a basis.
         if q.get("eps_basis") == "consensus_comparable":
@@ -536,6 +544,13 @@ def _summarize(quarters: list, estimates: list) -> dict:
     dated = next((e for e in reversed(estimates) if e.get("report_date")), None)
     nearest = estimates[-1] if estimates else None
 
+    # Profitability trend. The series runs OLDEST → NEWEST so a sparkline can
+    # consume it directly, and carries only quarters that actually reported a
+    # margin — a gap is skipped rather than drawn as a dip to zero.
+    margin_q = [q for q in rep if q.get("net_margin_pct") is not None]
+    latest_margin = margin_q[0] if margin_q else None
+    series = [q["net_margin_pct"] for q in reversed(margin_q)]
+
     return {
         "eps_beats": sum(1 for q in scored if q["eps_beat"]) if scored else None,
         "eps_beats_of": len(scored) or None,
@@ -549,6 +564,10 @@ def _summarize(quarters: list, estimates: list) -> dict:
         "next_report_label": (dated or nearest or {}).get("label"),
         "next_eps_estimate": (dated or nearest or {}).get("eps_estimate"),
         "next_revenue_estimate": (dated or nearest or {}).get("revenue_estimate"),
+        "net_margin_pct": (latest_margin or {}).get("net_margin_pct"),
+        "net_margin_delta_pp": (latest_margin or {}).get("net_margin_delta_pp"),
+        # Only worth drawing when there is a trend to see, not two points.
+        "net_margin_series": series if len(series) >= 6 else None,
     }
 
 
