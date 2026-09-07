@@ -577,6 +577,52 @@ RISK-039; full evidence, decay/mutation tables, and the complete incident/diagno
 Appendix A) in `VENDOR_PARITY_TRANCHE_2_LANE_A_STOCH_REPORT.md`. **Per explicit instruction: stop after
 Stoch — ADX-family and every other Track F input type remain untouched.**
 
+**2026-09-06 (same day, seventh follow-up) — Vendor Parity Tranche 2, Lane A, sixth batch: `adx-family`
+DONE. Lane A's originally-scoped 10-function priority list (rsi, atr, sma, ema, rma, hma, macd, stoch,
+adx-family, wma) is now COMPLETE.** Owner authorized the next bounded batch: ADX FAMILY ONLY, treating it
+as a family rather than one scalar (`+DI`, `-DI`, `DX`, `ADX`, distinguished and verified separately, never
+collapsed into one label). Reconstructed the exact contract in both kernels: standard Wilder DMI/ADX
+(`+DM`/`-DM` per-bar directional moves, only the larger if positive; standard TR; Wilder-smoothed sums;
+`+DI`/`-DI` as ratios to smoothed TR; `DX=100*|+DI--DI|/(+DI+-DI)`; `ADX` a SECOND, independent
+Wilder-smoothing pass over DX) — and confirmed, by direct translation (no vendor data needed for this
+specific claim), a genuine UCT scope limit: unlike Pine's real `ta.dmi(diLength,adxSmoothing)`, UCT's table
+takes ONE shared period for both DI-length and ADX-smoothing, and the translator correctly REFUSES
+(`pine:tuple`) an asymmetric pair rather than silently collapsing it — already permanently regression-tested
+at the translator level, not re-tested this batch. **A second, independent capture-safety incident occurred
+mid-batch**: reusing the Stoch batch's own disposable layout (`qAHjBkf4`) produced a correct, stable
+symbol/title/OHLC/object-tree but a chart canvas that never rendered any candles — reproduced identically on
+a completely fresh tab (weakening a "stale tab" theory), stopped correctly both times with zero recovery
+attempted. Owner authorized abandoning that layout in place (undeleted, undiagnosed further) and creating a
+second new disposable layout ("UCT Vendor Capture — ADX TEMP", id `MzVTX6lY`) via the same "Manage layouts →
+Create new layout" procedure the Stoch batch established; it passed its own baseline check cleanly (candles
+genuinely rendering) and the capture proceeded without further incident — `jHASRSzx` was never modified
+beyond the single "Manage layouts" menu action throughout either incident. Real capture: 300 SPY Daily bars
+(2025-06-27..2026-09-04, same window Stoch used). Comparison result, each output measured independently:
+**+DI and -DI are each VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR** (convergence by index 150 and 153
+respectively — FASTER than RSI/ATR's own composite boundary, as expected for a primitive carrying only its
+own seed error); **ADX is VENDOR-PARITY VERIFIED — STEADY-STATE, MULTI-BAR** (convergence by index 204, the
+DEEPEST boundary of any Lane A function, exactly as expected from compounding two independent smoothing
+stages) **PLUS PARTIAL / ZERO-DENOMINATOR UNVERIFIED** (the smoothed `+DI+-DI==0` condition never occurs in
+real market data — disclosed honestly, not assumed). Six mutations were run, surfacing a genuine, precisely
+reported mathematical finding: THREE of them (a directional-condition/output-role swap — mechanistically
+verified to make mutated "+DI" equal the real vendor's own -DI values bar-for-bar; a wrong shared TR; a wrong
+shared DI denominator) are STRUCTURALLY, PROVABLY VACUOUS for ADX specifically, since `DX`'s own ratio
+formula is mathematically invariant to any per-bar scale factor shared by +DI and -DI — reported as a real
+property of ADX's own design, not a testing gap, while each still correctly flips +DI/-DI to 100%
+disagreement. TWO other mutations (DX missing its `abs()`, a wrong ADX smoothing method) correctly ISOLATE
+ADX alone, mirroring the HMA/MACD batch's own architectural-isolation proof — +DI/-DI stay completely
+unaffected in both cases. A sixth (wrong Wilder alpha, applied to all three underlying smoothers) correctly
+corrupts all three outputs, confirmed NOT vacuous unlike the first three. Zero/flat-market boundaries: TR==0
+never occurs (matching Stoch's own zero-range finding); a narrower RAW per-bar flat-direction condition
+(+DM==0 AND -DM==0, before smoothing) DOES occur 26 times and is confirmed exercised. Dual-kernel conformance
+for `adx_trend_strength`/`plus_di`/`minus_di` reconfirmed passing via the existing frozen 144-AST corpus, none
+among the 4 pre-existing, already-classified RISK-033 mismatches. Permanent regression:
+`tests/test_vendor_parity_adx.py` (25 tests, all passing). `tools/vendor_truth.py --check` now reports 18
+held observations, all matched or explained. Filed RISK-040; full per-output decay tables, vacuity/isolation
+proofs, and the complete second-incident trail (Appendix A) in `VENDOR_PARITY_TRANCHE_2_LANE_A_ADX_REPORT.md`.
+No RSI/ATR/SMA/EMA/RMA/WMA/HMA/MACD/Stoch evidence was invalidated or changed. **Per explicit instruction:
+stop after ADX-family — no further parity batch begun.**
+
 ## The owner's 8-point establishment list (DEC-001) — this IS the Phase Zero task list
 
 | # | Item | Status |

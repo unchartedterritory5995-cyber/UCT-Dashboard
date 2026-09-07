@@ -1,0 +1,2983 @@
+{
+  "rows": [
+    {
+      "index": 0,
+      "t": "1751031000",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 1,
+      "t": "1751290200",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 2,
+      "t": "1751376600",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 3,
+      "t": "1751463000",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 4,
+      "t": "1751549400",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 5,
+      "t": "1751895000",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 6,
+      "t": "1751981400",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 7,
+      "t": "1752067800",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 8,
+      "t": "1752154200",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 9,
+      "t": "1752240600",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 10,
+      "t": "1752499800",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 11,
+      "t": "1752586200",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 12,
+      "t": "1752672600",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 13,
+      "t": "1752759000",
+      "is_warmup": true,
+      "uct_value": null,
+      "vendor_value": null,
+      "status": "DATA_BLOCKED"
+    },
+    {
+      "index": 14,
+      "t": "1752845400",
+      "is_warmup": true,
+      "uct_value": 15.954128309290851,
+      "vendor_value": 16.406562081666088,
+      "abs_delta": 0.45243377237523674,
+      "rel_delta": 0.027576391088101258,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 15,
+      "t": "1753104600",
+      "is_warmup": true,
+      "uct_value": 14.942523608672502,
+      "vendor_value": 15.511673454985326,
+      "abs_delta": 0.5691498463128237,
+      "rel_delta": 0.036691711436840725,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 16,
+      "t": "1753191000",
+      "is_warmup": true,
+      "uct_value": 17.576954928478585,
+      "vendor_value": 17.767860882590167,
+      "abs_delta": 0.19090595411158162,
+      "rel_delta": 0.010744453447327515,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 17,
+      "t": "1753277400",
+      "is_warmup": true,
+      "uct_value": 16.072065035288315,
+      "vendor_value": 16.433472165841433,
+      "abs_delta": 0.36140713055311835,
+      "rel_delta": 0.02199213452311911,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 18,
+      "t": "1753363800",
+      "is_warmup": true,
+      "uct_value": 15.495240070637575,
+      "vendor_value": 15.91382745257489,
+      "abs_delta": 0.41858738193731604,
+      "rel_delta": 0.0263033756765779,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 19,
+      "t": "1753450200",
+      "is_warmup": true,
+      "uct_value": 14.665985471964852,
+      "vendor_value": 15.158661657760245,
+      "abs_delta": 0.49267618579539274,
+      "rel_delta": 0.032501298394187375,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 20,
+      "t": "1753709400",
+      "is_warmup": true,
+      "uct_value": 14.026416109924337,
+      "vendor_value": 14.569592318769688,
+      "abs_delta": 0.5431762088453507,
+      "rel_delta": 0.037281496761277844,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 21,
+      "t": "1753795800",
+      "is_warmup": true,
+      "uct_value": 15.063376618772367,
+      "vendor_value": 15.464523562235447,
+      "abs_delta": 0.4011469434630808,
+      "rel_delta": 0.025939819086485565,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 22,
+      "t": "1753882200",
+      "is_warmup": true,
+      "uct_value": 18.201365545370315,
+      "vendor_value": 18.276199299246368,
+      "abs_delta": 0.07483375387605307,
+      "rel_delta": 0.004094601544377932,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 23,
+      "t": "1753968600",
+      "is_warmup": true,
+      "uct_value": 15.634626650679103,
+      "vendor_value": 15.905325308263603,
+      "abs_delta": 0.27069865758450007,
+      "rel_delta": 0.017019372589874585,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 24,
+      "t": "1754055000",
+      "is_warmup": true,
+      "uct_value": 28.683850597647094,
+      "vendor_value": 28.036702740206547,
+      "abs_delta": 0.6471478574405474,
+      "rel_delta": 0.023082167094937777,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 25,
+      "t": "1754314200",
+      "is_warmup": true,
+      "uct_value": 25.143147017468014,
+      "vendor_value": 24.78060743078016,
+      "abs_delta": 0.362539586687852,
+      "rel_delta": 0.014629971751117736,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 26,
+      "t": "1754400600",
+      "is_warmup": true,
+      "uct_value": 23.32571733173626,
+      "vendor_value": 23.088106270369305,
+      "abs_delta": 0.2376110613669553,
+      "rel_delta": 0.010291492016904798,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 27,
+      "t": "1754487000",
+      "is_warmup": true,
+      "uct_value": 21.667866799300942,
+      "vendor_value": 21.53148739435917,
+      "abs_delta": 0.1363794049417706,
+      "rel_delta": 0.006333951874476601,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 28,
+      "t": "1754573400",
+      "is_warmup": true,
+      "uct_value": 19.51841816028667,
+      "vendor_value": 19.494967806867212,
+      "abs_delta": 0.023450353419459447,
+      "rel_delta": 0.0012028926465423005,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 29,
+      "t": "1754659800",
+      "is_warmup": true,
+      "uct_value": 18.18654600188433,
+      "vendor_value": 18.222562674313938,
+      "abs_delta": 0.036016672429607155,
+      "rel_delta": 0.0019764877790968086,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 30,
+      "t": "1754919000",
+      "is_warmup": true,
+      "uct_value": 17.18249739977502,
+      "vendor_value": 17.25797175250636,
+      "abs_delta": 0.07547435273134084,
+      "rel_delta": 0.004373303758616928,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 31,
+      "t": "1755005400",
+      "is_warmup": true,
+      "uct_value": 15.67684791037406,
+      "vendor_value": 15.802756642174907,
+      "abs_delta": 0.12590873180084827,
+      "rel_delta": 0.007967516975159827,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 32,
+      "t": "1755091800",
+      "is_warmup": true,
+      "uct_value": 14.961729501016121,
+      "vendor_value": 15.107892512110366,
+      "abs_delta": 0.14616301109424512,
+      "rel_delta": 0.009674612853982249,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 33,
+      "t": "1755178200",
+      "is_warmup": true,
+      "uct_value": 14.76001078006357,
+      "vendor_value": 14.906946747672325,
+      "abs_delta": 0.14693596760875494,
+      "rel_delta": 0.009856878816025726,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 34,
+      "t": "1755264600",
+      "is_warmup": true,
+      "uct_value": 14.036908347952481,
+      "vendor_value": 14.200672919865722,
+      "abs_delta": 0.1637645719132408,
+      "rel_delta": 0.011532169837117077,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 35,
+      "t": "1755523800",
+      "is_warmup": true,
+      "uct_value": 14.151645240416435,
+      "vendor_value": 14.307584006228131,
+      "abs_delta": 0.15593876581169575,
+      "rel_delta": 0.010899028497321083,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 36,
+      "t": "1755610200",
+      "is_warmup": true,
+      "uct_value": 18.28656290141693,
+      "vendor_value": 18.308091953563743,
+      "abs_delta": 0.02152905214681411,
+      "rel_delta": 0.0011759309600050045,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 37,
+      "t": "1755696600",
+      "is_warmup": true,
+      "uct_value": 24.218721774215428,
+      "vendor_value": 24.079064699980897,
+      "abs_delta": 0.1396570742345311,
+      "rel_delta": 0.005799937662638611,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 38,
+      "t": "1755783000",
+      "is_warmup": true,
+      "uct_value": 22.75660446516244,
+      "vendor_value": 22.66209333293895,
+      "abs_delta": 0.09451113222348795,
+      "rel_delta": 0.004170450224301111,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 39,
+      "t": "1755869400",
+      "is_warmup": true,
+      "uct_value": 19.52414318508503,
+      "vendor_value": 19.513060437018645,
+      "abs_delta": 0.011082748066385761,
+      "rel_delta": 0.0005679656506039639,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 40,
+      "t": "1756128600",
+      "is_warmup": true,
+      "uct_value": 18.74885546234906,
+      "vendor_value": 18.754408081551954,
+      "abs_delta": 0.0055526192028949595,
+      "rel_delta": 0.0002960700854300421,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 41,
+      "t": "1756215000",
+      "is_warmup": true,
+      "uct_value": 18.805302275294366,
+      "vendor_value": 18.80944424453376,
+      "abs_delta": 0.004141969239395138,
+      "rel_delta": 0.0002202068910461744,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 42,
+      "t": "1756301400",
+      "is_warmup": true,
+      "uct_value": 18.022654395716064,
+      "vendor_value": 18.04148939114856,
+      "abs_delta": 0.01883499543249556,
+      "rel_delta": 0.0010439822912700493,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 43,
+      "t": "1756387800",
+      "is_warmup": true,
+      "uct_value": 16.956118340457447,
+      "vendor_value": 16.992934620247386,
+      "abs_delta": 0.03681627978993873,
+      "rel_delta": 0.002166563963947197,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 44,
+      "t": "1756474200",
+      "is_warmup": true,
+      "uct_value": 18.680606893463125,
+      "vendor_value": 18.686099204840055,
+      "abs_delta": 0.005492311376929848,
+      "rel_delta": 0.0002939249822406613,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 45,
+      "t": "1756819800",
+      "is_warmup": true,
+      "uct_value": 27.026352034688596,
+      "vendor_value": 26.911924630361778,
+      "abs_delta": 0.1144274043268183,
+      "rel_delta": 0.004251921997348432,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 46,
+      "t": "1756906200",
+      "is_warmup": true,
+      "uct_value": 25.59402604727549,
+      "vendor_value": 25.5049683239916,
+      "abs_delta": 0.08905772328389006,
+      "rel_delta": 0.0034917794114692814,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 47,
+      "t": "1756992600",
+      "is_warmup": true,
+      "uct_value": 23.66092841313786,
+      "vendor_value": 23.60272704329003,
+      "abs_delta": 0.0582013698478292,
+      "rel_delta": 0.00246587480086862,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 48,
+      "t": "1757079000",
+      "is_warmup": true,
+      "uct_value": 20.97477376670184,
+      "vendor_value": 20.95297598649049,
+      "abs_delta": 0.021797780211350926,
+      "rel_delta": 0.0010403190566058553,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 49,
+      "t": "1757338200",
+      "is_warmup": true,
+      "uct_value": 20.24720097603487,
+      "vendor_value": 20.233964067946197,
+      "abs_delta": 0.01323690808867184,
+      "rel_delta": 0.0006541925271895287,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 50,
+      "t": "1757424600",
+      "is_warmup": true,
+      "uct_value": 19.24458795503393,
+      "vendor_value": 19.24223846294017,
+      "abs_delta": 0.0023494920937601194,
+      "rel_delta": 0.00012210076796860994,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 51,
+      "t": "1757511000",
+      "is_warmup": true,
+      "uct_value": 18.12406754988026,
+      "vendor_value": 18.13263639977042,
+      "abs_delta": 0.00856884989016038,
+      "rel_delta": 0.00047256503142967515,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 52,
+      "t": "1757597400",
+      "is_warmup": true,
+      "uct_value": 16.613322107354776,
+      "vendor_value": 16.634519895504997,
+      "abs_delta": 0.02119778815022144,
+      "rel_delta": 0.0012743252154785384,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 53,
+      "t": "1757683800",
+      "is_warmup": true,
+      "uct_value": 16.091691747544377,
+      "vendor_value": 16.1166912670493,
+      "abs_delta": 0.02499951950492374,
+      "rel_delta": 0.001551157063859345,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 54,
+      "t": "1757943000",
+      "is_warmup": true,
+      "uct_value": 15.244986126582114,
+      "vendor_value": 15.27554497626507,
+      "abs_delta": 0.03055884968295608,
+      "rel_delta": 0.002000507983868202,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 55,
+      "t": "1758029400",
+      "is_warmup": true,
+      "uct_value": 14.656974058889253,
+      "vendor_value": 14.690947888640189,
+      "abs_delta": 0.03397382975093599,
+      "rel_delta": 0.002312568937584098,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 56,
+      "t": "1758115800",
+      "is_warmup": true,
+      "uct_value": 20.173471193847835,
+      "vendor_value": 20.16539618088361,
+      "abs_delta": 0.008075012964223305,
+      "rel_delta": 0.00040043909337512815,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 57,
+      "t": "1758202200",
+      "is_warmup": true,
+      "uct_value": 18.529111986066432,
+      "vendor_value": 18.53222011920809,
+      "abs_delta": 0.0031081331416586977,
+      "rel_delta": 0.00016771509952211343,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 58,
+      "t": "1758288600",
+      "is_warmup": true,
+      "uct_value": 17.410324053062503,
+      "vendor_value": 17.419979519874307,
+      "abs_delta": 0.009655466811803848,
+      "rel_delta": 0.0005542754399216146,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 59,
+      "t": "1758547800",
+      "is_warmup": true,
+      "uct_value": 16.125935439589263,
+      "vendor_value": 16.1420460674882,
+      "abs_delta": 0.016110627898935803,
+      "rel_delta": 0.0009980536439791437,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 60,
+      "t": "1758634200",
+      "is_warmup": true,
+      "uct_value": 15.15990022322059,
+      "vendor_value": 15.179756523321283,
+      "abs_delta": 0.019856300100691726,
+      "rel_delta": 0.0013080776407833471,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 61,
+      "t": "1758720600",
+      "is_warmup": true,
+      "uct_value": 17.39772274898034,
+      "vendor_value": 17.40546438088237,
+      "abs_delta": 0.007741631902032253,
+      "rel_delta": 0.00044478169226759757,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 62,
+      "t": "1758807000",
+      "is_warmup": true,
+      "uct_value": 23.134548279346262,
+      "vendor_value": 23.116660407786153,
+      "abs_delta": 0.017887871560109403,
+      "rel_delta": 0.0007738086403728287,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 63,
+      "t": "1758893400",
+      "is_warmup": true,
+      "uct_value": 21.668576443914475,
+      "vendor_value": 21.657780571047596,
+      "abs_delta": 0.010795872866879108,
+      "rel_delta": 0.0004984754938976144,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 64,
+      "t": "1759152600",
+      "is_warmup": true,
+      "uct_value": 20.586017904923484,
+      "vendor_value": 20.579943661570244,
+      "abs_delta": 0.0060742433532396944,
+      "rel_delta": 0.0002951535462452394,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 65,
+      "t": "1759239000",
+      "is_warmup": true,
+      "uct_value": 19.08990650576708,
+      "vendor_value": 19.089636202173487,
+      "abs_delta": 0.00027030359359159206,
+      "rel_delta": 1.4159703764329261e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 66,
+      "t": "1759325400",
+      "is_warmup": true,
+      "uct_value": 17.38625365841291,
+      "vendor_value": 17.39157224066636,
+      "abs_delta": 0.0053185822534480565,
+      "rel_delta": 0.00030581376886741293,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 67,
+      "t": "1759411800",
+      "is_warmup": true,
+      "uct_value": 16.43857174650275,
+      "vendor_value": 16.446528638096613,
+      "abs_delta": 0.007956891593863702,
+      "rel_delta": 0.00048380371134565256,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 68,
+      "t": "1759498200",
+      "is_warmup": true,
+      "uct_value": 15.362838481125866,
+      "vendor_value": 15.373382219430669,
+      "abs_delta": 0.010543738304802375,
+      "rel_delta": 0.0006858437625700851,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 69,
+      "t": "1759757400",
+      "is_warmup": true,
+      "uct_value": 14.610280543107384,
+      "vendor_value": 14.6223759718452,
+      "abs_delta": 0.012095428737815439,
+      "rel_delta": 0.0008271862767791434,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 70,
+      "t": "1759843800",
+      "is_warmup": true,
+      "uct_value": 16.094974089872217,
+      "vendor_value": 16.10236522247471,
+      "abs_delta": 0.007391132602492689,
+      "rel_delta": 0.0004590091269434501,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 71,
+      "t": "1759930200",
+      "is_warmup": true,
+      "uct_value": 15.115158083538867,
+      "vendor_value": 15.124430197471847,
+      "abs_delta": 0.009272113932979664,
+      "rel_delta": 0.0006130554217195939,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 72,
+      "t": "1760016600",
+      "is_warmup": true,
+      "uct_value": 14.048844748471288,
+      "vendor_value": 14.059821262082467,
+      "abs_delta": 0.010976513611179683,
+      "rel_delta": 0.0007807007931730918,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 73,
+      "t": "1760103000",
+      "is_warmup": true,
+      "uct_value": 30.127049910300837,
+      "vendor_value": 30.108695480152498,
+      "abs_delta": 0.018354430148338707,
+      "rel_delta": 0.000609605625738181,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 74,
+      "t": "1760362200",
+      "is_warmup": true,
+      "uct_value": 26.051750479751323,
+      "vendor_value": 26.041697213324415,
+      "abs_delta": 0.01005326642690818,
+      "rel_delta": 0.00038604497796573557,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 75,
+      "t": "1760448600",
+      "is_warmup": true,
+      "uct_value": 29.496532346123658,
+      "vendor_value": 29.483534558513284,
+      "abs_delta": 0.012997787610373734,
+      "rel_delta": 0.0004408490299756364,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 76,
+      "t": "1760535000",
+      "is_warmup": true,
+      "uct_value": 26.171657816151537,
+      "vendor_value": 26.163782187684756,
+      "abs_delta": 0.007875628466781137,
+      "rel_delta": 0.00030101261393653477,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 77,
+      "t": "1760621400",
+      "is_warmup": true,
+      "uct_value": 25.010184813668598,
+      "vendor_value": 25.00431759160077,
+      "abs_delta": 0.005867222067827527,
+      "rel_delta": 0.0002346483580819015,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 78,
+      "t": "1760707800",
+      "is_warmup": true,
+      "uct_value": 23.193313163661994,
+      "vendor_value": 23.189520686510836,
+      "abs_delta": 0.00379247715115838,
+      "rel_delta": 0.00016354271407448428,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 79,
+      "t": "1760967000",
+      "is_warmup": true,
+      "uct_value": 21.46854220378371,
+      "vendor_value": 21.466480529703084,
+      "abs_delta": 0.0020616740806254086,
+      "rel_delta": 9.604155081559264e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 80,
+      "t": "1761053400",
+      "is_warmup": true,
+      "uct_value": 20.826755986613367,
+      "vendor_value": 20.82527896600349,
+      "abs_delta": 0.0014770206098759786,
+      "rel_delta": 7.092440933382745e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 81,
+      "t": "1761139800",
+      "is_warmup": true,
+      "uct_value": 25.5926400244071,
+      "vendor_value": 25.587734902169448,
+      "abs_delta": 0.004905122237651938,
+      "rel_delta": 0.0001916981810389187,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 82,
+      "t": "1761226200",
+      "is_warmup": true,
+      "uct_value": 24.33321651777028,
+      "vendor_value": 24.329445542400226,
+      "abs_delta": 0.003770975370052554,
+      "rel_delta": 0.0001549963546633512,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 83,
+      "t": "1761312600",
+      "is_warmup": true,
+      "uct_value": 22.68995315520935,
+      "vendor_value": 22.687523122816334,
+      "abs_delta": 0.0024300323930148693,
+      "rel_delta": 0.00010710875664391237,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 84,
+      "t": "1761571800",
+      "is_warmup": true,
+      "uct_value": 20.819311073054234,
+      "vendor_value": 20.818216140205468,
+      "abs_delta": 0.0010949328487654952,
+      "rel_delta": 5.2594940958985004e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 85,
+      "t": "1761658200",
+      "is_warmup": true,
+      "uct_value": 19.948689859178128,
+      "vendor_value": 19.948146800795616,
+      "abs_delta": 0.0005430583825116742,
+      "rel_delta": 2.722350040506092e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 86,
+      "t": "1761744600",
+      "is_warmup": true,
+      "uct_value": 20.562675443764718,
+      "vendor_value": 20.56183859088605,
+      "abs_delta": 0.0008368528786668605,
+      "rel_delta": 4.069932146232254e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 87,
+      "t": "1761831000",
+      "is_warmup": true,
+      "uct_value": 22.0796199113332,
+      "vendor_value": 22.078090926542533,
+      "abs_delta": 0.0015289847906672094,
+      "rel_delta": 6.925348734881087e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 88,
+      "t": "1761917400",
+      "is_warmup": true,
+      "uct_value": 21.356823657205428,
+      "vendor_value": 21.355725710005284,
+      "abs_delta": 0.0010979472001437784,
+      "rel_delta": 5.1412310452619445e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 89,
+      "t": "1762180200",
+      "is_warmup": true,
+      "uct_value": 20.049324590788483,
+      "vendor_value": 20.04886921149379,
+      "abs_delta": 0.00045537929469219307,
+      "rel_delta": 2.271346527768904e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 90,
+      "t": "1762266600",
+      "is_warmup": true,
+      "uct_value": 23.740074013899076,
+      "vendor_value": 23.738180973488326,
+      "abs_delta": 0.001893040410749336,
+      "rel_delta": 7.974665004296467e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 91,
+      "t": "1762353000",
+      "is_warmup": true,
+      "uct_value": 22.10873879789952,
+      "vendor_value": 22.10758440868148,
+      "abs_delta": 0.0011543892180405635,
+      "rel_delta": 5.221688614642329e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 92,
+      "t": "1762439400",
+      "is_warmup": true,
+      "uct_value": 25.62584428539296,
+      "vendor_value": 25.62359782366884,
+      "abs_delta": 0.002246461724119797,
+      "rel_delta": 8.76715962988114e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 93,
+      "t": "1762525800",
+      "is_warmup": true,
+      "uct_value": 30.510293201125386,
+      "vendor_value": 30.506764931226353,
+      "abs_delta": 0.0035282698990322103,
+      "rel_delta": 0.0001156553278260166,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 94,
+      "t": "1762785000",
+      "is_warmup": true,
+      "uct_value": 27.28271751411956,
+      "vendor_value": 27.280448224784656,
+      "abs_delta": 0.002269289334904556,
+      "rel_delta": 8.31837261692378e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 95,
+      "t": "1762871400",
+      "is_warmup": true,
+      "uct_value": 26.003663109950566,
+      "vendor_value": 26.00183477609405,
+      "abs_delta": 0.001828333856515485,
+      "rel_delta": 7.031557089180667e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 96,
+      "t": "1762957800",
+      "is_warmup": true,
+      "uct_value": 24.958359850653633,
+      "vendor_value": 24.956867452172727,
+      "abs_delta": 0.0014923984809058766,
+      "rel_delta": 5.9799110756424256e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 97,
+      "t": "1763044200",
+      "is_warmup": true,
+      "uct_value": 31.79072306840551,
+      "vendor_value": 31.787905730517686,
+      "abs_delta": 0.0028173378878229016,
+      "rel_delta": 8.862923879625521e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 98,
+      "t": "1763130600",
+      "is_warmup": true,
+      "uct_value": 34.79146626408098,
+      "vendor_value": 34.788377544771265,
+      "abs_delta": 0.0030887193097157706,
+      "rel_delta": 8.878595461201693e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 99,
+      "t": "1763389800",
+      "is_warmup": true,
+      "uct_value": 32.2325324342194,
+      "vendor_value": 32.230206347759214,
+      "abs_delta": 0.002326086460186616,
+      "rel_delta": 7.217100738011054e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 100,
+      "t": "1763476200",
+      "is_warmup": true,
+      "uct_value": 34.951778635272305,
+      "vendor_value": 34.94921164261413,
+      "abs_delta": 0.002566992658174172,
+      "rel_delta": 7.344922925369214e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 101,
+      "t": "1763562600",
+      "is_warmup": true,
+      "uct_value": 32.364104730774905,
+      "vendor_value": 32.36211369857724,
+      "abs_delta": 0.0019910321976652767,
+      "rel_delta": 6.152355239246348e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 102,
+      "t": "1763649000",
+      "is_warmup": true,
+      "uct_value": 26.537260447691033,
+      "vendor_value": 26.53634044123101,
+      "abs_delta": 0.0009200064600207725,
+      "rel_delta": 3.4669681075967294e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 103,
+      "t": "1763735400",
+      "is_warmup": true,
+      "uct_value": 24.6256322499678,
+      "vendor_value": 24.625015260360303,
+      "abs_delta": 0.0006169896074972314,
+      "rel_delta": 2.5055400005798975e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 104,
+      "t": "1763994600",
+      "is_warmup": true,
+      "uct_value": 22.644607621384257,
+      "vendor_value": 22.644240569502582,
+      "abs_delta": 0.00036705188167474034,
+      "rel_delta": 1.6209502833541183e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 105,
+      "t": "1764081000",
+      "is_warmup": true,
+      "uct_value": 20.734317165917677,
+      "vendor_value": 20.7341579388649,
+      "abs_delta": 0.00015922705277660043,
+      "rel_delta": 7.679455960839342e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 106,
+      "t": "1764167400",
+      "is_warmup": true,
+      "uct_value": 19.714363373891977,
+      "vendor_value": 19.714301765872342,
+      "abs_delta": 6.160801963517315e-05,
+      "rel_delta": 3.1250419298046615e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 107,
+      "t": "1764340200",
+      "is_warmup": true,
+      "uct_value": 19.110418224465256,
+      "vendor_value": 19.11041004067775,
+      "abs_delta": 8.183787507221041e-06,
+      "rel_delta": 4.2823714874779336e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 108,
+      "t": "1764599400",
+      "is_warmup": true,
+      "uct_value": 19.805068710629726,
+      "vendor_value": 19.805003750104976,
+      "abs_delta": 6.496052474957992e-05,
+      "rel_delta": 3.280005677819455e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 109,
+      "t": "1764685800",
+      "is_warmup": true,
+      "uct_value": 19.069573733261205,
+      "vendor_value": 19.069569377050417,
+      "abs_delta": 4.3562107876482514e-06,
+      "rel_delta": 2.284378163720259e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 110,
+      "t": "1764772200",
+      "is_warmup": true,
+      "uct_value": 18.222766109201494,
+      "vendor_value": 18.222825970566966,
+      "abs_delta": 5.986136547164733e-05,
+      "rel_delta": 3.284966095178314e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 111,
+      "t": "1764858600",
+      "is_warmup": true,
+      "uct_value": 17.573934493077655,
+      "vendor_value": 17.57403953254545,
+      "abs_delta": 0.00010503946779394369,
+      "rel_delta": 5.976967765403087e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 112,
+      "t": "1764945000",
+      "is_warmup": true,
+      "uct_value": 16.929610508359907,
+      "vendor_value": 16.929756955282517,
+      "abs_delta": 0.0001464469226100107,
+      "rel_delta": 8.650267277718685e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 113,
+      "t": "1765204200",
+      "is_warmup": true,
+      "uct_value": 18.952290329231765,
+      "vendor_value": 18.95229449170264,
+      "abs_delta": 4.1624708764231855e-06,
+      "rel_delta": 2.1962886225968708e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 114,
+      "t": "1765290600",
+      "is_warmup": true,
+      "uct_value": 18.43078113733713,
+      "vendor_value": 18.430819111229457,
+      "abs_delta": 3.797389232573778e-05,
+      "rel_delta": 2.06034751339951e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 115,
+      "t": "1765377000",
+      "is_warmup": true,
+      "uct_value": 17.04637373273504,
+      "vendor_value": 17.046492150477867,
+      "abs_delta": 0.00011841774282572715,
+      "rel_delta": 6.946751377373997e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 116,
+      "t": "1765463400",
+      "is_warmup": true,
+      "uct_value": 15.859751914361757,
+      "vendor_value": 15.859928515479535,
+      "abs_delta": 0.00017660111777750842,
+      "rel_delta": 1.1135051309036041e-05,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 117,
+      "t": "1765549800",
+      "is_warmup": true,
+      "uct_value": 17.204494367886284,
+      "vendor_value": 17.204586000587557,
+      "abs_delta": 9.163270127388046e-05,
+      "rel_delta": 5.326062555108916e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 118,
+      "t": "1765809000",
+      "is_warmup": true,
+      "uct_value": 16.122882521862724,
+      "vendor_value": 16.123019708622635,
+      "abs_delta": 0.00013718675991114537,
+      "rel_delta": 8.508750990224091e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 119,
+      "t": "1765895400",
+      "is_warmup": true,
+      "uct_value": 19.336945773034152,
+      "vendor_value": 19.336931388574808,
+      "abs_delta": 1.4384459344540801e-05,
+      "rel_delta": 7.4388531745217e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 120,
+      "t": "1765981800",
+      "is_warmup": true,
+      "uct_value": 21.254851259428015,
+      "vendor_value": 21.254760175626068,
+      "abs_delta": 9.108380194788879e-05,
+      "rel_delta": 4.285336611435367e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 121,
+      "t": "1766068200",
+      "is_warmup": true,
+      "uct_value": 19.38356954790812,
+      "vendor_value": 19.383555864459872,
+      "abs_delta": 1.36834482482584e-05,
+      "rel_delta": 7.059307561491991e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 122,
+      "t": "1766154600",
+      "is_warmup": true,
+      "uct_value": 18.515229205662173,
+      "vendor_value": 18.515246888446804,
+      "abs_delta": 1.7682784630324022e-05,
+      "rel_delta": 9.550390949071154e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 123,
+      "t": "1766413800",
+      "is_warmup": true,
+      "uct_value": 17.636180196243757,
+      "vendor_value": 17.63622669402472,
+      "abs_delta": 4.649778096421642e-05,
+      "rel_delta": 2.63649258829102e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 124,
+      "t": "1766500200",
+      "is_warmup": true,
+      "uct_value": 16.85444201638061,
+      "vendor_value": 16.854511656003243,
+      "abs_delta": 6.96396226338436e-05,
+      "rel_delta": 4.131808981189873e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 125,
+      "t": "1766586600",
+      "is_warmup": true,
+      "uct_value": 16.309637717838477,
+      "vendor_value": 16.309722102969666,
+      "abs_delta": 8.438513118846913e-05,
+      "rel_delta": 5.173915941406772e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 126,
+      "t": "1766759400",
+      "is_warmup": true,
+      "uct_value": 15.873778321450612,
+      "vendor_value": 15.873873685842664,
+      "abs_delta": 9.536439205248826e-05,
+      "rel_delta": 6.0076320336062845e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 127,
+      "t": "1767018600",
+      "is_warmup": true,
+      "uct_value": 18.768851842571213,
+      "vendor_value": 18.768858939483923,
+      "abs_delta": 7.096912710835568e-06,
+      "rel_delta": 3.781216926248958e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 128,
+      "t": "1767105000",
+      "is_warmup": true,
+      "uct_value": 18.32237775801988,
+      "vendor_value": 18.32239727739253,
+      "abs_delta": 1.9519372649767774e-05,
+      "rel_delta": 1.0653285350303018e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 129,
+      "t": "1767191400",
+      "is_warmup": true,
+      "uct_value": 22.956863169340867,
+      "vendor_value": 22.95675958035089,
+      "abs_delta": 0.0001035889899760889,
+      "rel_delta": 4.512352434302296e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 130,
+      "t": "1767364200",
+      "is_warmup": true,
+      "uct_value": 23.2805724788024,
+      "vendor_value": 23.280469804746325,
+      "abs_delta": 0.00010267405607677915,
+      "rel_delta": 4.410308595054486e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 131,
+      "t": "1767623400",
+      "is_warmup": true,
+      "uct_value": 21.548760081223442,
+      "vendor_value": 21.54870362497407,
+      "abs_delta": 5.645624937145044e-05,
+      "rel_delta": 2.619937159747278e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 132,
+      "t": "1767709800",
+      "is_warmup": true,
+      "uct_value": 20.351992051590468,
+      "vendor_value": 20.351963910890518,
+      "abs_delta": 2.814069994983015e-05,
+      "rel_delta": 1.3827019383997535e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 133,
+      "t": "1767796200",
+      "is_warmup": true,
+      "uct_value": 19.192830747466964,
+      "vendor_value": 19.19282720936396,
+      "abs_delta": 3.5381030052406004e-06,
+      "rel_delta": 1.8434506634407675e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 134,
+      "t": "1767882600",
+      "is_warmup": true,
+      "uct_value": 20.75456769009681,
+      "vendor_value": 20.754534533956953,
+      "abs_delta": 3.315613985677146e-05,
+      "rel_delta": 1.5975371455584305e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 135,
+      "t": "1767969000",
+      "is_warmup": true,
+      "uct_value": 19.14972873128792,
+      "vendor_value": 19.149726354057073,
+      "abs_delta": 2.377230845951317e-06,
+      "rel_delta": 1.2413915488915984e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 136,
+      "t": "1768228200",
+      "is_warmup": true,
+      "uct_value": 17.82744763816314,
+      "vendor_value": 17.82746706730831,
+      "abs_delta": 1.9429145169169715e-05,
+      "rel_delta": 1.0898432792395133e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 137,
+      "t": "1768314600",
+      "is_warmup": true,
+      "uct_value": 16.74638089073962,
+      "vendor_value": 16.74641576293192,
+      "abs_delta": 3.4872192301804716e-05,
+      "rel_delta": 2.0823675224279383e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 138,
+      "t": "1768401000",
+      "is_warmup": true,
+      "uct_value": 21.746247860925042,
+      "vendor_value": 21.746209903394888,
+      "abs_delta": 3.795753015367609e-05,
+      "rel_delta": 1.7454779624724576e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 139,
+      "t": "1768487400",
+      "is_warmup": true,
+      "uct_value": 20.356835861618833,
+      "vendor_value": 20.356818401694667,
+      "abs_delta": 1.7459924166018936e-05,
+      "rel_delta": 8.576941554170091e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 140,
+      "t": "1768573800",
+      "is_warmup": true,
+      "uct_value": 20.747479536620283,
+      "vendor_value": 20.74745819285572,
+      "abs_delta": 2.1343764561976286e-05,
+      "rel_delta": 1.0287411770433596e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 141,
+      "t": "1768919400",
+      "is_warmup": true,
+      "uct_value": 32.613995409764875,
+      "vendor_value": 32.613856755132986,
+      "abs_delta": 0.00013865463188977856,
+      "rel_delta": 4.251402492223069e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 142,
+      "t": "1769005800",
+      "is_warmup": true,
+      "uct_value": 28.682208938748147,
+      "vendor_value": 28.682122253722888,
+      "abs_delta": 8.66850252592144e-05,
+      "rel_delta": 3.02226677971721e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 143,
+      "t": "1769092200",
+      "is_warmup": true,
+      "uct_value": 26.890469307760615,
+      "vendor_value": 26.890403099770673,
+      "abs_delta": 6.620798994205757e-05,
+      "rel_delta": 2.462141965533503e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 144,
+      "t": "1769178600",
+      "is_warmup": true,
+      "uct_value": 25.741042744575452,
+      "vendor_value": 25.740988616066865,
+      "abs_delta": 5.412850858732554e-05,
+      "rel_delta": 2.1028138971142668e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 145,
+      "t": "1769437800",
+      "is_warmup": true,
+      "uct_value": 24.298716994113637,
+      "vendor_value": 24.298676854615948,
+      "abs_delta": 4.0139497688329584e-05,
+      "rel_delta": 1.6519211284010472e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 146,
+      "t": "1769524200",
+      "is_warmup": true,
+      "uct_value": 23.2124647691682,
+      "vendor_value": 23.212434306508534,
+      "abs_delta": 3.046265966588635e-05,
+      "rel_delta": 1.312342310317058e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 147,
+      "t": "1769610600",
+      "is_warmup": true,
+      "uct_value": 22.119542751860592,
+      "vendor_value": 22.119521280918743,
+      "abs_delta": 2.1470941849344172e-05,
+      "rel_delta": 9.706784146303354e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 148,
+      "t": "1769697000",
+      "is_warmup": true,
+      "uct_value": 29.30420558563943,
+      "vendor_value": 29.304144194945394,
+      "abs_delta": 6.139069403587882e-05,
+      "rel_delta": 2.0949492204064423e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 149,
+      "t": "1769783400",
+      "is_warmup": true,
+      "uct_value": 26.992285793483248,
+      "vendor_value": 26.992241951348213,
+      "abs_delta": 4.38421350352769e-05,
+      "rel_delta": 1.6242494830292176e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 150,
+      "t": "1770042600",
+      "is_warmup": true,
+      "uct_value": 24.763665293323648,
+      "vendor_value": 24.763636307258917,
+      "abs_delta": 2.898606473067389e-05,
+      "rel_delta": 1.1705092245348984e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 151,
+      "t": "1770129000",
+      "is_warmup": true,
+      "uct_value": 27.010327528826917,
+      "vendor_value": 27.010292567635073,
+      "abs_delta": 3.496119184376312e-05,
+      "rel_delta": 1.2943655369973728e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 152,
+      "t": "1770215400",
+      "is_warmup": true,
+      "uct_value": 26.663460255291028,
+      "vendor_value": 26.66343004747274,
+      "abs_delta": 3.0207818287664168e-05,
+      "rel_delta": 1.1329306932334228e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 153,
+      "t": "1770301800",
+      "is_warmup": true,
+      "uct_value": 29.756138711445978,
+      "vendor_value": 29.756100557652196,
+      "abs_delta": 3.815379378124817e-05,
+      "rel_delta": 1.2822175307320766e-06,
+      "status": "WARMUP_DELTA"
+    },
+    {
+      "index": 154,
+      "t": "1770388200",
+      "is_warmup": true,
+      "uct_value": 25.80673400584179,
+      "vendor_value": 25.806713082254493,
+      "abs_delta": 2.092358729655075e-05,
+      "rel_delta": 8.107807929611333e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 155,
+      "t": "1770647400",
+      "is_warmup": true,
+      "uct_value": 24.04500993075829,
+      "vendor_value": 24.044995492088564,
+      "abs_delta": 1.4438669726501985e-05,
+      "rel_delta": 6.004854411909825e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 156,
+      "t": "1770733800",
+      "is_warmup": true,
+      "uct_value": 22.95149347305144,
+      "vendor_value": 22.95148268692396,
+      "abs_delta": 1.0786127479178731e-05,
+      "rel_delta": 4.699534067715747e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 157,
+      "t": "1770820200",
+      "is_warmup": true,
+      "uct_value": 23.558426231287083,
+      "vendor_value": 23.55841470328719,
+      "abs_delta": 1.1527999891569607e-05,
+      "rel_delta": 4.893368266397426e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 158,
+      "t": "1770906600",
+      "is_warmup": true,
+      "uct_value": 28.154770922097054,
+      "vendor_value": 28.154750756461205,
+      "abs_delta": 2.016563584916753e-05,
+      "rel_delta": 7.16242740829085e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 159,
+      "t": "1770993000",
+      "is_warmup": true,
+      "uct_value": 28.487078856788425,
+      "vendor_value": 28.487059543765096,
+      "abs_delta": 1.931302332991436e-05,
+      "rel_delta": 6.779577688684742e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 160,
+      "t": "1771338600",
+      "is_warmup": true,
+      "uct_value": 27.73991034602247,
+      "vendor_value": 27.739893956758326,
+      "abs_delta": 1.6389264143157334e-05,
+      "rel_delta": 5.908192788590089e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 161,
+      "t": "1771425000",
+      "is_warmup": true,
+      "uct_value": 26.20702322347515,
+      "vendor_value": 26.20701046004543,
+      "abs_delta": 1.2763429719342412e-05,
+      "rel_delta": 4.870234908633026e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 162,
+      "t": "1771511400",
+      "is_warmup": true,
+      "uct_value": 26.242745947340012,
+      "vendor_value": 26.242733668827313,
+      "abs_delta": 1.2278512699026578e-05,
+      "rel_delta": 4.678823804705883e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 163,
+      "t": "1771597800",
+      "is_warmup": true,
+      "uct_value": 24.2795245578387,
+      "vendor_value": 24.27951628329869,
+      "abs_delta": 8.274540007846554e-06,
+      "rel_delta": 3.4080333031751606e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 164,
+      "t": "1771857000",
+      "is_warmup": true,
+      "uct_value": 23.41344849221739,
+      "vendor_value": 23.41344216779194,
+      "abs_delta": 6.3244254526750865e-06,
+      "rel_delta": 2.701194214567523e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 165,
+      "t": "1771943400",
+      "is_warmup": true,
+      "uct_value": 22.01538268774397,
+      "vendor_value": 22.0153786913029,
+      "abs_delta": 3.9964410696313735e-06,
+      "rel_delta": 1.815295174191191e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 166,
+      "t": "1772029800",
+      "is_warmup": true,
+      "uct_value": 20.765967699289305,
+      "vendor_value": 20.765965499146215,
+      "abs_delta": 2.200143089936546e-06,
+      "rel_delta": 1.0594947246864125e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 167,
+      "t": "1772116200",
+      "is_warmup": true,
+      "uct_value": 24.224382322647607,
+      "vendor_value": 24.224376298662776,
+      "abs_delta": 6.023984830960671e-06,
+      "rel_delta": 2.4867450689713754e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 168,
+      "t": "1772202600",
+      "is_warmup": true,
+      "uct_value": 24.986271766319543,
+      "vendor_value": 24.98626533303051,
+      "abs_delta": 6.433289033935807e-06,
+      "rel_delta": 2.5747301360125005e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 169,
+      "t": "1772461800",
+      "is_warmup": true,
+      "uct_value": 25.832976864174878,
+      "vendor_value": 25.832970197371075,
+      "abs_delta": 6.6668038023465215e-06,
+      "rel_delta": 2.5807345231346943e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 170,
+      "t": "1772548200",
+      "is_warmup": false,
+      "uct_value": 29.111234826270927,
+      "vendor_value": 29.111226293280946,
+      "abs_delta": 8.53298998038099e-06,
+      "rel_delta": 2.931168166677491e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 171,
+      "t": "1772634600",
+      "is_warmup": false,
+      "uct_value": 27.327659650564847,
+      "vendor_value": 27.327653055362852,
+      "abs_delta": 6.595201995196476e-06,
+      "rel_delta": 2.413380315475798e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 172,
+      "t": "1772721000",
+      "is_warmup": false,
+      "uct_value": 28.382674864250845,
+      "vendor_value": 28.382668030806904,
+      "abs_delta": 6.833443940479356e-06,
+      "rel_delta": 2.407611551198164e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 173,
+      "t": "1772807400",
+      "is_warmup": false,
+      "uct_value": 30.4255715460341,
+      "vendor_value": 30.42556398609742,
+      "abs_delta": 7.5599366802237e-06,
+      "rel_delta": 2.484731814232965e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 174,
+      "t": "1773063000",
+      "is_warmup": false,
+      "uct_value": 31.940434937340314,
+      "vendor_value": 31.940427490517166,
+      "abs_delta": 7.446823147461146e-06,
+      "rel_delta": 2.3314725983777276e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 175,
+      "t": "1773149400",
+      "is_warmup": false,
+      "uct_value": 29.881704623857903,
+      "vendor_value": 29.881698766639996,
+      "abs_delta": 5.857217907134782e-06,
+      "rel_delta": 1.9601355173534494e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 176,
+      "t": "1773235800",
+      "is_warmup": false,
+      "uct_value": 29.42698335095953,
+      "vendor_value": 29.4269780283802,
+      "abs_delta": 5.322579330169219e-06,
+      "rel_delta": 1.8087413954079738e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 177,
+      "t": "1773322200",
+      "is_warmup": false,
+      "uct_value": 32.760160823229995,
+      "vendor_value": 32.76015435460387,
+      "abs_delta": 6.468626125410992e-06,
+      "rel_delta": 1.974540795929412e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 178,
+      "t": "1773408600",
+      "is_warmup": false,
+      "uct_value": 33.44611982601312,
+      "vendor_value": 33.446113593622364,
+      "abs_delta": 6.232390752813899e-06,
+      "rel_delta": 1.863412541301156e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 179,
+      "t": "1773667800",
+      "is_warmup": false,
+      "uct_value": 30.997453293043872,
+      "vendor_value": 30.997448496994405,
+      "abs_delta": 4.796049466904151e-06,
+      "rel_delta": 1.547240079250132e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 180,
+      "t": "1773754200",
+      "is_warmup": false,
+      "uct_value": 29.702025917212104,
+      "vendor_value": 29.70202181840984,
+      "abs_delta": 4.0988022647070466e-06,
+      "rel_delta": 1.3799741612762993e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 181,
+      "t": "1773840600",
+      "is_warmup": false,
+      "uct_value": 34.06131053934182,
+      "vendor_value": 34.06130519547332,
+      "abs_delta": 5.343868501483939e-06,
+      "rel_delta": 1.5688971608152377e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 182,
+      "t": "1773927000",
+      "is_warmup": false,
+      "uct_value": 36.67912834207647,
+      "vendor_value": 36.679122450250844,
+      "abs_delta": 5.891825622938995e-06,
+      "rel_delta": 1.6063158629081927e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 183,
+      "t": "1774013400",
+      "is_warmup": false,
+      "uct_value": 40.34285068915515,
+      "vendor_value": 40.34284437437752,
+      "abs_delta": 6.314777628801949e-06,
+      "rel_delta": 1.5652782362595582e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 184,
+      "t": "1774272600",
+      "is_warmup": false,
+      "uct_value": 36.25801198320501,
+      "vendor_value": 36.25800739477769,
+      "abs_delta": 4.588427316321031e-06,
+      "rel_delta": 1.2654935132982267e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 185,
+      "t": "1774359000",
+      "is_warmup": false,
+      "uct_value": 37.33746100823048,
+      "vendor_value": 37.33745638898389,
+      "abs_delta": 4.619246588788428e-06,
+      "rel_delta": 1.2371615625512453e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 186,
+      "t": "1774445400",
+      "is_warmup": false,
+      "uct_value": 35.188407301313504,
+      "vendor_value": 35.18840345853612,
+      "abs_delta": 3.842777381635187e-06,
+      "rel_delta": 1.0920578951992757e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 187,
+      "t": "1774531800",
+      "is_warmup": false,
+      "uct_value": 38.99923685446481,
+      "vendor_value": 38.99923252404373,
+      "abs_delta": 4.330421084830505e-06,
+      "rel_delta": 1.1103862318728253e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 188,
+      "t": "1774618200",
+      "is_warmup": false,
+      "uct_value": 44.0782551071922,
+      "vendor_value": 44.07825014574766,
+      "abs_delta": 4.961444538764681e-06,
+      "rel_delta": 1.1255992518666997e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 189,
+      "t": "1774877400",
+      "is_warmup": false,
+      "uct_value": 43.31777098099665,
+      "vendor_value": 43.317766551686084,
+      "abs_delta": 4.42931056454654e-06,
+      "rel_delta": 1.0225159137098068e-07,
+      "status": "AGREE"
+    },
+    {
+      "index": 190,
+      "t": "1774963800",
+      "is_warmup": false,
+      "uct_value": 37.64351637637744,
+      "vendor_value": 37.64351342594727,
+      "abs_delta": 2.950430172177221e-06,
+      "rel_delta": 7.837818268428475e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 191,
+      "t": "1775050200",
+      "is_warmup": false,
+      "uct_value": 35.547480536335264,
+      "vendor_value": 35.54747806367091,
+      "abs_delta": 2.4726643559347394e-06,
+      "rel_delta": 6.955948749742031e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 192,
+      "t": "1775136600",
+      "is_warmup": false,
+      "uct_value": 37.712524231957254,
+      "vendor_value": 37.71252168033714,
+      "abs_delta": 2.5516201134223593e-06,
+      "rel_delta": 6.765975860884274e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 193,
+      "t": "1775482200",
+      "is_warmup": false,
+      "uct_value": 36.60508098978675,
+      "vendor_value": 36.60507865978508,
+      "abs_delta": 2.330001670713955e-06,
+      "rel_delta": 6.365241534841262e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 194,
+      "t": "1775568600",
+      "is_warmup": false,
+      "uct_value": 37.54613323922437,
+      "vendor_value": 37.54613093304073,
+      "abs_delta": 2.306183638722814e-06,
+      "rel_delta": 6.142267076295108e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 195,
+      "t": "1775655000",
+      "is_warmup": false,
+      "uct_value": 33.04932729330222,
+      "vendor_value": 33.049325755910424,
+      "abs_delta": 1.5373917960914696e-06,
+      "rel_delta": 4.6518098657928836e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 196,
+      "t": "1775741400",
+      "is_warmup": false,
+      "uct_value": 31.374890290945476,
+      "vendor_value": 31.37488900557239,
+      "abs_delta": 1.2853730879669456e-06,
+      "rel_delta": 4.096821148080093e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 197,
+      "t": "1775827800",
+      "is_warmup": false,
+      "uct_value": 30.566945830573573,
+      "vendor_value": 30.56694466015621,
+      "abs_delta": 1.1704173630278092e-06,
+      "rel_delta": 3.829029613657919e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 198,
+      "t": "1776087000",
+      "is_warmup": false,
+      "uct_value": 28.426562505179596,
+      "vendor_value": 28.426561618383463,
+      "abs_delta": 8.867961334146912e-07,
+      "rel_delta": 3.119603930013118e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 199,
+      "t": "1776173400",
+      "is_warmup": false,
+      "uct_value": 26.67184639385804,
+      "vendor_value": 26.671845716924775,
+      "abs_delta": 6.769332649980697e-07,
+      "rel_delta": 2.5380068263086787e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 200,
+      "t": "1776259800",
+      "is_warmup": false,
+      "uct_value": 25.45843883312429,
+      "vendor_value": 25.458438289376502,
+      "abs_delta": 5.437477881287123e-07,
+      "rel_delta": 2.135825387041167e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 201,
+      "t": "1776346200",
+      "is_warmup": false,
+      "uct_value": 24.61543196873498,
+      "vendor_value": 24.61543151177104,
+      "abs_delta": 4.5696394224137293e-07,
+      "rel_delta": 1.8564124785822012e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 202,
+      "t": "1776432600",
+      "is_warmup": false,
+      "uct_value": 22.582311074482035,
+      "vendor_value": 22.582310807437473,
+      "abs_delta": 2.670445624630702e-07,
+      "rel_delta": 1.1825386903058619e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 203,
+      "t": "1776691800",
+      "is_warmup": false,
+      "uct_value": 21.85753818391575,
+      "vendor_value": 21.857537977949065,
+      "abs_delta": 2.0596668548478192e-07,
+      "rel_delta": 9.423142061680096e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 204,
+      "t": "1776778200",
+      "is_warmup": false,
+      "uct_value": 23.15421819113288,
+      "vendor_value": 23.15421791204995,
+      "abs_delta": 2.79082929210972e-07,
+      "rel_delta": 1.205322202075896e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 205,
+      "t": "1776864600",
+      "is_warmup": false,
+      "uct_value": 21.765162014748878,
+      "vendor_value": 21.765161840435503,
+      "abs_delta": 1.743133744014358e-07,
+      "rel_delta": 8.008825097619763e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 206,
+      "t": "1776951000",
+      "is_warmup": false,
+      "uct_value": 24.782257314152936,
+      "vendor_value": 24.78225697831486,
+      "abs_delta": 3.3583807734771653e-07,
+      "rel_delta": 1.3551553340827024e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 207,
+      "t": "1777037400",
+      "is_warmup": false,
+      "uct_value": 23.552408813575987,
+      "vendor_value": 23.552408562460858,
+      "abs_delta": 2.5111512869102626e-07,
+      "rel_delta": 1.0661972342449406e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 208,
+      "t": "1777296600",
+      "is_warmup": false,
+      "uct_value": 22.875143836315083,
+      "vendor_value": 22.87514362882129,
+      "abs_delta": 2.0749379103790488e-07,
+      "rel_delta": 9.070709867651948e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 209,
+      "t": "1777383000",
+      "is_warmup": false,
+      "uct_value": 24.363345041829362,
+      "vendor_value": 24.363344769330105,
+      "abs_delta": 2.724992569369533e-07,
+      "rel_delta": 1.1184804858156837e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 210,
+      "t": "1777469400",
+      "is_warmup": false,
+      "uct_value": 24.314760804234762,
+      "vendor_value": 24.3147605436702,
+      "abs_delta": 2.605645619269126e-07,
+      "rel_delta": 1.0716312071382692e-08,
+      "status": "AGREE"
+    },
+    {
+      "index": 211,
+      "t": "1777555800",
+      "is_warmup": false,
+      "uct_value": 22.26520487778172,
+      "vendor_value": 22.26520473144559,
+      "abs_delta": 1.463361307685318e-07,
+      "rel_delta": 6.5724134376298096e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 212,
+      "t": "1777642200",
+      "is_warmup": false,
+      "uct_value": 20.998501156980915,
+      "vendor_value": 20.998501072749082,
+      "abs_delta": 8.423183217587393e-08,
+      "rel_delta": 4.011325945792686e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 213,
+      "t": "1777901400",
+      "is_warmup": false,
+      "uct_value": 24.669692711292896,
+      "vendor_value": 24.669692486976896,
+      "abs_delta": 2.243160004411493e-07,
+      "rel_delta": 9.092776513512095e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 214,
+      "t": "1777987800",
+      "is_warmup": false,
+      "uct_value": 23.060436028267667,
+      "vendor_value": 23.060435878252502,
+      "abs_delta": 1.5001516473489573e-07,
+      "rel_delta": 6.505304822809956e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 215,
+      "t": "1778074200",
+      "is_warmup": false,
+      "uct_value": 20.8103571903117,
+      "vendor_value": 20.810357130222286,
+      "abs_delta": 6.008941255686295e-08,
+      "rel_delta": 2.887476278318973e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 216,
+      "t": "1778160600",
+      "is_warmup": false,
+      "uct_value": 19.59618612916023,
+      "vendor_value": 19.5961861108329,
+      "abs_delta": 1.8327330764122962e-08,
+      "rel_delta": 9.352498828326342e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 217,
+      "t": "1778247000",
+      "is_warmup": false,
+      "uct_value": 18.4172188469013,
+      "vendor_value": 18.41721886458871,
+      "abs_delta": 1.7687408870870058e-08,
+      "rel_delta": 9.603734961785204e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 218,
+      "t": "1778506200",
+      "is_warmup": false,
+      "uct_value": 17.653519270926996,
+      "vendor_value": 17.653519309558217,
+      "abs_delta": 3.863122088887394e-08,
+      "rel_delta": 2.1883013925703576e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 219,
+      "t": "1778592600",
+      "is_warmup": false,
+      "uct_value": 20.80791278827921,
+      "vendor_value": 20.807912741007872,
+      "abs_delta": 4.7271338843302146e-08,
+      "rel_delta": 2.2717962840232704e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 220,
+      "t": "1778679000",
+      "is_warmup": false,
+      "uct_value": 19.145189313882437,
+      "vendor_value": 19.145189310713295,
+      "abs_delta": 3.169141393755126e-09,
+      "rel_delta": 1.6553199565290968e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 221,
+      "t": "1778765400",
+      "is_warmup": false,
+      "uct_value": 17.832440239144766,
+      "vendor_value": 17.832440265847065,
+      "abs_delta": 2.670229903856125e-08,
+      "rel_delta": 1.497400167362504e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 222,
+      "t": "1778851800",
+      "is_warmup": false,
+      "uct_value": 21.33226623198646,
+      "vendor_value": 21.33226618458027,
+      "abs_delta": 4.740618919640838e-08,
+      "rel_delta": 2.222276282614328e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 223,
+      "t": "1779111000",
+      "is_warmup": false,
+      "uct_value": 23.971376049042714,
+      "vendor_value": 23.97137595517023,
+      "abs_delta": 9.387248312009433e-08,
+      "rel_delta": 3.916023981921137e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 224,
+      "t": "1779197400",
+      "is_warmup": false,
+      "uct_value": 24.113682369874972,
+      "vendor_value": 24.113682279692615,
+      "abs_delta": 9.018235758162518e-08,
+      "rel_delta": 3.739883296777632e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 225,
+      "t": "1779283800",
+      "is_warmup": false,
+      "uct_value": 22.29841451742793,
+      "vendor_value": 22.298414463721954,
+      "abs_delta": 5.370597477849515e-08,
+      "rel_delta": 2.408510921970314e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 226,
+      "t": "1779370200",
+      "is_warmup": false,
+      "uct_value": 20.683403373171508,
+      "vendor_value": 20.683403347854757,
+      "abs_delta": 2.531675136197009e-08,
+      "rel_delta": 1.2240128443173206e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 227,
+      "t": "1779456600",
+      "is_warmup": false,
+      "uct_value": 19.47807186834476,
+      "vendor_value": 19.478071861722476,
+      "abs_delta": 6.622283166279885e-09,
+      "rel_delta": 3.3998658662378844e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 228,
+      "t": "1779802200",
+      "is_warmup": false,
+      "uct_value": 18.280991654976198,
+      "vendor_value": 18.280991664811157,
+      "abs_delta": 9.834959513455033e-09,
+      "rel_delta": 5.379882937305976e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 229,
+      "t": "1779888600",
+      "is_warmup": false,
+      "uct_value": 17.85845848069878,
+      "vendor_value": 17.85845849571508,
+      "abs_delta": 1.5016301091463902e-08,
+      "rel_delta": 8.408509107920417e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 230,
+      "t": "1779975000",
+      "is_warmup": false,
+      "uct_value": 16.80026503322397,
+      "vendor_value": 16.800265060281156,
+      "abs_delta": 2.705718671336399e-08,
+      "rel_delta": 1.610521418339526e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 231,
+      "t": "1780061400",
+      "is_warmup": false,
+      "uct_value": 16.1928485485061,
+      "vendor_value": 16.192848581739042,
+      "abs_delta": 3.3232943508210155e-08,
+      "rel_delta": 2.0523222545097793e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 232,
+      "t": "1780320600",
+      "is_warmup": false,
+      "uct_value": 15.239692738925946,
+      "vendor_value": 15.239692780767959,
+      "abs_delta": 4.1842012521442484e-08,
+      "rel_delta": 2.745594227086117e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 233,
+      "t": "1780407000",
+      "is_warmup": false,
+      "uct_value": 14.633977140785309,
+      "vendor_value": 14.633977187411471,
+      "abs_delta": 4.6626162486518297e-08,
+      "rel_delta": 3.1861579315995747e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 234,
+      "t": "1780493400",
+      "is_warmup": false,
+      "uct_value": 17.1560166344725,
+      "vendor_value": 17.15601665295386,
+      "abs_delta": 1.8481358665667358e-08,
+      "rel_delta": 1.0772523155883802e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 235,
+      "t": "1780579800",
+      "is_warmup": false,
+      "uct_value": 18.167574130298586,
+      "vendor_value": 18.167574138091826,
+      "abs_delta": 7.793239831244136e-09,
+      "rel_delta": 4.289642509235234e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 236,
+      "t": "1780666200",
+      "is_warmup": false,
+      "uct_value": 29.448312854503715,
+      "vendor_value": 29.44831277791491,
+      "abs_delta": 7.658880463168316e-08,
+      "rel_delta": 2.6007875292985132e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 237,
+      "t": "1780925400",
+      "is_warmup": false,
+      "uct_value": 27.30017600681331,
+      "vendor_value": 27.300175950429416,
+      "abs_delta": 5.6383893110023564e-08,
+      "rel_delta": 2.0653307587615266e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 238,
+      "t": "1781011800",
+      "is_warmup": false,
+      "uct_value": 34.55949654255435,
+      "vendor_value": 34.55949645759795,
+      "abs_delta": 8.495639747252426e-08,
+      "rel_delta": 2.4582649106811997e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 239,
+      "t": "1781098200",
+      "is_warmup": false,
+      "uct_value": 31.027876510721878,
+      "vendor_value": 31.02787645177578,
+      "abs_delta": 5.894609955703345e-08,
+      "rel_delta": 1.899778724742855e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 240,
+      "t": "1781184600",
+      "is_warmup": false,
+      "uct_value": 27.421600854552835,
+      "vendor_value": 27.421600818096177,
+      "abs_delta": 3.6456658136785336e-08,
+      "rel_delta": 1.3294868661616103e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 241,
+      "t": "1781271000",
+      "is_warmup": false,
+      "uct_value": 25.495993510833138,
+      "vendor_value": 25.495993484700413,
+      "abs_delta": 2.6132724428862275e-08,
+      "rel_delta": 1.0249737647816685e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 242,
+      "t": "1781530200",
+      "is_warmup": false,
+      "uct_value": 22.764568853080288,
+      "vendor_value": 22.764568839580225,
+      "abs_delta": 1.3500063289484387e-08,
+      "rel_delta": 5.930296059906983e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 243,
+      "t": "1781616600",
+      "is_warmup": false,
+      "uct_value": 23.219709648705912,
+      "vendor_value": 23.21970963419099,
+      "abs_delta": 1.4514920820829502e-08,
+      "rel_delta": 6.251120728683145e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 244,
+      "t": "1781703000",
+      "is_warmup": false,
+      "uct_value": 28.75846585812069,
+      "vendor_value": 28.758465827633263,
+      "abs_delta": 3.04874276935152e-08,
+      "rel_delta": 1.0601201008511596e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 245,
+      "t": "1781789400",
+      "is_warmup": false,
+      "uct_value": 27.217202142727338,
+      "vendor_value": 27.21720211843778,
+      "abs_delta": 2.428955880873218e-08,
+      "rel_delta": 8.924340827919884e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 246,
+      "t": "1782135000",
+      "is_warmup": false,
+      "uct_value": 25.774612612560286,
+      "vendor_value": 25.774612593603486,
+      "abs_delta": 1.8956800573732835e-08,
+      "rel_delta": 7.354834337427584e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 247,
+      "t": "1782221400",
+      "is_warmup": false,
+      "uct_value": 31.463256094077284,
+      "vendor_value": 31.46325606228072,
+      "abs_delta": 3.179656360430272e-08,
+      "rel_delta": 1.0105935489118553e-09,
+      "status": "AGREE"
+    },
+    {
+      "index": 248,
+      "t": "1782307800",
+      "is_warmup": false,
+      "uct_value": 30.422870509996816,
+      "vendor_value": 30.422870482822585,
+      "abs_delta": 2.7174230865512072e-08,
+      "rel_delta": 8.932171893791295e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 249,
+      "t": "1782394200",
+      "is_warmup": false,
+      "uct_value": 29.141058886484757,
+      "vendor_value": 29.141058864107514,
+      "abs_delta": 2.2377243169557914e-08,
+      "rel_delta": 7.678939627385859e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 250,
+      "t": "1782480600",
+      "is_warmup": false,
+      "uct_value": 34.095840179788254,
+      "vendor_value": 34.0958401510334,
+      "abs_delta": 2.8754854497492488e-08,
+      "rel_delta": 8.433537455043755e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 251,
+      "t": "1782739800",
+      "is_warmup": false,
+      "uct_value": 31.19261723427239,
+      "vendor_value": 31.19261721303008,
+      "abs_delta": 2.12423110212967e-08,
+      "rel_delta": 6.810044465400985e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 252,
+      "t": "1782826200",
+      "is_warmup": false,
+      "uct_value": 29.65039010614855,
+      "vendor_value": 29.650390088513614,
+      "abs_delta": 1.7634935289834175e-08,
+      "rel_delta": 5.947623365894887e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 253,
+      "t": "1782912600",
+      "is_warmup": false,
+      "uct_value": 28.16543657279852,
+      "vendor_value": 28.16543655838562,
+      "abs_delta": 1.4412901094829067e-08,
+      "rel_delta": 5.117229787989192e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 254,
+      "t": "1782999000",
+      "is_warmup": false,
+      "uct_value": 27.580217191362678,
+      "vendor_value": 27.58021717894185,
+      "abs_delta": 1.2420827033565729e-08,
+      "rel_delta": 4.5035276382991375e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 255,
+      "t": "1783344600",
+      "is_warmup": false,
+      "uct_value": 26.073368090166642,
+      "vendor_value": 26.073368080490077,
+      "abs_delta": 9.676565326799391e-09,
+      "rel_delta": 3.7112832131726305e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 256,
+      "t": "1783431000",
+      "is_warmup": false,
+      "uct_value": 26.528140581721786,
+      "vendor_value": 26.528140571882368,
+      "abs_delta": 9.839418169121927e-09,
+      "rel_delta": 3.7090493178217306e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 257,
+      "t": "1783517400",
+      "is_warmup": false,
+      "uct_value": 29.153568343279517,
+      "vendor_value": 29.153568330812966,
+      "abs_delta": 1.2466550458611891e-08,
+      "rel_delta": 4.276166237062567e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 258,
+      "t": "1783603800",
+      "is_warmup": false,
+      "uct_value": 27.694031453474185,
+      "vendor_value": 27.69403144333651,
+      "abs_delta": 1.0137675587884587e-08,
+      "rel_delta": 3.660599435884523e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 259,
+      "t": "1783690200",
+      "is_warmup": false,
+      "uct_value": 26.124732775903244,
+      "vendor_value": 26.124732768069105,
+      "abs_delta": 7.834138671114488e-09,
+      "rel_delta": 2.998744041006898e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 260,
+      "t": "1783949400",
+      "is_warmup": false,
+      "uct_value": 24.77276757234055,
+      "vendor_value": 24.772767566343504,
+      "abs_delta": 5.997044638661464e-09,
+      "rel_delta": 2.4208214211839215e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 261,
+      "t": "1784035800",
+      "is_warmup": false,
+      "uct_value": 23.826481436154594,
+      "vendor_value": 23.82648143133451,
+      "abs_delta": 4.82008388758004e-09,
+      "rel_delta": 2.0229944154662661e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 262,
+      "t": "1784122200",
+      "is_warmup": false,
+      "uct_value": 22.75060592272764,
+      "vendor_value": 22.750605919154236,
+      "abs_delta": 3.573404683265835e-09,
+      "rel_delta": 1.5706854999660942e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 263,
+      "t": "1784208600",
+      "is_warmup": false,
+      "uct_value": 23.382918491099016,
+      "vendor_value": 23.382918487167117,
+      "abs_delta": 3.931898362452557e-09,
+      "rel_delta": 1.6815259244094957e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 264,
+      "t": "1784295000",
+      "is_warmup": false,
+      "uct_value": 27.380304168877945,
+      "vendor_value": 27.380304161975317,
+      "abs_delta": 6.902627802674033e-09,
+      "rel_delta": 2.5210194020635204e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 265,
+      "t": "1784554200",
+      "is_warmup": false,
+      "uct_value": 25.702248960447594,
+      "vendor_value": 25.702248955267724,
+      "abs_delta": 5.1798707545458456e-09,
+      "rel_delta": 2.0153375541420165e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 266,
+      "t": "1784640600",
+      "is_warmup": false,
+      "uct_value": 24.16679309816699,
+      "vendor_value": 24.166793094414786,
+      "abs_delta": 3.752205657292507e-09,
+      "rel_delta": 1.5526287011410228e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 267,
+      "t": "1784727000",
+      "is_warmup": false,
+      "uct_value": 23.376939489296,
+      "vendor_value": 23.376939486222845,
+      "abs_delta": 3.073154175581294e-09,
+      "rel_delta": 1.3146092872390124e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 268,
+      "t": "1784813400",
+      "is_warmup": false,
+      "uct_value": 30.545172325628524,
+      "vendor_value": 30.54517231836066,
+      "abs_delta": 7.267864532423118e-09,
+      "rel_delta": 2.3793823968884327e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 269,
+      "t": "1784899800",
+      "is_warmup": false,
+      "uct_value": 28.823100473796064,
+      "vendor_value": 28.82310046796218,
+      "abs_delta": 5.833882710248872e-09,
+      "rel_delta": 2.0240302450228848e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 270,
+      "t": "1785159000",
+      "is_warmup": false,
+      "uct_value": 26.413802824794548,
+      "vendor_value": 26.413802820761518,
+      "abs_delta": 4.033029910033292e-09,
+      "rel_delta": 1.5268645478277327e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 271,
+      "t": "1785245400",
+      "is_warmup": false,
+      "uct_value": 24.83757155608289,
+      "vendor_value": 24.8375715530984,
+      "abs_delta": 2.98448910029947e-09,
+      "rel_delta": 1.2016026180011812e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 272,
+      "t": "1785331800",
+      "is_warmup": false,
+      "uct_value": 27.771139291230803,
+      "vendor_value": 27.771139287252577,
+      "abs_delta": 3.978225748824116e-09,
+      "rel_delta": 1.4325036173975723e-10,
+      "status": "AGREE"
+    },
+    {
+      "index": 273,
+      "t": "1785418200",
+      "is_warmup": false,
+      "uct_value": 24.861888579696735,
+      "vendor_value": 24.86188857731851,
+      "abs_delta": 2.378225616439522e-09,
+      "rel_delta": 9.565748028527392e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 274,
+      "t": "1785504600",
+      "is_warmup": false,
+      "uct_value": 22.655250394594223,
+      "vendor_value": 22.655250393244902,
+      "abs_delta": 1.3493206552084303e-09,
+      "rel_delta": 5.955884979363354e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 275,
+      "t": "1785763800",
+      "is_warmup": false,
+      "uct_value": 20.624962731917975,
+      "vendor_value": 20.62496273137461,
+      "abs_delta": 5.433662408904638e-10,
+      "rel_delta": 2.6345077465953298e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 276,
+      "t": "1785850200",
+      "is_warmup": false,
+      "uct_value": 18.227639632571503,
+      "vendor_value": 18.227639632806145,
+      "abs_delta": 2.346425276300579e-10,
+      "rel_delta": 1.287289700459887e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 277,
+      "t": "1785936600",
+      "is_warmup": false,
+      "uct_value": 17.222326772782317,
+      "vendor_value": 17.222326773287257,
+      "abs_delta": 5.049400897405576e-10,
+      "rel_delta": 2.9318923998338396e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 278,
+      "t": "1786023000",
+      "is_warmup": false,
+      "uct_value": 18.237746942831105,
+      "vendor_value": 18.237746943042495,
+      "abs_delta": 2.113900166023086e-10,
+      "rel_delta": 1.1590796673651162e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 279,
+      "t": "1786109400",
+      "is_warmup": false,
+      "uct_value": 17.451120591790477,
+      "vendor_value": 17.451120592197597,
+      "abs_delta": 4.071196713084646e-10,
+      "rel_delta": 2.3329142054664842e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 280,
+      "t": "1786368600",
+      "is_warmup": false,
+      "uct_value": 16.946915420649972,
+      "vendor_value": 16.946915421172832,
+      "abs_delta": 5.228599775364273e-10,
+      "rel_delta": 3.0852810941818115e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 281,
+      "t": "1786455000",
+      "is_warmup": false,
+      "uct_value": 18.246714141633884,
+      "vendor_value": 18.246714141818963,
+      "abs_delta": 1.850786190971121e-10,
+      "rel_delta": 1.0143120435746692e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 282,
+      "t": "1786541400",
+      "is_warmup": false,
+      "uct_value": 17.537920247888756,
+      "vendor_value": 17.53792024823086,
+      "abs_delta": 3.4210501098641544e-10,
+      "rel_delta": 1.9506589501165357e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 283,
+      "t": "1786627800",
+      "is_warmup": false,
+      "uct_value": 16.447206384214297,
+      "vendor_value": 16.447206384772116,
+      "abs_delta": 5.578186801358243e-10,
+      "rel_delta": 3.391570988324733e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 284,
+      "t": "1786714200",
+      "is_warmup": false,
+      "uct_value": 15.92478659176571,
+      "vendor_value": 15.924786592415716,
+      "abs_delta": 6.50006271030179e-10,
+      "rel_delta": 4.081726729950333e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 285,
+      "t": "1786973400",
+      "is_warmup": false,
+      "uct_value": 18.105070251098095,
+      "vendor_value": 18.10507025128148,
+      "abs_delta": 1.8338397467232426e-10,
+      "rel_delta": 1.0128873963322199e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 286,
+      "t": "1787059800",
+      "is_warmup": false,
+      "uct_value": 22.600572889000365,
+      "vendor_value": 22.600572888318343,
+      "abs_delta": 6.820215503466898e-10,
+      "rel_delta": 3.01771797430502e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 287,
+      "t": "1787146200",
+      "is_warmup": false,
+      "uct_value": 21.45434756732966,
+      "vendor_value": 21.454347566889165,
+      "abs_delta": 4.404938636071165e-10,
+      "rel_delta": 2.0531683018267946e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 288,
+      "t": "1787232600",
+      "is_warmup": false,
+      "uct_value": 26.05744986726103,
+      "vendor_value": 26.05744986607972,
+      "abs_delta": 1.1813128253379546e-09,
+      "rel_delta": 4.533493612802565e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 289,
+      "t": "1787319000",
+      "is_warmup": false,
+      "uct_value": 24.648789603617004,
+      "vendor_value": 24.648789602723056,
+      "abs_delta": 8.939480267144972e-10,
+      "rel_delta": 3.626742088040457e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 290,
+      "t": "1787578200",
+      "is_warmup": false,
+      "uct_value": 25.920171359005558,
+      "vendor_value": 25.92017135795239,
+      "abs_delta": 1.0531664429436205e-09,
+      "rel_delta": 4.0631152796005945e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 291,
+      "t": "1787664600",
+      "is_warmup": false,
+      "uct_value": 24.85596312113693,
+      "vendor_value": 24.85596312028264,
+      "abs_delta": 8.542890839180473e-10,
+      "rel_delta": 3.436958285559015e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 292,
+      "t": "1787751000",
+      "is_warmup": false,
+      "uct_value": 23.887521512770096,
+      "vendor_value": 23.887521512085204,
+      "abs_delta": 6.848921429991606e-10,
+      "rel_delta": 2.8671544791813545e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 293,
+      "t": "1787837400",
+      "is_warmup": false,
+      "uct_value": 22.179961632121643,
+      "vendor_value": 22.17996163170854,
+      "abs_delta": 4.1310244114356465e-10,
+      "rel_delta": 1.8625029565109442e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 294,
+      "t": "1787923800",
+      "is_warmup": false,
+      "uct_value": 20.427616061014923,
+      "vendor_value": 20.42761606084507,
+      "abs_delta": 1.6985168826977315e-10,
+      "rel_delta": 8.314807159281735e-12,
+      "status": "AGREE"
+    },
+    {
+      "index": 295,
+      "t": "1788183000",
+      "is_warmup": false,
+      "uct_value": 23.475113571924705,
+      "vendor_value": 23.475113571417193,
+      "abs_delta": 5.075122544440092e-10,
+      "rel_delta": 2.161916077210998e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 296,
+      "t": "1788269400",
+      "is_warmup": false,
+      "uct_value": 27.396259315486184,
+      "vendor_value": 27.396259314614404,
+      "abs_delta": 8.717790933587821e-10,
+      "rel_delta": 3.1821099491992896e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 297,
+      "t": "1788355800",
+      "is_warmup": false,
+      "uct_value": 25.90918526610182,
+      "vendor_value": 25.909185265423634,
+      "abs_delta": 6.781846195735852e-10,
+      "rel_delta": 2.6175451394013427e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 298,
+      "t": "1788442200",
+      "is_warmup": false,
+      "uct_value": 23.334894421537733,
+      "vendor_value": 23.334894421154985,
+      "abs_delta": 3.8274805547189317e-10,
+      "rel_delta": 1.6402390709978994e-11,
+      "status": "AGREE"
+    },
+    {
+      "index": 299,
+      "t": "1788528600",
+      "is_warmup": false,
+      "uct_value": 22.21728032994983,
+      "vendor_value": 22.217280329679685,
+      "abs_delta": 2.701447954223113e-10,
+      "rel_delta": 1.215921982410374e-11,
+      "status": "AGREE"
+    }
+  ],
+  "warmup_bars": 170,
+  "tolerance_rel": 1e-06,
+  "compared_non_warmup": 130,
+  "max_abs_delta_non_warmup": 8.53298998038099e-06,
+  "any_data_blocked": true,
+  "disagreement_count": 0,
+  "verdict": "VENDOR-PARITY VERIFIED"
+}
