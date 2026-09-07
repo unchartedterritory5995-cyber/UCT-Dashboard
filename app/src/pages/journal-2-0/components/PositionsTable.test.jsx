@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // TickerPopup pulls in AuthContext via useFlagged; stub it to a simple
@@ -403,5 +403,77 @@ describe('PositionsTable — row click-through opens the chart-icon TickerPopup'
     )
     await user.click(screen.getByText('CRWV Oct 16 $110C'))
     expect(screen.getByTestId('chart-modal-CRWV')).toBeInTheDocument()
+  })
+})
+
+describe('PositionsTable — keyboard accessibility (Seam)', () => {
+  it('the row is a real row, focusable, and Enter opens the same TickerPopup a click does', () => {
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    const rows = screen.getAllByRole('row')
+    expect(rows.length).toBeGreaterThan(1) // header row + at least one data row -- role="row" must survive
+    const row = rows[1]
+    expect(row).toHaveAttribute('tabIndex', '0')
+
+    expect(screen.queryByTestId('chart-modal-YSS')).not.toBeInTheDocument()
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(screen.getByTestId('chart-modal-YSS')).toBeInTheDocument()
+  })
+
+  it('Space also activates the row and is prevented-default so it does not also scroll', () => {
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    const row = screen.getAllByRole('row')[1]
+    // fireEvent.keyDown returns false when the event's default was
+    // prevented -- the RTL-wrapped equivalent of checking
+    // `evt.defaultPrevented`, and (unlike a raw dispatchEvent) it flushes
+    // the resulting React state update before this call returns.
+    const notPrevented = fireEvent.keyDown(row, { key: ' ' })
+    expect(notPrevented).toBe(false)
+    expect(screen.getByTestId('chart-modal-YSS')).toBeInTheDocument()
+  })
+
+  it('an unrelated key does nothing', () => {
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    const row = screen.getAllByRole('row')[1]
+    fireEvent.keyDown(row, { key: 'Tab' })
+    expect(screen.queryByTestId('chart-modal-YSS')).not.toBeInTheDocument()
+  })
+
+  it('Enter on the row while an action button has focus does not double-fire (mirrors the click guard)', () => {
+    const onEdit = vi.fn()
+    render(
+      <PositionsTable
+        positions={[YSS]}
+        prices={PRICES}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+        onEdit={onEdit}
+      />,
+    )
+    const editBtn = screen.getByRole('button', { name: 'Edit YSS' })
+    // A bubbled keydown from inside the actions cell must be guarded the
+    // same way handleRowClick already guards a bubbled click.
+    fireEvent.keyDown(editBtn, { key: 'Enter', bubbles: true })
+    expect(screen.queryByTestId('chart-modal-YSS')).not.toBeInTheDocument()
   })
 })

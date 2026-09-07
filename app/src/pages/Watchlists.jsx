@@ -490,13 +490,26 @@ const WatchRow = React.memo(function WatchRow({
     }
     return null
   }
+  const activateRow = () => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))
   return (
     <div
       data-watch-sym={sym}
       className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
-      onClick={() => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))}
+      onClick={activateRow}
       onPointerEnter={() => (isGroup ? undefined : onIntent(sym))}
       onFocus={() => (isGroup ? undefined : onIntent(sym))}
+      // Seam: a bare `<div onClick>` was keyboard-inaccessible -- one of
+      // Watchlists' own primary per-symbol rows, on one of the most-
+      // trafficked surfaces in the app.
+      role="button"
+      tabIndex={0}
+      aria-label={sym}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          activateRow()
+        }
+      }}
     >
       {orderedKeys.map(cellFor)}
     </div>
@@ -1887,6 +1900,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         key={key}
         className={`${key === 'sym' ? styles.hSym : styles.hCol}${active ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort(key)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Sort by ${label}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleColSort(key) }
+        }}
         {...headerDragProps(key)}
       >{label}</span>
     )
@@ -2027,7 +2046,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const items = wl.items || []
     return (
       <div key={wl.id} className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList(wl.id)}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label={wl.name}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(wl.id) }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === wl.id ? (
             <input
@@ -2188,7 +2217,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const open = expandedLists.has('flagged')
     return (
       <div className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList('flagged')}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label="Flagged"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList('flagged') }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === 'flagged' ? (
             <input
@@ -2475,7 +2514,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 const open = expandedLists.has(`tag:${tc.key}`)
                 return (
                   <div key={tc.key} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(`tag:${tc.key}`)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(`tag:${tc.key}`)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(`tag:${tc.key}`) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
@@ -2545,7 +2594,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 if (!tc) return null
                 return (
                   <div key={tagKey} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(tagKey)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(tagKey)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(tagKey) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
