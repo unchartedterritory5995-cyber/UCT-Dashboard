@@ -29,7 +29,10 @@ vi.mock('../../charts/popout/PopoutWindow', () => ({ default: () => null }))
 vi.mock('../../charts/popout/PopoutShell', () => ({ default: ({ children }) => children }))
 vi.mock('../../charts/WidgetHost', () => ({ default: () => null }))
 
-import BreadthDrillModal from './BreadthDrillModal'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import BreadthDrillModal, { WIDGET_MENU_SELECTOR } from './BreadthDrillModal'
 
 const DRILL = { items: [{ t: 'AEHR', pct: 13.1 }], label: 'Up 4%+', date: '2026-09-04' }
 const open = (props = {}) => render(<BreadthDrillModal drill={DRILL} onClose={() => {}} {...props} />)
@@ -147,5 +150,48 @@ describe('Escape still closes', () => {
     open({ onClose })
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('Escape does not close the drill out from under an open widget menu', () => {
+  const HERE = dirname(fileURLToPath(import.meta.url))
+  const HEADER = resolve(HERE, '../../charts/WidgetHeader.jsx')
+  /** Every portaled menu WidgetHeader can put above this modal, read from source. */
+  const headerMenuAttrs = () => {
+    const src = readFileSync(HEADER, 'utf8')
+    return [...new Set((src.match(/data-[a-z]+(?:-[a-z]+)*-menu/g) || []))]
+  }
+
+  it('CONTROL — WidgetHeader really does declare portaled menus', () => {
+    expect(headerMenuAttrs().length, 'no data-*-menu found; re-derive this rail').toBeGreaterThan(0)
+  })
+
+  it('the selector covers EVERY menu WidgetHeader declares', () => {
+    const missing = headerMenuAttrs().filter(a => !WIDGET_MENU_SELECTOR.includes(a))
+    expect(missing, 'a menu was added to WidgetHeader and Escape will close the whole '
+      + 'drill when it is open — add it to WIDGET_MENU_SELECTOR').toEqual([])
+  })
+
+  it('Escape is IGNORED while a widget menu is in the DOM', () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    const menu = document.createElement('div')
+    menu.setAttribute('data-wtab-add-menu', '')
+    document.body.appendChild(menu)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose, 'the menu owns this Escape; the drill must survive it').not.toHaveBeenCalled()
+    menu.remove()
+  })
+
+  it('and closes again the moment the menu is gone', () => {
+    const onClose = vi.fn()
+    open({ onClose })
+    const menu = document.createElement('div')
+    menu.setAttribute('data-wtab-add-menu', '')
+    document.body.appendChild(menu)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    menu.remove()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

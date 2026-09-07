@@ -18,6 +18,10 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',')
 
+// The portaled menus a widget can have open above this modal. Kept in sync with
+// `WidgetHeader.jsx` by a rail that reads that file, not by memory.
+export const WIDGET_MENU_SELECTOR = '[data-wtab-add-menu],[data-float-tab-menu]'
+
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site and try again.'
 
 // The breadth cell drill: a two-widget charts board in an overlay.
@@ -152,8 +156,27 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
 
   // Escape closes. Bound on the overlay's own document so a popped-out widget's
   // window cannot swallow it.
+  //
+  // ⛔⛔ ...BUT NOT WHILE A WIDGET MENU IS OPEN. `WidgetHeader`'s portaled menus
+  // close themselves on Escape via a listener on `document`; this one is on
+  // `window`, which is the next step in the same bubble path. So ONE Escape ran
+  // both: the menu closed AND the whole drill closed under it. Measured live —
+  // dismissing a dropdown threw away the board, the selection and the chart.
+  //
+  // The menu is still in the DOM when this runs (its own handler only calls
+  // `setState`, which React has not flushed yet), so presence is a reliable test
+  // for "something inside just handled this".
+  //
+  // ⛔ The selector is DERIVED, not judged: `BreadthDrillModal.a11y.test.jsx`
+  // reads every `data-*-menu` attribute out of `WidgetHeader.jsx` and fails by
+  // name if one is missing here, so a menu added tomorrow cannot quietly
+  // reintroduce this.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (document.querySelector(WIDGET_MENU_SELECTOR)) return
+      onClose?.()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
