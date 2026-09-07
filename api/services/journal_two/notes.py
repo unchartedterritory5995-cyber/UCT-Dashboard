@@ -2370,6 +2370,16 @@ def register_trash_purge_job(scheduler) -> bool:
             print(f"[j2-trash-purge] purged={n} retention_days={TRASH_RETENTION_DAYS}")
         except Exception as e:  # noqa: BLE001 — a failed sweep must never break the scheduler
             print(f"[j2-trash-purge] sweep failed: {e}")
+        try:
+            # Wave E: rides the SAME nightly sweep -- two small tables, no
+            # reason for a second scheduler registration. Independent
+            # try/except so a failure here can never suppress the note-trash
+            # sweep above (or vice versa).
+            from api.services.journal_two.note_properties import purge_expired_property_defs_and_saved_views
+            defs_n, views_n = purge_expired_property_defs_and_saved_views()
+            print(f"[j2-trash-purge] property_defs_purged={defs_n} saved_views_purged={views_n}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[j2-trash-purge] property/saved-view sweep failed: {e}")
 
     scheduler.add_job(
         _job,

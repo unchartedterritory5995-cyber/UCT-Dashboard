@@ -351,3 +351,38 @@ def test_saved_view_filter_survives_option_rename_end_to_end(conn):
     reloaded_view = props.get_saved_view("u1", view["id"], conn=conn)
     results = list_notes("u1", property_filter=reloaded_view["spec"]["propertyFilter"], conn=conn)
     assert [r["id"] for r in results] == [note["id"]]  # still matches after the rename
+
+
+# ── Purge sweep ──────────────────────────────────────────────────────────────
+
+def test_purge_sweep_hard_deletes_only_defs_past_the_retention_window(conn):
+    import datetime as dt
+    old = props.create_property_def("u1", "Old", "text", conn=conn)
+    fresh = props.create_property_def("u1", "Fresh", "text", conn=conn)
+    props.delete_property_def("u1", old["id"], conn=conn)
+    props.delete_property_def("u1", fresh["id"], conn=conn)
+    stale_ts = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
+    conn.execute("UPDATE j2_note_properties SET deleted_at = ? WHERE id = ?", (stale_ts, old["id"]))
+    conn.commit()
+
+    defs_n, views_n = props.purge_expired_property_defs_and_saved_views(conn=conn)
+    assert defs_n == 1
+    assert views_n == 0
+    remaining = conn.execute("SELECT id FROM j2_note_properties").fetchall()
+    assert [r["id"] for r in remaining] == [fresh["id"]]  # only the stale one hard-deleted
+
+
+def test_purge_sweep_never_touches_a_notes_own_orphaned_value(conn):
+    d = props.create_property_def("u1", "X", "text", conn=conn)
+    note = _create(conn, "u1", "N")
+    update_note("u1", note["id"], {"properties": {d["id"]: "kept forever, harmlessly"}}, conn=conn)
+    props.delete_property_def("u1", d["id"], conn=conn)
+    import datetime as dt
+    stale_ts = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=31)).isoformat()
+    conn.execute("UPDATE j2_note_properties SET deleted_at = ? WHERE id = ?", (stale_ts, d["id"]))
+    conn.commit()
+
+    props.purge_expired_property_defs_and_saved_views(conn=conn)
+
+    reloaded = get_note("u1", note["id"], conn=conn)
+    assert reloaded is not None  # the note itself is completely untouched

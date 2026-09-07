@@ -236,8 +236,10 @@ def update_property_def(
 
 def delete_property_def(user_id: str, property_id: str, conn: sqlite3.Connection | None = None) -> bool:
     """Soft delete only -- hides the definition from pickers/filters/saved
-    views, purged like Trash after 30 days (see notebook_trash_purge.py's
-    sweep, extended in Slice 7). NEVER touches j2_notes or any note's own
+    views, purged like Trash after 30 days (see
+    purge_expired_property_defs_and_saved_views below, riding the SAME
+    nightly job as notes.register_trash_purge_job). NEVER touches j2_notes
+    or any note's own
     properties_json -- a note that had this property set keeps that value,
     invisibly, until/unless the definition is restored (directive's own
     adversarial test: property deletion never deletes a note)."""
@@ -646,3 +648,40 @@ def property_sort_sql(
     direction_sql = "ASC" if direction == "asc" else "DESC"
     fragment = f"(json_extract(properties_json, ?) IS NULL), json_extract(properties_json, ?) {direction_sql}"
     return fragment, [path_param, path_param]
+
+
+# ── Purge (Wave E checkpoint §28) ────────────────────────────────────────────
+
+PROPERTY_RETENTION_DAYS = 30
+
+
+def purge_expired_property_defs_and_saved_views(
+    retention_days: int = PROPERTY_RETENTION_DAYS,
+    conn: sqlite3.Connection | None = None,
+) -> tuple[int, int]:
+    """Hard-delete every property definition / saved view soft-deleted more
+    than `retention_days` ago, across ALL users -- mirrors
+    notes.purge_expired_deleted_notes' shape exactly (real, unscoped
+    DELETEs; intentionally NOT exposed through any router; call only from
+    the scheduler job). Returns (defs_purged, views_purged). Never touches
+    j2_notes -- a note that had a since-purged property's value keeps that
+    orphaned key in its own properties_json forever (harmless: it was
+    already invisible/unresolvable the moment the definition was soft-
+    deleted, and resolve_note_properties never looks at note-level values
+    for a property id it can't find a live definition for)."""
+    import datetime as _dt
+    cutoff = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=retention_days)).isoformat()
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        d_cur = conn.execute(
+            "DELETE FROM j2_note_properties WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff,),
+        )
+        v_cur = conn.execute(
+            "DELETE FROM j2_note_saved_views WHERE deleted_at IS NOT NULL AND deleted_at < ?", (cutoff,),
+        )
+        conn.commit()
+        return d_cur.rowcount, v_cur.rowcount
+    finally:
+        if owned:
+            conn.close()
