@@ -65,6 +65,19 @@ CITE_UNAVAILABLE = "unavailable"  # cannot navigate at all
 
 PRECISE_CITATIONS = frozenset({CITE_EXACT})
 
+# ── Relevance ────────────────────────────────────────────────────────────────
+# Does this evidence ANSWER the question, or merely surround it? Kept HERE,
+# beside the envelope it annotates, so retrieval and ranking cannot drift into
+# two spellings of one idea.
+QUERY_MATCH = "query_match"
+ENTITY_CONTEXT = "entity_context"
+
+# ⛔ AN ALLOWLIST, NOT A DENYLIST. Only a positive query match may back a
+# claim. An item whose relevance was never set is therefore NOT answer
+# evidence -- a new caller that forgets to label its results makes the system
+# say "I could not find that", never invent a confident answer from context.
+ANSWER_RELEVANCE = frozenset({QUERY_MATCH})
+
 
 def make_evidence(
     *,

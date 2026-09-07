@@ -35,6 +35,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import ask_evidence as ev
+from api.services.journal_two import ask_ranking as rk
 from api.services.journal_two import note_citation_text as nct
 from api.services.journal_two.notes_search import fts_match_expr
 
@@ -45,8 +46,10 @@ INTENT_GENERAL = "general_notebook"
 INTENT_HISTORICAL = "historical_intent_unsupported"
 
 # Whether an evidence object ANSWERS the question or merely surrounds it.
-QUERY_MATCH = "query_match"
-ENTITY_CONTEXT = "entity_context"
+# Re-exported from the envelope module so there is ONE authority for the
+# spelling; ranking reads the same constants.
+QUERY_MATCH = ev.QUERY_MATCH
+ENTITY_CONTEXT = ev.ENTITY_CONTEXT
 
 # Relevance floor. bm25() in SQLite returns NEGATIVE numbers where more
 # negative is a better match, so a candidate is kept when its score is below
@@ -424,9 +427,13 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
         thesis_ids = [i["source_id"] for i in items if i["source_type"] == ev.THESIS_STATE]
         items += _thesis_edge_evidence(conn, user_id, thesis_ids, by_source)
 
-        merged = ev.dedupe(items)
-        merged.sort(key=lambda i: (i.get("curation", 0), i.get("score", 0.0)), reverse=True)
-        merged = merged[:limit]
+        # ⛔ RANKING AND THE BUDGET ARE ONE STEP, IN ask_ranking. The old
+        # sort here compared a bm25 magnitude against hand-picked constants
+        # (0.5 / 0.7 / 0.8 / 0.9) that were never on the same axis. See that
+        # module for why a tier decides WHY something matched and a score
+        # only ever orders items INSIDE their own source type.
+        pk = rk.packet(items, query, max_items=limit)
+        merged = pk["evidence"]
         # ⛔ NO-ANSWER IS DECIDED BY QUERY MATCHES, NOT BY LIST LENGTH.
         # Measured while characterizing the recall gap: "NVDA margin pressure"
         # resolved the entity and returned the member's thesis state and a
@@ -435,13 +442,14 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
         # it was an answer. Entity context is still RETURNED (it is genuinely
         # useful: "I couldn't find that; here is your current NVDA thesis")
         # but it cannot satisfy the question on its own.
-        matched = [i for i in merged if i.get("relevance") == QUERY_MATCH]
+        matched = pk["answer_evidence"]
         return {
             "intent": intent, "entity": entity, "evidence": merged, "coverage": cov,
-            "independent_sources": ev.independent_source_count(matched),
+            "independent_sources": pk["independent_sources"],
             "query_matches": len(matched),
-            "no_answer": not matched,
+            "no_answer": pk["no_answer"],
             "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
         }
     finally:
         if owned:
@@ -596,16 +604,15 @@ def retrieve_document(user_id: str, document_id: str, query: str, *,
                  + _excerpts_scoped(conn, user_id, document_id, query, limit))
         for i in items:
             i["relevance"] = QUERY_MATCH
-        merged = ev.dedupe(items)
-        merged.sort(key=lambda i: (i.get("curation", 0), i.get("score", 0.0)),
-                    reverse=True)
-        merged = merged[:limit]
+        pk = rk.packet(items, query, max_items=limit)
+        merged, matched = pk["evidence"], pk["answer_evidence"]
         return {
             "document": document_id, "evidence": merged, "coverage": cov,
-            "query_matches": len(merged),
-            "independent_sources": ev.independent_source_count(merged),
-            "no_answer": not merged,
-            "no_answer_reason": None if merged else "no_supporting_evidence",
+            "query_matches": len(matched),
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
         }
     finally:
         if owned:
@@ -668,16 +675,15 @@ def retrieve_entity_research(user_id: str, symbol: str, query: str, *,
         thesis_ids = [i["source_id"] for i in items if i["source_type"] == ev.THESIS_STATE]
         items += _thesis_edge_evidence(conn, user_id, thesis_ids, by_source)
 
-        merged = ev.dedupe(items)
-        merged.sort(key=lambda i: (i.get("curation", 0), i.get("score", 0.0)), reverse=True)
-        merged = merged[:limit]
-        matched = [i for i in merged if i.get("relevance") == QUERY_MATCH]
+        pk = rk.packet(items, query, max_items=limit)
+        merged, matched = pk["evidence"], pk["answer_evidence"]
         return {
             "entity": entity, "evidence": merged, "coverage": cov,
             "query_matches": len(matched),
-            "independent_sources": ev.independent_source_count(matched),
-            "no_answer": not matched,
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
             "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
         }
     finally:
         if owned:
