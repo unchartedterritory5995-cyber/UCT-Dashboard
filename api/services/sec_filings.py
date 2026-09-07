@@ -96,7 +96,12 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
     form_norm = (form_type or "").upper().strip().replace(" ", "")
     out: list[dict] = []
     count = max(1, min(50, int(count or 10)))
-    for i in range(min(len(forms), 200)):
+    # Scan depth 200 → 1000. An active filer (a large bank especially) posts
+    # hundreds of Form 4 / 144 / FWP entries a year, so a form_type filter for an
+    # ANNUAL document could never reach back far enough to find one: JPM returned
+    # no 10-K at all. This is an in-process scan over an already-cached list, so
+    # depth is nearly free; `count` still bounds what is returned.
+    for i in range(min(len(forms), 1000)):
         f = (forms[i] or "").upper().replace(" ", "")
         if form_norm and form_norm not in f:
             continue

@@ -1,0 +1,746 @@
+/* Purpose-built panels for the Chart Detail Dock. NOT the standalone widgets —
+   these are chrome-free (no logo, ticker, company name, gear, or notebook door:
+   the chart already names the stock) and laid out for the docked context.
+   Everything themes off app tokens + the chart's own up/down colors so the dock
+   reads as one surface with the chart. */
+
+:root {
+  /* FILL tier — candle bodies, news rails, surprise bars, pins. Large solid
+     shapes, so the chart's own saturated values are right here. */
+  --dock-up: var(--chart-up, #26a869);
+  --dock-down: var(--chart-down, #e5484d);
+  /* TEXT tier — the same hues lifted for 11px glyphs. Measured against the
+     chart's own price readout (rgb(47,175,104) ≈ 143 luminance at weight 700):
+     the FILL green renders at ~136 and the fill red at only ~106, so directional
+     numbers came out DIMMER than the neutral values beside them at ~238 — which
+     is exactly the "faint / visually dead" read. These sit at ~166 / ~134 and
+     carry weight 700 like the chart's readout. Saturated, not neon.
+     ⛔ Don't use these as fills, and don't use the fill tier for text. */
+  --dock-up-text: #3fc885;
+  --dock-down-text: #f1696e;
+}
+
+.pos { color: var(--dock-up-text, #3fc885); font-weight: 700; }
+.neg { color: var(--dock-down-text, #f1696e); font-weight: 700; }
+.muted { color: var(--text-muted, #8b8574); }
+
+/* brief highlight when search navigates to a metric */
+.rowFlash { animation: rowFlash 1.7s ease; border-radius: 4px; }
+@keyframes rowFlash {
+  0% { background: var(--accent, #c9a84c); }
+  12% { background: rgba(201, 168, 76, 0.34); }
+  100% { background: transparent; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PROFILE — dense scrollable DATA WINDOW (right dock)
+   ───────────────────────────────────────────────────────────────────────── */
+.profile {
+  /* ── Overview text roles → UCT's OWN tokens ──────────────────────────────
+     Overview must read as the same product as Financials / Earnings / Valuation,
+     so it uses their tokens rather than a private scale.
+
+     How those panels actually work (the .fin, .v and .earn blocks below): ONE
+     inherited colour for normal content — `.finLabel` and `.finVal` are plain
+     var(--text) — with hierarchy carried by WEIGHT and ALIGNMENT. --text-bright
+     marks emphasis (`.finRowH`), and --text-muted is spent only on genuinely
+     secondary content (`.vAvg` 5Y averages, `.earnEst` estimates, dates).
+
+     Overview previously ran a bespoke scale that put normal metric labels at
+     ~169 luminance while the Financials labels beside them sat at 239. That gap
+     — not the values — is what made this tab look faded.
+        --text-bright 247 · --text 239 · --text-muted 202 · --accent 187
+     ⛔ Hierarchy is WEIGHT and STRUCTURE. Low contrast is for MISSING data and
+     true metadata only — never for ordinary financial information.            */
+  --t-name: var(--text-bright, #f8f7f3);  /* 247 company identity — the one
+                                             emphasis tier, as .finRowH uses */
+  /* Values sit on --text, NOT --text-bright: Financials (.finVal) and Valuation
+     (.vCur) both keep values at 239 and separate them from their labels with
+     WEIGHT and right-alignment alone. Pushing Overview's values to 247 made it
+     the brightest tab in the set — a new inconsistency in the other direction. */
+  --t-value: var(--text, #f0efea);        /* 239 primary white — weight 600/700 */
+  --t-body: var(--text, #f0efea);         /* 239 description / story prose */
+  --t-label: var(--text, #f0efea);        /* 239 clean secondary white — labels */
+  --t-meta: var(--text-muted, #cfcac0);   /* 202 sector, timestamps, fact labels */
+  --t-group: var(--accent, #dcbb5e);      /* 187 section headings stay gold */
+  --t-dim: #6f6a5c;                       /* 106 MISSING only (matches .finFoot) */
+  --t-gold-hi: #f0d488; /* gold hover lift */
+
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* a little more horizontal breathing room, and extra on the right so content
+     never crowds the scrollbar */
+  padding: 11px 15px 22px 14px;
+  font-size: 12px;
+  color: var(--text, #d8d2c2);
+  scrollbar-width: thin;
+}
+.profile::-webkit-scrollbar { width: 8px; }
+.profile::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* ── Overview typographic system ─────────────────────────────────────────────
+   Hierarchy comes from type + space, not containers:
+   L1 company identity · L2 story · L3 gold section head · L4 primary metric ·
+   L5 metric label · L6 metadata · L7 gold actions (used sparingly).          */
+
+/* ⚠️ Explicit colour scale — do NOT swap these back to var(--text-muted).
+   In this theme --text-muted resolves to ~rgb(207,202,192), which is BRIGHTER
+   than a secondary value: using it for labels inverted the hierarchy (labels
+   louder than the numbers they describe) and flattened the whole panel into one
+   ~180-215 band. These literals give values > labels > metadata a real spread. */
+.section { margin-top: 16px; }
+/* A visual layer boundary (orientation | financial evidence | ownership).
+   Trimmed from 21+16: with the Company section folded into the identity block
+   there is one fewer layer break, and 37px of pure chrome above the panel's
+   most valuable content was not earning its place. Still a clear breath. */
+.layerBreak { margin-top: 17px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.075); }
+
+/* L3 — the single gold head per block (Fundamentals / Price / Ownership) */
+.secHead {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+  padding-bottom: 4px; margin-bottom: 9px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+/* (the L6 quiet sub-head died with the dedicated "Company" section — those facts
+   are now inline identity metadata, see .idFacts) */
+/* kept — DockValuation labels its groups with this */
+.dwSectionLabel {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--accent, #c9a84c); opacity: 0.85;
+  margin-bottom: 3px; padding-bottom: 2px;
+  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+}
+
+/* metric sub-groups (inside Fundamentals) — muted labels + no per-row rules, so
+   the four groups read as ONE system instead of four cloned sections */
+/* Four distinct groups: an inset hairline + real top spacing separates each,
+   so Fundamentals reads as four categories rather than one long list — without
+   cards, boxes or background fills. */
+/* 14+11 → 12+9: with five groups the inter-group chrome alone was 100px. The
+   hairline is what separates the groups, so 4px each buys back a whole metric
+   row without the groups reading as merged. */
+.mGroup { margin-top: 12px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,0.055); }
+.mGroupFirst { margin-top: 0; padding-top: 0; border-top: 0; }
+.mGroupLabel {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--t-group); margin-bottom: 5px;
+}
+.mGrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+.mRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2.5px 0; min-width: 0; }
+/* label — subordinate to its value, but comfortably readable */
+.mKey { font-size: 11px; color: var(--t-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* EVERY real value gets the same brightness; emphasis is weight only */
+.mVal { font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--t-value); font-weight: 600; }
+.mValP { font-weight: 700; }
+/* the ONLY dim content: missing data */
+.mValEmpty { color: var(--t-dim); font-weight: 500; }
+/* Semantic colour must beat the base value colour regardless of source order —
+   `.mVal` is declared after `.pos`/`.neg`, so at equal specificity it would win
+   and silently kill every green/red. These compound rules (0,2,0) settle it. */
+.mVal.pos { color: var(--dock-up-text, #3fc885); font-weight: 700; }
+.mVal.neg { color: var(--dock-down-text, #f1696e); font-weight: 700; }
+
+/* L7 — the only gold action treatment */
+.moreLink { appearance: none; border: 0; background: transparent; color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600; padding: 6px 0 0; cursor: pointer; }
+.moreLink:hover { text-decoration: underline; }
+.link { color: var(--accent, #c9a84c); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+.generating { display: flex; align-items: center; gap: 8px; color: var(--text-muted, #8b8574); padding: 6px 0; font-size: 11px; }
+.spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid rgba(201,168,76,0.25); border-top-color: var(--accent, #c9a84c);
+  animation: dockspin 0.8s linear infinite;
+}
+@keyframes dockspin { to { transform: rotate(360deg); } }
+
+/* ── L1 · Intelligence header — the orientation layer ─────────────────────── */
+.ih { padding: 2px 0 0; }
+/* margin-bottom 7 → 10: the identity unit is now two lines tall, so it needs a
+   slightly clearer step down to the description than a lone name did. */
+.ihTop { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+/* name + classification stack beside the logo as one block */
+.ihId { min-width: 0; }
+.ihName {
+  font-size: 15.5px; font-weight: 700; line-height: 1.2; letter-spacing: 0.1px;
+  color: var(--t-name); min-width: 0;
+}
+.ihDesc { margin: 0; font-size: 11.5px; line-height: 1.58; color: var(--t-body); }
+/* "More" belongs to the description — inline at the end of the text, not a
+   floating gold row between the description and the metadata. */
+.moreInline {
+  appearance: none; border: 0; background: transparent; padding: 0; margin-left: 6px;
+  /* Muting this to #a08a45 to "reduce gold" left the only interactive control in
+     the block at ~138 luminance — dimmer than the static labels around it, so it
+     read as disabled. It sits at the label tier (~168) and brightens on hover. */
+  font: inherit; font-weight: 600; color: var(--accent, #c9a84c); cursor: pointer;
+}
+.moreInline:hover { color: var(--t-gold-hi); text-decoration: underline; }
+/* Sector/industry — a SUBTITLE to the company name, not a standalone line.
+   margin-top 9 → 3 because it now belongs to the name directly above it rather
+   than being separated from a paragraph. Treatment is unchanged: restrained
+   secondary text at --t-meta (202), clearly readable and clearly subordinate
+   to the 15.5px name, with no gold and no heading weight. */
+.ihMeta {
+  margin-top: 3px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--t-meta);
+  /* wraps rather than truncating — it now sits in a narrower column beside the
+     logo, and a long classification ("Communication Services · Internet Content
+     & Information") must stay readable, not disappear behind an ellipsis */
+  line-height: 1.35;
+}
+
+/* ── L2 · The Story — the one signature block. A thin gold rail is its whole
+      visual identity: no card, no background wash, no icon. ─────────────────── */
+.story {
+  /* Name → description → sector reads as ONE identity block (7px / 9px internal
+     rhythm); this larger step is the boundary between that block and the
+     narrative. It is the only place the top needed more air, not less. */
+  margin-top: 18px;
+  padding: 2px 0 3px 14px;
+  /* the rail IS the Story's whole visual identity — softened so it reads as a
+     refined accent rather than a highlighter stripe */
+  border-left: 2px solid rgba(201, 168, 76, 0.55);
+}
+.storyHead { display: flex; align-items: baseline; gap: 9px; margin-bottom: 6px; }
+.storyTitle {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+}
+.storyFresh { font-size: 9px; color: var(--t-meta); letter-spacing: 0.2px; }
+/* leading trimmed 1.68 → 1.60; still comfortable prose, and it is LEADING, not
+   font size or colour — the Story reads exactly as before, just less airy */
+.storyBody { margin: 0; font-size: 12px; line-height: 1.6; color: var(--t-body); }
+.storyMuted { margin: 0; font-size: 11px; line-height: 1.58; color: var(--t-meta); }
+
+/* ── Company facts — INLINE identity metadata ──────────────────────────────
+   Tier-3 context: genuinely useful, but it must cost very little vertical
+   space. As a dedicated 2-column section these six answers burned ~197px of the
+   first viewport (a sub-head, three label-over-value rows, plus a layer break
+   and its divider) — enough to push Growth and Price & Performance below the
+   fold. Wrapped inline pairs give the same answers for ~50px.
+   ⚠️ The saving is STRUCTURAL. The values keep the full --t-value brightness and
+   11.5px size; nothing here was shrunk or dimmed to buy the space. */
+/* Expanded company profile (behind `More`). One label/value pair per row on a
+   shared label column, so it reads as a profile rather than a metadata sentence.
+   This state is user-requested, so it may spend vertical space the default view
+   may not — but it still aligns: label column `auto`, values on one edge. */
+.idFacts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px; row-gap: 2px;
+  align-items: baseline;
+  margin-top: 10px; min-width: 0;
+}
+.idFactK {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--t-meta); white-space: nowrap;
+}
+/* an ANSWER — the same strong primary white as any other value in the panel */
+.idFactV {
+  min-width: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--t-value);
+  /* every row is a single non-wrapping line, so tight leading costs no
+     readability — it keeps the aligned grid inside the old inline block's
+     vertical budget instead of buying alignment with first-viewport space */
+  line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Ownership snapshot ───────────────────────────────────────────────────── */
+.ownLine { font-size: 11.5px; color: var(--t-label); }
+/* a level, not a change — stays neutral (never green) */
+.ownStat { color: var(--t-value); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ownSep { margin-left: 12px; }
+.ownNames { margin-top: 6px; font-size: 11px; color: var(--t-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ownDeep { margin-top: 10px; }
+.ownHolder { display: flex; align-items: baseline; gap: 8px; padding: 3.5px 0; border-bottom: 1px solid rgba(255,255,255,0.035); }
+.ownHolderName { flex: 1; min-width: 0; font-size: 11px; color: var(--t-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ownHolderMeta { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--t-value); font-weight: 600; }
+.ownChip { flex: 0 0 auto; font-size: 7.5px; font-weight: 700; letter-spacing: 0.3px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.07); }
+.ownFlow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.ownFlowCol { min-width: 0; }
+.ownFlowLabel { font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--t-meta); margin-bottom: 3px; }
+.ownFlowRow { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; font-variant-numeric: tabular-nums; padding: 1px 0; }
+.ownFlowName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-body); }
+.ownAsOf { margin-top: 8px; font-size: 9px; color: var(--t-meta); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NEWS (right dock)
+   ───────────────────────────────────────────────────────────────────────── */
+.news { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #d8d2c2); }
+.newsFilters { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 8px; }
+.filterPill {
+  appearance: none; border: 1px solid var(--divider, rgba(255,255,255,0.1));
+  background: transparent; color: var(--text-muted, #8b8574);
+  font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+}
+.filterPill:hover { color: var(--text, #d8d2c2); }
+.filterOn { background: var(--accent-weak, rgba(201,168,76,0.16)); color: var(--accent, #c9a84c); border-color: transparent; }
+
+.feed { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px 8px; scrollbar-width: thin; }
+.feed::-webkit-scrollbar { width: 8px; }
+.feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+.newsRow {
+  position: relative; display: flex; gap: 9px; padding: 9px 8px;
+  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.055));
+  border-left: 2px solid transparent;
+}
+.newsRow:hover { background: rgba(255,255,255,0.025); }
+.newsRow.up { border-left-color: var(--dock-up, #26a869); }
+.newsRow.down { border-left-color: var(--dock-down, #e5484d); }
+.newsIcon { flex: 0 0 auto; margin-top: 1px; display: inline-flex; }
+/* small stroke glyphs, not fills — text tier */
+.newsIcon.up { color: var(--dock-up-text, #3fc885); }
+.newsIcon.down { color: var(--dock-down-text, #f1696e); }
+.newsIcon.neutral { color: var(--text-muted, #8b8574); }
+.newsMain { flex: 1; min-width: 0; }
+.newsTitle { font-size: 12px; line-height: 1.4; color: var(--text, #d8d2c2); }
+.newsDesc { font-size: 11px; line-height: 1.45; color: var(--text-muted, #a49e8d); margin-top: 3px; }
+.newsMeta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 10.5px; color: var(--text-muted, #8b8574); }
+.newsMove { font-weight: 700; font-variant-numeric: tabular-nums; }
+.newsMove.up { color: var(--dock-up-text, #3fc885); }
+.newsMove.down { color: var(--dock-down-text, #f1696e); }
+.newsSource { color: var(--text-muted, #8b8574); text-decoration: none; }
+.newsSource:hover { color: var(--accent, #c9a84c); }
+.pinBtn {
+  position: absolute; top: 6px; right: 6px;
+  appearance: none; border: 0; background: rgba(0,0,0,0.25); color: var(--text-muted, #8b8574);
+  width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+}
+.newsRow:hover .pinBtn { display: inline-flex; }
+.pinBtn:hover { color: var(--accent, #c9a84c); }
+.pinOn { display: inline-flex; color: var(--dock-up, #26a869); }
+
+.emptyState { padding: 16px 12px; color: var(--text-muted, #8b8574); font-size: 12px; line-height: 1.5; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FUNDAMENTALS (bottom dock) — thin strip, LEFT tab rail + card strip
+   ───────────────────────────────────────────────────────────────────────── */
+.fund { height: 100%; min-height: 0; display: flex; color: var(--text, #d8d2c2); position: relative; }
+
+/* left vertical rail of tabs — so the tabs never eat a full-width row */
+.fundRail {
+  flex: 0 0 auto; width: 84px;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 4px; border-right: 1px solid var(--divider, rgba(255,255,255,0.08));
+  background: var(--panel-2, rgba(255,255,255,0.015));
+}
+.fundTab {
+  appearance: none; border: 0; background: transparent; text-align: left;
+  color: var(--text-muted, #8b8574);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  padding: 4px 7px; border-radius: 5px; cursor: pointer; white-space: nowrap;
+}
+.fundTab:hover { color: var(--text, #d8d2c2); background: rgba(255,255,255,0.04); }
+.fundTabOn { color: var(--accent, #c9a84c); background: var(--accent-weak, rgba(201,168,76,0.14)); }
+
+.fundClose {
+  position: absolute; top: 4px; right: 4px; z-index: 3;
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-muted, #8b8574); cursor: pointer;
+  width: 20px; height: 20px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.fundClose:hover { background: rgba(255,255,255,0.08); color: var(--text, #d8d2c2); }
+
+/* quarter/annual card row — horizontal scroll, thin */
+.cardRow {
+  flex: 1; min-height: 0; min-width: 0;
+  display: flex; align-items: stretch;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+}
+.cardRow::-webkit-scrollbar { height: 7px; }
+.cardRow::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
+
+.qCard {
+  flex: 0 0 auto; min-width: 148px;
+  padding: 7px 13px; border-left: 1px solid var(--divider, rgba(255,255,255,0.07));
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+}
+.qCard:first-child { border-left: 0; }
+.qNext { background: rgba(201,168,76,0.035); }
+.qHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 1px; }
+.qLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text, #e0dac8); }
+.qDate { font-size: 9.5px; color: var(--text-muted, #7d7768); font-variant-numeric: tabular-nums; }
+.qLine { font-size: 11px; line-height: 1.35; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qMetric { color: var(--text-muted, #8b8574); display: inline-block; width: 26px; }
+.qEst { color: var(--text-muted, #7d7768); font-size: 9.5px; }
+.qSlash { color: var(--text-muted, #6f6a5c); margin: 0 1px; }
+.qPct { margin-left: 5px; font-weight: 600; }
+
+/* analyst/ownership fill the (auto-taller) strip and scroll */
+.fundPanelHost { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+
+.fundHint { flex: 1; padding: 12px; color: var(--text-muted, #8b8574); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESPONSIVE — panels reflow to the dock's own width (container queries).
+   Wide → more side-by-side. Narrow → stack / drop the least-essential column.
+   ───────────────────────────────────────────────────────────────────────── */
+/* Overview metric grid: 1col (narrow) · 2col (default) · 3col (wide) */
+@container dock (max-width: 340px) {
+  .mGrid, .ownFlow { grid-template-columns: 1fr; }
+  .earnTrend { grid-template-columns: 1fr; }
+  .ihName { font-size: 14.5px; }
+}
+@container dock (min-width: 470px) {
+  /* wide enough for two profile pairs per row without truncating a value */
+  .idFacts { grid-template-columns: repeat(2, auto minmax(0, 1fr)); }
+}
+@container dock (min-width: 540px) {
+  .mGrid { grid-template-columns: 1fr 1fr 1fr; }
+  /* keep prose at a readable measure instead of stretching across the panel */
+  .ihDesc, .storyBody, .storyMuted { max-width: 62ch; }
+}
+/* Financials + Valuation: drop the least-essential column when very narrow.
+   Readability of Metric / Value / YoY is never traded away — the sparkline goes
+   first because it is the only decorative-ish element in the row. */
+@container dock (max-width: 320px) {
+  .spark, .sparkEmpty, .finHeadTrend { display: none; }
+  .vAvg { display: none; }
+  .earnHead .earnHE, .earnE { width: 96px; }
+}
+/* Financials: give the value column more room before spending width on history.
+   The sparkline deliberately does NOT grow — at 72px it started reading as a
+   mini chart competing with the numbers (§11). */
+@container dock (min-width: 480px) {
+  .finVal, .finHeadVal { width: 84px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FINANCIALS tab
+   ───────────────────────────────────────────────────────────────────────── */
+.fin { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #d8d2c2); }
+.finBar { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 6px 10px 5px; }
+.finSeg { display: inline-flex; gap: 1px; }
+.finPeriods { display: inline-flex; gap: 1px; }
+.finSpacer { flex: 1; }
+/* statement selector — understated text tabs (subordinate to the data) */
+.finSegBtn {
+  appearance: none; border: 0; background: transparent; position: relative;
+  color: var(--text-muted, #8b8574); font-size: 11px; font-weight: 600;
+  padding: 2px 7px; cursor: pointer;
+}
+.finSegBtn:hover { color: var(--text, #d8d2c2); }
+.finSegOn { color: var(--text-bright, #eee7d4); }
+.finSegOn::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: -5px; height: 2px; background: var(--accent, #c9a84c); border-radius: 2px; }
+/* period selector — tiny secondary toggles */
+.finPeriodBtn {
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-muted, #8b8574); font-size: 9.5px; font-weight: 600; letter-spacing: 0.2px;
+  padding: 2px 5px; border-radius: 4px; cursor: pointer;
+}
+.finPeriodBtn:hover { color: var(--text, #d8d2c2); }
+.finPeriodOn { background: var(--accent-weak, rgba(201,168,76,0.16)); color: var(--accent, #c9a84c); }
+
+.finHead {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px; font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+}
+.finHeadMetric { flex: 1; }
+.finHeadTrend { width: 46px; text-align: center; }
+.finHeadVal { width: 66px; text-align: right; }
+.finHeadYoy { width: 42px; text-align: right; }
+
+.finBody { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 0 8px; scrollbar-width: thin; }
+.finBody::-webkit-scrollbar { width: 8px; }
+.finBody::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+.finRow {
+  display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.finRow:hover { background: rgba(255,255,255,0.03); }
+/* Key metrics: weight + a whisper of ground, never a zebra stripe. */
+.finRowH { background: rgba(255,255,255,0.022); }
+.finRowH .finLabel { font-weight: 700; color: var(--text-bright, #f8f7f3); }
+.finRowH .finVal { font-weight: 700; }
+/* Derived margins read as annotations ON the row above, not as peers. They are
+   the ONE place --text-muted is right here: they restate a computed ratio. */
+.finRowM .finLabel { padding-left: 12px; font-style: italic; color: var(--text-muted, #cfcac0); }
+.finRowM .finVal { color: var(--text-muted, #cfcac0); }
+.finRowOpen { background: rgba(201,168,76,0.07); }
+.finLabel { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spark { width: 46px; height: 15px; flex: 0 0 auto; }
+/* Placeholder keeps every value column on one edge whether or not the row has a
+   sparkline — the old `margin-left: 54px` fix-up drifted out of sync with the
+   sparkline width at wide panel sizes. */
+.sparkEmpty { width: 46px; height: 15px; flex: 0 0 auto; }
+.finVal { width: 66px; flex: 0 0 auto; text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.finYoy { width: 42px; flex: 0 0 auto; text-align: right; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Prior-period columns — only rendered wide (see the container queries). */
+.finPrev {
+  width: 62px; flex: 0 0 auto; text-align: right;
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0);
+}
+
+/* ── section headings — the gold structural layer, matching Overview ──────── */
+.finSection {
+  padding: 11px 12px 4px; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--accent, #c9a84c);
+}
+.finRow + .finSection { margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* ── expanded row: how has this metric evolved? ───────────────────────────── */
+.finExpand {
+  padding: 7px 12px 9px 12px;
+  background: rgba(0,0,0,0.22);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.finCagr {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
+  padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.finCagrK { font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
+.finCagrV { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.finHist { display: flex; flex-direction: column; gap: 2px; }
+.finHistRow { display: flex; align-items: baseline; gap: 10px; font-size: 10.5px; }
+.finHistP { width: 60px; flex: 0 0 auto; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
+.finHistV { flex: 1; text-align: right; color: var(--text, #f0efea); font-weight: 600; font-variant-numeric: tabular-nums; }
+.finHistC { width: 46px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0); }
+
+/* ── loading skeleton — restrained, same rhythm as the rows it replaces ───── */
+.finSkeleton { padding: 2px 12px; }
+.finSkelRow {
+  height: 12px; margin: 9px 0; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+  background-size: 200% 100%;
+  animation: finShimmer 1.4s ease-in-out infinite;
+}
+.finSkelRow:nth-child(3n) { width: 78%; }
+.finSkelRow:nth-child(3n+1) { width: 92%; }
+@keyframes finShimmer { 0% { background-position: 140% 0; } 100% { background-position: -40% 0; } }
+
+.finNote { padding: 7px 12px; font-size: 10.5px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
+
+/* ── data & methodology — provenance on demand, not developer text ────────── */
+.finMethodBtn {
+  appearance: none; border: 0; background: transparent; display: block;
+  margin: 10px 12px 4px; padding: 0;
+  color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600; cursor: pointer;
+}
+.finMethodBtn:hover { text-decoration: underline; }
+.finMethod { padding: 2px 12px 14px; }
+.finMethodP { margin: 0 0 7px; font-size: 10.5px; line-height: 1.55; color: var(--text-muted, #cfcac0); }
+.finMethodP b { color: var(--text, #f0efea); font-weight: 700; }
+
+/* provenance facts — the same aligned label/value grid language as Overview */
+.finProvGrid {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px; row-gap: 2px; align-items: baseline;
+  margin: 2px 0 9px;
+}
+.finProvK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); white-space: nowrap;
+}
+.finProvV { font-size: 10.5px; line-height: 1.4; color: var(--text, #f0efea); }
+
+/* source documents — real filings, not decoration */
+.finDocsHead {
+  margin: 10px 0 5px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--accent, #c9a84c);
+}
+.finDocs { display: flex; flex-direction: column; gap: 1px; }
+.finDoc {
+  display: flex; align-items: baseline; gap: 8px; padding: 4px 6px;
+  margin: 0 -6px; border-radius: 5px; text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.finDoc:hover { background: rgba(255,255,255,0.05); }
+.finDocForm {
+  flex: 0 0 auto; width: 54px; font-size: 10px; font-weight: 700;
+  color: var(--accent, #c9a84c); font-variant-numeric: tabular-nums;
+}
+.finDocLabel { flex: 1; min-width: 0; font-size: 11px; color: var(--text, #f0efea); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.finDocDate { flex: 0 0 auto; font-size: 10px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
+.finDocAll {
+  display: block; margin-top: 7px; font-size: 10.5px; font-weight: 600;
+  color: var(--accent, #c9a84c); text-decoration: none;
+}
+.finDocAll:hover { text-decoration: underline; }
+/* CAGR that exists as a concept but is mathematically undefined here */
+.finCagrNM { font-size: 11px; font-weight: 700; color: var(--text-muted, #cfcac0); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   EARNINGS tab
+   ───────────────────────────────────────────────────────────────────────── */
+.earn { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #f0efea); }
+
+/* ── Earnings: event intelligence ──────────────────────────────────────────
+   Denser than Overview, lighter than Financials. Each quarter is a small
+   three-line block (period · EPS · revenue) rather than a card, so several
+   quarters are scannable at once in a narrow panel. */
+.eqStreak {
+  flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--accent, #c9a84c); padding: 1px 6px; border-radius: 4px;
+  background: var(--accent-weak, rgba(201,168,76,0.14));
+}
+
+/* snapshot — the last result and what is expected next */
+.eqSnap { padding: 9px 12px 10px; border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08)); }
+.eqSnapHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.eqSnapTitle {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+}
+.eqSnapMeta { font-size: 9.5px; color: var(--text-muted, #cfcac0); white-space: nowrap; }
+.eqSnapGrid {
+  display: grid; grid-template-columns: auto 1fr auto;
+  column-gap: 10px; row-gap: 3px; align-items: baseline;
+}
+.eqSnapK { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
+.eqSnapV { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-bright, #f8f7f3); }
+.eqSnapG { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.eqNext {
+  display: flex; align-items: baseline; gap: 8px; margin-top: 7px; padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.055);
+}
+.eqNextK { font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
+.eqNextV { font-size: 10.5px; color: var(--text, #f0efea); font-variant-numeric: tabular-nums; }
+
+/* subtle timeline group labels — orientation, not a headline */
+.eqGroup {
+  padding: 9px 12px 3px; font-size: 8px; font-weight: 700; letter-spacing: 0.9px;
+  text-transform: uppercase; color: var(--text-muted, #cfcac0);
+}
+.eqRow + .eqGroup { margin-top: 3px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+/* one period — a table row, not a card: no rounding, no fill, no rail */
+.eqRow {
+  padding: 5px 12px 6px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.045);
+}
+.eqRow:hover { background: rgba(255,255,255,0.035); }
+.eqOpen { background: rgba(201,168,76,0.06); }
+.eqHead { display: flex; align-items: baseline; gap: 7px; margin-bottom: 2px; line-height: 1.25; }
+.eqPeriod { font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3); white-space: nowrap; }
+.eqWhen { flex: 1; font-size: 9px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; text-align: right; }
+/* The EST badge alone says "not reported" — the values stay bright, because a
+   forward consensus is important information, not a disabled state (§8). */
+.eqBadge {
+  flex: 0 0 auto; font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 0 3px; border-radius: 3px; color: var(--accent, #c9a84c);
+  border: 1px solid rgba(201,168,76,0.45);
+}
+/* the one period-level intelligence marker: both metrics cleared 100% */
+.eqSignal {
+  flex: 0 0 auto; font-size: 7.5px; font-weight: 700; letter-spacing: 0.4px;
+  color: var(--accent, #c9a84c); white-space: nowrap;
+}
+
+/* strict tabular alignment — the columns line up across every period */
+/* Tight line boxes: the row must stay scannable in bulk, and the default 1.5
+   leading on three lines was adding ~12px of pure air per period. */
+.eqGrid { display: grid; align-items: baseline; column-gap: 8px; row-gap: 0; line-height: 1.28; }
+.eqGrid3 { grid-template-columns: 24px minmax(0, 1fr) auto; }
+.eqGrid4 { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+.eqGrid5 { grid-template-columns: 24px minmax(0, 1fr) auto auto auto; }
+.eqTag { font-size: 8px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted, #cfcac0); }
+.eqAct { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-bright, #f8f7f3); }
+.eqEstCell { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0); text-align: right; white-space: nowrap; }
+/* SURPRISE is labelled ("Beat +7.7%") so it can never be read as growth (§12) */
+.eqSurp { font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* GROWTH carries a YoY suffix for the same reason */
+.eqYoy { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.eqYoyTag { font-size: 8px; font-weight: 600; color: var(--text-muted, #cfcac0); letter-spacing: 0.2px; }
+/* ≥100% YoY: gold IS the signal — no badge beside it repeating what the number
+   already says (§10/§38). */
+.eqGold { color: var(--accent, #c9a84c); }
+
+.eqAccel {
+  flex: 0 0 auto; margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.2px;
+  color: var(--accent, #c9a84c); padding: 1px 5px; border-radius: 4px;
+  background: var(--accent-weak, rgba(201,168,76,0.14)); white-space: nowrap;
+}
+.eqPrimaryDoc {
+  display: inline-block; margin: 9px 0 6px; font-size: 11px; font-weight: 700;
+  color: var(--accent, #c9a84c); text-decoration: none;
+}
+.eqPrimaryDoc:hover { text-decoration: underline; }
+
+/* expanded quarter */
+.eqDetail { padding: 8px 12px 10px; background: rgba(0,0,0,0.22); border-bottom: 1px solid rgba(255,255,255,0.05); }
+.eqDGrid {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px; row-gap: 2px; align-items: baseline;
+}
+.eqDK { font-size: 9px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #cfcac0); white-space: nowrap; }
+.eqDV { font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #f0efea); }
+.eqNote { margin-top: 7px; font-size: 10px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
+.eqDocsHead {
+  margin: 10px 0 4px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--accent, #c9a84c);
+}
+.earnHead {
+  flex: 0 0 auto; display: flex; padding: 7px 12px 5px; font-size: 8.5px; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+}
+.earnHP { flex: 1; }
+.earnHE { width: 120px; }
+.earnHS { width: 84px; text-align: right; }
+.earnList { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.earnList::-webkit-scrollbar { width: 8px; }
+.earnList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.earnRow { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.earnRow:nth-child(odd) { background: rgba(255,255,255,0.02); }
+.earnNext { opacity: 0.82; }
+.earnP { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.earnQ { font-size: 12px; font-weight: 700; color: var(--text-bright, #e7e0cf); }
+.earnDate { font-size: 9.5px; color: var(--text-muted, #7d7768); }
+.earnE { width: 120px; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+.earnEps { font-size: 12px; font-weight: 600; }
+.earnEst { font-size: 9.5px; color: var(--text-muted, #7d7768); }
+.earnRev { font-size: 10px; color: var(--text-muted, #8b8574); }
+.earnS { width: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.earnSurp { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.surpBar { position: relative; width: 72px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.surpMid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }
+.surpFill { position: absolute; top: 0; bottom: 0; }
+.surpUp { background: var(--dock-up, #26a869); }
+.surpDown { background: var(--dock-down, #e5484d); }
+
+.demoBadge {
+  flex: 0 0 auto; margin: 6px 10px 0; padding: 3px 8px; border-radius: 5px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.2px;
+  color: var(--accent, #c9a84c); background: var(--accent-weak, rgba(201,168,76,0.12));
+  border: 1px dashed rgba(201,168,76,0.4);
+}
+.earnTrend { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 9px 10px 4px; }
+.earnTrendCard { min-width: 0; }
+.earnTrendTop { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.earnTrendLabel { font-size: 9px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #8b8574); }
+.earnTrendYoy { font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.earnTrendVal { font-size: 16px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
+.earnControls { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+.earnBeat { font-size: 10.5px; color: var(--text-muted, #8b8574); }
+.earnBeat b { font-weight: 700; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   VALUATION tab
+   ───────────────────────────────────────────────────────────────────────── */
+.val { height: 100%; min-height: 0; overflow-y: auto; padding: 9px 11px 16px; color: var(--text, #d8d2c2); scrollbar-width: thin; }
+.val::-webkit-scrollbar { width: 8px; }
+.val::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+.valSizeRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+.valSizeLabel { font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #8b8574); }
+.valSizeVal { font-size: 17px; font-weight: 700; margin-top: 1px; font-variant-numeric: tabular-nums; }
+
+.vHead {
+  display: flex; align-items: center; padding: 3px 0 4px;
+  font-size: 8.5px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+}
+.vRow { display: flex; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.035); }
+.vLabel { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vCur { width: 58px; text-align: right; font-weight: 700; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.vAvg { width: 54px; text-align: right; color: var(--text-muted, #8b8574); font-size: 11px; font-variant-numeric: tabular-nums; }
+.vDelta { width: 42px; text-align: right; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
