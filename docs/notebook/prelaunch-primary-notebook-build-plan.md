@@ -4493,3 +4493,204 @@ Proceeding directly to implementation.
 
 **OCR fallback is explicitly OUT of this wave's delivered scope** (see
 above) — recorded as residual debt, not silently dropped.
+
+### Wave J — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave J's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment. The
+permanent disk/resource-safety rule (only clean `uct_e2e_sandbox_*`, never
+anything else) was honored throughout; no disk emergency occurred this wave,
+and nothing outside that prefix was deleted.
+
+**Delivered, per the 8 recommended vertical slices above:**
+
+1. **PDF.js viewer + real text selection** — `lib/pdfjs.js` (worker setup,
+   credentialed document load) and `PdfDocumentViewer.jsx`: a virtualized
+   canvas + `TextLayer` renderer over the existing, previously-unused
+   `@tanstack/react-virtual` dependency. `DocumentPreviewSheet.jsx` mounts it
+   in place of the Wave I `<iframe>`, keeping its bar and actions unchanged.
+2. **Excerpt data model** — `j2_note_excerpts` + `j2_note_excerpt_refs`
+   (sidecar) + `j2_note_excerpts_fts` and its rowid map, with cascade
+   triggers on BOTH note-delete and document-delete. `note_excerpts.py`
+   (two-sided tenant re-verification on create), the `documentExcerpt` TipTap
+   node, and `ExcerptView.jsx`.
+3. **Note insertion + source navigation** — save-excerpt inserts a real node
+   and refreshes the excerpt list; a citation click opens the source at the
+   right page with the passage highlighted and briefly emphasized, including
+   for an excerpt captured in a different note.
+4. **Thesis evidence integration** — `document_excerpt` joined the
+   `TARGET_TYPES` tuple (one line, per Wave G's deliberate open-string
+   extension point), the evidence picker gained its third option, the
+   changelog records `evidence_added`, and export renders the citation.
+5. **Search integration** — `excerpt_search.py` + `GET
+   /notes/excerpts/search` + `useExcerptSearch` + an Evidence section in the
+   sidebar, sectioned apart from Notes and Documents.
+6. **Lifecycle + security + export** — account-purge extended to both new
+   tables; trash/restore verified dynamic in both directions; markdown export
+   renders each excerpt as a blockquote with an em-dash citation line and
+   carries thesis evidence in front matter.
+7. **Mobile/tablet + test matrix + real-browser E2E** — below.
+8. **Closure + production merge/deploy + certification** — this section and
+   what follows it.
+
+**Ticker-constrained document/excerpt search (slice 5's second half) was NOT
+built** — recorded as debt, not silently dropped. The three-section sidebar
+search is the delivered half.
+
+#### The live-browser E2E sequence, in order, as actually run
+
+Sandbox on port 8092 (`tools/e2e_sandbox_launcher.py`), test account
+`e2e-sandbox@local.dev`, against a purpose-built 4-page financial PDF with
+real wrapped paragraphs (the earlier fixture put one 24pt line per page,
+which cannot exercise multi-line selection, quote context, or highlight rects
+that span line boxes — it was replaced for exactly that reason).
+
+1. Attached the PDF through the editor toolbar; the chip appeared; extraction
+   reached `status: "ready"`, `pageCount: 4`.
+2. Opened the preview from the chip. Verified the page renders real content,
+   the text layer's box matches the canvas box exactly (960×1242 vs.
+   960×1242.34), and `--total-scale-factor` resolves to 1.5686 — i.e. pdfjs's
+   own `round(down, ...)` width expression now evaluates instead of being
+   dropped.
+3. Selected a two-line passage with a real mouse drag. The browser's own
+   selection highlight appeared; the "Save excerpt" popover rendered at the
+   selection's end.
+4. Saved. Verified against the API: one excerpt row, page 2, `charStart` 261,
+   `charEnd` 416, a real 200-character `quotePrefix` and `quoteSuffix`, and
+   `capturedText` exactly the selected passage.
+5. Verified the note body afterwards:
+   `[attachmentChip, documentExcerpt, documentExcerpt, paragraph]` — the
+   attachment chip SURVIVED (see defect 2), and the new excerpt landed
+   immediately after it.
+6. Verified the gold highlight renders over the passage without a reload, and
+   again after a full page reload.
+7. Clicked the excerpt card's `deck.pdf · p.1` citation: the viewer opened at
+   page 1 with the passage highlighted across both of its line boxes.
+8. Added the p.2 excerpt as thesis evidence with stance SUPPORTS and a
+   caption. Verified the persisted row carries
+   `targetType: "document_excerpt"`, and that the changelog gained "Evidence
+   added (supports)".
+9. Built the markdown export server-side and read it: front matter carries
+   `thesis_evidence: - stance: supports / target: nvda-q3-fy26-deck.pdf, p.2
+   / note: <the caption>`; each excerpt renders as a blockquote followed by
+   `> — <document>, p.<n>`. Confirmed the citation character is U+2014 in the
+   bytes (a console rendering artifact made it look like mojibake; it is not).
+10. Searched `margins` in the sidebar: 4 document pages and 1 saved excerpt,
+    in separate sections with separate counts and separate icons.
+11. Trashed the note. Both excerpt search and document search dropped to zero
+    hits. Restored it from Trash; both came back (1 excerpt, 4 pages) with no
+    reindex step.
+12. Tenant isolation, from a second real account created for the purpose:
+    excerpt search returns `{"results": []}`; `GET /excerpts/{id}` on the
+    first account's excerpt returns **404** (not 403 — it does not confirm
+    existence); `POST /notes/{id}/excerpts` against the first account's note
+    and document is refused with **400 "Note not found"**; the note's excerpt
+    list returns `200 {"excerpts": []}`.
+
+#### The five live defects, with their exact reproduction
+
+Full narrative in the decision log's Wave J entry; the reproductions are here
+because this is where verification detail lives.
+
+1. **Null text-quote anchor.** Select any passage spanning two rendered lines
+   → save → read the stored row: `quotePrefix`, `quoteSuffix`, `charStart`,
+   `charEnd` all null, and no highlight ever draws. Root cause measured in
+   the live DOM: the page's own text read `"...the meaning ofthe Private..."`
+   (item-join, no separators) while `Selection.toString()` read
+   `"...the meaning of\nthe Private..."`, so `indexOf` returned -1.
+2. **Attachment destroyed by saving an excerpt.** Click a PDF chip (this
+   leaves `A.ProseMirror-selectednode` as `document.activeElement`), save any
+   excerpt, then read the persisted note body: the `attachmentChip` node is
+   gone.
+3. **Silent save failure on a fresh attachment.** Attach a PDF, immediately
+   open it, select, click Save excerpt: nothing happens, no toast, no row —
+   until a full page reload.
+4. **3.02× over-scaling.** Open any letter-size PDF with the browser
+   maximized on a wide display: 72px body text, right edge clipped.
+5. **Text-layer dimensions dropped.** Inspect the text layer: `style.width`
+   is the literal string `round(down, var(--total-scale-factor) * 612px,
+   var(--scale-round-x))` and the computed width falls back to the `inset: 0`
+   box, because `--scale-round-x` was never defined.
+
+Plus: stale highlight rects painted at the previous scale after a viewport
+resize (gold bars a paragraph above their passage), and a zero-width rect at
+each `<br>` boundary.
+
+**One thing that looked like a sixth defect and was not.** Synthetic
+triple-clicks and drags whose endpoint fell outside a text node produced no
+selection while ProseMirror held focus, which reads exactly like a focus
+hijack in the preview Sheet. It is a CDP limitation: with both drag endpoints
+inside text, selection works with the editor focused. Recorded rather than
+reported.
+
+#### Mobile / tablet
+
+`tools/mobile_audit.py --base http://localhost:8092 --auth --routes /journal
+/journal/notebook`, all four viewports (phone, phone390, tablet, desktop):
+
+- **Horizontal overflow: 0 px on every route × viewport combination.**
+- Sub-44px tap targets on the Notebook route, NAMED not counted:
+  `Show folders` 28×28, `Search notes` 28×28, `Hide folders panel` 28×28
+  (tablet), `Add thesis starter views` 24px tall, `View all` 42×19.
+  - The three 28×28 panel-switch buttons were **fixed this wave**:
+    `FolderSidebar.module.css`'s `@media (max-width: 1024px)` block already
+    raised every other interactive element in the file to `--tap-min` and had
+    simply missed `.sbHeaderBtn`, whose fixed 28px won by default. That file
+    was already in this wave's blast radius and these are the Notebook's
+    most-tapped phone controls.
+  - `Add thesis starter views` and `View all` are **Wave H chrome, named and
+    left** — recorded as that wave's debt rather than silently absorbed here.
+  - **Re-audited after the fix, not assumed:** phone 4→2, phone390 4→2,
+    tablet 5→2, overflow still 0. The 2 that remain are exactly the two Wave H
+    elements named above.
+- ⚠️ **The first two audit runs were VACUOUS and are recorded as such.** Run
+  one passed `--routes /journal` through Git Bash, whose MSYS path
+  translation rewrote it to `C:/Program Files/Git/journal` — the harness
+  audited a 404 page and reported a clean `overflowX=0, small=0`. Run two
+  used a comma-separated list, which `--routes` (an `nargs="*"`) took as one
+  literal route string, auditing a second 404. Only the third run, with
+  space-separated routes through PowerShell, audited the real pages. This is
+  the third distinct way this harness can pass vacuously; the tell in both
+  bad runs was `screens=1` with zero findings on a route that really returns
+  `screens=0.7` and five findings.
+- The PDF viewer itself is not reachable by the harness (it needs a note open
+  and a chip click), so it was verified separately with same-origin iframes
+  at 390px and 820px: **no horizontal overflow** (`body.scrollWidth === body.clientWidth
+  === 390`; the scroll container and panel likewise), the page fits and stays
+  centred, and the gold highlight renders correctly at both widths.
+
+#### Test evidence
+
+- Frontend, `src/pages/journal-2-0/`: **1798 passing across 190 files.** One
+  intermittent failure (`ImportWizard` "audit B1", a 4.1s timeout) appeared
+  in one full-suite run; it passes in isolation and passed on the full-suite
+  re-run — a load-dependent flake in an import-wizard test with no
+  relationship to any file this wave touched, recorded rather than
+  hand-waved.
+- Backend Wave J suites (`test_wave_j_excerpts.py`,
+  `test_journal_two_excerpts_router.py`, `test_notes_export.py`):
+  **105 passing.**
+- **Two mutation checks**, because a rail nobody has seen fail is not a rail:
+  deleting the `<br>` branch from `_buildPageText` turns 4 tests red;
+  reverting `insertContentAt` to `insertContent` turns the chip-survival rail
+  red.
+- New rails this wave: 12 on the page-text builder / offset mapping /
+  re-location (including the newline case that was the defect), the
+  chip-survival assertion, 5 on the Evidence search section, and the
+  thesis-row test rewritten to state the new caption+citation rule.
+
+#### Residual debt, explicit
+
+1. **OCR** — not built, and blocked on an owner decision (may private member
+   documents be processed by an external service, and at what cost), not on
+   engineering. Gap ledger G-121 stays OPEN. This is the one row where
+   Evernote is unambiguously ahead.
+2. **No zoom control / pinch-zoom** in the PDF viewer. Fit-to-width is honest
+   at 390px but a letter page renders at ~0.52×.
+3. **No cross-page selection** — an excerpt is page-scoped by design.
+4. **Ticker-constrained document/excerpt search** — slice 5's second half,
+   not built.
+5. **Two Wave H tap targets** named above, left for Wave H.
+6. **Zero real member usage evidence** — Day 0, the same honest cap every
+   prior wave's closure carries.
