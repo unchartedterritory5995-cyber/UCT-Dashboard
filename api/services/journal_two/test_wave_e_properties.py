@@ -10,8 +10,8 @@ import pytest
 
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.notes import (
-    create_note, get_note, get_note_version, list_note_versions,
-    restore_note_version, update_note, NoteValidationError,
+    count_notes, create_note, get_note, get_note_version, list_note_versions,
+    list_notes, restore_note_version, update_note, NoteValidationError,
 )
 from api.services.journal_two import note_properties as props
 
@@ -268,3 +268,86 @@ def test_property_defs_are_tenant_isolated(conn):
     props.create_property_def("u2", "Theirs", "text", conn=conn)
     names_u1 = {d["name"] for d in props.list_property_defs("u1", conn=conn) if not props.is_builtin_property_id(d["id"])}
     assert names_u1 == {"Mine"}
+
+
+# ── Filter / sort query layer ───────────────────────────────────────────────
+
+def test_property_filter_eq_matches_only_the_right_notes(conn):
+    d = props.create_property_def(
+        "u1", "Thesis Status", "select",
+        options=[{"label": "Active"}, {"label": "Closed"}], conn=conn,
+    )
+    active_id, closed_id = d["options"][0]["id"], d["options"][1]["id"]
+    a = _create(conn, "u1", "A")
+    b = _create(conn, "u1", "B")
+    update_note("u1", a["id"], {"properties": {d["id"]: active_id}}, conn=conn)
+    update_note("u1", b["id"], {"properties": {d["id"]: closed_id}}, conn=conn)
+
+    results = list_notes("u1", property_filter=[{"propertyId": d["id"], "op": "eq", "value": active_id}], conn=conn)
+    assert [r["id"] for r in results] == [a["id"]]
+    assert count_notes("u1", property_filter=[{"propertyId": d["id"], "op": "eq", "value": active_id}], conn=conn) == 1
+
+
+def test_property_filter_composes_as_and_with_folder_and_ticker(conn):
+    d = props.create_property_def("u1", "Confidence", "text", conn=conn)
+    a = _create(conn, "u1", "A", ticker="NVDA")
+    b = _create(conn, "u1", "B", ticker="AMD")
+    update_note("u1", a["id"], {"properties": {d["id"]: "High"}}, conn=conn)
+    update_note("u1", b["id"], {"properties": {d["id"]: "High"}}, conn=conn)
+
+    results = list_notes(
+        "u1", ticker="NVDA",
+        property_filter=[{"propertyId": d["id"], "op": "eq", "value": "High"}],
+        conn=conn,
+    )
+    assert [r["id"] for r in results] == [a["id"]]
+
+
+def test_property_filter_is_empty_and_is_not_empty(conn):
+    d = props.create_property_def("u1", "Review Date", "date", conn=conn)
+    a = _create(conn, "u1", "A")
+    b = _create(conn, "u1", "B")
+    update_note("u1", a["id"], {"properties": {d["id"]: "2026-09-20"}}, conn=conn)
+
+    has_value = list_notes("u1", property_filter=[{"propertyId": d["id"], "op": "is_not_empty"}], conn=conn)
+    assert [r["id"] for r in has_value] == [a["id"]]
+    no_value = list_notes("u1", property_filter=[{"propertyId": d["id"], "op": "is_empty"}], conn=conn)
+    assert [r["id"] for r in no_value] == [b["id"]]
+
+
+def test_property_filter_on_a_financial_derived_property_raises(conn):
+    with pytest.raises(props.PropertyValidationError):
+        list_notes("u1", property_filter=[{"propertyId": "builtin:ticker", "op": "eq", "value": "NVDA"}], conn=conn)
+
+
+def test_property_filter_rejects_a_value_that_doesnt_fit_the_type(conn):
+    d = props.create_property_def("u1", "Position Size", "number", conn=conn)
+    with pytest.raises(props.PropertyValidationError):
+        list_notes("u1", property_filter=[{"propertyId": d["id"], "op": "eq", "value": "not a number"}], conn=conn)
+
+
+def test_property_sort_orders_ascending_with_nulls_last(conn):
+    d = props.create_property_def("u1", "Rank", "number", conn=conn)
+    a = _create(conn, "u1", "A")
+    b = _create(conn, "u1", "B")
+    c = _create(conn, "u1", "C")  # never gets the property set
+    update_note("u1", a["id"], {"properties": {d["id"]: 2}}, conn=conn)
+    update_note("u1", b["id"], {"properties": {d["id"]: 1}}, conn=conn)
+
+    results = list_notes("u1", property_sort={"propertyId": d["id"], "direction": "asc"}, conn=conn)
+    assert [r["id"] for r in results] == [b["id"], a["id"], c["id"]]
+
+
+def test_saved_view_filter_survives_option_rename_end_to_end(conn):
+    d = props.create_property_def("u1", "Status", "select", options=[{"label": "Active"}], conn=conn)
+    active_id = d["options"][0]["id"]
+    note = _create(conn, "u1", "N")
+    update_note("u1", note["id"], {"properties": {d["id"]: active_id}}, conn=conn)
+    spec = {"propertyFilter": [{"propertyId": d["id"], "op": "eq", "value": active_id}]}
+    view = props.create_saved_view("u1", "Active", "list", spec, conn=conn)
+
+    props.update_property_def("u1", d["id"], options=[{"id": active_id, "label": "Live"}], conn=conn)
+
+    reloaded_view = props.get_saved_view("u1", view["id"], conn=conn)
+    results = list_notes("u1", property_filter=reloaded_view["spec"]["propertyFilter"], conn=conn)
+    assert [r["id"] for r in results] == [note["id"]]  # still matches after the rename

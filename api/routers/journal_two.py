@@ -1484,6 +1484,7 @@ def get_current_regime_route(
 # ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two.notes import NoteValidationError
+from api.services.journal_two import note_properties
 
 
 def _parse_search_date(value: str | None, param_name: str) -> str | None:
@@ -1499,6 +1500,35 @@ def _parse_search_date(value: str | None, param_name: str) -> str | None:
     except ValueError:
         raise HTTPException(status_code=400, detail=f"{param_name} must be YYYY-MM-DD")
     return value
+
+
+def _parse_property_filter_param(raw: str | None) -> list[dict[str, Any]] | None:
+    """`propertyFilter` arrives as a JSON-encoded array in a GET query param
+    (matching every other structured Wave E query param). A malformed value
+    is REJECTED (400), never silently ignored — the same "never a raw client
+    query clause" discipline as every value inside it (directive §14/§89;
+    per-condition type validation happens deeper, in property_filter_sql)."""
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="propertyFilter must be valid JSON")
+    if not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="propertyFilter must be a JSON array")
+    return parsed
+
+
+def _parse_property_sort_param(raw: str | None) -> dict[str, Any] | None:
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="propertySort must be valid JSON")
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="propertySort must be a JSON object")
+    return parsed
 
 
 @router.get("/notes")
@@ -1517,6 +1547,9 @@ def list_notes_endpoint(
     dateTo: str | None = None,
     sector: str | None = None,
     theme: str | None = None,
+    savedViewId: str | None = None,
+    propertyFilter: str | None = None,
+    propertySort: str | None = None,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
@@ -1531,28 +1564,53 @@ def list_notes_endpoint(
     scan) via `notes_service.resolve_sector_theme_symbols` — computed ONCE
     here and passed to both `list_notes` and `count_notes` as `symbol_in`
     so a symbol-set resolution can never drift between the page and its
-    total, same discipline as every other filter in this endpoint."""
+    total, same discipline as every other filter in this endpoint.
+
+    Wave E: `savedViewId` ALWAYS wins over any client-supplied
+    `propertyFilter`/`propertySort` in the SAME request — the server
+    resolves the saved view's OWN stored spec, never trusting whatever the
+    client sent alongside the id (directive §87's "never trust
+    client-supplied raw query clauses for saved views"). This is the one
+    place that distinction is enforced; every other call site (the plain
+    ad-hoc filter path) is unaffected."""
     date_from = _parse_search_date(dateFrom, "dateFrom")
     date_to = _parse_search_date(dateTo, "dateTo")
     symbol_in = notes_service.resolve_sector_theme_symbols(
         user["id"], sector=sector, theme=theme,
     )
-    rows = notes_service.list_notes(
-        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-        embed_symbol=embed_symbol, embed_widget=embed_widget,
-        sort=sort, limit=limit, offset=offset, deleted=deleted,
-        date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-    )
-    # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
-    # never the length of `rows` — a migrated library of thousands of notes must
-    # see its real count, not "however many fit on this page". Built from the
-    # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
-    # so the two can never disagree about which notes match.
-    total = notes_service.count_notes(
-        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-        embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
-        date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-    )
+    property_filter = None
+    property_sort = None
+    if savedViewId:
+        view = note_properties.get_saved_view(user["id"], savedViewId, conn=None)
+        if view is None:
+            raise HTTPException(status_code=404, detail="Saved view not found")
+        spec = view["spec"] or {}
+        property_filter = spec.get("propertyFilter")
+        property_sort = spec.get("propertySort")
+    else:
+        property_filter = _parse_property_filter_param(propertyFilter)
+        property_sort = _parse_property_sort_param(propertySort)
+    try:
+        rows = notes_service.list_notes(
+            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+            sort=sort, limit=limit, offset=offset, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_filter=property_filter, property_sort=property_sort,
+        )
+        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+        # never the length of `rows` — a migrated library of thousands of notes must
+        # see its real count, not "however many fit on this page". Built from the
+        # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
+        # so the two can never disagree about which notes match.
+        total = notes_service.count_notes(
+            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_filter=property_filter,
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -1862,6 +1920,106 @@ def note_note_backlinks_endpoint(
     not a fetch OF it; the note detail endpoint is what enforces existence/
     ownership for the page itself."""
     return notes_service.get_note_backlinks(user["id"], note_id, limit=limit)
+
+
+# ── Wave E — Structured Research Properties / Saved Views ───────────────────
+
+@router.get("/notes/{note_id}/properties")
+def note_properties_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The full resolved property list for ONE note (every def, that note's
+    value or its live-derived value) -- what the Properties section renders.
+    404s for a note this user doesn't own/that doesn't exist (unlike
+    backlinks above, this IS a fetch OF the note's own data, not a read
+    about it)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        resolved = note_properties.resolve_note_properties(user["id"], note, conn)
+    finally:
+        conn.close()
+    return {"properties": resolved}
+
+
+@router.get("/property-defs")
+def list_property_defs_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"propertyDefs": note_properties.list_property_defs(user["id"])}
+
+
+@router.post("/property-defs")
+def create_property_def_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        d = note_properties.create_property_def(
+            user["id"], body.get("name"), body.get("type"), options=body.get("options"),
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"propertyDef": d}
+
+
+@router.put("/property-defs/{property_id}")
+def update_property_def_endpoint(
+    property_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        d = note_properties.update_property_def(
+            user["id"], property_id, name=body.get("name"), options=body.get("options"),
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if d is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"propertyDef": d}
+
+
+@router.delete("/property-defs/{property_id}")
+def delete_property_def_endpoint(property_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        ok = note_properties.delete_property_def(user["id"], property_id)
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@router.get("/saved-views")
+def list_saved_views_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"savedViews": note_properties.list_saved_views(user["id"])}
+
+
+@router.post("/saved-views")
+def create_saved_view_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        v = note_properties.create_saved_view(
+            user["id"], body.get("name"), body.get("viewType", "list"), body.get("spec") or {},
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"savedView": v}
+
+
+@router.put("/saved-views/{view_id}")
+def update_saved_view_endpoint(
+    view_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        v = note_properties.update_saved_view(user["id"], view_id, name=body.get("name"), spec=body.get("spec"))
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if v is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"savedView": v}
+
+
+@router.delete("/saved-views/{view_id}")
+def delete_saved_view_endpoint(view_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    ok = note_properties.delete_saved_view(user["id"], view_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
 
 
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).

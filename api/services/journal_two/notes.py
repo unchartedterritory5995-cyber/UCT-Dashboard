@@ -991,6 +991,8 @@ def list_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_filter: list[dict[str, Any]] | None = None,
+    property_sort: dict[str, Any] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -1001,6 +1003,11 @@ def list_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
+        if property_filter:
+            from api.services.journal_two.note_properties import property_filter_sql
+            prop_where, prop_params = property_filter_sql(user_id, property_filter, conn)
+            where_sql += prop_where
+            params += prop_params
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         # Wave 4 Slice 2: relevance ranking is opt-in (`sort="relevance"`),
         # never silently applied under the existing "updated" default --
@@ -1026,15 +1033,24 @@ def list_notes(
             )
             params.append(relevance_expr)
         else:
-            order_col = {
-                "updated": "updated_at DESC",
-                "created": "created_at DESC",
-                "title": "title COLLATE NOCASE ASC",
-                # Trash view default: most recently deleted first — a member
-                # scanning for "the thing I just deleted" shouldn't have to sort.
-                "deleted": "deleted_at DESC",
-            }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
-            sql += f" ORDER BY {order_col}"
+            prop_sort_result = None
+            if property_sort:
+                from api.services.journal_two.note_properties import property_sort_sql
+                prop_sort_result = property_sort_sql(user_id, property_sort, conn)
+            if prop_sort_result:
+                prop_order_fragment, prop_order_params = prop_sort_result
+                sql += f" ORDER BY {prop_order_fragment}"
+                params += prop_order_params
+            else:
+                order_col = {
+                    "updated": "updated_at DESC",
+                    "created": "created_at DESC",
+                    "title": "title COLLATE NOCASE ASC",
+                    # Trash view default: most recently deleted first — a member
+                    # scanning for "the thing I just deleted" shouldn't have to sort.
+                    "deleted": "deleted_at DESC",
+                }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
+                sql += f" ORDER BY {order_col}"
         sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
@@ -1079,6 +1095,7 @@ def count_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_filter: list[dict[str, Any]] | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -1096,6 +1113,11 @@ def count_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
+        if property_filter:
+            from api.services.journal_two.note_properties import property_filter_sql
+            prop_where, prop_params = property_filter_sql(user_id, property_filter, conn)
+            where_sql += prop_where
+            params += prop_params
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row["c"] or 0) if row else 0

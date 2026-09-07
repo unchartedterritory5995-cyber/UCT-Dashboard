@@ -539,3 +539,110 @@ def delete_saved_view(user_id: str, view_id: str, conn: sqlite3.Connection | Non
     finally:
         if owned:
             conn.close()
+
+
+# ── Property filter -> SQL (extends notes._notes_filter_sql, never a second
+# predicate builder -- notes.list_notes/count_notes call this and AND the
+# fragment onto their own WHERE clause) ─────────────────────────────────────
+
+_VALID_OPS = ("eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty")
+
+
+def property_filter_sql(
+    user_id: str, property_filter: list[dict[str, Any]] | None, conn: sqlite3.Connection,
+) -> tuple[str, list[Any]]:
+    """AND-only (Wave E checkpoint §10/directive §39-41 -- OR/groups
+    explicitly deferred). Every condition validates its property_id AND its
+    value against that property's declared type BEFORE building SQL (Wave E
+    checkpoint §14/§89) -- an unknown property, an unsupported op, or a value
+    that doesn't fit the type raises PropertyValidationError rather than
+    silently building a no-op or, worse, a wrong predicate. financial_derived
+    properties (Ticker/Sector/Industry/Theme/Trade) are NOT filterable
+    through this path -- their existing dedicated filters (ticker=,
+    embed_symbol=/symbol_in via sector/theme) already cover them without a
+    duplicate mechanism; filtering by one here raises rather than silently
+    doing nothing."""
+    if not property_filter:
+        return "", []
+    clauses: list[str] = []
+    params: list[Any] = []
+    for cond in property_filter:
+        if not isinstance(cond, dict):
+            raise PropertyValidationError("Each filter condition must be an object")
+        property_id = cond.get("propertyId")
+        op = cond.get("op")
+        value = cond.get("value")
+        if op not in _VALID_OPS:
+            raise PropertyValidationError(f"Unsupported filter operator: {op!r}")
+        prop_def = get_property_def(user_id, property_id, conn=conn)
+        if prop_def is None:
+            raise PropertyValidationError(f"Unknown property: {property_id!r}")
+        if prop_def["source"] != "user_set":
+            raise PropertyValidationError(
+                f"{prop_def['name']} is derived and cannot be filtered through property_filter"
+            )
+        extract = 'json_extract(properties_json, ?)'
+        path_param = f'$."{property_id}"'
+        if op == "is_empty":
+            clauses.append(f"{extract} IS NULL")
+            params.append(path_param)
+            continue
+        if op == "is_not_empty":
+            clauses.append(f"{extract} IS NOT NULL")
+            params.append(path_param)
+            continue
+        if prop_def["type"] == "multi_select" and op == "contains":
+            clauses.append(
+                f"EXISTS (SELECT 1 FROM json_each({extract}) WHERE json_each.value = ?)"
+            )
+            params.append(path_param)
+            params.append(validate_property_value(prop_def, [value])[0])
+            continue
+        validated = validate_property_value(prop_def, value)
+        sql_op = {"eq": "=", "neq": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<="}.get(op)
+        if sql_op:
+            clauses.append(f"{extract} {sql_op} ?")
+            params.append(path_param)
+            params.append(validated)
+        elif op == "contains":  # text substring
+            clauses.append(f"{extract} LIKE ?")
+            params.append(path_param)
+            params.append(f"%{validated}%")
+        else:
+            raise PropertyValidationError(f"{op!r} is not supported for property type {prop_def['type']!r}")
+    if not clauses:
+        return "", []
+    return " AND (" + " AND ".join(clauses) + ")", params
+
+
+_VALID_SORT_DIRECTIONS = ("asc", "desc")
+
+
+def property_sort_sql(
+    user_id: str, property_sort: dict[str, Any] | None, conn: sqlite3.Connection,
+) -> tuple[str, list[Any]] | None:
+    """Returns `(order_by_fragment, params)` -- the fragment goes directly
+    after `ORDER BY` (no trailing keyword of its own) -- or None when no
+    property sort was requested. A single key only (Wave E checkpoint §11 --
+    multi-key sort deferred). The JSON path is a bound parameter, never
+    string-interpolated into the SQL text, matching every other predicate in
+    this program (directive §14's "no raw client query text" discipline,
+    applied even though property_id is already validated against a real
+    definition, not literally arbitrary input)."""
+    if not property_sort:
+        return None
+    property_id = property_sort.get("propertyId")
+    direction = (property_sort.get("direction") or "asc").lower()
+    if direction not in _VALID_SORT_DIRECTIONS:
+        raise PropertyValidationError(f"Unsupported sort direction: {direction!r}")
+    prop_def = get_property_def(user_id, property_id, conn=conn)
+    if prop_def is None:
+        raise PropertyValidationError(f"Unknown property: {property_id!r}")
+    # NULLS LAST regardless of direction -- an unset property should never
+    # dominate the top of an ascending sort just because SQLite treats NULL
+    # as smallest (Wave E checkpoint's own "honest empty state" discipline,
+    # same spirit as Wave D's foreign/nonexistent-target handling).
+    path_param = f'$."{property_id}"'
+    direction_sql = "ASC" if direction == "asc" else "DESC"
+    fragment = f"(json_extract(properties_json, ?) IS NULL), json_extract(properties_json, ?) {direction_sql}"
+    return fragment, [path_param, path_param]

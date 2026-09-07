@@ -1113,3 +1113,80 @@ def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
         "Cup and handle breakout.md").decode("utf-8")
     assert "title: Cup and handle breakout" in body
     assert '"' not in body.split("---")[1]  # front matter block, unquoted
+
+
+# ── Wave E: property export (checkpoint §27) ────────────────────────────────
+
+def test_full_export_renders_user_set_properties_as_readable_front_matter():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def(
+        "u1", "Thesis Status", "select", options=[{"label": "Active"}], conn=c,
+    )
+    active_id = d["options"][0]["id"]
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "{active_id}"}}', "n1"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "properties:" in body
+    assert "Thesis Status: Active" in body  # the LABEL, never the raw option id
+    assert active_id not in body
+
+
+def test_export_never_leaks_a_deleted_propertys_stray_value_as_a_raw_id():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def("u1", "Scratch", "text", conn=c)
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "temp note"}}', "n1"),
+    )
+    c.commit()
+    props.delete_property_def("u1", d["id"], conn=c)
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "properties:" not in body
+    assert "temp note" not in body
+    assert d["id"] not in body
+
+
+def test_single_note_export_also_renders_properties():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def("u1", "Confidence", "text", conn=c)
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "High"}}', "n1"),
+    )
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "Confidence: High" in text
+
+
+def test_export_never_duplicates_financial_derived_properties_under_the_generic_line():
+    """Ticker/Sector/etc. already have their own front-matter fields --
+    properties: must never re-emit them under a second label."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, ticker, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Thesis", '{"type":"doc","content":[]}', "", "[]", "NVDA",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert body.count("NVDA") == 1  # only the dedicated `ticker:` field
