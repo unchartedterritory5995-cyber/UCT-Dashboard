@@ -6,19 +6,23 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Compare Coverage V1 merge/deploy -- the sixth item down the priority stack
-from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR
-(13-lens multi-agent current-state review + synthesis, ~3.9M subagent
-tokens, 699 tool calls, zero lens failures). Full re-anchor report
-delivered to the owner in-conversation; this doc keeps only the load-
-bearing conclusions, not the full 30-section report. Both re-anchor
-MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam
-30) plus the keyboard accessibility program plus Compare Coverage V1
-(scoped via an explicit owner check-in, price-only) are now closed.
-Calendar TickerActions Reuse V2 is next; Awareness Reachability
-Restoration V1 remains deliberately SKIPPED pending a genuine owner
-monetization/entitlement decision (see the top-of-file section) -- do not
-resolve it unilaterally.
+Calendar TickerActions Reuse V2 (Seam 20 half) merge/deploy -- the seventh
+item down the priority stack from the same-day owner-authorized
+WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent current-state
+review + synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens
+failures). Full re-anchor report delivered to the owner in-conversation;
+this doc keeps only the load-bearing conclusions, not the full 30-section
+report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
+Alert Durability V1 (Seam 30) plus the keyboard accessibility program plus
+Compare Coverage V1 (scoped via an explicit owner check-in, price-only)
+plus Seam 20 (Wire + MyStocksHub Insights row navigation) are now closed.
+**Seam 19 (the broader TickerActions/useTickerActions context-menu reuse
+into `EarningsTile.jsx`/`CalendarDayTable.jsx`/`FeedView.jsx`) was
+DELIBERATELY NOT bundled into this pass — larger blast radius, its own
+separate V2 scope, still open.** Feature-Flag Governance Sweep is next;
+Awareness Reachability Restoration V1 remains deliberately SKIPPED pending
+a genuine owner monetization/entitlement decision (see the top-of-file
+section) -- do not resolve it unilaterally.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -82,12 +86,17 @@ the exact correction) → Compare Coverage V1 ✅ resolved same day, merge
 price-only (current price/day change %/52-week range, reusing existing
 live-price + fundamentals infrastructure, zero new fetch plumbing);
 `ComparisonPicker.jsx` and any technical-analysis leg deliberately
-untouched, owner decision → **now: Calendar TickerActions Reuse V2**
-(Seams 19/20 — Board/Table/Wire calendar views + MyStocksHub's Insights
-tab, same convergence pattern already shipped for `EventCard.jsx`) →
-Feature-Flag Governance Sweep (the flag-ledger test is RED on master; 3
-undeclared live-armed flags found, one money-adjacent —
-`BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner confirm-or-rollback).
+untouched, owner decision → Calendar TickerActions Reuse V2 (Seam 20 half)
+✅ resolved same day, merge `25531af60`/`9b4384d9e` — Wire view rows
+(`WireView.jsx`) and MyStocksHub's Insights tab (`InsightForSym`) both
+converted to real `<button>`s navigating to `/research/{sym}`, reusing
+`EventCard.jsx`'s already-shipped convergence pattern; **Seam 19 (Board/
+Table/Feed calendar views' `TickerActions`/`useTickerActions` context-menu
+reuse) deliberately NOT bundled — larger blast radius, own separate V2
+scope, still open** → **now: Feature-Flag Governance Sweep** (the
+flag-ledger test is RED on master; 3 undeclared live-armed flags found,
+one money-adjacent — `BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner
+confirm-or-rollback).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -1616,10 +1625,15 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
-  Compare Coverage V1 — ALL DONE, ACCEPTED + LIVE. Calendar TickerActions
-  Reuse V2 (Seams 19/20) — STARTING NOW**, continuing directly down the
-  re-anchor's own priority stack per the standing directive (no new
-  ledger-scan needed — the re-anchor already did that scan; see below).
+  Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) —
+  ALL DONE, ACCEPTED + LIVE. Feature-Flag Governance Sweep — STARTING
+  NOW**, continuing directly down the re-anchor's own priority stack per
+  the standing directive (no new ledger-scan needed — the re-anchor
+  already did that scan; see below). **Seam 19 (Board/Table/Feed
+  TickerActions context-menu reuse) remains its own open, separately-
+  scoped V2 — deliberately not bundled into the Seam 20 pass** (larger
+  blast radius across 3+ live files with existing click handlers to
+  preserve; see the Seam 19 debt-ledger entry below, unchanged).
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1654,24 +1668,25 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `3a149404e`/`5d0b82e97` → **Compare Coverage V1** — ACCEPTED + LIVE,
   merge `46442465a`/`6a313b0ac` (owner-scoped to price-only, per an
   explicit AskUserQuestion check-in rather than a unilateral scope pick —
-  see "CURRENT ACCEPTED" above for all five) → now Calendar TickerActions
-  Reuse V2 (Awareness Reachability Restoration V1 still skipped, see
-  above).
-  **Bounded Phase A required before Calendar TickerActions Reuse V2's
-  implementation**: re-verify Seams 19/20's current framing against
-  CURRENT code — Seam 19 (TickerActions reuse bounded to `EarningsCard.jsx`
-  only, larger blast radius on Board/Table/Wire calendar views) and Seam
-  20 (Wire view rows and MyStocksHub's Insights tab are confirmed dead
-  ends, same shape as the already-shipped `EventCard.jsx` fix) — before
-  writing any fix; the re-anchor's own framing may have drifted since
-  those seams were first recorded (2026-09-05/06, by Event/News/Calendar →
-  Research Convergence V1's own Phase A). Reuse the ALREADY-SHIPPED fix
-  shape from `EventCard.jsx` (same convergence pattern) rather than
-  inventing a new one — do not redesign Calendar's own layout/views.
+  see "CURRENT ACCEPTED" above for all five) → **Calendar TickerActions
+  Reuse V2 (Seam 20 half)** — ACCEPTED + LIVE, merge
+  `25531af60`/`9b4384d9e`: `WireView.jsx`'s rows and MyStocksHub's
+  `InsightForSym` rows both converted to real `<button>`s navigating to
+  `/research/{sym}`, reusing `EventCard.jsx`'s already-shipped convergence
+  pattern verbatim (native-keyboard-safe by construction, no `role`/
+  `aria-label` patching needed). Seam 19 (Board/Table/Feed TickerActions
+  context-menu reuse — `EarningsTile.jsx`/`CalendarDayTable.jsx`/
+  `FeedView.jsx`) was assessed in this program's own Phase A and confirmed
+  as its own larger, separately-scoped V2 (3+ live files with existing
+  click handlers to preserve) — **deliberately left open, not bundled**;
+  see the Seam 19 debt-ledger entry below, unchanged → now Feature-Flag
+  Governance Sweep (Awareness Reachability Restoration V1 still skipped,
+  see above).
   **Next in the priority stack after this program** (all independent of
   Pattern Vision's gate, Awareness Reachability Restoration still excluded
   pending owner input): Feature-Flag Governance Sweep (incl. an owner
-  confirm-or-rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`).
+  confirm-or-rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`) — this
+  is now the CURRENT ACTIVE PROGRAM (see above).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
@@ -1958,18 +1973,21 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   modal → drawer path. Expanding reuse into 3+ additional live files with
   existing click handlers to preserve is real work, deliberately left for a
   dedicated V2, not bundled into this narrow V1.
-- **Seam 20 — Wire view rows and MyStocksHub's Insights tab are confirmed
-  dead ends (surfaced by Event / News / Calendar → Research Convergence V1's
-  Phase A, 2026-09-06, NOT fixed — deferred as a fast-follow, deliberately
-  not bundled into V1 to keep the diff to one file).** `WireView.jsx:119`
-  (`<span data-testid="wire-sym">{r.sym}</span>`) is a live, ticker-scoped,
-  first-listed top-level calendar view with zero click behavior on any row —
-  not even a chart popup. `MyStocksHub.jsx`'s Insights tab
-  (`InsightForSym`/`SentimentGaugeDisplay`, lines 314-326) is the same shape.
-  Both carry the identical structurally-simple fix EventCard.jsx just got
-  (one `navigate('/research/${sym}')` call, native-button/keyboard-safe);
-  lower priority than EventCard because Wire is not the default view (Board
-  is) and Insights is buried in a sub-route tab.
+- **Seam 20 — RESOLVED 2026-09-06, merge `25531af60`/`9b4384d9e`
+  (Calendar TickerActions Reuse V2).** Was: Wire view rows and
+  MyStocksHub's Insights tab were confirmed dead ends (surfaced by Event /
+  News / Calendar → Research Convergence V1's Phase A, 2026-09-06) —
+  `WireView.jsx` rows and `MyStocksHub.jsx`'s `InsightForSym` rows
+  (`SentimentGaugeDisplay`) were live, ticker-scoped calendar views with
+  zero click behavior on any row, not even a chart popup. Fix: both rows
+  converted to real `<button type="button">`s calling
+  `navigate('/research/${sym}')`, the identical convergence pattern
+  `EventCard.jsx` already shipped — native-keyboard-safe by construction,
+  no `role`/`tabIndex`/`aria-label` patching needed since a real button has
+  no competing native semantics to preserve. New tests:
+  `WireView.test.jsx` (+3), `WireView.coverage.test.jsx` (regression-fixed
+  for the new `useNavigate()` Router dependency), `myStocksHub.test.jsx`
+  (+2). Full regression on both files' existing suites green pre-merge.
 - **Seam 21 — MyStocksHub's News/Filings/Calls tabs preserve only the
   external source, no in-app Research path (surfaced by Event / News /
   Calendar → Research Convergence V1's Phase A, 2026-09-06, NOT fixed —
