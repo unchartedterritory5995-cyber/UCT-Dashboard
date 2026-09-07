@@ -21,8 +21,13 @@ export const SEARCH_INDEX = [
   { id: 'income-stmt', name: 'Income Statement', aliases: ['income', 'p&l', 'profit and loss'], category: 'Sections', tab: 'financials', stmt: 'income', hint: 'Financials → Income' },
   { id: 'balance-sheet', name: 'Balance Sheet', aliases: ['balance', 'assets', 'liabilities'], category: 'Sections', tab: 'financials', stmt: 'balance', hint: 'Financials → Balance' },
   { id: 'cash-flow-stmt', name: 'Cash Flow Statement', aliases: ['cash flow', 'cashflow'], category: 'Sections', tab: 'financials', stmt: 'cashflow', hint: 'Financials → Cash Flow' },
+  { id: 'inst-own', name: 'Institutional Ownership', aliases: ['institutions', '13f', 'funds', 'institutional'], category: 'Ownership', tab: 'ownership', hint: 'Ownership' },
+  { id: 'top-holders', name: 'Top Holders', aliases: ['holders', 'shareholders', 'biggest holders', 'vanguard', 'blackrock'], category: 'Ownership', tab: 'ownership', hint: 'Ownership' },
+  { id: 'insider-activity', name: 'Insider Activity', aliases: ['insiders', 'insider buying', 'insider selling', 'form 4'], category: 'Ownership', tab: 'ownership', hint: 'Ownership' },
+  { id: 'short-interest', name: 'Short Interest', aliases: ['short', 'short float', 'days to cover', 'shorted'], category: 'Ownership', tab: 'ownership', hint: 'Ownership' },
+  { id: 'float-shares', name: 'Float', aliases: ['float', 'shares outstanding', 'supply'], category: 'Ownership', tab: 'ownership', hint: 'Ownership' },
   { id: 'earnings-hist', name: 'Earnings History', aliases: ['earnings', 'eps history', 'quarters'], category: 'Sections', tab: 'earnings', hint: 'Earnings' },
-  { id: 'valuation', name: 'Valuation', aliases: ['valuation', 'multiples'], category: 'Sections', tab: 'valuation', hint: 'Valuation' },
+  { id: 'valuation', name: 'Valuation', aliases: ['valuation', 'multiples'], category: 'Sections', tab: 'overview', hint: 'Overview → Valuation' },
 
   // ── Income statement ────────────────────────────────────────────────────────
   { id: 'revenue', name: 'Revenue', aliases: ['sales', 'top line', 'turnover'], category: 'Income Statement', tab: 'financials', stmt: 'income', row: 'revenue', hint: 'Financials → Income' },
@@ -64,15 +69,15 @@ export const SEARCH_INDEX = [
   { id: 'inst-own', name: 'Institutional Ownership', aliases: ['ownership'], category: 'Financial Health', tab: 'overview', row: 'Inst. Own', hint: 'Overview → Financial Health' },
 
   // ── Valuation ───────────────────────────────────────────────────────────────
-  { id: 'pe', name: 'P/E Ratio', aliases: ['pe', 'price earnings', 'price to earnings'], category: 'Valuation', tab: 'valuation', row: 'pe_trailing', hint: 'Valuation' },
-  { id: 'pe-fwd', name: 'Forward P/E', aliases: ['forward pe'], category: 'Valuation', tab: 'valuation', row: 'pe_forward', hint: 'Valuation' },
-  { id: 'peg', name: 'PEG Ratio', aliases: ['peg'], category: 'Valuation', tab: 'valuation', row: 'peg', hint: 'Valuation' },
-  { id: 'ps', name: 'P/S Ratio', aliases: ['ps', 'price to sales'], category: 'Valuation', tab: 'valuation', row: 'ps', hint: 'Valuation' },
-  { id: 'pb', name: 'P/B Ratio', aliases: ['pb', 'price to book'], category: 'Valuation', tab: 'valuation', row: 'pb', hint: 'Valuation' },
-  { id: 'ev-ebitda', name: 'EV / EBITDA', aliases: ['ev ebitda', 'enterprise value'], category: 'Valuation', tab: 'valuation', row: 'ev_to_ebitda', hint: 'Valuation' },
-  { id: 'ev-rev', name: 'EV / Revenue', aliases: ['ev revenue', 'ev sales'], category: 'Valuation', tab: 'valuation', row: 'ev_to_revenue', hint: 'Valuation' },
-  { id: 'div-yield', name: 'Dividend Yield', aliases: ['dividend', 'yield'], category: 'Valuation', tab: 'valuation', row: 'div_yield', hint: 'Valuation' },
-  { id: 'market-cap', name: 'Market Cap', aliases: ['size', 'capitalization'], category: 'Valuation', tab: 'valuation', hint: 'Valuation' },
+  { id: 'pe', name: 'P/E Ratio', aliases: ['pe', 'price earnings', 'price to earnings'], category: 'Valuation', tab: 'overview', row: 'pe_trailing', hint: 'Overview → Valuation' },
+  { id: 'pe-fwd', name: 'Forward P/E', aliases: ['forward pe'], category: 'Valuation', tab: 'overview', row: 'pe_forward', hint: 'Overview → Valuation' },
+  { id: 'peg', name: 'PEG Ratio', aliases: ['peg'], category: 'Valuation', tab: 'overview', row: 'peg', hint: 'Overview → Valuation' },
+  { id: 'ps', name: 'P/S Ratio', aliases: ['ps', 'price to sales'], category: 'Valuation', tab: 'overview', row: 'ps', hint: 'Overview → Valuation' },
+  { id: 'pb', name: 'P/B Ratio', aliases: ['pb', 'price to book'], category: 'Valuation', tab: 'overview', row: 'pb', hint: 'Overview → Valuation' },
+  { id: 'ev-ebitda', name: 'EV / EBITDA', aliases: ['ev ebitda', 'enterprise value'], category: 'Valuation', tab: 'overview', row: 'ev_to_ebitda', hint: 'Overview → Valuation' },
+  { id: 'ev-rev', name: 'EV / Revenue', aliases: ['ev revenue', 'ev sales'], category: 'Valuation', tab: 'overview', row: 'ev_to_revenue', hint: 'Overview → Valuation' },
+  { id: 'div-yield', name: 'Dividend Yield', aliases: ['dividend', 'yield'], category: 'Valuation', tab: 'overview', row: 'div_yield', hint: 'Overview → Valuation' },
+  { id: 'market-cap', name: 'Market Cap', aliases: ['size', 'capitalization'], category: 'Valuation', tab: 'overview', hint: 'Overview → Valuation' },
 ]
 
 export const POPULAR = ['Revenue', 'EPS', 'EBITDA', 'Free Cash Flow', 'P/E', 'Debt', 'Dividends', 'ROE']

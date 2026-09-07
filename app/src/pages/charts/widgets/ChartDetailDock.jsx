@@ -1,6 +1,6 @@
 /**
  * ChartDetailDock — the Company Intelligence panel that docks onto the right of a
- * chart. One panel, one tab bar (Overview · Financials · Earnings · Valuation ·
+ * chart. One panel, one tab bar (Overview · Financials · Earnings · Ownership ·
  * News) plus an in-header Search. Visibility is owned by the toolbar toggle
  * (ChartPanelsButton, which replaces Share-to-Floor) — the panel has no close X.
  *
@@ -13,7 +13,7 @@ import DockProfile from './DockProfile'
 import DockNews from './DockNews'
 import DockFinancials from './DockFinancials'
 import DockEarnings from './DockEarnings'
-import DockValuation from './DockValuation'
+import DockOwnership from './DockOwnership'
 import CompanySearch from './CompanySearch'
 import { COMPANY_TABS, MIN_RIGHT_W, DEFAULT_RIGHT_W } from './chartDock'
 import styles from './ChartDetailDock.module.css'
@@ -123,7 +123,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, chil
               {tab === 'overview' && <DockProfile sym={sym} onPickSymbol={onPickSymbol} />}
               {tab === 'financials' && <DockFinancials sym={sym} />}
               {tab === 'earnings' && <DockEarnings sym={sym} />}
-              {tab === 'valuation' && <DockValuation sym={sym} />}
+              {tab === 'ownership' && <DockOwnership sym={sym} />}
               {tab === 'news' && <DockNews sym={sym} filter={dock.newsFilter} onFilter={setNewsFilter} />}
               {searchOpen && <CompanySearch sym={sym} onClose={() => setSearchOpen(false)} />}
             </div>

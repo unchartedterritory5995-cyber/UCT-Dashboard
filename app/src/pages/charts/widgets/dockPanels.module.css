@@ -44,7 +44,7 @@
      inherited colour for normal content — `.finLabel` and `.finVal` are plain
      var(--text) — with hierarchy carried by WEIGHT and ALIGNMENT. --text-bright
      marks emphasis (`.finRowH`), and --text-muted is spent only on genuinely
-     secondary content (`.vAvg` 5Y averages, `.earnEst` estimates, dates).
+     secondary content (dates, derived margins, filing periods).
 
      Overview previously ran a bespoke scale that put normal metric labels at
      ~169 luminance while the Financials labels beside them sat at 239. That gap
@@ -106,13 +106,6 @@
 }
 /* (the L6 quiet sub-head died with the dedicated "Company" section — those facts
    are now inline identity metadata, see .idFacts) */
-/* kept — DockValuation labels its groups with this */
-.dwSectionLabel {
-  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
-  color: var(--accent, #c9a84c); opacity: 0.85;
-  margin-bottom: 3px; padding-bottom: 2px;
-  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
-}
 
 /* metric sub-groups (inside Fundamentals) — muted labels + no per-row rules, so
    the four groups read as ONE system instead of four cloned sections */
@@ -402,7 +395,6 @@
    first because it is the only decorative-ish element in the row. */
 @container dock (max-width: 320px) {
   .spark, .sparkEmpty, .finHeadTrend { display: none; }
-  .vAvg { display: none; }
 }
 /* Financials: give the value column more room before spending width on history.
    The sparkline deliberately does NOT grow — at 72px it started reading as a
@@ -857,26 +849,149 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   VALUATION tab
+   OWNERSHIP tab — same geometry language as Financials and Earnings.
    ───────────────────────────────────────────────────────────────────────── */
-.val { height: 100%; min-height: 0; overflow-y: auto; padding: 9px 11px 16px; color: var(--text, #d8d2c2); scrollbar-width: thin; }
-.val::-webkit-scrollbar { width: 8px; }
-.val::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-
-.valSizeRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
-.valSizeLabel { font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #8b8574); }
-.valSizeVal { font-size: 17px; font-weight: 700; margin-top: 1px; font-variant-numeric: tabular-nums; }
-
-.vHead {
-  display: flex; align-items: center; padding: 3px 0 4px;
-  font-size: 8.5px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--text-muted, #7d7768);
-  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+.own {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  color: var(--text, #f0efea);
+  --et-pad: 12px;
+  --et-gap: 8px;
 }
-.vRow { display: flex; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.035); }
-.vLabel { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vCur { width: 58px; text-align: right; font-weight: 700; font-size: 11.5px; font-variant-numeric: tabular-nums; }
-.vAvg { width: 54px; text-align: right; color: var(--text-muted, #8b8574); font-size: 11px; font-variant-numeric: tabular-nums; }
-.vDelta { width: 42px; text-align: right; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── snapshot strip: how much of the company is spoken for, on one line ──
+   Named .owStrip, not .etStrip: Earnings' strip was REMOVED in the editing
+   pass, so reusing that class name silently produced unstyled body text. This
+   block owns its own vocabulary. */
+.owStrip {
+  flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 3px 16px; padding: 8px var(--et-pad) 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.owStripItem { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.owStripK {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.owStripV {
+  font-size: 11.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── the 13F position-flow line: four counts that are one fact ──────────── */
+.owFlow {
+  display: flex; flex-wrap: wrap; gap: 4px 18px;
+  padding: 6px var(--et-pad) 2px;
+}
+.owFlowItem { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.owFlowN { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.owFlowK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+/* A delta riding beside the value it modifies. */
+.owDelta { margin-left: 5px; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── holders table — ONE grid definition read by the header and the rows,
+      exactly as .etTable does, so the header cannot drift. ──────────────── */
+.owHead,
+.owRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px 74px;
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.owHead2,
+.owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 74px; }
+.owHead {
+  padding: 4px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.owR { text-align: right; }
+.owRow {
+  padding: 5px var(--et-pad);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.owRow:hover { background: rgba(255, 255, 255, 0.03); }
+.owRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
+/* A fund name is the row's identity, so it takes the emphasis tier — but it is
+   also the only thing here that can be arbitrarily long, hence the ellipsis. */
+.owName {
+  min-width: 0; font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owShares {
+  text-align: right; font-size: 11px; font-weight: 600;
+  color: var(--text, #f0efea); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A WORD, not a percentage: a 13F supports "Increased", never "bought 4.2%". */
+.owChange { text-align: right; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.owDetail {
+  padding: 7px var(--et-pad) 9px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ── insider transactions ───────────────────────────────────────────────── */
+.owInsHead,
+.owInsRow {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 62px 62px;
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.owInsHead {
+  padding: 6px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.owInsRow { padding: 5px var(--et-pad); border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+.owInsDate {
+  font-size: 10px; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.owInsName { min-width: 0; display: flex; flex-direction: column; }
+.owInsWho {
+  font-size: 11px; font-weight: 600; color: var(--text-bright, #f8f7f3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owInsRole {
+  font-size: 8.5px; color: var(--text-muted, #cfcac0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owInsShares {
+  text-align: right; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.owInsVal {
+  text-align: right; font-size: 11px; font-weight: 600; color: var(--text, #f0efea);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ── responsive: the holder NAME is the column that must never be sacrificed,
+      so width is taken from the numeric columns first. ───────────────────── */
+@container dock (max-width: 339px) {
+  .own { --et-pad: 10px; --et-gap: 6px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 54px 62px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 62px; }
+  .owInsHead, .owInsRow { grid-template-columns: 40px minmax(0, 1fr) 54px 54px; }
+  .owFlow { gap: 3px 12px; }
+}
+@container dock (min-width: 470px) {
+  .own { --et-pad: 14px; --et-gap: 10px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 78px 88px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 88px; }
+  .owInsHead, .owInsRow { grid-template-columns: 56px minmax(0, 1fr) 78px 78px; }
+  .owRow, .owInsRow { padding-top: 6px; padding-bottom: 6px; }
+}
+@container dock (min-width: 620px) {
+  .own { --et-pad: 16px; --et-gap: 12px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 90px 100px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 100px; }
+}
 
 /* ═════════════════════════════════════════════════════════════════════════
    PROTOTYPES (design study) — delete with prototypes.js if not approved.

@@ -8,11 +8,14 @@
  */
 
 // Company-panel tabs (the right dock's tab bar).
+// Ownership REPLACED Valuation (2026-09-07). Valuation's metrics were the
+// weakest tab in the set and every one of them already appears in Overview's
+// Valuation group; ownership and positioning had no home at all.
 export const COMPANY_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'financials', label: 'Financials' },
   { key: 'earnings', label: 'Earnings' },
-  { key: 'valuation', label: 'Valuation' },
+  { key: 'ownership', label: 'Ownership' },
   { key: 'news', label: 'News' },
 ]
 const TAB_KEYS = COMPANY_TABS.map(t => t.key)
@@ -34,7 +37,10 @@ export const MIN_BOTTOM_H = 96
 export function normalizeDock(raw) {
   const d = raw && typeof raw === 'object' ? raw : {}
   let open = !!d.open
-  let tab = TAB_KEYS.includes(d.tab) ? d.tab : 'overview'
+  // Anyone whose panel was left on Valuation lands on the tab that replaced it,
+  // not silently back at Overview.
+  const wanted = d.tab === 'valuation' ? 'ownership' : d.tab
+  let tab = TAB_KEYS.includes(wanted) ? wanted : 'overview'
   if (d.open === undefined && (d.right === 'profile' || d.right === 'news')) {
     open = true
     tab = d.right === 'news' ? 'news' : 'overview'
