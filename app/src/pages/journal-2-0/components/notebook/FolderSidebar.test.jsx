@@ -51,11 +51,21 @@ vi.mock('../../hooks/useJ2NoteTags', () => ({
   default: (...args) => useJ2NoteTagsMock(...args),
 }))
 
+// Wave I: document (PDF page) search — a separate hook/section from note
+// search above. Default (no results) so existing search tests, which never
+// exercise this new section, stay unaffected.
+const useDocumentSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useDocumentSearch', () => ({
+  default: (...args) => useDocumentSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
   useJ2NoteTagsMock.mockReset()
   useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
+  useDocumentSearchMock.mockReset()
+  useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useJ2NoteFolderCountsMock.mockReset()
   useJ2NoteFolderCountsMock.mockImplementation(() => ({
     counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
@@ -831,6 +841,75 @@ describe('search panel — Wave 4 date/sector/theme filters', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'NVDA' } })
     settle()
     expect(screen.getByText('Matched ticker: NVDA')).toBeInTheDocument()
+  })
+})
+
+describe('search panel — Wave I document (PDF page) search, sectioned separately from notes', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders zero document results with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/document page/)).not.toBeInTheDocument()
+  })
+
+  it('a matching document page renders its own snippet, page number, and owning note title — separately from note results', () => {
+    useDocumentSearchMock.mockImplementation((q) => {
+      if (q === 'margin') {
+        return {
+          results: [{
+            documentId: 'd1', pageNumber: 17, noteId: 'n1', noteTitle: 'NVDA 10-K notes',
+            name: 'investor-deck.pdf', attachmentUrl: '/x.pdf',
+            snippet: 'gross <mark>margin</mark> expanded',
+          }],
+          isLoading: false, error: null,
+        }
+      }
+      return { results: [], isLoading: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margin' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('investor-deck.pdf · p.17')).toBeInTheDocument()
+    expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+
+  it('clicking a document result opens its OWNING NOTE (v1 scope — the member reaches the PDF preview from there)', () => {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.3'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+  })
+
+  it('shows an honest "Searching documents…" state while a document query is in flight', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching documents…')).toBeInTheDocument()
   })
 })
 

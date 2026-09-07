@@ -3956,3 +3956,177 @@ implementation.
 
 If a MATERIAL architecture/security/ownership contradiction remains: STOP
 and report it. None found. Proceeding directly.
+
+---
+
+### Wave I — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave I's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment. The
+permanent disk/resource-safety rule (only clean `uct_e2e_sandbox_*`, never
+anything else) was honored throughout; no disk emergency occurred this wave.
+
+**Delivered, per the 8 recommended vertical slices above:**
+
+1. **Live attachment authoring** — `ALLOWED_ATTACHMENT_MIMES`/
+   `ALLOWED_IMAGE_MIMES` widened the editor's paste/drop handlers beyond
+   images (PDF/txt/csv/md/zip/mp3/m4a/docx/xlsx), a new toolbar "Attach a
+   file" button + hidden file input, `uploadNoteAttachment()` (mirrors the
+   existing `uploadInlineImage()`), and a single shared `Toast`-based
+   (never `alert()`) failure surface for both image and file uploads.
+2. **PDF preview** — `DocumentPreviewSheet.jsx`: a plain `<iframe>` inside
+   the existing `Sheet` `fullscreen` variant, Open-in-new-tab/Download
+   actions, `#page=N` fragment support for future deep-linking. Deliberately
+   not an Acrobat clone, per the directive's own instruction.
+3. **Native text extraction + page model** — `j2_note_documents` +
+   `j2_note_document_pages` (three-level cascade-delete trigger chain to a
+   dedicated FTS5 mirror), `document_extraction.py` (`pypdf`-based,
+   per-page fault-isolated, 500-page cap, encrypted-empty-password attempt,
+   bounded async via a process-wide `Semaphore(2)`), `pypdf>=5.0.0` pinned
+   in `requirements.txt`, and a real Wave-C-era GC gap fixed
+   (`attachment_gc.py`'s reference scan now also covers
+   `j2_note_versions.body_json`, not just the live note body).
+4. **Document search** — `document_search.py` + `j2_note_document_pages_fts`
+   (deliberately never merged with `j2_notes_fts` — sectioned results only,
+   per the directive's own explicit instruction), sectioned "N document
+   page(s)" results in the Notebook sidebar search panel, page-anchored
+   highlighted snippets via the existing `notes_search.fts_match_expr`
+   (no second copy of the injection-safe MATCH-expression logic).
+5. **Ticker Workspace integration** — `_documents_for_symbols()` reuses the
+   exact ticker/embed/mention membership union Wave H already proved for
+   Notes, an independent 5-item cap, wired into
+   `get_ticker_research_summary()`'s existing response shape as a new
+   `documents` key; `TickerResearchWorkspace.jsx` gained a Documents section
+   (icon/name/page-count-or-status chip/date) that opens the preview Sheet
+   for a ready document or the owning note for a pending/failed one.
+6. **Lifecycle** — `account_purge.py`'s `_DIRECT_USER_TABLES` gained both
+   new tables; cascade-delete verified via a dedicated trigger-chain test
+   matrix (delete a note → document row gone → page rows gone → FTS + map
+   rows gone, one transaction, zero orphans).
+7. **Full test matrix** — 38 new backend tests
+   (`test_wave_i_documents.py` + `test_journal_two_documents_router.py`,
+   spanning extraction, document/page CRUD, search, the GC fix, cascade
+   delete, account-purge coverage, and Ticker Workspace integration) + 102
+   frontend tests across 5 touched/new files, all passing.
+8. **Real-browser E2E** — see below.
+
+**Two real, live-browser-discovered defects this wave, neither caught by
+any unit/integration test** (jsdom cannot simulate native browser
+anchor-download behavior or real CSS layout — the exact limitation this
+program's own prior waves have repeatedly found at this same boundary),
+both fixed with regression coverage:
+
+1. **`AttachmentChip`'s native `download=` attribute defeated TipTap's own
+   click routing.** `AttachmentChip.renderHTML()` emits a native
+   `download="..."` attribute on the rendered `<a>` tag (a pre-existing,
+   correct behavior for the import-adapter path this node was originally
+   built for), and the browser's native anchor-download handling wins the
+   race against ProseMirror's synthetic `handleClickOn` — so the FIRST
+   click on a freshly-inserted PDF chip silently downloaded the file
+   instead of opening the preview Sheet. Confirmed live via `outerHTML`
+   inspection showing `download="nvda-investor-deck.pdf"`. Fixed by
+   removing `handleClickOn` entirely and adding a React `onClickCapture`
+   handler on a wrapper `<div>` around `<EditorContent>` — capture phase
+   runs BEFORE the native anchor default action, so
+   `event.preventDefault()` reaches the click in time. Verified live,
+   twice, after the fix: clicking the chip now shows the selected gold
+   border AND opens the preview.
+2. **A PRE-EXISTING `Sheet.jsx` bug, not introduced by this wave but first
+   exposed by it.** `panelStyle`'s ternary only special-cased
+   `bottom-sheet`, so ANY other variant — including the new
+   `DocumentPreviewSheet`'s `fullscreen` — fell into the `{maxWidth: ...}`
+   branch and inherited the desktop-modal 520px cap, overriding
+   `.panel_fullscreen`'s own `width:100%` CSS. Invisible before this wave
+   because the only other `variant="fullscreen"` caller
+   (`MobileSymbolSheet.jsx`) only ever mounts on touch viewports already
+   narrower than 520px, so the cap was a silent no-op there — this wave's
+   `DocumentPreviewSheet` is the first DESKTOP-triggered fullscreen caller
+   in the codebase. Confirmed live via `getComputedStyle`/
+   `getBoundingClientRect` showing exactly 520px on a 1920px viewport.
+   Fixed by excluding `fullscreen` from the `maxWidth` branch. Three new
+   regression tests added to `Sheet.test.jsx` (fullscreen carries no cap;
+   modal still gets its default 520px; modal still honors an explicit
+   override). Re-verified live after the fix: `panel.style.maxWidth === ''`
+   and `getBoundingClientRect().width === window.innerWidth` (1920px),
+   confirmed via direct JS inspection in the real browser, matching the
+   unit tests' DOM-attribute-level assertion exactly.
+
+**Full real-browser E2E, proven live, not just asserted:** created a real
+note, set its Ticker to NVDA, uploaded a real hand-built 3-page PDF fixture
+via the toolbar file picker — the AttachmentChip rendered correctly;
+clicked it and confirmed the preview Sheet opened FULLSCREEN (1920px
+width, no `maxWidth` cap, matching the Sheet.jsx fix); polled
+`GET /notes/{id}/documents` and confirmed extraction reached
+`status: "ready"`/`pageCount: 3` with a real `processedAt` timestamp;
+navigated to `/journal/notebook/research/NVDA` and confirmed the Ticker
+Workspace's Documents section showed the file with its page count and
+ready status, clicking it opened the same preview Sheet; opened the
+Notebook sidebar search panel, typed a real word from the extracted PDF
+text ("revenue"), and confirmed a sectioned "1 document page" result
+appeared below "No notes match" with a highlighted snippet
+("Full year **revenue** guidance raised to $185 billion…") and the
+correct page number — clicking it opened the owning note; separately
+confirmed via `GET /notes/documents/search?q=revenue` that the same
+result carries the correct `documentId`/`pageNumber`/`noteId`/
+`attachmentUrl` fields; uploaded a disallowed file type (`.svg`) and
+confirmed the server correctly rejected it (`400`) and the toast
+("Couldn't upload bad-upload.svg. Your note is unchanged.") rendered
+exactly as designed (the toast's own 4s auto-dismiss window was the first
+thing this verification pass tripped over — re-confirmed by uploading
+again and screenshotting with zero delay).
+
+**Tenant isolation, live-verified, not just asserted from the test
+suite:** signed up a second, unrelated account in the SAME browser tab and
+attempted, as that foreign user, to reach the first account's note and
+document: `GET /notes/{noteId}/documents` → `404`; `GET
+/notes/documents/search?q=revenue` → `200` with `results: []` (no leak,
+not an error); a direct fetch of the raw attachment file URL (which
+embeds the owning user's id in its path) → `403`; `GET /notes/{noteId}`
+itself → `404`. All four match the directive's own "someone else cannot
+see my research report" north-star line exactly.
+
+**Mobile:** `tools/mobile_audit.py --auth --viewport phone --routes
+/journal/notebook` against the sandbox — 0 horizontal-overflow, 4
+sub-44px touch targets found, all four confirmed PRE-EXISTING Wave-H-era
+Notebook chrome (folder-panel tab buttons, the "Add thesis starter views"
+link, the "View all" link) unrelated to and untouched by Wave I — no new
+regression. The one genuinely new Wave-I-introduced touch-target defect
+(`DocumentPreviewSheet.module.css`'s `.actionLink` floor declared at the
+phone-only `@media (max-width: 640px)` tier instead of the canonical
+`@media (max-width: 1024px)` TOUCH tier — CLAUDE.md's own explicit "THE
+TOUCH TIER IS ≤1024, NOT ≤640" warning) was found via the full frontend
+suite rerun (a `tapFloor.test.js` regression) DURING implementation, not
+left for closure — fixed by moving the rule into its own ≤1024px block,
+re-verified via a full-suite rerun showing the same pre-existing 7
+unrelated failures and zero new ones.
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.**
+No architecture-level contradiction against the entry checkpoint's 63-point
+decision set. No scope added beyond the checkpoint (no OCR, no PDF
+annotation/highlighting, no page-excerpt capture, no SEC-filing-source
+integration, no document-type field — all correctly deferred to Wave J or
+explicitly out of scope per the checkpoint). **Explicitly recorded, not
+fixed:**
+- Zero real member usage evidence for anything in this wave (Day 0, same
+  cap every prior wave's closure has honestly carried).
+- OCR is genuinely unbuilt (deliberately, per the directive's own §226
+  presumptive Wave J scope) — `text_origin` already shaped to accept
+  `'ocr'` later, but no image/scanned-PDF path exists yet.
+- The `.toolBtn` touch-target floor across the ENTIRE editor toolbar
+  (every button, not just "Attach a file") is declared at the phone-only
+  `@media (max-width: 640px)` tier rather than the canonical `≤1024px`
+  TOUCH tier — a repo-wide, pre-existing pattern this wave's new toolbar
+  button inherited identically to every other toolbar button, not a
+  Wave-I-introduced regression; left unfixed as explicitly out of this
+  wave's scope (fixing it would be a toolbar-wide change, not an
+  attachments/PDF change).
+- The zero-text/scanned-PDF honest-failure path (`no_text` status) is
+  covered by backend tests but was not separately re-proven live in the
+  browser this session (time-scoped judgment call — the `ready`/`3-page`
+  path and the upload-failure/tenant-isolation paths were prioritized as
+  higher-signal live checks; the honest-empty-state COPY itself is the
+  same pattern already live-verified elsewhere in this program, e.g.
+  Research Home's empty state).
+- No document TYPE labeling (Filing/Presentation/Report/Other) — correctly
+  out of scope per the entry checkpoint (§110-122 decision), not a gap.

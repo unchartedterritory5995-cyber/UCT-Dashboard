@@ -974,6 +974,96 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_evidence_ad AFTER DELETE ON j2_note
     DELETE FROM j2_thesis_evidence WHERE note_id = old.id;
 END;
 
+-- Wave I: PDF text extraction, page-aware. `attachment_url` is the note's
+-- own EXISTING /api/j2/notes/attachments/... URL (already embedded in the
+-- AttachmentChip node) -- the natural key, since attachments carry no id of
+-- their own (attachment_root.py / save_note_attachment_bytes' filesystem-
+-- path-is-identity model, kept unchanged by this wave). One row per PDF
+-- attachment a note carries; `status` tracks the async extraction job
+-- (pending|ready|processing_failed|no_text -- the last for an image-only/
+-- scanned PDF, never conflated with a genuine processing error).
+-- `extraction_version` is a bare integer, bumped only if a future parser
+-- change needs a reprocess sweep -- no migration framework attached to it.
+CREATE TABLE IF NOT EXISTS j2_note_documents (
+    id                  TEXT PRIMARY KEY,
+    user_id             TEXT NOT NULL,
+    note_id             TEXT NOT NULL,
+    attachment_url      TEXT NOT NULL,
+    name                TEXT,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    page_count          INTEGER,
+    extraction_version  INTEGER NOT NULL DEFAULT 1,
+    created_at          TEXT NOT NULL,
+    processed_at        TEXT,
+    UNIQUE(note_id, attachment_url)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_documents_note
+    ON j2_note_documents(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_documents_user
+    ON j2_note_documents(user_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_documents_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_documents WHERE note_id = old.id;
+END;
+
+-- Page text is written ONCE, after extraction completes (never a partial
+-- row updated in place), so plain AFTER INSERT/DELETE triggers -- the SAME
+-- shape j2_notes_fts already uses -- keep the FTS mirror correct with no
+-- application-code indexing call to forget. `text_origin` is 'native' for
+-- every row this wave writes; the column already accepts 'ocr' so Wave J
+-- can extend this same table rather than building a parallel one.
+CREATE TABLE IF NOT EXISTS j2_note_document_pages (
+    document_id  TEXT NOT NULL,
+    user_id      TEXT NOT NULL,
+    page_number  INTEGER NOT NULL,
+    text         TEXT NOT NULL DEFAULT '',
+    text_origin  TEXT NOT NULL DEFAULT 'native',
+    PRIMARY KEY (document_id, page_number)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_document_pages_user
+    ON j2_note_document_pages(user_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_pages_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_document_pages WHERE document_id = old.id;
+END;
+
+-- Standalone (NOT external-content) FTS5 mirror, same reasoning as
+-- j2_notes_fts: the pages table has a composite (document_id, page_number)
+-- key, not a stable single-column rowid, so an external-content table would
+-- risk the identical VACUUM-drift class that pattern was rejected for
+-- above. Same O(1)-delete rowid-mapping fix too (idx_j2_notes_fts_map's own
+-- measured 7.9x-32x tax at scale is the reason this is built in from day
+-- one rather than added after the fact once a member's document corpus is
+-- large enough to notice).
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_note_document_pages_fts USING fts5(
+    document_id UNINDEXED,
+    user_id UNINDEXED,
+    page_number UNINDEXED,
+    text,
+    tokenize = 'porter unicode61'
+);
+CREATE TABLE IF NOT EXISTS j2_note_document_pages_fts_map (
+    document_id  TEXT NOT NULL,
+    page_number  INTEGER NOT NULL,
+    fts_rowid    INTEGER NOT NULL,
+    PRIMARY KEY (document_id, page_number)
+);
+
+CREATE TRIGGER IF NOT EXISTS j2_note_document_pages_fts_ai AFTER INSERT ON j2_note_document_pages BEGIN
+    INSERT INTO j2_note_document_pages_fts(document_id, user_id, page_number, text)
+    VALUES (new.document_id, new.user_id, new.page_number, new.text);
+    INSERT INTO j2_note_document_pages_fts_map(document_id, page_number, fts_rowid)
+    VALUES (new.document_id, new.page_number, last_insert_rowid());
+END;
+
+CREATE TRIGGER IF NOT EXISTS j2_note_document_pages_fts_ad AFTER DELETE ON j2_note_document_pages BEGIN
+    DELETE FROM j2_note_document_pages_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_document_pages_fts_map
+                    WHERE document_id = old.document_id AND page_number = old.page_number);
+    DELETE FROM j2_note_document_pages_fts_map
+    WHERE document_id = old.document_id AND page_number = old.page_number;
+END;
+
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
 -- row so a revoked link stays dead instead of being re-mintable by accident.

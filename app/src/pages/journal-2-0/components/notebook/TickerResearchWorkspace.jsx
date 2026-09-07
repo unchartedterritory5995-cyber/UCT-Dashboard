@@ -4,7 +4,14 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import DocumentPreviewSheet from './DocumentPreviewSheet'
 import styles from './TickerResearchWorkspace.module.css'
+
+const DOC_STATUS_LABEL = {
+  pending: 'Processing…',
+  processing_failed: "Text couldn't be processed",
+  no_text: 'No extractable text',
+}
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 
@@ -52,6 +59,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState(null)
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
 
@@ -83,8 +91,8 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
     return <div className={styles.loading}>Loading…</div>
   }
 
-  const { identity, notes, activeTheses, pastTheses, facts, tradeSummary } = summary
-  const isEmpty = notes.length === 0 && activeTheses.length === 0 && pastTheses.length === 0
+  const { identity, notes, activeTheses, pastTheses, facts, documents, tradeSummary } = summary
+  const isEmpty = notes.length === 0 && activeTheses.length === 0 && pastTheses.length === 0 && documents.length === 0
   const viewAllHref = `/journal/notebook?view=all&ticker=${encodeURIComponent(symbol)}`
 
   return (
@@ -154,6 +162,41 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
             </div>
           )}
 
+          {documents.length > 0 && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Documents</h3>
+              <div className={styles.rows}>
+                {documents.map((d) => {
+                  const ready = d.status === 'ready' || d.status === 'no_text'
+                  return (
+                    <button
+                      type="button"
+                      key={d.id}
+                      className={styles.row}
+                      onClick={() => (ready
+                        ? setPreviewDoc({ href: d.attachmentUrl, name: d.name })
+                        : openNote({ id: d.noteId }))}
+                    >
+                      <span className={styles.rowTitle}>
+                        <UIcon name="document" size={13} gold={false} style={{ marginRight: 6, verticalAlign: -2 }} />
+                        {d.name || 'Document'}
+                      </span>
+                      <span className={styles.rowMeta}>
+                        {d.status === 'ready' && d.pageCount != null && (
+                          <span className={styles.chip}>{d.pageCount} page{d.pageCount === 1 ? '' : 's'}</span>
+                        )}
+                        {DOC_STATUS_LABEL[d.status] && (
+                          <span className={styles.chip}>{DOC_STATUS_LABEL[d.status]}</span>
+                        )}
+                        <span className={styles.rowDate}>{relativeDate(d.createdAt)}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {facts.length > 0 && (
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Captured facts</h3>
@@ -187,6 +230,12 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           )}
         </>
       )}
+      <DocumentPreviewSheet
+        open={!!previewDoc}
+        href={previewDoc?.href}
+        name={previewDoc?.name}
+        onClose={() => setPreviewDoc(null)}
+      />
     </div>
   )
 }

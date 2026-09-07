@@ -76,6 +76,19 @@ def _referenced_names(conn: sqlite3.Connection, user_id: str) -> set[str]:
     ):
         if row["fallback_url"]:
             names.update(_REF_RE.findall(row["fallback_url"]))
+    # Wave I: Wave C's own `body_json` SNAPSHOTS (j2_note_versions) must
+    # protect their attachments too, for the same reason the current note
+    # body does — Wave C's contract is "restore never erases history," so a
+    # member who attaches a file, saves (capturing a version), then removes
+    # it from the CURRENT body must still be able to restore that older
+    # version with the attachment intact. Before this fix, only the current
+    # `j2_notes.body_json` was scanned here, so the file would silently GC
+    # out from under any older, still-restorable version 48h later.
+    for row in conn.execute(
+        "SELECT body_json FROM j2_note_versions WHERE user_id = ?", (user_id,)
+    ):
+        if row["body_json"]:
+            names.update(_REF_RE.findall(row["body_json"]))
     return names
 
 

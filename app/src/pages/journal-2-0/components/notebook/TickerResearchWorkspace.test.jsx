@@ -17,7 +17,7 @@ import TickerResearchWorkspace from './TickerResearchWorkspace'
 
 const EMPTY_SUMMARY = {
   identity: { symbol: 'NVDA', entityId: null, displayName: null, symbols: ['NVDA'] },
-  notes: [], activeTheses: [], pastTheses: [], facts: [],
+  notes: [], activeTheses: [], pastTheses: [], facts: [], documents: [],
   tradeSummary: { openPositions: 0, closedTrades: 0 },
 }
 
@@ -65,6 +65,7 @@ describe('TickerResearchWorkspace', () => {
         activeTheses: [{ id: 't1', title: 'NVDA Thesis', updatedAt: '2026-09-01T00:00:00Z', propertiesJson: { 'builtin:thesis_status': 'active' } }],
         pastTheses: [{ id: 't2', title: 'Old thesis', updatedAt: '2026-08-01T00:00:00Z', propertiesJson: { 'builtin:thesis_status': 'invalidated' } }],
         facts: [{ id: 'f1', noteId: 'n1', factLabel: 'Price', ticker: 'NVDA', value: 142.83, unit: 'usd_per_share', observedAt: '2026-09-01T00:00:00Z' }],
+        documents: [{ id: 'd1', noteId: 'n1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'Investor Deck.pdf', status: 'ready', pageCount: 12, createdAt: '2026-09-01T00:00:00Z' }],
         tradeSummary: { openPositions: 1, closedTrades: 3 },
       },
       isLoading: false, error: null, refresh: vi.fn(),
@@ -75,6 +76,8 @@ describe('TickerResearchWorkspace', () => {
     expect(screen.getByText('NVDA research note')).toBeTruthy()
     expect(screen.getByText('Price')).toBeTruthy()
     expect(screen.getByText('$142.83')).toBeTruthy()
+    expect(screen.getByText('Investor Deck.pdf')).toBeTruthy()
+    expect(screen.getByText('12 pages')).toBeTruthy()
     expect(screen.getByText('1 open position')).toBeTruthy()
     expect(screen.getByText('3 closed trades')).toBeTruthy()
     // Past theses stay collapsed by default (checkpoint decision 35).
@@ -108,6 +111,49 @@ describe('TickerResearchWorkspace', () => {
     renderWorkspace({ onOpenNote })
     fireEvent.click(screen.getByText('A note'))
     expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'n1' }))
+  })
+
+  it('clicking a READY document row opens the preview sheet, not the note', () => {
+    hookResult = {
+      summary: {
+        ...EMPTY_SUMMARY,
+        documents: [{ id: 'd1', noteId: 'n1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'report.pdf', status: 'ready', pageCount: 3, createdAt: '2026-09-01T00:00:00Z' }],
+      },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    fireEvent.click(screen.getByText('report.pdf'))
+    expect(onOpenNote).not.toHaveBeenCalled()
+    expect(screen.getByTitle('Preview of report.pdf')).toBeTruthy()
+  })
+
+  it('a PENDING document shows "Processing…" and clicking it opens the owning note instead', () => {
+    hookResult = {
+      summary: {
+        ...EMPTY_SUMMARY,
+        documents: [{ id: 'd1', noteId: 'n1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'report.pdf', status: 'pending', pageCount: null, createdAt: '2026-09-01T00:00:00Z' }],
+      },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    const onOpenNote = vi.fn()
+    renderWorkspace({ onOpenNote })
+    expect(screen.getByText('Processing…')).toBeTruthy()
+    fireEvent.click(screen.getByText('report.pdf'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+  })
+
+  it('a FAILED document shows an honest status, never a fake page count', () => {
+    hookResult = {
+      summary: {
+        ...EMPTY_SUMMARY,
+        documents: [{ id: 'd1', noteId: 'n1', attachmentUrl: '/x.pdf', name: 'bad.pdf', status: 'processing_failed', pageCount: null, createdAt: '2026-09-01T00:00:00Z' }],
+      },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }
+    renderWorkspace()
+    expect(screen.getByText("Text couldn't be processed")).toBeTruthy()
+    expect(screen.queryByText(/pages?$/)).toBeNull()
   })
 
   it('shows a back link to Notebook by default, hides it when embedded (Company Page bridge)', () => {

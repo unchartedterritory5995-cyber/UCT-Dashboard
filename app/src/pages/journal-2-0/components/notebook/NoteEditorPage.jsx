@@ -2,7 +2,12 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
+import {
+  buildExtensions, uploadInlineImage, uploadNoteAttachment,
+  ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
+} from '../../lib/tiptap'
+import Toast from '../Toast'
+import DocumentPreviewSheet from './DocumentPreviewSheet'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import ConfirmModal from '../ConfirmModal'
@@ -522,6 +527,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
+  const attachFileInputRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
   // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
   // means a server-side write (Send-to-Journal append, second tab) landed
@@ -702,6 +708,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `editor` const is still null — so closing over it directly made paste throw
   // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
   const editorRef = useRef(null)
+  // Wave I: a single toast for both image and file-attachment upload
+  // failures — an alert() blocks the whole tab for the multi-second span a
+  // PDF upload can take, which is a worse experience than the image case
+  // this was copied from.
+  const [uploadToast, setUploadToast] = useState(null)
+  // Wave I: { href, name } of the PDF currently open in the preview Sheet, or null.
+  const [previewDoc, setPreviewDoc] = useState(null)
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -709,8 +722,43 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const { url } = await uploadInlineImage(noteId, file)
       ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
-      alert(`Upload failed: ${e.message || e}`)
+      setUploadToast({ message: `Couldn't upload ${file.name || 'image'}. Your note is unchanged.`, tone: 'error' })
     }
+  }
+  // Wave I: the non-image counterpart — the backend endpoint
+  // (POST /notes/{id}/attachments) has existed since before this wave; this
+  // is its first live-editor caller. Inserts a real AttachmentChip node
+  // (already used by every import adapter), never a bare markdown link.
+  const handleAttachmentInsert = async (file) => {
+    const ed = editorRef.current
+    if (!ed || !file) return
+    try {
+      const { url, name, size } = await uploadNoteAttachment(noteId, file)
+      ed.chain().focus().insertContent({
+        type: 'attachmentChip', attrs: { href: url, name, size },
+      }).run()
+    } catch (e) {
+      setUploadToast({ message: `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`, tone: 'error' })
+    }
+  }
+
+  // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+  // of downloading. A CAPTURE-phase React handler on the editor's own
+  // wrapper, not TipTap's `handleClickOn` — AttachmentChip.renderHTML()
+  // emits a real `download="..."` attribute on the <a> (pre-existing,
+  // relied on by every import adapter for the "just download it" case), and
+  // a native `<a download>` click is handled by the browser ahead of
+  // ProseMirror's own synthetic click routing, so `handleClickOn` never
+  // fired. Capture phase + preventDefault() here runs before that native
+  // download activates.
+  const handleEditorClickCapture = (event) => {
+    const chip = event.target.closest?.('a[data-type="attachmentChip"]')
+    if (!chip) return
+    const href = chip.getAttribute('href')
+    const name = chip.getAttribute('data-name')
+    if (!/\.pdf$/i.test(name || '') && !/\.pdf$/i.test(href || '')) return
+    event.preventDefault()
+    setPreviewDoc({ href, name })
   }
 
   const ytId = parseYouTubeId(note?.heroImageUrl)
@@ -755,10 +803,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         const items = event.clipboardData?.items
         if (!items) return false
         for (const item of items) {
-          if (item.kind === 'file' && item.type.startsWith('image/')) {
+          if (item.kind !== 'file') continue
+          if (ALLOWED_IMAGE_MIMES.has(item.type)) {
             event.preventDefault()
             const file = item.getAsFile()
             if (file) handleImageInsert(file)
+            return true
+          }
+          if (ALLOWED_ATTACHMENT_MIMES.has(item.type)) {
+            event.preventDefault()
+            const file = item.getAsFile()
+            if (file) handleAttachmentInsert(file)
             return true
           }
         }
@@ -766,9 +821,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       },
       handleDrop(view, event) {
         const file = event.dataTransfer?.files?.[0]
-        if (file && file.type.startsWith('image/')) {
+        if (!file) return false
+        if (ALLOWED_IMAGE_MIMES.has(file.type)) {
           event.preventDefault()
           handleImageInsert(file)
+          return true
+        }
+        if (ALLOWED_ATTACHMENT_MIMES.has(file.type)) {
+          event.preventDefault()
+          handleAttachmentInsert(file)
           return true
         }
         return false
@@ -1003,11 +1064,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
   }
 
-  const ToolButton = ({ active, onClick, label }) => (
+  const ToolButton = ({ active, onClick, label, title }) => (
     <button
       type="button"
       className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      title={title}
+      aria-label={title}
     >{label}</button>
   )
 
@@ -1063,6 +1126,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      <Toast
+        message={uploadToast?.message}
+        tone={uploadToast?.tone}
+        onDismiss={() => setUploadToast(null)}
+      />
+      <DocumentPreviewSheet
+        open={!!previewDoc}
+        href={previewDoc?.href}
+        name={previewDoc?.name}
+        onClose={() => setPreviewDoc(null)}
+      />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
         {showBack && (
@@ -1270,6 +1344,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
               label={<UIcon name="document" size={14} />}
+              title="Insert image"
+            />
+            <ToolButton
+              onClick={() => attachFileInputRef.current?.click()}
+              label={<UIcon name="paperclip" size={14} />}
+              title="Attach a file"
             />
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
@@ -1392,7 +1472,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <NoteFindBar editor={editor} onClose={() => { setFindOpen(false); editor?.commands.noteFindClear() }} />
         )}
 
-        <EditorContent editor={editor} />
+        <div onClickCapture={handleEditorClickCapture}>
+          <EditorContent editor={editor} />
+        </div>
 
         {/* Wave D: "Linked from" backlinks -- renders nothing until this
             note has at least one real backlink (directive §70/§16). */}
@@ -1402,10 +1484,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/gif,image/webp"
+          aria-label="Upload image"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) handleImageInsert(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={attachFileInputRef}
+          type="file"
+          accept=".pdf,.txt,.csv,.md,.zip,.mp3,.m4a,.docx,.xlsx"
+          aria-label="Upload file attachment"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleAttachmentInsert(f)
             e.target.value = ''
           }}
         />

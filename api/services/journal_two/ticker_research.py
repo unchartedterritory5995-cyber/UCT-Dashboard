@@ -23,6 +23,7 @@ from api.services.auth_db import get_connection
 
 _NOTES_LIMIT = 5
 _FACTS_LIMIT = 5
+_DOCUMENTS_LIMIT = 5
 
 
 def resolve_research_symbols(symbol: str) -> dict[str, Any]:
@@ -128,6 +129,38 @@ def _facts_for_entity(
     return [_row_to_fact(r) for r in rows]
 
 
+def _documents_for_symbols(
+    user_id: str, symbols: list[str], limit: int, conn: sqlite3.Connection,
+) -> list[dict[str, Any]]:
+    """Wave I — the bounded "Documents" section. Membership derives entirely
+    through the OWNING note's existing ticker/embed/mention relationship
+    (checkpoint decision: "a document never carries its own ticker
+    metadata") -- the SAME predicate shape `_notes_for_symbols` uses, joined
+    to j2_note_documents instead of returned as note rows. Independent of
+    the Notes section's own 5-item cap: a PDF on an older note not in that
+    list must still surface here."""
+    if not symbols:
+        return []
+    ph = ",".join("?" * len(symbols))
+    rows = conn.execute(
+        "SELECT DISTINCT d.id, d.note_id, d.attachment_url, d.name, d.status,"
+        " d.page_count, d.created_at"
+        " FROM j2_note_documents d"
+        " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
+        " WHERE d.user_id = ? AND n.deleted_at IS NULL"
+        f" AND (n.ticker IN ({ph})"
+        f" OR EXISTS (SELECT 1 FROM j2_note_embeds e WHERE e.note_id = n.id AND e.user_id = n.user_id AND e.symbol IN ({ph}))"
+        f" OR EXISTS (SELECT 1 FROM j2_note_mentions m WHERE m.note_id = n.id AND m.user_id = n.user_id AND m.symbol IN ({ph})))"
+        " ORDER BY d.created_at DESC LIMIT ?",
+        (user_id, *symbols, *symbols, *symbols, limit),
+    ).fetchall()
+    return [{
+        "id": r["id"], "noteId": r["note_id"], "attachmentUrl": r["attachment_url"],
+        "name": r["name"], "status": r["status"], "pageCount": r["page_count"],
+        "createdAt": r["created_at"],
+    } for r in rows]
+
+
 def _trade_position_summary(user_id: str, symbols: list[str], conn: sqlite3.Connection) -> dict[str, Any]:
     """Counts only (checkpoint decision 22) -- never an execution ledger.
     Positions/trades carry their OWN `symbol` column directly; no note
@@ -164,6 +197,7 @@ def get_ticker_research_summary(
         notes = _notes_for_symbols(user_id, symbols, _NOTES_LIMIT, conn)
         active_theses, past_theses = _theses_for_symbols(user_id, symbols, conn)
         facts = _facts_for_entity(user_id, identity["entityId"], symbols, _FACTS_LIMIT, conn)
+        documents = _documents_for_symbols(user_id, symbols, _DOCUMENTS_LIMIT, conn)
         trade_summary = _trade_position_summary(user_id, symbols, conn)
         return {
             "identity": identity,
@@ -171,6 +205,7 @@ def get_ticker_research_summary(
             "activeTheses": active_theses,
             "pastTheses": past_theses,
             "facts": facts,
+            "documents": documents,
             "tradeSummary": trade_summary,
         }
     finally:

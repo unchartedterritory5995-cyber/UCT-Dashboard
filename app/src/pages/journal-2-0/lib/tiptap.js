@@ -81,6 +81,18 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
   ]
 }
 
+// Mirrors _ALLOWED_IMAGE_MIMES / _ALLOWED_FILE_MIMES in
+// api/services/journal_two/notes.py — the server is the real gate (it
+// checks Content-Type, not the client's guess), this is only so the
+// editor's drop/paste handlers know which files to even attempt.
+export const ALLOWED_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+export const ALLOWED_ATTACHMENT_MIMES = new Set([
+  'application/pdf', 'text/plain', 'text/csv', 'text/markdown', 'application/zip',
+  'audio/mpeg', 'audio/mp4',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+])
+
 /**
  * Upload an image File to /api/j2/notes/{noteId}/images and return
  * the public URL. Used by the editor's drag-paste handler + the
@@ -97,6 +109,26 @@ export async function uploadInlineImage(noteId, file) {
     throw new Error(body.detail || `Upload failed (${res.status})`)
   }
   return res.json() // { url, width, height }
+}
+
+/**
+ * Upload a non-image file (PDF/txt/csv/md/zip/mp3/m4a/docx/xlsx) to
+ * /api/j2/notes/{noteId}/attachments and return {url, name, size}. The
+ * backend endpoint has existed since before this wave; this is its first
+ * frontend caller (Wave I — the editor's paste/drop handlers were
+ * image-only, so a member could never reach it).
+ */
+export async function uploadNoteAttachment(noteId, file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`/api/j2/notes/${noteId}/attachments`, {
+    method: 'POST', credentials: 'include', body: fd,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `Upload failed (${res.status})`)
+  }
+  return res.json() // { url, name, size }
 }
 
 /**
