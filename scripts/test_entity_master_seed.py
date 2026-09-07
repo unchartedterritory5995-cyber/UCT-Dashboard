@@ -305,3 +305,113 @@ def test_delisted_reseed_idempotent_when_window_is_zero_length(monkeypatch, db_p
     assert r2["stats"]["delisted_entities_created"] == 0
     conn = store._conn(db_path)
     assert conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == 1
+
+
+# ── Seam 1 read-side fix: seed_dot_form_aliases() ───────────────────────────
+# Same synthetic-data safety gate as above — no network, no real
+# cap_universe/Massive data.
+
+def _patch_dot_alias_sources(monkeypatch, *, symbols=(), ticker_details=None):
+    """Monkeypatch the two sources seed_dot_form_aliases() reads."""
+    import api.services.cap_universe as cap_universe
+    import api.services.massive as massive
+
+    monkeypatch.setattr(cap_universe, "symbols", lambda: frozenset(symbols))
+    details = ticker_details or {}
+    monkeypatch.setattr(massive, "get_ticker_details", lambda sym: details.get(sym, {}))
+
+
+def _seed_one_entity(db_path, hyphen_sym, valid_from="1990-01-01"):
+    """Seed a single already-existing hyphen-form entity directly, without
+    the full run_seed() universe pass — mirrors production reality (the
+    hyphen entity already exists; this fix only ADDS a second alias)."""
+    result = em_api.apply_event(
+        "new_entity",
+        {"entity_type": "equity", "initial_alias": hyphen_sym, "initial_alias_valid_from": valid_from},
+        dedup_key=f"test:new_entity:{hyphen_sym}", source="admin_manual", db_path=db_path,
+    )
+    assert result.accepted
+    return result.entity_id
+
+
+def test_dot_alias_added_for_a_confirmed_class_share(monkeypatch, db_path):
+    _seed_one_entity(db_path, "BRK-B", valid_from="1990-01-01")
+    _patch_dot_alias_sources(
+        monkeypatch, symbols=["BRK-B"],
+        ticker_details={"BRK-B": {"ticker": "BRK.B"}},
+    )
+    result = seed.seed_dot_form_aliases(db_path=db_path)
+    assert result["stats"]["dot_aliases_added"] == 1
+    assert result["anomalies"] == []
+    resolved = em_api.resolve("BRK.B", db_path=db_path)
+    assert resolved.status == "resolved"
+    # Backfilled to the hyphen alias's own valid_from, not "today".
+    aliases = em_api.aliases(resolved.entity.entity_id, db_path=db_path)
+    dot_row = next(a for a in aliases if a.alias == "BRK.B")
+    assert dot_row.valid_from == "1990-01-01"
+
+
+def test_a_symbol_with_no_confirmed_dot_form_is_skipped(monkeypatch, db_path):
+    """CONTROL — the SPAC-unit case (e.g. NWAX-U): Massive's reference API
+    returns nothing for the dot-converted form, so no alias is invented."""
+    _seed_one_entity(db_path, "NWAX-U")
+    _patch_dot_alias_sources(monkeypatch, symbols=["NWAX-U"], ticker_details={})
+    result = seed.seed_dot_form_aliases(db_path=db_path)
+    assert result["stats"]["no_dot_form_confirmed"] == 1
+    assert result["stats"]["dot_aliases_added"] == 0
+    assert em_api.resolve("NWAX.U", db_path=db_path).status == "not_found"
+
+
+def test_a_best_effort_failure_reads_as_unconfirmed_not_as_absence(monkeypatch, db_path):
+    """CONTROL — get_ticker_details() is documented best-effort (returns {}
+    on a transient failure). An echoed/malformed result must not be treated
+    as a confirmed dot form either."""
+    _seed_one_entity(db_path, "BF-B")
+    _patch_dot_alias_sources(
+        monkeypatch, symbols=["BF-B"],
+        ticker_details={"BF-B": {"ticker": "BF-B"}},  # echoes the hyphen form back, not a real dot form
+    )
+    result = seed.seed_dot_form_aliases(db_path=db_path)
+    assert result["stats"]["no_dot_form_confirmed"] == 1
+    assert result["stats"]["dot_aliases_added"] == 0
+
+
+def test_idempotent_on_a_second_run(monkeypatch, db_path):
+    _seed_one_entity(db_path, "BRK-B")
+    _patch_dot_alias_sources(
+        monkeypatch, symbols=["BRK-B"],
+        ticker_details={"BRK-B": {"ticker": "BRK.B"}},
+    )
+    r1 = seed.seed_dot_form_aliases(db_path=db_path)
+    assert r1["stats"]["dot_aliases_added"] == 1
+    r2 = seed.seed_dot_form_aliases(db_path=db_path)
+    assert r2["stats"]["dot_aliases_added"] == 0
+    assert r2["stats"]["dot_aliases_already_present"] == 1
+    aliases = em_api.aliases(em_api.resolve("BRK-B", db_path=db_path).entity.entity_id, db_path=db_path)
+    assert sum(1 for a in aliases if a.alias == "BRK.B") == 1  # never duplicated
+
+
+def test_dot_alias_dry_run_writes_nothing(monkeypatch, db_path):
+    _seed_one_entity(db_path, "BRK-B")
+    _patch_dot_alias_sources(
+        monkeypatch, symbols=["BRK-B"],
+        ticker_details={"BRK-B": {"ticker": "BRK.B"}},
+    )
+    result = seed.seed_dot_form_aliases(db_path=db_path, dry_run=True)
+    assert result["dry_run"] is True
+    assert result["would_add"] == [{"entity_id": em_api.resolve("BRK-B", db_path=db_path).entity.entity_id,
+                                     "hyphen": "BRK-B", "dot": "BRK.B"}]
+    assert em_api.resolve("BRK.B", db_path=db_path).status == "not_found"
+
+
+def test_a_hyphen_symbol_never_seeded_is_a_named_anomaly_not_a_crash(monkeypatch, db_path):
+    """CONTROL — cap_universe names a hyphenated symbol that was never
+    seeded as an entity at all (shouldn't happen in production, but the
+    function must degrade to a named anomaly, never raise)."""
+    _patch_dot_alias_sources(
+        monkeypatch, symbols=["GHOST-B"],
+        ticker_details={"GHOST-B": {"ticker": "GHOST.B"}},
+    )
+    result = seed.seed_dot_form_aliases(db_path=db_path)
+    assert result["stats"]["hyphen_entity_not_found"] == 1
+    assert result["anomalies"] == [{"kind": "hyphen_entity_not_found", "alias": "GHOST-B"}]
