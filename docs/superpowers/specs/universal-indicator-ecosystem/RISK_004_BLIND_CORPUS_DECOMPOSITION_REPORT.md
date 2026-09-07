@@ -1880,3 +1880,478 @@ decision, or (b) look outside this specific 48-script corpus entirely for
 the next candidate functions.
 
 **This recommendation is not begun.**
+
+# ADDENDUM 5 — EVIDENCE RECONCILIATION (2026-09-07, no implementation)
+
+Owner-directed reconciliation of Addendum 4's own reporting. Nothing in
+`pine.js`/`interpret.js`/`ast_interpret.py`/`indicators.js`/`indicator_compute.py`
+changed. One real gap this reconciliation found and fixed:
+`sentence.test.js`'s "inversion rail" corpus-ID-list assertion (a FOURTH,
+separate hardcoded list Addendum 4's own commit needed to update and missed —
+see §1). Two test/doc-only precision corrections. One genuinely new,
+UNRELATED, out-of-scope finding surfaced while verifying blocker precision
+for the remaining frontier (§9) and is disclosed, not investigated further.
+
+## 1. Exact test-suite reconciliation
+
+Addendum 4's own claim ("996/1,001 other files green, 3 pre-existing
+failures") was WRONG on both the total and the failure count — it was read
+off a truncated `tail -80` of a 292-second background run, not the complete
+output. Re-run in full, output captured to a file and read completely:
+
+```
+Test Files  6 failed | 995 passed | 1 skipped (1002)
+     Tests  6 failed | 14311 passed | 9 skipped (14326)
+    Errors  1 error
+   Start at 05:41:44
+   Duration 292.01s
+process exit code: (vitest run's own nonzero exit on failed tests — the run
+was piped through `tail`, so the shell's own exit code was not separately
+captured; the `Test Files … 6 failed` line above is the authoritative result)
+```
+
+No todo files. **996/1,001 does not, and never did, coexist with "3
+pre-existing failures" — that was two separate reporting errors compounding**:
+the total should have read 1,002 (1,001 dropped the 1 skipped file), and the
+failure count should have read 6, not 3 (the truncated tail only showed the
+last 3 of 6 failure blocks).
+
+**The 6 failed files, individually reconciled:**
+
+| File | Cause | Status |
+|---|---|---|
+| `src/hooks/pollingSites.rail.test.js` | a new bare `useSWR` site in `app/src/floor2/hooks/useFloor.js` | PRE-EXISTING, confirmed via `git log` — `floor2/` last touched 2026-09-03, untouched by this batch |
+| `src/components/screener/reachable.test.js` | 16 unreachable `app/src/floor2/`/`app/src/pages/community/` modules | PRE-EXISTING, confirmed via `git log` — `community/` last touched 2026-09-01, untouched by this batch |
+| `src/components/chart/builder/BuilderSheet.pine.test.jsx` | `TypeError` on `sent.id` in a save-flow test | PRE-EXISTING, confirmed via `git log` — file last touched 2026-08-30, untouched by this batch |
+| `src/components/chart/builder/ImportBox.thinkscript.test.jsx` | CRLF/LF mismatch in a paste-field debounce assertion | PRE-EXISTING, confirmed via `git log` — file last touched 2026-09-04, untouched by this batch |
+| `src/components/chart/engine/ast/sentence.test.js` | `CORPUS.cases.map(id)` hardcoded ID list (a FOURTH, separate assertion from the three already fixed in the original commit) did not include `falling_close_3`/`pvtN_bounded_price_volume_trend_change` | **CAUSED BY THIS BATCH, MISSED IN THE ORIGINAL COMMIT. FIXED in this reconciliation** (see below) |
+| `src/components/chart/engine/__tests__/flipCRecord.test.js` | frozen `tools/chart_parity_cases.json` case count (52 vs. actual 53) | PRE-EXISTING, confirmed via `git log` — `chart_parity_cases.json` last touched 2026-09-05, a day before this batch began, unrelated |
+
+Plus 1 unhandled error (`StockChart.smoke.test.jsx`'s `lightweight-charts`
+mock missing a `LineType` export) — PRE-EXISTING, confirmed via `git log`
+(`StockChart.jsx` last touched 2026-09-04), unrelated.
+
+**The fix**: `sentence.test.js`'s "the corpus is the subject, and its case
+LIST is the floor" test (a SEPARATE hardcoded ID list from the "totality over
+the closed table" describe block's three assertions, which WERE correctly
+updated in the original commit) needed `falling_close_3` and
+`pvtN_bounded_price_volume_trend_change` appended. Fixed; re-verified: full
+`app/src/components/chart/engine/ast/` sweep now **114/114 files, 2,156/2,156
+tests, 0 failures**. The other 5 files' failures remain, confirmed
+pre-existing and unrelated — not touched, per this reconciliation's own
+"do not alter product code merely to make the accounting cleaner" instruction
+(none of them are product code, and none are this batch's to fix).
+
+## 2. Corrected status, each of the five batch functions
+
+**`ta.falling`** — an actual UCT-served capability (`closedTable.json::functions.falling`,
+callable as `ta.falling(source, period)` for any source/period, exactly as
+general as `ta.rising`). Real vendor evidence, LIMITED SAMPLE (15 real SPY
+trading days; 12 computable past its own 3-bar warmup). No warm-up/
+initialization caveat needed — `falling`'s window is bounded by construction
+(`length+1` samples), so there is no seed-convergence question the way a
+recursive smoother has one.
+
+**`ta.kcw`** — an actual UCT-served capability
+(`pine.js::BUILTIN_CALL_TREE.kcw`, callable as `ta.kcw(src, length, mult[,
+useTrueRange])` for any arguments, general — not scoped to the captured
+`length=20`). Vendor evidence is STEADY-STATE, LIMITED SAMPLE, with the
+warm-up/initialization boundary explicitly NOT observed in this capture — see
+§5 for the full, separated derivation.
+
+**`ta.cmf`** — NOT a valid builtin under the Pine v5 contract this program
+targets (`//@version=5`/`//@version=6` throughout the 48-script corpus and
+this program's own capture packets). Two independent proofs: (1) a live
+compile error in TradingView's own Pine Editor pasting `ta.cmf(21)` —
+"Could not find function or function reference 'ta.cmf'"; (2) the string
+`ta.cmf` is absent from the FULL text of the official Pine v5 reference
+manual page (`document.body.innerText.includes('ta.cmf')` → `false`,
+checked against the live page, not a cached/partial copy). **Reclassified
+here in the terms this reconciliation asked for: SCRIPT-AUTHOR / SOURCE
+INVALIDITY, not "UCT unsupported."** `_functions_excluded` (the section
+reserved for real Pine functions UCT declines to support) correctly holds no
+`cmf` entry; the plain "unrecognized name" refusal that already fires is the
+CORRECT answer for an invalid name, not a narrower classification of an
+otherwise-real builtin.
+
+**`ta.accdist`** — a vendor formula/semantic OBSERVATION ONLY
+(`tests/fixtures/vendor/observations/ta-accdist-delta5-2026-09-06.json`,
+`engine.ast: null`, `engine.formula: null`). **NOT an implemented general
+UCT surface. NOT a recovered corpus capability** — `volume-dollar-volume-money-flow`
+still misses, unaffected. `closedTable.json` gained a new
+`_functions_excluded.accdist` REFUSAL entry (citing the vendor evidence for
+its own reasoning) — a documentation/ruling artifact, not a served surface.
+The cumulative-LEVEL requirement (`ta.accdist` bare) remains, and is stated
+to remain, permanently unsupported for the same reason `ta.obv`'s LEVEL is.
+
+**`ta.pvt` / `pvtN`** — **explicitly NOT unrestricted `ta.pvt` support.**
+The served, bounded, derived contract is precisely this identity:
+`ta.pvt <cmp> ta.pvt[k]` and `ta.pvt - ta.pvt[k]` (for a literal integer
+`k >= 1`) rewrite to `pvtN(k) <cmp> 0` / `pvtN(k)` — a WINDOWED-DELTA
+transformation over `k` bars, whose value is exactly `pvt[now] - pvt[now-k]`,
+computed from the shipped `computePVT`/`compute_pvt_raw` accumulator so the
+transformation can never disagree with the level a member would compute by
+hand. This is the SAME scoping `ta.obv`'s already-shipped `obvN` carries — a
+bare `ta.pvt` (used as a value, compared to anything other than its own
+offset self, or read outside this exact comparison shape) **remains
+refused**, confirmed still true: `translatePine('plot(ta.pvt)')`,
+`translatePine('plot(ta.pvt > close)')`, and
+`translatePine('plot(ta.pvt > close[1])')` all still refuse with
+`pine:function` and the `_functions_excluded.pvt` ruling text, re-verified
+live in this reconciliation.
+
+Every progress/risk/coverage doc this batch touched is corrected below (§12)
+to carry this exact language rather than a generic "vendor-parity verified"
+that does not distinguish these five cases.
+
+## 3. Served-surface / manifest audit
+
+**No count was inflated by counting semantic research as product support** —
+`ta.accdist`'s observation and `ta.cmf`'s absence both correctly added zero
+manifest surfaces, and Addendum 4's own text already said so. **One real
+miscount WAS found and is corrected here**: Addendum 4's
+`VALIDATION_COVERAGE_MAP.md` note said "15 of ~70 manifest functions now
+real-vendor-comparable... falling/kcw/pvtN are the 13th/14th/15th" — this
+incorrectly counted `ta.kcw` as a MANIFEST FUNCTION. It is not: `kcw` has no
+`closedTable.json::functions.kcw` entry at all — it is a
+`pine.js::BUILTIN_CALL_TREE` scalar AST-rewrite (the same mechanism
+`roc`/`mom`/`vwma`/`linreg`/`tr`/`avg`/`iff`/`cross` already use, NONE of
+which have ever been counted in the "manifest functions" total either). The
+correct count of NEW vendor-comparable MANIFEST functions from this batch is
+**2** (`falling`, `pvtN`), not 3 — fixed in `VALIDATION_COVERAGE_MAP.md`
+(§12).
+
+**BEFORE / AFTER, measured directly, not estimated:**
+
+| Surface class | Before | After | Delta | New members |
+|---|---|---|---|---|
+| `closedTable.json::functions` (manifest functions) | 68 | 70 | +2 | `falling`, `pvtN` |
+| `pine.js::BUILTIN_CALL_TREE` (scalar AST-rewrite surfaces) | 8 | 9 | +1 | `kcw` |
+| `closedTable.json::_functions_excluded` (ruled-refusal entries) | 17 | 18 | +1 net | `-falling` (superseded by resolution), `+pvt`, `+accdist` |
+| Total declared names (`bar_names ∪ scalar_names`) | 238 | 240 | +2 | (tracks the manifest-functions delta; `kcw` rides no new declared name, same as every other `BUILTIN_CALL_TREE` entry) |
+
+**Exactly THREE new user-facing surfaces this tranche legitimately added**,
+none double-counted, none research-only:
+1. `ta.falling(source, period)` — unrestricted, general.
+2. `ta.kcw(src, length, mult[, useTrueRange])` — unrestricted, general.
+3. `ta.pvt <cmp> ta.pvt[k]` / `ta.pvt - ta.pvt[k]` — SCOPED to that exact
+   comparison shape; bare `ta.pvt` is not served.
+
+`ta.cmf` and `ta.accdist` added zero surfaces, correctly.
+
+## 4. `ta.kcw` evidence qualification
+
+**FORMULA IDENTITY: PROVEN**, and this claim does NOT depend on the 15-row
+sample size at all. `kcw_builtin` (the real `ta.kcw` builtin) and
+`kcw_candRatio` (TradingView's own published `f_kcw` formula, built from
+`ta.ema`/`ta.tr`) were BOTH plotted by the SAME live Pine script instance,
+inside the SAME TradingView session, reading TradingView's OWN real
+`high`/`low`/`close` — a same-engine, same-session, formula-vs-formula
+comparison. Their exact agreement on every visible row is evidence about the
+FORMULA, independent of how many rows happened to be captured.
+
+**STEADY-STATE VENDOR AGREEMENT: VERIFIED.** The real `ta.kcw` builtin, on
+each of the 15 captured dates, is NOT itself a cold-started value — the chart
+was a REAL SPY daily chart (not a fresh/history-limited disposable layout;
+the disposable-layout capture-safety procedure used earlier in this program
+for Stoch/ADX affects how far a member has manually scrolled, not how much
+real historical data feeds a symbol's own indicator computation), so
+TradingView's own `ta.ema(close,20)`/`ta.ema(span,20)` had already run over
+SPY's real historical bar count — thousands of bars, not 15 — by the time any
+of the 15 captured dates was reached. The 15-row LIMIT is a limit on what
+THIS SESSION preserved as raw artifact, not a limit on how warmed-up the real
+vendor value itself was.
+
+**WARM-UP AGREEMENT: UNVERIFIED**, and this is the genuine gap. This
+reconciliation did NOT observe TradingView's own EARLY `ta.kcw` bars (the
+first ~20 bars of its real history, wherever that is) — so there is no
+direct evidence of HOW TradingView seeds its own EMA during its OWN warm-up
+window for this specific composed function, versus the ALREADY-DISCLOSED,
+standing narrowing this codebase states elsewhere for `ta.kc`/`ta.ema`
+generally ("this engine seeds `ema` with the mean of the first full window
+while Pine seeds it with the first source value... early bars differ,
+converge").
+
+**INITIALIZATION AGREEMENT: NOT CLAIMED, NOT TESTED** — same reason.
+
+**A SEPARATE, additional limitation, specific to THIS engine's own
+re-execution capability**: UCT's own `ema`/`kcw` implementation cannot be
+independently re-run from a cold start on only 15 bars — a 20-length EMA
+needs ≥20 bars just to produce a first value, so UCT's own kernel, handed
+only this batch's 15-row capture, would produce an all-NaN column for `kcw`.
+This is why `kcw`'s vendor-parity claim rests on DIRECT ARITHMETIC over the
+observation's own recorded values (§4 of Addendum 4) rather than a
+from-scratch dual-kernel re-execution the way `falling`/`pvtN` are verified —
+already disclosed in Addendum 4, restated here because it is the direct
+cause of the warm-up gap, not a separate issue.
+
+**Final label, derived from the above, not assumed**: `ta.kcw` →
+**VENDOR-PARITY VERIFIED — STEADY-STATE, LIMITED SAMPLE; WARM-UP /
+INITIALIZATION UNVERIFIED.** This replaces every place this batch's own
+documents said only "VENDOR-PARITY VERIFIED — LIMITED SAMPLE" for `kcw`
+without the warm-up/initialization qualifier (see §12).
+
+## 5. `ta.pvt` / `pvtN` numeric-residual reconciliation
+
+**Exact columns being compared** (in
+`tests/test_vendor_parity_batch1.py::test_vendor_parity_verified_against_real_capture[pvtN]`):
+UCT's own Python kernel (`ast_interpret.py`'s `pvtN(5)`, executed via
+`tools/ast_conformance.py::run_py`) over THIS reconciliation's own locally
+transcribed `market.bars` (o/h/l/c/v figures read off the Table View
+screenshots), differenced 5 bars apart — versus `pvt_change5`, the REAL
+`ta.pvt` builtin's own 5-bar delta, read directly off the same screenshots.
+**This is NOT the same comparison as "the vendor's own two internal
+columns"** (see below) — it is a THIRD, independent re-derivation.
+
+Recomputed precisely for all 10 comparable rows (past the 5-bar warmup):
+
+| Date | UCT re-execution | Real vendor `pvt_change5` | Abs delta | Rel delta |
+|---|---|---|---|---|
+| 2026-08-24 | -529,467.6797 | -529,492.7300 | **25.0503 (max abs)** | 0.00473% |
+| 2026-08-28 | 141,806.4332 | 141,782.3200 | 24.1132 | 0.01701% |
+| 2026-08-31 | 121,075.1827 | 121,051.3400 | 23.8427 | **0.01970% (max rel)** |
+| 2026-09-02 | -124,319.9907 | -124,342.8900 | 22.8993 | 0.01842% |
+| 2026-08-27 | 385,524.0604 | 385,504.3700 | 19.6904 | 0.00511% |
+| 2026-09-03 | 104,903.2422 | 104,916.1300 | -12.8878 | -0.01228% |
+| 2026-08-25 | -145,120.6503 | -145,132.3300 | 11.6797 | 0.00805% |
+| 2026-09-04 | 57,046.4945 | 57,053.0600 | -6.5655 | -0.01151% |
+| 2026-09-01 | -249,140.0894 | -249,145.8400 | 5.7506 | 0.00231% |
+| 2026-08-26 | -223,303.9493 | -223,306.9300 | 2.9807 | 0.00133% |
+
+**Exact max absolute delta: 25.0503, at 2026-08-24.** **Exact max relative
+delta: 0.01970%, at 2026-08-31** — a DIFFERENT row from the max-absolute one
+(Addendum 4 named neither row precisely; both are named here).
+
+**Source volume values involved** (the 5-bar window feeding the 2026-08-24 /
+max-abs-delta row, i.e. bars 2026-08-18 through 2026-08-24): 43,920,000 /
+40,310,000 / 45,520,000 / 39,190,000 / 32,430,000 shares, each as
+TRANSCRIBED from TradingView's Table View display.
+
+**TradingView's displayed/exported volume WAS rounded**: the Table View
+shows volume as `"34.05M"` — 2 decimal places of millions, i.e. a 10,000-share
+display granularity. Each transcribed figure above therefore carries an
+UNKNOWN true value within ±5,000 shares of what was recorded.
+
+**The underlying oracle calculation used FULL PRECISION, not displayed
+precision** — both `pvt_builtin` (the real builtin) and
+`pvt_deltaSumCandReal5` (the candidate formula) were computed BY
+TRADINGVIEW'S OWN PINE RUNTIME, reading its real internal `volume`/`close`
+keywords directly — never the rounded string a human reads off the Table
+View. This is exactly why those two columns, both vendor-internal, matched
+EXACTLY (0.00 at 2 read decimals) on all 15 rows — a claim this
+reconciliation re-confirms means: **two DIFFERENT formulas, evaluated by the
+SAME real TradingView engine on the SAME full-precision data, agreeing
+exactly** — proof that the candidate formula is what TradingView's `ta.pvt`
+computes, independent of and unaffected by this session's own external
+volume-transcription rounding.
+
+**Is the ~25-unit residual PROVEN, not merely asserted, to be caused by
+display-rounding?** A direct sensitivity calculation, run against the real
+bar data for the max-absolute-delta row (2026-08-24), rather than argued
+qualitatively:
+
+```
+date        prevClose  close    frac       volume       term            +/-5000-share sensitivity
+2026-08-18  772.67     767.45  -0.006756   43,920,000  -296,714.51      +/-33.78
+2026-08-19  767.45     769.06   0.002098   40,310,000    84,564.60      +/-10.49
+2026-08-20  769.06     762.60  -0.008400   45,520,000  -382,361.84      +/-42.00
+2026-08-21  762.60     765.72   0.004091   39,190,000   160,336.74      +/-20.46
+2026-08-24  765.72     763.47  -0.002938   32,430,000   -95,292.67      +/-14.69
+
+sum of 5 terms (my recomputed delta): -529,467.6797
+worst-case total swing if all 5 days' rounding errors were same-signed: +/-121.42
+observed residual: 25.05
+```
+
+The observed 25.05-unit residual is **~20% of the theoretical worst-case
+bound** implied by TradingView's own display-rounding granularity — squarely
+consistent with 5 independent, partially-cancelling per-day rounding errors
+(the expected shape when errors are not systematically biased), and small
+relative to the bound a systematic (non-rounding) formula error would need
+to explain. This is offered as PROVEN, not asserted: the calculation
+directly uses this artifact's own real bar data and TradingView's own
+documented display precision, not an assumed cause.
+
+**Status, precisely**: the residual is CONSISTENT WITH, AND FULLY BOUNDED
+BY, volume-display-rounding — a real, calculated, artifact-specific proof,
+not a label applied by default. Where a document states only "volume-rounding
+artifact" without this calculation attached (Addendum 4's own §9/§13), that
+language is now backed by this section rather than standing as an assumption
+— see §12 for exactly which documents carry the pointer.
+
+## 6. Raw-artifact evidence limitation (preserved, re-stated precisely)
+
+TradingView's CSV export was unavailable in this environment (two attempts,
+explicit permission, no file produced anywhere on the filesystem — see
+Addendum 4 §3). The raw evidence for this whole batch is Table View
+screenshots (`tests/fixtures/vendor/raw_captures/2026-09-06-tv_cmf_adl_pvt_falling_kcw_capture_spy_screenshots/`)
+plus four observation JSONs — NOT the 300+/2,000+-row CSV artifacts Lane A/B
+used. This LIMITED SAMPLE status is not silently promoted anywhere in this
+batch's own documents to the same confidence tier as those wider captures;
+this reconciliation adds the explicit per-boundary table below so nothing is
+left to be inferred:
+
+| Function | Initialization | Warm-up | Zero-range | Zero-volume | NA gaps | Other |
+|---|---|---|---|---|---|---|
+| `falling` | n/a (bounded window, no seed) | n/a (bounded window) | n/a (uses close only) | n/a (uses close only) | UNVERIFIED (0 NA-gap rows in the 15-row capture) | none |
+| `kcw` | UNVERIFIED (§4) | UNVERIFIED (§4) | tested on ONE synthetic bar only, not a real vendor zero-range bar — the real kcw formula (EMA-smoothed) correctly did not zero out, an EXPECTED, not vendor-surprising, result | n/a (uses high/low/close only) | UNVERIFIED | disclosed as direct-arithmetic evidence, not a from-scratch re-execution (§4) |
+| `accdist` (formula only, not implemented) | NOT CLAIMED (Addendum 4 §8) | n/a (5-bar fixed window) | the per-bar formula's `(high-low)!=0 ? ... : 0.0` guard is DEFENSIVE and UNVERIFIED — never observed on real SPY data | same, DEFENSIVE and UNVERIFIED | UNVERIFIED | not a served surface at all (§2/§3) |
+| `pvt` / `pvtN` | NOT CLAIMED (Addendum 4 §9) | n/a (5-bar fixed window) | n/a (no range term) | the zero-previous-close guard is DEFENSIVE and UNVERIFIED — never observed | UNVERIFIED | numeric residual fully reconciled in §5 |
+| `cmf` | n/a — not real Pine, nothing to verify | n/a | n/a | n/a | n/a | n/a |
+
+No new TradingView capture was performed in this reconciliation — this table
+is derived entirely from the existing committed evidence.
+
+## 7. Remaining blind-corpus frontier
+
+From the same frozen 48, re-measured live in this reconciliation (not
+recalled from Addendum 4's own printed roster, to rule out drift since
+commit `32046d04c`):
+
+```
+RAW:       29 / 48   (19 misses)
+ASSISTED:  38 / 48   (10 misses)
+```
+
+Both match the standing corpus truth accepted at the top of this
+reconciliation exactly.
+
+## 8/9/10. The 10 assisted-still-failing scripts, blocker distribution, and
+architecture/blast-radius classification
+
+| # | Script | Primary blocker | Secondary blocker(s) | Blocker family | Blast radius | Appears elsewhere? |
+|---|---|---|---|---|---|---|
+| 1 | `breakout-flat-base-pivot-breakout` | `ta.valuewhen` (occurrence-vs-window arity mismatch) | `nz(ta.barssince(...),0) >= baseLen` — CONFIRMED, re-verified live: removing `ta.valuewhen` alone still leaves this refused (UNSOUND nz sentinel, an unbounded-count comparison with no sound finite identity) | EXECUTION CAPABILITY GAP (both) | LARGE — both need genuine unbounded historical-occurrence state, an execution-model change this program has repeatedly, deliberately declined | `ta.valuewhen`: yes, 2 scripts (this one + `recency-macd-turn-recent`). The nz-unsound-sentinel shape: yes, a general capability-gap class also touching `recency-breakout-hold-since-trigger`/`recency-fresh-golden-cross` in different spellings |
+| 2 | `meanrev-zscore-multi-oscillator-washout` | `ta.cci` (arbitrary-source; this table's `cci` kernel hardcodes `hlc3`) | none — re-verified against the ALREADY-STANDING regression (`pine.blindCorpusDecomposition.test.js`): `request.security(...)` is clean once `cci` is fixed | TRANSLATOR GAP (a role/source-binding limitation of the existing kernel, not unbounded state) | MODERATE — relax `PINE_CALL_SHAPES.cci`'s `sourceMustBe` constraint or add a genuine arbitrary-source CCI kernel | 1 script only in this corpus |
+| 3 | `multifactor-gap-up-continuation-hold` | `ta.supertrend` (tuple AND bare forms both structurally refused) | none — single, permanent, by-design blocker | EXECUTION CAPABILITY GAP (`_functions_excluded.supertrend`'s own text: "a new SEALED entry with its own recurrence... not an expansion") | LARGE — a new stateful ratchet+flip primitive, same class of complexity as the already-excluded Parabolic SAR | 1 script only in this corpus |
+| 4 | `multifactor-rsi-pullback-in-uptrend` | `dryVol_placeholder_removed` — an undefined name, read directly from the fixture: a dangling reference to a variable that was clearly renamed/removed without updating the final `plot()` line | none | **INVALID SOURCE** — a genuine script-author error, not a UCT capability question at all | NONE — no UCT change could ever make this script's OWN broken reference resolve | n/a — a single-script authoring bug |
+| 5 | `recency-breakout-hold-since-trigger` | `ta.barssince` used NUMERICALLY as another function's window argument (`ta.lowest(close, math.max(age,1))`) | 2× `ta.valuewhen` (arity) | EXECUTION CAPABILITY GAP | LARGE — same unbounded-state class as #1 | barssince-as-numeric-arg: 1 script; valuewhen: 2 scripts total (see #1) |
+| 6 | `recency-fresh-golden-cross` | two independent `ta.barssince` calls cross-compared (`barsDC > barsGC`) | none beyond the cross-comparison itself | EXECUTION CAPABILITY GAP ("no runtime primitive for which condition fired more recently") | LARGE — same unbounded-state class | 1 script in this exact cross-compared shape |
+| 7 | `recency-macd-turn-recent` | `ta.valuewhen` | none — re-verified live: removing `ta.valuewhen` alone (the script's OWN `ta.barssince(cross)` use is already the bounded, already-supported `age <= within`-through-input-binding shape) translates CLEANLY. **Confirmed single blocker, corrected from a possible assumption of two** | EXECUTION CAPABILITY GAP | same `ta.valuewhen` class as #1/#5 | see #1 |
+| 8 | `volatility-range-contraction-base` | `ta.tr(true)` | none — `ta.kcw`/`ta.falling` (this batch) and `request.security` (re-confirmed clean) are no longer blockers | **CORRECT REFUSAL** — a deliberate, already-ruled design choice ("this engine leaves that bar not-computable rather than inventing it"), not an oversight | NONE required if left as-is; SMALL if ever revisited (would need to define an invented first-bar fallback this engine currently refuses to invent) | 1 script |
+| 9 | `volume-dollar-volume-money-flow` | `ta.cmf` | `ta.accdist` (confirmed independent second real blocker: with `cmf` stubbed, `accdist` alone still refuses) — **PLUS a newly-discovered, UNVERIFIED third finding, see below** | `ta.cmf`: INVALID SOURCE. `ta.accdist`: EXECUTION CAPABILITY GAP (EMA-based use). Third finding: mechanism UNKNOWN | `ta.accdist`: LARGE (same class as obv/pvt, already excluded). Third finding: blast radius CANNOT be estimated until root-caused | see §2 for `cmf`/`accdist`; the third finding is new (below) |
+| 10 | `volume-obv-accumulation-divergence` | `ta.obv` bare LEVEL | none — `ta.pvt`'s windowed form (this batch) is confirmed resolved and no longer a blocker | EXECUTION CAPABILITY GAP / effectively a **CORRECT REFUSAL** (a permanent, already-ruled architectural boundary — "cumulative from the first bar, no absolute seed") | NONE — would require inventing an absolute historical seed that does not exist, the confident-wrong-number shape this program refuses to manufacture | the unseeded-cumulative shape recurs across `obv`/`pvt`/`accdist` (3 functions), though this specific LEVEL-usage is 1 script |
+
+**A newly-discovered, UNRELATED finding, disclosed but NOT investigated
+further** (found while precision-verifying script #9's blocker set, per this
+reconciliation's own instruction to be exact rather than to guess): the
+standing regression test
+(`pine.blindCorpusDecomposition.test.js`, "a stateful for-loop accumulator...
+independently blocks... `pine:reassign`") is STILL CORRECT for the ISOLATED
+shape it tests (`plot(distDays <= 3 ? 1 : 0)` alone, re-verified live, still
+refuses). But the SAME for-loop text, embedded verbatim in the REAL
+`volume-dollar-volume-money-flow.pine` fixture (confirmed via a byte-identical
+surgical replacement — only the `ta.cmf`/`ta.accdist` lines swapped, every
+other character untouched), does **NOT** refuse — `distDays` silently folds
+to its declared initial value `0` and the whole script translates
+successfully, treating "distribution days ≤ 3" as permanently, silently
+TRUE regardless of real market data. This is reproduced twice (a hand-built
+reduction and the real fixture verbatim) and is a real, previously-undetected
+finding in the SILENT_WRONG_RESULT class this whole program treats as the
+worst failure shape — but **the ROOT CAUSE is not established** (a hypothesis
+— that a variable's mutation is only tracked when it is the sole/direct
+clause of the plotted output, and silently dropped when it is one clause
+inside a larger boolean AND-chain reached through an intermediate binding —
+was tested against 4 variants and is CONSISTENT with the evidence but not
+proven against the actual translator internals). Per this reconciliation's
+own explicit scope ("do not implement", "stop for review"), this is reported
+and NOT investigated further, NOT fixed, and NOT root-caused here. It has no
+effect on script #9's classification above (the script still correctly
+misses today, for `ta.cmf`/`ta.accdist`, regardless of this finding), but it
+means a FUTURE tranche that resolves `ta.cmf`/`ta.accdist` alone would ship
+this script into a SILENTLY WRONG pass, not a correct one, unless this
+for-loop finding is root-caused and fixed first. Recommend a NEW,
+separately-authorized investigation — not begun here.
+
+## 11. Updated RISK-004 truth
+
+Unchanged by this reconciliation's own findings (no code changed): **RAW
+29/48, ASSISTED 38/48** — re-measured live in §7, matching the accepted
+standing truth exactly. What changed is the STATUS LANGUAGE for the five
+batch functions (§2) and the precision of the frontier classification (§8–10),
+not the corpus counts themselves.
+
+## 12. Documentation corrections made
+
+- `sentence.test.js` — the missing 4th hardcoded ID-list fixed (§1); this is
+  test-code, not product code, and was a genuine gap in the original commit's
+  own bookkeeping, not merely an accounting-cleanliness edit.
+- `RISK_REGISTER.md` — RISK-042 added (this reconciliation's own row),
+  correcting RISK-041's test-count claim and function-status language by
+  reference rather than by silent edit — RISK-041's own text is preserved
+  verbatim, per this program's standing "do not rewrite old failures as
+  though they never existed" discipline.
+- `VALIDATION_COVERAGE_MAP.md` — the "15 of ~70 manifest functions" miscount
+  (§3) corrected to "14 of ~70 manifest functions (falling, pvtN) plus kcw as
+  a separately-tracked BUILTIN_CALL_TREE surface (8→9)"; `ta.kcw`'s label
+  tightened to include "WARM-UP / INITIALIZATION UNVERIFIED" (§4); `ta.pvt`'s
+  label tightened to name the exact bounded contract rather than say
+  "ta.pvt... vendor-parity-verified" unqualified (§2).
+- This addendum itself.
+
+## 13. Commit
+
+`[to be filled by the commit that lands this reconciliation]` — evidence,
+docs, and one test file (`sentence.test.js`) changed; no product code
+changed, per this reconciliation's own explicit instruction.
+
+## 14. Recommendation: architecture capability next, or a new out-of-sample
+corpus next
+
+**Recommend (B): build a new, frozen, out-of-sample corpus before committing
+to any specific remaining architecture capability.** Rationale, evidence-led
+rather than a preference: the 10 remaining assisted-failures (§8–10) split
+into exactly THREE shapes — (a) two CORRECT REFUSALS this program has
+already, deliberately, repeatedly ruled will not be revisited without new
+evidence or a new owner decision (`ta.tr(true)`, `ta.obv`'s LEVEL); (b) one
+INVALID SOURCE with no UCT-side fix possible at all
+(`multifactor-rsi-pullback-in-uptrend`); (c) SEVEN capability-gap misses that
+collapse into only THREE distinct underlying architectural questions
+(`ta.valuewhen`'s occurrence-counting semantics, touching 2 scripts;
+`ta.barssince`'s unbounded/cross-comparison shapes, touching 3 scripts;
+`ta.cci`'s arbitrary-source kernel gap and `ta.supertrend`'s stateful
+primitive, 1 script each). **This is now a heavily-mined corpus**: of its
+original 48 scripts, every remaining miss traces to one of a small, already-
+enumerated, already-classified set of architectural questions — exactly the
+"optimization target" risk this reconciliation was asked to weigh. Committing
+architecture effort to `ta.valuewhen` or `ta.barssince` next would be
+optimizing against 5 scripts out of a corpus this program itself authored,
+with no independent evidence any of these shapes represents real, broad
+member demand outside this specific 48-script set. A frozen, out-of-sample
+corpus is the only way to learn that without guessing.
+
+**Proposed new corpus, specified, not built:**
+- **Size**: 40–60 scripts, comparable to the existing 48-script blind corpus,
+  large enough to move the needle statistically but not so large it becomes
+  its own multi-session program.
+- **Sourcing rules**: drawn from REAL, PUBLICLY-PUBLISHED Pine v5/v6 scripts
+  (TradingView's public library, a fixed snapshot date), NOT authored by
+  anyone on this program — the same "blind" property the existing 48-script
+  corpus and the 8-script public compatibility corpus both already carry,
+  extended to a larger sample.
+- **Deduplication rules**: no two scripts sharing the same primary construct
+  question (e.g., not five separate RSI-pullback variants) — checked by hand
+  against the OTHER corpora's own construct taxonomy before freezing; no
+  script that is a near-duplicate/fork of an existing corpus entry.
+  **No hand-selection for constructs UCT already supports** — sourcing must
+  be by a fixed, pre-declared rule (e.g., "the top N most-favorited scripts
+  in category X on date Y"), not by a human picking scripts that look
+  interesting or look like they'd pass.
+- **Difficulty/complexity distribution**: a declared, pre-frozen target mix
+  (e.g., ~40% simple single-indicator screens, ~40% multi-factor composites,
+  ~20% stateful/session/multi-timeframe scripts) — set BEFORE any script is
+  read for content, so the mix cannot be adjusted after seeing what passes.
+- **Frozen-before-testing rule**: the full script list is committed to the
+  repo (file names + a content hash) BEFORE the first translation attempt —
+  the same discipline `pine.blindCorpus.test.js`'s own header already states
+  for the existing 48.
+- **Raw vs. assisted metrics**: report both, exactly as this program already
+  does for the existing corpus (RAW = first-pass translation; ASSISTED =
+  after every available offer is taken).
+- **Leakage prevention**: explicit set-difference check against BOTH the
+  existing 48-script blind corpus and the 8-script public compatibility
+  corpus (by script title/source hash) before freezing, so no script counts
+  twice toward this program's own evidence.
+
+**This corpus is NOT built.** No new TradingView capture is authorized. No
+architecture capability is implemented. Stopping for owner/ChatGPT review.

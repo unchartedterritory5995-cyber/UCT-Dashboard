@@ -2386,6 +2386,12 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'median_close_4',
       'percentrank_close_10',
       'bbw_close_20_2',
+      // ⭐⭐ VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (2026-09-06) — same
+      // discipline: one corpus case per function, each resolved by a real
+      // TradingView capture (`tests/fixtures/vendor/observations/
+      // ta-{falling-close3,pvt-delta5}-2026-09-06.json`).
+      'falling_close_3',
+      'pvtN_bounded_price_volume_trend_change',
     ])
   })
 
