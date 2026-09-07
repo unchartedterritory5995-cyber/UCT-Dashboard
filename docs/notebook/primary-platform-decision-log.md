@@ -1468,8 +1468,41 @@ gate on WRITE (never on read), and the batched-per-note current-value
 resolution contract.
 
 **Production closure:** same isolated-temporary-worktree process as prior
-waves. Merge/deploy detail recorded once the push completes — see the
-immediately following entry.
+waves (`git worktree add ../wave-f-merge-tmp -b <tmp-branch> origin/master`,
+never switching this worktree's own branch). Master had moved on (unrelated
+Calendar/TickerActions work, `ce8fb1e45`) — clean `--no-ff` merge, ONE file
+(`app/src/components/TickerPopup.jsx`) auto-merged with zero conflict markers
+(confirmed via a direct grep for `<<<<<<<`/`=======`/`>>>>>>>` post-merge).
+Re-fetched `origin/master` immediately before pushing — confirmed still an
+ancestor of the merge commit. Pushed as `36d67178a`. Temp worktree removed
+(the same Windows file-lock → PowerShell `Remove-Item -Recurse -Force` +
+`git worktree prune` fallback this pattern always needs on this box).
+
+Railway `web` picked up the push automatically; watched `railway status
+--json` through BUILDING → DEPLOYING → **SUCCESS** (this build ran longer
+than Wave E's — checked mid-build via `railway logs --deployment` to confirm
+the currently-live prior deployment was healthy and just serving normal
+background-job traffic throughout, not evidence of a stuck build).
+`latestDeployment.meta.commitHash` reads
+`36d67178a92d1c0457db26eb29203bc3dedf8dbd` — byte-identical to
+`origin/master`'s HEAD. Fresh-process confirmed: `GET /api/health` on
+`uctintelligence.com` (browser User-Agent) returned `uptime_seconds: 69`
+moments after the flip to SUCCESS. All five of Wave F's new routes verified
+with their CORRECT HTTP verbs (an initial `GET /api/j2/facts/x` correctly hit
+the SPA catch-all — that path was only ever designed for `PUT`/`DELETE`, not a
+bug) return real, auth-gated `401 application/json` in production: `POST/GET
+/notes/{id}/facts`, `POST /notes/{id}/facts/{fact_id}/insert`, `PUT/DELETE
+/facts/{fact_id}`.
+
+**Sanity-checked the LOCKED `broker_sync` merge invariant survived**:
+`grep -c broker_sync api/main.py` reads 10 post-merge, comfortably above the
+documented ≥7 floor — unchanged from Wave E's own post-merge reading.
+
+Verification detail (the settle-window defect, rename-safety-equivalent THEN/
+NOW proof, entity-identity/idempotency/tenant-isolation/rights-gate coverage,
+mobile/accessibility/performance results) lives in
+`prelaunch-primary-notebook-build-plan.md`'s Wave F closure section, not
+duplicated here.
 
 ---
 
