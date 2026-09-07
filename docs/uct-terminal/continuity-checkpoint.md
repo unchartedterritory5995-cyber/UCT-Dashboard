@@ -6,15 +6,16 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 merge/
-deploy -- the fifth item down the priority stack from the same-day owner-
-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent current-
-state review + synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens
-failures). Full re-anchor report delivered to the owner in-conversation;
-this doc keeps only the load-bearing conclusions, not the full 30-section
-report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
-Alert Durability V1 (Seam 30) plus this keyboard accessibility program are
-now closed. Compare Coverage V1 is next; Awareness Reachability
+Compare Coverage V1 merge/deploy -- the sixth item down the priority stack
+from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR
+(13-lens multi-agent current-state review + synthesis, ~3.9M subagent
+tokens, 699 tool calls, zero lens failures). Full re-anchor report
+delivered to the owner in-conversation; this doc keeps only the load-
+bearing conclusions, not the full 30-section report. Both re-anchor
+MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam
+30) plus the keyboard accessibility program plus Compare Coverage V1
+(scoped via an explicit owner check-in, price-only) are now closed.
+Calendar TickerActions Reuse V2 is next; Awareness Reachability
 Restoration V1 remains deliberately SKIPPED pending a genuine owner
 monetization/entitlement decision (see the top-of-file section) -- do not
 resolve it unilaterally.
@@ -76,11 +77,14 @@ Keyboard Accessibility V1 ✅ resolved same day, merge
 genuinely isolated; all three surfaces were still keyboard-inaccessible on
 higher-traffic, paid-core surfaces; a `<tr>`/`<td>` variant of the fix was
 needed to avoid breaking table role semantics — see "CURRENT ACCEPTED" for
-the exact correction) → **now: Compare Coverage V1** (canonical Compare
-page has ZERO
-price/technical data — a named north-star pillar can't answer "which one's
-the stronger stock"; also reconcile/retire the disconnected
-`ComparisonPicker.jsx`) → Calendar TickerActions Reuse V2 (Seams 19/20) →
+the exact correction) → Compare Coverage V1 ✅ resolved same day, merge
+`46442465a`/`6a313b0ac` — scoped via an explicit owner check-in to
+price-only (current price/day change %/52-week range, reusing existing
+live-price + fundamentals infrastructure, zero new fetch plumbing);
+`ComparisonPicker.jsx` and any technical-analysis leg deliberately
+untouched, owner decision → **now: Calendar TickerActions Reuse V2**
+(Seams 19/20 — Board/Table/Wire calendar views + MyStocksHub's Insights
+tab, same convergence pattern already shipped for `EventCard.jsx`) →
 Feature-Flag Governance Sweep (the flag-ledger test is RED on master; 3
 undeclared live-armed flags found, one money-adjacent —
 `BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner confirm-or-rollback).
@@ -149,8 +153,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## Repo / worktrees
 
 - **Repo:** `C:\Users\Patrick\uct-dashboard` (Railway project `luminous-recreation`, service `web`).
-- **origin/master (last verified):** `5d0b82e9717eeb7bf553bb4ac762eedff5abcc9e`
-  (Keyboard Accessibility V1's own merge -- this file's own update is a
+- **origin/master (last verified):** `6a313b0ac1a28fdba5aa8ca2c786cccb73032b07`
+  (Compare Coverage V1's own merge -- this file's own update is a
   docs-only blob-swap on top of this SHA; drift since then is unrelated
   concurrent work -- re-check overlap before trusting this SHA is still
   current).
@@ -1428,6 +1432,58 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     `<button>` (needed no change); any drag-and-drop column-reordering
     behavior (mouse-only, out of scope, unrelated to the sort action fixed
     here).
+- **Compare Coverage V1** — IMPLEMENTED + ACCEPTED + LIVE, merge
+  `46442465a` (code) / `6a313b0ac` (merge-to-master), deployed 2026-09-06
+  (pure additive backend + frontend, verified via build-confirmation +
+  deploy-success + commit-match). Sixth item down the re-anchor's priority
+  stack.
+  - **Scope decision made via an explicit owner check-in (AskUserQuestion),
+    not a unilateral pick** — unlike every other program this session,
+    this one is a genuine feature addition (not a bugfix/hardening pass)
+    to an already-scoped V1, with real design-space breadth. Owner chose:
+    (1) price-only (current price/day change %/52-week range — NOT
+    technical-analysis data like RS rank/Stage 2-4/moving averages), and
+    (2) leave `ComparisonPicker.jsx` (the disconnected chart-overlay
+    Compare) completely untouched — no cross-link, no retirement
+    investigation.
+  - **Root cause, confirmed by direct code read:** `comparison.py`'s own
+    module docstring already declared its composer list a "deliberate,
+    closed list" from the original Comparison V1's own Phase A — fundamentals/
+    estimates/ratings/analyst, zero price data anywhere.
+  - **Fix, entirely reusing existing infrastructure, zero new fetch
+    plumbing:** `comparison.py::_side()` gained a `price` leg —
+    (a) current price + day change % via `massive.get_ticker_snapshot`,
+    the SAME shared, already-cached single-symbol quote every other
+    live-price surface in this app uses (confirmed via direct grep:
+    `voice_tool_impls._get_quote` wraps the identical call — this is not a
+    new data source, just a new caller of an existing one); (b) 52-week
+    high/low needed NO new fetch at all — `get_fundamentals` (already
+    called for the fundamentals leg) already carries `fifty_two_week_high/
+    low` from yfinance, just never surfaced into this module's own output
+    before now. `comparison_ai_adapter.py` gained `_price_comparison_
+    evidence`, wired first into `build_comparison_evidence`'s list, same
+    `{type, date, source, text, url, sym, side}` shape every other builder
+    already uses. `ResearchComparePage.jsx` renders Price/Today (signed,
+    colored)/52-Week-Range rows at the top of the existing Summary card.
+  - **Tests:** 19 new/updated backend (empty snapshot, an exception from
+    the snapshot call, a fundamentals-error leg still yielding an honest
+    empty week52 rather than crashing, signed-formatting edge cases,
+    missing-field combinations) across `test_research_comparison.py` +
+    `test_comparison_ai_adapter.py`, + 11 new frontend (full render, a
+    positive vs. negative change rendering with different CSS classes,
+    graceful degradation to em-dash when price data is absent for one
+    side) in `ResearchComparePage.test.jsx`. Full adjacent regression
+    green: 59 backend tests across both comparison test files, 11+6
+    frontend tests (`ResearchComparePage.test.jsx` + `ComparisonAskAi.
+    test.jsx`, confirming Program #7's own AI panel is unaffected). Clean
+    `api.main` app-boot, zero new lint errors, clean production build.
+  - **Explicitly did NOT touch (owner decision, not a bounded-scope
+    omission):** any technical-analysis leg (RS rank, Stage 2/4, moving-
+    average stack — that data lives in a differently-refreshed nightly
+    screener snapshot and is its own scoped follow-up); `ComparisonPicker.jsx`
+    (untouched entirely — no cross-link, no retirement); Seam 14 (broad
+    search-implementation consolidation) and any Comparison V1 identity/
+    self-exclusion work (both explicitly closed, unrelated scope).
 
 ## CURRENT LIVE OBSERVATION (external event/time gated — do not touch)
 
@@ -1559,11 +1615,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 ## CURRENT ACTIVE PROGRAM
 
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
-  Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 — ALL
-  DONE, ACCEPTED + LIVE. Compare Coverage V1 — STARTING NOW**, continuing
-  directly down the re-anchor's own priority stack per the standing
-  directive (no new ledger-scan needed — the re-anchor already did that
-  scan; see below).
+  Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
+  Compare Coverage V1 — ALL DONE, ACCEPTED + LIVE. Calendar TickerActions
+  Reuse V2 (Seams 19/20) — STARTING NOW**, continuing directly down the
+  re-anchor's own priority stack per the standing directive (no new
+  ledger-scan needed — the re-anchor already did that scan; see below).
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1574,8 +1630,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   implement ANY version of Awareness Reachability Restoration until the
   owner has answered it.**
   See the new Seam 28/29/30 debt-ledger entries above for full scope of
-  what shipped, and the new Keyboard Accessibility V1 entry for that
-  program's own detail.
+  what shipped, and the Keyboard Accessibility V1 / Compare Coverage V1
+  entries for those programs' own detail.
   Sequence completed under the CONTINUOUS EXECUTION DIRECTIVE (2026-09-06)
   before this point, in order: Technical Ask AI Phase A →
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE (zero code) → AI Search Raw-Pattern
@@ -1595,37 +1651,27 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `ec095a23d`/`0e690583b` → **Alert Durability V1 (Seam 30)** — ACCEPTED +
   LIVE, merge `56d4707e1`/`8779618af` → **Watchlists/PositionsTable/
   TradesTable Keyboard Accessibility V1** — ACCEPTED + LIVE, merge
-  `3a149404e`/`5d0b82e97` (see "CURRENT ACCEPTED" above for all four) →
-  now Compare Coverage V1 (Awareness Reachability Restoration V1 still
-  skipped, see above).
-  **Compare Coverage V1's actual scope, re-derived from the re-anchor's own
-  words (do NOT assume beyond this without re-reading the delivered
-  report):** the canonical `/research/:sym/compare/:comparator` page has
-  ZERO price/technical data — a named north-star pillar can't answer
-  "which one's the stronger stock" — and a second, disconnected chart-
-  overlay `ComparisonPicker.jsx` never cross-links with it (4-lens
-  convergence: capability-b, competitive, search-command, technical-
-  scanner). **Bounded Phase A required before any fix**: re-read
-  `api/services/research/comparison.py`'s current 4-composer scope
-  (fundamentals/estimates/ratings/analyst — confirmed by its own module
-  docstring as a deliberate, closed list from Cross-Security Comparison
-  V1's own Phase A) and determine the NARROWEST correct way to add price/
-  technical data — do not assume "add a 5th composer" is right without
-  checking whether price/relative-performance data already exists
-  elsewhere in a reusable shape (e.g. the same live-price/bars endpoints
-  Research's own page already uses). Separately assess `ComparisonPicker.jsx`
-  (chart-overlay Compare): is retiring/redirecting it to the canonical
-  page bounded, or does it need its own investigation? The re-anchor
-  reclassified it OBSOLETE-OR-SUPERSEDED, not HIGH-VALUE-NEXT — confirm
-  that classification still holds before deciding scope. Do not reopen
-  Seam 14 (broad search-implementation consolidation) or any Comparison V1
-  identity/self-exclusion work — both are explicitly closed, unrelated
-  scope.
+  `3a149404e`/`5d0b82e97` → **Compare Coverage V1** — ACCEPTED + LIVE,
+  merge `46442465a`/`6a313b0ac` (owner-scoped to price-only, per an
+  explicit AskUserQuestion check-in rather than a unilateral scope pick —
+  see "CURRENT ACCEPTED" above for all five) → now Calendar TickerActions
+  Reuse V2 (Awareness Reachability Restoration V1 still skipped, see
+  above).
+  **Bounded Phase A required before Calendar TickerActions Reuse V2's
+  implementation**: re-verify Seams 19/20's current framing against
+  CURRENT code — Seam 19 (TickerActions reuse bounded to `EarningsCard.jsx`
+  only, larger blast radius on Board/Table/Wire calendar views) and Seam
+  20 (Wire view rows and MyStocksHub's Insights tab are confirmed dead
+  ends, same shape as the already-shipped `EventCard.jsx` fix) — before
+  writing any fix; the re-anchor's own framing may have drifted since
+  those seams were first recorded (2026-09-05/06, by Event/News/Calendar →
+  Research Convergence V1's own Phase A). Reuse the ALREADY-SHIPPED fix
+  shape from `EventCard.jsx` (same convergence pattern) rather than
+  inventing a new one — do not redesign Calendar's own layout/views.
   **Next in the priority stack after this program** (all independent of
   Pattern Vision's gate, Awareness Reachability Restoration still excluded
-  pending owner input): Calendar TickerActions Reuse V2 (Seams 19/20) →
-  Feature-Flag Governance Sweep (incl. an owner confirm-or-rollback on
-  live `BROKER_BALANCE_HISTORY_ENABLED=1`).
+  pending owner input): Feature-Flag Governance Sweep (incl. an owner
+  confirm-or-rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
