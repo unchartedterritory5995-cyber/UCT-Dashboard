@@ -386,7 +386,6 @@
 /* Overview metric grid: 1col (narrow) · 2col (default) · 3col (wide) */
 @container dock (max-width: 340px) {
   .mGrid, .ownFlow { grid-template-columns: 1fr; }
-  .earnTrend { grid-template-columns: 1fr; }
   .ihName { font-size: 14.5px; }
 }
 @container dock (min-width: 470px) {
@@ -404,13 +403,48 @@
 @container dock (max-width: 320px) {
   .spark, .sparkEmpty, .finHeadTrend { display: none; }
   .vAvg { display: none; }
-  .earnHead .earnHE, .earnE { width: 96px; }
 }
 /* Financials: give the value column more room before spending width on history.
    The sparkline deliberately does NOT grow — at 72px it started reading as a
    mini chart competing with the numbers (§11). */
 @container dock (min-width: 480px) {
   .finVal, .finHeadVal { width: 84px; }
+}
+
+/* Earnings: the five columns NEVER drop. Every one of them is load-bearing —
+   unlike Financials, whose row is label-dominant and can shed a sparkline — and
+   the arithmetic says they fit: at 300px (the dock's own minimum) the widest
+   realistic content plus gaps and gutters comes to ~294px. So width buys
+   BREATHING ROOM, not extra columns: one custom property moves, and the header
+   moves with the rows because both read it. */
+@container dock (max-width: 339px) {
+  .etTable {
+    --et-cols: 52px minmax(0, 1fr) 46px minmax(0, 1fr) 46px;
+    --et-gap: 6px;
+    --et-pad: 10px;
+  }
+  /* Drop the century: "FY26 Q3" still reads unambiguously and is what buys the
+     five columns their room at the narrowest usable width. */
+  .etPeriodFull { display: none; }
+  .etPeriodShort { display: inline; }
+  .etStrip { gap: 2px 10px; }
+  .etCompareTitle { flex-basis: 44px; }
+}
+@container dock (min-width: 470px) {
+  .etTable {
+    --et-cols: 76px minmax(0, 1fr) 60px minmax(0, 1fr) 60px;
+    --et-gap: 10px;
+    --et-pad: 14px;
+  }
+  .etRow { padding-top: 6px; padding-bottom: 6px; }
+}
+@container dock (min-width: 620px) {
+  .etTable {
+    --et-cols: 88px minmax(0, 1fr) 68px minmax(0, 1fr) 68px;
+    --et-gap: 12px;
+    --et-pad: 16px;
+  }
+  .etCompareTitle { flex-basis: 64px; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -570,158 +604,186 @@
 .finCagrNM { font-size: 11px; font-weight: 700; color: var(--text-muted, #cfcac0); }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   EARNINGS tab
+   EARNINGS tab — a true financial table, sibling to Financials
+
+   ONE grid definition. `--et-cols` is declared on .etTable and consumed by BOTH
+   .etHead and .etRow, so the header can never drift out of alignment with the
+   rows it labels — which is the failure the previous stacked-block version had
+   built in (it picked a column count per row, from the panel width AND from
+   whether the row was an estimate). The container queries move that one custom
+   property; nothing else changes shape, and no JS measures anything.
    ───────────────────────────────────────────────────────────────────────── */
 .earn { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #f0efea); }
 
-/* ── Earnings: event intelligence ──────────────────────────────────────────
-   Denser than Overview, lighter than Financials. Each quarter is a small
-   three-line block (period · EPS · revenue) rather than a card, so several
-   quarters are scannable at once in a narrow panel. */
-.eqStreak {
-  flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px;
-  color: var(--accent, #c9a84c); padding: 1px 6px; border-radius: 4px;
-  background: var(--accent-weak, rgba(201,168,76,0.14));
+/* ── the 3-second strip — one line, never a dashboard above the table ────── */
+.etStrip {
+  flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 3px 14px; padding: 2px 12px 7px;
+}
+.etStripItem { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.etStripK {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etStripV {
+  font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
 }
 
-/* snapshot — the last result and what is expected next */
-.eqSnap { padding: 9px 12px 10px; border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08)); }
-.eqSnapHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.eqSnapTitle {
+/* ── the table ───────────────────────────────────────────────────────────── */
+.etTable {
+  /* period · EPS · EPS YoY · Sales · Sales YoY.
+     The two LEVEL columns flex; the three fixed columns keep every growth
+     figure on one right edge as the panel resizes. A fractional growth column
+     would let +1.4K% and +9% settle at different edges, which is the precise
+     alignment failure this redesign exists to remove. */
+  --et-cols: 62px minmax(0, 1fr) 52px minmax(0, 1fr) 52px;
+  --et-gap: 8px;
+  --et-pad: 12px;
+  flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0;
+}
+.etHead,
+.etRow {
+  display: grid;
+  grid-template-columns: var(--et-cols);
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.etHead {
+  flex: 0 0 auto;
+  padding: 4px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.etHeadR { text-align: right; }
+
+.etBody {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 0 0 10px; scrollbar-width: thin;
+}
+.etBody::-webkit-scrollbar { width: 8px; }
+.etBody::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+
+.etRow {
+  padding: 5px var(--et-pad);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+.etRow:hover { background: rgba(255, 255, 255, 0.03); }
+.etRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
+/* An estimate row has no actual-vs-estimate story to open into. */
+.etRowStatic { cursor: default; }
+.etRowStatic:hover { background: transparent; }
+.etRowOpen { background: rgba(201, 168, 76, 0.07); }
+
+/* PERIOD — the row's identity, so it carries the one emphasis tier. */
+.etPeriod {
+  display: inline-flex; align-items: baseline; gap: 5px; min-width: 0;
+  font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* Both period forms ship; the container query below picks one. */
+.etPeriodShort { display: none; }
+
+/* An estimate is IMPORTANT, not disabled: the mark says "not reported yet" and
+   every value beside it keeps full brightness. */
+.etEst {
+  flex: 0 0 auto; font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 0 3px; border-radius: 3px;
+  color: var(--accent, #c9a84c); border: 1px solid rgba(201, 168, 76, 0.45);
+}
+
+/* LEVELS — real reported financials, kept at the panel's primary value tier.
+   Growth outranks them by WEIGHT, COLOUR and COLUMN POSITION, never by dimming
+   the levels into metadata: the Overview rewrite established that low contrast
+   is for MISSING data only, and $24.67 is not missing. */
+.etVal {
+  text-align: right; font-size: 11px; font-weight: 600;
+  color: var(--text, #f0efea); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* GROWTH — the payload of this table, so it takes the weight and the colour. */
+.etGrowth {
+  text-align: right; font-size: 11.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A state, not a rate ("Profitable" / "To loss") — no figures to align, and a
+   size below the percentages so a word never outshouts the numbers around it. */
+.etSemantic { font-size: 10px; font-variant-numeric: normal; letter-spacing: 0.1px; }
+.etEmpty { color: var(--t-dim, #6f6a5c); font-weight: 500; }
+/* ≥100%: gold IS the signal. Two gold cells on one row already say EPS and
+   sales both cleared it, so nothing repeats that in a badge. */
+.etGold { color: var(--accent, #c9a84c); }
+/* Compound so semantic colour beats the base .etGrowth colour regardless of
+   source order — the same specificity trap .mVal.pos solves in Overview. */
+.etGrowth.pos { color: var(--dock-up-text, #3fc885); }
+.etGrowth.neg { color: var(--dock-down-text, #f1696e); }
+
+/* ── sections — the gold structural layer, matching Financials ───────────── */
+.etSection {
+  padding: 10px var(--et-pad) 4px;
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--accent, #c9a84c);
 }
-.eqSnapMeta { font-size: 9.5px; color: var(--text-muted, #cfcac0); white-space: nowrap; }
-.eqSnapGrid {
-  display: grid; grid-template-columns: auto 1fr auto;
-  column-gap: 10px; row-gap: 3px; align-items: baseline;
-}
-.eqSnapK { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
-.eqSnapV { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-bright, #f8f7f3); }
-.eqSnapG { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-.eqNext {
-  display: flex; align-items: baseline; gap: 8px; margin-top: 7px; padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,0.055);
-}
-.eqNextK { font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
-.eqNextV { font-size: 10.5px; color: var(--text, #f0efea); font-variant-numeric: tabular-nums; }
+.etRow + .etSection { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
 
-/* subtle timeline group labels — orientation, not a headline */
-.eqGroup {
-  padding: 9px 12px 3px; font-size: 8px; font-weight: 700; letter-spacing: 0.9px;
-  text-transform: uppercase; color: var(--text-muted, #cfcac0);
+/* ── deeper history — subtle, not a call to action ───────────────────────── */
+.etMore {
+  appearance: none; border: 0; background: transparent; display: block;
+  margin: 8px var(--et-pad) 0; padding: 0;
+  color: var(--text-muted, #cfcac0); font-size: 10.5px; font-weight: 600; cursor: pointer;
 }
-.eqRow + .eqGroup { margin-top: 3px; border-top: 1px solid rgba(255,255,255,0.06); }
+.etMore:hover { color: var(--accent, #c9a84c); text-decoration: underline; }
 
-/* one period — a table row, not a card: no rounding, no fill, no rail */
-.eqRow {
-  padding: 5px 12px 6px; cursor: pointer;
-  border-bottom: 1px solid rgba(255,255,255,0.045);
+/* ── row expansion — a COMPARISON, not a restatement of the row above ────── */
+.etDetail {
+  padding: 9px var(--et-pad) 11px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.eqRow:hover { background: rgba(255,255,255,0.035); }
-.eqOpen { background: rgba(201,168,76,0.06); }
-.eqHead { display: flex; align-items: baseline; gap: 7px; margin-bottom: 2px; line-height: 1.25; }
-.eqPeriod { font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3); white-space: nowrap; }
-.eqWhen { flex: 1; font-size: 9px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; text-align: right; }
-/* The EST badge alone says "not reported" — the values stay bright, because a
-   forward consensus is important information, not a disabled state (§8). */
-.eqBadge {
-  flex: 0 0 auto; font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
-  padding: 0 3px; border-radius: 3px; color: var(--accent, #c9a84c);
-  border: 1px solid rgba(201,168,76,0.45);
+.etCompare { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.etCompareTitle {
+  flex: 0 0 52px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
 }
-/* the one period-level intelligence marker: both metrics cleared 100% */
-.eqSignal {
-  flex: 0 0 auto; font-size: 7.5px; font-weight: 700; letter-spacing: 0.4px;
-  color: var(--accent, #c9a84c); white-space: nowrap;
+.etCompareBody {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+}
+.etCompareCell { display: inline-flex; align-items: baseline; gap: 5px; }
+.etCompareK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etCompareV {
+  font-size: 11.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
+}
+.etSurprise { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etSurprise.pos { color: var(--dock-up-text, #3fc885); }
+.etSurprise.neg { color: var(--dock-down-text, #f1696e); }
+
+.etFacts {
+  display: flex; flex-wrap: wrap; gap: 3px 16px;
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.etFact { display: inline-flex; align-items: baseline; gap: 5px; }
+.etFactK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etFactV {
+  font-size: 11px; font-weight: 600; color: var(--text, #f0efea);
+  font-variant-numeric: tabular-nums;
 }
 
-/* strict tabular alignment — the columns line up across every period */
-/* Tight line boxes: the row must stay scannable in bulk, and the default 1.5
-   leading on three lines was adding ~12px of pure air per period. */
-.eqGrid { display: grid; align-items: baseline; column-gap: 8px; row-gap: 0; line-height: 1.28; }
-.eqGrid3 { grid-template-columns: 24px minmax(0, 1fr) auto; }
-.eqGrid4 { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
-.eqGrid5 { grid-template-columns: 24px minmax(0, 1fr) auto auto auto; }
-.eqTag { font-size: 8px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted, #cfcac0); }
-.eqAct { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-bright, #f8f7f3); }
-.eqEstCell { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0); text-align: right; white-space: nowrap; }
-/* SURPRISE is labelled ("Beat +7.7%") so it can never be read as growth (§12) */
-.eqSurp { font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-/* GROWTH carries a YoY suffix for the same reason */
-.eqYoy { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-.eqYoyTag { font-size: 8px; font-weight: 600; color: var(--text-muted, #cfcac0); letter-spacing: 0.2px; }
-/* ≥100% YoY: gold IS the signal — no badge beside it repeating what the number
-   already says (§10/§38). */
-.eqGold { color: var(--accent, #c9a84c); }
-
-.eqAccel {
-  flex: 0 0 auto; margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.2px;
-  color: var(--accent, #c9a84c); padding: 1px 5px; border-radius: 4px;
-  background: var(--accent-weak, rgba(201,168,76,0.14)); white-space: nowrap;
+.etNote { margin: 8px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
+.etPrimaryDoc {
+  display: inline-block; margin: 10px 0 6px;
+  font-size: 11px; font-weight: 700; color: var(--accent, #c9a84c); text-decoration: none;
 }
-.eqPrimaryDoc {
-  display: inline-block; margin: 9px 0 6px; font-size: 11px; font-weight: 700;
-  color: var(--accent, #c9a84c); text-decoration: none;
-}
-.eqPrimaryDoc:hover { text-decoration: underline; }
-
-/* expanded quarter */
-.eqDetail { padding: 8px 12px 10px; background: rgba(0,0,0,0.22); border-bottom: 1px solid rgba(255,255,255,0.05); }
-.eqDGrid {
-  display: grid; grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 12px; row-gap: 2px; align-items: baseline;
-}
-.eqDK { font-size: 9px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #cfcac0); white-space: nowrap; }
-.eqDV { font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #f0efea); }
-.eqNote { margin-top: 7px; font-size: 10px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
-.eqDocsHead {
-  margin: 10px 0 4px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px;
-  text-transform: uppercase; color: var(--accent, #c9a84c);
-}
-.earnHead {
-  flex: 0 0 auto; display: flex; padding: 7px 12px 5px; font-size: 8.5px; letter-spacing: 0.4px;
-  text-transform: uppercase; color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
-}
-.earnHP { flex: 1; }
-.earnHE { width: 120px; }
-.earnHS { width: 84px; text-align: right; }
-.earnList { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-.earnList::-webkit-scrollbar { width: 8px; }
-.earnList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-.earnRow { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-.earnRow:nth-child(odd) { background: rgba(255,255,255,0.02); }
-.earnNext { opacity: 0.82; }
-.earnP { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.earnQ { font-size: 12px; font-weight: 700; color: var(--text-bright, #e7e0cf); }
-.earnDate { font-size: 9.5px; color: var(--text-muted, #7d7768); }
-.earnE { width: 120px; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
-.earnEps { font-size: 12px; font-weight: 600; }
-.earnEst { font-size: 9.5px; color: var(--text-muted, #7d7768); }
-.earnRev { font-size: 10px; color: var(--text-muted, #8b8574); }
-.earnS { width: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.earnSurp { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.surpBar { position: relative; width: 72px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
-.surpMid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.2); }
-.surpFill { position: absolute; top: 0; bottom: 0; }
-.surpUp { background: var(--dock-up, #26a869); }
-.surpDown { background: var(--dock-down, #e5484d); }
-
-.demoBadge {
-  flex: 0 0 auto; margin: 6px 10px 0; padding: 3px 8px; border-radius: 5px;
-  font-size: 9.5px; font-weight: 600; letter-spacing: 0.2px;
-  color: var(--accent, #c9a84c); background: var(--accent-weak, rgba(201,168,76,0.12));
-  border: 1px dashed rgba(201,168,76,0.4);
-}
-.earnTrend { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 9px 10px 4px; }
-.earnTrendCard { min-width: 0; }
-.earnTrendTop { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
-.earnTrendLabel { font-size: 9px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted, #8b8574); }
-.earnTrendYoy { font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.earnTrendVal { font-size: 16px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
-.earnControls { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
-.earnBeat { font-size: 10.5px; color: var(--text-muted, #8b8574); }
-.earnBeat b { font-weight: 700; }
+.etPrimaryDoc:hover { text-decoration: underline; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    VALUATION tab

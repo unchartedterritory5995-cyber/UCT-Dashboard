@@ -26,7 +26,6 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import useOwnership from '../../../hooks/useOwnership'
 import CompanyLogo from '../../../components/CompanyLogo'
-import { demoProfile } from './demoData'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import styles from './dockPanels.module.css'
 
@@ -209,16 +208,20 @@ export default function DockProfile({ sym }) {
   const [storyOpen, setStoryOpen] = useState(false)
 
   const f = full || {}
-  const dp = useMemo(() => demoProfile(sym), [sym])
+  // A hand-written demo narrative used to sit between the real AI brief and the
+  // yfinance description. It rendered with NO marker, so a fallback would have
+  // read as generated research. Removed 2026-09-07 with the fabricated
+  // valuation averages: the remaining chain is real brief → real filed
+  // description → the honest "generated on the live product" note.
   const companyName = company || f.name || null
-  const desc = profile?.company_desc || dp?.company_desc || leadSentences(f.about)
+  const desc = profile?.company_desc || leadSentences(f.about)
   // The expanded profile shows a fuller description — but yfinance's raw
   // longBusinessSummary is a ~240-word filing dump (618px at the default width),
   // which turns `More` into a wall of prospectus text. Cap it on sentence
   // boundaries so the expansion reads as a company profile.
   const aboutLong = (f.about && desc && f.about.length > desc.length + 60) ? f.about : null
   const fullAbout = aboutLong ? leadStory(aboutLong, 80).text : null
-  const storyFull = profile?.run_story || dp?.run_story
+  const storyFull = profile?.run_story
   // Default Story = the catalyst plus its supporting driver, whole sentences
   // only. The closing risk/caveat sentence is real research but not part of
   // "why is this moving?", so it waits behind "Full story →".

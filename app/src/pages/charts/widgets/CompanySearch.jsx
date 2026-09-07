@@ -11,7 +11,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import useMobileSWR from '../../../hooks/useMobileSWR'
-import { demoValAvg } from './demoData'
 import { searchCompany, groupResults, highlightParts, POPULAR } from './companySearchIndex'
 import styles from './CompanySearch.module.css'
 
@@ -58,13 +57,13 @@ const RESOLVE = {
   'debt-equity': (f) => ({ value: f?.debt_to_equity, fmt: 'num' }),
   'current-ratio': (f) => ({ value: f?.current_ratio, fmt: 'num' }),
   'ov-fcf': (f) => ({ value: f?.free_cash_flow, fmt: 'moneystr' }),
-  pe: (f) => ({ value: f?.pe_trailing, fmt: 'x', avgKey: 'pe_trailing' }),
-  'pe-fwd': (f, c) => ({ value: f?.pe_forward ?? c?.forward_pe, fmt: 'x', avgKey: 'pe_forward' }),
-  peg: (f) => ({ value: f?.peg, fmt: 'num', avgKey: 'peg' }),
-  ps: (f) => ({ value: f?.ps, fmt: 'x', avgKey: 'ps' }),
-  pb: (f) => ({ value: f?.pb, fmt: 'x', avgKey: 'pb' }),
-  'ev-ebitda': (f) => ({ value: f?.ev_to_ebitda, fmt: 'x', avgKey: 'ev_to_ebitda' }),
-  'ev-rev': (f) => ({ value: f?.ev_to_revenue, fmt: 'x', avgKey: 'ev_to_revenue' }),
+  pe: (f) => ({ value: f?.pe_trailing, fmt: 'x' }),
+  'pe-fwd': (f, c) => ({ value: f?.pe_forward ?? c?.forward_pe, fmt: 'x' }),
+  peg: (f) => ({ value: f?.peg, fmt: 'num' }),
+  ps: (f) => ({ value: f?.ps, fmt: 'x' }),
+  pb: (f) => ({ value: f?.pb, fmt: 'x' }),
+  'ev-ebitda': (f) => ({ value: f?.ev_to_ebitda, fmt: 'x' }),
+  'ev-rev': (f) => ({ value: f?.ev_to_revenue, fmt: 'x' }),
   'div-yield': (f, c) => ({ value: c?.div_yield, fmt: 'pct' }),
   'market-cap': (f) => ({ value: f?.market_cap, fmt: 'moneystr' }),
   'short-float': (f, c) => ({ value: c?.short_pct_float, fmt: 'pct' }),
@@ -150,21 +149,18 @@ function ResultDetail({ item, statements, full, compact }) {
   // ── Resolvable metric (valuation / overview) ──
   const r = RESOLVE[item.id]
   if (r) {
-    const { value, fmt, avgKey } = r(full, compact)
-    const avg = avgKey ? demoValAvg(avgKey, value) : null
-    const delta = (avg && value != null) ? ((value - avg) / avg) * 100 : null
+    // `avgKey` used to feed demoValAvg(), which fabricated a "5Y avg" by
+    // multiplying the CURRENT value by a fixed constant — so the premium /
+    // discount beside it was a constant too. Removed 2026-09-07 along with the
+    // same columns in DockValuation: a missing band costs the reader nothing,
+    // an invented one costs them trust.
+    const { value, fmt } = r(full, compact)
     return (
       <div className={styles.detail}>
         <div className={styles.detailHead}>
           <span className={styles.detailVal}>{fmtBy(value, fmt)}</span>
         </div>
-        {avg != null && (
-          <div className={styles.detailStats}>
-            <Stat label="5Y avg" value={fmtBy(avg, fmt)} />
-            {delta != null && <Stat label={delta > 0 ? 'premium' : 'discount'} value={`${delta > 0 ? '+' : ''}${delta.toFixed(0)}%`} cls={delta > 0 ? styles.neg : styles.pos} />}
-          </div>
-        )}
-        <div className={styles.detailFoot}>{avgKey ? '5Y avg is illustrative (demo). ' : ''}{item.hint}</div>
+        <div className={styles.detailFoot}>{item.hint}</div>
       </div>
     )
   }
