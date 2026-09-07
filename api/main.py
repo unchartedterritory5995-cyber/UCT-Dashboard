@@ -314,6 +314,46 @@ def _run_patterns_recompute_stats():
 _INTRADAY_PATTERN_IDS = ["lance_opening_drive", "opening_range_breakout", "opening_range_breakdown"]
 
 
+# ---------------------------------------------------------------------------
+# Daily-TF detector-registry fetch depth — the authoritative history length
+# for `_scan_patterns_daily`'s bars_sqlite.get_bars(sym, "D", ...) call.
+#
+# This was a bare literal `200` with no relationship to what the ~87 detectors
+# in the registry actually require. Several have a HARD, explicit minimum-bar
+# gate stricter than 200 and were therefore structurally unreachable through
+# this scan no matter how good a fixture looked — the gate returns [] before
+# any of the detector's real logic runs:
+#   - pullback_to_50sma:  n < _SMA_PERIOD*3 + _PRIOR_ADVANCE_LOOKBACK//2 = 210
+#   - golden_cross:       n < _MA200_PERIOD + _MAX_CROSS_AGE + 5         = 210
+#   - death_cross:        n < _MA200_PERIOD + _MAX_CROSS_AGE + 5         = 210
+#   - pullback_to_200sma: n < _SMA_PERIOD + 70                           = 270
+# (verified directly against each detector's source, 2026-09-06 — see
+# tests/pattern_engine/test_scan_patterns_daily_bar_depth.py, which derives
+# these thresholds from the detectors' own constants rather than restating
+# them, so a future change to any of those constants fails the test instead
+# of silently reopening this gap.)
+#
+# 300 clears the deepest known requirement (270) with margin, matches the
+# existing "safe deep-daily-lookback" convention already used elsewhere in
+# this codebase for a comparable local, no-network SQLite read
+# (api/services/research/ratings_universe.py fetches 300; scan_evaluator.py's
+# get_bars(t,"D",400) is measured at ~0.84ms median), and was benchmarked
+# against real bars.db data before landing: fetch itself stays sub-millisecond
+# either way; per-symbol detect_all cost rises from a measured ~20ms median
+# (200 bars) to ~25ms median (300 bars) — a real but modest ~20% increase,
+# acceptable for a background scheduler job (nightly full-universe + hourly
+# leaders-only), not a request-path cost.
+#
+# Raising this is NOT free of behavioral change for OTHER detectors: more
+# visible history shifts sliding-window results for detectors whose own gate
+# is well under 200 bars too (e.g. flat_base's ~60-bar prior-advance lookback
+# can now start from a different point) — this is an inherent, expected
+# consequence of any change to how much price history a detector can see, not
+# a threshold edit inside any detector. No detector's own internal threshold
+# was touched by this change.
+_PATTERN_SCAN_DAILY_BARS = 300
+
+
 def _is_rth_now() -> bool:
     """Return True iff the current time is Mon-Fri 09:30–16:00 ET (inclusive)."""
     try:
@@ -383,7 +423,7 @@ def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
     stored = 0
     for sym in symbols:
         try:
-            bars = bars_sqlite.get_bars(sym, "D", 200)
+            bars = bars_sqlite.get_bars(sym, "D", _PATTERN_SCAN_DAILY_BARS)
         except Exception as bars_err:
             _plog.debug("[patterns] get_bars failed for %s D: %s", sym, bars_err)
             continue
@@ -555,6 +595,14 @@ def _run_patterns_leaders_scan():
             for sym in leader_tickers:
                 try:
                     # --- daily bars for context ---
+                    # Deliberately NOT _PATTERN_SCAN_DAILY_BARS: this feeds only
+                    # build_context() (trend_stage/ma_alignment) for the RTH
+                    # intraday pass below, never the full detector registry —
+                    # lance_opening_drive/ORB/ORBD have no daily-bar hard gate,
+                    # so there is no reachability gap here to fix, and changing
+                    # the context depth would risk shifting this already-shipped
+                    # intraday pass's stage/alignment classification for reasons
+                    # unrelated to this fix.
                     try:
                         daily_raw = bars_sqlite.get_bars(sym, "D", 200)
                     except Exception as _be:
