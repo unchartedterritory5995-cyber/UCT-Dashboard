@@ -1,0 +1,51 @@
+{
+  "sample_n": 300,
+  "registry_size": 85,
+  "pivot_calling_detectors": [
+    "ascending_triangle",
+    "bear_flag",
+    "bull_flag",
+    "channel",
+    "cup_handle",
+    "cup_handle_uct",
+    "descending_triangle",
+    "double_bottom",
+    "double_top",
+    "falling_wedge",
+    "head_shoulders",
+    "high_tight_flag",
+    "higher_low_continuation",
+    "inverse_cup_handle",
+    "inverse_head_shoulders",
+    "major_trendlines",
+    "pennant",
+    "rectangle",
+    "remount",
+    "rising_wedge",
+    "rounded_base",
+    "rounded_top",
+    "support_resistance",
+    "swing_pivots",
+    "symmetrical_triangle",
+    "triple_bottom",
+    "triple_top",
+    "u_and_r",
+    "vcp"
+  ],
+  "n_independent_pivot_callers": 29,
+  "prior_22family_pass_pivot_callers_for_comparison": 8,
+  "prior_6family_pass_pivot_callers_for_comparison": 2,
+  "totals_seconds": {
+    "build_context_once": 0.050081,
+    "detect_pivots_first_call": 0.109181,
+    "detect_pivots_redundant_calls": 2.998061
+  },
+  "us_per_symbol": {
+    "build_context_once": 166.94,
+    "detect_pivots_first_call": 363.94,
+    "detect_pivots_redundant_calls": 9993.54
+  },
+  "total_redundant_recompute_s": 2.998061,
+  "total_redundant_recompute_pct_of_context_cost": 5986.4,
+  "note": "build_context() never calls detect_pivots -- confirmed by reading primitives/context.py -- so all 29 calls above are independent, none amortized by the shared context pass. Only the identical-args detect_pivots(bars, window=3) duplication is counted here. Two softer/qualitative categories are noted in RESULTS.md but NOT individually timed: fit_trendline() called independently by 10 detector files (different pivot subsets, not identical args); and 16 (SMA/EMA) + 17 (ATR) detector files each defining their OWN local moving-average / range helper rather than reading a shared value -- build_context() computes internal SMA10/20/50/150/200 but never exposes them, and there is no ATR primitive under primitives/ at all."
+}
