@@ -1,0 +1,58 @@
+{
+  "case_0000": {
+    "symbol": "BTU",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 53.41,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "BTU",
+    "as_of_t": 20260115,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "SXT",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 69.43,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "PPTA",
+    "as_of_t": 20260428,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "ENGN",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "TKNO",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 61.68,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "APH",
+    "as_of_t": 20260428,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}

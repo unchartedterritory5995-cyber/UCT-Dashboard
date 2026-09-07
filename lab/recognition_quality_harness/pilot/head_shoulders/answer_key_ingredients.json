@@ -1,0 +1,58 @@
+{
+  "case_0000": {
+    "symbol": "ZS",
+    "as_of_t": 20260625,
+    "detector_fired": true,
+    "detector_top_confidence": 53.29,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "RL",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "ZS",
+    "as_of_t": 20260330,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "ZS",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 59.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "ETSY",
+    "as_of_t": 20260625,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "RL",
+    "as_of_t": 20260327,
+    "detector_fired": true,
+    "detector_top_confidence": 71.97,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "ETSY",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}

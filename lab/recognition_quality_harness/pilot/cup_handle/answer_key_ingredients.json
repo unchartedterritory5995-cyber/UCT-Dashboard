@@ -1,0 +1,58 @@
+{
+  "case_0000": {
+    "symbol": "TWM",
+    "as_of_t": 20260330,
+    "detector_fired": true,
+    "detector_top_confidence": 51.46,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "FCEL",
+    "as_of_t": 20260330,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "OPY",
+    "as_of_t": 20260903,
+    "detector_fired": true,
+    "detector_top_confidence": 62.91,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "LFUS",
+    "as_of_t": 20260330,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "RGLD",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 77.35,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "GATX",
+    "as_of_t": 20260330,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "PLTR",
+    "as_of_t": 20260625,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}

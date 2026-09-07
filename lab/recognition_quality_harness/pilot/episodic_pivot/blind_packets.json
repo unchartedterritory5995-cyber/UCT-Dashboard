@@ -1,0 +1,191 @@
+[
+  {
+    "case_id": "case_0000",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0000_structure.png",
+    "detail_chart_file": "charts/case_0000_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 14.0,
+      "pct_of_52w_high": 93.3,
+      "pct_above_52w_low": 152.48,
+      "sma10": 13.201,
+      "sma20": 12.8105,
+      "sma50": 11.399,
+      "sma200": 8.6117,
+      "vol_20d_avg": 4151035.0,
+      "vol_50d_avg": 3514720.0,
+      "adr_pct_21d": 4.119,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0001",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0001_structure.png",
+    "detail_chart_file": "charts/case_0001_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 42.1,
+      "pct_of_52w_high": 76.98,
+      "pct_above_52w_low": 126.59,
+      "sma10": 41.959,
+      "sma20": 41.299,
+      "sma50": 41.0852,
+      "sma200": 39.2189,
+      "vol_20d_avg": 13746825.0,
+      "vol_50d_avg": 13284630.0,
+      "adr_pct_21d": 3.155,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0002",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0002_structure.png",
+    "detail_chart_file": "charts/case_0002_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 11.75,
+      "pct_of_52w_high": 72.31,
+      "pct_above_52w_low": 44.88,
+      "sma10": 10.969,
+      "sma20": 10.2225,
+      "sma50": 11.0158,
+      "sma200": 11.077,
+      "vol_20d_avg": 228960.0,
+      "vol_50d_avg": 212622.0,
+      "adr_pct_21d": 6.602,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0003",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0003_structure.png",
+    "detail_chart_file": "charts/case_0003_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 151.54,
+      "pct_of_52w_high": 76.54,
+      "pct_above_52w_low": 1.81,
+      "sma10": 155.366,
+      "sma20": 156.1365,
+      "sma50": 159.5486,
+      "sma200": 169.5226,
+      "vol_20d_avg": 1567215.0,
+      "vol_50d_avg": 1482656.0,
+      "adr_pct_21d": 2.054,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0004",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0004_structure.png",
+    "detail_chart_file": "charts/case_0004_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 35.29,
+      "pct_of_52w_high": 82.74,
+      "pct_above_52w_low": 61.66,
+      "sma10": 38.79,
+      "sma20": 35.812,
+      "sma50": 31.855,
+      "sma200": 28.3006,
+      "vol_20d_avg": 2482460.0,
+      "vol_50d_avg": 2354208.0,
+      "adr_pct_21d": 5.222,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0005",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0005_structure.png",
+    "detail_chart_file": "charts/case_0005_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 29.97,
+      "pct_of_52w_high": 97.59,
+      "pct_above_52w_low": 34.45,
+      "sma10": 30.055,
+      "sma20": 29.974,
+      "sma50": 28.075,
+      "sma200": 26.8553,
+      "vol_20d_avg": 3005135.0,
+      "vol_50d_avg": 3113078.0,
+      "adr_pct_21d": 1.655,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0006",
+    "family": "episodic_pivot",
+    "structure_chart_file": "charts/case_0006_structure.png",
+    "detail_chart_file": "charts/case_0006_detail.png",
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "structure_bars_shown": 150,
+      "detail_bars_shown": 25,
+      "n_bars_available": 400,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention) -- flag AMBIGUOUS-INSUFFICIENT if a chart looks internally inconsistent rather than force a call"
+    },
+    "neutral_context": {
+      "last_close": 22.43,
+      "pct_of_52w_high": 79.43,
+      "pct_above_52w_low": 101.35,
+      "sma10": 24.6,
+      "sma20": 23.57,
+      "sma50": 22.6238,
+      "sma200": 20.4463,
+      "vol_20d_avg": 17223630.0,
+      "vol_50d_avg": 11209896.0,
+      "adr_pct_21d": 4.925,
+      "n_bars_available": 400
+    }
+  }
+]
