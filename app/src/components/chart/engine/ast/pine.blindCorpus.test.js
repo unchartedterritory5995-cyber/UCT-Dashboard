@@ -120,8 +120,15 @@ const ACCEPTED = FILES.filter((f) => {
  *  `this.source` or leaves as `refusal.span`. All 9 of the corpus's
  *  `syminfo.mintick` misses now apply in exactly one offer step and fully
  *  recover — see `pine.blindCorpusDecomposition.test.js`. This is a REAL
- *  gain, not a bookkeeping correction: the engine earned it. */
-const ACCEPT_FLOOR = 36
+ *  gain, not a bookkeeping correction: the engine earned it.
+ *
+ *  ⭐⭐ 36 -> 37 IS RISK-004 REMEDIATION, `ta.barssince` (2026-09-06):
+ *  `breakout-squeeze-release-breakout`'s `nz(ta.barssince(squeeze), 1000) <=
+ *  3` now recovers on RAW translation — it needed no offer at all, since
+ *  `contextBoundedPlan` is a compile-time static identity, not an
+ *  assisted-edit — so it counts here too. See `FLOOR`, below, for the
+ *  raw-side accounting of the same change. */
+const ACCEPT_FLOOR = 37
 
 /** ⭐⭐ THE NAMES THIS EXAM CALLS UNSERVED — WITH A PROBE FOR EACH, so the list
  *  cannot quietly go stale.
@@ -191,8 +198,22 @@ const SERVED_CONTROLS = Object.freeze({
  *  regression). Corrected here per that tranche's explicit "a trivial
  *  bookkeeping/documentation error required to report the truth" allowance.
  *  No engine behavior changed; only this floor's own honesty. */
+/** ⭐⭐ 27 -> 28 IS RISK-004 REMEDIATION, `ta.barssince` (2026-09-06):
+ *  `contextBoundedPlan` (pine.js) now also recognises `nz(ta.barssince(cond),
+ *  S) <cmp> K` — inline and through a binding — as the SAME bounded identity
+ *  already used for the bare form, WHEN `S`'s own truth under `<cmp> K`
+ *  agrees with what the capped window would answer (`nzSentinelSound`).
+ *  `breakout-squeeze-release-breakout` is sound and now translates outright,
+ *  RAW, needing no offer. The other three `ta.barssince` misses stay refused,
+ *  correctly: one supplies a sentinel that DISAGREES with the cap (forcing it
+ *  would silently invert the answer on a symbol with no pivot yet — a
+ *  confident wrong result this engine will not manufacture), and two use
+ *  `barssince` numerically or compare it against ANOTHER unbounded
+ *  `barssince` call — neither reduces to any finite comparison at all, and
+ *  both are recorded as execution-model capability gaps, not fixed. See
+ *  `pine.blindCorpusDecomposition.test.js`. */
 /** 🔴 THE FLOOR. Raise it when the engine earns it; never lower it. */
-const FLOOR = 27
+const FLOOR = 28
 
 describe('the exam this project did not write', () => {
   it('⭐ the corpus is real, blind, and screener-shaped', () => {

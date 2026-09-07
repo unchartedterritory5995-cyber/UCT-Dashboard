@@ -737,3 +737,321 @@ and deserves its own scoping conversation rather than being bundled into a
 future "narrow fix" tranche by default.
 
 **This recommendation is not begun.**
+
+---
+
+# ADDENDUM 2 — RISK-004 REMEDIATION: `ta.barssince` BOUNDING-HEURISTIC GAPS (2026-09-06, third commit)
+
+Authorized as a single bounded item following owner acceptance of the mintick
+remediation. **One of four `ta.barssince` scripts recovered on RAW
+translation. Two are execution-model capability gaps, correctly still
+refused. One is correctly, honestly refused because forcing it would produce
+a confident WRONG answer.**
+
+## 1. The four cases, reconstructed exactly
+
+| Script | Exact construct | Current refusal (pre-fix) | `ta.barssince` use |
+|---|---|---|---|
+| `breakout-flat-base-pivot-breakout` | `barsSincePivot = nz(ta.barssince(not na(pivotHi)), 0)` then `matured = barsSincePivot >= baseLen` (through a binding) | `pine:function`, unbounded | boolean condition (comparison), via nz + binding |
+| `breakout-squeeze-release-breakout` | `justReleased = not squeeze and nz(ta.barssince(squeeze), 1000) <= 3` (inline) | `pine:function`, unbounded | boolean condition (comparison), via nz, inline |
+| `recency-breakout-hold-since-trigger` | `age = ta.barssince(trigger)` then `heldLow = ta.lowest(close, math.max(age, 1))` | `pine:function`, unbounded | **numeric arithmetic — feeds another function's window argument** |
+| `recency-fresh-golden-cross` | `barsGC = ta.barssince(gc)`, `barsDC = ta.barssince(dc)`, `notUndone = na(barsDC) or barsDC > barsGC` | `pine:function`, unbounded | **comparison against ANOTHER unbounded `barssince` call**, no literal/input bound anywhere in reach |
+
+No corpus script was edited to produce this table — each row is the exact
+construct read from the frozen fixture.
+
+## 2. Pipeline trace and the safety invariant
+
+```
+Pine source
+  → parser (parse.js) — ordinary AST, `ta.barssince(cond)` a one-arg call
+  → translator (pine.js Resolver.resolveBinding / resolve, 'binary' case):
+      contextBoundedPlan(node)              — INLINE comparison, pure syntax
+        (no `this`, cannot fold an input — only a literal K)
+      Resolver.boundedBarssinceThroughBinding(node)
+        — THROUGH-A-BINDING comparison (age = barssince(...); ...age <= K),
+          a method (has `this.constIntOf`, can fold an input to its default)
+      Resolver.naGuardDroppedFrom(node)      — drops a redundant `not na(age)`
+        guard so it never independently trips the unbounded refusal
+      ↓ if none of these match, resolving the bare call itself throws the
+        unbounded refusal (`PINE_INEXPRESSIBLE.barssince`)
+  → canonical AST (engine grammar): `cCall('barssince', [cond, cNum(window)])`
+    compared to `cNum(k)` — IDENTICAL node shape whichever source path found it
+  → runtime/kernel (interpret.js): `barsSince(cond, n)` — a SATURATING
+    counter, capped at `n`
+  → downstream: `treeYieldsBool`, screener/chart execution — unaffected by
+    which source shape reached the canonical AST
+```
+
+**Exactly which layer refuses the four real cases**: the TRANSLATOR
+(`contextBoundedPlan`/`boundedBarssinceThroughBinding`), because NEITHER
+function recognized the `nz(barssince(cond), S)` wrapper shape at all before
+this remediation — `oneArgBarssince(node)` requires `node.name ===
+'ta.barssince'`, and a `nz(...)` call around it fails that check outright, so
+the pattern-match returned null and the bare, unbounded refusal fired.
+
+**The existing safety invariant, stated precisely**: `barssince(c) <cmp> K`
+for a LITERAL or input-folded `K` is bound-EQUIVALENT to the finite-window
+`barssince(c, window) <cmp> K` (window = K for `</>=`, K+1 for `<=/>`) —
+proven as an IDENTITY, not an approximation, in the file's own comments
+(`barssince(c) < K == barssince(c, K) < K`, etc.). **What wrong result is this
+preventing?** Without the comparison bound, mapping the one-argument,
+genuinely-unbounded `ta.barssince(c)` onto the table's bounded
+`barssince(c, n)` form would require GUESSING a window — "a different number
+wearing the same name," per the refusal's own text — which could silently
+answer a WRONG bars-since count for any occurrence older than the guessed
+window. The comparison bound removes the guess: the window is DERIVED from
+the comparison itself, so every value the cap could destroy is a value the
+comparison already treats identically. This tranche did not weaken that
+guard — it only widened WHICH SOURCE SHAPES can supply a literal/input `K`,
+under a NEW, separate soundness gate (below) that a wrapped SENTINEL must
+also pass.
+
+## 3. Minimal reductions
+
+All required scenarios exercised in `pine.blindCorpusDecomposition.test.js`,
+`describe('✅ RISK-004 REMEDIATION — ta.barssince ...')`:
+
+- Condition never occurred / insufficient history yet → `NaN` (kernel-level, verified directly against `interpret.js`)
+- Occurred on the current bar → `0`
+- Occurred 1 bar ago → `1`
+- Occurred N (here 2) bars ago → `2`
+- A REPEATED occurrence resets cleanly (does not accumulate or leak the prior count) → `0` again
+- A long gap (beyond the window) → saturates at the cap and STAYS there
+- `nz(barssince(cond), S) <cmp> K`, inline — the exact `breakout-squeeze-release-breakout` shape
+- `nz(barssince(cond), S) <cmp> K`, through a binding — the exact `breakout-flat-base-pivot-breakout` shape
+- `barssince` used NUMERICALLY (feeding another function's window argument) — the exact `recency-breakout-hold-since-trigger` shape — CLASSIFIED, not implemented (see §4/§8)
+- `barssince(A) <cmp> barssince(B)` — the exact `recency-fresh-golden-cross` shape — CLASSIFIED, not implemented
+
+No full community/corpus script body was committed as a test fixture; every
+reduction is a small, first-party construct targeting the exact semantic
+shape.
+
+## 4. Runtime semantics verified FIRST
+
+`interpret.js`'s `barsSince(cond, n)` was read directly and then VERIFIED
+against real bar data (realistic daily-spaced timestamps — see the caveat
+below) BEFORE any translator change was made:
+
+```
+closes = [0, 0, 2, 0, 0, 2, 0, 0, 0, 0]   (close>open true at index 2 and 5)
+barssince(close > open, 3) → [NaN, NaN, 0, 1, 2, 0, 1, 2, 3, 3]
+```
+
+This is EXACTLY the documented, deliberate behavior: two bars of "insufficient
+history" before the window can be trusted, an exact count for 0/1/2 bars
+since, a clean reset on the repeated occurrence at index 5, and a saturating
+cap of `3` for the long gap at indices 8–9 that does NOT distinguish "occurred
+more than 3 bars ago" from "never occurred in the whole series" — both read
+as `3`. **The runtime was ALREADY correct for the supported AST shape before
+this tranche and is UNCHANGED by it** — this tranche's fix is confined to
+`pine.js` (translation-time pattern recognition); `interpret.js` was not
+touched. Given that, the fix's soundness claim is provably narrower and
+simpler than re-deriving kernel correctness from scratch: the new nz-wrapped
+recognition, when it fires, produces the LITERALLY IDENTICAL canonical-AST
+node (`cCall('barssince', [cond, cNum(window)])`) that the pre-existing,
+already-shipped bare-form recognition has produced since 2026-08-26 — proven
+by direct string comparison of the resulting formula (`"barssince(close >
+open, 4) <= 3 ? 1 : 0"`, byte-identical whether reached via the nz-wrapped or
+bare source shape, in both the inline and through-binding cases).
+
+⚠️ **Caveat, unrelated to this fix, not chased further**: an EARLIER attempt to
+run this same kernel probe using tiny synthetic timestamps (`t = 0, 1, 2, ...`
+instead of realistic epoch-seconds) produced a corrupted-looking result
+(saturating/resetting on nearly every bar). Realistic daily-spaced timestamps
+resolved it cleanly. This points at some OTHER, pre-existing, unrelated
+interpreter behavior (plausibly a session/gap-continuity check keyed off `t`)
+being sensitive to unrealistic bar spacing — worth a future look, but it does
+not touch `pine.js`, does not affect this remediation's soundness proof (which
+rests on formula-string identity with the already-correct bare form, not on
+this probe), and is explicitly NOT investigated further here (out of scope,
+kernel-side, not a barssince-bounding translation issue).
+
+## 5. The fix: WHAT WAS ADDED, and WHEN IT DOES NOT APPLY
+
+`pine.js` gained two small, pure helpers plus two call-site extensions:
+
+- **`nzWrappedBarssince(node)`** — recognizes `nz(<one-arg barssince>, S)`
+  positionally (same discipline as `oneArgBarssince`), returning `{cond,
+  sentinel}` or null. No resolution, no side effects.
+- **`nzSentinelSound(op, sentinel, k)`** — a pure, 6-line boolean function.
+  The capped window's own truth under `<cmp> K` is determined ENTIRELY by the
+  operator (`<`/`<=` → false, `>`/`>=` → true, since window = K or K+1 by
+  construction). The rewrite is sound iff the member's own sentinel evaluates
+  to that SAME boolean under the same operator and K. This is checked
+  EXHAUSTIVELY across all four operators in the permanent test
+  (`'the soundness rule generalizes across all four comparison operators'`).
+- **`contextBoundedPlan`** (inline) and **`Resolver.boundedBarssinceThroughBinding`**
+  (through a binding) each try the bare `oneArgBarssince` shape FIRST
+  (unchanged behavior), then fall back to `nzWrappedBarssince` + the
+  soundness gate. When the gate fails, both fall through to `null` — the
+  ordinary, honest, unbounded refusal fires exactly as before. **Nothing was
+  weakened**: the bare-form identity's own literal/input requirement is
+  unchanged, and the new nz-wrapped path is REJECTED, not force-applied, on
+  any Answer disagreement.
+
+**Why `recency-breakout-hold-since-trigger` and `recency-fresh-golden-cross`
+are NOT fixed**: neither is a "comparison to a bound" shape at all.
+`math.max(age, 1)` feeding `ta.lowest`'s window argument requires the ACTUAL
+NUMERIC VALUE of `age` (confirmed: an ordinary bound expression in that same
+window-argument position translates fine — `ta.lowest` itself imposes no
+special restriction; the refusal is specifically about resolving the
+unbounded `age` value). `barsDC > barsGC` compares two DIFFERENT unbounded
+counts to EACH OTHER with no literal/input in reach at all — no window can be
+derived from a comparison whose OTHER side is itself unbounded. Both are
+recorded as **execution-model capability gaps**: the first would need a
+translator rule for "an unbounded count used as a bounded function's dynamic
+argument" (a fundamentally different, harder proof than a static comparison
+bound); the second would need either a NEW runtime primitive ("which of two
+conditions fired most recently") or a much larger whole-formula
+constraint-propagation pass (recognizing that `barsGC <= within` is already
+asserted elsewhere in the SAME top-level conjunction) — the latter is
+explicitly the kind of "broad" engineering this tranche's scope excludes.
+Neither was faked; both remain honestly refused.
+
+## 6. Real four-script behavior, before/after
+
+| Script | BEFORE | AFTER |
+|---|---|---|
+| `breakout-flat-base-pivot-breakout` | raw refused (`pine:function`, unbounded) | raw refused (**unchanged, correctly** — `nzSentinelSound(>=, 0, 35)` is false: `0>=35` is false but `>=`'s implied cap-truth is true, so forcing the rewrite would silently read "no pivot yet" as "matured") |
+| `breakout-squeeze-release-breakout` | raw refused (`pine:function`, unbounded) | **raw ACCEPTED** — translates directly, no offer needed, no downstream blocker; `treeYieldsBool` confirms boolean-screen shape |
+| `recency-breakout-hold-since-trigger` | raw refused (`pine:function`, unbounded) | raw refused (**unchanged** — classified as a numeric/window-argument capability gap, not a comparison-boundable shape) |
+| `recency-fresh-golden-cross` | raw refused (`pine:function`, unbounded) | raw refused (**unchanged** — classified as a barssince-vs-barssince capability gap, no sound local identity exists) |
+
+Only `breakout-squeeze-release-breakout` is "recovered," and it is recovered
+on RAW translation (via the ordinary Resolver path, `contextBoundedPlan`), not
+via the assisted-edit offer mechanism — no offer was ever involved in this
+script's blocker, and none was added.
+
+## 7. Vendor semantics
+
+No vendor-parity claim is made or needed. The two rewrites this tranche adds
+are PROVEN IDENTITIES against this engine's OWN already-declared, already-
+shipped bounded `barssince(condition, n)` semantics — not a claim about how
+TradingView's real `ta.barssince` behaves beyond what the existing (pre-this-
+tranche) identity already asserted. Status for the record:
+**TRANSLATION / STATIC-ANALYSIS GAP CORRECTED, runtime semantics validated
+internally** (per the tranche's own ceiling for this case) — not a new
+vendor-parity claim, and none is asserted.
+
+## 8. Mutation / non-vacuity evidence
+
+- **Old overly-conservative rule restored** → covered structurally: the new
+  path is a pure ADDITION (bare-form recognition is tried first, unchanged);
+  reverting `nzWrappedBarssince`/`nzSentinelSound` would make
+  `breakout-squeeze-release-breakout` refuse again, exactly reproducing the
+  pre-fix state — no other behavior depends on the addition.
+- **New heuristic incorrectly accepts an actually-unbounded unsafe construct**
+  → directly tested: the UNSOUND case (`nz(barssince(cond), 0) >= baseLen`)
+  is asserted to STAY refused, by name, with the exact guard and message —
+  `'UNSOUND (breakout-flat-base-pivot-breakout's exact shape) ... MUTATION-
+  SENSITIVE: this is exactly the case nzSentinelSound exists to catch —
+  remove or invert that check and this test goes red.'`
+- **Returned count off by one** → the resulting formula is asserted verbatim
+  (`'barssince(close > open, 4)'` for K=3, op=`<=` — window = K+1 = 4,
+  confirmed correct) in both the inline and through-binding sound cases.
+- **Repeated true conditions handled incorrectly** → the kernel-verification
+  test asserts the count resets to `0` on the SECOND occurrence (index 5),
+  not accumulating or leaking the prior run.
+- **Never-true behavior changed incorrectly** → the kernel-verification test
+  asserts `NaN` for the two insufficient-history bars before the window can
+  answer at all, and the capability-gap tests confirm the two genuinely
+  unbounded shapes (numeric use, barssince-vs-barssince) are UNCHANGED,
+  still refusing exactly as before.
+- **Execution requirement falsely marked finite** → not applicable: no
+  execution-requirement/lookback declaration was touched; the fix operates
+  entirely at static pattern-recognition time, producing the SAME canonical
+  node the pre-existing path already produced.
+
+## 9. Frozen 48-script corpus re-run
+
+```
+RAW BEFORE:       27 / 48
+RAW AFTER:        28 / 48        (+1: breakout-squeeze-release-breakout)
+
+ASSISTED BEFORE:  36 / 48
+ASSISTED AFTER:   37 / 48        (+1, same script — it needed no offer, so
+                                   RAW and ASSISTED moved together here,
+                                   unlike Remediation A's mintick scripts
+                                   which moved ONLY on the assisted side)
+```
+
+The mintick offer work (Remediation A) is untouched — re-verified: all 9
+mintick scripts still recover via the offer, still in exactly one step
+(`pine.blindCorpusDecomposition.test.js`'s Remediation-A describe block is
+unchanged and still green).
+
+| Script | Prior blocker | New result | New downstream blocker | Raw vs assisted |
+|---|---|---|---|---|
+| `breakout-squeeze-release-breakout` | `ta.barssince` unbounded (nz-wrapped, inline) | RECOVERED | none | RAW (no offer involved) |
+
+No other script changed. No previously-passing script regressed.
+
+## 10. `ta.cci` — kept parked, unchanged
+
+`indicators.js::computeCCI(bars, period)` remains hardcoded to typical price
+(`(h+l+c)/3`) with no source parameter; `ta.cci(source, length)` in real Pine
+requires an arbitrary source. This tranche did not touch `cci` anywhere —
+not the kernel, not `closedTable.json`, not the `pine:role-order` logic.
+`meanrev-zscore-multi-oscillator-washout` remains an unrecovered raw miss for
+exactly this reason, unaffected by this tranche.
+
+## 11. Scope discipline — confirmed
+
+No offers were added to any `PineRefusal` site (the barssince fix is a static
+translation-time rewrite, not an assisted-edit offer — `ta.barssince` itself
+still has no `suggest`/`span`, same as before). `ta.valuewhen`, tuple support,
+undefined-symbol recovery, the CCI kernel, new Track F input kinds,
+generalized recursive/stateful execution, broad parser work, and the
+remaining vendor-parity backlog were not touched. `git diff` confirms the
+entire change surface is: `pine.js` (`nzWrappedBarssince`, `nzSentinelSound`,
+and the two call-site extensions) and the two blind-corpus test files (floor
+constants + new permanent tests).
+
+## FINAL RETURN — items 1–17
+
+1–2 (four cases + current blockers): §1 table above.
+3 (pipeline/root cause): §2.
+4 (safety invariant): §2, "the existing safety invariant, stated precisely."
+5 (runtime semantics already correct?): YES, verified directly — §4.
+6 (exact fix): §5 — `nzWrappedBarssince` + `nzSentinelSound`, gating two
+existing call sites; nothing else touched.
+7 (minimal-reduction results): §3, all passing, permanent.
+8 (bounded/unbounded-history handling): §2's invariant statement; unbounded
+cases (recency-breakout-hold-since-trigger, recency-fresh-golden-cross)
+explicitly classified as capability gaps, not force-bounded.
+9 (mutation/non-vacuity evidence): §8.
+10 (four-script before/after): §6.
+11 (raw 48-corpus before/after): 27/48 → 28/48 (§9).
+12 (assisted 48-corpus before/after): 36/48 → 37/48 (§9).
+13 (newly exposed downstream blockers): none.
+14 (screener/execution-requirement effect): none — no execution-requirement
+or lookback declaration was touched; the fix is translation-time-only and
+produces a canonical AST node the runtime already handled correctly.
+15 (test-suite results): `pine.blindCorpus.test.js` 16/16,
+`pine.blindCorpusDecomposition.test.js` 31/31, full `ast/` directory 113
+files / 2129 tests green, full app suite 14285 passed / 5 pre-existing
+unrelated failures (confirmed via `git stash` compare, identical without this
+tranche's changes) / 1 unrelated mock error.
+16 (updated RISK-004 status): raw 28/48, assisted 37/48; see
+`RISK_REGISTER.md`.
+17 (commit hash): see the session's third RISK-004 commit (this addendum's
+own commit).
+
+## Recommendation for the next custom-indicator issue (not begun)
+
+The remaining `ta.barssince` gaps (numeric window-argument use,
+barssince-vs-barssince comparison) and the `ta.cci` generic-source kernel
+question are now BOTH classified as genuine execution-model/kernel-capability
+work, not narrow translator fixes — neither should be the next "small, bounded"
+tranche by the same pattern as items A/B/barssince. The remaining LOW-RISK,
+narrow-translator-shaped opportunities from the original ranking (§11 of the
+main report) that have not yet been attempted are: `ta.valuewhen`'s two-layer
+defect (arity fix is necessary but not sufficient — a role-order gap remains
+even after correcting the arity, per `recency-macd-turn-recent`), and the
+single-script, single-builtin gaps (`ta.falling`, `ta.kcw`, `ta.cmf`,
+`ta.accdist`, `ta.obv`'s companion `ta.pvt`) — each a plain
+UNSUPPORTED_BUILTIN with no disclosed ambiguity, better suited to a future
+vendor-parity batch than a translator-fix tranche.
+
+**This recommendation is not begun.**

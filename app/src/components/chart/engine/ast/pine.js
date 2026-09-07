@@ -2638,6 +2638,53 @@ function oneArgBarssince(node) {
   return arg.value || null
 }
 
+/** RISK-004 REMEDIATION (2026-09-06) — `nz(<one-arg barssince>, S)`: the
+ *  CONDITION plus the member's own SENTINEL node (unresolved — a literal in
+ *  the inline shape, an input behind a binding in the through-binding shape),
+ *  or null. Positional only, same discipline as `oneArgBarssince` above. */
+function nzWrappedBarssince(node) {
+  if (!node || node.type !== 'call' || node.name !== 'nz') return null
+  const args = node.args || []
+  if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+  const cond = oneArgBarssince(args[0].value)
+  if (!cond) return null
+  return { cond, sentinel: args[1].value }
+}
+
+/** RISK-004 REMEDIATION — is `nz(barssince(cond), S) <cmp> K` the SAME
+ *  screen as the bare, capped `barssince(c) <cmp> K` identity below?
+ *
+ *  ⛔⛔ THE KERNEL CANNOT TELL "NEVER OCCURRED" FROM "OCCURRED BEYOND THE
+ *  WINDOW" — `interpret.js`'s `barsSince` is a SATURATING counter: once `n`
+ *  readable bars have passed without a hit, it answers exactly `n`, whether
+ *  the condition happened `n + 1` bars ago or has never happened at all in
+ *  the whole series. A member's `nz(ta.barssince(cond), S)` supplies an
+ *  EXPLICIT value for that same bucket — but only when S produces the SAME
+ *  boolean under `<cmp> K` as the capped window itself would (`window <cmp>
+ *  K`, which the operator alone decides: `<`/`<=` → false, `>`/`>=` → true)
+ *  is the member's choice provably redundant rather than a DIFFERENT answer
+ *  this engine would silently overwrite.
+ *
+ *  ⭐ MEASURED AGAINST THE REAL CORPUS: `nz(ta.barssince(squeeze), 1000) <= 3`
+ *  is SOUND (`1000 <= 3` is false, matching `<=`'s implied false) — the
+ *  member's sentinel and the cap agree, so the rewrite is an identity.
+ *  `nz(ta.barssince(cond), 0) >= baseLen` is NOT (`0 >= baseLen` is false,
+ *  but `>=`'s implied truth is TRUE) — the member explicitly wants "never
+ *  occurred" to read as NOT matured, while this engine's cap would read the
+ *  same bucket as matured. Forcing that rewrite would be a confident wrong
+ *  answer on exactly the bars it matters most (a symbol with no pivot yet),
+ *  so this returns false and the script stays honestly refused. */
+function nzSentinelSound(op, sentinel, k) {
+  const impliedTrue = op === '>' || op === '>='
+  let actual
+  if (op === '<') actual = sentinel < k
+  else if (op === '<=') actual = sentinel <= k
+  else if (op === '>') actual = sentinel > k
+  else if (op === '>=') actual = sentinel >= k
+  else return false
+  return actual === impliedTrue
+}
+
 const FLIP = Object.freeze({ '<': '>', '>': '<', '<=': '>=', '>=': '<=' })
 
 /**
@@ -2658,17 +2705,32 @@ function contextBoundedPlan(node) {
   // ⭐ NORMALISE THE SIDES FIRST. Members write `5 > ta.barssince(x)` as readily
   // as `ta.barssince(x) < 5`, and a rewrite that only saw one order would be a
   // coin-flip on whether a script translated.
-  if (own(FLIP, op) && litInt(left) !== null && oneArgBarssince(right)) {
+  if (own(FLIP, op) && litInt(left) !== null
+      && (oneArgBarssince(right) || nzWrappedBarssince(right))) {
     [op, left, right] = [FLIP[op], right, left]
   }
 
-  const cond = oneArgBarssince(left)
   const k = litInt(right)
-  if (cond && k !== null && own(FLIP, op)) {
-    // `< K` and `>= K` split at K, so K bars of window put the sentinel exactly
-    // on the boundary; `<= K` and `> K` split at K+1 and need one bar more.
-    const window = (op === '<' || op === '>=') ? k : k + 1
-    if (window >= 1) return { kind: 'barssince', op, cond, window, k }
+  if (k !== null && own(FLIP, op)) {
+    const cond = oneArgBarssince(left)
+    if (cond) {
+      // `< K` and `>= K` split at K, so K bars of window put the sentinel
+      // exactly on the boundary; `<= K` and `> K` split at K+1 and need one
+      // bar more.
+      const window = (op === '<' || op === '>=') ? k : k + 1
+      if (window >= 1) return { kind: 'barssince', op, cond, window, k }
+    }
+    // ⭐⭐ RISK-004 REMEDIATION — `nz(barssince(cond), S) <cmp> K`, inline (the
+    // member wrote both halves in one expression). Sound ONLY when `S` agrees
+    // with the capped window's own answer — see `nzSentinelSound`.
+    const wrapped = nzWrappedBarssince(left)
+    if (wrapped) {
+      const s = litInt(wrapped.sentinel)
+      if (s !== null && nzSentinelSound(op, s, k)) {
+        const window = (op === '<' || op === '>=') ? k : k + 1
+        if (window >= 1) return { kind: 'barssince', op, cond: wrapped.cond, window, k }
+      }
+    }
   }
 
   // `obv <cmp> obv[k]` and `obv - obv[k]`.
@@ -4075,11 +4137,30 @@ class Resolver {
 
     return this.throughBinding(binding, (b) => {
       const cond = oneArgBarssince(b.node)
-      if (!cond) return null
-      return cOp(tableOp, [
-        cCall('barssince', [this.resolve(cond), cNum(window)]),
-        cNum(k),
-      ])
+      if (cond) {
+        return cOp(tableOp, [
+          cCall('barssince', [this.resolve(cond), cNum(window)]),
+          cNum(k),
+        ])
+      }
+      // ⭐⭐ RISK-004 REMEDIATION — `barsSincePivot = nz(ta.barssince(cond), S)`
+      // on one line, compared on another. Resolved in the SAME swapped `env`
+      // `throughBinding` already set up, so `S` (which may itself be an input
+      // behind a binding, not a literal) folds in the scope it was written in.
+      // Sound only when `S` agrees with the capped window — see
+      // `nzSentinelSound`; when it does not, this returns null and the
+      // ordinary path produces the real, honest refusal.
+      const wrapped = nzWrappedBarssince(b.node)
+      if (wrapped) {
+        const s = this.constIntOf(wrapped.sentinel)
+        if (s !== null && nzSentinelSound(op, s, k)) {
+          return cOp(tableOp, [
+            cCall('barssince', [this.resolve(wrapped.cond), cNum(window)]),
+            cNum(k),
+          ])
+        }
+      }
+      return null
     })
   }
 

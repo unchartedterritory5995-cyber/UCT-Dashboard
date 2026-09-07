@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, treeYieldsBool } from './pine.js'
 import { parseFormula } from './parse.js'
+import { interpret } from './interpret.js'
 
 const CORPUS_DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_blind')
 
@@ -377,5 +378,113 @@ describe('✅ RISK-004 REMEDIATION A — every real corpus script that ever trig
     for (const r of mintickScripts) {
       expect(r.recovered, `${r.name} did not recover`).toBe(true)
     }
+  })
+})
+
+describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-wrapped sentinel)', () => {
+  // Four real corpus scripts blocked on ta.barssince, decomposed into TWO
+  // distinct shapes:
+  //   (1) `nz(ta.barssince(cond), S) <cmp> K` — the member supplies their OWN
+  //       sentinel for "never occurred," which may or may not agree with this
+  //       engine's saturating-cap sentinel for the SAME bucket. Fixed here,
+  //       WHEN PROVABLY SOUND (`nzSentinelSound` in pine.js).
+  //   (2) `barssince` used NUMERICALLY (feeding another function's window
+  //       argument) or compared against ANOTHER unbounded `barssince` call —
+  //       neither reduces to a finite comparison at all; classified as
+  //       EXECUTION-MODEL CAPABILITY GAPS, not fixed, not faked.
+
+  function formulaOf(src) {
+    const out = translatePine(`//@version=6\nindicator("t")\n${src}`)
+    if (!out.ok) return { ok: false, guard: out.refusal.guard, message: out.refusal.message }
+    return { ok: true, formula: out.outputs[out.selected].formula }
+  }
+
+  it('KERNEL VERIFIED FIRST (section 4): interpret.js already computes the bounded barssince(cond, n) correctly for every required scenario, on realistic bar data — never-occurred/insufficient-history (NaN), occurred this bar (0), 1 bar ago (1), N bars ago (2), a REPEATED occurrence resetting cleanly, and a long gap saturating at the cap. This is INHERITED, pre-existing kernel behavior — this tranche does not touch interpret.js.', () => {
+    const closes = [0, 0, 2, 0, 0, 2, 0, 0, 0, 0]
+    const t0 = 1700000000
+    const DAY = 86400
+    const bars = closes.map((c, i) => ({ t: t0 + i * DAY, o: 1, h: 2, l: 0.5, c, v: 100 }))
+    const res = parseFormula('barssince(close > open, 3)')
+    expect(res.ok, res.error).toBe(true)
+    const col = Array.from(interpret(res.ast, bars, {}))
+    expect(col.slice(0, 2).every((v) => Number.isNaN(v)), 'insufficient history before the window fills').toBe(true)
+    expect(col[2]).toBe(0) // occurred on this bar
+    expect(col[3]).toBe(1) // 1 bar ago
+    expect(col[4]).toBe(2) // N (=2) bars ago
+    expect(col[5]).toBe(0) // a REPEATED occurrence resets cleanly, not accumulates
+    expect(col[6]).toBe(1)
+    expect(col[7]).toBe(2)
+    expect(col[8]).toBe(3) // a long gap (>3 bars since) saturates at the cap...
+    expect(col[9]).toBe(3) // ...and stays there, not distinguishing "beyond window" from "never" —
+    // THIS is the exact fact `nzSentinelSound` exists to reason about.
+  })
+
+  it('SOUND: nz(barssince(cond), 1000) <= 3 (breakout-squeeze-release-breakout\'s exact shape, inline) produces the IDENTICAL formula as the bare, already-relied-upon form — the rewrite is provably redundant, not a new claim', () => {
+    const withNz = formulaOf('plot(nz(ta.barssince(close > open), 1000) <= 3 ? 1 : 0)')
+    const bare = formulaOf('plot(ta.barssince(close > open) <= 3 ? 1 : 0)')
+    expect(withNz.ok).toBe(true)
+    expect(bare.ok).toBe(true)
+    expect(withNz.formula).toBe(bare.formula)
+    expect(withNz.formula).toContain('barssince(close > open, 4)') // window = k+1 for <=, off-by-one verified
+  })
+
+  it('SOUND, through a binding: x = nz(barssince(cond),1000) on one line, x <= 3 on another — same identity, same formula as the bare through-binding form', () => {
+    const withNz = formulaOf(['x = nz(ta.barssince(close > open), 1000)', 'plot(x <= 3 ? 1 : 0)'].join('\n'))
+    const bare = formulaOf(['x = ta.barssince(close > open)', 'plot(x <= 3 ? 1 : 0)'].join('\n'))
+    expect(withNz.ok).toBe(true)
+    expect(withNz.formula).toBe(bare.formula)
+  })
+
+  it('UNSOUND (breakout-flat-base-pivot-breakout\'s exact shape): nz(barssince(cond), 0) >= baseLen is NOT rewritten — 0 disagrees with what the capped window would answer for ">=", so forcing it would be a confident wrong answer on a symbol with no pivot yet. MUTATION-SENSITIVE: this is exactly the case `nzSentinelSound` exists to catch — remove or invert that check and this test goes red.', () => {
+    const out = formulaOf(['baseLen = input.int(35, "x")', 'x = nz(ta.barssince(close > open), 0)', 'plot(x >= baseLen ? 1 : 0)'].join('\n'))
+    expect(out.ok, 'this must stay refused — forcing it would silently invert the never-occurred answer').toBe(false)
+    expect(out.guard).toBe('pine:function')
+    expect(out.message).toContain('UNBOUNDED')
+  })
+
+  it('the soundness rule generalizes across all four comparison operators, not just the two real corpus values (non-vacuity: sound and unsound cases exist on BOTH sides of every operator)', () => {
+    // For `<` and `<=`, the capped window implies FALSE — a sentinel that also
+    // evaluates false (S clearly outside the window, e.g. huge) is sound;
+    // a sentinel that evaluates true (S inside the window) is not.
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 1000) < 3 ? 1 : 0)').ok).toBe(true)
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 1) < 3 ? 1 : 0)').ok).toBe(false)
+    // For `>` and `>=`, the capped window implies TRUE — a sentinel that also
+    // evaluates true (S huge) is sound; one that evaluates false (S=0) is not.
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 1000) > 3 ? 1 : 0)').ok).toBe(true)
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 0) > 3 ? 1 : 0)').ok).toBe(false)
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 1000) >= 3 ? 1 : 0)').ok).toBe(true)
+    expect(formulaOf('plot(nz(ta.barssince(close > open), 0) >= 3 ? 1 : 0)').ok).toBe(false)
+  })
+
+  it('CAPABILITY GAP, not fixed: barssince used NUMERICALLY as another function\'s window argument (recency-breakout-hold-since-trigger\'s exact shape) stays refused — no comparison exists to bound it, so there is nothing this tranche\'s identity can apply to', () => {
+    const out = formulaOf(['trigger = close > open', 'age = ta.barssince(trigger)', 'x = ta.lowest(close, math.max(age, 1))', 'plot(x > 0 ? 1 : 0)'].join('\n'))
+    expect(out.ok).toBe(false)
+    expect(out.guard).toBe('pine:function')
+    expect(out.message).toContain('UNBOUNDED')
+    // Confirms this is NOT a `ta.lowest` window-argument restriction in general —
+    // an ordinary bound expression works fine there.
+    const ordinary = formulaOf(['n = input.int(5, "n")', 'x = ta.lowest(close, math.max(n, 1))', 'plot(x > 0 ? 1 : 0)'].join('\n'))
+    expect(ordinary.ok).toBe(true)
+  })
+
+  it('CAPABILITY GAP, not fixed: barssince(A) compared to barssince(B) (recency-fresh-golden-cross\'s exact shape) stays refused — no local, sound, finite identity exists without a runtime primitive for "which condition fired more recently"', () => {
+    const out = formulaOf(['gc = close > open', 'dc = close < open', 'barsGC = ta.barssince(gc)', 'barsDC = ta.barssince(dc)', 'plot((na(barsDC) or barsDC > barsGC) ? 1 : 0)'].join('\n'))
+    expect(out.ok).toBe(false)
+    expect(out.guard).toBe('pine:function')
+  })
+
+  it('the real corpus is unaffected beyond the one sound script: exactly 20 misses remain (was 21), and the newly-passing script is breakout-squeeze-release-breakout', () => {
+    const files = fs.readdirSync(CORPUS_DIR).filter((f) => f.endsWith('.pine'))
+    const misses = []
+    for (const f of files) {
+      const name = f.replace(/\.pine$/, '')
+      const source = fs.readFileSync(path.join(CORPUS_DIR, f), 'utf8')
+      if (!yieldsBoolScreen(source)) misses.push(name)
+    }
+    expect(misses).not.toContain('breakout-squeeze-release-breakout')
+    expect(misses).toContain('breakout-flat-base-pivot-breakout') // unsound nz sentinel — stays a miss
+    expect(misses).toContain('recency-breakout-hold-since-trigger') // numeric window use — stays a miss
+    expect(misses).toContain('recency-fresh-golden-cross') // barssince vs barssince — stays a miss
+    expect(misses.length).toBe(20)
   })
 })
