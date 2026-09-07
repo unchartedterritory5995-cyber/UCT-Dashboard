@@ -142,6 +142,28 @@ describe('CommandPalette — search + selection', () => {
     await screen.findByText('Apple Inc.')
   })
 
+  // Search/Command Convergence V1's Phase A (2026-09-06) confirmed this was
+  // a real, pre-existing bug: a non-2xx JSON error body (e.g. a 402
+  // paywall shape, `{"detail": "..."}`) is a truthy object, so a bare
+  // `fetch(url).then(r => r.json())` treated it as valid search results.
+  // Now routed through the shared `jsonFetcher`, which throws on !r.ok so
+  // the existing AbortError-aware catch handler surfaces it as a real
+  // error state instead of a malformed/empty results list.
+  it('a non-2xx ticker-search response reads as an error, not empty/malformed results', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: false, status: 402, json: () => Promise.resolve({ detail: 'payment required' }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'AAPL' } })
+    await screen.findByText(/search is briefly unavailable/i)
+    expect(screen.queryByText('payment required')).not.toBeInTheDocument()
+  })
+
   it('a stale response never overwrites a newer query\'s results', async () => {
     const resolvers = {}
     global.fetch = vi.fn((url) => {
