@@ -6,7 +6,16 @@
 //
 // Combines two existing data sources:
 //   - useFlagged() — the flagged shadow list (localStorage + server-synced)
-//   - GET /api/watchlists — all user watchlists with their items
+//   - GET /api/watchlists?include_prebuilt=0 — the user's OWN watchlists + items
+//
+// ⛔ `include_prebuilt=0` is load-bearing twice over. CORRECTNESS: the admin-curated
+// INDEX lists are owned by the admin account, so they come back as that user's own
+// lists — and "is this ticker on your radar?" cannot be answered yes because the
+// symbol is in the Russell 2000, which would light up essentially every small-cap.
+// COST: this hook runs inside `LogoPrewarm` at APP ROOT, so it is on the shell path
+// of EVERY page, every 60 s. Measured on prod 2026-09-07 with the prebuilt lists in:
+// 33 of 34 lists, 4,725 of 4,726 items, 592 KB, 28.1 s cold / 6.6 s warm — against
+// ONE real list holding ONE symbol.
 //
 // Refreshed at the same cadence as the rest of the watchlist surfaces (60s).
 import { useMemo } from 'react'
@@ -17,7 +26,7 @@ const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
 
 export default function useUserTickerSet() {
   const { flagged } = useFlagged()
-  const { data: watchlists } = useSWR('/api/watchlists', fetcher, {
+  const { data: watchlists } = useSWR('/api/watchlists?include_prebuilt=0', fetcher, {
     refreshInterval: 60000,
     revalidateOnFocus: false,
   })
