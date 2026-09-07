@@ -1384,6 +1384,23 @@ export default function OptionsFlowDashboard() {
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
         _prehydrated.current = true;   // the budget firstPassWaitMs spends
         setD(pre.D);
+        // ── the date-range picker's calendar ────────────────────────────────
+        // `availableDates` is normally derived by PARSING THE TAPE. Defer that
+        // download and it stays empty — and the picker gates itself off on
+        // `availableDates.length > 0`, so the whole control DISAPPEARS. A
+        // vanishing control is not a faster page, it is a smaller one; speed is
+        // not allowed to be bought by hiding what the member can no longer do.
+        //
+        // The server built this from the same helper over the same unfiltered
+        // rows (flowFactsEntry: stats.availableDates), so adopting it is the
+        // identical value arriving earlier, not an approximation of it.
+        //
+        // ⛔ FILLS AN EMPTY CALENDAR, NEVER REPLACES ONE. The parsed rows stay
+        // the authority: a late prehydrate landing after the tape must not
+        // narrow a wider calendar the tape has already published.
+        if (Array.isArray(pre.stats?.availableDates) && pre.stats.availableDates.length) {
+          setAvailableDates(prev => (prev && prev.length ? prev : pre.stats.availableDates));
+        }
       });
     }
 

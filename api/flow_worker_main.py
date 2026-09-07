@@ -25,6 +25,14 @@ hour and carry lands ≤100% instead of 3292%.
 traded, so a prior=0 artifact (no captured baseline) is dropped from the board.
 (2026-09-04 follow-up #3:) CARRY% now fills for NEW rows too (was blanked when no
 prior-day baseline) — carry = ΔOI/volume is meaningful for a new position, gate bounds it.
+(2026-09-07, same trigger:) the Options Flow aggregate now emits `stats.availableDates`
+(app/src/pages/optionsFlow/flowFactsEntry.js -> app/dist/flow-facts.cjs, which THIS service
+runs). The date-range picker renders only when that calendar is non-empty, and the page
+derives it by parsing the 16 MB tape — so deferring the tape off the cold path made the
+control disappear. The bundle is a build artifact of app/**, which is NOT on this service's
+watch list, so an app-only push would leave flow-worker serving the OLD bundle and the
+picker still missing. This header edit is that deploy trigger. Shipped 18:0x ET on Labor
+Day with the market closed, so the consumer bounce gaps no live prints.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

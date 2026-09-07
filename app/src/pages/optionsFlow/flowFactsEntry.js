@@ -76,8 +76,11 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
   // the page renders, and the numbers would change under the reader a couple
   // of seconds after first paint. Filtering here with filterRowsByDate makes
   // the match structural instead of coincidental.
+  // The trading calendar of the FETCHED window, hoisted because it is now also
+  // EMITTED (see stats.availableDates below) rather than only used here.
+  const availableDates = availableDatesFrom(rows)
   const selected = dateFilter
-    ? filterRowsByDate(rows, { dateFilter, availableDates: availableDatesFrom(rows) })
+    ? filterRowsByDate(rows, { dateFilter, availableDates })
     : rows
   if (!selected.length) throw new Error('no rows match dateFilter=' + dateFilter)
 
@@ -98,6 +101,20 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
       // What the client would otherwise have had to build for itself.
       totalTrades: D ? D.totalTrades : 0,
       confirmedCount: D ? D.confirmedCount : 0,
+      // ⛔ NOT a statistic — a VALUE the page cannot otherwise obtain without
+      // the tape. `availableDates` drives the date-range picker, and the page
+      // derives it by parsing the raw CSV. Defer that download and the picker
+      // gates itself off (`availableDates.length > 0`) and DISAPPEARS — a
+      // control vanishing is exactly the "hide missing data" failure the
+      // deferral is not allowed to buy speed with.
+      //
+      // Emitted from the SAME function over the SAME unfiltered rows the page
+      // would have used, so it is identical by construction rather than by
+      // agreement — no second implementation to drift. It is deliberately the
+      // UNFILTERED calendar: `availableDates` follows the FETCHED window, not
+      // the current selection, which is why /api/flow/dates (every date in the
+      // DB) cannot stand in for it.
+      availableDates,
     },
   }
 }
