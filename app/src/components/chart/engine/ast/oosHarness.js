@@ -1,0 +1,241 @@
+// app/src/components/chart/engine/ast/oosHarness.js
+//
+// LAYER A of OOS_2_MEASUREMENT_PROTOCOL.md — the static, offline, deterministic
+// measurement of one Pine script against the shipped import door.
+//
+// ⛔ THIS FILE MEASURES. IT DOES NOT JUDGE A SCRIPT GOOD OR BAD, and it never
+// collapses a script to one PASS/FAIL. The protocol's whole point is that a
+// script can be semantically supported and visually partial, or chart-supported
+// and not screener-expressible, or correctly refused — so every axis is reported
+// separately and the outcome vocabulary is assigned from the axes, not the
+// reverse.
+//
+// ⚠️ TRANSLATES != RENDERS. Nothing in this file may be read as a rendering
+// claim. Chart, persistence and visual-fidelity axes are Layer C (browser).
+
+import { translatePine, treeYieldsBool, readsBars } from './pine.js'
+import { parseFormula } from './parse.js'
+
+/** ⭐ THE ASSISTED PATH, EXACTLY AS A MEMBER WOULD WALK IT: splice the engine's
+ *  OWN `suggest` over its OWN `span`, and repeat. No hand-editing, no Pine we
+ *  wrote ourselves. If the door does not offer it, the member does not get it.
+ *  Same mechanism `pine.blindCorpus.test.js` established; kept identical so the
+ *  OOS number is comparable to the 48-corpus number. */
+export function acceptEveryOffer(src, limit = 12) {
+  let cur = src
+  const taken = []
+  for (let i = 0; i < limit; i += 1) {
+    let o
+    try { o = translatePine(cur) } catch { return { source: null, taken, stopped: 'threw' } }
+    if (o.ok) return { source: cur, taken, stopped: 'ok' }
+    const r = o.refusal
+    if (!r || !r.suggest || !Array.isArray(r.span)) {
+      return { source: null, taken, stopped: r ? `no-offer:${r.guard}` : 'no-refusal' }
+    }
+    taken.push({ guard: r.guard, replaced: cur.slice(r.span[0], r.span[1]), suggest: r.suggest })
+    cur = cur.slice(0, r.span[0]) + r.suggest + cur.slice(r.span[1])
+  }
+  return { source: null, taken, stopped: 'limit' }
+}
+
+/** Pine's own visual-emitting call names, counted in the SOURCE. Mirrors
+ *  `tools/oos_visual_classify.py`'s families so the two agree on demand counts;
+ *  the Python tool remains the authority for the V0-V5 tier itself. */
+const VISUAL_CALLS = [
+  'plot', 'hline', 'fill', 'bgcolor', 'barcolor',
+  'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar',
+]
+const OBJECT_NS = ['label', 'line', 'box', 'table', 'polyline', 'linefill']
+
+function stripComments(src) {
+  const holes = []
+  let s = src.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, (m) => {
+    holes.push(m)
+    return `\u0000S${holes.length - 1}\u0000`
+  })
+  s = s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  return s.replace(/\u0000S(\d+)\u0000/g, (_, i) => holes[Number(i)])
+}
+
+export function sourceVisualDemand(src) {
+  const s = stripComments(src)
+  const calls = {}
+  for (const name of VISUAL_CALLS) {
+    const m = s.match(new RegExp(`\\b${name}\\s*\\(`, 'g'))
+    if (m) calls[name] = m.length
+  }
+  const objects = {}
+  for (const ns of OBJECT_NS) {
+    const m = s.match(new RegExp(`\\b${ns}\\s*\\.\\s*\\w+`, 'g'))
+    if (m) objects[ns] = m.length
+  }
+  return {
+    calls,
+    objects,
+    declaredPlotCalls: calls.plot || 0,
+    declaredVisualCalls: Object.values(calls).reduce((a, b) => a + b, 0),
+    declaredObjectCalls: Object.values(objects).reduce((a, b) => a + b, 0),
+    usesOverlayTrue: /\boverlay\s*=\s*true\b/.test(s),
+    usesOverlayFalse: /\boverlay\s*=\s*false\b/.test(s),
+    // ⚠️ RISK-043's FINGERPRINT. A top-level block the walker cannot fold is
+    // exactly where a stale pre-block value used to leak into a later binding.
+    // Recorded on EVERY script, accepted or not, so the silent-false-success
+    // audit has a population to work from rather than a hunch.
+    hasBlockKeyword: /^[ \t]*(?:if|for|while|switch)\b/m.test(s),
+    hasReassign: /:=/.test(s),
+    hasVarDecl: /\bvar(?:ip)?\s+/.test(s),
+    hasRequestSecurity: /\brequest\s*\.\s*security\b/.test(s),
+    hasSession: /\b(?:session|time\s*\()/.test(s),
+    hasArray: /\barray\s*\.\s*\w+/.test(s),
+    hasMatrixOrMap: /\b(?:matrix|map)\s*\.\s*\w+/.test(s),
+    hasUserFunction: /^[ \t]*\w+\s*\([^)]*\)\s*=>/m.test(s),
+    hasStrategyCall: /\bstrategy\s*(?:\.\s*\w+)?\s*\(/.test(s),
+    hasLibraryCall: /\blibrary\s*\(/.test(s),
+    hasImport: /^\s*import\s+/m.test(s),
+  }
+}
+
+function outputRow(row) {
+  const parsed = row.formula ? parseFormula(row.formula) : null
+  const ok = !!(parsed && parsed.ok)
+  return {
+    kind: row.kind || null,
+    title: row.title || null,
+    line: row.line ?? null,
+    refused: !!row.refusal,
+    guard: row.refusal ? row.refusal.guard : null,
+    hidden: !!row.hidden,
+    hiddenReason: row.hiddenReason || null,
+    formula: row.formula || null,
+    parses: ok,
+    yieldsBool: ok ? !!treeYieldsBool(parsed.ast) : false,
+    readsBars: ok ? !!readsBars(parsed.ast) : false,
+    inputsFolded: Array.isArray(row.inputsFolded) ? row.inputsFolded.length : 0,
+  }
+}
+
+function summarise(out) {
+  const rows = (out.outputs || []).map(outputRow)
+  const usable = rows.filter((r) => !r.refused && !r.hidden)
+  return {
+    ok: !!out.ok,
+    version: out.version ?? null,
+    declaration: out.declaration || null,
+    title: out.title || null,
+    guard: out.refusal ? out.refusal.guard : null,
+    message: out.refusal ? String(out.refusal.message || '').slice(0, 400) : null,
+    line: out.refusal ? (out.refusal.line ?? null) : null,
+    allGuards: (out.refusals || []).map((r) => r.guard),
+    outputsTotal: rows.length,
+    outputsUsable: usable.length,
+    outputsRefused: rows.filter((r) => r.refused).length,
+    outputsHiddenByAuthor: rows.filter((r) => r.hiddenReason === 'author').length,
+    outputsHiddenAsConstant: rows.filter((r) => r.hiddenReason === 'constant').length,
+    outputsBool: usable.filter((r) => r.yieldsBool).length,
+    outputsNumeric: usable.filter((r) => !r.yieldsBool).length,
+    outputKinds: [...new Set(rows.map((r) => r.kind).filter(Boolean))].sort(),
+    selectedIndex: out.selected ?? -1,
+    selected: (out.selected >= 0 && rows[out.selected]) ? rows[out.selected] : null,
+    inputParams: (out.inputParams || []).length,
+    notes: (out.notes || []).map((n) => n.code || n.guard || String(n).slice(0, 60)),
+    rows,
+  }
+}
+
+/**
+ * Measure ONE script. Returns every axis the static layer can see, and NOTHING
+ * it cannot: no chart status, no visual fidelity, no persistence — those are
+ * Layer C and are absent here rather than guessed.
+ */
+export function measureScript(name, source) {
+  const demand = sourceVisualDemand(source)
+
+  let raw
+  try {
+    raw = summarise(translatePine(source))
+  } catch (e) {
+    raw = { ok: false, threw: String(e && e.message).slice(0, 200), outputsTotal: 0, rows: [] }
+  }
+
+  let assisted = null
+  let offers = []
+  let assistedStop = null
+  if (!raw.ok) {
+    const a = acceptEveryOffer(source)
+    offers = a.taken
+    assistedStop = a.stopped
+    if (a.source) {
+      try { assisted = summarise(translatePine(a.source)) } catch (e) {
+        assisted = { ok: false, threw: String(e && e.message).slice(0, 200) }
+      }
+    }
+  }
+
+  const accepted = raw.ok ? raw : (assisted && assisted.ok ? assisted : null)
+
+  // ── mechanical silent-false-success probes (protocol §5) ──
+  // ⛔ THESE ARE FLAGS, NOT VERDICTS. A flag means "an independent adjudicator
+  // must look at this script", never "this script is wrong". The protocol keeps
+  // adjudication separate from detection on purpose.
+  const probes = {}
+  if (accepted) {
+    // P5 — incomplete multi-output indicator presented as complete.
+    probes.declaredVsCarried = {
+      declaredVisualCalls: demand.declaredVisualCalls,
+      declaredObjectCalls: demand.declaredObjectCalls,
+      carriedOutputs: accepted.outputsTotal,
+      usableOutputs: accepted.outputsUsable,
+      shortfall: Math.max(0, demand.declaredVisualCalls - accepted.outputsTotal),
+    }
+    probes.P5_output_shortfall = demand.declaredVisualCalls > accepted.outputsTotal
+    // P4 — a declared visual the representation carries nothing for at all.
+    probes.P4_visuals_dropped = demand.declaredObjectCalls > 0
+      || (demand.calls.fill || 0) > 0
+      || (demand.calls.bgcolor || 0) > 0
+      || (demand.calls.barcolor || 0) > 0
+    // P7 — a column that can never fire.
+    probes.P7_constant_column = accepted.outputsHiddenAsConstant > 0
+    probes.P7_selected_is_constant = !!(accepted.selected && accepted.selected.hiddenReason === 'constant')
+    // P1/P2 — state or a block the walker could not fold, yet the script still passed.
+    probes.P1_P2_state_present_but_accepted =
+      (demand.hasBlockKeyword || demand.hasReassign || demand.hasVarDecl) && !!accepted.ok
+    // P3 — a series the engine cannot supply, folded to a constant.
+    probes.P3_request_present_but_accepted = demand.hasRequestSecurity && !!accepted.ok
+    probes.anyFlag = Object.entries(probes)
+      .filter(([k, v]) => k.startsWith('P') && v === true).map(([k]) => k)
+  }
+
+  // ── outcome vocabulary (protocol §4) ──
+  // INVALID_SOURCE is decided from the SOURCE, before any acceptance question,
+  // because a strategy()/library() script is out of the declared scope rather
+  // than a compatibility failure.
+  let outcome
+  if (demand.hasLibraryCall || demand.hasImport) outcome = 'INVALID_SOURCE'
+  else if (raw.declaration === 'strategy' || (!raw.declaration && demand.hasStrategyCall)) outcome = 'INVALID_SOURCE'
+  else if (raw.threw || (assisted && assisted.threw)) outcome = 'UNKNOWN_NEEDS_ADJUDICATION'
+  else if (raw.ok) outcome = 'RAW_ACCEPTED'
+  else if (assisted && assisted.ok) outcome = 'ASSISTED_ACCEPTED'
+  else if (raw.guard) outcome = 'CORRECTLY_REFUSED'
+  else outcome = 'UNKNOWN_NEEDS_ADJUDICATION'
+
+  // ⛔ A FLAGGED ACCEPTANCE IS NOT YET A SILENT FALSE SUCCESS, and this function
+  // must not promote it to one. Detection is mechanical; reclassification to
+  // SILENT_FALSE_SUCCESS happens only after independent adjudication, and is
+  // written back into the report by the adjudication step.
+  const needsAudit = !!(accepted && probes.anyFlag && probes.anyFlag.length > 0)
+
+  return {
+    name,
+    outcome,
+    needsSilentWrongResultAudit: needsAudit,
+    primaryBlocker: raw.ok ? null : (raw.guard || raw.threw || null),
+    secondaryBlockers: raw.ok ? [] : (raw.allGuards || []).slice(1),
+    assistedStop,
+    offersTaken: offers.length,
+    offers,
+    demand,
+    raw,
+    assisted,
+    probes,
+  }
+}
