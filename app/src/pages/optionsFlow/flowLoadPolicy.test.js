@@ -515,3 +515,41 @@ describe('the tape deferral is actually WIRED into the page', () => {
     expect(src).toContain('TOP 10 FLOW PICKS')
   })
 })
+
+// ── the deferral must not cost the member a CONTROL ─────────────────────────
+// Deferring the tape leaves `availableDates` empty, and the date-range picker
+// renders only when `availableDates.length > 0` — so the naive deferral made
+// the control DISAPPEAR. That is the "hide missing data" failure, not a win.
+// The server emits the same calendar (flowFactsEntry stats.availableDates);
+// these pin that the page actually adopts it.
+describe('the deferred tape does not take the date picker with it', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the prehydrate seeds availableDates from the server stats', () => {
+    const then = src.slice(src.indexOf('fetchPrehydrate('),
+                           src.indexOf('const versionedRefresh'))
+    expect(then).toContain('pre.stats?.availableDates')
+    expect(then).toContain('setAvailableDates(')
+  })
+
+  it('⛔ it FILLS an empty calendar and never REPLACES a tape-derived one', () => {
+    // A late prehydrate must not narrow a wider calendar the parsed rows have
+    // already published — the tape stays the authority.
+    const then = src.slice(src.indexOf('fetchPrehydrate('),
+                           src.indexOf('const versionedRefresh'))
+    const seed = then.slice(then.indexOf('pre.stats?.availableDates'))
+    expect(seed).toMatch(/prev\s*&&\s*prev\.length\s*\?\s*prev\s*:/)
+  })
+
+  it('the picker still gates on availableDates — so the seed is load-bearing', () => {
+    // If this gate ever goes away the seed stops being required; this rail
+    // should then be revisited rather than silently passing for a new reason.
+    expect(src).toContain('availableDates.length > 0 && (')
+  })
+
+  it('CONTROL: the source really was read', () => {
+    expect(src.length).toBeGreaterThan(100000)
+    expect(src).toContain('TOP 10 FLOW PICKS')
+  })
+})
