@@ -4,6 +4,7 @@ import GroupControls from '../grouping/GroupControls'
 import useBreadthGrouping from '../grouping/useBreadthGrouping'
 import { ChartsSymContext } from '../../charts/ChartsSymContext'
 import { useWorkspace } from '../../charts/WorkspaceContext'
+import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { useDrillSource } from './DrillSourceContext'
 import styles from './BreadthDrillList.module.css'
 
@@ -30,6 +31,8 @@ const DRILL_DEFAULT_COLS = {
   order: ['flag', 'sym', 'price', 'chg', 'rvol'],
   sort: { key: 'chg', dir: 'desc' },
 }
+// Namespaced off the watchlist key the same way the scanner namespaces its own.
+const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill`
 
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
@@ -184,12 +187,18 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             // All industries open at once, each independently collapsible —
             // seeing which dominate the cohort IS the read.
             groupExpand="multi"
-            // FIRST-RUN columns only. `colStorageKey` is deliberately absent, so
-            // this list stores under the GLOBAL watchlist key — a user who has
-            // ever arranged their watchlist columns sees exactly that arrangement
-            // here, which is the whole point. This default applies only when
-            // there is no saved layout yet, and it leads with RVOL rather than
-            // Vol because a recorded drill carries the ratio, not raw volume.
+            // ⛔ The drill keeps its OWN column layout, and that is the
+            // consistent choice rather than a divergence: ScannerResults already
+            // gives every scan its own key, for exactly this reason.
+            //
+            // Sharing the global watchlist key was tried and shipped a DEAD
+            // column. A watchlist's `Vol` means RAW volume, which works fine on
+            // /charts and can never be filled from a recorded breadth snapshot
+            // (the payload carries the RATIO). With one shared layout, whichever
+            // surface the user did not arrange for keeps a column of em-dashes.
+            // Its own key lets the drill lead with RVOL — which it CAN fill —
+            // while the user's watchlists keep their arrangement untouched.
+            colStorageKey={DRILL_COLS_KEY}
             defaultColCfg={DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}

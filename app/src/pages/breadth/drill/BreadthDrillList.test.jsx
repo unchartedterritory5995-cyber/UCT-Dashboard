@@ -102,13 +102,15 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
     expect(lastProps.metaOverride.SRPT.rvol).toBeCloseTo(240)
   })
 
-  it('leads with RVOL, not Vol, when the user has no saved column layout', () => {
+  it('⛔ leads with RVOL and keeps its OWN column key — Vol can never be filled', () => {
+    // Sharing the global watchlist key shipped a dead column: `Vol` means RAW
+    // volume, which a recorded snapshot has no way to supply, so every row
+    // showed an em-dash there for anyone whose watchlists include it.
     mount(LIVE)
     expect(lastProps.defaultColCfg.order).toContain('rvol')
     expect(lastProps.defaultColCfg.order).not.toContain('vol')
-    // …but the list still stores under the GLOBAL watchlist key, so a user who
-    // HAS arranged their columns sees that arrangement instead.
-    expect(lastProps.colStorageKey).toBeUndefined()
+    expect(lastProps.colStorageKey).toBeTruthy()
+    expect(lastProps.colStorageKey).toMatch(/breadthDrill$/)
   })
 
   it('offers no dead back button — there is no picker to return to', () => {
