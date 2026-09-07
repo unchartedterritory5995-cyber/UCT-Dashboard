@@ -150,9 +150,16 @@ function summarise(out) {
 export function measureScript(name, source) {
   const demand = sourceVisualDemand(source)
 
+  // ⛔⛔ `paramManifest: true` IS NOT OPTIONAL HERE, AND LEAVING IT OFF READS AS A
+  // PRODUCT FINDING. `translatePine` mints Track-F parameter metadata only when
+  // asked; without the option it returns `inputParams: []` for every script ever
+  // written. The first baseline run reported "input params discovered: 0/60,
+  // 0.0%" — which is not a fact about the door, it is a fact about the call. A
+  // vacuous zero that looks like a devastating result is worse than no
+  // measurement at all.
   let raw
   try {
-    raw = summarise(translatePine(source))
+    raw = summarise(translatePine(source, { paramManifest: true }))
   } catch (e) {
     raw = { ok: false, threw: String(e && e.message).slice(0, 200), outputsTotal: 0, rows: [] }
   }
@@ -165,7 +172,7 @@ export function measureScript(name, source) {
     offers = a.taken
     assistedStop = a.stopped
     if (a.source) {
-      try { assisted = summarise(translatePine(a.source)) } catch (e) {
+      try { assisted = summarise(translatePine(a.source, { paramManifest: true })) } catch (e) {
         assisted = { ok: false, threw: String(e && e.message).slice(0, 200) }
       }
     }

@@ -295,4 +295,33 @@ transitions. A materially simplified rendering is never described as an exact re
 Append only. Each amendment must be dated, must state what changed, and must state why the
 change is not a post-hoc adjustment made to improve a measured number.
 
-*(none yet)*
+### A-1 (2026-09-07) — REFUSAL ACCURACY becomes a reported metric
+
+**What changed.** §4's `CORRECTLY_REFUSED` requires a refusal that "names a real construct the
+engine genuinely cannot faithfully reproduce, **and does not mischaracterise it**." The first
+baseline run produced refusals that satisfy the first half and fail the second, and the
+vocabulary had no way to say so. Two shapes were found, both by reading the baseline output:
+
+1. **Mischaracterised refusal.** Four scripts refuse with `pine:character` — *"Pine has no
+   character like this one"* — on lines of entirely valid Pine v6 containing no non-ASCII
+   character at all. Isolated by direct probe: a **member access on a call result**
+   (`arr.get(0).v`, `a.slice(0,1).size()`) trips the lexer's character guard. The refusal is
+   correct that it cannot proceed and wrong about why, and the sentence it shows would lead a
+   member to believe their script is corrupt.
+2. **Silent decline.** One script returns `ok:false` with `refusal: null` — no message at all.
+   Its only `plot()` is the `plot(0)` placeholder that table-drawing indicators conventionally
+   carry; the engine correctly detects it reads no bars and correctly declines to offer it as a
+   column, then says nothing.
+
+**The change.** REFUSAL ACCURACY is now reported alongside the outcome metrics: of all
+refusals, how many name the real cause, how many mischaracterise it, and how many are silent.
+Scripts in categories 1 and 2 continue to be counted as refusals for acceptance accounting —
+nothing false is presented as true, and no wrong number reaches a user — but the truthful-outcome
+rate must be reported **twice**: once for "did the product tell the truth about *whether* it
+worked" and once, stricter, for "did it also tell the truth about *why*".
+
+**Why this is not a post-hoc adjustment to improve a number.** It moves the headline the other
+way. Under the loose reading the baseline's truthful-outcome rate is 98.3%; under the strict
+reading it is 91.7%. The amendment exists because the vocabulary could not express a defect that
+was found, and the honest response to that is a new metric that costs us, not a definition that
+absorbs it.

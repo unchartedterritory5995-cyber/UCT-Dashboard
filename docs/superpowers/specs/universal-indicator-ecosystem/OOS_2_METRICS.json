@@ -1,0 +1,647 @@
+{
+  "freeze_id": "5df718c2f342571ac57c32a8cdaf337ae7462eababe5aa2e0a8b3fd2e9f4904d",
+  "scripts": 60,
+  "outcomes": {
+    "RAW_ACCEPTED": 21,
+    "CORRECTLY_REFUSED": 38,
+    "UNKNOWN_NEEDS_ADJUDICATION": 1
+  },
+  "truthful_outcome_rate": 0.9833333333333333,
+  "raw_acceptance": 0.35,
+  "assisted_acceptance": 0.35,
+  "flagged_for_swr_audit": [
+    "high_engagement__02-waddah-attar-explosion-lazybear",
+    "high_engagement__03-supertrend-kivancozbilgic",
+    "high_engagement__04-ttm-squeeze-greeny",
+    "high_engagement__10-rsi-divergence-faytterro",
+    "high_engagement__11-vumanchu-cipher-a-vumanchu",
+    "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody",
+    "high_engagement__14-heikin-ashi-candle-overlay-bjorgum",
+    "high_engagement__22-reversal-probability-profile-algoalpha",
+    "high_engagement__24-coppock-curve-multi-filter-markittick",
+    "long_tail__02-relative-volume-candles-narrow-ranges",
+    "long_tail__16-spy-position-helper",
+    "mid_engagement__01-zeiierman-trend-pressure",
+    "mid_engagement__05-supertrend-fibonacci-ote",
+    "mid_engagement__07-3way-bollinger-trend",
+    "mid_engagement__09-relative-volume-breakout-context",
+    "mid_engagement__13-spma-trend",
+    "mid_engagement__14-master-line-lite",
+    "mid_engagement__17-volume-surge-radar",
+    "mid_engagement__19-oliver-kell-volume-monitor",
+    "mid_engagement__22-rsi-levels-regime-map"
+  ],
+  "blockers": {
+    "pine:character": 4,
+    "pine:function": 8,
+    "pine:tuple": 3,
+    "pine:state": 3,
+    "pine:request": 2,
+    "pine:no-output": 7,
+    "pine:builtin": 3,
+    "pine:function-def": 2,
+    "pine:reassign": 6
+  },
+  "per_script": {
+    "high_engagement__02-waddah-attar-explosion-lazybear": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V3",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+      "primary_blocker": null,
+      "outputs_total": 3,
+      "outputs_bool": 0
+    },
+    "high_engagement__03-supertrend-kivancozbilgic": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V4",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v4",
+      "primary_blocker": null,
+      "outputs_total": 10,
+      "outputs_bool": 3
+    },
+    "high_engagement__04-ttm-squeeze-greeny": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V3",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+      "primary_blocker": null,
+      "outputs_total": 2,
+      "outputs_bool": 0
+    },
+    "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:character",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__09-on-balance-volume-everget": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V4",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v3",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__10-rsi-divergence-faytterro": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 3,
+      "outputs_bool": 0
+    },
+    "high_engagement__11-vumanchu-cipher-a-vumanchu": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V4",
+      "engagement": "high_engagement",
+      "complexity": "medium",
+      "pine_version": "v4",
+      "primary_blocker": null,
+      "outputs_total": 23,
+      "outputs_bool": 12
+    },
+    "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V4",
+      "engagement": "high_engagement",
+      "complexity": "medium",
+      "pine_version": "unknown (no //@version directive present; legacy pre-v2 default, uses study())",
+      "primary_blocker": null,
+      "outputs_total": 7,
+      "outputs_bool": 0
+    },
+    "high_engagement__13-ultimate-opening-range-breakout-luxalgo": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__14-heikin-ashi-candle-overlay-bjorgum": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V3",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v5",
+      "primary_blocker": null,
+      "outputs_total": 8,
+      "outputs_bool": 0
+    },
+    "high_engagement__15-linear-regression-channel-lonesometheblue": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "medium",
+      "pine_version": "v4",
+      "primary_blocker": "pine:tuple",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__16-klinger-volume-oscillator-everget": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V4",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v3",
+      "primary_blocker": "pine:state",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:character",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__18-cross-correlation-kioseff-trading": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "v5",
+      "primary_blocker": "pine:character",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__19-anchored-vwap-stuehmer": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V1",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v3",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__20-ehlers-fisher-transform-cheatcountry": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V3",
+      "engagement": "high_engagement",
+      "complexity": "short",
+      "pine_version": "v4",
+      "primary_blocker": "pine:request",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__21-parabolic-sar-deviation-bigbeluga": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__22-reversal-probability-profile-algoalpha": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "6",
+      "primary_blocker": null,
+      "outputs_total": 8,
+      "outputs_bool": 2
+    },
+    "high_engagement__23-sweep-reversal-map-plus-herman": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "6",
+      "primary_blocker": "pine:state",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "high_engagement__24-coppock-curve-multi-filter-markittick": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "high_engagement",
+      "complexity": "long",
+      "pine_version": "6",
+      "primary_blocker": null,
+      "outputs_total": 18,
+      "outputs_bool": 2
+    },
+    "long_tail__01-ny-macro-status": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__02-relative-volume-candles-narrow-ranges": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V4",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 7,
+      "outputs_bool": 0
+    },
+    "long_tail__03-heikin-ashi-lag-meter": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:builtin",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__04-warm-up-curtain": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:state",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__05-master-line-plus": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__06-sector-rotation-leadership-persistence": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function-def",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__07-hurst-exponent-regime": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V0",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__08-vix-term-structure": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:request",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__09-signal-follow-through-ledger": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__10-mtf-supply-demand": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__11-percent-range-tool": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__12-setup-grader": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:tuple",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__13-volatility-of-returns": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V2",
+      "engagement": "long_tail",
+      "complexity": "short",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 2,
+      "outputs_bool": 0
+    },
+    "long_tail__14-vwap-z-score-oscillator": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V4",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:tuple",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__15-agreed-upon-dol": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:character",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__16-spy-position-helper": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 16,
+      "outputs_bool": 0
+    },
+    "long_tail__17-db-seasonal-by-date-range": {
+      "outcome": "UNKNOWN_NEEDS_ADJUDICATION",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__18-deltalabs-equal-highs-equal-lows": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__19-session-fibs-falcon-ai": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "long_tail",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "long_tail__20-cot-pulse-cloud-trend": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V0",
+      "engagement": "long_tail",
+      "complexity": "long",
+      "pine_version": "6",
+      "primary_blocker": "pine:builtin",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__01-zeiierman-trend-pressure": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 18,
+      "outputs_bool": 0
+    },
+    "mid_engagement__03-volatility-supply-demand-zones": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function-def",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__04-cisd-order-block": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__05-supertrend-fibonacci-ote": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 13,
+      "outputs_bool": 0
+    },
+    "mid_engagement__07-3way-bollinger-trend": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 5,
+      "outputs_bool": 0
+    },
+    "mid_engagement__08-hourly-alpha-profile-terminal": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__09-relative-volume-breakout-context": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 12,
+      "outputs_bool": 0
+    },
+    "mid_engagement__10-smc-engine": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "medium",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__12-structure-participation-matrix": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__13-spma-trend": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V4",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 9,
+      "outputs_bool": 0
+    },
+    "mid_engagement__14-master-line-lite": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "short",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 7,
+      "outputs_bool": 4
+    },
+    "mid_engagement__15-multi-timeframe-ma-forecast": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:builtin",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__16-ict-smc-guide": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:function",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__17-volume-surge-radar": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 28,
+      "outputs_bool": 0
+    },
+    "mid_engagement__18-market-profile-tpo": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__19-oliver-kell-volume-monitor": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "short",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 6,
+      "outputs_bool": 0
+    },
+    "mid_engagement__20-mann-kendall-trend-significance": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:reassign",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__21-market-compass-dynamic-range": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    },
+    "mid_engagement__22-rsi-levels-regime-map": {
+      "outcome": "RAW_ACCEPTED",
+      "visual_tier": "V5",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": null,
+      "outputs_total": 28,
+      "outputs_bool": 6
+    },
+    "mid_engagement__23-distilled-htf-po3": {
+      "outcome": "CORRECTLY_REFUSED",
+      "visual_tier": "V0",
+      "engagement": "mid_engagement",
+      "complexity": "long",
+      "pine_version": "v6",
+      "primary_blocker": "pine:no-output",
+      "outputs_total": null,
+      "outputs_bool": null
+    }
+  }
+}
