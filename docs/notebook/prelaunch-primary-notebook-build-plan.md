@@ -2919,3 +2919,379 @@ tracked gap, not silently dropped, see the gap ledger's new G-073b row).
 the computed-read changelog's five source classes, and the
 Research-Type-not-a-body-field template convention — none of these were
 redesigned by this pass.
+
+---
+
+## Wave H — Research Home + Per-Ticker Research Workspace + Continuation UX — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch
+for any part of Wave H's research, architecture, implementation, testing,
+browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction (read before design, not after)
+
+**The single most load-bearing finding this checkpoint turned on: a real,
+extensive, paid "Company Page" ALREADY EXISTS — `/research/:sym`
+(`app/src/pages/research/ResearchPage.jsx`).** Ten tabs (Overview/News/
+Financials/Estimates/Analyst Ratings/Ratings/Ownership/Calls & Transcript/
+Filings/Ask AI), paid-gated, 100% market/vendor data, zero personal-research
+content. It is the surface directive §11/§32/§33 describe — undocumented
+anywhere in `CLAUDE.md` (a real gap in that file, not this program's to fix).
+This resolves §11's ownership question directly, not speculatively:
+
+- `/research/:sym` already owns MARKET/COMPANY DATA. Wave H must not
+  duplicate any of it.
+- The Ticker Research Workspace is a NEW, Notebook-owned surface (personal
+  research only), reachable from `/research/:sym` via one new bridge tab/
+  link — never a second implementation. `ResearchPage.jsx`'s `TABS` array
+  gains a thin entry that renders the SAME component Notebook's own route
+  mounts (one component, two entry surfaces — directive §5/§11's explicit
+  "do not create two unrelated dashboard implementations").
+- Command palette discoverability (§51) is **already 90% solved with zero
+  new code**: `CommandPalette.jsx` already routes any typed ticker-like
+  query straight to `/research/<TICKER>` (confirmed reading the file — the
+  synthetic `{ticker, _typed:true}` row exists specifically so an unmatched
+  typed ticker still navigates there). Once `/research/:sym` carries a "My
+  Research" tab, typing "NVDA" in the palette already reaches it in two
+  clicks, no new palette command required for the primary path.
+
+**Second load-bearing finding: `list_notes`/`_notes_filter_sql` already
+implements most of §37/§83's "high-confidence membership sources" as a
+tested, production-live query primitive** (`api/services/journal_two/notes.py`
+lines 834-975), used today by the `embed_symbol`/`sector`/`theme` filters and
+`get_symbol_backlinks` (the existing "N entries mention AMD" backlinks
+widget): a note qualifies via `j2_notes.ticker` (exact, the note's own
+primary-security field), `j2_note_embeds.symbol` (accepted chart/widget
+embeds), or `j2_note_mentions.symbol` (explicit `$CASHTAG` prose mentions,
+never a bare substring match — directive §83's own explicit prohibition is
+already satisfied by construction). `get_symbol_backlinks` itself is
+NOT reused verbatim for the workspace (it omits the `ticker` field match and
+caps at 25 with no pagination — the wrong shape for a full-corpus "View all"
+membership query) but its exact UNION shape is the template for the new
+entity→research read model.
+
+**Third finding: entity_master is a real but PARTIAL identity layer here.**
+`entity_master.resolve(symbol)` / `.aliases(entity_id)` exist and are already
+consumed by Wave F (`j2_fact_observations.entity_id`). Nothing else in the
+note-ticker layer (`j2_notes.ticker`, `j2_note_embeds.symbol`,
+`j2_note_mentions.symbol`) stores `entity_id` — all three are plain uppercase
+symbol strings, unchanged since before Wave F. Retrofitting `entity_id` into
+all three would be exactly the invasive migration directive §184/§185
+forbids. The resolved design (decision 5 below) uses `entity_master` for
+canonical DISPLAY identity and precise Wave F fact aggregation, and the
+existing symbol-string predicates (widened across the entity's known alias
+history) for everything else — never a schema migration.
+
+**Fourth finding: there is no existing "resume last note" habit to protect.**
+Read `NotebookTab.jsx` in full: bare `/journal/notebook` (no `note`/`folder`/
+`tag`/`view` params) has always rendered the flat, unfiltered All Notes grid
+(or the empty-state template picker) — never an auto-resumed note. Changing
+the bare-root default to Research Home is additive, not a regression against
+an established continuation habit (directly answers §58's own risk concern).
+
+**Fifth finding: Home's read-model raw materials are ALL already bounded,
+tenant-scoped, trash-excluding, existing functions** — `notes.list_favorites`/
+`notes.list_recents` (Wave B), `note_properties.property_filter_sql` (Wave E,
+the exact predicate Wave G's four starter views already use for Active/High-
+Confidence/Needs-Review/Invalidated), and a new (not yet built) open-position
+join over `j2_note_embeds`+`j2_positions`. No new storage needed for Home
+itself.
+
+**Sixth finding: `builtin:catalyst_date` does not exist** — `note_properties.py`
+line 42 names it CORE-BUT-DEFERRED ("Catalyst/Catalyst Date/Earnings Date/
+Source Type" — a comment, no `BUILTIN_PROPERTY_DEFS` entry). "Upcoming
+Catalysts" (§25/§81) is therefore not buildable today without either shipping
+a new builtin property (small, Wave-E-precedented, but scope this checkpoint
+declines to add — see decision 19) or reading an unreliable member-created
+custom property. Deferred, not built around.
+
+### 48 required decisions
+
+1. **Current Notebook landing** — bare `/journal/notebook` renders the flat,
+   unfiltered All Notes grid (nonzero notes) or an inline template-picker
+   empty state (zero notes/zero-in-filter). No dashboard, no resume-last-note
+   behavior exists today (reconstruction finding 4).
+2. **Current sidebar IA** (`FolderSidebar.jsx`, read in full) — top-to-bottom:
+   search-mode toggle, Favorites (bounded, populated-conditional), Recents
+   (same), Saved Views (bounded, + Wave G's starter-views affordance), All
+   notes / Unfiled / Trash rows with true SQL counts, folder tree, Tags.
+   Established "populated-conditional, zero clutter at zero content"
+   discipline throughout (checkpoint §20 of Wave E, reused by Wave G) — Home
+   must match this discipline, not violate it.
+3. **Current Home-like surfaces** — none exist. `FolderSidebar`'s Favorites/
+   Recents sections are the closest analog (bounded lists) but live in the
+   sidebar, not a continuation surface.
+4. **Current Company/ticker surfaces** — `/research/:sym` (see reconstruction
+   finding 1) + `TickerPopup.jsx` (a lightweight modal: chart/live price/flag/
+   earnings intel/insider activity, explicitly no calculator per its own
+   header comment, and already the "Save price to Notebook" Wave F capture
+   door). Neither carries personal research today.
+5. **Canonical security identity** — `entity_master.resolve(symbol)` /
+   `.aliases(entity_id)` used for: (a) the workspace header's canonical
+   company name/current symbol display (falling back to `ticker_meta` —
+   already Wave E's own Sector/Industry data source — on an unresolved/
+   ambiguous entity, never blocking render); (b) precise Wave F fact
+   aggregation via `entity_id` (exact join, no string matching); (c) rename-
+   survival — resolving `entity_master.aliases(entity_id)` to the FULL known
+   symbol-string history and widening the note/embed/mention predicates
+   across every alias, not just the route's current symbol. The route param
+   itself stays the plain symbol string (decision 8) — entity_id is a lookup
+   key inside the read model, never user-facing.
+6. **Ticker workspace ownership** — Notebook-owned (`app/src/pages/
+   journal-2-0/`), ONE component, mounted from its own route AND as a new
+   "My Research" tab inside `/research/:sym` (reconstruction finding 1).
+   Never a second implementation.
+7. **Notebook vs. Company-Page ownership boundary** — `/research/:sym` keeps
+   100% of market/vendor data (financials/estimates/ratings/ownership/
+   filings/news/analyst-ratings/AI). The workspace owns 100% of personal
+   research (notes/theses/facts/trade-links). The workspace's "Open Company
+   Page"/"Open Chart" actions (directive §32) are outbound links to the
+   EXISTING `/research/:sym` and `TickerPopup`, never re-implemented content.
+8. **Canonical workspace route** — `/journal/notebook/research/:symbol`, a
+   new sibling under the existing `/journal` nested-route parent (App.jsx
+   line 541's `<Route path="/journal" element={<JournalShellSelector/>}>`
+   block — confirmed multi-segment child paths work unchanged there). A NEW
+   top-level page component (`TickerResearchWorkspace.jsx`), NOT nested
+   inside `NotebookTab.jsx`'s own three-pane shell — a focused, single-
+   purpose page (directive §109's "one vertical research flow" reading, and
+   §88's "keep restrained" instruction), with a simple "← Notebook" back
+   link, no `FolderSidebar` reuse. `:symbol` is the plain ticker string
+   (deep-linkable, bookmarkable, human-readable — directive §105/§106); the
+   component resolves it to a canonical entity internally (decision 5).
+9. **Ticker research membership rules** — a note qualifies via ANY of: (a)
+   `j2_notes.ticker` exact match against any of the entity's known alias
+   symbols; (b) `j2_note_embeds.symbol` / `j2_note_mentions.symbol` match
+   (same alias-widened set) — reusing `_notes_filter_sql`'s existing
+   predicate SHAPE, not a new matching mechanism; (c) a Wave F fact whose
+   `entity_id` matches (or, for facts with `entity_id IS NULL`, whose
+   `ticker` matches the alias set); (d) — evaluated, NOT built this wave — a
+   thesis "primary entity" field does not exist as a distinct concept from
+   (a)/(b), since a thesis IS a note and already qualifies via its own
+   ticker/embed/mention. No plain-substring matching anywhere (directive
+   §83's explicit prohibition already satisfied by every source above).
+10. **Multi-entity notes** — a note with two qualifying tickers (e.g. an
+    "NVDA vs AMD" comparison, tagged/mentioning both) appears in BOTH
+    workspaces by the SAME membership rule evaluated twice, same note id,
+    zero duplication (directive §14/§38 — already a natural consequence of
+    decision 9's per-entity query, not a special case to build).
+11. **Home section set (shipped this wave)** — four: **Continue Working**
+    (Recents), **Favorites**, **Active Theses & Open-Position Research**
+    (merged into one section — see decision 16), **Needs Review**. Matches
+    directive §19's own named top-priority list exactly.
+12. **Home sections explicitly deferred, not built** — Upcoming Catalysts
+    (`builtin:catalyst_date` doesn't exist — reconstruction finding 6; adding
+    a new builtin property is small but out of THIS wave's declared scope
+    per directive §18's "do not ship all sections just because they are
+    listed") and Recent Captures (directive §26/§99 itself asks to evaluate
+    for redundancy against Recents; Recents already answers "what did I
+    recently touch," and a genuinely distinct "what did I recently SAVE FROM
+    ELSEWHERE" job needs its own query design this checkpoint declines to
+    add on top of an already-large wave). Both are honest, recorded scope
+    cuts, not silent gaps.
+13. **Home empty state** — one first-run message ("Start your first research
+    note" / "Create a thesis" / "Save research from UCT" — three actions, not
+    a tutorial carousel) when the member has zero notes at all. Below that
+    threshold, EACH section independently collapses/hides when it has
+    nothing to show (directive §68) rather than rendering four dead cards.
+14. **Home read model** — ONE new aggregated endpoint,
+    `GET /api/j2/notebook/home`, batching all four sections' bounded queries
+    server-side (directive §69's explicit "avoid five sequential API
+    waterfalls"). No new storage; every section is a read over Wave B/E/G's
+    existing tables.
+15. **Ticker workspace read model** — ONE new aggregated endpoint,
+    `GET /api/j2/notes/research/{symbol}/summary`, returning bounded summary
+    rows (never full note bodies) for: entity identity, notes, theses
+    (active + past, separated), captured-fact summary, linked trade/position
+    summary. A separate paginated endpoint for each section's "View all"
+    (decision 32) — the summary endpoint never grows past its fixed caps.
+16. **Active-thesis query** — reuses `property_filter_sql` with the EXACT
+    same predicate Wave G's "Active Theses" starter view already uses
+    (`builtin:thesis_status = 'active'`), scoped additionally to the
+    workspace's entity (decision 9's membership set) or, for Home, unscoped
+    and bounded to 5. No second thesis-status query mechanism.
+17. **Open-position-research query** — a direct SQL join, NOT a loop calling
+    `resolve_trade_ref` per open position (would be N+1 — directive §127's
+    own "no N+1" instruction): `j2_positions` (`closed_at IS NULL`) JOIN
+    `j2_note_embeds` (`trade_ref = position.id AND trade_ref_type =
+    'position'`) JOIN `j2_notes`. An `equity_trade`-typed embed is
+    STRUCTURALLY never an open position (a trade row only exists after a
+    position closes — Wave 3's own graduation model), so this join is exact,
+    not an approximation.
+18. **Needs-review query** — reuses Wave G's exact starter-view predicate
+    (`builtin:review_date <= today AND builtin:thesis_status != 'closed'` —
+    matching the already-shipped "Needs Review" starter view's semantics,
+    never a second definition of "needs review").
+19. **Upcoming-catalyst decision** — DEFERRED (decision 12). No external
+    ingestion attempted, no new builtin property added this wave.
+20. **Recent-capture decision** — DEFERRED (decision 12), evaluated and
+    explicitly rejected as redundant-or-out-of-scope rather than silently
+    dropped.
+21. **Fact-summary model** — Ticker workspace shows a bounded (≤5) recent/
+    relevant subset of the entity's Wave F facts (`fact_type`/`ticker`/
+    `value`/`observedAt`, the SAME shape `note_facts._row_to_fact` already
+    produces), resolved via `entity_id` (decision 5c). Current-value (THEN/
+    NOW) resolution is lazy/batched on the SAME fact ids only when the
+    member expands that section — never resolved for the Home surface at
+    all (directive §43/§74's "provider cost and calm UX" instruction).
+22. **Trade/position-summary model** — a concise counts-only line ("Open
+    Position" / "N Closed Trades"), never an execution ledger — click-through
+    to the authoritative Journal/Compass detail (directive §39/§40/§135,
+    matching Wave G's own "never duplicate Journal" discipline for its
+    trade-link chips).
+23. **Saved-view integration** — the workspace's "View all Notes"/"View all
+    Theses" actions navigate to `/journal/notebook?ticker=<symbol>` (the
+    EXISTING `list_notes(ticker=...)` filter, already wired end-to-end in
+    `NotebookTab.jsx`/`FolderSidebar.jsx`) rather than a bespoke workspace-
+    scoped list UI — directive §47/§112's explicit "reuse the shared query
+    architecture, no custom one-off filtering code."
+24. **Search integration** — `/journal/notebook?ticker=<symbol>&q=<query>`
+    composes the EXISTING `ticker=`+`q=` predicates in `_notes_filter_sql`
+    (both already AND-composable today, confirmed by direct code read) —
+    "search within this workspace" is not a new search backend, it is the
+    existing one with one more filter applied.
+25. **Favorites/Recents integration** — unchanged; a favorited/recently-
+    opened note that also qualifies for a ticker workspace shows normally in
+    both places (no ticker-specific favorites/recents system — directive
+    §21/§94/§95's explicit prohibition).
+26. **Company-page entry point** — `/research/:sym`'s new "My Research" tab
+    (decision 6/7), CORE NOW (directive §52 calls this "likely a major
+    discoverability route").
+27. **Note entry point** — deferred to LATER (directive §55's own
+    CORE-NOW/LATER classification instruction) — evaluating the existing
+    ticker-chip affordance inside a note for a "View NVDA Research" action is
+    real but not required for Wave H's exit gates; the command-palette/
+    company-page paths already satisfy discoverability (directive §148).
+28. **Command-palette entry** — the EXISTING typed-ticker-to-`/research/:sym`
+    routing (reconstruction finding 1) is the primary path, zero new code.
+    ONE new static `NOTEBOOK_COMMANDS` entry, "Open Research Home," added in
+    the exact existing array shape (`CommandPalette.jsx` lines 19-27) — no
+    dynamic per-ticker palette command this wave (directive §51's own
+    "potentially future, not required unless clearly high value").
+29. **New Note from workspace** — calls the EXISTING `createNote()` path
+    (`NotebookTab.jsx`, already accepts a `ticker` param — confirmed reading
+    the function signature) with the workspace's symbol pre-filled, then
+    navigates into the SAME `NoteEditorPage` every other creation path uses.
+    No new editor, no new creation flow.
+30. **New Thesis from workspace** — calls the EXISTING `createFromTemplate()`
+    path with the `thesis` template + the workspace's symbol pre-filled as
+    `ticker` (which the template flow already threads through per Wave G's
+    own `createFromTemplate(tpl, {ticker})` signature). No second thesis
+    creation flow.
+31. **Sidebar changes** — none required structurally; Home becomes reachable
+    as the bare-root state (decision 33) rather than a new sidebar row,
+    keeping the sidebar itself unchanged (directive §104's "do not let Home +
+    Views + Folders turn the sidebar into 3 screens").
+32. **Navigation/back-state** — `?view=all` becomes the EXPLICIT query flag
+    for "show the All Notes grid" (clicking the sidebar's "All notes" row
+    sets it), disambiguating it from the bare-root Home state — both are
+    "folderId=null, tag=null" today, which is why an explicit flag is needed
+    rather than inferring Home from the absence of other params. Standard
+    browser back/forward already works for query-param state changes in this
+    codebase (confirmed: `NotebookTab.jsx` already uses `useSearchParams`
+    for every other piece of state) — no new history-management code.
+33. **Mobile design** — the workspace is ALREADY one vertical flow by
+    construction (decision 8), so no separate mobile layout is needed beyond
+    the codebase's canonical `@media (max-width: 640px)` breakpoint; Home's
+    four sections stack vertically at every width (same discipline as every
+    other Wave E/F/G surface this program has shipped).
+34. **Accessibility** — section headings as real headings, "View all" as a
+    real link with a descriptive `aria-label` (never bare "View all" ×4
+    competing for a screen reader's link-list), reuses `CollapsibleSection`/
+    `NoteCard`/native-control patterns already accessibility-reviewed in
+    Wave E/F/G rather than inventing new interactive primitives.
+35. **Keyboard** — Cmd/Ctrl+K → typed ticker → Enter → `/research/:sym` →
+    "My Research" tab (existing palette mechanics, decision 28); no new
+    letter shortcuts (directive §120's explicit prohibition).
+36. **Empty/loading/error states** — Home's skeleton preserves the four-
+    section hierarchy (never a single spinner); a workspace with zero
+    research shows the honest empty state (directive §67) with New
+    Note/New Thesis actions, never an empty dashboard grid; a single
+    section's query failure degrades that section locally (directive §124),
+    never the whole surface.
+37. **Cache/invalidation** — both new endpoints are SWR-fetched with the
+    EXISTING per-user cache-key + `mutate()`-on-action idiom already used
+    throughout this codebase (Wave G's `useThesisSummary`/`useNoteFacts` are
+    the direct precedent) — favoriting/creating/thesis-status-changing
+    triggers the SAME local `refresh()`/`mutate()` calls those actions
+    already make, no new invalidation plumbing required beyond wiring Home's
+    own hook into the existing action call sites.
+38. **Performance** — both new endpoints are bounded-result reads over
+    already-indexed columns (`user_id`, `ticker`, `deleted_at` all indexed
+    today); a proportionate synthetic check at 1k/10k/50k notes is part of
+    the test matrix (decision 46), not assumed.
+39. **Security/tenant** — every new query is `user_id`-scoped identically to
+    every existing Notebook query; the workspace's entity resolution
+    (decision 5) is READ-ONLY metadata lookup, never treated as
+    authorization for the research queries beneath it (directive §137/§138's
+    explicit "entity id is not authorization" instruction).
+40. **Rights** — Home/workspace aggregate ONLY UCT-owned Notebook data
+    (notes/theses/facts/trade-links); no new persistent vendor-value storage,
+    no new rights-conditional fact type. THEN-side facts render regardless of
+    live-provider availability (directive §75/§76, the same Wave F trust
+    contract, unchanged).
+41. **Migration** — none. No workspace-membership backfill table, no
+    fabricated "this note was always about NVDA" retroactive tagging —
+    existing `ticker`/embed/mention/fact relationships make historical
+    research appear immediately, by construction (directive §185's own
+    stated advantage of this architecture).
+42. **Export decision** — DEFERRED. Full-notebook and single-note export
+    already exist (Wave C); a security-scoped "Export NVDA Research" bundle
+    is real but not required for Wave H's exit gates (directive §140's own
+    "likely defer unless implementation is small and user job strong" —
+    scoped out to keep this wave's surface area bounded).
+43. **Competitor task matrix** — scoped, current-sourced comparison against
+    Notion/Obsidian/Evernote's resume-work/favorite/hub-organization
+    patterns, produced at closure (directive §60-64/§155), not re-derived
+    from any prior wave's now-dated competitor pass.
+44. **Financial differentiation test** — the live-browser E2E in the closure
+    section (directive §156 exactly): create an NVDA thesis, link a trade,
+    capture a financial fact, add another NVDA note — then open NVDA
+    Research and prove UCT assembled all of it automatically, zero manual
+    workspace administration.
+45. **Vertical slices** — recomputed from this checkpoint, following
+    directive §189's own suggested order (it holds up against the
+    architecture found): (1) shared read-model services (`notebook_home.py`,
+    entity→research aggregation) + routers; (2) Research Home UI; (3) Ticker
+    Research Workspace UI + its two creation actions; (4) entry-point wiring
+    (`/research/:sym` bridge tab, command palette, `?view=all` sidebar
+    disambiguation); (5) cache invalidation + navigation/back-state
+    continuity; (6) responsive/accessibility/performance/security pass; (7)
+    integrated real-browser financial-research E2E + competitor comparison +
+    closure.
+46. **Test matrix** — backend: membership-source union/dedupe, alias-widened
+    rename survival, tenant isolation (Home + workspace, cross-user), bounded
+    result counts, open-position join correctness (never includes a closed
+    position or an `equity_trade`-typed embed), performance at 1k/10k/50k
+    synthetic notes. Frontend: Home empty/lightly-populated/fully-populated,
+    section auto-hide, workspace empty/populated/multi-thesis/multi-trade,
+    new-note/new-thesis pre-fill, `?view=all` vs. bare-root disambiguation,
+    responsive. Real-browser E2E per directive §159-173: Home empty, Home
+    populated, full workspace assembly (the financial-differentiation test),
+    new note/thesis from workspace, entity-relationship removal (dynamic
+    membership), multi-ticker note, open-position research, needs-review
+    lifecycle, search-within-workspace, provider-failure resilience,
+    navigation/back-state, company-page entry point, mobile.
+47. **Rollback** — fully additive: two new read-only aggregation endpoints, a
+    new page component, one new sidebar-disambiguation query flag, one new
+    tab on an existing page, one new command-palette entry. Disabling any of
+    it leaves every existing note/thesis/fact/trade relationship, and every
+    existing Notebook workflow, fully intact — nothing here changes a data
+    format any other wave depends on.
+48. **Production plan** — same isolated-temporary-worktree merge process
+    every prior wave has used; full certification (directive §191's 78-point
+    format) before merge; production verification via fresh-process health,
+    new-route auth-gating, and production-bundle string checks, matching
+    every prior wave's own evidence bar exactly.
+
+**No MATERIAL architectural contradiction found.** The directive's own major
+open question (§11, Notebook vs. Company Page ownership) is resolved
+decisively by direct evidence — a real Company Page already exists and
+already has an obvious, minimally-invasive bridge point (one new tab) — not
+by assumption. Every other major primitive Wave H needs (bounded favorites/
+recents, the property-filter query layer, the ticker/embed/mention membership
+predicate, entity_master, Wave 3's typed trade/position relationships) already
+exists and is reused, not duplicated. The only genuinely new primitives are
+two read-only aggregation endpoints and one new page component — exactly the
+minimal-new-primitive outcome this program's checkpoints have consistently
+required before building anything larger. Proceeding directly to
+implementation.
