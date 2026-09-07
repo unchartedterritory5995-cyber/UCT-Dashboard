@@ -53,8 +53,34 @@ def _digest(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
+def _printable(line: str) -> str:
+    """Make a captured line safe to print on THIS process's stdout.
+
+    The mirror of the decode bug in `_run`. Having decoded the runner's box
+    glyphs correctly, echoing them raised UnicodeEncodeError on a cp1252 pipe
+    and killed the tool inside the branch whose only job is showing evidence.
+    A diagnostic must never be able to take down the thing diagnosing.
+    """
+    enc = sys.stdout.encoding or "utf-8"
+    return line.encode(enc, errors="replace").decode(enc, errors="replace")
+
+
 def _run(cmd: str) -> tuple[int, str]:
-    p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    """Run the rail and capture everything it said.
+
+    DECODE AS UTF-8, NEVER THE LOCALE CODEC. `text=True` decodes with the
+    Windows locale codec (cp1252 here), which RAISES UnicodeDecodeError inside
+    subprocess reader threads on bytes it has no mapping for -- 0x9D among
+    them. Test runners print box-drawing and cross glyphs ONLY WHEN TESTS
+    FAIL, so the capture worked on green runs and came back EMPTY on red ones.
+    That is precisely inverted: `--expect-red` then reports "not among the
+    failures" for a mutation that was attributed correctly, and the tool whose
+    whole job is saying whether a rail is real answers "no" for a reason that
+    has nothing to do with the rail. errors="replace" because a mangled glyph
+    in a diagnostic is nothing; a lost diagnostic is the bug above.
+    """
+    p = subprocess.run(cmd, shell=True, capture_output=True,
+                       encoding="utf-8", errors="replace")
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
@@ -120,6 +146,15 @@ def main() -> int:
             if args.expect_red and args.expect_red not in out:
                 print(f"[3] [X] but {args.expect_red!r} was NOT among the failures -- "
                       f"something else broke, so this proves the wrong thing.")
+                # SHOW WHAT DID FAIL. Without this the operator is told the
+                # attribution is wrong and given nothing to attribute it WITH,
+                # which is how a mis-attribution turns into a guessing loop.
+                # (Long runner output is bounded; a wrapped or truncated test
+                # name is itself a common cause of this branch.)
+                print("[3] --- what actually failed (last 40 lines of output) ---")
+                for line in out.rstrip().splitlines()[-40:]:
+                    print("    | " + _printable(line))
+                print("[3] --- end of captured output ---")
                 ok = False
             elif args.expect_red:
                 print(f"[3] and {args.expect_red!r} is among the failures")

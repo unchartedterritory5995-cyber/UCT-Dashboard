@@ -38,6 +38,68 @@ def _run(impl, rail, *extra):
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
+# ── Output capture ──────────────────────────────────────────────────────────
+# A probe that is GREEN while impl.py is intact and, when mutated, fails while
+# writing raw UTF-8 bytes the Windows locale codec cannot decode -- U+276F and
+# U+2717 both contain 0x9D, and they are exactly what pytest and vitest print
+# when something goes red.
+#
+# ⛔ It writes to sys.stdout.buffer from its OWN process on purpose. An earlier
+# version of this rail put the glyphs inside a pytest test, which was VACUOUS:
+# pytest captures a test's stdout and re-encodes it through the child's own
+# cp1252 stdout before emitting, so the problem bytes never reached the pipe
+# and the rail passed with the bug restored.
+PROBE = (
+    "import sys, pathlib\n"
+    "src = pathlib.Path(r'{impl}').read_text(encoding='utf-8')\n"
+    "if \"VALUE = 'right'\" in src:\n"
+    "    sys.exit(0)\n"
+    "sys.stdout.buffer.write('\\u276f MARKER_ANCHOVY \\u2717\\n'.encode('utf-8'))\n"
+    "sys.stdout.flush()\n"
+    "sys.exit(1)\n"
+)
+
+
+def _probe_project(tmp_path):
+    impl, _ = _project(tmp_path)
+    probe = tmp_path / "probe.py"
+    probe.write_text(PROBE.format(impl=str(impl)), encoding="utf-8")
+    return impl, probe
+
+
+def _run_probe(impl, probe, *extra):
+    cmd = [sys.executable, str(TOOL), "--file", str(impl),
+           "--test", f'"{sys.executable}" "{probe}"', *extra]
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
+class TestOutputCaptureSurvivesNonAsciiFailures:
+    """⛔ THE CAPTURE MUST NOT DEPEND ON THE LOCALE CODEC.
+
+    `subprocess.run(text=True)` decodes with cp1252 on Windows, which RAISES
+    inside the reader threads on 0x9D and loses the entire capture. Runners
+    print those glyphs only when tests FAIL, so the bug was invisible on green
+    runs and silently blanked the output on red ones -- making --expect-red
+    answer "not among the failures" for a correctly attributed mutation.
+    """
+
+    def test_expect_red_matches_when_the_failure_output_is_not_cp1252(self, tmp_path):
+        impl, probe = _probe_project(tmp_path)
+        r = _run_probe(impl, probe, "--replace", "'right'", "--with", "'wrong'",
+                       "--expect-red", "MARKER_ANCHOVY")
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert "is among the failures" in r.stdout
+
+    def test_a_mis_attribution_shows_what_did_fail(self, tmp_path):
+        # The operator must be handed evidence, not merely told they are wrong.
+        impl, probe = _probe_project(tmp_path)
+        r = _run_probe(impl, probe, "--replace", "'right'", "--with", "'wrong'",
+                       "--expect-red", "a_name_that_is_not_in_the_output")
+        assert r.returncode != 0
+        assert "what actually failed" in r.stdout
+        assert "MARKER_ANCHOVY" in r.stdout
+
+
 class TestRestoreGuarantee:
     def test_the_file_is_byte_identical_after_a_detected_mutation(self, tmp_path):
         impl, rail = _project(tmp_path)
