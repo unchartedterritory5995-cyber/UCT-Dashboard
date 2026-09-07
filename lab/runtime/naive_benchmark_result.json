@@ -1,0 +1,53 @@
+[
+  {
+    "universe_size": 50,
+    "n_scanned": 50,
+    "n_skipped_thin": 0,
+    "n_detections": 72,
+    "wall_s": 0.145,
+    "fetch_s_total": 0.1154,
+    "context_s_total": 0.0032,
+    "detect_s_total": 0.0258,
+    "ms_per_symbol_wall": 2.901,
+    "ms_per_symbol_fetch": 2.307,
+    "ms_per_symbol_context": 0.064,
+    "ms_per_symbol_detect_all_cohort": 0.516
+  },
+  {
+    "universe_size": 200,
+    "n_scanned": 200,
+    "n_skipped_thin": 0,
+    "n_detections": 286,
+    "wall_s": 0.3765,
+    "fetch_s_total": 0.2656,
+    "context_s_total": 0.0116,
+    "detect_s_total": 0.0969,
+    "ms_per_symbol_wall": 1.883,
+    "ms_per_symbol_fetch": 1.328,
+    "ms_per_symbol_context": 0.058,
+    "ms_per_symbol_detect_all_cohort": 0.485
+  },
+  {
+    "universe_size": 500,
+    "n_scanned": 500,
+    "n_skipped_thin": 0,
+    "n_detections": 699,
+    "wall_s": 0.8076,
+    "fetch_s_total": 0.4874,
+    "context_s_total": 0.028,
+    "detect_s_total": 0.2375,
+    "ms_per_symbol_wall": 1.615,
+    "ms_per_symbol_fetch": 0.975,
+    "ms_per_symbol_context": 0.056,
+    "ms_per_symbol_detect_all_cohort": 0.475,
+    "per_family_ms_avg": {
+      "hammer": 0.0055,
+      "bull_flag": 0.2495,
+      "vcp": 0.1468,
+      "pullback_to_50sma": 0.0004,
+      "power_earnings_gap": 0.009,
+      "stage_analysis": 0.0745
+    },
+    "per_family_sample_n": 100
+  }
+]

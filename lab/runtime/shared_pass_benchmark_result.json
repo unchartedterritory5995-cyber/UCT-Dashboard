@@ -1,0 +1,38 @@
+[
+  {
+    "universe_size": 50,
+    "n_scanned": 50,
+    "n_detections": 72,
+    "wall_s": 0.045,
+    "fetch_s_total": 0.0203,
+    "context_s_total": 0.0029,
+    "detect_s_total": 0.0211,
+    "ms_per_symbol_context": 0.059,
+    "ms_per_symbol_detect_all_cohort": 0.423,
+    "matches_naive_detection_count": true
+  },
+  {
+    "universe_size": 200,
+    "n_scanned": 200,
+    "n_detections": 286,
+    "wall_s": 0.1484,
+    "fetch_s_total": 0.0566,
+    "context_s_total": 0.0108,
+    "detect_s_total": 0.0784,
+    "ms_per_symbol_context": 0.054,
+    "ms_per_symbol_detect_all_cohort": 0.392,
+    "matches_naive_detection_count": true
+  },
+  {
+    "universe_size": 500,
+    "n_scanned": 500,
+    "n_detections": 699,
+    "wall_s": 0.3789,
+    "fetch_s_total": 0.1453,
+    "context_s_total": 0.0278,
+    "detect_s_total": 0.1992,
+    "ms_per_symbol_context": 0.056,
+    "ms_per_symbol_detect_all_cohort": 0.398,
+    "matches_naive_detection_count": true
+  }
+]

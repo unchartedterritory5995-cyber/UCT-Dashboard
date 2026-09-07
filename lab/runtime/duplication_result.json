@@ -1,0 +1,23 @@
+{
+  "sample_n": 300,
+  "totals_seconds": {
+    "build_context_once": 0.014352,
+    "detect_pivots_2nd_call_waste": 0.043284,
+    "stage_analysis_trend_stage_redup": 0.001748,
+    "stage_analysis_ma_alignment_redup": 0.001944,
+    "stage_analysis_extra_sma_calls": 0.000926,
+    "vcp_sma150_sma200_redup": 0.000763,
+    "pullback_sma50_redup": 0.000183
+  },
+  "us_per_symbol": {
+    "build_context_once": 47.84,
+    "detect_pivots_2nd_call_waste": 144.28,
+    "stage_analysis_trend_stage_redup": 5.83,
+    "stage_analysis_ma_alignment_redup": 6.48,
+    "stage_analysis_extra_sma_calls": 3.09,
+    "vcp_sma150_sma200_redup": 2.54,
+    "pullback_sma50_redup": 0.61
+  },
+  "total_redundant_recompute_s": 0.048848,
+  "total_redundant_recompute_pct_of_context_cost": 340.4
+}
