@@ -1896,3 +1896,391 @@ property reference), and the Wave C version-integration decision (properties ver
 via the same raw-string-comparison gate as title/subtitle/body) — none of these were
 redesigned by this pass beyond the two named fixes (the `"null"`-string bug and the
 non-strict saved-view resolution).
+
+**Wave E residual debt, carried forward (not dropped, not automatically Wave F scope):**
+richer frontend UX to rename a user-created property/option after creation; broader
+phone-viewport re-verification of the note-open Properties editor specifically (the
+route-level mobile sweep passed, this one surface wasn't re-screenshotted); OR/grouped
+filter logic; Board view; Calendar view. None of these are pulled into Wave F merely
+because they are nearby.
+
+---
+
+## Wave F — Financial Fact / Snapshot Ledger + Temporal Semantics — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch for
+any part of Wave F's research, architecture, implementation, testing, browser
+verification, git reconciliation, or deployment. The quarantined rogue-fork branch
+was not consulted for any part of this checkpoint or what follows.
+
+### Current-reality reconstruction (read before design, not after)
+
+- **`entity_master`** (`api/services/entity_master/`) is a **fully built, tested
+  (76/76 across Checkpoints 1-8), seeded against the real production database, and
+  owner-accepted (2026-09-02, `docs/entity-master-implementation-log.md`)** canonical
+  security-identity service — and it is **completely unwired**: zero importers in
+  `api/routers/`, zero in `api/services/journal_two/`, zero in the frontend, not
+  imported in `api/main.py`. `resolve(alias, as_of=None)` returns a typed
+  `ResolveResult(status: resolved|not_found|ambiguous, entity, candidates)` —
+  `as_of`-aware (an `entity_aliases` row carries `valid_from`/`valid_to`), and
+  **never silently picks a match on a genuine ticker collision** (returns
+  `ambiguous` with every candidate rather than guessing). This is exactly the
+  durable, stable, non-ticker-text identity checkpoint item §23 asked to verify
+  exists before inventing one — it exists, and Wave F is its first real consumer.
+  The "accepted with conditions" caveats (admin ops routes not built, reconciliation
+  scheduling deliberately NOT registered in `main.py`, `cap_universe.json` staleness
+  as a separate ops task) block none of `resolve()`/`aliases()`'s read usage.
+- **Chart embeds are NOT a value-snapshot precedent — they are a query-cutoff
+  precedent.** Read `ChartEmbed.jsx` and `widgetEmbedCore.js` in full: a "frozen"
+  chart embed stores `params.to` (an epoch cutoff, stamped at capture) and
+  `mode: 'snapshot'|'live'`; at render, `replayCutoff` re-fetches bars from the
+  **live, permanent** `bars.db` bounded by that cutoff (`bars_sqlite.get_bars_before`)
+  — it does not copy an OHLCV value into the note at all. This works because
+  `bars.db` never truncates history and Massive-sourced price data is already
+  UCT's own permanently-stored, already-licensed data. **This precedent does NOT
+  generalize to analyst estimates**: there is no historical, point-in-time-queryable
+  store of past FMP consensus figures anywhere in this codebase — `analyst_intel.py`/
+  `earnings_estimates.py` only ever return the CURRENT snapshot FMP serves today.
+  An estimate observed "as of Sept 6" can only survive to be read on Sept 20 if
+  Wave F copies the actual value at capture time. **This asymmetry is the single
+  most load-bearing finding of this checkpoint** — it means PRICE and ESTIMATES
+  cannot share one storage strategy, only one identity/registry model.
+- **The proven structured-reference precedent for note content is the `noteLink`
+  node (Wave D), not the `/charts` `WIDGET_REGISTRY`.** `WIDGET_REGISTRY`
+  (`app/src/widgets/registry.js`) backs BOTH the `/charts` workspace's mountable
+  panels (Chart/Watchlist/Scanner/Fundamentals/...) AND the notebook's
+  `widgetEmbed` node — adding a financial-fact type there would also surface it as
+  a `/charts` workspace panel choice, which is not a coherent object in that
+  surface. Wave D already solved "a new semantic reference type belongs in the
+  note, needs its own sidecar index table, and needs its own resolution endpoint"
+  by adding a dedicated `noteLink` node (attrs: `{targetNoteId}`) + `j2_note_links`
+  sidecar + `GET /notes/{id}/backlinks`-shaped resolution — Wave F follows that
+  exact precedent with a new `financialFact` node, not a `WIDGET_REGISTRY` entry.
+- **Analyst/price-target/rating read paths already exist, cached, never-raising:**
+  `analyst_intel.get_analyst_intel(ticker, current_price)` → 6h-cached
+  `{consensus: {rating, buy/hold/sell counts}, price_target: {low, avg, high, count,
+  updated, current, upside_pct}, recent_actions: [...]}`, FMP-primary/Finnhub-fallback.
+  `earnings_estimates.py` carries the EPS/revenue consensus paths
+  (`_fmp_consensus_snapshot`) for a later slice. Both are read-only lookups against
+  already-cached provider data — no new provider integration needed for Wave F's
+  initial fact types.
+- **journal_two tables live in `auth.db`** (single SQLite file, WAL) — a fact-row
+  create and its owning note's embed-sidecar sync can share one connection/
+  transaction, the same way `update_note` already wraps `_sync_note_embeds`/
+  `_sync_note_links`/`_sync_note_mentions` in its own transaction today. This
+  resolves the atomicity concern (§96/§97) without inventing new infrastructure.
+- **`j2_note_embeds`/`j2_note_links`' own header comments state their contract
+  explicitly**: "a rebuildable projection... never edited directly," authority
+  lives in the note's `body_json`. Wave F inverts this for the fact VALUE
+  specifically (see decision 7 below) while keeping the note's own JSON as the
+  sole authority for WHERE a fact is placed and WHICH facts a note references —
+  unchanged from the existing pattern.
+- **Rights context** (already-approved, not reopened): the CLAUDE.md-documented
+  standing rule is that vendor-data-in-AI-answer features and any new
+  vendor-data-persistence decision stay gated on Patrick's external legal review.
+  No new rights approval was sought or assumed this checkpoint.
+
+### 46 required decisions
+
+1. **Current financial data paths** — `analyst_intel.py` (consensus/price-target/
+   rating, FMP-primary), `earnings_estimates.py` (EPS/revenue estimates, deferred
+   to a later slice), `bars_sqlite.py`/`bars_fetch.py` (price, Massive-primary,
+   already permanently stored). No new provider client written for Wave F.
+2. **Current chart-snapshot model** — cutoff-stamped re-query against a permanent
+   store (see reconstruction above), NOT a value copy. Coexists unchanged; Wave F
+   does not migrate chart embeds into the fact ledger (directive §114 — explicit).
+3. **Current estimates data path** — `earnings_estimates._fmp_consensus_snapshot`
+   /`analyst_intel.get_analyst_intel`; both cache-only, no persistent historical
+   store anywhere upstream of Wave F.
+4. **Current analyst data path** — same as (3); rating/price-target consensus via
+   `analyst_intel.py`.
+5. **Current provider abstraction** — none exists yet at the "D1 Provider
+   Abstraction Layer" level referenced in `docs/entity-master-implementation-log.md`
+   (that system lives only in the separate, unmerged `terminal-research` worktree
+   — not present on this branch/master, not depended on). Wave F normalizes at its
+   own boundary (decision 29), narrowly, without waiting for or reimplementing D1.
+6. **Rights classification** — three-way, applied per fact type (decision 27/40):
+   `independent` (user-authored facts; UCT-derived facts referencing UCT's own
+   already-stored records; PRICE, because it re-derives from UCT's own permanently-
+   stored, already-licensed Massive bars — the same data chart embeds already
+   snapshot into notes today), `conditional` (FMP-derived analyst estimates/
+   ratings/price-targets — no prior persistent-storage precedent in this codebase,
+   genuinely new vendor-value persistence), `blocked` (none identified this pass —
+   reserved for a future type found to require storage this program cannot grant).
+7. **Fact ledger architecture** — one generic `j2_fact_observations` table (Model B
+   from directive §60: identity dimensions folded into the row itself rather than a
+   separate identity/series table, since Wave F's own initial fact-type count is
+   small enough that a separate series table would be pure overhead — revisit if a
+   later wave's fact-type count grows past ~15-20 and comparison queries start
+   wanting a dedicated series join). Typed columns for the dimensions comparison/
+   filtering/export need (`entity_id`, `ticker`, `fact_type`, `period`, `unit`,
+   `currency`, `temporal_mode`, `observed_at`, `source_as_of`, `source`,
+   `rights_class`), a narrow `value_json` ONLY for a fact type whose value doesn't
+   fit `value_number`/`value_text` (none of Wave F's initial types need it — kept
+   for extensibility, not used yet). No raw provider payload is ever stored.
+8. **Fact identity** — `(entity_id or ticker, fact_type, period, unit)` is the
+   logical SERIES a member would recognize as "the same thing observed at
+   different times." Two captures of that series at different `observed_at`
+   values are two distinct rows, never an overwrite (directive §22/§37 — this is
+   the single most important correctness rule in the whole wave, enforced at the
+   database level by never exposing an UPDATE-value code path, only INSERT).
+9. **Security/entity identity** — `entity_master.resolve(ticker, as_of=observed_at
+   .date())`. `entity_id` is stored when resolution succeeds; `ticker` (the display
+   symbol as captured) is ALWAYS stored regardless, so a `not_found`/`ambiguous`
+   resolution never blocks a capture (directive §113's "do not silently drop a
+   provider surface" spirit, applied to identity resolution) — it just means that
+   fact can't be joined into "every fact about entity X" queries until/unless
+   `entity_master` later resolves it (e.g. after a seed refresh).
+10. **Observation identity** — the row's own `id` (uuid4 hex, matching every other
+    `j2_*` table's convention). No natural key is used as a primary key.
+11. **Value types** — `value_number` (REAL) + `value_text` (TEXT), mutually
+    exclusive per row (the registry entry for a fact type declares which one it
+    populates). No BOOLEAN/DATE/ENUM/RANGE column added — Wave F's initial fact
+    types are all NUMBER or TEXT-enum-as-string (rating: "Buy"/"Hold"/"Sell",
+    stored in `value_text`); a boolean/date/range fact type is deferred until a
+    real one is proposed (directive §27's "find the right balance," read as "do
+    not pre-build columns nothing uses yet").
+12. **Unit/currency/scale model** — `unit` (free-text but registry-controlled per
+    fact type: `'usd_per_share'`, `'usd'`, `'percent'`, `'rating'`), `currency`
+    (`'USD'` default, stored explicitly per directive §29 rather than assumed),
+    `scale` column exists but unused by every Wave F initial type (FMP/Massive
+    values arrive already in raw per-share/per-count units for the types shipped
+    this wave) — reserved, not dead weight, for a future fundamental-metric type
+    that needs it.
+13. **Period/horizon model** — a canonical string only where a fact type needs one
+    (`'FY2027'`, `'Q3-2026'`); PRICE and RATING carry `period = NULL` (point-in-time
+    facts, no horizon). No relative-label storage ("NTM", "next year") — directive
+    §39's estimate-rollover concern is exactly why: a relative label decays in
+    meaning as time passes, the canonical fiscal period does not. Display-time
+    relative framing (if ever built) derives from the canonical value, never stored.
+14. **Actual/estimate/guidance semantics** — a `value_status` is NOT a separate
+    column this wave; `fact_type` itself distinguishes it (e.g. a future
+    `analyst_eps_estimate` vs. a future `reported_eps_actual` are different
+    registry keys, never the same key with a status flag) — simpler, and matches
+    directive §74's "do not treat these as the same semantic metric with ambiguous
+    status" by construction rather than by a flag a caller could forget to set.
+    Deferred: neither exists as an active fact type this wave (decision 27).
+15. **Provenance model** — `source` (`'user'|'uct_derived'|'massive'|'fmp'`),
+    `source_ref` (nullable, e.g. a `j2_trades.id` for a `uct_derived` fact),
+    `rights_class` (decision 6). No raw provider record id/URL stored (directive
+    §32's "do not rely solely on external URLs that may expire" — and nothing in
+    Wave F's initial fact types needs one).
+16. **`observed_at` contract** — ISO 8601 UTC, stamped at the moment of capture
+    (client-side `new Date().toISOString()`, same idiom `widgetEmbedCore.js`'s
+    `capturedAt` already uses) — this is "when the member/UCT observed it," never
+    conflated with provider timestamps.
+17. **`source_as_of` contract** — nullable ISO 8601 UTC. Populated only when a
+    provider genuinely exposes a distinct as-of time (checked per fact type at
+    registry-build time); never fabricated from `observed_at`, an HTTP response
+    time, or a note-save time (directive §79's explicit prohibition). None of
+    Wave F's initial FMP/Massive read paths currently expose a reliable per-value
+    as-of timestamp distinct from "when we asked," so `source_as_of` is `NULL` for
+    every Wave F row shipped this wave — recorded as a known, honest gap rather
+    than a fabricated field.
+18. **Temporal mode contract** — stored per-row as `temporal_mode`:
+    `'live'` (current-value-only rendering, no persisted original — not used by
+    any Wave F capture path, since every capture action IS an act of preserving a
+    moment; reserved for a future live-only reference-card use), `'snapshot'`
+    (immutable, no current-value resolver call — RATING and a future ESTIMATE
+    type), `'live_and_snapshot'` (immutable original + a live current-value
+    resolver call at read time — PRICE), `'reference_only'` (no value persisted at
+    all, decision 6's rights-`blocked`/`conditional`-inactive path — reserved,
+    unused this wave since no type is currently `blocked`).
+19. **Immutability** — enforced structurally: `note_facts.py` (the service module)
+    exposes `create_fact_observation` and `delete_fact_observation` only — there is
+    no `update_fact_observation` function at all, so a value-mutation code path
+    cannot be written by accident later without a reviewer noticing a brand-new
+    function. `caption` (the ONE genuinely-editable field, a user annotation, never
+    the observed value itself — directive §109) is the sole exception, updatable
+    via a narrow `update_fact_caption`.
+20. **Dedupe/idempotency** — `idempotency_key` (nullable, client-supplied,
+    `UNIQUE(user_id, idempotency_key) WHERE idempotency_key IS NOT NULL`). The
+    frontend capture action generates one uuid4 per capture INTENT (generated once
+    when the capture UI opens, reused across retries of that same intent) — a
+    double-click or network retry replays the same key and gets the existing row
+    back (`INSERT ... ON CONFLICT DO NOTHING` + re-`SELECT`), never a duplicate.
+    Two genuinely separate observations (the member captures PRICE again five
+    minutes later) get two different keys because they're two different capture
+    intents — never deduped against each other (directive §36's explicit
+    distinction, satisfied by construction: the key is per-intent, not
+    per-series).
+21. **Current-value resolver** — one backend module, `fact_current_value.py`, keyed
+    by `fact_type`. PRICE's resolver reads the live price cache
+    (`api/services/live_prices.py`, the same shared 15s cache the dashboard already
+    polls — zero new provider cost). RATING/estimate types (currently inactive)
+    would resolve via `analyst_intel`/`earnings_estimates`, cached 6h already. No
+    resolver is called from a React component directly — the note-facts resolution
+    endpoint (decision 24) is the only caller, batched per note (directive §119).
+22. **Provider consistency** — the resolver for a given `fact_type` always calls
+    the SAME source function the capture path used to populate that type (PRICE
+    capture and PRICE current-value both go through the live-price cache; there is
+    no FMP-vs-Finnhub fallback swap between capture time and read time for a type
+    that started on one provider) — directive §66/§67's "do not let provider
+    fallback create false change" satisfied by never crossing providers within one
+    fact type's read path.
+23. **Rights-aware storage** — `rights_class = 'conditional'` fact types have NO
+    active capture path wired to any UI this wave (decision 40). The registry/
+    resolver/storage architecture supports them (columns exist, the service
+    function signature accepts them) but nothing in the frontend can reach them —
+    consistent with directive §13's "build the safe architecture... do not
+    silently turn persistent vendor storage on."
+24. **Note attachment model** — facts are **note-owned, not shared** (directive
+    §33's explicit permission to choose simplicity over normalization): one
+    `j2_fact_observations` row belongs to exactly one `note_id`, matching decision
+    34 below. Resolution: `GET /api/j2/notes/{note_id}/facts` returns every fact
+    the note's own `j2_note_fact_refs` sidecar references, batch-joined — the same
+    shape as Wave E's `GET /notes/{id}/properties`.
+25. **Editor node/embed model** — a new TipTap node, `financialFact`
+    (attrs: `{factId}` only — display data resolves via decision 24's endpoint,
+    never denormalized into the doc, so there is exactly one place a fact's value
+    can ever be read from). Sidecar: `j2_note_fact_refs` (note_id, position,
+    fact_id), synced by `_sync_note_fact_refs` at the same call sites
+    `_sync_note_embeds`/`_sync_note_links` already use. This is Wave D's `noteLink`
+    pattern, not `WIDGET_REGISTRY` (reconstruction above).
+26. **Version-history interaction** — `j2_note_versions` remains title/subtitle/
+    body only (Wave C's own scope, unchanged). A fact's presence in a given
+    version is implied by the `financialFact` node existing in that version's
+    captured `body_json` — restoring an old version re-establishes which
+    `factId`s are referenced; **no new fact rows are ever minted by a restore**,
+    and a `factId` referenced by a restored version that still exists in
+    `j2_fact_observations` resolves exactly as it did originally (directive §55,
+    resolved: restore can only re-point at real, already-existing facts, never
+    fabricate one from a version's stored `body_json` alone).
+27. **Initial fact types (registry, Wave F ships exactly two ACTIVE + one
+    ARCHITECTED-INACTIVE):**
+    - **`price`** — ACTIVE. `temporal_mode: live_and_snapshot`, `unit:
+      usd_per_share`, `source: massive`, `rights_class: independent`, `period:
+      NULL`. Capture: last trade price from the live-price cache at `observed_at`.
+      Current-value resolver: same cache, read fresh.
+    - **`user_note`** — ACTIVE. `temporal_mode: snapshot`, `unit: text`, `source:
+      user`, `rights_class: independent`, `period: NULL`, `value_text` free-form
+      (directive §50's "My estimate: 6.80" / "My target: 195" case — stored as
+      plain text this wave, not further typed, since forcing a number here would
+      reject a member's qualitative note like "management guided cautiously").
+    - **`analyst_price_target_consensus`** — ARCHITECTED, INACTIVE (decision 23).
+      `temporal_mode: snapshot`, `unit: usd_per_share`, `source: fmp`,
+      `rights_class: conditional`. Registry entry exists, resolver exists,
+      NOTHING in the frontend can reach it. Proves the architecture generalizes
+      beyond `price`/`user_note` without shipping vendor-value persistence.
+    Revenue/EPS estimates, ratings, and fundamental metrics are explicitly
+    deferred to a later slice/wave (directive §41's "keep it small").
+28. **Analyst-estimates capture decision** — NOT activated this wave. Per decision
+    6/23, FMP-derived estimate/rating/price-target VALUES have no prior
+    persistent-storage precedent in this codebase and no rights approval was
+    sought. The architecture is proven via `analyst_price_target_consensus`
+    (decision 27) sitting fully built and fully inactive. Activating it later is a
+    frontend-only change (wire one more fact-type button into the capture menu) —
+    zero schema/backend change required, which is the point of building it now.
+29. **Other capture entry points** — Wave F's only active entry points this wave
+    are: (a) the note editor's own `financialFact` insert (slash command `/price`,
+    mirroring `/chart`'s existing pattern) using the note's own ticker field, and
+    (b) a `Save to Notebook` addition on `TickerPopup.jsx` (the one already-
+    reachable surface showing a live price for any ticker, per directive §112's
+    material-entry-point discipline — a full "every surface with a price" sweep is
+    deferred; `TickerPopup` is used from 12+ places today, so a single entry point
+    there covers most real material surfaces without touching each one).
+30. **Save-to-Notebook integration** — reuses `CaptureMenu.jsx`/`sendToJournal.js`
+    exactly as chart embeds do: `widgetId`-shaped capture stays the pattern for
+    workspace-panel captures (unchanged); the note-editor slash command and the
+    `TickerPopup` door both insert a `financialFact` node directly via the
+    editor's own insert API (mirroring how `/chart`'s slash command inserts a
+    `widgetEmbed` node directly, without going through `CaptureMenu`) — because a
+    fact capture is instantaneous and synchronous (one small API call), not a
+    cross-surface "send this panel's current state to some other place" action
+    that `CaptureMenu`'s destination-picker exists for.
+31. **Structured-property (Wave E) interaction** — kept fully separate (directive
+    §52, explicit): a Wave E property is organizational note metadata
+    (`j2_note_properties`); a Wave F fact is captured financial evidence
+    (`j2_fact_observations`). No shared table, no shared UI component. A future
+    property TYPE that reads "has a captured PRICE fact" is a plausible later
+    slice, not built this wave.
+32. **Internal-link (Wave D) interaction** — unaffected; a `financialFact` node
+    coexists in the same document tree as `noteLink`/`widgetEmbed` nodes exactly
+    as TipTap already supports multiple node types side by side. No shared sidecar,
+    no shared identity.
+33. **Trade/position interaction** — the `uct_derived` source class (decision 15)
+    is architecturally ready for a future "capture this trade's entry price as a
+    fact" action referencing `j2_trades.id` via `source_ref`, but Wave F does not
+    build that capture path this wave (not named as a required initial fact type
+    in directive §41's small-set list) — recorded as a natural, cheap next slice.
+34. **Trash** — a trashed note's `financialFact` nodes and their referenced
+    `j2_fact_observations` rows are untouched (soft-delete on `j2_notes` only,
+    same as every other Wave A-E sidecar). Restoring the note restores full
+    resolution automatically — no fact-specific restore logic needed.
+35. **Purge (hard delete)** — cascade-delete via two new `AFTER DELETE ON j2_notes`
+    triggers, matching the exact style of the existing `j2_notes_versions_ad`/
+    `j2_notes_favorites_ad` triggers: one deletes `j2_note_fact_refs` rows for
+    `old.id`, one deletes `j2_fact_observations` rows for `old.id` (note-owned,
+    decision 24 — no reference-counting needed, decision 24's simplification pays
+    off directly here).
+36. **Orphan policy** — moot given decision 24/35: a fact can never outlive its
+    owning note (no note = no fact, by trigger), so there is no "unreferenced
+    snapshot" state to define a retention policy for. No purge sweep job is added
+    for facts (unlike Wave E's property-def retention sweep, which exists because
+    a property def CAN outlive every note that used it — facts cannot).
+37. **Account deletion** — `j2_fact_observations` and `j2_note_fact_refs` added to
+    `account_purge._DIRECT_USER_TABLES` (both are already covered transitively by
+    the note-hard-delete triggers when notes are purged as part of account
+    deletion, but added directly too, matching this codebase's own explicit
+    "no orphaned data" discipline rather than relying solely on trigger-cascade
+    ordering during a multi-table purge).
+38. **Backup** — no new backup mechanism; `auth.db`'s existing backup/volume
+    coverage already includes every `j2_*` table, including the two new ones.
+39. **Performance** — batched resolution only (decision 24's one-endpoint-per-note
+    shape), current-value resolver reads an already-warm 15s-cache (PRICE) —
+    no new per-fact provider call on note open. Measured at implementation time
+    (checkpoint item, not yet run — see the closure section for real numbers).
+40. **Cost/rate limit** — PRICE's resolver rides the existing shared live-price
+    cache (already bounded, already used by the whole dashboard) — zero
+    incremental provider cost from Wave F. The inactive `analyst_price_target_
+    consensus` resolver would ride `analyst_intel`'s existing 6h cache if ever
+    activated — no new cache tier invented.
+41. **Mobile UX** — the `financialFact` node view and its THEN/NOW card follow the
+    exact stacked-not-side-by-side rule directive §103 states explicitly; verified
+    in the closure section via the same `tools/mobile_audit.py` harness Wave D/E
+    used.
+42. **Accessibility** — native semantics throughout (no color-only signal for
+    change direction per directive §46/§104; THEN/NOW labeled with visible text,
+    not icons alone); verified in the closure section.
+43. **Vertical slices** — recomputed from this checkpoint, not copied verbatim
+    from directive §166's suggested 8-slice split (which assumes scope this
+    checkpoint deliberately narrowed — e.g. no separate "rights-aware behavior"
+    slice is needed since decision 6/23 already resolves it architecturally
+    rather than as a runtime toggle to build). Actual slices: (1) schema + fact
+    registry + `note_facts` service (create/get/delete, immutability, idempotency)
+    + current-value resolver; (2) `financialFact` TipTap node + sidecar sync +
+    resolution endpoint + THEN/NOW card UI; (3) capture entry points (`/price`
+    slash command, `TickerPopup` door); (4) Wave A-E integration (export, trash/
+    purge/account-deletion, version-history coexistence) + temporal-semantics doc;
+    (5) real-browser E2E + mobile + accessibility + performance + production
+    deploy + certification.
+44. **Test matrix** — backend: fact creation/immutability/idempotency/dedup,
+    entity-identity resolution (resolved/not_found/ambiguous, all three must not
+    block capture), current-value resolver correctness (THEN stays THEN after
+    current changes), tenant isolation (foreign fact id, foreign note),
+    cascade-delete on note hard-delete, account-purge coverage, export rendering.
+    Frontend: empty/loading/error/THEN-only-current-unavailable states, THEN/NOW
+    rendering, capture UI (slash command + TickerPopup door), multiple facts in
+    one note. Real-browser E2E per directive §147-155 (capture, THEN/NOW proof
+    with a controlled current-value change, provider-failure resilience, version
+    restore, coexistence with Wave D/E objects in one note, export, mobile,
+    idempotent retry).
+45. **Migration** — none. No backfilled fake historical values for existing notes
+    (directive §115/§116, absolute) — Wave F's history begins only at real,
+    future capture events.
+46. **Rollback** — fully additive; no existing table is altered destructively (two
+    new tables, two new triggers, one new TipTap node type, one new slash command,
+    one new `TickerPopup` button). Disabling the two new capture entry points
+    (feature-flag or revert) leaves every existing note fully intact — a
+    `financialFact` node with no matching `j2_fact_observations` row (which cannot
+    happen under normal operation, decision 35's triggers guarantee referential
+    integrity) is a pre-existing "foreign/nonexistent target" case the resolution
+    endpoint already has to handle for tenant-isolation reasons, so rollback safety
+    comes free from the same code path correctness requires anyway.
+
+**No MATERIAL architectural contradiction found against directive §1-13's north
+star.** `entity_master`'s existence changes the ANSWER to decision 9 from "invent
+one" to "consume the real one" but does not contradict anything the directive
+asked for — it is exactly the durable identity source §23 hoped might already
+exist. Proceeding directly to implementation, per the directive's own "otherwise
+proceed directly" instruction and this program's established per-wave rhythm.
