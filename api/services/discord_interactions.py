@@ -406,6 +406,18 @@ def build_flow_command() -> dict:
     }
 
 
+FLOW_CHART_PREFIX = "flowchart"
+
+
+def flow_components(ticker: str) -> list:
+    """One row under a /flow card: a button that opens the ticker's chart as an
+    EPHEMERAL popup (reuses the /chart house renderer). custom_id = flowchart|TICKER."""
+    t = (ticker or "").strip().upper()[:12]
+    return [{"type": 1, "components": [
+        {"type": 2, "style": 2, "label": "View chart", "emoji": {"name": "\U0001F4C8"},
+         "custom_id": f"{FLOW_CHART_PREFIX}|{t}"}]}]
+
+
 def _window_choices() -> dict[str, str]:
     """The picker's options, DERIVED from buzz_boards.WINDOW_LABEL — the one
     authority on which windows exist. A window added there appears here the
