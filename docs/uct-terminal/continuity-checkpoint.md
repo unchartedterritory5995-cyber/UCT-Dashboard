@@ -6,25 +6,25 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Feature-Flag Governance Sweep merge/deploy -- the eighth item down the
-priority stack from the same-day owner-authorized WHOLE-PRODUCT STRATEGIC
-RE-ANCHOR (13-lens multi-agent current-state review + synthesis, ~3.9M
-subagent tokens, 699 tool calls, zero lens failures). Full re-anchor
-report delivered to the owner in-conversation; this doc keeps only the
-load-bearing conclusions, not the full 30-section report. Both re-anchor
-MUST-FIX trust defects (Seam 28, Seam 29) plus Alert Durability V1 (Seam
-30) plus the keyboard accessibility program plus Compare Coverage V1
-(scoped via an explicit owner check-in, price-only) plus Seam 20 (Wire +
-MyStocksHub Insights row navigation) plus Feature-Flag Governance Sweep
-are now closed. **Seam 19 (the broader TickerActions/useTickerActions
-context-menu reuse into `EarningsTile.jsx`/`CalendarDayTable.jsx`/
-`FeedView.jsx`) was DELIBERATELY NOT bundled into the Seam 20 pass —
-larger blast radius, its own separate V2 scope, still open.** With the
-re-anchor's own named priority stack now exhausted, the next program
-(Seam 25 -- AI Search nightly-snapshot freshness disclosure) was selected
-directly from the debt ledger below rather than a named stack item,
-per the re-anchor's own stated headline priority (trust-boundary
-consistency across already-built AI surfaces). Awareness Reachability
+Seam 25 (AI Search nightly-snapshot freshness disclosure) merge/deploy --
+the first program picked directly from the debt ledger after the
+same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR's own named
+priority stack (13-lens multi-agent current-state review + synthesis,
+~3.9M subagent tokens, 699 tool calls, zero lens failures) was exhausted.
+Full re-anchor report delivered to the owner in-conversation; this doc
+keeps only the load-bearing conclusions, not the full 30-section report.
+Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus Alert
+Durability V1 (Seam 30) plus the keyboard accessibility program plus
+Compare Coverage V1 (scoped via an explicit owner check-in, price-only)
+plus Seam 20 (Wire + MyStocksHub Insights row navigation) plus
+Feature-Flag Governance Sweep plus Seam 25 are now closed. **Seam 19
+(the broader TickerActions/useTickerActions context-menu reuse into
+`EarningsTile.jsx`/`CalendarDayTable.jsx`/`FeedView.jsx`) was
+DELIBERATELY NOT bundled into the Seam 20 pass — larger blast radius,
+its own separate V2 scope, still open.** Next program: **Seam 21**
+(Research companion link on MyStocksHub's News/Filings/Calls tabs,
+reusing the Seam 20/`EventCard.jsx` convergence pattern) -- also picked
+from the debt ledger, not a named stack item. Awareness Reachability
 Restoration V1 remains deliberately SKIPPED pending a genuine owner
 monetization/entitlement decision (see the top-of-file section) -- do not
 resolve it unilaterally.
@@ -120,8 +120,16 @@ explicit check-in (adds one read-only, best-effort SnapTrade
 balance-history cross-check to the existing broker fidelity audit, never
 writes to any balance/position) — **owner chose to keep it armed**, now
 documented in the ledger with that rationale. Pure docs/test-tooling
-change, zero runtime behavior touched → **now: Seam 25** (see the debt
-ledger below).
+change, zero runtime behavior touched → **Seam 25** ✅ resolved same day,
+merge `7c83f19b7`/`441064d23`: `ai_search.py::_ctx_posture()`'s technical
+posture pack was labeled only "UCT nightly snapshot," no date — threaded
+the already-populated `snapshot_date`/`bars_asof` columns from
+`snapshot_db.get_row()` into the rendered label, kept distinct on purpose
+(they answer different questions and diverge on ~21.7% of rows per
+`snapshot_builder.py`'s own header). Production-verified live (AAPL:
+"built 2026-09-06, bars asof 2026-09-04" — a real 2-day divergence example
+on the very first check). 3 new tests + full 1011-test ai_search surface
+green → **now: Seam 21** (see the debt ledger below).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -1651,17 +1659,16 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
   Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
-  Feature-Flag Governance Sweep — ALL DONE, ACCEPTED + LIVE. Seam 25
-  (AI Search nightly-snapshot freshness disclosure) — STARTING NOW.**
-  The re-anchor's own named priority stack is now EXHAUSTED (Feature-Flag
-  Governance Sweep was its last item) — Seam 25 was selected directly from
-  the debt ledger below rather than a stack item, per the re-anchor's own
-  stated headline conclusion (trust-boundary consistency across
-  already-built AI surfaces is the primary remaining gap). Other live
-  candidates considered and NOT picked this round: Seam 19 (larger blast
-  radius, its own V2, still open — see below), Seam 21 (News/Filings/Calls
-  → Research companion link, bounded but lower trust-value than Seam 25).
-  **Seam 19 (Board/Table/Feed TickerActions context-menu reuse) remains
+  Feature-Flag Governance Sweep + Seam 25 — ALL DONE, ACCEPTED + LIVE.
+  Seam 21 (MyStocksHub News/Filings/Calls → Research companion link) —
+  STARTING NOW.** The re-anchor's own named priority stack is EXHAUSTED
+  (Feature-Flag Governance Sweep was its last item) — both Seam 25 and now
+  Seam 21 were selected directly from the debt ledger below rather than a
+  stack item. Seam 25 was picked first per the re-anchor's own stated
+  headline conclusion (trust-boundary consistency across already-built AI
+  surfaces); Seam 21 is next as the smaller/lower-risk of the two
+  remaining live candidates. **Seam 19 (Board/Table/Feed TickerActions
+  context-menu reuse) remains
   its own open, separately-scoped V2 — deliberately not bundled into the
   Seam 20 pass** (larger blast radius across 3+ live files with existing
   click handlers to preserve; see the Seam 19 debt-ledger entry below,
@@ -1722,21 +1729,36 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   deciding unilaterally — **owner chose to keep it armed**, now documented
   with that rationale. Pure docs/test-tooling, zero runtime behavior
   change. See the Feature-Flag Governance Sweep debt-ledger entry above
-  (top-of-file priority-stack paragraph) for full detail → **now: Seam 25**
-  (Awareness Reachability Restoration V1 still skipped, see above).
-  **This program (Seam 25)**: `ai_search.py::_ctx_posture()` surfaces
-  SMA%/RSI/RS-rank/Stage/etc. from the nightly `screener_rows` snapshot
-  into AI Search answers labeled only "UCT nightly snapshot," with none of
-  the real freshness columns (`snapshot_date`/`bars_asof`/`built_at`) that
-  `snapshot_db.get_row` already carries threaded through — if the nightly
-  build job ever fails silently, neither the model nor the member can tell
-  the data is stale. **Bounded Phase A required before implementation**:
-  re-read `_ctx_posture()` and the `screener_rows`/`snapshot_db` freshness
-  columns against CURRENT code before writing any fix — this seam was
-  recorded 2026-09-06 by Technical Ask AI's own Phase A and the framing may
-  have drifted since. Fix shape: thread `built_at`/`bars_asof` into
-  `_ctx_posture`'s rendered string, mirroring how Pattern Vision's
-  `asof_date`/`judged_at` are already present on confirmed verdicts.
+  (top-of-file priority-stack paragraph) for full detail → **Seam 25** —
+  ACCEPTED + LIVE, merge `7c83f19b7`/`441064d23`: `ai_search.py::
+  _ctx_posture()`'s technical posture pack was labeled only "UCT nightly
+  snapshot," no date — threaded the already-populated `snapshot_date`/
+  `bars_asof` columns from `snapshot_db.get_row()` into the rendered
+  label (`built_at` deliberately not re-rendered — same moment as
+  `snapshot_date`, just an epoch int, would restate rather than add a
+  fact). Kept the two dates distinct on purpose: they answer different
+  questions and diverge on ~21.7% of rows per `snapshot_builder.py`'s own
+  header. Production-verified live (AAPL: "built 2026-09-06, bars asof
+  2026-09-04" — a real 2-day divergence example on the very first live
+  check). 3 new tests in `test_ai_search_wave2_packs.py` + full
+  1011-test `ai_search` surface green; clean `api.main` boot →
+  **now: Seam 21** (Awareness Reachability Restoration V1 still skipped,
+  see above).
+  **This program (Seam 21)**: MyStocksHub's News/Filings/Calls tabs
+  preserve only the external source (a real `<a href target=_blank>`
+  article/EDGAR filing, or inline `CallRecapSection`/`TranscriptPanel`)
+  with no Research companion action anywhere — unlike Seam 20's dead
+  ends, these DO preserve primary evidence; the gap is the absent SECOND
+  door (Research), not a broken first one. **Bounded Phase A required
+  before implementation**: re-read `MyStocksHub.jsx`'s `NewsTab`/
+  `FilingsTab`/`CallsTab` components plus `WireView.jsx`'s just-shipped
+  precedent against CURRENT code before writing any fix — this seam was
+  recorded 2026-09-06 by Event/News/Calendar → Research Convergence V1's
+  own Phase A and the framing may have drifted since (Seam 20 already
+  changed `MyStocksHub.jsx` once this session). Fix shape: a
+  `goToResearch` sibling action beside each existing external link/inline
+  panel — do NOT remove or alter the existing external-source access,
+  purely additive.
   **The re-anchor's own named priority stack is now exhausted** — future
   "next program" selections should be re-derived from the debt ledger
   below (ranked by trust-boundary value per the re-anchor's headline
@@ -2177,19 +2199,19 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `get_verdict`/`get_recent_verdicts` is added. Fix shape: a new read-only,
   paid-gated endpoint exposing rejection + rationale by symbol; real V2 work
   for Technical Ask AI, not V1.
-- **Seam 25 — the nightly technical snapshot AI Search already grounds on
-  carries no freshness disclosure to the model (surfaced by Technical Ask
-  AI's Phase A, 2026-09-06, NOT fixed).** `screener_rows` (via
-  `snapshot_db.get_row`) has real freshness columns (`snapshot_date`,
-  `bars_asof`, `built_at`), but `ai_search.py::_ctx_posture()` -- the
-  function that actually surfaces SMA%/RSI/RS-rank/Stage/etc. into an AI
-  Search answer -- renders none of them, labeling the whole block only "UCT
-  nightly snapshot." If the nightly build job ever fails silently, the model
-  (and the member) has no way to know the data is stale. Fix shape: thread
-  `built_at`/`bars_asof` into `_ctx_posture`'s rendered string, mirroring how
-  Pattern Vision's `asof_date`/`judged_at` are at least present (even though
-  currently unfiltered -- see the Technical Ask AI Phase A spec under
-  "CURRENT PARKED" above) on confirmed verdicts.
+- **Seam 25 — RESOLVED 2026-09-06, merge `7c83f19b7`/`441064d23`.** Was:
+  the nightly technical snapshot AI Search already grounds on carried no
+  freshness disclosure to the model (surfaced by Technical Ask AI's Phase
+  A, 2026-09-06). `screener_rows` (via `snapshot_db.get_row`) has real
+  freshness columns (`snapshot_date`, `bars_asof`, `built_at`), but
+  `ai_search.py::_ctx_posture()` rendered none of them, labeling the whole
+  block only "UCT nightly snapshot." Fix: `snapshot_date`/`bars_asof`
+  threaded into the rendered label via a new `_posture_asof_label(row)`
+  helper, kept distinct on purpose (they answer different questions and
+  diverge on ~21.7% of rows). `built_at` deliberately NOT rendered a
+  second time — same moment as `snapshot_date`, just an epoch int.
+  Production-verified live (AAPL: "built 2026-09-06, bars asof
+  2026-09-04"). 3 new tests, full 1011-test `ai_search` surface green.
 
 - **Seam 27 — `get_breadth_history`'s `anchor` param is a live FastAPI
   `Query` sentinel when called directly as a Python function (newly
