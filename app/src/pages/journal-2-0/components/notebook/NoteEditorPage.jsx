@@ -24,6 +24,7 @@ import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
+import PropertiesSection from './PropertiesSection'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -1373,6 +1374,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           }}
           placeholder="Subtitle (optional)"
         />
+
+        {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
+            a note with nothing set renders only a small "+ Add property"
+            link, never a permanent header (progressive disclosure). */}
+        <PropertiesSection noteId={noteId} updateNote={update} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
