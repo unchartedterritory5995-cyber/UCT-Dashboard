@@ -1763,6 +1763,99 @@ section, not duplicated here.
 
 ---
 
+## Wave I — Attachments + PDF / Financial Document Research Foundation (2026-09-07)
+
+**The entry checkpoint's central question (attachment vs. document data
+model) resolved directly, not assumed.** ATTACHMENT (existing, unchanged)
+and DOCUMENT (new: an attachment whose type supports extraction) are kept as
+a strict one-to-one-or-zero relationship — a `j2_note_documents` row exists
+ONLY for a PDF attachment, never for an image/CSV/DOCX — reusing the
+existing filesystem-path attachment identity model unchanged rather than
+inventing a second one. The only genuinely new primitives were two small
+metadata tables, one new FTS5 index, the live-authoring upload wiring for
+non-image files, a PDF preview Sheet, and a bounded async extraction job —
+every storage, security, export, backup, and cleanup primitive Wave I needed
+already existed and was reused.
+
+**Two real, live-browser-discovered defects, both fixed with regression
+coverage, recorded here rather than silently patched over:**
+1. `AttachmentChip`'s native `download=` attribute defeated TipTap's own
+   `handleClickOn` — the browser's native anchor-download handling won the
+   race against ProseMirror's synthetic click routing, so the first click on
+   a freshly-inserted PDF chip silently downloaded it instead of previewing.
+   Fixed via a capture-phase `onClickCapture` handler that runs before the
+   native anchor default action.
+2. A pre-existing `Sheet.jsx` bug, first exposed (not introduced) by this
+   wave: `panelStyle`'s ternary only special-cased `bottom-sheet`, so the
+   new `fullscreen`-variant `DocumentPreviewSheet` silently inherited the
+   desktop-modal 520px `maxWidth` cap — invisible on the one prior
+   `fullscreen` caller (touch-only, already narrower than 520px). Fixed by
+   excluding `fullscreen` from that branch; three new regression tests
+   added to the shared `Sheet.test.jsx`.
+
+**Full real-browser E2E, proven live, not just asserted:** uploaded a real
+hand-built 3-page PDF via the toolbar file picker; confirmed the preview
+Sheet opens genuinely fullscreen (`panel.style.maxWidth === ''`,
+`getBoundingClientRect().width === window.innerWidth`, 1920px, matching the
+Sheet.jsx fix); polled the documents endpoint and confirmed extraction
+reached `status: "ready"`/`pageCount: 3`; confirmed the Ticker Research
+Workspace's Documents section shows the file with its page count; searched
+the Notebook sidebar for real extracted page text and confirmed a sectioned
+"1 document page" result with a highlighted snippet and correct page number,
+opening the owning note on click; confirmed the upload-failure toast on a
+disallowed MIME type (the toast's own 4s auto-dismiss window was the first
+thing this verification pass tripped over — re-confirmed with a
+zero-delay screenshot); and confirmed tenant isolation by signing up a
+second account in the same browser tab and verifying it received `404` on
+the note and its documents list, `403` on the raw attachment file, and
+`200` with an EMPTY result set (never an error) from document search.
+
+**Non-regression:** 38 new backend tests (extraction, document/page CRUD,
+search, a real Wave-C-era GC fix — `attachment_gc.py`'s reference scan now
+also covers `j2_note_versions.body_json`, not just the live note body —
+cascade delete, account-purge coverage, Ticker Workspace integration), all
+passing. 102 new/updated frontend tests across 5 files, all passing,
+including the `tapFloor.test.js` regression this wave's own
+`DocumentPreviewSheet.module.css` briefly introduced (a touch-target floor
+declared at the phone-only `≤640px` tier instead of the canonical `≤1024px`
+TOUCH tier) — found via the full-suite rerun DURING implementation, fixed,
+re-verified via a second full-suite rerun showing the same 7 pre-existing
+unrelated failures and zero new ones.
+
+**Production closure:** same isolated-temporary-worktree process as every
+prior wave. `git worktree add ... -b wave-i-merge-tmp origin/master`, clean
+`--no-ff` merge of `notebook-primary-platform` (commit `7628fe628`), zero
+conflicts, producing merge commit `f9ca751ed`. Re-fetched `origin/master`
+immediately before pushing, confirmed still an ancestor (no drift). Pushed
+directly to `master`. Temp worktree removal hit the same Windows file-lock
+this pattern always needs on this box — resolved via `cd` back to the
+primary worktree → PowerShell `Remove-Item -Recurse -Force` → `git worktree
+prune`.
+
+Railway `web` picked up the push automatically; watched `railway status
+--json` (web service) through BUILDING → DEPLOYING → **SUCCESS**.
+Fresh-process confirmed via `GET /api/health` on `uctintelligence.com`
+(`uptime_seconds: 24` moments after the flip to SUCCESS). Both new document
+routes (`GET /api/j2/notes/{id}/documents`, `GET
+/api/j2/notes/documents/search`) verified returning real, auth-gated `401
+application/json` in production, not the SPA catch-all. Production bundles
+(`NotebookTab-B8YZh73y.js` and its own lazy child chunk
+`DocumentPreviewSheet-59U1FrTW.js`, both fetched live via their real chunk
+names resolved from the main entry bundle's own `import()` map, never
+guessed) contain the shipped UI copy: "Attach a file", "Upload file
+attachment", "Couldn't upload" (the toast) in the first, "Open in new tab"
+and "Download" in the second. LOCKED `broker_sync` merge invariant
+re-checked before push: `grep -c broker_sync api/main.py` read 10,
+unchanged from every prior wave's own post-merge reading, comfortably above
+the documented ≥7 floor.
+
+Verification detail (the live browser E2E sequence, the two defects' exact
+reproduction steps, the mobile audit numbers) lives in
+`prelaunch-primary-notebook-build-plan.md`'s Wave I closure section, not
+duplicated here.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
