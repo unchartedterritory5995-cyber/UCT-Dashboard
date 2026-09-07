@@ -301,8 +301,14 @@ def classify(ticker: str) -> str:
 
 
 def refresh_class_sets() -> None:
-    """Force a reload — call after a sync completes."""
+    """Force a reload — call after a sync completes.
+
+    Also drops the generation memo: a sync that replaced the table but left the
+    old generation cached would report the PREVIOUS snapshot's identity, which is
+    precisely the lie the identity exists to prevent.
+    """
     _load_class_sets(force=True)
+    _GEN_CACHE.update(generation=None, last_synced=None, count=0, loaded_at=0.0)
 
 
 def backfill_flow_source(target_date: str = None) -> dict:
@@ -401,3 +407,89 @@ if __name__ == "__main__":
         print(get_asset_type(ticker))
     else:
         print("Usage: python ticker_types.py {sync [market] | backfill [date] | lookup TICKER}")
+
+
+# ── Canonical classification generation ────────────────────────────────────
+# A CONTENT identity for the ETF/INDEX classification snapshot, so two services
+# can prove they hold the same set rather than infer it.
+#
+# ⛔ `last_synced` + row count is NOT proof. Timestamps are operational metadata,
+# and two different symbol sets can share a count — a swap of one ticker for
+# another is invisible to both. The digest below is taken over the canonical
+# sorted (ticker, asset_type) projection, so equality of the generation means
+# equality of the snapshot.
+#
+# ⛔ NOT COMPUTED PER MEMBER REQUEST. It is memoised against the same rows the
+# caller is already reading, and the cache is dropped whenever the sync replaces
+# the table (see refresh_class_sets). Hashing ~19k rows on every page load would
+# trade one problem for another on a single-process pod.
+#
+# Discovered 2026-09-07: web's table read 19,483 ETF/INDEX symbols at
+# last_synced 2026-09-07T09:30, while flow-worker's read 18,863 at
+# 2026-07-14T05:30 — frozen at the P5 cutover, 55 days stale, and still deciding
+# live tape routing through massive_processor.is_index_source(). This identity is
+# what makes that divergence detectable instead of silent.
+
+_GEN_CACHE = {"generation": None, "last_synced": None, "count": 0, "loaded_at": 0.0}
+
+
+def _generation_from_rows(rows) -> str:
+    """sha256 over the canonical sorted (ticker, asset_type) ETF/INDEX projection."""
+    import hashlib
+    h = hashlib.sha256()
+    for ticker, asset_type in sorted(rows):
+        h.update(ticker.encode("utf-8"))
+        h.update(b"\x1f")
+        h.update(asset_type.encode("utf-8"))
+        h.update(b"\x1e")
+    return h.hexdigest()
+
+
+def etf_index_snapshot(conn=None) -> dict:
+    """{symbols, generation, last_synced, count} from ONE consistent read.
+
+    ⛔ THE SNAPSHOT AND ITS GENERATION COME FROM THE SAME READ, DELIBERATELY.
+    Returning them from two reads allows: generation G observed -> sync runs ->
+    rows of G+1 fetched -> replica stamped G. A replica that believes it holds G
+    while holding G+1 is worse than one that knows it is stale, because the
+    mismatch rail can no longer see it.
+    """
+    own = conn is None
+    if own:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        ensure_schema(conn)
+        rows = conn.execute(
+            "SELECT ticker, asset_type FROM ticker_types "
+            "WHERE asset_type IN ('ETF','INDEX')"
+        ).fetchall()
+        last_synced = conn.execute("SELECT MAX(last_synced) FROM ticker_types").fetchone()[0]
+    finally:
+        if own:
+            conn.close()
+    pairs = [(str(t), str(a)) for t, a in rows]
+    return {
+        "symbols": sorted(t for t, _ in pairs),
+        "generation": _generation_from_rows(pairs),
+        "last_synced": last_synced,
+        "count": len(pairs),
+    }
+
+
+def classification_generation() -> dict:
+    """{generation, last_synced, count} — the cheap metadata-only form.
+
+    Memoised for _CLS_TTL like the class sets themselves; `refresh_class_sets()`
+    drops it so a completed sync is reflected immediately.
+    """
+    now = time.time()
+    if _GEN_CACHE["generation"] and (now - _GEN_CACHE["loaded_at"]) < _CLS_TTL:
+        return {k: _GEN_CACHE[k] for k in ("generation", "last_synced", "count")}
+    try:
+        snap = etf_index_snapshot()
+    except Exception as e:
+        logger.warning("[ticker_types] generation read failed: %s", e)
+        return {"generation": None, "last_synced": None, "count": 0}
+    _GEN_CACHE.update(generation=snap["generation"], last_synced=snap["last_synced"],
+                      count=snap["count"], loaded_at=now)
+    return {k: snap[k] for k in ("generation", "last_synced", "count")}
