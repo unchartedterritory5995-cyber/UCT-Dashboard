@@ -790,7 +790,11 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     # toggle row is already full (an activity guild spends the fifth slot on
     # "Open in Discord") - dropping it silently would strand the member in the
     # expanded view with no way back to the one-row chart.
-    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+    # \U0001F53C (\ud83d\udd3c) not \u25b2 (\u25b2): the bare geometric triangle is a text SYMBOL,
+    # not a unicode emoji, so Discord rejects it as COMPONENT_INVALID_EMOJI (code
+    # 50035) and refuses the WHOLE control tree \u2014 the member gets "controls
+    # unavailable" and every button vanishes. The up-triangle emoji is valid.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\U0001F53C"},
                 "custom_id": sid("g", exp="0")}
     rows = [{"type": 1, "components": tfs}]
     if len(row5) < 5:
