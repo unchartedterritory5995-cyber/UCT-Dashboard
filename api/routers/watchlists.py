@@ -167,15 +167,27 @@ def set_digest_settings(body: DigestSettings, user: dict = Depends(get_current_u
 # ── Regular watchlist endpoints ──
 
 @router.get("/api/watchlists")
-def list_watchlists(include_items: bool = True, user: dict = Depends(get_current_user)):
-    """The user's lists. `?include_items=0` omits `items` (metadata + item_count only).
+def list_watchlists(
+    include_items: bool = True,
+    include_prebuilt: bool = True,
+    user: dict = Depends(get_current_user),
+):
+    """The user's lists. `?include_items=0` omits `items` (metadata + item_count only);
+    `?include_prebuilt=0` drops the admin-curated index lists.
 
-    Default True keeps every existing caller byte-identical. The app-shell surfaces
-    that only draw list NAMES pass 0 — see the note in
-    `watchlist_service.list_user_watchlists` for the 553 KB / 4,406-row page-load
-    cost that motivated it.
+    Both default True so every existing caller stays byte-identical. The app-shell
+    surfaces that only draw list NAMES pass `include_items=0`; the ones asking what
+    the member is actually watching pass `include_prebuilt=0` — see the note in
+    `watchlist_service.list_user_watchlists` for the 592 KB / 4,726-row / 28 s
+    page-load cost that motivated each.
+
+    ⛔ Both flags must be FORWARDED, not merely accepted. A slim mode the endpoint
+    never passes on is built, green and unreachable — that is exactly how the first
+    `include_items` pass shipped, surviving all nine service tests.
     """
-    return watchlist_service.list_user_watchlists(user["id"], include_items=include_items)
+    return watchlist_service.list_user_watchlists(
+        user["id"], include_items=include_items, include_prebuilt=include_prebuilt
+    )
 
 
 @router.get("/api/watchlists/public")

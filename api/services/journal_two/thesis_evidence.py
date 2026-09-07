@@ -2,11 +2,14 @@
 
 The ONE new structural primitive this wave's entry checkpoint found
 necessary (decision 15/24): `j2_thesis_evidence` points FROM a thesis note
-TO either another note (`target_type='note'`) or a captured financial fact
-(`target_type='fact'`), annotated with a SUPPORTS/OPPOSES stance and an
-optional caption. See the Wave G entry checkpoint
+TO either another note (`target_type='note'`), a captured financial fact
+(`target_type='fact'`), or (Wave J) a saved document excerpt
+(`target_type='document_excerpt'`), annotated with a SUPPORTS/OPPOSES
+stance and an optional caption. See the Wave G entry checkpoint
 (`docs/notebook/prelaunch-primary-notebook-build-plan.md`) for the full
-48-point rationale.
+48-point rationale, and the Wave J entry checkpoint for the
+`document_excerpt` extension -- `target_type` was left an open string
+specifically to invite it.
 
 Soft-delete only (`removed_at`, never a hard DELETE on user action) — this
 is what lets the Wave G changelog derive evidence-added/evidence-removed
@@ -27,7 +30,7 @@ from typing import Any
 from api.services.auth_db import get_connection
 
 STANCES = ("supports", "opposes")
-TARGET_TYPES = ("note", "fact")
+TARGET_TYPES = ("note", "fact", "document_excerpt")
 
 
 class ThesisEvidenceValidationError(ValueError):
@@ -62,6 +65,9 @@ def _target_exists(user_id: str, target_type: str, target_id: str, conn: sqlite3
     if target_type == "fact":
         from api.services.journal_two.note_facts import get_fact_observation
         return get_fact_observation(user_id, target_id, conn=conn) is not None
+    if target_type == "document_excerpt":
+        from api.services.journal_two.note_excerpts import get_excerpt
+        return get_excerpt(user_id, target_id, conn=conn) is not None
     return False
 
 

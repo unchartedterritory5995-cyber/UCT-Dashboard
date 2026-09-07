@@ -155,6 +155,13 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
             out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
         elif ntype == "attachmentChip":
             out.append(f"[file: {attrs.get('name') or 'file'}]")
+        elif ntype == "documentExcerpt":
+            # Wave J: mirrors financialFact/noteLink's own silence -- the
+            # excerpt's real, durable text lives in j2_note_excerpts and is
+            # searchable through its own FTS index (excerpt_search.py), not
+            # duplicated into note-body search. A short bracketed marker
+            # (matching attachmentChip's own idiom) keeps SOME inline trace.
+            out.append("[excerpt]")
         elif ntype == "widgetEmbed":
             # attrs may be any JSON shape (the body validator is deliberately
             # permissive and the importer round-trips arbitrary HTML) — a
@@ -344,6 +351,44 @@ def _sync_note_fact_refs(
             "INSERT INTO j2_note_fact_refs (note_id, user_id, position, fact_id)"
             " VALUES (?,?,?,?)",
             [(note_id, user_id, i, fid) for i, fid in enumerate(fact_ids)])
+
+
+def _extract_note_excerpt_refs(doc: dict[str, Any] | None) -> list[str]:
+    """Every `documentExcerpt` node's excerpt id, in document order
+    (Wave J). Mirrors `_extract_note_fact_refs` exactly."""
+    ids: list[str] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "documentExcerpt":
+            attrs = node.get("attrs")
+            eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
+            if isinstance(eid, str) and eid:
+                ids.append(eid)
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return ids
+
+
+def _sync_note_excerpt_refs(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_excerpt_refs projection inside the
+    caller's transaction (no commit here) -- mirrors `_sync_note_fact_refs`
+    exactly. An excerptId this note no longer references simply drops out
+    of the sidecar; the owning j2_note_excerpts row is untouched here
+    (removal-as-deletion is note_excerpts.delete_excerpt's job, an explicit
+    action never inferred from a save diff)."""
+    conn.execute("DELETE FROM j2_note_excerpt_refs WHERE note_id = ?", (note_id,))
+    excerpt_ids = _extract_note_excerpt_refs(body_json)
+    if excerpt_ids:
+        conn.executemany(
+            "INSERT INTO j2_note_excerpt_refs (note_id, user_id, position, excerpt_id)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, i, eid) for i, eid in enumerate(excerpt_ids)])
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -681,6 +726,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_mentions(conn, user_id, row["id"], body_plain)
                         _sync_note_links(conn, user_id, row["id"], body_json)
                         _sync_note_fact_refs(conn, user_id, row["id"], body_json)
+                        _sync_note_excerpt_refs(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
                     else:
@@ -697,6 +743,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_mentions(conn, user_id, new_id, body_plain)
                         _sync_note_links(conn, user_id, new_id, body_json)
                         _sync_note_fact_refs(conn, user_id, new_id, body_json)
+                        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         created.append(item)
@@ -1739,6 +1786,7 @@ def create_note(
         _sync_note_mentions(conn, user_id, new_id, body_plain)
         _sync_note_links(conn, user_id, new_id, body_json)
         _sync_note_fact_refs(conn, user_id, new_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -2140,6 +2188,7 @@ def update_note(
             _sync_note_mentions(conn, user_id, note_id, bp)
             _sync_note_links(conn, user_id, note_id, bj)
             _sync_note_fact_refs(conn, user_id, note_id, bj)
+            _sync_note_excerpt_refs(conn, user_id, note_id, bj)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2197,6 +2246,7 @@ def append_widget_embed(
         _sync_note_mentions(conn, user_id, note_id, body_plain)
         _sync_note_links(conn, user_id, note_id, body_json)
         _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2257,6 +2307,69 @@ def append_financial_fact(
         _sync_note_mentions(conn, user_id, note_id, body_plain)
         _sync_note_links(conn, user_id, note_id, body_json)
         _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        conn.commit()
+        out = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        return _row_to_note(out)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def append_document_excerpt(
+    user_id: str,
+    note_id: str,
+    excerpt_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave J — the server half of "Save excerpt" when the destination note
+    is NOT the one currently open in an editor (the PDF viewer is reached
+    from the Ticker Research Workspace's Documents section just as often as
+    from an open note, per the entry checkpoint's own fast-path decisions —
+    that surface has no live editor instance to insert a node into client-
+    side). Mirrors `append_financial_fact` exactly (atomic load/append/save,
+    same sidecar syncs, same trash guard). The excerpt row itself must
+    already exist (created via note_excerpts.create_excerpt against this
+    SAME note_id) -- this function only places the NODE."""
+    if not excerpt_id:
+        raise NoteValidationError("excerptId required")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (TypeError, ValueError):
+            doc = {}
+        if not isinstance(doc, dict) or doc.get("type") != "doc":
+            doc = {"type": "doc", "content": []}
+        content = doc.get("content")
+        if not isinstance(content, list):
+            content = []
+        content.append({"type": "documentExcerpt", "attrs": {"excerptId": excerpt_id}})
+        doc["content"] = content
+        body_json = _validate_body_json(doc)
+        body_plain = extract_plain_text(body_json)
+        conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, updated_at = ?"
+            " WHERE id = ? AND user_id = ?",
+            (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
+        )
+        _sync_note_embeds(conn, user_id, note_id, body_json)
+        _sync_note_mentions(conn, user_id, note_id, body_plain)
+        _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)

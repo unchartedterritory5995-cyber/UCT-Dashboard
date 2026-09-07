@@ -1326,3 +1326,61 @@ def test_a_notes_evidence_never_appears_in_another_notes_export():
     zf = zipfile.ZipFile(io.BytesIO(blob))
     assert "thesis_evidence:" not in zf.read("Thesis B.md").decode("utf-8")
     assert "thesis_evidence:" in zf.read("Thesis A.md").decode("utf-8")
+
+
+# ── Wave J: document excerpt export ──────────────────────────────────────────
+
+def test_full_export_renders_a_document_excerpt_as_an_inline_blockquote_with_citation():
+    from api.services.journal_two import note_excerpts, document_extraction
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Investor Deck Research", _doc(_para("intro")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "n1", "/api/j2/notes/attachments/u1/n1/file/x.pdf", "NVDA Investor Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "n1", document_id=doc["id"], page_number=17,
+        captured_text="Management expects gross margins to normalize lower",
+        annotation="Weakens my margin-expansion assumption", conn=c,
+    )
+    from api.services.journal_two import notes as notes_svc
+    notes_svc.append_document_excerpt("u1", "n1", excerpt["id"], conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Investor Deck Research.md").decode("utf-8")
+    assert "> Management expects gross margins to normalize lower" in body
+    assert "> — NVDA Investor Deck.pdf, p.17" in body
+    assert "*Weakens my margin-expansion assumption*" in body
+
+
+def test_full_export_omits_the_excerpt_content_honestly_when_the_source_document_is_gone():
+    from api.services.journal_two import note_excerpts, document_extraction, notes as notes_svc
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Research", _doc(_para("intro")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "n1", "/api/j2/notes/attachments/u1/n1/file/x.pdf", "Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "n1", document_id=doc["id"], page_number=1, captured_text="quote", conn=c)
+    notes_svc.append_document_excerpt("u1", "n1", excerpt["id"], conn=c)
+    c.execute("DELETE FROM j2_note_documents WHERE id = ?", (doc["id"],))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Research.md").decode("utf-8")
+    assert "excerpt source no longer available" in body
+
+
+def test_full_export_lists_document_excerpt_evidence_by_page_citation():
+    from api.services.journal_two import note_excerpts, document_extraction, thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "thesis", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "source", "u1", "NVDA Investor Deck Research", _doc(_para("y")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "source", "/api/j2/notes/attachments/u1/source/file/x.pdf", "Investor Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "source", document_id=doc["id"], page_number=17, captured_text="margin commentary", conn=c)
+    ev.add_evidence("u1", "thesis", target_type="document_excerpt", target_id=excerpt["id"],
+                     stance="opposes", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" in body
+    assert "Investor Deck.pdf, p.17" in body

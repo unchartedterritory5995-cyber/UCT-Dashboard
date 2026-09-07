@@ -3886,9 +3886,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # /flow Discord command asks for "all".
     _lb_cap = 400 if only_ticker else 31
     lookback_days = max(1, min(int(lookback_days or 1), _lb_cap))   # range picker: up to 31 (was 5); up to 400 for a single ticker
-    if lookback_days <= 1:
+    if lookback_days <= 1 and not only_ticker:
+        # Market-wide live feed: the 1-day default stays literally today (its
+        # callers already handle an empty out-of-hours read).
         target_dates = [today]
     else:
+        # Resolve the window against the SESSIONS THAT ACTUALLY HAVE DATA, not the
+        # calendar. For a single-ticker /flow with the default window (1 day), this
+        # means the last TRADING day: on a weekend / holiday / long weekend / before
+        # today's tape starts, `/flow TICKER` with no window picked shows the last
+        # working day's flow instead of an empty card.
         _c = sqlite3.connect(DB_PATH, timeout=10)
         try:
             all_dates = [r[0] for r in _c.execute(
@@ -4439,6 +4446,22 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             return any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
                        for t in (c.get("types") or []))   # fallback if raw lookup missed
         contracts = [c for c in contracts if _has_sweep(c)]
+    # Drop EXPIRED contracts — an option whose expiration is before today can't be
+    # traded, so a past-dated build is just noise on the card (owner, 2026-09-07).
+    # Filter on the EXPIRATION DATE vs today, NOT the `dte` field (that's the DTE as
+    # of when the flow printed, so an already-expired contract can still show a small
+    # positive dte). Fail-open on an unparseable exp so a live contract is never hidden.
+    _today_key = _parse_mdy(today)
+
+    def _not_expired(c):
+        e = str(c.get("exp") or "").strip()
+        if not e:
+            return True
+        ek = _parse_mdy(e)
+        if ek == (0, 0, 0):
+            return True                      # unparseable → keep (fail open)
+        return ek >= _today_key
+    contracts = [c for c in contracts if _not_expired(c)]
     # Effective premium/volume = the ASK-ACCUMULATION aggregate when it exceeds the
     # surviving-prints total (recovers blank-side sweeps the classifier drops) — the
     # same figure LiveMassive's By-Contract view shows (PPTA 35C: $485K → $1.21M).

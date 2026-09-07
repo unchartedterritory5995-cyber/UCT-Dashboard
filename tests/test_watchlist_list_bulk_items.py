@@ -25,6 +25,17 @@ def _user(tag="wlbulk"):
     return create_user(f"{tag}_{uuid.uuid4()}@example.com", "p")["id"]
 
 
+def _mark_prebuilt(list_id):
+    """Flip a list to admin-curated. Written through the same column the service
+    filters on, so the test cannot pass against a flag nobody reads."""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE watchlists SET is_prebuilt = 1 WHERE id = ?", (list_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def test_bulk_items_match_the_per_list_query_exactly():
     """Same rows, same order, per list — the N+1 result is the oracle."""
     uid = _user()
@@ -204,7 +215,7 @@ def test_the_endpoint_forwards_include_items_to_the_service(monkeypatch):
 
     seen = {}
 
-    def spy(user_id, include_items=True):
+    def spy(user_id, include_items=True, include_prebuilt=True):
         seen["user_id"] = user_id
         seen["include_items"] = include_items
         return []
@@ -237,3 +248,83 @@ def test_include_items_is_a_real_query_parameter_on_the_mounted_route():
     # Non-vacuity control: the probe can see query params in general, so a route
     # that declared none would not pass this by accident.
     assert names, "the probe found no query params at all — it cannot discriminate"
+
+
+# ── prebuilt filter (`include_prebuilt=False`) ───────────────────────────────
+# The admin-curated INDEX lists are owned by the admin account, so they come back
+# as that user's OWN lists. Measured on prod 2026-09-07: 33 of 34 lists carrying
+# 4,725 of 4,726 items (Russell 2000 = 1,872) against ONE real list holding ONE
+# symbol — 592 KB and 28.1 s cold / 6.6 s warm, on the shell path of every page.
+def test_prebuilt_mode_drops_the_index_lists_but_keeps_the_users_own():
+    uid = _user()
+    own = svc.create_watchlist(uid, "My Names")
+    svc.add_item(uid, own["id"], "NVDA")
+    idx = svc.create_watchlist(uid, "Russell 2000")
+    svc.add_item(uid, idx["id"], "AAPL")
+    _mark_prebuilt(idx["id"])
+
+    names = {w["name"] for w in svc.list_user_watchlists(uid, include_prebuilt=False)}
+    assert names == {"My Names"}, f"prebuilt list leaked through: {names}"
+
+
+def test_the_default_still_returns_the_prebuilt_lists():
+    # CONTROL: the filter must be opt-IN, or the Watchlists page loses its lists.
+    uid = _user()
+    idx = svc.create_watchlist(uid, "S&P 500")
+    _mark_prebuilt(idx["id"])
+    names = {w["name"] for w in svc.list_user_watchlists(uid)}
+    assert "S&P 500" in names, "the default must still ship the prebuilt lists"
+
+
+def test_the_two_flags_compose():
+    # Slim AND own-only together: the shape the shell path wants.
+    uid = _user()
+    own = svc.create_watchlist(uid, "My Names")
+    svc.add_item(uid, own["id"], "NVDA")
+    idx = svc.create_watchlist(uid, "Russell 2000")
+    svc.add_item(uid, idx["id"], "AAPL")
+    _mark_prebuilt(idx["id"])
+
+    rows = svc.list_user_watchlists(uid, include_items=False, include_prebuilt=False)
+    assert [w["name"] for w in rows] == ["My Names"]
+    assert "items" not in rows[0]
+    assert rows[0]["item_count"] == 1
+
+
+# The service tests above would all pass while the router ignored the flag — that
+# is exactly how the first `include_items` pass shipped: built, green, unreachable.
+def test_the_endpoint_forwards_include_prebuilt_to_the_service(monkeypatch):
+    import api.routers.watchlists as r
+
+    seen = {}
+
+    def spy(user_id, include_items=True, include_prebuilt=True):
+        seen["include_items"] = include_items
+        seen["include_prebuilt"] = include_prebuilt
+        return []
+
+    monkeypatch.setattr(r.watchlist_service, "list_user_watchlists", spy)
+
+    r.list_watchlists(include_prebuilt=False, user={"id": "u1"})
+    assert seen["include_prebuilt"] is False, "the endpoint dropped include_prebuilt=False"
+    assert seen["include_items"] is True, "include_items must be unaffected"
+
+    r.list_watchlists(user={"id": "u1"})
+    assert seen["include_prebuilt"] is True, "the default must still ship prebuilt lists"
+
+
+def test_include_prebuilt_is_a_real_query_parameter_on_the_mounted_route():
+    """`?include_prebuilt=0` must be the name the route actually answers to.
+
+    Derived from the mounted route's own dependant rather than retyped here, so a
+    rename cannot leave this passing against a parameter nobody can send.
+    """
+    from api.routers.watchlists import router
+
+    route = next(
+        rt for rt in router.routes
+        if getattr(rt, "path", None) == "/api/watchlists" and "GET" in getattr(rt, "methods", set())
+    )
+    names = {q.name for q in route.dependant.query_params}
+    assert "include_prebuilt" in names, f"query params were {names}"
+    assert "include_items" in names, f"include_items regressed; query params were {names}"

@@ -35,6 +35,12 @@ vi.mock('../../hooks/useJ2Notes', () => ({
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
+// Wave J: PdfDocumentViewer does real async pdfjs-dist work (Worker/Canvas2D/
+// ReadableStream, none of which jsdom implements) -- mocked here the same
+// way DocumentPreviewSheet.test.jsx mocks it, so this file's own concern
+// (does clicking a chip open the preview Sheet at all) stays isolated from
+// PDF rendering, which is live-browser-verified instead.
+vi.mock('./PdfDocumentViewer', () => ({ default: () => <div data-testid="pdf-viewer-stub" /> }))
 
 let fetchMock
 beforeEach(() => {
@@ -112,7 +118,7 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     expect(chip.closest('a').getAttribute('download')).toBe('report.pdf')  // confirms the exact hazard this test guards
 
     fireEvent.click(chip)
-    expect(screen.getByTitle('Preview of report.pdf')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeInTheDocument()
   })
 
   it('clicking a non-PDF AttachmentChip does nothing special (no preview Sheet)', async () => {
@@ -130,7 +136,7 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     fireEvent.change(input, { target: { files: [new File(['a,b'], 'data.csv', { type: 'text/csv' })] } })
     const chip = await screen.findByText('data.csv')
     fireEvent.click(chip)
-    expect(screen.queryByTitle('Preview of data.csv')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Preview of data.csv' })).not.toBeInTheDocument()
   })
 
   it('an upload failure shows a toast and leaves the note otherwise unchanged (no alert())', async () => {

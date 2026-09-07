@@ -59,6 +59,13 @@ vi.mock('../../hooks/useDocumentSearch', () => ({
   default: (...args) => useDocumentSearchMock(...args),
 }))
 
+// Wave J: saved-excerpt (evidence) search — a THIRD hook/section, separate
+// again from both of the above. Same default-empty convention.
+const useExcerptSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useExcerptSearch', () => ({
+  default: (...args) => useExcerptSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
@@ -66,6 +73,8 @@ beforeEach(() => {
   useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
   useDocumentSearchMock.mockReset()
   useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useExcerptSearchMock.mockReset()
+  useExcerptSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useJ2NoteFolderCountsMock.mockReset()
   useJ2NoteFolderCountsMock.mockImplementation(() => ({
     counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
@@ -910,6 +919,108 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
     expect(screen.getByText('Searching documents…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave J: saved-excerpt (Evidence) search — the third result section.
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('FolderSidebar — Wave J saved-excerpt search', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders no evidence section with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/saved excerpt/)).not.toBeInTheDocument()
+  })
+
+  it('a matching excerpt renders its own snippet, source document and page', () => {
+    useExcerptSearchMock.mockImplementation((q) => {
+      if (q !== 'margins') return { results: [], isLoading: false, error: null }
+      return {
+        results: [{
+          excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis',
+          documentId: 'd1', documentName: 'q3-deck.pdf', pageNumber: 2,
+          annotation: 'the guidance walk-down',
+          snippet: 'gross <mark>margins</mark> to normalize lower',
+        }],
+        isLoading: false, error: null,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margins' } })
+    settle()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+    expect(screen.getByText('margins').tagName).toBe('MARK')
+  })
+
+  it('keeps excerpts in their OWN section rather than merging them into the document results', () => {
+    // The whole point of three sections: a curated passage and a raw page
+    // hit must not be ranked against each other (excerpt_search.py says the
+    // same thing on the backend). Both lists present, both counted apart.
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 9, noteId: 'n1', noteTitle: 'NVDA thesis',
+        name: 'q3-deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a page <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'q3-deck.pdf', pageNumber: 2, annotation: null,
+        snippet: 'a kept <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'hit' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.9')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+  })
+
+  it('clicking an excerpt result opens its owning note', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n7', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'deck.pdf', pageNumber: 4, annotation: null,
+        snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.4'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+  })
+
+  it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
+    useExcerptSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
   })
 })
 
