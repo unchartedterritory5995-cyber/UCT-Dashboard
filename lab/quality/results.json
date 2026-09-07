@@ -1,0 +1,1386 @@
+{
+  "cohort": {
+    "hammer": {
+      "pattern_id": "hammer",
+      "n_total": 15,
+      "n_positive": 5,
+      "n_negative": 8,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 7
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "big_body_not_hammer",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_body_to_range_35pct",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 77.67,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_lower_wick_2x",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 65.45,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "classic_hammer_swing_low",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 89.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "doji_not_hammer",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "green_hammer_after_decline",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 89.3,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "hammer_after_pullback",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 89.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "hammer_at_support",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 89.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "hammer_in_uptrend",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "hammer_no_context",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "lower_wick_too_small",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_hammer_in_last_5",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "red_hammer_at_low",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 87.2,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "short_series",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "upper_wick_too_large",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        }
+      ]
+    },
+    "bull_flag": {
+      "pattern_id": "bull_flag",
+      "n_total": 15,
+      "n_positive": 5,
+      "n_negative": 8,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 0
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "ascending_flag_in_downtrend",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_max_retrace",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 68.99,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=31 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]",
+            "anchor t=31 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "boundary_min_pole",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 71.71,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=31 outside bar range [1700000000, 1703110400]",
+            "anchor t=36 outside bar range [1700000000, 1703110400]",
+            "anchor t=31 outside bar range [1700000000, 1703110400]",
+            "anchor t=36 outside bar range [1700000000, 1703110400]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "clean_textbook",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 78.33,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=31 outside bar range [1700000000, 1703110400]",
+            "anchor t=36 outside bar range [1700000000, 1703110400]",
+            "anchor t=31 outside bar range [1700000000, 1703110400]",
+            "anchor t=36 outside bar range [1700000000, 1703110400]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "descending_flag",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 71.6,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=29 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]",
+            "anchor t=29 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "extended_flag_too_long",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "flag_too_deep",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "flag_too_wide",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_pole",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "pole_too_short",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "shallow_pullback",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 80.16,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=40 outside bar range [1700000000, 1703801600]",
+            "anchor t=44 outside bar range [1700000000, 1703801600]",
+            "anchor t=40 outside bar range [1700000000, 1703801600]",
+            "anchor t=44 outside bar range [1700000000, 1703801600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "strong_volume_contraction",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 82.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=31 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]",
+            "anchor t=31 outside bar range [1700000000, 1703196800]",
+            "anchor t=37 outside bar range [1700000000, 1703196800]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "tight_consolidation",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 84.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=32 outside bar range [1700000000, 1703369600]",
+            "anchor t=39 outside bar range [1700000000, 1703369600]",
+            "anchor t=32 outside bar range [1700000000, 1703369600]",
+            "anchor t=39 outside bar range [1700000000, 1703369600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "volume_expanding",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "wide_choppy",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        }
+      ]
+    },
+    "vcp": {
+      "pattern_id": "vcp",
+      "n_total": 16,
+      "n_positive": 5,
+      "n_negative": 9,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 7
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "already_broken",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "below_trend_template",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_2_contractions",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 72.09,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_final_pct",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 73.99,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "choppy_no_pattern",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "clean_3_contractions",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 85.72,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "clean_4_contractions",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 87.1,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "expanding_contractions",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "extended_vcp",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 85.87,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "flat_data",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "high_volume_contraction",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 88.84,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_uptrend",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "only_one_contraction",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "rs_negative",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "tight_pivot",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 87.92,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "volume_expanding",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        }
+      ]
+    },
+    "pullback_to_50sma": {
+      "pattern_id": "pullback_to_50sma",
+      "n_total": 15,
+      "n_positive": 5,
+      "n_negative": 8,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 7
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "borderline_reclaim_vol",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 83.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "borderline_test_vol",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 82.0,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "chop_no_trend",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "clean_textbook",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 87.62,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "downtrend_hostile",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "expanding_reclaim",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 88.4,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "low_test_vol",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 87.62,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "reclaim_vol_too_low",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "shallow_advance",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "strong_advance",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 89.03,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "test_vol_too_high",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "too_short",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "with_can_slim_a",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 86.53,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "wrong_alignment",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "wrong_stage",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        }
+      ]
+    },
+    "power_earnings_gap": {
+      "pattern_id": "power_earnings_gap",
+      "n_total": 17,
+      "n_positive": 5,
+      "n_negative": 10,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 7
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "already_broken_above",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_gap_pct",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 86.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_volume",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 80.31,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "chaotic_post_gap",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "clean_textbook",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 86.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "downtrend_context",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "dramatic_gap",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 92.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "extended_post_gap",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 81.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "gap_below_corrected_floor",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "gap_filled",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "gap_too_old",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "low_volume_gap",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_gap",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "perfect_context",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 92.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "small_gap_strong_volume",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 92.5,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": true,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "split_artifact_gap",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "wide_post_gap_action",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        }
+      ]
+    },
+    "ascending_triangle": {
+      "pattern_id": "ascending_triangle",
+      "n_total": 15,
+      "n_positive": 5,
+      "n_negative": 8,
+      "n_edge": 2,
+      "recall_proxy": 1.0,
+      "false_positive_rate_proxy": 0.0,
+      "has_negative_fixtures": true,
+      "geometry_sanity": {
+        "checked": 7,
+        "sane": 0
+      },
+      "mismatches": [],
+      "fixtures": [
+        {
+          "name": "already_broken_out",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "both_lines_rising",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "boundary_min_touches",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 73.18,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=7 outside bar range [1700000000, 1702678400]",
+            "anchor t=31 outside bar range [1700000000, 1702678400]",
+            "anchor t=13 outside bar range [1700000000, 1702678400]",
+            "anchor t=25 outside bar range [1700000000, 1702678400]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "boundary_wider_gap",
+          "category": "edge",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 74.25,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=5 outside bar range [1700000000, 1703801600]",
+            "anchor t=44 outside bar range [1700000000, 1703801600]",
+            "anchor t=13 outside bar range [1700000000, 1703801600]",
+            "anchor t=41 outside bar range [1700000000, 1703801600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "choppy_no_structure",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "clean_textbook",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 83.13,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=10 outside bar range [1700000000, 1704233600]",
+            "anchor t=49 outside bar range [1700000000, 1704233600]",
+            "anchor t=13 outside bar range [1700000000, 1704233600]",
+            "anchor t=45 outside bar range [1700000000, 1704233600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "descending_shape",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "longer_pattern",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 79.63,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=25 outside bar range [1700000000, 1705529600]",
+            "anchor t=64 outside bar range [1700000000, 1705529600]",
+            "anchor t=25 outside bar range [1700000000, 1705529600]",
+            "anchor t=61 outside bar range [1700000000, 1705529600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "no_flat_top",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_pattern_flat",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "no_rising_lows",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "pattern_too_short",
+          "category": "negative",
+          "expected_fires": false,
+          "fired": false,
+          "top_confidence": null,
+          "confidence_in_band": null,
+          "correct": true,
+          "geometry_sane": null,
+          "geometry_issues": [],
+          "notes": ""
+        },
+        {
+          "name": "perfect_setup",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 82.96,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=10 outside bar range [1700000000, 1703369600]",
+            "anchor t=39 outside bar range [1700000000, 1703369600]",
+            "anchor t=13 outside bar range [1700000000, 1703369600]",
+            "anchor t=33 outside bar range [1700000000, 1703369600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "strong_volume_contraction",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 88.4,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=10 outside bar range [1700000000, 1704233600]",
+            "anchor t=49 outside bar range [1700000000, 1704233600]",
+            "anchor t=13 outside bar range [1700000000, 1704233600]",
+            "anchor t=45 outside bar range [1700000000, 1704233600]"
+          ],
+          "notes": ""
+        },
+        {
+          "name": "tight_convergence",
+          "category": "positive",
+          "expected_fires": true,
+          "fired": true,
+          "top_confidence": 74.2,
+          "confidence_in_band": true,
+          "correct": true,
+          "geometry_sane": false,
+          "geometry_issues": [
+            "anchor t=5 outside bar range [1700000000, 1703801600]",
+            "anchor t=44 outside bar range [1700000000, 1703801600]",
+            "anchor t=13 outside bar range [1700000000, 1703801600]",
+            "anchor t=41 outside bar range [1700000000, 1703801600]"
+          ],
+          "notes": ""
+        }
+      ]
+    }
+  },
+  "candlestick_context_pilot": {
+    "hammer_at_support": {
+      "raw_shape_from_last_bar": {
+        "body_to_range": 0.122,
+        "lower_wick_body_ratio": 7.0,
+        "upper_wick_pct": 0.0244,
+        "is_green": true
+      },
+      "fixture_context": {
+        "trend_stage": 4,
+        "ma_alignment": "stacked_bearish",
+        "rs_trend": "down",
+        "regime": "bearish"
+      },
+      "build_context_derived": {
+        "trend_stage": 1,
+        "ma_alignment": "mixed",
+        "rs_trend": "flat",
+        "dcr_signature": "distribution"
+      },
+      "fired": true,
+      "confidence": 89.5
+    },
+    "hammer_in_uptrend": {
+      "raw_shape_from_last_bar": {
+        "body_to_range": 0.0278,
+        "lower_wick_body_ratio": 34.0,
+        "upper_wick_pct": 0.0278,
+        "is_green": true
+      },
+      "fixture_context": {
+        "trend_stage": 2,
+        "ma_alignment": "stacked_bullish",
+        "rs_trend": "up",
+        "regime": "bullish"
+      },
+      "build_context_derived": {
+        "trend_stage": 1,
+        "ma_alignment": "mixed",
+        "rs_trend": "flat",
+        "dcr_signature": "accumulation"
+      },
+      "fired": false,
+      "confidence": null
+    },
+    "hammer_no_context": {
+      "raw_shape_from_last_bar": {
+        "body_to_range": 0.0323,
+        "lower_wick_body_ratio": 29.0,
+        "upper_wick_pct": 0.0323,
+        "is_green": true
+      },
+      "fixture_context": {
+        "trend_stage": 1,
+        "ma_alignment": "mixed",
+        "rs_trend": "flat",
+        "regime": "neutral"
+      },
+      "build_context_derived": {
+        "trend_stage": 1,
+        "ma_alignment": "mixed",
+        "rs_trend": "flat",
+        "dcr_signature": "accumulation"
+      },
+      "fired": false,
+      "confidence": null
+    }
+  },
+  "detector_registry": {
+    "hammer": [
+      "api.services.pattern_engine.detectors.candlestick.hammer",
+      "detect_hammer"
+    ],
+    "bull_flag": [
+      "api.services.pattern_engine.detectors.classical.bull_flag",
+      "detect_bull_flag"
+    ],
+    "ascending_triangle": [
+      "api.services.pattern_engine.detectors.classical.ascending_triangle",
+      "detect_ascending_triangle"
+    ],
+    "vcp": [
+      "api.services.pattern_engine.detectors.uct.vcp",
+      "detect_vcp"
+    ],
+    "pullback_to_50sma": [
+      "api.services.pattern_engine.detectors.uct.pullback_to_50sma",
+      "detect_pullback_to_50sma"
+    ],
+    "power_earnings_gap": [
+      "api.services.pattern_engine.detectors.uct.power_earnings_gap",
+      "detect_power_earnings_gap"
+    ]
+  }
+}

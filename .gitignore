@@ -83,3 +83,4 @@ tools/ui_stress_out_run*.log
 # readdirSync+readFileSync, and a file that appears and vanishes mid-walk killed
 # whole test files with ENOENT at module scope. Per-run, deleted in a `finally`.
 /app/.mutations/
+lab/quality/__pycache__/

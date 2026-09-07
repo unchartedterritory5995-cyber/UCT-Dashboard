@@ -1,0 +1,170 @@
+{
+  "case_0000": {
+    "symbol": "CGEM",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 72.19,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0001": {
+    "symbol": "AVY",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 68.98,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0002": {
+    "symbol": "GLXY",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 65.25,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0003": {
+    "symbol": "ACDC",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 71.08,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0004": {
+    "symbol": "NFJ",
+    "as_of_t": 20260227,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0005": {
+    "symbol": "SSYS",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0006": {
+    "symbol": "KEEL",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 64.71,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0007": {
+    "symbol": "CAT",
+    "as_of_t": 20260227,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 71.06,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0008": {
+    "symbol": "GLDM",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 81.81,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0009": {
+    "symbol": "LNTH",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0010": {
+    "symbol": "STOK",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0011": {
+    "symbol": "SPIR",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0012": {
+    "symbol": "CNTA",
+    "as_of_t": 20251216,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 77.41,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0013": {
+    "symbol": "FAX",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0014": {
+    "symbol": "FLYX",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0015": {
+    "symbol": "SHAK",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 65.35,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0016": {
+    "symbol": "FSM",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0017": {
+    "symbol": "BUI",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0018": {
+    "symbol": "DBI",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0019": {
+    "symbol": "EPSN",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 57.59,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0020": {
+    "symbol": "G",
+    "as_of_t": 20260904,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 73.76,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0021": {
+    "symbol": "RJF",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0022": {
+    "symbol": "HPS",
+    "as_of_t": 20260302,
+    "detector_candidate_fired": false,
+    "detector_top_confidence": null,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  },
+  "case_0023": {
+    "symbol": "SLB",
+    "as_of_t": 20260227,
+    "detector_candidate_fired": true,
+    "detector_top_confidence": 75.27,
+    "note": "CANDIDATE ONLY -- this is the real detector's own call at evaluation time, not adjudicated ground truth. Do not treat 'fired=true' as 'a genuine setup existed here', and do not treat 'fired=false' as 'no setup existed here' -- that is exactly the recall question this corpus exists to let a future adjudicator answer independently."
+  }
+}

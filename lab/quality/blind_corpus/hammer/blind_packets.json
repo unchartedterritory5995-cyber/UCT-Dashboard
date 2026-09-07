@@ -1,0 +1,722 @@
+[
+  {
+    "case_id": "case_0000",
+    "family": "hammer",
+    "chart_file": "charts/case_0000.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 94.44,
+      "pct_of_52w_high": 65.29,
+      "pct_above_52w_low": 29.49,
+      "sma10": 93.251,
+      "sma20": 93.5905,
+      "sma50": 91.0634,
+      "vol_20d_avg": 1559865.0,
+      "vol_50d_avg": 1595002.0,
+      "adr_pct_21d": 4.772,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0001",
+    "family": "hammer",
+    "chart_file": "charts/case_0001.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 87.715,
+      "pct_of_52w_high": 79.93,
+      "pct_above_52w_low": 23.98,
+      "sma10": 89.1465,
+      "sma20": 88.4163,
+      "sma50": 83.8667,
+      "vol_20d_avg": 5495310.2,
+      "vol_50d_avg": 4285200.1,
+      "adr_pct_21d": 1.315,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0002",
+    "family": "hammer",
+    "chart_file": "charts/case_0002.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 51.95,
+      "pct_of_52w_high": 96.63,
+      "pct_above_52w_low": 31.99,
+      "sma10": 51.928,
+      "sma20": 51.8655,
+      "sma50": 51.7586,
+      "vol_20d_avg": 3455808.4,
+      "vol_50d_avg": 2763685.4,
+      "adr_pct_21d": 0.109,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0003",
+    "family": "hammer",
+    "chart_file": "charts/case_0003.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 357,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 31.27,
+      "pct_of_52w_high": 95.31,
+      "pct_above_52w_low": 108.47,
+      "sma10": 30.453,
+      "sma20": 30.1265,
+      "sma50": 28.3792,
+      "vol_20d_avg": 720820.0,
+      "vol_50d_avg": 718180.0,
+      "adr_pct_21d": 4.611,
+      "n_bars_available": 357
+    }
+  },
+  {
+    "case_id": "case_0004",
+    "family": "hammer",
+    "chart_file": "charts/case_0004.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 154.28,
+      "pct_of_52w_high": 91.64,
+      "pct_above_52w_low": 78.01,
+      "sma10": 159.138,
+      "sma20": 157.0705,
+      "sma50": 147.8934,
+      "vol_20d_avg": 1343295.0,
+      "vol_50d_avg": 1242996.0,
+      "adr_pct_21d": 3.338,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0005",
+    "family": "hammer",
+    "chart_file": "charts/case_0005.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 3.49,
+      "pct_of_52w_high": 48.88,
+      "pct_above_52w_low": 2.65,
+      "sma10": 3.665,
+      "sma20": 4.071,
+      "sma50": 4.8726,
+      "vol_20d_avg": 2053015.0,
+      "vol_50d_avg": 1423964.0,
+      "adr_pct_21d": 6.952,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0006",
+    "family": "hammer",
+    "chart_file": "charts/case_0006.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 692.4,
+      "pct_of_52w_high": 96.52,
+      "pct_above_52w_low": 21.86,
+      "sma10": 691.106,
+      "sma20": 699.4115,
+      "sma50": 695.251,
+      "vol_20d_avg": 456252.0,
+      "vol_50d_avg": 593464.8,
+      "adr_pct_21d": 0.856,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0007",
+    "family": "hammer",
+    "chart_file": "charts/case_0007.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 66.48,
+      "pct_of_52w_high": 78.27,
+      "pct_above_52w_low": 134.66,
+      "sma10": 70.074,
+      "sma20": 71.7775,
+      "sma50": 74.637,
+      "vol_20d_avg": 3586950.0,
+      "vol_50d_avg": 2961928.0,
+      "adr_pct_21d": 5.815,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0008",
+    "family": "hammer",
+    "chart_file": "charts/case_0008.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 6.25,
+      "pct_of_52w_high": 89.8,
+      "pct_above_52w_low": 217.26,
+      "sma10": 6.369,
+      "sma20": 5.944,
+      "sma50": 4.9866,
+      "vol_20d_avg": 68012215.0,
+      "vol_50d_avg": 46270272.0,
+      "adr_pct_21d": 6.307,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0009",
+    "family": "hammer",
+    "chart_file": "charts/case_0009.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 53.98,
+      "pct_of_52w_high": 78.65,
+      "pct_above_52w_low": 10.82,
+      "sma10": 55.673,
+      "sma20": 58.263,
+      "sma50": 57.6434,
+      "vol_20d_avg": 566509.2,
+      "vol_50d_avg": 728801.7,
+      "adr_pct_21d": 3.239,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0010",
+    "family": "hammer",
+    "chart_file": "charts/case_0010.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 19.98,
+      "pct_of_52w_high": 67.11,
+      "pct_above_52w_low": 34.0,
+      "sma10": 20.642,
+      "sma20": 21.719,
+      "sma50": 24.5037,
+      "vol_20d_avg": 3286179.1,
+      "vol_50d_avg": 2639371.6,
+      "adr_pct_21d": 4.397,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0011",
+    "family": "hammer",
+    "chart_file": "charts/case_0011.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 15.68,
+      "pct_of_52w_high": 99.56,
+      "pct_above_52w_low": 28.0,
+      "sma10": 15.567,
+      "sma20": 15.584,
+      "sma50": 15.3244,
+      "vol_20d_avg": 134495.0,
+      "vol_50d_avg": 192028.0,
+      "adr_pct_21d": 0.817,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0012",
+    "family": "hammer",
+    "chart_file": "charts/case_0012.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 14.04,
+      "pct_of_52w_high": 54.48,
+      "pct_above_52w_low": 193.11,
+      "sma10": 14.1305,
+      "sma20": 14.7718,
+      "sma50": 19.0125,
+      "vol_20d_avg": 949948.2,
+      "vol_50d_avg": 1415951.3,
+      "adr_pct_21d": 4.598,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0013",
+    "family": "hammer",
+    "chart_file": "charts/case_0013.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 3.025,
+      "pct_of_52w_high": 51.45,
+      "pct_above_52w_low": 8.81,
+      "sma10": 3.0005,
+      "sma20": 3.0137,
+      "sma50": 3.6785,
+      "vol_20d_avg": 2671192.2,
+      "vol_50d_avg": 1798268.9,
+      "adr_pct_21d": 5.374,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0014",
+    "family": "hammer",
+    "chart_file": "charts/case_0014.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 22.41,
+      "pct_of_52w_high": 83.81,
+      "pct_above_52w_low": 55.41,
+      "sma10": 23.468,
+      "sma20": 24.2725,
+      "sma50": 21.7911,
+      "vol_20d_avg": 229860.4,
+      "vol_50d_avg": 213258.2,
+      "adr_pct_21d": 3.781,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0015",
+    "family": "hammer",
+    "chart_file": "charts/case_0015.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 114.51,
+      "pct_of_52w_high": 80.7,
+      "pct_above_52w_low": 45.11,
+      "sma10": 118.272,
+      "sma20": 116.415,
+      "sma50": 108.2956,
+      "vol_20d_avg": 2518600.0,
+      "vol_50d_avg": 2837014.0,
+      "adr_pct_21d": 3.379,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0016",
+    "family": "hammer",
+    "chart_file": "charts/case_0016.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 40.21,
+      "pct_of_52w_high": 74.46,
+      "pct_above_52w_low": 15.58,
+      "sma10": 38.745,
+      "sma20": 38.823,
+      "sma50": 43.5544,
+      "vol_20d_avg": 3229930.0,
+      "vol_50d_avg": 2070740.0,
+      "adr_pct_21d": 4.265,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0017",
+    "family": "hammer",
+    "chart_file": "charts/case_0017.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 47.64,
+      "pct_of_52w_high": 52.93,
+      "pct_above_52w_low": 13.11,
+      "sma10": 57.918,
+      "sma20": 60.216,
+      "sma50": 61.604,
+      "vol_20d_avg": 375165.0,
+      "vol_50d_avg": 301870.0,
+      "adr_pct_21d": 5.077,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0018",
+    "family": "hammer",
+    "chart_file": "charts/case_0018.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 194.97,
+      "pct_of_52w_high": 97.71,
+      "pct_above_52w_low": 24.8,
+      "sma10": 195.144,
+      "sma20": 193.3565,
+      "sma50": 188.0762,
+      "vol_20d_avg": 693005.0,
+      "vol_50d_avg": 642052.0,
+      "adr_pct_21d": 2.149,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0019",
+    "family": "hammer",
+    "chart_file": "charts/case_0019.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 75.0,
+      "pct_of_52w_high": 92.71,
+      "pct_above_52w_low": 38.27,
+      "sma10": 74.547,
+      "sma20": 74.137,
+      "sma50": 72.4454,
+      "vol_20d_avg": 355054.8,
+      "vol_50d_avg": 306365.9,
+      "adr_pct_21d": 2.925,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0020",
+    "family": "hammer",
+    "chart_file": "charts/case_0020.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 0.9049,
+      "pct_of_52w_high": 21.0,
+      "pct_above_52w_low": 38.79,
+      "sma10": 0.9169,
+      "sma20": 0.9049,
+      "sma50": 1.2825,
+      "vol_20d_avg": 611896.1,
+      "vol_50d_avg": 1005400.4,
+      "adr_pct_21d": 7.339,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0021",
+    "family": "hammer",
+    "chart_file": "charts/case_0021.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 30.95,
+      "pct_of_52w_high": 68.88,
+      "pct_above_52w_low": 264.55,
+      "sma10": 32.536,
+      "sma20": 31.986,
+      "sma50": 31.3466,
+      "vol_20d_avg": 455035.0,
+      "vol_50d_avg": 473466.0,
+      "adr_pct_21d": 6.682,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0022",
+    "family": "hammer",
+    "chart_file": "charts/case_0022.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 78.12,
+      "pct_of_52w_high": 97.26,
+      "pct_above_52w_low": 235.71,
+      "sma10": 75.933,
+      "sma20": 72.0105,
+      "sma50": 64.2788,
+      "vol_20d_avg": 437560.0,
+      "vol_50d_avg": 382936.0,
+      "adr_pct_21d": 5.027,
+      "n_bars_available": 400
+    }
+  },
+  {
+    "case_id": "case_0023",
+    "family": "hammer",
+    "chart_file": "charts/case_0023.png",
+    "rubric_version": null,
+    "provenance": {
+      "timeframe": "D",
+      "symbol_shown": false,
+      "n_bars_available": 400,
+      "n_bars_shown_on_chart": 160,
+      "corporate_action_treatment": "as stored in bars.db (Massive/Polygon-sourced, split/dividend-adjusted per standard provider convention -- see CLAUDE.md 'Bars Correctness Layer')",
+      "detector_version": {
+        "module": "api.services.pattern_engine.detectors.candlestick.hammer",
+        "function": "detect_hammer",
+        "repo_commit": "5e8f6d90c"
+      }
+    },
+    "neutral_context": {
+      "last_close": 71.15,
+      "pct_of_52w_high": 86.32,
+      "pct_above_52w_low": 102.07,
+      "sma10": 72.177,
+      "sma20": 74.103,
+      "sma50": 74.2838,
+      "vol_20d_avg": 141010.0,
+      "vol_50d_avg": 141654.0,
+      "adr_pct_21d": 4.908,
+      "n_bars_available": 400
+    }
+  }
+]

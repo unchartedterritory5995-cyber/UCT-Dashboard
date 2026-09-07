@@ -1,0 +1,29 @@
+{
+  "sample_n": 300,
+  "cohort_size": 22,
+  "pivot_calling_detectors": [
+    "vcp",
+    "swing_pivots",
+    "support_resistance",
+    "major_trendlines",
+    "head_shoulders",
+    "triple_top",
+    "cup_handle",
+    "ascending_triangle"
+  ],
+  "n_independent_pivot_callers": 8,
+  "prior_pass_pivot_callers_for_comparison": 2,
+  "totals_seconds": {
+    "build_context_once": 0.01883,
+    "detect_pivots_first_call": 0.051074,
+    "detect_pivots_redundant_calls": 0.350554
+  },
+  "us_per_symbol": {
+    "build_context_once": 62.77,
+    "detect_pivots_first_call": 170.25,
+    "detect_pivots_redundant_calls": 1168.51
+  },
+  "total_redundant_recompute_s": 0.350554,
+  "total_redundant_recompute_pct_of_context_cost": 1861.7,
+  "note": "build_context() never calls detect_pivots \u2014 confirmed by reading primitives/context.py \u2014 so ALL 8 calls above are independent, none amortized by the shared context pass. Only the identical-args detect_pivots(bars, window=3) duplication is counted here; fit_trendline() is also called independently by ascending_triangle and major_trendlines but on different pivot subsets, so it is a softer/partial overlap, not counted as redundant recompute."
+}
