@@ -466,3 +466,147 @@ def _entity_note_ids(conn, user_id: str, entity: dict[str, Any]) -> list[str]:
         (user_id, *symbols, *symbols, *symbols),
     ).fetchall()
     return [r["id"] for r in rows]
+
+
+# ── Slice 2: Ask Document ────────────────────────────────────────────────────
+
+DOC_STATUS_SEARCHABLE = "ready"
+
+
+def _anchor_ok(conn, user_id: str, excerpt_row: dict) -> bool:
+    """Is this excerpt's stored anchor good enough to promise EXACT navigation?
+
+    ⛔ Never manufacture a valid anchor (§8). Slice 0 already wrote the
+    classifier that answers this honestly, against the CURRENT extracted page
+    text, so this reuses it rather than assuming -- a degraded anchor keeps
+    page-level navigation and says so.
+    """
+    from tools.notebook_excerpt_anchor_audit import NOT_NAVIGABLE, classify
+    page = conn.execute(
+        "SELECT text FROM j2_note_document_pages"
+        " WHERE document_id = ? AND page_number = ? AND user_id = ?",
+        (excerpt_row.get("document_id"), excerpt_row.get("page_number"), user_id),
+    ).fetchone()
+    verdict, _ = classify(excerpt_row, page["text"] if page is not None else None)
+    return verdict not in NOT_NAVIGABLE
+
+
+def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
+                           limit: int) -> list[dict[str, Any]]:
+    """Page hits WITHIN one document. Tenant scoping stays inside the query."""
+    expr = fts_match_expr(q)
+    if expr is None:
+        return []
+    rows = conn.execute(
+        "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+        " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " d.name AS name, d.note_id AS note_id"
+        " FROM j2_note_document_pages_fts p"
+        " JOIN j2_note_documents d ON d.id = p.document_id"
+        " JOIN j2_notes n ON n.id = d.note_id"
+        " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+        " AND p.document_id = ? AND n.deleted_at IS NULL"
+        " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+        (expr, user_id, document_id, limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
+                                         score=0.6))
+    return out
+
+
+def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
+                     limit: int) -> list[dict[str, Any]]:
+    """Saved excerpts WITHIN one document, each anchor-verified."""
+    expr = fts_match_expr(q)
+    if expr is None:
+        return []
+    rows = conn.execute(
+        "SELECT e.* , d.name AS document_name"
+        " FROM j2_note_excerpts_fts f"
+        " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+        " JOIN j2_note_documents d ON d.id = e.document_id"
+        " JOIN j2_notes n ON n.id = e.note_id"
+        " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+        " AND e.document_id = ? AND n.deleted_at IS NULL"
+        " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+        (expr, user_id, document_id, limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out
+
+
+def document_coverage(conn, user_id: str, document_id: str) -> dict[str, Any]:
+    """Can this document be answered from at all? (§29/§30)
+
+    A scanned or still-processing document must never be implied to have been
+    searched -- the answer has to be able to say it was not.
+    """
+    d = conn.execute(
+        "SELECT d.id, d.name, d.status FROM j2_note_documents d"
+        " WHERE d.id = ? AND d.user_id = ?", (document_id, user_id)).fetchone()
+    if d is None:
+        return {"exists": False, "searchable": False, "status": None,
+                "pages_indexed": 0}
+    pages = conn.execute(
+        "SELECT COUNT(*) c FROM j2_note_document_pages"
+        " WHERE document_id = ? AND user_id = ?", (document_id, user_id)).fetchone()["c"]
+    status = d["status"]
+    return {"exists": True, "name": d["name"], "status": status,
+            "pages_indexed": pages,
+            "searchable": status == DOC_STATUS_SEARCHABLE and pages > 0}
+
+
+def retrieve_document(user_id: str, document_id: str, query: str, *,
+                      limit: int = 6,
+                      conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask THIS document (§10). Scoped to one document, never the corpus.
+
+    Reuses Wave J wholesale: document/page identity, the excerpt anchor, and
+    the anchor-integrity classifier. Nothing about citation location is
+    redesigned here -- a page citation from Ask Document is the same object the
+    Notebook already knows how to open.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        cov = document_coverage(conn, user_id, document_id)
+        if not cov["exists"]:
+            # Tenant isolation and "no such document" are deliberately the
+            # SAME answer: a foreign document id must not be distinguishable
+            # from a missing one.
+            return {"document": None, "evidence": [], "coverage": cov,
+                    "no_answer": True, "no_answer_reason": "document_not_found",
+                    "query_matches": 0, "independent_sources": 0}
+        if not cov["searchable"]:
+            return {"document": document_id, "evidence": [], "coverage": cov,
+                    "no_answer": True,
+                    "no_answer_reason": f"document_not_searchable:{cov['status']}",
+                    "query_matches": 0, "independent_sources": 0}
+
+        items = (_document_pages_scoped(conn, user_id, document_id, query, limit)
+                 + _excerpts_scoped(conn, user_id, document_id, query, limit))
+        for i in items:
+            i["relevance"] = QUERY_MATCH
+        merged = ev.dedupe(items)
+        merged.sort(key=lambda i: (i.get("curation", 0), i.get("score", 0.0)),
+                    reverse=True)
+        merged = merged[:limit]
+        return {
+            "document": document_id, "evidence": merged, "coverage": cov,
+            "query_matches": len(merged),
+            "independent_sources": ev.independent_source_count(merged),
+            "no_answer": not merged,
+            "no_answer_reason": None if merged else "no_supporting_evidence",
+        }
+    finally:
+        if owned:
+            conn.close()

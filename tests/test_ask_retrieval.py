@@ -458,3 +458,95 @@ class TestEntityResolutionDoesNotLeakQueryFragments:
                             lambda s: calls.append(s) or {"symbol": s, "symbols": [s]})
         ar.retrieve(U, "am I too reliant on a handful of buyers", conn=corpus)
         assert calls == [], "a prose question must not probe any ticker"
+
+
+# ── Slice 2: Ask Document ────────────────────────────────────────────────────
+
+class TestAskDocument:
+    """Document-scoped retrieval. Reuses Wave J identity and anchors wholesale.
+
+    NOTE ON EVIDENCE CLASS: production currently holds 0 document pages and 0
+    excerpts, so everything here is SYNTHETIC/sandbox evidence. That is stated
+    rather than glossed -- no claim of production document-retrieval validation
+    is made anywhere in Wave K.
+    """
+
+    def test_a_question_about_the_document_cites_document_and_page(self, corpus):
+        r = ar.retrieve_document(U, "d1", "mid-seventies range", conn=corpus)
+        assert r["no_answer"] is False
+        top = r["evidence"][0]
+        assert top["location"]["document_id"] == "d1"
+        assert top["location"]["page_number"] == 2
+        assert top["navigation"]["kind"] in ("document", "excerpt")
+
+    def test_retrieval_never_leaves_the_named_document(self, corpus):
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d9',?,'n_thesis','other.pdf','ready','/o.pdf')", (U,))
+        corpus.execute("INSERT INTO j2_note_document_pages VALUES ('d9',?,1,?)",
+                       (U, "mid-seventies range appears in this other document too."))
+        corpus.execute("INSERT INTO j2_note_document_pages_fts VALUES ('d9',?,1,?)",
+                       (U, "mid-seventies range appears in this other document too."))
+        corpus.commit()
+        r = ar.retrieve_document(U, "d1", "mid-seventies range", conn=corpus)
+        assert all(e["location"]["document_id"] == "d1" for e in r["evidence"])
+
+    def test_a_page_and_its_saved_excerpt_remain_ONE_source(self, corpus):
+        r = ar.retrieve_document(U, "d1", "gross margins to normalize lower",
+                                 conn=corpus)
+        assert r["independent_sources"] == 1
+
+    def test_a_healthy_anchor_earns_an_exact_citation(self, corpus):
+        # The excerpt's captured text IS on the page, uniquely -- so Wave J's
+        # own classifier says it can navigate precisely.
+        r = ar.retrieve_document(U, "d1", "guidance walk-down", conn=corpus)
+        exc = [e for e in r["evidence"] if e["source_type"] == ev.DOCUMENT_EXCERPT]
+        assert exc and exc[0]["citation_validity"] == ev.CITE_EXACT
+
+    def test_a_DEGRADED_anchor_falls_back_to_page_and_never_claims_exact(self, corpus):
+        # Rewrite the page so the captured text no longer appears. The excerpt
+        # is still true evidence; only its NAVIGATION confidence degrades.
+        corpus.execute("UPDATE j2_note_document_pages SET text = ?"
+                       " WHERE document_id='d1' AND page_number=2",
+                       ("Entirely different extracted content now.",))
+        corpus.commit()
+        r = ar.retrieve_document(U, "d1", "guidance walk-down", conn=corpus)
+        exc = [e for e in r["evidence"] if e["source_type"] == ev.DOCUMENT_EXCERPT]
+        assert exc, "the excerpt is still evidence"
+        assert exc[0]["citation_validity"] == ev.CITE_PAGE_ONLY
+        assert exc[0]["citation_validity"] not in ev.PRECISE_CITATIONS
+
+    def test_a_scanned_document_is_reported_unsearchable_not_empty(self, corpus):
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_scan',?,'n_thesis','scan.pdf','no_text','/s.pdf')", (U,))
+        corpus.commit()
+        r = ar.retrieve_document(U, "d_scan", "margins", conn=corpus)
+        assert r["no_answer"] is True
+        assert r["no_answer_reason"] == "document_not_searchable:no_text"
+        assert r["coverage"]["searchable"] is False
+
+    def test_a_still_processing_document_does_not_pretend_to_be_complete(self, corpus):
+        corpus.execute("INSERT INTO j2_note_documents VALUES "
+                       "('d_pend',?,'n_thesis','new.pdf','pending','/n.pdf')", (U,))
+        corpus.commit()
+        r = ar.retrieve_document(U, "d_pend", "margins", conn=corpus)
+        assert r["no_answer_reason"] == "document_not_searchable:pending"
+
+    def test_a_question_the_document_does_not_answer_returns_no_answer(self, corpus):
+        r = ar.retrieve_document(U, "d1", "zebra husbandry", conn=corpus)
+        assert r["no_answer"] is True
+        assert r["evidence"] == []
+
+    def test_another_tenants_document_is_indistinguishable_from_a_missing_one(self, corpus):
+        # Both must answer document_not_found -- a foreign id must not be
+        # confirmable by a different error.
+        foreign = ar.retrieve_document(OTHER, "d1", "margins", conn=corpus)
+        missing = ar.retrieve_document(OTHER, "d_nope", "margins", conn=corpus)
+        assert foreign["no_answer_reason"] == "document_not_found"
+        assert missing["no_answer_reason"] == "document_not_found"
+        assert foreign["coverage"] == missing["coverage"]
+
+    def test_a_trashed_owning_note_removes_the_document_from_answers(self, corpus):
+        corpus.execute("UPDATE j2_notes SET deleted_at='2026-09-07' WHERE id='n_thesis'")
+        corpus.commit()
+        r = ar.retrieve_document(U, "d1", "mid-seventies range", conn=corpus)
+        assert r["evidence"] == []
