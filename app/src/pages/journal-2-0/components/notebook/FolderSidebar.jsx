@@ -466,6 +466,16 @@ export default function FolderSidebar({
   activeViewId = null,
   onSelectView = () => {},
   onAddStarterViews = null,
+  // Wave H: Research Home is now the bare-root state (checkpoint decision
+  // 32/33) -- both null, same as "All notes" with no filter, so an explicit
+  // flag is needed to keep the "All notes" row's active-highlight honest
+  // rather than lighting up while Home (not the grid) is actually showing.
+  // `onSelectAllNotes`, if supplied, replaces the row's default
+  // onSelectFolder(null)+onSelectTag(null) click (adds the `?view=all` flag
+  // that disambiguates the two states) -- falls back to the pre-Wave-H
+  // behavior when omitted, so an existing caller/test is unaffected.
+  isHome = false,
+  onSelectAllNotes = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -949,8 +959,8 @@ export default function FolderSidebar({
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
-                className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+                className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
+                onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page

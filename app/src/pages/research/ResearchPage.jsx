@@ -16,6 +16,8 @@ import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
 import AskAiTab from './tabs/AskAiTab'
 import PaywallTeaser from './PaywallTeaser'
+import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
+import { notePath } from '../../hooks/useNoteBacklinks'
 import styles from './ResearchPage.module.css'
 
 // 2026-09-03 A6/A7 pass: "Filings & Events" corrected to "Filings" — the tab
@@ -52,7 +54,18 @@ import styles from './ResearchPage.module.css'
 // decide -- see api/services/ticker_explain.py. Placed last, mirroring
 // the calendar modal's own tab ordering (Ask AI is that modal's last
 // group too).
-const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI']
+// 2026-09-07 Wave H (Notebook Research Home + Ticker Research Workspace):
+// "My Research" is a BRIDGE tab, not a re-implementation -- it mounts the
+// exact same `TickerResearchWorkspace` component Notebook's own
+// `/journal/notebook/research/:symbol` route renders (checkpoint decision
+// 6/7). This tab owns MY private research about the security (notes/
+// theses/captured facts/trade-links); every OTHER tab on this page keeps
+// 100% of the market/vendor data -- that boundary is deliberate (checkpoint
+// decision 7/§33's "MY RESEARCH vs MARKET DATA" distinction), not
+// incidental. Placed last, after Ask AI: this page's existing tab order
+// already reads as "the market's view of this company" first, ending on
+// this member's own working context.
+const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -61,7 +74,7 @@ const SECTION_TO_TAB = {
   overview: 'Overview', news: 'News', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
-  filings: 'Filings', ai: 'Ask AI',
+  filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
 
 export default function ResearchPage() {
@@ -120,6 +133,9 @@ export default function ResearchPage() {
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
+      {active === 'My Research' && (
+        <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />
+      )}
     </div>
   )
 }

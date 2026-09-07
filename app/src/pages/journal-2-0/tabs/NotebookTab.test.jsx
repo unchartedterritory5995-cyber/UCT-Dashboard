@@ -60,6 +60,13 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
   default: () => null,
 }))
+// Wave H: ResearchHome makes its own real SWR fetch -- mocked here the same
+// way every other heavy child in this file is, so these tests stay about
+// the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
+// lives in ResearchHome.test.jsx).
+vi.mock('../components/notebook/ResearchHome', () => ({
+  default: () => <div data-testid="research-home">Research Home</div>,
+}))
 
 import NotebookTab from './NotebookTab'
 
@@ -90,7 +97,12 @@ beforeEach(() => {
   })
 })
 
-function renderTab(entry = '/journal') {
+// Wave H: bare-root now renders Research Home (checkpoint decision 33/57).
+// These tests are about the tab's OWN template-picker/grid/toolbar wiring
+// (per the file's own header comment above), not Home -- `?view=all` is the
+// explicit flag that keeps them landing on the grid unchanged. Tests that
+// exercise Home itself live in NotebookTab.researchHome.test.jsx.
+function renderTab(entry = '/journal?view=all') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <NotebookTab />
@@ -195,6 +207,36 @@ describe('NotebookTab — template picker', () => {
     renderTab('/journal/notebook?new=blank&ticker=nvda')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.ticker).toBe('NVDA')
+  })
+})
+
+describe('NotebookTab — Wave H Research Home vs. All Notes grid', () => {
+  it('bare-root (no note/folder/tag/view) renders Research Home, not the grid', () => {
+    renderTab('/journal/notebook')
+    expect(screen.getByTestId('research-home')).toBeInTheDocument()
+    expect(screen.queryByText('Daily & weekly rituals')).not.toBeInTheDocument()
+  })
+
+  it('?view=all renders the All Notes grid/picker, not Research Home', () => {
+    renderTab('/journal/notebook?view=all')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+    expect(screen.getByText('Daily & weekly rituals')).toBeInTheDocument()
+  })
+
+  it('opening a note leaves Research Home for the editor, even from bare-root', () => {
+    renderTab('/journal/notebook?note=n1')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+    expect(screen.getByTestId('note-editor')).toBeInTheDocument()
+  })
+
+  it('a real folder/tag filter leaves Research Home for the grid', () => {
+    renderTab('/journal/notebook?folder=some-folder')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+  })
+
+  it('the trash view is never mistaken for Research Home', () => {
+    renderTab('/journal/notebook?folder=__trash__')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
   })
 })
 

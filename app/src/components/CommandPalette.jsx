@@ -20,8 +20,12 @@ const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
 const NOTEBOOK_COMMANDS = [
   { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
     to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
+  // Wave H checkpoint decision 28: bare `/journal/notebook` now renders
+  // Research Home (checkpoint decision 33) -- this command already IS
+  // "Open Research Home" by construction, so it gets Home's own keywords
+  // rather than a second, redundant command pointing at the identical route.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
-    to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open'] },
+    to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
   { id: 'nb-search', kind: 'command', label: 'Search Notebook', icon: 'search',
     to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',

@@ -2156,6 +2156,33 @@ def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_u
     return {"evidence": evidence, "changelog": changelog}
 
 
+# ── Wave H (Research Home + Ticker Research Workspace) ──────────────────────
+from api.services.journal_two import notebook_home, ticker_research
+
+
+@router.get("/notebook/home")
+def get_notebook_home_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """ONE aggregated read for Research Home (checkpoint decision 14) --
+    Continue Working / Favorites / Active Theses / Open-Position Research /
+    Needs Review, each bounded and independently best-effort. Never errors
+    on an empty account -- every section degrades to an empty list."""
+    return notebook_home.get_notebook_home(user["id"])
+
+
+@router.get("/notes/research/{symbol}/summary")
+def get_ticker_research_summary_endpoint(
+    symbol: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The Ticker Research Workspace's ONE aggregated read (checkpoint
+    decision 15) -- entity identity, bounded notes/theses/facts, and a
+    trade/position COUNT summary (never an execution ledger). Always 200s
+    (even for a symbol with zero research -- the honest empty-workspace
+    state, checkpoint decision 13's ticker-workspace analog) since a
+    ticker workspace has no "not found" state of its own: it is a dynamic
+    view, not a record that can fail to exist."""
+    return ticker_research.get_ticker_research_summary(user["id"], symbol)
+
+
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
 # Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
 # (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).

@@ -125,6 +125,17 @@
   cursor: pointer;
   font-size: 12px;
 }
+/* Wave H: the "?ticker=" filter's own visible indicator (checkpoint
+   decision 23) -- a member landing here via a workspace's "View all Notes"
+   should see AT A GLANCE why the grid is scoped, not just an unlabeled
+   Clear-filter button. */
+.tickerFilterChip {
+  font-size: 12px;
+  color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.12);
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+}
 .trashLabel {
   font-size: 13px;
   font-weight: 600;

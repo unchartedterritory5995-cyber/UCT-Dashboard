@@ -40,6 +40,7 @@ by a future editor without new evidence.
 |---|---|---|
 | **Editor** | 6 | Genuinely strong, production-verified (headings/lists/tables/checklists/callouts/toggles/images/links, autosave with retry+backoff, native undo/redo). Real gaps: no command palette, no find-in-note, no note-to-note link authoring UI, attachments image-only. Capped at 6 (no real-usage evidence) not 7 (a few confirmed gaps a "strong" editor shouldn't have). |
 | **Organization** | 7 (was 5) | Nested folders (depth 6), tags, single-ticker field, and **Favorites + Recents (Wave B, shipped + production-verified 2026-09-06)** — a note-scoped favorite toggle and a system-derived recently-opened list, both trash-aware, both live-verified end-to-end in the fail-closed sandbox and confirmed live in production via bundle-content grep. Saved views + structured properties now shipped in Wave E (see the dedicated "Structured Research" row below) — the organization-primitive gaps this row named are closed. Capped at 7, not 8+: Day 0 of real member usage (ladder rule). |
+| **Continuation / Automatic Research Assembly** | 6 (NEW) *(Wave H, 2026-09-07: built, tested, and real-browser-verified — not yet production-deployed at time of writing)* | Genuinely new domain, not a raise of an existing one — Notion/Obsidian/Evernote have no equivalent. Two dynamic read models, zero member-built structure required: **Research Home** (`ResearchHome.jsx`) answers "where was I working" from EXISTING relationships (recents/favorites/thesis-status/trade-links/review-date) — Continue Working, Active Theses, Connected to Open Positions, Needs Review, Favorites, each section auto-hiding when empty; the **Ticker Research Workspace** (`TickerResearchWorkspace.jsx`) answers "what is all my thinking on this security" from the SAME underlying data, mounted at both `/journal/notebook/research/:symbol` and, via one new tab, the existing paid Company Page — never a second implementation. **Two real defects found live during this wave's own verification, both fixed with regression coverage**: a ticker-filter parity bug (the workspace's "View all Notes" link disagreed with the workspace's own membership answer for cashtag-mention-only notes — fixed by widening `_notes_filter_sql`'s `ticker` param to the same ticker-OR-embed-OR-mention union the workspace already used) and a sub-44px touch target on the workspace's own new back-link/view-all chrome (fixed, re-audited clean). **Live-verified end-to-end**: automatic workspace assembly with zero manual linking, dynamic membership (a cleared Ticker property live-removes a note from its workspace), multi-entity zero-duplication (one cashtag-only note in two workspaces), Home's populated and honest-empty states, the Company Page bridge, command-palette entry, and full Home→Workspace→Note→Back→Back browser-history correctness. **6, not 7+**: not yet merged/deployed to production at the time this line was written; zero real member usage evidence (Day 0, same cap every prior wave's closure has honestly carried); ~19 disk-headroom-guarded backend tests in an unrelated subsystem (media/attachment byte-save) could not be driven green in this session's environment (root-caused to ~110 unrelated parallel git worktrees consuming the box's free space, explicitly outside this wave's scope). |
 | **Search / Retrieval** | 8 (was 5) | FTS5 engine is correctly built and production-verified. **Wave A (Search Evolution I) shipped and live-verified 2026-09-06**: date-range filter (with a real correctness index), query-aware highlighted snippets replacing the naive 120-char slice, opt-in relevance ranking (exact structured matches beat fuzzy text matches, verified live), sector/theme entity-anchored retrieval (verified live against a real provider call), and the $NVDA-ticker-field correctness bug is fixed. Folder-sidebar correctness was separately re-verified FIXED earlier the same day. **Not a 9/10**: semantic/vector search remains evidence-gated future work (deliberately, per architecture §7 sequencing — not a gap), and this is Day 0 of real member usage on the new search UX, so "does it feel right to a real member" remains unmeasured. |
 | **Capture (Save-to-Notebook)** | 6 | The mechanism itself is live, real, and unusually mature for this stage (`CaptureInboxTray`, shared envelope, 9 widget doors) — a genuine structural head start. Capped at 6 by real, confirmed gaps: 4 major surfaces (Screener, Options Flow, COT Data, Model Book) have no capture door; no comment/annotation field at capture time; destination-menu wiring status needs a direct confirm. |
 | **AI on Notebook content** | 4 | Ask Current Note is live, scoped correctly, production-verified — a real, working P0. Corpus-wide "Ask Notebook" is 100% greenfield (zero embedding infrastructure exists for note content specifically). The domain average reflects that the harder, higher-value half of "AI on my notebook" hasn't started. |
@@ -100,12 +101,13 @@ the table, not the average.
 
 ## Composite view
 
-**Unweighted average across the 21 domains above: ~5.4 / 10** (was 4.9 pre-
+**Unweighted average across the 22 domains above: ~5.5 / 10** (was 4.9 pre-
 Wave-C; Trust/Recovery and Export/Portability each +1 in Wave C, Knowledge
 Linking +4 in Wave D, Structured Research +6 in Wave E, Temporal Correctness
-+2 in Wave F, Thesis Intelligence +3 in Wave G (2026-09-07) — see their rows
++2 in Wave F, Thesis Intelligence +3 in Wave G, Continuation / Automatic
+Research Assembly a new domain at 6 in Wave H (2026-09-07) — see their rows
 above. Domain count measured directly off the table above, not carried
-forward from a prior count — Wave E/F/G each added a domain row.)
+forward from a prior count — Wave E/F/G/H each added a domain row.)
 
 This number is presented for orientation only — **do not average domains of
 wildly different strategic weight into one score for decision-making.** The
@@ -128,11 +130,16 @@ correctly deprioritized. Read the table, not the average.
    opposing notes and captured facts) + a computed-read changelog, real-browser-
    verified (Thesis Intelligence 3→6). Analyst-estimates capture remains rights-
    gated (architected, deliberately inactive pending legal review — unchanged).
-5. Confirm/fix the folder-sidebar correctness bug's current status — cheap,
+5. ~~Ship Research Home + the per-ticker research workspace~~ **DONE, Wave H
+   (2026-09-07)** — the "where was I working" / "what's all my thinking on
+   this security" gap this list never explicitly named is now closed, real-
+   browser-verified (Continuation / Automatic Research Assembly, new domain
+   at 6).
+6. Confirm/fix the folder-sidebar correctness bug's current status — cheap,
    directly serves the Trust-parity bar.
-6. Ask Notebook (corpus-wide semantic search/Q&A) remains the largest fully-
+7. Ask Notebook (corpus-wide semantic search/Q&A) remains the largest fully-
    greenfield item on this list — no embedding infrastructure exists for note
-   content specifically. Not started by any wave through Wave G.
+   content specifically. Not started by any wave through Wave H.
 
 **What will NOT move any score, no matter how much engineering goes into it:**
 more Wave 4 design work, more competitive research, or any synthetic/sandbox
