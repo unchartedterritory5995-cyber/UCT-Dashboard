@@ -33,6 +33,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.currentness import reversal_trigger_still_current
 from api.services.pattern_engine.types import Bar, Detection
 
 
@@ -60,6 +61,16 @@ def detect_shooting_star(bars: List[Bar], context: dict) -> List[Detection]:
 
         # HARD CONTEXT GATE: shooting star must be at a swing high or after advance
         if not _is_in_advance_context(bars, i, context):
+            continue
+
+        # HARD CURRENTNESS GATE: this detector's own docstring/narrative already
+        # document the pattern's lifecycle (confirmation = a later close below
+        # the shooting star's low; invalidation = a later close back above its
+        # high) but never checked it. A candidate already invalidated, or whose
+        # confirmation fully played out more than one bar ago, is stale.
+        if not reversal_trigger_still_current(
+            bars, i, candidate["high"], candidate["low"], "bearish"
+        ):
             continue
 
         geom_score = _score_geometry(candidate)

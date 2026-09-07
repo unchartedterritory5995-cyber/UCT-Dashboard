@@ -113,6 +113,16 @@ class RecommendedAction(str, Enum):
     DEPRECATION_RESEARCH = "DEPRECATION_RESEARCH"
 
 
+# Lesson from the 2026-09 shared-freshness-defect remediation (shooting_star,
+# hanging_man, bearish_engulfing, pullback_to_50sma): when a detector's OWN
+# docstring/narrative already documents an explicit confirmation/invalidation
+# lifecycle in English (e.g. "confirmation = a later close below the trigger's
+# low; invalidation = a later close back above the trigger's high") but the
+# code never checks it against the bars after the trigger, that gap is an
+# OBJECTIVELY-DERIVABLE, safe fix -- no new semantics need to be invented,
+# just make the code enforce what the docs already promise. Check for this
+# BEFORE assuming a detector "requires lifecycle design" (Q7-Q9 above): read
+# the docstring/narrative text for an already-authored lifecycle first.
 FRESHNESS_STRESS_QUESTIONS = [
     "What bar/event caused qualification?",
     "How many bars can pass between that event and the evaluated bar?",

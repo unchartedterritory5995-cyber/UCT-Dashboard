@@ -1,0 +1,58 @@
+{
+  "case_0000": {
+    "symbol": "KD",
+    "as_of_t": 20250829,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "RMBI",
+    "as_of_t": 20251223,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "ARDT",
+    "as_of_t": 20260617,
+    "detector_fired": true,
+    "detector_top_confidence": 79.5,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "HAFC",
+    "as_of_t": 20251223,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "ARDT",
+    "as_of_t": 20260828,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "TOYO",
+    "as_of_t": 20260828,
+    "detector_fired": true,
+    "detector_top_confidence": 69.73,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "FOUR",
+    "as_of_t": 20250829,
+    "detector_fired": true,
+    "detector_top_confidence": 66.22,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}

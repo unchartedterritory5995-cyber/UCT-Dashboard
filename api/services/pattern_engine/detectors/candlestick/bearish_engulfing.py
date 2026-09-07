@@ -50,6 +50,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
+from api.services.pattern_engine.primitives.currentness import reversal_trigger_still_current
 from api.services.pattern_engine.primitives.dcr import compute_dcr, dcr_strength
 from api.services.pattern_engine.primitives.liquidity import liquidity_floor
 from api.services.pattern_engine.types import Bar, Detection
@@ -102,6 +103,16 @@ def detect_bearish_engulfing(bars: List[Bar], context: dict) -> List[Detection]:
         )
         if not has_reversal_context:
             continue  # anti-pattern: bearish engulfing in non-topping location
+
+        # HARD CURRENTNESS GATE: this detector's own docstring/narrative already
+        # document the pattern's lifecycle (confirmation = a later close below
+        # bar N's low; invalidation = a later close back above bar N's high)
+        # but never checked it. A candidate already invalidated, or whose
+        # confirmation fully played out more than one bar ago, is stale.
+        if not reversal_trigger_still_current(
+            bars, i, candidate["curr_high"], candidate["curr_low"], "bearish"
+        ):
+            continue
 
         geom_score = _score_geometry(candidate)
         vol_score = _score_volume(bars, i)

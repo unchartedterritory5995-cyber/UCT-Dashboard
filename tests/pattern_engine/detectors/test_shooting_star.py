@@ -87,7 +87,11 @@ def test_geometry_extras_richness():
 
 def test_levels_are_bearish_setup():
     fixtures = load_all_fixtures("shooting_star", include_internal=False)
-    pos = [f for f in fixtures if f.category == "positive"]
+    # "currentness_*" fixtures deliberately extend past the trigger bar to
+    # exercise the post-trigger currentness gate, so bars[-1] there is not
+    # the trigger bar this assertion is about -- exclude them here only.
+    pos = [f for f in fixtures if f.category == "positive"
+           and not f.name.startswith("currentness_")]
     assert pos
     f = pos[0]
     ctx = f.context if f.context is not None else build_context(f.bars, sym="TEST")
