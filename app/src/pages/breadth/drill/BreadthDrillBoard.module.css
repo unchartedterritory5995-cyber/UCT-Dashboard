@@ -58,3 +58,19 @@
   .divider { flex-basis: 16px; }
   .divider::after { inset: 0 7px; }
 }
+
+/* PHONE — one widget at a time.
+   A side-by-side board at 390px gives the list ~330px and the chart ~60px, which
+   is not a small version of the feature, it is a broken one. /charts already
+   answers this the same way: MobileWorkspace shows ONE widget, not a shrunken
+   grid. The toggle lives in the modal's title bar; `data-pane` selects which
+   pane survives. Driven entirely in CSS so first paint is correct — a JS
+   breakpoint read is stale in a fixed mobile viewport. */
+@media (max-width: 640px) {
+  .board { padding: 4px; }
+  .divider { display: none; }
+  /* The inline width the split drag sets must lose to the phone layout. */
+  .pane { width: auto !important; flex: 1 1 auto !important; min-width: 0; }
+  .board[data-pane='list'] .paneChart { display: none; }
+  .board[data-pane='chart'] .paneList { display: none; }
+}

@@ -39,6 +39,10 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
   // colour group A and the list still drives the chart across windows.
   // ⛔ NOT persisted: a popped window dies with its opener, so restoring a
   // "popped" flag on the next open would leave a widget that renders nowhere.
+  // ── Phone: one pane at a time ───────────────────────────────────────────────
+  // Rendered always; CSS hides the toggle above 640px and ignores `data-pane`.
+  const [mobilePane, setMobilePane] = useState('list')
+
   const [poppedIds, setPoppedIds] = useState([])
   const [popNotice, setPopNotice] = useState(null)
   const popOut = useCallback((id) => {
@@ -92,12 +96,37 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
   )
 
   const firstSym = drill?.items?.[0]?.t || null
-  const workspace = useDrillWorkspace({
+  const baseWorkspace = useDrillWorkspace({
     initialSym: firstSym,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
   })
+
+  // On a PHONE, picking a row must show you the chart — otherwise the tap looks
+  // like it did nothing, because the chart it updated is the hidden pane.
+  //
+  // Done by wrapping setGroupSym rather than watching the value in an effect:
+  // this is a USER ACTION, and reacting to the derived state instead would both
+  // trip react-hooks/set-state-in-effect and fire on the open-time seed.
+  // ⛔ `matchMedia` is read HERE, at event time — never during render.
+  // useMediaQuery seeds at mount and only updates on a `change` event, so in a
+  // fixed mobile viewport a render-time read is stale on first paint.
+  const lastSymRef = useRef(null)
+  const workspace = useMemo(() => ({
+    ...baseWorkspace,
+    setGroupSym: (color, sym) => {
+      const prev = lastSymRef.current
+      lastSymRef.current = sym
+      baseWorkspace.setGroupSym(color, sym)
+      // `prev` is null for the seeded first symbol, so opening still lands on
+      // the list rather than jumping straight to the chart.
+      if (!prev || !sym || sym === prev) return
+      try {
+        if (window.matchMedia('(max-width: 640px)').matches) setMobilePane('chart')
+      } catch { /* no matchMedia — stay put rather than guess */ }
+    },
+  }), [baseWorkspace])
 
   // ── The drill payload ───────────────────────────────────────────────────────
   const source = useMemo(() => ({
@@ -135,6 +164,20 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
             {drill?.items && <span className={styles.count}> · {count.toLocaleString()} {count === 1 ? 'stock' : 'stocks'}</span>}
           </span>
           {whenLabel && <span className={styles.when}>{whenLabel}</span>}
+          <div className={styles.paneToggle} role="group" aria-label="Show list or chart">
+            <button
+              type="button"
+              className={mobilePane === 'list' ? styles.paneOn : undefined}
+              onClick={() => setMobilePane('list')}
+              aria-pressed={mobilePane === 'list'}
+            >List</button>
+            <button
+              type="button"
+              className={mobilePane === 'chart' ? styles.paneOn : undefined}
+              onClick={() => setMobilePane('chart')}
+              aria-pressed={mobilePane === 'chart'}
+            >Chart</button>
+          </div>
           <button className={styles.close} onClick={onClose} aria-label="Close">
             <UIcon name="x" size={14} />
           </button>
@@ -149,6 +192,7 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
               onBoardChange={onBoardChange}
               onPopOut={popOut}
               poppedIds={poppedIds}
+              mobilePane={mobilePane}
             />
 
             {/* Ejected widgets. Rendered from the SAME board state and inside the

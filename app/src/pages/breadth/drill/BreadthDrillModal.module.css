@@ -85,10 +85,41 @@
   font-size: 11.5px;
 }
 
+/* Phone pane toggle. Rendered always, shown only on a phone — a CSS switch, so
+   first paint is right without a JS breakpoint read. */
+.paneToggle {
+  display: none;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.paneToggle button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8f8b83);
+  padding: 0 14px;
+  min-height: var(--tap-min, 44px);
+  cursor: pointer;
+}
+.paneToggle button + button { border-left: 1px solid rgba(220, 187, 94, 0.3); }
+.paneToggle .paneOn,
+.paneToggle button.paneOn { background: rgba(220, 187, 94, 0.16); color: var(--ut-gold, #dcbb5e); }
+
 /* Phone: the split board is unusable at 390px, so the overlay goes full-bleed and
    the board's own panes stack. Matches the app's canonical touch boundary. */
 @media (max-width: 640px) {
   .overlay { padding: 0; }
-  .dialog { height: 100vh; border-radius: 0; border: none; max-width: none; }
+  /* 100dvh, not 100vh: on iOS Safari 100vh is the UNCOLLAPSED viewport, so the
+     board's bottom row sits under the browser chrome and the chart's date axis
+     is cut off. Fallback first for anything without dvh. */
+  .dialog { height: 100vh; height: 100dvh; border-radius: 0; border: none; max-width: none; }
   .close { min-width: 44px; min-height: 44px; justify-content: center; }
+  .paneToggle { display: inline-flex; }
+  /* The title bar is the only chrome above a full-bleed board — keep it tight
+     and let the identity truncate rather than push the toggle off-screen. */
+  .bar { padding: 6px 8px; gap: 8px; }
+  .title { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .when { display: none; }
 }

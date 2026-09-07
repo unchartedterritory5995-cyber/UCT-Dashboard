@@ -17,7 +17,7 @@ import styles from './BreadthDrillBoard.module.css'
 // two-widget modal has nothing to rearrange. Lifting renderGrid out into a shared
 // board is the follow-up.
 
-export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [] }) {
+export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [], mobilePane = 'list' }) {
   const { widgets, split } = board
   const wrapRef = useRef(null)
   const [dragging, setDragging] = useState(false)
@@ -105,10 +105,14 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
   }
 
   return (
-    <div className={styles.board} ref={wrapRef}>
+    // `data-pane` drives the PHONE layout in CSS rather than a JS breakpoint
+    // read: useMediaQuery seeds at mount and only updates on a `change` event, so
+    // in a fixed mobile viewport a render-time read can be stale on first paint.
+    // Above 640px this attribute selects nothing.
+    <div className={styles.board} ref={wrapRef} data-pane={mobilePane}>
       {!listPopped && (
         <div
-          className={`${styles.pane}${soloed ? ' ' + styles.paneGrow : ''}`}
+          className={`${styles.pane} ${styles.paneList}${soloed ? ' ' + styles.paneGrow : ''}`}
           style={soloed ? undefined : { width: split, flex: '0 0 auto' }}
         >
           {listWidget && host(listWidget)}
@@ -125,7 +129,7 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
         />
       )}
       {!chartPopped && (
-        <div className={`${styles.pane} ${styles.paneGrow}`}>
+        <div className={`${styles.pane} ${styles.paneGrow} ${styles.paneChart}`}>
           {chartWidget && host(chartWidget)}
         </div>
       )}
