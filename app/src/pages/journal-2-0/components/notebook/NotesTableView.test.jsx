@@ -56,10 +56,11 @@ describe('NotesTableView', () => {
     expect(screen.queryByText('Ticker')).toBeNull()
   })
 
-  it('clicking a row opens that note', () => {
+  it('clicking a row opens that note with the WHOLE note object (openNote reads note.id itself -- passing a bare id string here previously produced ?note=undefined, caught live via browser E2E)', () => {
     const { onOpenNote } = setup()
     fireEvent.click(screen.getByText('NVDA Thesis'))
-    expect(onOpenNote).toHaveBeenCalledWith('n1')
+    expect(onOpenNote).toHaveBeenCalledWith(notes[0])
+    expect(onOpenNote.mock.calls[0][0].id).toBe('n1')
   })
 
   it('clicking a select-value chip applies a quick filter without opening the note', () => {

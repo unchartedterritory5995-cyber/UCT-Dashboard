@@ -1580,6 +1580,13 @@ def list_notes_endpoint(
     )
     property_filter = None
     property_sort = None
+    # A saved view's stored spec was valid when saved; a property it
+    # referenced can be deleted afterward. Resolving it non-strict means a
+    # dangling clause degrades to "no longer applies" instead of 400ing the
+    # view permanently (checkpoint §9 property deletion/recovery) -- a live,
+    # client-supplied filter stays strict, since an unknown property there is
+    # a real mistake in the request being made right now.
+    property_filter_strict = True
     if savedViewId:
         view = note_properties.get_saved_view(user["id"], savedViewId, conn=None)
         if view is None:
@@ -1587,6 +1594,7 @@ def list_notes_endpoint(
         spec = view["spec"] or {}
         property_filter = spec.get("propertyFilter")
         property_sort = spec.get("propertySort")
+        property_filter_strict = False
     else:
         property_filter = _parse_property_filter_param(propertyFilter)
         property_sort = _parse_property_sort_param(propertySort)
@@ -1597,6 +1605,7 @@ def list_notes_endpoint(
             sort=sort, limit=limit, offset=offset, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             property_filter=property_filter, property_sort=property_sort,
+            property_filter_strict=property_filter_strict,
         )
         # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
         # never the length of `rows` — a migrated library of thousands of notes must
@@ -1607,7 +1616,7 @@ def list_notes_endpoint(
             user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            property_filter=property_filter,
+            property_filter=property_filter, property_filter_strict=property_filter_strict,
         )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -353,6 +353,49 @@ def test_saved_view_filter_survives_option_rename_end_to_end(conn):
     assert [r["id"] for r in results] == [note["id"]]  # still matches after the rename
 
 
+def test_a_saved_views_filter_on_a_deleted_property_degrades_instead_of_raising(conn):
+    # A saved view's spec was valid when saved. If the member later deletes
+    # the property it filtered on, resolving the view (strict=False) must NOT
+    # 400 forever -- the dangling clause is dropped and the rest of the view
+    # (folder/tag/other conditions) still applies. A LIVE client-supplied
+    # filter referencing an unknown property (strict=True, the default) still
+    # raises -- that path is unaffected.
+    d = props.create_property_def("u1", "Conviction", "select", options=[{"label": "High"}], conn=conn)
+    opt_id = d["options"][0]["id"]
+    a = _create(conn, "u1", "A")
+    b = _create(conn, "u1", "B")
+    update_note("u1", a["id"], {"properties": {d["id"]: opt_id}}, conn=conn)
+    spec = {"propertyFilter": [{"propertyId": d["id"], "op": "eq", "value": opt_id}]}
+    view = props.create_saved_view("u1", "High Conviction", "list", spec, conn=conn)
+
+    props.delete_property_def("u1", d["id"], conn=conn)
+
+    reloaded_view = props.get_saved_view("u1", view["id"], conn=conn)
+    # Still raises for a genuinely LIVE client-supplied filter (default strict=True).
+    with pytest.raises(props.PropertyValidationError):
+        list_notes("u1", property_filter=reloaded_view["spec"]["propertyFilter"], conn=conn)
+    degraded_results = list_notes(
+        "u1", property_filter=reloaded_view["spec"]["propertyFilter"],
+        property_filter_strict=False, conn=conn,
+    )
+    assert {r["id"] for r in degraded_results} == {a["id"], b["id"]}  # dangling clause dropped, not 400
+
+
+def test_a_saved_views_sort_on_a_deleted_property_degrades_to_default_sort(conn):
+    d = props.create_property_def("u1", "Rank", "number", conn=conn)
+    a = _create(conn, "u1", "A")
+    props.delete_property_def("u1", d["id"], conn=conn)
+
+    with pytest.raises(props.PropertyValidationError):
+        list_notes("u1", property_sort={"propertyId": d["id"], "direction": "asc"}, conn=conn)
+    # Non-strict falls back to no property sort rather than raising.
+    results = list_notes(
+        "u1", property_sort={"propertyId": d["id"], "direction": "asc"},
+        property_filter_strict=False, conn=conn,
+    )
+    assert a["id"] in [r["id"] for r in results]
+
+
 # ── Purge sweep ──────────────────────────────────────────────────────────────
 
 def test_purge_sweep_hard_deletes_only_defs_past_the_retention_window(conn):

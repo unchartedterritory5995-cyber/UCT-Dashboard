@@ -993,6 +993,7 @@ def list_notes(
     symbol_in: list[str] | None = None,
     property_filter: list[dict[str, Any]] | None = None,
     property_sort: dict[str, Any] | None = None,
+    property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -1005,7 +1006,9 @@ def list_notes(
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
-            prop_where, prop_params = property_filter_sql(user_id, property_filter, conn)
+            prop_where, prop_params = property_filter_sql(
+                user_id, property_filter, conn, strict=property_filter_strict,
+            )
             where_sql += prop_where
             params += prop_params
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
@@ -1036,7 +1039,9 @@ def list_notes(
             prop_sort_result = None
             if property_sort:
                 from api.services.journal_two.note_properties import property_sort_sql
-                prop_sort_result = property_sort_sql(user_id, property_sort, conn)
+                prop_sort_result = property_sort_sql(
+                    user_id, property_sort, conn, strict=property_filter_strict,
+                )
             if prop_sort_result:
                 prop_order_fragment, prop_order_params = prop_sort_result
                 sql += f" ORDER BY {prop_order_fragment}"
@@ -1096,6 +1101,7 @@ def count_notes(
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
     property_filter: list[dict[str, Any]] | None = None,
+    property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -1115,7 +1121,9 @@ def count_notes(
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
-            prop_where, prop_params = property_filter_sql(user_id, property_filter, conn)
+            prop_where, prop_params = property_filter_sql(
+                user_id, property_filter, conn, strict=property_filter_strict,
+            )
             where_sql += prop_where
             params += prop_params
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql

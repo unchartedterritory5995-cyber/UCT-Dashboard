@@ -552,6 +552,7 @@ _VALID_OPS = ("eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is
 
 def property_filter_sql(
     user_id: str, property_filter: list[dict[str, Any]] | None, conn: sqlite3.Connection,
+    *, strict: bool = True,
 ) -> tuple[str, list[Any]]:
     """AND-only (Wave E checkpoint §10/directive §39-41 -- OR/groups
     explicitly deferred). Every condition validates its property_id AND its
@@ -563,7 +564,18 @@ def property_filter_sql(
     through this path -- their existing dedicated filters (ticker=,
     embed_symbol=/symbol_in via sector/theme) already cover them without a
     duplicate mechanism; filtering by one here raises rather than silently
-    doing nothing."""
+    doing nothing.
+
+    `strict=False` (used only when resolving a SAVED VIEW's own stored spec --
+    checkpoint §9 property deletion/recovery) drops a clause referencing a
+    property_id that no longer exists instead of raising. A view's spec was
+    valid when saved; a property it depended on can be deleted afterward, and
+    a saved view whose owner deletes a property should degrade to "that
+    condition no longer applies" -- not turn into a permanent 400 with no way
+    to fix it short of deleting and recreating the view. `strict=True` (the
+    default, used for a live client-supplied filter) still hard-rejects an
+    unknown property -- that is a real, actionable mistake in the request
+    being made right now, not a dangling reference to heal around."""
     if not property_filter:
         return "", []
     clauses: list[str] = []
@@ -578,11 +590,15 @@ def property_filter_sql(
             raise PropertyValidationError(f"Unsupported filter operator: {op!r}")
         prop_def = get_property_def(user_id, property_id, conn=conn)
         if prop_def is None:
-            raise PropertyValidationError(f"Unknown property: {property_id!r}")
+            if strict:
+                raise PropertyValidationError(f"Unknown property: {property_id!r}")
+            continue
         if prop_def["source"] != "user_set":
-            raise PropertyValidationError(
-                f"{prop_def['name']} is derived and cannot be filtered through property_filter"
-            )
+            if strict:
+                raise PropertyValidationError(
+                    f"{prop_def['name']} is derived and cannot be filtered through property_filter"
+                )
+            continue
         extract = 'json_extract(properties_json, ?)'
         path_param = f'$."{property_id}"'
         if op == "is_empty":
@@ -622,6 +638,7 @@ _VALID_SORT_DIRECTIONS = ("asc", "desc")
 
 def property_sort_sql(
     user_id: str, property_sort: dict[str, Any] | None, conn: sqlite3.Connection,
+    *, strict: bool = True,
 ) -> tuple[str, list[Any]] | None:
     """Returns `(order_by_fragment, params)` -- the fragment goes directly
     after `ORDER BY` (no trailing keyword of its own) -- or None when no
@@ -630,7 +647,11 @@ def property_sort_sql(
     string-interpolated into the SQL text, matching every other predicate in
     this program (directive §14's "no raw client query text" discipline,
     applied even though property_id is already validated against a real
-    definition, not literally arbitrary input)."""
+    definition, not literally arbitrary input).
+
+    `strict=False` mirrors `property_filter_sql`'s saved-view healing: a
+    saved view sorting by a since-deleted property falls back to no property
+    sort (the caller's default sort applies) instead of 400ing forever."""
     if not property_sort:
         return None
     property_id = property_sort.get("propertyId")
@@ -639,7 +660,9 @@ def property_sort_sql(
         raise PropertyValidationError(f"Unsupported sort direction: {direction!r}")
     prop_def = get_property_def(user_id, property_id, conn=conn)
     if prop_def is None:
-        raise PropertyValidationError(f"Unknown property: {property_id!r}")
+        if strict:
+            raise PropertyValidationError(f"Unknown property: {property_id!r}")
+        return None
     # NULLS LAST regardless of direction -- an unset property should never
     # dominate the top of an ascending sort just because SQLite treats NULL
     # as smallest (Wave E checkpoint's own "honest empty state" discipline,

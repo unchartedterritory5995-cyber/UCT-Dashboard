@@ -114,7 +114,12 @@ export default function NotesTableView({
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => n.title || 'Untitled'}
-      onRowClick={(n) => onOpenNote(n.id)}
+      // openNote (NotebookTab.jsx) reads note.id itself -- it wants the
+      // whole note object, the same contract NoteCard's onOpen already
+      // uses. Passing n.id here instead sent openNote a bare string,
+      // whose own .id read as undefined -- a real bug caught live via
+      // browser E2E (?note=undefined, "Couldn't load this note").
+      onRowClick={(n) => onOpenNote(n)}
       emptyText="No notes match this view."
     />
   )

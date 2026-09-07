@@ -1749,3 +1749,150 @@ unrelated) → `e36ca0eb5` (Search/Command Convergence merge, unrelated to Noteb
 No uncommitted changes on `notebook-primary-platform` beyond this document itself at
 time of writing. No concurrent Notebook-touching work detected on master beyond what
 this session already merged.
+
+---
+
+### Wave E — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the PERMANENT CURRENT SESSION RULE established after the rogue-fork
+incident: no fork/subagent dispatch for any part of Wave E's research, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+**Delivered:** the full backend (schema, built-in + user-defined property CRUD,
+financial-derived live resolution, filter/sort query layer, Wave C version
+integration, export front-matter, saved-view CRUD, 9 new routes, `savedViewId`
+query-safety override) and frontend (`PropertiesSection` progressive-disclosure
+editor UI, `NotesTableView` table view with quick-filter chips, `SavedViewEditor`,
+sidebar saved-views IA) specified in the entry checkpoint above — 36/36 checkpoint
+decisions implemented as decided, no scope drift.
+
+**Real-browser E2E workflows run, in the fail-closed sandbox (`tools/e2e_sandbox_launcher.py`):**
+property create/edit/remove, one note carrying a mixed set of user-set + financial-derived
++ select values simultaneously, saved-view creation and round-trip, live view auto-update
+on note edits, Table-view quick-filter, property rename-safety, **option** rename-safety,
+property deletion never deleting note content, a saved view surviving the deletion of a
+property it filtered on, mobile shell audit, and an accessibility spot-check.
+
+**Real, reproducible defects found via this testing (not caught by the unit suite) and fixed:**
+1. `set_note_properties` returned the Python string `"null"` instead of `None` for an
+   empty properties dict — broke the "propertiesJson is always a dict" contract on the
+   next read. Fixed in the implementation pass itself, before browser testing began.
+2. `PropertiesSection` didn't re-fetch derived properties when the note's own ticker
+   field changed via a different save path — Sector/Industry/Theme stayed stale until a
+   full reload. Fixed with a `ticker` prop + change-triggered `refresh()`; verified live
+   (AMD→ new ticker updated Sector/Industry/Theme immediately).
+3. **`NotesTableView`'s `onRowClick={(n) => onOpenNote(n.id)}` passed a bare id string,**
+   but `NotebookTab.jsx`'s `openNote(note)` reads `note.id` itself (the same contract
+   `NoteCard`'s `onOpen` already uses) — clicking a table row produced `?note=undefined`
+   and "Couldn't load this note." A real, reproducible bug a unit test had NOT caught
+   (its own assertion had been written against the buggy contract). Fixed to
+   `onRowClick={(n) => onOpenNote(n)}`; the test assertion fixed to match; re-verified
+   live (row click now opens the right note with its full property set rendered).
+4. **Creating a new property via "+ New property…" left it invisible until a full page
+   reload.** `createDef` only invalidates the property-defs list SWR cache
+   (`useJ2PropertyDefs`), never the note's OWN resolved-properties cache
+   (`useNoteProperties`, a separate SWR key) — the new property was server-created
+   correctly but had no way to appear in the editor without a reload. Fixed by calling
+   `refresh()` after `createDef` in `PropertiesSection.createAndAdd`; verified live.
+5. **A user-created select/multi_select property shipped with ZERO options and no way
+   to add any** — `createDef` always sent an empty options array, and no frontend
+   surface existed to populate them afterward, so the "Select" type was completely
+   unusable as shipped (a dropdown with nothing to pick). Fixed by adding a
+   comma-separated "Options" input to the create-property form, collected at creation
+   time; verified live (created a real "Risk Level" select property with Low/Medium/High
+   and set a value on a note, immediately usable with no reload).
+6. **A saved view filtering/sorting on a since-deleted property 400'd permanently,**
+   with no way to fix it short of deleting and recreating the view — `property_filter_sql`/
+   `property_sort_sql` unconditionally raised `PropertyValidationError` on an unknown
+   `propertyId`, correct for a live client-supplied filter (an actionable mistake in the
+   request being made right now) but wrong for a saved view's own STORED spec (valid when
+   saved, degraded by a later, unrelated deletion). Added a `strict` parameter (default
+   `True`); the `savedViewId` router path now resolves non-strict, dropping the dangling
+   clause instead of raising. Found via a direct API repro while testing checkpoint §9
+   (property deletion/recovery) against a saved view; fixed; covered by 2 new backend
+   tests; re-verified live (the view still opens and shows its still-resolvable notes).
+7. **A property's control had no programmatic association with its own label** — the
+   name and its `<select>`/`<input>`/checkbox were only visually adjacent (`<span>` +
+   sibling), so a screen reader announced each control unlabeled. Fixed with
+   `id`/`aria-labelledby` pairing (`role="group"` for multi_select's checkbox cluster);
+   verified live via a DOM read confirming `select.getAttribute('aria-labelledby')`
+   resolves to the correct label text ("Thesis Status").
+
+**Rename-safety end-to-end (checkpoint §7/§8, the core stable-id guarantee) — proven
+live, not just unit-tested:** created a user-defined select property "Risk Level" with
+option "High," set it on a note, saved a "High Risk" view filtered on that option.
+Renamed the option "High"→"Severe" via the API (no frontend option-rename UI exists
+yet — see residual debt below) — the saved view still matched the note and rendered
+"Severe" with zero manual repair. Then renamed the property itself "Risk
+Level"→"Conviction Level" — the Table-view column header updated to "CONVICTION LEVEL,"
+the saved view's own name (a separate, user-chosen label) stayed "High Risk" untouched,
+and it still correctly filtered to the one matching note. Directly proves the stable-id
+model this program adopted from Notion's own property-object API, and directly refutes
+Obsidian's name-keyed alternative and Evernote's saved-query-text anti-pattern named in
+the entry checkpoint's competitor research.
+
+**Mobile (§10-item discipline) — automated `tools/mobile_audit.py` sweep, phone/phone390/
+tablet/desktop, against `/journal`: 0 horizontal-overflow combos, 0 sub-44px tap targets.**
+The Properties editor and Table view introduce no new markup risk beyond what's already
+audited — `NotesTableView` reuses the existing `ResponsiveTable` primitive (card-mode on
+phone, the same idiom every other J2 table already uses) and `PropertiesSection` is a
+plain flex-row list with no fixed pixel widths. The Chrome extension's own `resize_window`
+did not reflect in this session's screenshots (a kiosk/maximized-window limitation of this
+particular sandbox session, not a product issue), so the note-open Properties UI specifically
+was not re-screenshotted at a phone viewport this pass — recorded as a real, disclosed gap
+below rather than silently claimed as covered by the route-level sweep.
+
+**Performance (§8-equivalent proportionate check) — PASS, no scaling concern.** Real
+`list_notes`/`count_notes` code paths, in-memory SQLite, 5,000 notes each carrying a
+select-property value: property-filtered list (limit 100) 1.3ms, count 1.6ms,
+property-sorted list (limit 100) 3.9ms. No dedicated JSON index indicated at this scale;
+`json_extract` over `properties_json` is the same mechanism `_notes_filter_sql` already
+uses for every other predicate in this program.
+
+**Fresh competitor research (done at entry checkpoint, confirmed still accurate at
+closure) — Notion/Obsidian/Evernote task matrix:**
+
+| Job | Incumbent flow | UCT current (pre-Wave-E) | UCT target (this wave) | Switching gap closed? | UCT financial advantage |
+|---|---|---|---|---|---|
+| Tag a note's research status | Notion: add a Status property, pick from options | No structured properties at all | Built-in "Thesis Status" select, zero setup | Yes — matches Notion's flow exactly | N/A (organizational, not financial) |
+| Filter notes by a property value | Notion: Table view filter; Obsidian: Bases filter | Not possible — no property system | `propertyFilter` + saved views + Table-view quick-filter chips | Yes | N/A |
+| See a note's ticker/sector/industry | Notion/Obsidian: member manually adds + maintains these as text properties | Ticker already existed on the note; sector/industry not surfaced as properties | `builtin:ticker/sector/industry/theme/trade_ref`, ALL live-derived, zero manual maintenance | Exceeds — Notion/Obsidian users must maintain this by hand forever | **UCT already knows this** — the checkpoint's own north-star principle, directly delivered |
+| Rename a property without breaking saved filters | Notion: safe (stable id); Obsidian: UNSAFE (name-keyed); Evernote: N/A (no property system) | N/A | Stable-id property/option references throughout; proven live this pass | Matches Notion, exceeds Obsidian | N/A |
+| Save a filtered view for reuse | Notion: named database view; Evernote: saved search (query TEXT, not stable refs) | Not possible | `j2_note_saved_views`, spec keyed by property id, not text | Matches Notion, exceeds Evernote's text-query fragility | N/A |
+| See related trade/position from a note | Not offered by any of the three incumbents | `builtin:trade_ref` already resolved via `resolve_trade_ref` from Wave D-era embeds | Now exposed as a first-class property row | Category UCT alone occupies | Direct differentiation — no competitor offers this |
+
+**Wave A/B/C/D non-regression:** full `journal_two` backend suite — 197/197 passing on
+the Wave-E-specific + core `notes.py` files; the full-repo run (2,192 passed) surfaced
+26 pre-existing failures, all in `test_note_connectors_media.py`/`test_notes_import.py`/
+`test_obsidian_parity_fixtures.py` — zero references to Wave E's own modules, root-caused
+to an unrelated resource-headroom guard, confirmed pre-existing rather than a Wave E
+regression. Frontend: 1,693/1,694 passing repo-wide; the one failure is an unrelated,
+pre-existing 15s-timeout perf-measurement test in the note importer's markdown converter.
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** Seven real,
+local defects were found via live browser/API testing and fixed, tested, and
+re-verified per the directive's own rule for that outcome. No architecture-level
+contradiction surfaced against the entry checkpoint's 36 decisions. No scope was added —
+no OR/group filters, no multi-key sort, no board/calendar views, no relation-type
+properties, no formula properties were introduced (all explicitly deferred at the
+entry checkpoint). **Explicitly recorded residual debt (not fixed, by design):**
+- No frontend UI to rename a user-created property's name or edit its select/multi_select
+  option labels after creation — only the backend (`update_property_def`) and hook
+  (`useJ2PropertyDefs().rename`/`.updateOptions`) support this; this pass's rename-safety
+  proof used the API directly for that reason. A property/option-rename Settings-style
+  affordance is the natural next increment, not required for Wave E's own certification.
+- The note-open Properties editor's mobile rendering was not re-screenshotted at a phone
+  viewport this pass (tooling limitation, not a known defect) — the route-level automated
+  sweep covers the shell; a targeted phone screenshot of an open note with several
+  properties set is a cheap follow-up before a mobile-heavy launch claim.
+- OR/group filters, multi-key sort, and board/calendar saved-view types remain deferred
+  exactly as the entry checkpoint decided — Table/List only, AND-only, single-key sort.
+
+**Wave E's core contracts are now FROZEN per the directive:** the property/option
+stable-id model, the built-in-vs-user-defined resolution path, the financial-derived
+live-computation contract, the saved-view spec shape and its `savedViewId`
+server-side-resolution-wins-over-client-filter rule (now non-strict against a dangling
+property reference), and the Wave C version-integration decision (properties versioned
+via the same raw-string-comparison gate as title/subtitle/body) — none of these were
+redesigned by this pass beyond the two named fixes (the `"null"`-string bug and the
+non-strict saved-view resolution).

@@ -1378,7 +1378,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
-        <PropertiesSection noteId={noteId} updateNote={update} />
+        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

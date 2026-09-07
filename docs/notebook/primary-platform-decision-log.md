@@ -1205,6 +1205,105 @@ rather than a fabricated bundle-content claim.
 
 ---
 
+### 2026-09-06/07 — WAVE E: Structured Research Properties / Saved Views / Dynamic Financial Research — implemented, tested, real-browser E2E verified, merged, deployed, production-verified
+
+Built directly per the PERMANENT CURRENT SESSION RULE issued after Process
+incident #2 (see the 2026-09-06 entry above): no fork/subagent dispatch for
+any part of Wave E's research, implementation, testing, browser verification,
+git reconciliation, or deployment. Provenance rule honored throughout — the
+quarantined rogue-fork branch was never inspected or consulted as a design
+shortcut; the entry checkpoint's 36 decisions and everything after were
+independently re-derived from current source.
+
+**What shipped:** typed note properties (built-in constants + user-defined DB
+rows, 7 types), 5 financial-derived properties computed LIVE at read time with
+zero duplicate storage (Ticker/Sector/Industry/Theme/Linked Trade), saved
+views with AND-only filtering + single-key sort, a Table view with
+per-column quick-filter chips, a progressive-disclosure Properties editor.
+Full spec and the 36-point entry checkpoint live in
+`prelaunch-primary-notebook-build-plan.md`.
+
+**The core design decision, proven live rather than merely asserted:** every
+property and select/multi_select option has a stable internal id, and every
+stored reference (a note's own value, a saved view's filter/sort spec) points
+at that id, never a name or label — mirroring Notion's own property-object
+model, deliberately rejecting Obsidian's name-keyed property registry and
+Evernote's saved-search-as-query-text approach (both named as anti-patterns in
+the entry checkpoint's fresh competitor research). This session proved it
+end-to-end in the browser, not just via unit test: created a user-defined
+select property, set it on a note, saved a view filtered on that value,
+renamed the OPTION via the API, confirmed the view still matched and rendered
+the new label with zero manual repair, then renamed the PROPERTY itself,
+confirmed the Table-view column header updated and the view (whose own,
+separate name was untouched) still filtered correctly.
+
+**Seven real, reproducible defects were found via live browser/API testing —
+not the unit suite alone — and fixed, tested, and re-verified before this wave
+closed:** (1) a `"null"`-string vs. `None` contract bug in
+`set_note_properties`; (2) `PropertiesSection` not refreshing derived
+properties when the note's own ticker changed via a different save path; (3)
+`NotesTableView`'s row-click handler passing a bare id string instead of the
+whole note object `openNote` requires, producing `?note=undefined` on click —
+a bug a pre-existing unit test had actually asserted the WRONG way, since it
+was written against the buggy contract; (4) a newly-created property staying
+invisible until a full page reload, because property-def creation invalidated
+only its own SWR cache, never the note's separate resolved-properties cache;
+(5) a user-created select/multi_select property shipping with zero options
+and no way to add any, making the type entirely unusable — fixed by adding an
+options input to the create-property form; (6) a saved view permanently
+400ing after the property it filtered or sorted on was deleted, with no way
+to fix it short of deleting and recreating the view — `property_filter_sql`/
+`property_sort_sql` gained a `strict` parameter, `False` only for resolving a
+saved view's own stored spec, so a dangling reference degrades instead of
+raising; (7) a property's form control having no programmatic
+`aria-labelledby` association with its visible label, closed with an id/
+`aria-labelledby` pairing verified live via a DOM read.
+
+**Verification breadth:** real-browser E2E across property create/edit,
+mixed built-in + user-defined + financial-derived + select values on one
+note, saved-view round-trip, live auto-update, rename-safety (both property
+and option), deletion safety (note content untouched — confirmed via direct
+before/after title+body comparison), and the deleted-property/saved-view
+degradation fix. A `tools/mobile_audit.py` sweep (phone/phone390/tablet/
+desktop against `/journal`) found 0 horizontal-overflow combos and 0 sub-44px
+tap targets; the Properties/Table UI reuses already-audited primitives
+(`ResponsiveTable`, native form controls) rather than new markup, though the
+note-open Properties editor itself was not re-screenshotted at a phone
+viewport this pass (a Chrome-extension `resize_window` limitation in this
+sandbox session, disclosed as residual rather than silently claimed covered).
+A proportionate performance check (5,000 synthetic notes, real `list_notes`/
+`count_notes` code paths) found property-filtered/sorted queries at 1.3-3.9ms
+with no dedicated JSON index — no scaling concern at this stage. Full backend
+suite: 197/197 passing on the Wave-E + core `notes.py` files; repo-wide 2,192
+passed with 26 pre-existing, unrelated failures (a resource-headroom guard in
+the media-import subsystem, zero references to Wave E's own modules).
+Frontend: 1,693/1,694 repo-wide, the one failure an unrelated pre-existing
+15s-timeout perf test in the note importer.
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT** (per
+the directive's own three-way outcome taxonomy) — seven real local defects
+found, fixed, tested, and real-browser-verified; no architecture-level
+contradiction against the entry checkpoint's 36 decisions; no scope added (no
+OR/group filters, no multi-key sort, no board/calendar views, no relation/
+formula/rollup property types — all explicitly deferred at the checkpoint,
+not missed). **Explicitly recorded, not fixed:** no frontend UI yet to rename
+a user-created property/option (backend + hook support it; this pass's
+rename-safety proof used the API directly for that reason); the note-open
+Properties editor's mobile rendering wasn't re-screenshotted this pass.
+Competitive-gap-ledger G-021 updated to DONE with the fresh evidence;
+readiness-scorecard's "Structured Research" row raised 1→7. **Wave E's core
+contracts are now FROZEN**: the property/option stable-id model, the
+built-in-vs-user-defined resolution path, the financial-derived
+live-computation contract, the saved-view spec shape, the
+`savedViewId`-server-resolution-wins rule (now non-strict against a dangling
+property reference), and the Wave C version-integration decision.
+
+**Production closure:** same isolated-temporary-worktree process as prior
+waves. Merge/deploy detail recorded once the push completes — see the
+immediately following entry.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
