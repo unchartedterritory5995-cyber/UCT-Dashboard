@@ -2039,6 +2039,35 @@ export default function BuilderSheet({
                   // "no silent omission" is the acceptance condition here.
                   const CARRY_MAX = 12
                   const carried = extraOutputs.slice(0, CARRY_MAX - 1)
+                  // ⛔⛔ AND THE INPUTS EVERY CARRIED ROW NAMES, DECLARED WITH IT.
+                  // `declared` above is the SELECTED output's rows; a sibling's
+                  // formula may name an input the selected column never touches,
+                  // and until this shipped that identifier reached Save undeclared
+                  // (see PineBox's `others` for the six OOS scripts and `lv3`).
+                  //
+                  // ⛔ THE UNION IS OVER `carried`, NOT OVER EVERY OUTPUT. A row
+                  // past `CARRY_MAX` is not in the document, so declaring its
+                  // inputs would hand the member a knob that moves nothing — the
+                  // same "half-applied control" objection `memberInputTranslation`
+                  // already refuses in the other direction.
+                  //
+                  // ⛔ FIRST OCCURRENCE WINS, and the selected output's rows are
+                  // written first, so a key two outputs share keeps the spec the
+                  // member's own column produced.
+                  const carriedInputs = carried.flatMap(
+                    (o) => (o && Array.isArray(o.inputs) ? o.inputs : []))
+                  if (carriedInputs.length) {
+                    setMemberInputs((prev) => {
+                      const seen = new Set(prev.map((p) => p && p.key))
+                      const add = []
+                      for (const spec of carriedInputs) {
+                        if (!spec || !spec.key || seen.has(spec.key)) continue
+                        seen.add(spec.key)
+                        add.push({ ...spec })
+                      }
+                      return add.length ? [...prev, ...add] : prev
+                    })
+                  }
                   setPlotRows(carried.map((out, i) => {
                     const op = (out && out.presentation) || {}
                     const row = newPlotRow(keyFor(out && out.title, i))

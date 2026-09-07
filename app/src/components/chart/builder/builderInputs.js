@@ -134,6 +134,83 @@ import { readFormulaSource } from '../engine/ast/pcf'
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
+/**
+ * ⭐⭐ THE ONE PREDICATE FOR "CAN THIS PINE NAME BE A MEMBER-INPUT KEY".
+ *
+ * ⚰️ IT EXISTS BECAUSE TWO PLACES ANSWERED IT AND ONE OF THEM ANSWERED LESS.
+ * `memberInputTranslation` decided WHICH names to DECLARE into the formula from
+ * `e.name` alone; `inputsFromFolded` decided which names could become a ROW using
+ * `KEY_RE` **and** a lower-case-first test. An UPPERCASE-initial Pine input
+ * therefore passed the first and failed the second: the translator emitted the
+ * bare identifier into the formula and no row was ever built to declare it, so
+ * the document reached Save naming a symbol the closed table could not resolve.
+ *
+ * Measured on the frozen OOS corpus: `Multiplier`
+ * (`high_engagement__03-supertrend-kivancozbilgic`) and `GateInp`
+ * (`mid_engagement__13-spma-trend`) — two of the eight C0 SAVE_BLOCKED scripts,
+ * both uppercase-initial, both unbacked in EVERY output.
+ *
+ * ⛔ COMPOSED, NEVER RE-TYPED. `KEY_RE` is `parse.js`'s identifier shape and the
+ * lower-case rule is `BuilderSheet.inputKeyProblem`'s. A third copy of either is
+ * the second-authority-over-one-value defect that produced this bug in the first
+ * place.
+ *
+ * @returns {string|null} the key, or null when this name can never be one.
+ */
+export function memberInputKey(named) {
+  if (typeof named !== 'string' || !named) return null
+  if (!KEY_RE.test(named)) return null
+  return named[0] === named[0].toLowerCase() ? named : null
+}
+
+/**
+ * Every `series` name a canonical tree reaches, with no vocabulary of its own.
+ *
+ * ⛔ SHAPE-DRIVEN, NOT A NAME LIST. It answers "which symbols does this tree
+ * READ", and the caller decides which of those are legitimate. A hand-maintained
+ * allowlist containing `mult`/`showMa`/`lv3` would pass today's corpus and miss
+ * the next member's variable name, which is the whole point of the audit.
+ */
+export function seriesNamesOf(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.type === 'series' && typeof node.name === 'string') out.add(node.name)
+  if (Array.isArray(node.args)) for (const a of node.args) seriesNamesOf(a, out)
+  return out
+}
+
+/**
+ * ⭐⭐ THE SYMBOL-CLOSURE AUDIT: names a translation's formulas READ that its own
+ * rows do not BACK.
+ *
+ * The governing invariant is that a definition may not cross the save boundary
+ * naming a symbol nobody declared. This is the door's own check of it, run on
+ * the translation before anything downstream sees it, so Save is never the first
+ * component to discover the document is incomplete.
+ *
+ * ⚠️ It asks only about names this door DECLARED. A tree naming `close` or an
+ * unknown name it never declared is somebody else's refusal (`sentence:name`
+ * still fires, correctly), and re-deciding it here would be a second authority
+ * over the closed table.
+ *
+ * @param {object[]} outputs   translation outputs, each with `ast` + `memberInputs`
+ * @param {string[]} declaredNames  what this pass declared into the formulas
+ * @returns {Map<string, number[]>} unbacked name → the output indexes that read it
+ */
+export function unbackedDeclaredInputs(outputs, declaredNames) {
+  const declaredSet = new Set(Array.isArray(declaredNames) ? declaredNames : [])
+  const out = new Map()
+  ;(Array.isArray(outputs) ? outputs : []).forEach((o, i) => {
+    if (!o || !o.ast) return
+    const backed = new Set((o.memberInputs || []).map((r) => r && r.key).filter(Boolean))
+    for (const name of seriesNamesOf(o.ast)) {
+      if (!declaredSet.has(name) || backed.has(name)) continue
+      if (!out.has(name)) out.set(name, [])
+      out.get(name).push(i)
+    }
+  })
+  return out
+}
+
 /** `input.<kind>` → the member input type it becomes; `null` = decide by the
  *  default's integrality. Bare `input(…)` is Pine v3/v4's untyped form and the
  *  corpora are full of it — 80 of the 180 folded entries, measured.
@@ -407,12 +484,26 @@ export function inputsFromFolded(folded, source) {
     // door admits is always one the sheet's own row accepts. A second copy of
     // that regex here is the defect that would show up as a row landing red.
     const named = typeof entry.name === 'string' ? entry.name : ''
-    const key = (KEY_RE.test(named) && named[0] === named[0].toLowerCase()) ? named : null
+    const key = memberInputKey(named)
     if (!key) {
-      push('no bound name on the folded entry — `pine.js::resolveInput` records '
-        + '`{call, title, folded, line, column}` and nothing else, so there is no identifier '
-        + 'to declare. TO UNBLOCK: the W3b hand-back, `usedInputs[]` gaining `name` (the '
-        + 'Pine variable the input was assigned to).')
+      push(named
+        // ⛔⛔ THE TWO CAUSES ARE NOW SAID APART, AND THAT IS NOT COSMETIC.
+        // Measured on `high_engagement__03-supertrend-kivancozbilgic` and
+        // `mid_engagement__13-spma-trend`: `Multiplier` and `GateInp` DO have a
+        // bound name — they are simply UPPERCASE-initial, which a member-input
+        // key may not be. Both were reported with the "no bound name" sentence
+        // above, which sent every reader (and this session, for an hour) looking
+        // for a missing hand-back in `pine.js` that had shipped long ago.
+        // A refusal that names the wrong cause is worse than a vague one.
+        ? `\`${named}\` is not a legal member-input key — a key must match `
+          + `${KEY_RE} AND begin with a lower-case letter (\`BuilderSheet.inputKeyProblem\`'s `
+          + 'rule, composed here rather than re-typed). The default stays folded into the '
+          + 'formula, so the column is still right; it is the KNOB that cannot exist under '
+          + 'this name.'
+        : 'no bound name on the folded entry — `pine.js::resolveInput` records '
+          + '`{call, title, folded, line, column}` and nothing else, so there is no identifier '
+          + 'to declare. TO UNBLOCK: the W3b hand-back, `usedInputs[]` gaining `name` (the '
+          + 'Pine variable the input was assigned to).')
       continue
     }
     if (own(FOLDED_INPUT_INEXPRESSIBLE, entry.call)) {
@@ -514,6 +605,31 @@ export function inputsFromFolded(folded, source) {
  *   WITH its reason), plus `declared` — the names that survived. The paste box
  *   renders both halves, so a member is told which knobs did not come across.
  */
+/**
+ * One translation's outputs, each annotated with the rows it can back.
+ *
+ * ⛔ THE ROWS COME FROM THE PASS BEING ANNOTATED, never the probe. The probe's
+ * formulas are different strings, and `positionVerdict` READS the formula to
+ * decide whether a name is reachable in it — judging one pass's rows against
+ * another's text would answer a question about a formula nobody is going to run.
+ *
+ * ⛔ …BUT THE WINDOW VERDICT IS PASS 1'S AND MUST BE CARRIED IN. A later pass
+ * never declared those names, so it never folded a declared node and reports no
+ * `windowBound` at all — the reader would fall through to *"the formula never
+ * reads `len`"*, true of the TEXT and wrong about the REASON. The member would be
+ * told their knob does nothing, instead of that a length cannot be a knob here
+ * and why. Only pass 1 was in a position to find out.
+ */
+function annotate(translation, windowBound) {
+  return (translation.outputs || []).map((o) => {
+    if (!o.formula) return { ...o, memberInputs: [], skippedInputs: [] }
+    const folded = (o.inputsFolded || []).map(
+      (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
+    const { inputs, skipped } = inputsFromFolded(folded, o.formula)
+    return { ...o, memberInputs: inputs, skippedInputs: skipped }
+  })
+}
+
 export function memberInputTranslation(translate, source, opts = {}) {
   const usable = (t) => (t.outputs || []).filter((o) => !o.refusal && o.formula)
 
@@ -530,33 +646,50 @@ export function memberInputTranslation(translate, source, opts = {}) {
   for (const o of probed) {
     for (const e of (o.inputsFolded || [])) if (e.windowBound && e.name) windowBound.add(e.name)
   }
+  // ⛔⛔ `memberInputKey`, NOT `e.name`. A name that can never be a member-input
+  // KEY must never be DECLARED into a formula — see `memberInputKey`'s own note
+  // for the two OOS scripts this silently broke.
   const declarable = [...new Set(probed.flatMap(
-    (o) => (o.inputsFolded || []).filter((e) => e.name && !windowBound.has(e.name))
+    (o) => (o.inputsFolded || [])
+      .filter((e) => memberInputKey(e.name) && !windowBound.has(e.name))
       .map((e) => e.name)))]
 
-  const final = declarable.length
-    ? translate(source, { ...opts, declareInputs: declarable })
-    : translate(source, opts)
-
-  // ⛔ THE ROWS COME FROM THE FINAL PASS, never the probe. The probe's formulas
-  // are different strings, and `positionVerdict` READS the formula to decide
-  // whether a name is reachable in it — judging pass 2's rows against pass 1's
-  // text would answer a question about a formula nobody is going to run.
+  // ⭐⭐ AND THEN THE CLOSURE IS *MEASURED*, NOT ARGUED.
   //
-  // ⛔ …BUT THE WINDOW VERDICT IS PASS 1'S AND MUST BE CARRIED. Pass 2 never
-  // declared those names, so it never folded a declared node and reports no
-  // `windowBound` at all — the reader would fall through to *"the formula never
-  // reads `len`"*, true of the TEXT and wrong about the REASON. The member would
-  // be told their knob does nothing, instead of that a length cannot be a knob
-  // here and why. Only pass 1 was in a position to find out.
-  const outputs = (final.outputs || []).map((o) => {
-    if (!o.formula) return { ...o, memberInputs: [], skippedInputs: [] }
-    const folded = (o.inputsFolded || []).map(
-      (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
-    const { inputs, skipped } = inputsFromFolded(folded, o.formula)
-    return { ...o, memberInputs: inputs, skippedInputs: skipped }
-  })
-  return { ...final, outputs, declared: declarable }
+  // The key rule above fixes the two causes this corpus exposed. It cannot fix
+  // the ones it has not met: a row is also dropped when the fold is not a finite
+  // number, when the key shadows a table name, when it collides with a builder
+  // input, or when `positionVerdict` finds the name unreachable in THIS pass's
+  // formula. Any of those leaves a declared name unbacked exactly as the
+  // uppercase bug did, and the failure mode is identical — a dead Save button
+  // and a refusal about a symbol the member never typed.
+  //
+  // So rather than enumerate skip reasons (a list that rots), this re-translates
+  // with the offenders REMOVED, which folds each one back to its literal: the
+  // column stays right, only the knob is lost, and the member is told which knob
+  // and why. That is exactly the answer a window-bound length already gets.
+  //
+  // ⛔ THE LOOP IS BOUNDED AND MONOTONIC. The declared set strictly shrinks each
+  // round (an offender is only ever removed), so it cannot cycle; the cap is a
+  // belt on top of that, and the fallback — declaring NOTHING — is the shipped
+  // behaviour from before member inputs existed and is closed by construction.
+  const withDeclarations = (names) => {
+    const t = names.length
+      ? translate(source, { ...opts, declareInputs: names })
+      : translate(source, opts)
+    return { ...t, outputs: annotate(t, windowBound), declaredNames: names }
+  }
+
+  let attempt = withDeclarations(declarable)
+  for (let round = 0; round < 4; round += 1) {
+    const unbacked = unbackedDeclaredInputs(attempt.outputs, attempt.declaredNames)
+    if (!unbacked.size) break
+    const keep = attempt.declaredNames.filter((n) => !unbacked.has(n))
+    attempt = withDeclarations(keep)
+  }
+  const final = attempt
+
+  return { ...final, outputs: final.outputs, declared: final.declaredNames }
 }
 
 /** The single-output convenience over `memberInputTranslation`. */

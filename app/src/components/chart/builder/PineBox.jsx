@@ -661,11 +661,39 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // a stale-closure bug that would surface as "the second plot is missing,
     // sometimes". `report` is already a declared dependency, and `usable` is
     // exactly this filter over it.
+    // ⛔⛔ EVERY CARRIED OUTPUT BRINGS THE INPUTS ITS OWN FORMULA NAMES.
+    //
+    // ⚰️ MEASURED, AND IT WAS THIS LINE. `inputs` below is the SELECTED output's
+    // rows, and until now that was the ONLY set of rows that travelled — while
+    // `others` carried every sibling's FORMULA. A sibling naming an input the
+    // selected column happens not to use therefore reached the saved document as
+    // a free identifier, and the closed table refused it AT SAVE with a message
+    // about a symbol the member never typed.
+    //
+    // Six of the eight C0 SAVE_BLOCKED scripts are exactly this, and every one of
+    // them fails on a SIBLING output, never on output 0:
+    //   `mult` (waddah-attar, out 2) · `upLine` (cm-ultimate-rsi, out 2 and 6) ·
+    //   `showMa` (volatility-of-returns, out 1) · `bandStdevMult` (3way-bollinger,
+    //   out 1 and 2) · `showBand` (master-line-lite, out 1 and 2) · `lv3`
+    //   (rsi-levels-regime-map, out 2 and 16).
+    //
+    // ⭐ `lv3` IS THE ONE THAT NAMES THE MECHANISM. That script's selected column
+    // is output 22, whose rows declare `lv1` and `lv2` — which is why the refusal
+    // could suggest *"did you mean `lv1` or `lv2`?"* while `lv3`, named only by
+    // dropped siblings, was undeclared. It was never partial traversal, ternary
+    // handling or manifest pruning: it was this projection dropping a field
+    // (`lesson_a_projection_drops_what_it_does_not_name`).
     const others = wrapped || !report ? [] : report.outputs
       .filter((o) => o.formula && !o.hidden && o !== active)
-      .map((o) => ({ source: o.formula, title: o.title || null, presentation: o.presentation || {} }))
+      .map((o) => ({
+        source: o.formula,
+        title: o.title || null,
+        presentation: o.presentation || {},
+        inputs: o.memberInputs || [],
+      }))
     const outputs = wrapped ? null : [
-      { source: picked, title: (active && active.title) || null, presentation: outPres },
+      { source: picked, title: (active && active.title) || null, presentation: outPres,
+        inputs: rows },
       ...others,
     ]
     const extra = rows.length || paramManifest || presentation || (outputs && outputs.length > 1)

@@ -317,6 +317,8 @@ def _doc_shape(row):
         lg = p.get("legend")
         return isinstance(lg, dict) and lg.get("hide") is not True
 
+    inputs = [i for i in (d.get("inputs") or []) if isinstance(i, dict)]
+    guide = next((p for p in plots if not chips(p)), None)
     return {
         "name": row.get("name") if row else None,
         "plot_keys": [p.get("key") for p in plots],
@@ -326,6 +328,13 @@ def _doc_shape(row):
         "scan_plot": compute.get("scanPlot"),
         "placement": (plots[0] or {}).get("target") if plots else None,
         "scannable": row.get("scannable") if row else None,
+        # -- C0R §15: what persistence has to preserve, named field by field --
+        "input_keys": [i.get("key") for i in inputs],
+        "input_defaults": {i.get("key"): i.get("default") for i in inputs},
+        "plot_styles": [p.get("style") for p in plots if chips(p)],
+        "plot_colors": [p.get("color") for p in plots if chips(p)],
+        "targets": sorted({p.get("target") for p in plots if p.get("target")}),
+        "levels": (guide or {}).get("levels"),
     }
 
 
@@ -676,7 +685,29 @@ def run_one(page, base, name, source, out_dir):
     row["render_settled"] = settled
     row["chips_after"] = len(chips_after)
     row["new_chips"] = new_chips
-    row["persisted_defs"] = len(_defs(page, base) or {})
+
+    # -- C0R §15: SAVE / REOPEN, compared field by field AND whole ------------
+    # ⛔ THE WHOLE DOCUMENT, NOT A SUMMARY OF IT. A field-by-field check only
+    # proves the fields somebody thought to name survived; comparing the stored
+    # `definition` object to the one read back after the reload catches a field
+    # nobody listed. The named shape is still reported, because "they differ" is
+    # not a finding a reader can act on.
+    after_defs = _defs(page, base) or {}
+    row["persisted_defs"] = len(after_defs)
+    reopened = after_defs.get(stored_id)
+    row["reopened"] = _doc_shape(reopened) if reopened else None
+    if reopened:
+        before_doc = (stored or {}).get("definition")
+        after_doc = reopened.get("definition")
+        row["reopen_identical"] = (
+            json.dumps(before_doc, sort_keys=True) == json.dumps(after_doc, sort_keys=True))
+        if not row["reopen_identical"]:
+            row["reopen_diff"] = [
+                k for k in set(row["stored"]) | set(row["reopened"])
+                if row["stored"].get(k) != row["reopened"].get(k)]
+    else:
+        row["reopen_identical"] = False
+        row["reopen_diff"] = ["the definition is gone after reload"]
 
     out_dir.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out_dir / f"{name}.png"), full_page=False)
@@ -701,8 +732,15 @@ def run_one(page, base, name, source, out_dir):
     elif declared and sorted(set(drawn_keys)) != sorted(set(declared)):
         row["result"] = "CHART_PARTIAL"
         row["detail"] = f"declared {sorted(set(declared))} but drew {sorted(set(drawn_keys))}"
+    elif not row["reopen_identical"]:
+        # ⛔ ITS OWN OUTCOME. A document that draws but does not come back the
+        # same is not a render failure and must not be counted as one — the
+        # member loses their work on the next reload, which is a different and
+        # worse thing than a plot that did not draw.
+        row["result"] = "REOPEN_BLOCKED"
+        row["detail"] = f"the reopened definition differs: {row.get('reopen_diff')}"
     else:
-        row["result"] = "CHART_RENDERABLE"
+        row["result"] = "FULL_JOURNEY_PASS"
 
     # Leave the chart as we found it, so the next script's diff is honest.
     try:

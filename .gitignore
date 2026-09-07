@@ -102,3 +102,4 @@ tools/c0_out3/
 tools/c0_out4/
 tools/c0_out_oos/
 tools/c0_ctrl/
+tools/c0r_out*/*.png

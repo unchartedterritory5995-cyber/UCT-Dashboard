@@ -1,0 +1,352 @@
+{
+  "base": "http://127.0.0.1:18500",
+  "fixtures": "tests/fixtures/pine_render_controls",
+  "rows": [
+    {
+      "script": "ctrl-01-window-exceeds-history",
+      "timings_ms": {
+        "goto": 2497,
+        "open_builder": 33,
+        "new_formula": 25,
+        "import_tab": 43,
+        "paste": 48,
+        "translate": 277,
+        "apply": 16,
+        "save_click": 5
+      },
+      "definitions_before": 27,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#9c27b0"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-01-window-exceeds-history",
+        "saveFound": true,
+        "saveDisabled": true,
+        "hint": null,
+        "formulaError": "exceeds the lookback budget \u2014 this formula measures 100000 and the cap is 960",
+        "repaintBadge": null,
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": false,
+      "result": "SAVE_BLOCKED",
+      "detail": "exceeds the lookback budget \u2014 this formula measures 100000 and the cap is 960"
+    },
+    {
+      "script": "ctrl-02-no-contentful-output",
+      "timings_ms": {
+        "goto": 2966,
+        "open_builder": 28,
+        "new_formula": 45,
+        "import_tab": 58,
+        "paste": 69,
+        "translate": 294
+      },
+      "definitions_before": 27,
+      "instances_before": 0,
+      "chips_before": 0,
+      "result": "IMPORT_BLOCKED",
+      "detail": "Apply never became enabled",
+      "refusal": "THIS SCRIPT the pasted script offers no plot and no alert condition to filter on"
+    },
+    {
+      "script": "ctrl-03-non-finite-column",
+      "timings_ms": {
+        "goto": 2513,
+        "open_builder": 18,
+        "new_formula": 9,
+        "import_tab": 31,
+        "paste": 51,
+        "translate": 310,
+        "apply": 30,
+        "save_click": 6,
+        "save_roundtrip": 588,
+        "instance_persist": 15,
+        "reopen": 2443,
+        "render": 25695
+      },
+      "definitions_before": 27,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "pane",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#9c27b0"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-03-non-finite-column",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_73093d5c6ff2",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_73093d5c6ff2:1"
+      ],
+      "render_settled": false,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_73093d5c6ff2:1",
+          "plotKey": "value",
+          "text": "ctrl-03-non-",
+          "hidden": false,
+          "drewNothing": true
+        }
+      ],
+      "persisted_defs": 28,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#9C27B0",
+          "lineWidth": 2
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_controls\\ctrl-03-non-finite-column.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [
+        "value"
+      ],
+      "result": "CHART_PARTIAL",
+      "detail": "1/1 plot(s) computed nothing: ['value']",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "ctrl-04-object-alongside-plot-is-accepted",
+      "timings_ms": {
+        "goto": 2472,
+        "open_builder": 270,
+        "new_formula": 26,
+        "import_tab": 97,
+        "paste": 50,
+        "translate": 274,
+        "apply": 11,
+        "save_click": 17,
+        "save_roundtrip": 604,
+        "instance_persist": 34,
+        "reopen": 3390,
+        "render": 240
+      },
+      "definitions_before": 28,
+      "instances_before": 0,
+      "chips_before": 0,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#ff9800"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "ctrl-04-object-alongside-plot-is-accepte",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_68ffbbc1c781",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_68ffbbc1c781:1"
+      ],
+      "render_settled": true,
+      "chips_after": 1,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_68ffbbc1c781:1",
+          "plotKey": "value",
+          "text": "ctrl-04-obje 746.77",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 29,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#FF9800",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "screenshot": "tools\\c0r_out_controls\\ctrl-04-object-alongside-plot-is-accepted.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    }
+  ],
+  "bars_probe": 300
+}
