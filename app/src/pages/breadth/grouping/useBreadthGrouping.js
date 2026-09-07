@@ -16,6 +16,12 @@ import { groupItems } from './groupItems'
 const LS_VIEW = 'breadth.group.viewMode'
 const LS_DIM = 'breadth.group.dimension'
 
+// The grouping dimensions, in the order the control offers them. Exported so the
+// control and the persisted-value allow-list read the SAME list — a control
+// offering a dimension the allow-list rejects would silently fall back to
+// 'industry' on the next open, which reads as the setting not sticking.
+export const DIMENSIONS = ['sector', 'industry', 'theme']
+
 // ⛔ MODULE SCOPE, NOT INLINE DEFAULTS. Re-created per render they are a new
 // identity every time, so every memo that legitimately depends on them would
 // churn — which is why the memos below used to depend on a joined STRING
@@ -35,7 +41,7 @@ export default function useBreadthGrouping(items, opts = {}) {
   const pctOf = opts.pctOf || DEFAULT_PCT_OF
 
   const [viewMode, setViewModeState] = useState(() => readLS(LS_VIEW, ['list', 'grouped'], 'list'))
-  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, ['industry', 'sector'], 'industry'))
+  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, DIMENSIONS, 'industry'))
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
 
   const setViewMode = useCallback(m => {
@@ -74,7 +80,9 @@ export default function useBreadthGrouping(items, opts = {}) {
   const tickerKey = rows.map(tickerOf).join(',')
   const tickers = useMemo(() => tickerKey.split(',').filter(Boolean), [tickerKey])
   const meta = useGroupMeta(tickers)
-  const labelByTicker = dimension === 'sector' ? meta.sectors : meta.industries
+  const labelByTicker = dimension === 'sector' ? meta.sectors
+    : dimension === 'theme' ? meta.themes
+      : meta.industries
 
   const grouped = useMemo(
     () => (viewMode === 'grouped' ? groupItems(rows, labelByTicker, { tickerOf, pctOf }) : null),

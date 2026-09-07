@@ -17,7 +17,7 @@ import styles from './BreadthDrillBoard.module.css'
 // two-widget modal has nothing to rearrange. Lifting renderGrid out into a shared
 // board is the follow-up.
 
-export default function BreadthDrillBoard({ board, onBoardChange, onPopOut }) {
+export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [] }) {
   const { widgets, split } = board
   const wrapRef = useRef(null)
   const [dragging, setDragging] = useState(false)
@@ -71,6 +71,14 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut }) {
 
   const listWidget = widgets.find(w => w.id === LIST_WIDGET_ID)
   const chartWidget = widgets.find(w => w.id !== LIST_WIDGET_ID)
+  // A popped widget is rendered by the MODAL into its own window, so the board
+  // must not also render it here — the same widget mounted twice would run two
+  // copies of its state and both would answer the keyboard.
+  const listPopped = poppedIds.includes(LIST_WIDGET_ID)
+  const chartPopped = chartWidget ? poppedIds.includes(chartWidget.id) : false
+  // With one pane ejected the other takes the whole board: a frozen split would
+  // leave a dead gap where the popped widget used to be.
+  const soloed = listPopped !== chartPopped
 
   const host = (w) => (
     <WidgetHost
@@ -84,22 +92,43 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut }) {
     />
   )
 
+  // Both ejected: the board is empty on purpose, and says so rather than showing
+  // an unexplained void until a window is closed.
+  if (listPopped && chartPopped) {
+    return (
+      <div className={styles.board} ref={wrapRef}>
+        <div className={styles.allPopped}>
+          Both widgets are open in their own windows. Close one to bring it back.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.board} ref={wrapRef}>
-      <div className={styles.pane} style={{ width: split, flex: '0 0 auto' }}>
-        {listWidget && host(listWidget)}
-      </div>
-      <div
-        className={`${styles.divider}${dragging ? ' ' + styles.dividerActive : ''}`}
-        onPointerDown={onDividerDown}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize list panel"
-        title="Drag to resize"
-      />
-      <div className={`${styles.pane} ${styles.paneGrow}`}>
-        {chartWidget && host(chartWidget)}
-      </div>
+      {!listPopped && (
+        <div
+          className={`${styles.pane}${soloed ? ' ' + styles.paneGrow : ''}`}
+          style={soloed ? undefined : { width: split, flex: '0 0 auto' }}
+        >
+          {listWidget && host(listWidget)}
+        </div>
+      )}
+      {!soloed && (
+        <div
+          className={`${styles.divider}${dragging ? ' ' + styles.dividerActive : ''}`}
+          onPointerDown={onDividerDown}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize list panel"
+          title="Drag to resize"
+        />
+      )}
+      {!chartPopped && (
+        <div className={`${styles.pane} ${styles.paneGrow}`}>
+          {chartWidget && host(chartWidget)}
+        </div>
+      )}
     </div>
   )
 }

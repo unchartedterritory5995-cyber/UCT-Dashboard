@@ -24,6 +24,7 @@ vi.mock('../grouping/useGroupMeta', () => ({
   default: () => ({
     industries: { AEHR: 'Semiconductor Equipment & Materials', COHU: 'Semiconductor Equipment & Materials', SRPT: 'Biotechnology' },
     sectors: { AEHR: 'Technology', COHU: 'Technology', SRPT: 'Healthcare' },
+    themes: { AEHR: 'AI Infrastructure', COHU: 'AI Infrastructure', SRPT: null },
   }),
 }))
 
@@ -149,6 +150,27 @@ describe('BreadthDrillList — grouping', () => {
     await user.click(screen.getByRole('button', { name: 'Sector' }))
     expect(lastProps.scanSymbols).toContain('TECHNOLOGY')
     expect(lastProps.scanGroups.TECHNOLOGY).toEqual(['AEHR', 'COHU'])
+  })
+
+  it('Theme is offered and groups under the primary-theme map', async () => {
+    const user = userEvent.setup()
+    mount(LIVE)
+    await user.click(screen.getByRole('button', { name: 'Grouped' }))
+    await user.click(screen.getByRole('button', { name: 'Theme' }))
+    expect(lastProps.scanSymbols).toContain('AI INFRASTRUCTURE')
+    expect(lastProps.scanGroups['AI INFRASTRUCTURE']).toEqual(['AEHR', 'COHU'])
+  })
+
+  it('a themeless stock buckets as Unclassified rather than vanishing', async () => {
+    // SRPT has no primary theme. Dropping it would make the drill's count
+    // disagree with the cell that opened it — the list must stay complete.
+    const user = userEvent.setup()
+    mount(LIVE)
+    await user.click(screen.getByRole('button', { name: 'Grouped' }))
+    await user.click(screen.getByRole('button', { name: 'Theme' }))
+    const members = Object.values(lastProps.scanGroups).flat()
+    expect(members).toContain('SRPT')
+    expect(members).toHaveLength(ITEMS.length)
   })
 })
 

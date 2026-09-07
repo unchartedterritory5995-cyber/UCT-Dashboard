@@ -6,8 +6,13 @@ import { widgetOwnChrome, chartTypeCanvasEntry } from '../../charts/widgetChrome
 import useDrillWorkspace from './drillWorkspace'
 import { DrillSourceContext } from './DrillSourceContext'
 import BreadthDrillBoard from './BreadthDrillBoard'
-import { DRILL_BOARD_PREF, parseBoard, serializeBoard } from './drillBoardPrefs'
+import PopoutWindow from '../../charts/popout/PopoutWindow'
+import PopoutShell from '../../charts/popout/PopoutShell'
+import WidgetHost from '../../charts/WidgetHost'
+import { DRILL_BOARD_PREF, LIST_WIDGET_ID, parseBoard, serializeBoard } from './drillBoardPrefs'
 import styles from './BreadthDrillModal.module.css'
+
+const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site and try again.'
 
 // The breadth cell drill: a two-widget charts board in an overlay.
 //
@@ -27,6 +32,26 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
   const onBoardChange = useCallback((fn) => {
     setBoard(prev => (typeof fn === 'function' ? fn(prev) : fn))
   }, [])
+
+  // ── Pop-out ─────────────────────────────────────────────────────────────────
+  // "Separate popouts but linked": a widget ejected into its own window keeps
+  // running inside THIS React tree (PopoutWindow is a portal), so it stays on
+  // colour group A and the list still drives the chart across windows.
+  // ⛔ NOT persisted: a popped window dies with its opener, so restoring a
+  // "popped" flag on the next open would leave a widget that renders nowhere.
+  const [poppedIds, setPoppedIds] = useState([])
+  const [popNotice, setPopNotice] = useState(null)
+  const popOut = useCallback((id) => {
+    setPoppedIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+  }, [])
+  const dock = useCallback((id) => {
+    setPoppedIds(prev => prev.filter(x => x !== id))
+  }, [])
+  useEffect(() => {
+    if (!popNotice) return
+    const t = setTimeout(() => setPopNotice(null), 6000)
+    return () => clearTimeout(t)
+  }, [popNotice])
 
   // Debounced persist, mirroring the workspace's own 500ms layout save. A split
   // drag emits on every pointermove; writing each one would hammer the prefs API.
@@ -115,9 +140,44 @@ export default function BreadthDrillModal({ drill, latestDate, onClose }) {
           </button>
         </div>
 
+        {popNotice && <div className={styles.notice}>{popNotice}</div>}
+
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>
-            <BreadthDrillBoard board={board} onBoardChange={onBoardChange} />
+            <BreadthDrillBoard
+              board={board}
+              onBoardChange={onBoardChange}
+              onPopOut={popOut}
+              poppedIds={poppedIds}
+            />
+
+            {/* Ejected widgets. Rendered from the SAME board state and inside the
+                SAME providers, so a popped list still publishes into colour group
+                A and the chart in the modal follows it — and vice versa. */}
+            {board.widgets.filter(w => poppedIds.includes(w.id)).map(w => (
+              <PopoutWindow
+                key={w.id}
+                title={`UCT — ${w.id === LIST_WIDGET_ID ? source.label || 'Breadth' : 'Chart'}`}
+                width={w.id === LIST_WIDGET_ID ? 620 : 1100}
+                height={800}
+                onClose={() => dock(w.id)}
+                onBlocked={() => { dock(w.id); setPopNotice(POPUP_BLOCKED_MSG) }}
+              >
+                <PopoutShell theme={chartsTheme}>
+                  <WidgetHost
+                    widget={w}
+                    // Docking back is what the window's own close does; a ✕ INSIDE
+                    // the popped widget would have to mean "delete", and this board
+                    // is exactly two widgets.
+                    onColorChange={(c) => onBoardChange(b => ({ ...b, widgets: b.widgets.map(x => (x.id === w.id ? { ...x, color: c } : x)) }))}
+                    onOptsChange={(opts) => onBoardChange(b => ({ ...b, widgets: b.widgets.map(x => (x.id === w.id ? { ...x, opts } : x)) }))}
+                    onReplaceWidget={(id, next) => onBoardChange(b => ({ ...b, widgets: b.widgets.map(x => (x.id === id ? next : x)) }))}
+                    onDock={() => dock(w.id)}
+                    floating
+                  />
+                </PopoutShell>
+              </PopoutWindow>
+            ))}
           </DrillSourceContext.Provider>
         </WorkspaceContext.Provider>
       </div>
