@@ -434,18 +434,18 @@ _GEN_CACHE = {"generation": None, "last_synced": None, "count": 0, "loaded_at": 
 
 
 def _generation_from_rows(rows) -> str:
-    """sha256 over the canonical sorted (ticker, asset_type) ETF/INDEX projection."""
-    import hashlib
-    h = hashlib.sha256()
-    for ticker, asset_type in sorted(rows):
-        h.update(ticker.encode("utf-8"))
-        h.update(b"\x1f")
-        h.update(asset_type.encode("utf-8"))
-        h.update(b"\x1e")
-    return h.hexdigest()
+    """sha256 over the canonical sorted (ticker, asset_type) ETF/INDEX projection.
+
+    Delegates to api.services.etf_generation so the replica RECEIVER can verify a
+    pushed digest without importing this module — which is the live routing
+    classifier (`classify` -> massive_processor.is_index_source) and must stay
+    unreachable from the Options Flow replica.
+    """
+    from api.services.etf_generation import generation_from_pairs
+    return generation_from_pairs(rows)
 
 
-def etf_index_snapshot(conn=None) -> dict:
+def etf_index_snapshot(conn=None, include_pairs: bool = False) -> dict:
     """{symbols, generation, last_synced, count} from ONE consistent read.
 
     ⛔ THE SNAPSHOT AND ITS GENERATION COME FROM THE SAME READ, DELIBERATELY.
@@ -468,12 +468,19 @@ def etf_index_snapshot(conn=None) -> dict:
         if own:
             conn.close()
     pairs = [(str(t), str(a)) for t, a in rows]
-    return {
+    out = {
         "symbols": sorted(t for t, _ in pairs),
         "generation": _generation_from_rows(pairs),
         "last_synced": last_synced,
         "count": len(pairs),
     }
+    if include_pairs:
+        # Only the replication SENDER asks for these. The receiver must be able to
+        # RECOMPUTE the digest from the rows it was handed rather than trust the
+        # caller's stamp, and it cannot do that from tickers alone — asset_type is
+        # part of the projection. The public endpoint stays symbols-only.
+        out["rows"] = sorted(pairs)
+    return out
 
 
 def classification_generation() -> dict:

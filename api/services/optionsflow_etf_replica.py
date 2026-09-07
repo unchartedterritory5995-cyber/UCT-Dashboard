@@ -39,14 +39,11 @@ import time
 log = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
-WEB_INTERNAL_URL = (os.environ.get("WEB_INTERNAL_URL") or "").rstrip("/")
 
 # Web syncs at 05:30 ET daily, so anything past ~26h means a missed sync or a
 # frozen replica. Deliberately NOT a multiple of the refresh interval: this is a
 # statement about the CANONICAL cadence, not about how often we poll.
 STALE_AFTER_S = int(os.environ.get("OPTIONSFLOW_ETF_STALE_AFTER_S", str(26 * 3600)))
-REFRESH_EVERY_S = int(os.environ.get("OPTIONSFLOW_ETF_REFRESH_EVERY_S", str(3600)))
-_HTTP_TIMEOUT = float(os.environ.get("OPTIONSFLOW_ETF_HTTP_TIMEOUT", "20"))
 
 _TABLE = "optionsflow_etf_replica"
 _META = "optionsflow_etf_replica_meta"
@@ -54,19 +51,29 @@ _META = "optionsflow_etf_replica_meta"
 _LOCK = threading.Lock()
 _MEM = {"generation": None, "symbols": frozenset(), "loaded_at": 0.0}
 _STATE = {
-    "last_refresh_ok_at": None,
-    "last_refresh_error": None,
-    "last_refresh_error_at": None,
-    "last_canonical_generation_seen": None,
-    "refreshes": 0,
-    "no_op_refreshes": 0,
+    "last_push_ok_at": None,
+    "last_push_error": None,
+    "last_push_error_at": None,
+    "pushes_received": 0,
+    "pushes_already_current": 0,
+    "pushes_rejected": 0,
     "installs": 0,
 }
 
 
-def enabled() -> bool:
-    """Off by default. Nothing reads the replica until this is on."""
-    return os.environ.get("OPTIONSFLOW_ETF_REPLICA_ENABLED", "0") == "1"
+def receive_enabled() -> bool:
+    """Accept pushed snapshots? Off by default.
+
+    ⛔ DELIBERATELY A NEW NAME. The first C2b build had flow-worker PULL from web
+    under OPTIONSFLOW_ETF_REPLICA_ENABLED. Deploying it disproved that transport:
+    Railway private networking is IPv6 and web starts as
+    `uvicorn --host 0.0.0.0` (IPv4 only), so web is unreachable from flow-worker
+    in any direction — connections were REFUSED on 8080/8000/80 over both
+    families. Reusing the old flag name would leave the impossible pull design
+    looking like the active architecture. Sender-side is
+    OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED, on web.
+    """
+    return os.environ.get("OPTIONSFLOW_ETF_REPLICA_RECEIVE_ENABLED", "0") == "1"
 
 
 def _connect():
@@ -137,16 +144,6 @@ def symbols() -> frozenset:
         return frozenset()
 
 
-def _fetch_json(path):
-    import httpx
-    if not WEB_INTERNAL_URL:
-        raise RuntimeError("WEB_INTERNAL_URL is unset")
-    with httpx.Client(timeout=_HTTP_TIMEOUT) as c:
-        r = c.get(WEB_INTERNAL_URL + path)
-        r.raise_for_status()
-        return r.json()
-
-
 def _install(snapshot) -> None:
     """Replace the replica ATOMICALLY, stamping its generation in the same txn.
 
@@ -179,79 +176,6 @@ def _install(snapshot) -> None:
         conn.close()
 
 
-def refresh_if_stale(force: bool = False) -> dict:
-    """Converge the replica on the canonical generation. Never raises.
-
-    Metadata first: ask web for the generation (a few dozen bytes) and do nothing
-    when it already matches. Only a genuine change pulls ~19k symbols.
-
-    ⛔ NEVER CALLED FROM A MEMBER REQUEST PATH. A per-request refresh would put a
-    cross-service HTTP call in front of an aggregate build on a single-process
-    pod. This runs on the scheduler and on boot.
-
-    ⛔ ON ANY FAILURE THE PREVIOUS COMPLETE REPLICA IS RETAINED. Stale-but-whole
-    beats partial: the generation mismatch rail can see stale, and it cannot see
-    a half-installed set.
-    """
-    if not _LOCK.acquire(blocking=False):
-        return {"ok": False, "reason": "refresh already running"}
-    try:
-        _STATE["refreshes"] += 1
-        try:
-            gen = _fetch_json("/api/ticker-types/generation")
-        except Exception as e:
-            _STATE["last_refresh_error"] = f"generation probe: {e}"
-            _STATE["last_refresh_error_at"] = time.time()
-            log.warning("[of-etf-replica] generation probe failed: %s", e)
-            return {"ok": False, "reason": str(e)}
-
-        canonical = gen.get("generation")
-        _STATE["last_canonical_generation_seen"] = canonical
-        local = local_generation()["generation"]
-        if canonical and local == canonical and not force:
-            _STATE["no_op_refreshes"] += 1
-            _STATE["last_refresh_ok_at"] = time.time()
-            return {"ok": True, "changed": False, "generation": canonical}
-
-        try:
-            snap = _fetch_json("/api/ticker-types/etf-index-symbols")
-        except Exception as e:
-            _STATE["last_refresh_error"] = f"snapshot fetch: {e}"
-            _STATE["last_refresh_error_at"] = time.time()
-            log.warning("[of-etf-replica] snapshot fetch failed: %s", e)
-            return {"ok": False, "reason": str(e)}
-
-        syms = snap.get("symbols")
-        snap_gen = snap.get("generation")
-        # Validation before replacement. An empty or unstamped payload is a
-        # provider fault, not a real classification of "no ETFs exist".
-        if not isinstance(syms, list) or not syms or not snap_gen:
-            _STATE["last_refresh_error"] = "snapshot failed validation (empty or unstamped)"
-            _STATE["last_refresh_error_at"] = time.time()
-            log.warning("[of-etf-replica] snapshot rejected: count=%s gen=%s",
-                        len(syms) if isinstance(syms, list) else None, snap_gen)
-            return {"ok": False, "reason": "snapshot failed validation"}
-
-        try:
-            _install({"symbols": syms, "generation": snap_gen,
-                      "last_synced": snap.get("last_synced")})
-        except Exception as e:
-            _STATE["last_refresh_error"] = f"install: {e}"
-            _STATE["last_refresh_error_at"] = time.time()
-            log.exception("[of-etf-replica] install failed — previous replica retained")
-            return {"ok": False, "reason": str(e)}
-
-        _MEM.update(generation=None, symbols=frozenset(), loaded_at=0.0)
-        _STATE["installs"] += 1
-        _STATE["last_refresh_ok_at"] = time.time()
-        _STATE["last_refresh_error"] = None
-        log.info("[of-etf-replica] installed generation %s (%d symbols, last_synced %s)",
-                 snap_gen[:12], len(syms), snap.get("last_synced"))
-        return {"ok": True, "changed": True, "generation": snap_gen, "count": len(syms)}
-    finally:
-        _LOCK.release()
-
-
 def status() -> dict:
     """Everything needed to SEE a freeze like July 14 -> September 7.
 
@@ -264,10 +188,8 @@ def status() -> dict:
         age = time.time() - float(installed_at) if installed_at else None
     except (TypeError, ValueError):
         age = None
-    canonical = _STATE["last_canonical_generation_seen"]
     return {
-        "enabled": enabled(),
-        "web_internal_url_configured": bool(WEB_INTERNAL_URL),
+        "receive_enabled": receive_enabled(),
         "local_generation": local.get("generation"),
         "local_last_synced": local.get("last_synced"),
         "local_count": local.get("count"),
@@ -275,12 +197,107 @@ def status() -> dict:
         "replica_age_hours": round(age / 3600, 2) if age is not None else None,
         "stale": (age is None) or (age > STALE_AFTER_S),
         "stale_after_seconds": STALE_AFTER_S,
-        "canonical_generation_last_seen": canonical,
-        "matches_canonical": bool(canonical and local.get("generation") == canonical),
-        "last_refresh_ok_at": _STATE["last_refresh_ok_at"],
-        "last_refresh_error": _STATE["last_refresh_error"],
-        "last_refresh_error_at": _STATE["last_refresh_error_at"],
-        "refreshes": _STATE["refreshes"],
-        "no_op_refreshes": _STATE["no_op_refreshes"],
+        "last_push_ok_at": _STATE["last_push_ok_at"],
+        "last_push_error": _STATE["last_push_error"],
+        "last_push_error_at": _STATE["last_push_error_at"],
+        "pushes_received": _STATE["pushes_received"],
+        "pushes_already_current": _STATE["pushes_already_current"],
+        "pushes_rejected": _STATE["pushes_rejected"],
         "installs": _STATE["installs"],
     }
+
+
+# ── Receiving a pushed snapshot ─────────────────────────────────────────────
+# Web is the sole canonical writer and the SENDER. Flow-worker only receives.
+# The transport reversed (see receive_enabled) but the architecture did not:
+# versioned canonical snapshot -> atomic read replica.
+
+MAX_SNAPSHOT_ROWS = int(os.environ.get("OPTIONSFLOW_ETF_MAX_ROWS", "200000"))
+
+
+class SnapshotRejected(Exception):
+    """Validation failed. The previous replica is untouched, always."""
+
+
+def install_pushed_snapshot(payload: dict) -> dict:
+    """Validate and atomically install a pushed canonical snapshot.
+
+    ⛔ THE CALLER'S GENERATION IS NOT TRUSTED. The digest is RECOMPUTED here from
+    the rows actually received and compared to the stamp. A truncated body, a
+    reordered list or a mismatched stamp is therefore detectable without trusting
+    the sender — which is the whole point of a content identity rather than a
+    timestamp.
+
+    Ordering: `last_synced` decides which snapshot is newer, because generations
+    are digests and digests have no order. An older snapshot must never overwrite
+    a newer replica — a retry arriving late after a fresher push would otherwise
+    silently roll the replica backwards.
+
+    Returns {"status": accepted|already-current|rejected, ...} — small and
+    operational. Never echoes the dataset back.
+    """
+    _STATE["pushes_received"] += 1
+    try:
+        if not isinstance(payload, dict):
+            raise SnapshotRejected("payload is not an object")
+        gen = payload.get("generation")
+        rows = payload.get("rows")
+        last_synced = payload.get("last_synced")
+        if not gen or not isinstance(gen, str):
+            raise SnapshotRejected("missing generation")
+        if not isinstance(rows, list) or not rows:
+            # An empty payload is a provider fault, never a real "no ETFs exist".
+            raise SnapshotRejected("rows missing or empty")
+        if len(rows) > MAX_SNAPSHOT_ROWS:
+            raise SnapshotRejected("rows exceed bound")
+
+        pairs = []
+        for r in rows:
+            if not (isinstance(r, (list, tuple)) and len(r) == 2):
+                raise SnapshotRejected("row is not a [ticker, asset_type] pair")
+            t, a = r
+            if not isinstance(t, str) or not isinstance(a, str) or not t:
+                raise SnapshotRejected("row has a non-string or empty field")
+            pairs.append((t, a))
+
+        from api.services.etf_generation import generation_from_pairs
+        recomputed = generation_from_pairs(pairs)
+        if recomputed != gen:
+            raise SnapshotRejected("digest mismatch (truncated or altered body)")
+
+        local = local_generation()
+        if local.get("generation") == gen:
+            _STATE["pushes_already_current"] += 1
+            _STATE["last_push_ok_at"] = time.time()
+            _STATE["last_push_error"] = None
+            return {"status": "already-current", "generation": gen,
+                    "count": local.get("count")}
+
+        # No downgrade. Digests are unordered, so freshness comes from last_synced.
+        installed_ls = local.get("last_synced")
+        if installed_ls and last_synced and str(last_synced) < str(installed_ls):
+            raise SnapshotRejected("older snapshot may not overwrite a newer replica")
+
+        _install({"symbols": [t for t, _ in pairs], "generation": gen,
+                  "last_synced": last_synced})
+        _MEM.update(generation=None, symbols=frozenset(), loaded_at=0.0)
+        _STATE["installs"] += 1
+        _STATE["last_push_ok_at"] = time.time()
+        _STATE["last_push_error"] = None
+        log.info("[of-etf-replica] installed pushed generation %s (%d rows, last_synced %s)",
+                 gen[:12], len(pairs), last_synced)
+        return {"status": "accepted", "generation": gen, "count": len(pairs)}
+
+    except SnapshotRejected as e:
+        _STATE["pushes_rejected"] += 1
+        _STATE["last_push_error"] = str(e)
+        _STATE["last_push_error_at"] = time.time()
+        log.warning("[of-etf-replica] push rejected: %s", e)
+        return {"status": "rejected", "reason": str(e)}
+    except Exception as e:
+        # An install/transaction failure leaves the previous COMPLETE replica.
+        _STATE["pushes_rejected"] += 1
+        _STATE["last_push_error"] = f"install: {e}"
+        _STATE["last_push_error_at"] = time.time()
+        log.exception("[of-etf-replica] push install failed — previous replica retained")
+        return {"status": "rejected", "reason": "install failed"}
