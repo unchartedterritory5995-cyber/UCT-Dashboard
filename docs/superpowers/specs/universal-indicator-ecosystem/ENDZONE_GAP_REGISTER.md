@@ -1,0 +1,290 @@
+# CUSTOM INDICATOR ENDZONE GAP REGISTER
+
+**Purpose.** The durable register of what stands between today's product and the governing
+objective: *a sophisticated custom Pine indicator that currently keeps a user on TradingView
+should be importable into UCT with its calculations, visuals, inputs, state, persistence and
+useful screener outputs intact — and the same class of indicator should be creatable directly
+inside UCT.*
+
+**This is not a histogram of unsupported Pine functions.** Gaps are clustered into product
+capabilities. A gap is only listed once, in the layer where the fix belongs.
+
+**Status of this document.** Part A (architecture-derived gaps) is complete and every claim is
+code-verified with a `path:line` citation. Part B (per-gap OOS script counts) is populated from
+the OOS-2 baseline; rows carrying `[OOS PENDING]` were written before that run and must be
+filled, never estimated.
+
+---
+
+## PART A — HOW THE PIPELINE IS SHAPED (the finding that reorders everything)
+
+Three facts, each verified by direct code reading, together explain most of the distance to the
+objective — and they are **not** the facts a "which Pine functions are unsupported?" analysis
+would surface.
+
+### A1. Presentation is discarded at the door, not at the renderer
+
+`app/src/components/chart/engine/ast/pine.js` is 8,457 lines and the string `overlay` appears in
+it **zero times** (verified by direct count). The only presentation argument the translator reads
+at all is `display`, at `pine.js:8343` (`args.find((a) => a.name === 'display')`), and it is read
+only to mark an output **hidden**.
+
+So `overlay=`, `color=`, `linewidth=`, `style=`, `transp=`, and every styling argument in every
+real Pine indicator are parsed past and thrown away. `plot(offset=-N)` is the one that proves the
+shape of the problem: the translator *does* compute it (`row.displace`, `pine.js:8050`) and then
+nothing downstream carries it — `displace` is not a `defSchema` plot field and `PineBox.jsx` never
+forwards it.
+
+The handback is source text and nothing else — `PineBox.jsx:591` sends `{source, inputs,
+paramManifest}`; `BuilderSheet.jsx:1899-1923` states it outright: *"THE SOURCE AND NOTHING ELSE —
+not the tree the translator built, not a prebuilt document."* The receiving plot row is then born
+`style:'line'`, default colour, default width (`BuilderSheet.jsx:256-268`).
+
+**Why this reorders the roadmap.** UCT's visual schema is real, versioned and validated
+(`engine/defSchema.js`, `SCHEMA_VERSION = 1` at `:127`) and already expresses 8 plot styles,
+per-plot colour, width, line style, opacity, precision, legend, levels and placement. **A large
+share of visual fidelity needs no renderer work at all** — it needs the importer to carry what
+the source already says into fields that already draw. Any plan that begins with "build a fill
+renderer" has mis-ordered the work.
+
+### A2. The translator produces N outputs; exactly ONE survives the door
+
+`translatePine` returns `outputs[]` — one row per `plot`/`plotshape`/`plotchar`/`plotarrow`/
+`alertcondition`, and **four** rows for each `plotcandle`/`plotbar` (`MULTI_OUTPUT_CALLS`,
+`pine.js:383-386`, expanded at `:7718-7723`). Every row carries its own `formula`, `ast`, `title`,
+`hidden`/`hiddenReason` and `refusal`.
+
+Then `PineBox.use()` (`PineBox.jsx:565-591`) hands back `active.formula` — **the single row the
+member clicked**. A four-plot indicator is four separate Apply actions into four separate builder
+rows, each one losing the relationship to its siblings. `BuilderSheet`'s own multi-plot document
+(`compute.trees`/`treesHash`/`scanPlot`/`sources`, `BuilderSheet.jsx:489-498`) exists and works —
+the Pine path simply never reaches it.
+
+The narrowing is structural underneath, too: `closedTable.json` has **no multi-output node**, so
+one AST call yields exactly one series. Multi-plot lives only at document-composition level.
+
+### A3. "Assisted import" is one offer, not a rewrite engine
+
+There is exactly **one** machine-appliable offer in the entire engine: `Resolver.mintickGuardOffer`
+(`pine.js:5040-5061`), which rewrites `math.max(<expr>, syminfo.mintick)` → `(<expr>)`. It is the
+only refusal that carries both `suggest` **and** `span`, and `pine.blindCorpusDecomposition.test.js:43-47`
+asserts that as an invariant: *"every other guard is NO_OFFER by construction, not by defect."*
+
+Three further refusals carry `suggest` with **no** `span` — fractional-window → `hma`
+(`pine.js:6240`), `session.regular` and `timeframe.period` (`pine.js:5521`, `:5549`). Those are
+copy-by-hand advice; the UI's apply button renders only when `refusal.span` exists
+(`PineBox.jsx:319-328`).
+
+**Consequence:** the gap between RAW and ASSISTED acceptance is bounded by one rewrite. Reporting
+"assisted acceptance" as though a general remediation layer exists would overstate the product.
+
+---
+
+## PART B — THE GAP REGISTER
+
+Severity key. **S1** = silent-wrong-result risk. **S2** = blocks the marketable user promise.
+**S3** = materially degrades fidelity. **S4** = polish.
+
+Layers: `IMPORT` (translator → document boundary) · `SCHEMA` (definition vocabulary) ·
+`RENDER` (binder/LWC) · `EXEC` (kernel semantics) · `SCREEN` (scan projection) ·
+`PERSIST` (storage) · `BUILDER` (authoring UI) · `UX` (disclosure) · `HARNESS` (validation).
+
+---
+
+### CLUSTER 1 — VISUAL: PRESENTATION NEVER LEAVES THE SOURCE
+
+The highest-leverage cluster in the register. Every gap here is at the **IMPORT** layer, and the
+renderer already draws the target.
+
+| ID | Gap | Layer | Sev | Renderer ready? | Evidence |
+|---|---|---|---|---|---|
+| **V-01** | `overlay=true/false` is never read; the member picks pane placement by hand | IMPORT | S2 | **Yes** — `placement.js:290-408`, targets at `defSchema.js:208` | `overlay` count in `pine.js` = 0 |
+| **V-02** | `color=` literal never carried; every imported plot is born default-coloured | IMPORT | S3 | **Yes** — `defSchema.js:1276-1289`, `pool.js:433-440` | `BuilderSheet.jsx:256-268` |
+| **V-03** | `linewidth=` never carried | IMPORT | S4 | **Yes** — `defSchema.js:1291-1304`, `pool.js:546` | as above |
+| **V-04** | Pine plot `style=` (line/stepline/histogram/area/circles) never carried | IMPORT | S3 | **Yes** — 5 of Pine's styles map 1:1 onto `PLOT_STYLES` (`defSchema.js:151`) | as above |
+| **V-05** | `plot(title=)` never becomes the plot label | IMPORT | S4 | **Yes** — `plots[].label`, `legend.label` | `BuilderSheet.jsx:452` |
+| **V-06** | `transp=` / colour alpha never carried | IMPORT | S4 | **Yes** — `plots[].opacity` (`defSchema.js:1483-1492`) | no author UI either |
+| **V-07** | `hline()` is a chart-only ignored note, though the schema has a first-class `hlines` plot with `levels` | IMPORT | S3 | **Yes** — `defSchema.js:151`, drawn as price lines `binder.js:144-156, 779` | `pine.js:1366-1369` `CHART_ONLY_CALLS` |
+| **V-08** | `plot(offset=-N)` computed as `row.displace` then dropped — no schema field carries it | IMPORT + SCHEMA | S3 | Needs one plot field | `pine.js:8050`; `displace` absent from `defSchema` |
+
+**Shared fix.** One capability, not eight patches: a **presentation-extraction pass** in the
+translator that emits a per-output visual spec alongside `formula`/`ast`, plus a handback that
+carries it (`PineBox` → `BuilderSheet.buildDefinition`). V-01…V-07 are then field mappings.
+**Test strategy:** a fixture per argument asserting the saved document's `plots[i]` field, plus a
+pixel-parity run through the existing `tools/chart_parity.py`.
+
+---
+
+### CLUSTER 2 — VISUAL: DECLARED IN THE SCHEMA, DRAWN BY NOTHING
+
+Three fields the schema validates, carries and cross-checks — and no renderer reads. These are
+**deliberate, pinned** states, not bugs; they become gaps the moment we claim visual fidelity.
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **V-10** | `plots[].fill{with}` — validated + cross-checked, **drawn by nothing**. A document carrying it installs cleanly and renders no fill. | RENDER | S2 | `defSchema.js:1667-1679`, `:1690-1717`; a source-probe rail (`defSchema.test.js:1188-1235`) asserts the reader list is empty |
+| **V-11** | `plots[].edges` (band) validated (`defSchema.js:1577-1664`) but read by no renderer; `style:'band'` maps to a plain `LineSeries` (`pool.js:65-73, 96-99`). Bollinger "looks right" only because its edges are separate line plots. | RENDER | S3 | as cited |
+| **V-12** | `colorMode:'column:<key>'` — the general per-bar parametric colour — validated and inert; only `colorMode:'sign'` renders. | RENDER | S3 | `defSchema.js:298-322`, `pool.js:579-592` |
+
+**Why this cluster is upgraded by real demand.** `fill()` appears in 6/30 real public scripts and
+dynamic colour in 17/30 — dynamic colour is the **most-demanded visual capability after `plot()`
+itself**, and today only its sign-of-zero special case renders.
+
+---
+
+### CLUSTER 3 — VISUAL: ABSENT FROM THE MODEL ENTIRELY
+
+| ID | Gap | Layer | Sev | Real demand (30-script public corpus) | Evidence |
+|---|---|---|---|---|---|
+| **V-20** | `bgcolor()` — background tinting | SCHEMA+RENDER | S3 | 9/30 (with `barcolor`) | reserved style `'bgband'` refused, `defSchema.js:162`; `pine.js:1366-1369` |
+| **V-21** | `barcolor()` — recolouring price bars | SCHEMA+RENDER | S3 | as above | `'barcolor'` reserved, `defSchema.js:162` |
+| **V-22** | `plotshape`/`plotchar`/`plotarrow` — value survives, **glyph, anchoring and direction do not**. A `plotshape` renders as a 0/1 line. | SCHEMA+RENDER | S2 | 9/30 | `pine.js:326-340` states the limit; `pine.js:350-362` ("Nothing here reads it as a direction") |
+| **V-23** | `plotcandle`/`plotbar` — four numeric columns, no candle. The engine's constructor map has no candlestick/bar series. | SCHEMA+RENDER | S3 | 1/30 | `binder.js:61-66` `SERIES_CTOR` = line/histogram/area/baseline only |
+| **V-24** | `label.new` / `line.new` / `box.new` / `table.new` / `polyline` / `linefill` — persistent graphical objects created, mutated and deleted across bars | SCHEMA+RENDER+EXEC | S2 | 7/30 | `NAMESPACE_GUARD` → `pine:drawing`, `pine.js:450-458` |
+| **V-25** | Placement is **document-level, not per-plot** — one document cannot mix an overlay plot and a pane plot | SCHEMA+RENDER | S3 | common in multi-pane indicators | `compatHarness.level3Fixture.test.js:8-18` |
+| **V-26** | One price scale per pane — two indicators sharing a pane cannot have independent axes | RENDER | S4 | — | `placement.js:283-289` |
+| **V-27** | `cross` marker style reserved and refused (LWC 5.2 draws circle/square/arrow only) | RENDER | S4 | — | `defSchema.js:156-162` |
+
+**The leverage note that belongs here.** The team has already written **six** ISeriesPrimitive /
+IPanePrimitive implementations for non-indicator features — `levelZonesPrimitive` (boxes),
+`swingLabelsPrimitive` (bar-anchored text), `sessionShadingPrimitive` (background),
+`earningsBadgePrimitive`, `prevDayLevelsPrimitive`, `watermarkPrimitive`
+(`StockChart.jsx:8374, 8421, 10108, 10135, 10159, 10179`). **The machinery V-20, V-24 and V-10
+need already exists in this codebase** — it is simply not reachable from a definition. That is an
+architecture opportunity, not a from-scratch build.
+
+---
+
+### CLUSTER 4 — MULTI-OUTPUT: THE INDICATOR IS SACRIFICED AT THE DOOR
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **M-01** | The Pine handback is single-output: a multi-plot indicator must be Applied once per plot into unrelated builder rows | IMPORT | S2 | `PineBox.jsx:565-591`; `BuilderSheet.jsx:1964` |
+| **M-02** | `closedTable.json` has no multi-output node — one AST call yields exactly one series | SCHEMA | S3 | readiness report `:44-48` |
+| **M-03** | A Pine import saved **as a screen condition** loses its parameter manifest entirely | IMPORT | S2 | `PineBox.jsx:575-590` (`paramManifest = wrapped ? null : activeParamManifest`) |
+
+**Note.** `BuilderSheet.buildDefinition` already emits multi-tree documents
+(`trees`/`treesHash`/`scanPlot`/`sources`, `:489-498`). M-01 is a wiring gap, not a modelling one.
+
+---
+
+### CLUSTER 5 — SCREENER PROJECTION
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **S-01** | The screener is **boolean-only**. A numeric indicator series cannot be screened as a value; the member must author the comparison into the tree at import time. | SCREEN | S2 | `scan_definition.py:477-483` (`yields` refusal); applied as `float(value) != 0.0` at `scan_evaluator.py:1676` |
+| **S-02** | One tree per definition reaches the screener (`compute.scanPlot`); the **alert** lane can already address every plot by name (`u_<id>.<plotKey>`) | SCREEN | S3 | `scan_definition.py:334-368` vs `alert_user_series.py:329`, `ast_interpret.py:3671` |
+| **S-03** | `scan_hits.value` can only ever be `1.0` — the gate forces a boolean tree and `_cmp`/`_logical` return `0.0/1.0/NaN` — while the UI ships a significant-digit formatter and a "sort by value" control described for RSI-scale numbers | SCREEN | **S1** | `scan_evaluator.py:1657, 1676-1682`; `ast_interpret.py:1985-1991`; `ScanResults.jsx:194-238`; `ScanResults.value.test.jsx:38` asserts `71.5`, a value the gate cannot produce |
+| **S-04** | `scan_evaluator` never passes `inputs` to `ast_interpret.interpret`, so a definition naming a member input resolves `resolve:name` and can never be a screen | SCREEN | S2 | `scan_evaluator.py:1655-1657` vs `ast_interpret.py:2980-2984`; the alert lane does thread inputs (`alert_user_series.py:267`) |
+| **S-05** | Custom-indicator values never become screener **columns** — `screener_rows` has a fixed vocabulary and no `def_hash` column | SCREEN | S3 | `snapshot_db.py` |
+
+**S-03 is the register's clearest silent-wrong-result candidate outside the translator** and is
+listed S1 on that basis. It requires adjudication before it is stated as a defect in the OOS
+report: the failing direction is a UI that presents a column as meaningful when it is constant.
+
+---
+
+### CLUSTER 6 — PERSISTENCE AND EDITABILITY
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **P-01** | **The original Pine source is not persisted.** Nothing about a saved document remembers it was Pine. | PERSIST | S2 | `BuilderSheet.jsx:1798-1808`; dialect survives as telemetry only (`user_definitions.py:61-69`) |
+| **P-02** | Consequence of P-01: an improved translator **cannot re-translate** existing imports; the member must find and re-paste the original script | PERSIST | S2 | derived from P-01 |
+| **P-03** | Consequence of P-01: a member cannot diff what they saved against the script they pasted | UX | S3 | derived from P-01 |
+| **P-04** | A document can be stored whose `sources[k]` disagrees with `trees[k]` — Python has no parser, so the API accepts what the browser would refuse | PERSIST | S2 | `user_definitions.py:439-455`; the named fix (`compute.sourceHashes[k]`) is documented as not done |
+| **P-05** | No duplicate/clone action for a saved definition within one account (only edit, soft-delete, share-link, cross-account install) | PERSIST | S3 | `api/routers/user_definitions.py` |
+| **P-06** | Reopen **refuses to open** a definition stored without its source text rather than reconstructing from the AST | PERSIST | S4 (correct behaviour, noted for completeness) | `BuilderSheet.jsx:1112-1116, 1183-1188` |
+
+**P-01 is the single highest-leverage persistence gap** and it is cheap: storing the source text
+alongside the document costs one column and unlocks P-02 and P-03 outright.
+
+---
+
+### CLUSTER 7 — BUILDER / DIRECT CREATION
+
+The end-state requires the same class of indicator to be **creatable inside UCT**. Track three
+things separately: *engine can represent it* / *Pine import can produce it* / *builder can create it*.
+
+| ID | Gap | Layer | Sev | Engine | Import | Builder | Evidence |
+|---|---|---|---|---|---|---|---|
+| **B-01** | `style:'band'` + `edges` | BUILDER | S3 | ✅ schema-legal | ❌ | ❌ no cross-plot control | `BuilderSheet.jsx:230-234` |
+| **B-02** | `colorMode:'sign'` + `colorUp`/`colorDown` | BUILDER | S3 | ✅ renders | ❌ | ❌ no UI at all | `compatHarness.level3Fixture.test.js:19-27` |
+| **B-03** | `plots[].opacity` | BUILDER | S4 | ✅ | ❌ | ❌ | `defSchema.js:1483-1492` |
+| **B-04** | Plot styles offered | BUILDER | S4 | 8 | — | 6 | `BuilderSheet.jsx:235-242` |
+| **B-05** | `hlines` plots | BUILDER | S4 | any number | ❌ | exactly one | `BuilderSheet.jsx:2328-2333` |
+| **B-06** | Placement targets | BUILDER | S4 | price/pane/volume | ❌ | price/pane | `BuilderSheet.jsx:2320-2327` |
+| **B-07** | Per-plot `precision`, `role`, `legend.label` | BUILDER | S4 | ✅ | ❌ | fixed defaults | `BuilderSheet.jsx:452, 457` |
+
+**Pattern.** Every row reads *engine ✅ / import ❌ / builder ❌*. The engine is consistently ahead
+of both doors. **A capability present only internally is not a finished user-facing feature** —
+this table is the evidence for that claim, and it is the argument for treating "carry
+presentation" (Cluster 1) and "expose presentation" (Cluster 7) as one program.
+
+---
+
+### CLUSTER 8 — ASSISTED IMPORT
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **A-01** | Exactly one machine-appliable offer exists (`mintickGuardOffer`); every other refusal is NO_OFFER **by construction** | IMPORT | S3 | `pine.js:5040-5061`; invariant asserted at `pine.blindCorpusDecomposition.test.js:43-47` |
+| **A-02** | Three refusals carry advice with no `span` (fractional-window→`hma`, `session.regular`, `timeframe.period`) — the member must retype | UX | S4 | `pine.js:6240, 5521, 5549`; apply button gated on `span` at `PineBox.jsx:319-328` |
+| **A-03** | No registry of safe rewrites; offers are ad-hoc at their guard sites | IMPORT | S4 | no such module found |
+
+---
+
+### CLUSTER 9 — IMPORT UX / FIDELITY DISCLOSURE
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **U-01** | Dropped visuals **are** disclosed (`pine:chart-only` notes surface as "ignored" lines, `PineBox.jsx:957-969`) — but `pine:declaration` fires on essentially every script, so **18/18 accepted community scripts carry a note**. A universal signal carries no information: the member cannot tell "we ignored your declaration line" from "we dropped your fill". | UX | S2 | measured this session on the 30-script corpus |
+| **U-02** | No FULL/PARTIAL fidelity verdict is presented — the member is not told whether what imported is the whole indicator | UX | S2 | no such field in the handback |
+| **U-03** | The member is not told which outputs are screenable vs chart-only before saving | UX | S3 | `toCondition.js` measures it (49 of 148 columns scannable) but the number is not surfaced per import |
+| **U-04** | Nothing distinguishes "this is your indicator" from "this is one plot of your indicator" at Apply time | UX | S2 | consequence of M-01 |
+
+**U-01 is the honesty gap that matters most.** The disclosure machinery exists and works; it is
+drowned by a note that fires unconditionally. Fixing it is cheap and directly serves the
+non-negotiable *do not produce false success through a friendly UI*.
+
+---
+
+### CLUSTER 10 — HARNESS / VALIDATION
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **H-01** | **The 48-script corpus that has driven development is 100% V1 on the predeclared visual scale** — every one has exactly one `plot()` and *zero* hlines, fills, bgcolor/barcolor, shapes, candles, objects, dynamic colour or conditional visibility. The real 30-script public corpus is 28/30 **V3 or above**. | HARNESS | **S2** | measured this session: `python tools/oos_visual_classify.py tests/fixtures/pine_blind` |
+| **H-02** | No harness exercises the real chart for an imported definition; `TRANSLATES` has been the measured quantity throughout | HARNESS | S2 | `tools/chart_parity.py` exists and is unused for user documents |
+| **H-03** | `tools/compat_harness.py` (proposed Layer A driver in the 2026-09-05 readiness report) was never built | HARNESS | S4 | absent from `tools/` |
+
+**H-01 is a finding about the program, not the product, and it is the reason OOS-1 exists.** The
+headline numbers this program has reported for two years (RAW 27/48, ASSISTED 36/48) are measured
+entirely on scripts that have **no visual surface at all**. They are honest numbers about screen
+translation and say nothing about indicator fidelity. Any marketability claim resting on them
+would be a category error.
+
+---
+
+## PART C — WHAT THE EVIDENCE SAYS ABOUT ORDERING
+
+Derived from the register, not from a preferred plan:
+
+1. **Cluster 1 (carry presentation) is first by a wide margin.** Eight gaps, one shared fix, and
+   the renderer is already capable of every target. It is the only cluster where fidelity improves
+   without new rendering code.
+2. **Cluster 9 (disclosure) is first-equal on the correctness axis** and is small. It is what keeps
+   a partial import from reading as a complete one while the rest of the work lands.
+3. **Cluster 4 M-01 (multi-output handback)** unlocks the difference between "one plot of your
+   indicator" and "your indicator". The document model already supports it.
+4. **Cluster 6 P-01 (persist the source)** is one column and removes the permanent penalty of
+   importing under a translator that will improve.
+5. **Cluster 2 (inert fields) then Cluster 3 (absent primitives)** — real renderer work, ordered
+   by measured demand: dynamic colour → fill → bgcolor/barcolor → shapes → objects.
+6. **Cluster 5 S-03/S-04** are correctness items in the screener and should be adjudicated before
+   any screener claim is made.
+
+---
+
+## AMENDMENTS
+
+Append only; each dated, each stating what changed and why.
+
+*(none yet)*
