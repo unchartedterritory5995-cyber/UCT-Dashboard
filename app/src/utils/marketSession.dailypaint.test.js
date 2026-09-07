@@ -151,9 +151,14 @@ describe('expectedLatestDailySessionET — S11 holiday/early-close awareness (Te
     expect(expectedLatestDailySessionET()).toBe('2026-07-02')
   })
 
-  it('outside calendar coverage (a 2027 date, no real table): degrades to weekday-only behavior — a real MLK-day-equivalent Monday is NOT treated as a holiday', () => {
-    // 2027-01-18 is a Monday with no entry in nyseCalendar's 2026-only table.
+  it('outside calendar coverage (a 2028 date, no real table, after Seam 7 extended coverage through 2027): degrades to weekday-only behavior — a real MLK-day-equivalent Monday is NOT treated as a holiday', () => {
+    // 2028-01-17 is a Monday with no entry in nyseCalendar's 2026-2027 table.
+    vi.setSystemTime(new Date('2028-01-17T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
+    expect(expectedLatestDailySessionET()).toBe('2028-01-17')
+  })
+
+  it('a real 2027 holiday (MLK Day, Mon 2027-01-18) is now correctly recognized -- Seam 7 extended coverage through 2027', () => {
     vi.setSystemTime(new Date('2027-01-18T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
-    expect(expectedLatestDailySessionET()).toBe('2027-01-18')
+    expect(expectedLatestDailySessionET()).toBe('2027-01-15') // walks back to the prior Friday
   })
 })

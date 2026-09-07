@@ -14,18 +14,27 @@ Public API:
 import logging
 from datetime import datetime, date, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from api.services.auth_db import get_connection
 
 _log = logging.getLogger(__name__)
 
+_ET = ZoneInfo("America/New_York")
+
 
 def _et_now() -> datetime:
-    """Current US/Eastern time. Naive DST handling: UTC-4 Mar-Oct, UTC-5 else.
-    Good enough for session-state classification."""
-    utc = datetime.now(timezone.utc)
-    et_offset = -4 if 3 <= utc.month <= 10 else -5
-    return utc + timedelta(hours=et_offset)
+    """Current US/Eastern time, real DST transitions via zoneinfo (Seam 7
+    architecture adjudication, 2026-09-07: the prior naive `-4 if
+    3<=month<=10 else -5` rule was off by exactly 1 hour for the ~1 week each
+    March between the 1st and the actual 2nd-Sunday DST start -- confirmed
+    live, e.g. 2026-03-03 12:00 UTC read as 08:00 ET instead of the real
+    07:00 EST -- every downstream boundary this file computes inherited that
+    error during the transition week). Matches every other file in this
+    codebase's own established `ZoneInfo("America/New_York")` convention.
+    Callers already only use tz-aware-safe methods (.hour/.minute/.weekday/
+    .date/.replace/.strftime), so nothing downstream needed to change."""
+    return datetime.now(_ET)
 
 
 # ── Market holidays (NYSE) for the next year ────────────────────────────────
@@ -45,6 +54,20 @@ _NYSE_HOLIDAYS = _NYSE_HOLIDAYS_2026 | _NYSE_HOLIDAYS_2027
 
 def _is_market_holiday(d: date) -> bool:
     return d.isoformat() in _NYSE_HOLIDAYS
+
+
+def _is_early_close(d: date) -> bool:
+    """True on an NYSE 1:00 PM ET early-close trading day (Seam 7 architecture
+    adjudication, 2026-09-07). Reuses `liveflow_monitor.py`'s own early-close
+    set -- confirmed live to agree with `nyseCalendar.js` on every 2026/2027
+    date -- rather than typing a FOURTH independent copy of this data.
+    Before this fix, `_session_state` had zero early-close awareness at all
+    and unconditionally used 16:00 ET as the close, confirmed live to
+    misreport the market as open (e.g. "close in 150 min") 30+ minutes after
+    a real 1:00 PM close on Nov 27 2026 / Dec 24 2026."""
+    from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD
+    ymd = d.year * 10000 + d.month * 100 + d.day
+    return ymd in _NYSE_EARLY_CLOSES_YYYYMMDD
 
 
 def _next_market_open(now_et: datetime) -> datetime:
@@ -74,6 +97,12 @@ def _session_state(now_et: datetime) -> dict:
             "minutes_to_close": None,
         }
 
+    # Seam 7 (2026-09-07): real 1:00 PM ET close on an early-close trading
+    # day, instead of the always-16:00 assumption every branch below used to
+    # make -- see `_is_early_close`'s own docstring for the confirmed-live
+    # defect this closes.
+    close_minute = 13 * 60 if _is_early_close(today) else 16 * 60
+
     minute_of_day = now_et.hour * 60 + now_et.minute
     if minute_of_day < 9 * 60 + 30:
         mins_to = (9 * 60 + 30) - minute_of_day
@@ -84,19 +113,32 @@ def _session_state(now_et: datetime) -> dict:
             "minutes_to_open": mins_to,
             "minutes_to_close": None,
         }
-    if minute_of_day < 16 * 60:
-        mins_to_close = (16 * 60) - minute_of_day
-        # First/last hour callouts
-        if minute_of_day < 10 * 60:
-            sub = "opening drive"
-        elif minute_of_day < 11 * 60 + 30:
-            sub = "morning continuation"
-        elif minute_of_day < 14 * 60:
-            sub = "lunch chop"
-        elif minute_of_day < 15 * 60 + 30:
-            sub = "afternoon trend"
+    if minute_of_day < close_minute:
+        mins_to_close = close_minute - minute_of_day
+        # First/last hour callouts. Regular (16:00) days keep their EXACT
+        # original absolute-time boundaries, unchanged by this fix. An
+        # early-close (13:00) day's compressed ~3.5h session has no real
+        # "lunch chop"/"afternoon trend" phase, so it gets its own simpler,
+        # close-relative labels instead of reusing boundaries that would
+        # otherwise fall past the actual close.
+        if close_minute == 16 * 60:
+            if minute_of_day < 10 * 60:
+                sub = "opening drive"
+            elif minute_of_day < 11 * 60 + 30:
+                sub = "morning continuation"
+            elif minute_of_day < 14 * 60:
+                sub = "lunch chop"
+            elif minute_of_day < 15 * 60 + 30:
+                sub = "afternoon trend"
+            else:
+                sub = "MOC window"
         else:
-            sub = "MOC window"
+            if minute_of_day < 10 * 60:
+                sub = "opening drive"
+            elif mins_to_close > 30:
+                sub = "morning continuation"
+            else:
+                sub = "MOC window"
         return {
             "state": "rth",
             "label": f"Cash open ({sub})",

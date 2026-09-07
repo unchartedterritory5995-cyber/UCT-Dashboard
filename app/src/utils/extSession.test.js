@@ -111,9 +111,16 @@ describe('getExtSession — outside nyseCalendar.js coverage (must degrade EXACT
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('an ordinary weekday outside coverage (2027) still reads as rth — no throw, no guess, same as before Seam 6', () => {
-    vi.setSystemTime(new Date('2027-01-04T15:00:00Z')) // Mon 10:00 EST, 2027 has no calendar table
-    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2027-01-04' })
+  it('an ordinary weekday outside coverage (2028, after Seam 7 extended coverage through 2027) still reads as rth — no throw, no guess, same as before Seam 6', () => {
+    vi.setSystemTime(new Date('2028-01-04T15:00:00Z')) // Tue 10:00 EST, 2028 has no calendar table
+    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2028-01-04' })
+  })
+
+  it('a real 2027 holiday (New Year\'s Day) is now correctly recognized -- Seam 7 extended coverage through 2027', () => {
+    vi.setSystemTime(new Date('2027-01-01T15:00:00Z')) // Fri 10:00 EST, 2027 New Year's Day
+    // Same shape as the Labor Day 2026 case above: a holiday morning reads
+    // 'post' with the prior real trading day as anchor (Thu 2026-12-31).
+    expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2026-12-31' })
   })
 
   it('a real 2025 holiday (Christmas) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
