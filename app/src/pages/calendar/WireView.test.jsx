@@ -5,7 +5,14 @@
 //   • significance drives visual WEIGHT only
 //   • before the first print the view says what is expected, never blank
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock('./useWire', () => ({ useWire: () => globalThis.__wire }))
 vi.mock('./useWireCoverage', () => ({
@@ -22,10 +29,16 @@ const row = (sym, seen, extra = {}) => ({
 
 const syms = () => screen.getAllByTestId('wire-sym').map(n => n.textContent)
 
+// Seam 20 (Calendar TickerActions Reuse V2): WireView rows are now real
+// <button>s navigating via useNavigate, which requires a Router ancestor.
+function renderWire(props) {
+  return render(<MemoryRouter><WireView {...props} /></MemoryRouter>)
+}
+
 describe('WireView', () => {
   it('renders newest first', () => {
     globalThis.__wire = { data: { rows: [row('NVDA', 1000), row('AMD', 3000)], expected: 37 } }
-    render(<WireView />)
+    renderWire()
     expect(syms()).toEqual(['AMD', 'NVDA'])
   })
 
@@ -37,13 +50,13 @@ describe('WireView', () => {
         expected: 37,
       },
     }
-    render(<WireView />)
+    renderWire()
     expect(syms()).toEqual(['AMD', 'NVDA'])
   })
 
   it('shows what is expected before the first print instead of rendering blank', () => {
     globalThis.__wire = { data: { rows: [], expected: 37 } }
-    render(<WireView />)
+    renderWire()
     expect(screen.getByText(/37 reporters/i)).toBeInTheDocument()
   })
 
@@ -53,14 +66,14 @@ describe('WireView', () => {
     globalThis.__wire = {
       data: { rows: [row('KOPN', 1000, { rev_act: 12.7, rev_est: 11.7 })], expected: 1 },
     }
-    render(<WireView />)
+    renderWire()
     expect(screen.queryByText(/pending/i)).toBeNull()
     expect(screen.getByText(/Rev 12\.70 vs 11\.70/)).toBeInTheDocument()
   })
 
   it('marks a row without actuals as pending', () => {
     globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
-    render(<WireView />)
+    renderWire()
     expect(screen.getByText(/pending/i)).toBeInTheDocument()
   })
 
@@ -68,7 +81,7 @@ describe('WireView', () => {
     globalThis.__wire = {
       data: { rows: [row('NVDA', 1000, { eps_act: 1.24, rev_act: 5.12e10, confirmed: 1 })], expected: 1 },
     }
-    render(<WireView />)
+    renderWire()
     expect(screen.queryByText(/pending/i)).toBeNull()
     expect(screen.getByText(/1\.24/)).toBeInTheDocument()
   })
@@ -77,19 +90,51 @@ describe('WireView', () => {
     globalThis.__wire = {
       data: { rows: [row('NVDA', 1000, { move_pct: null, eps_act: 1.24 })], expected: 1 },
     }
-    render(<WireView />)
+    renderWire()
     expect(syms()).toEqual(['NVDA'])
   })
 
   it('renders nothing loud when the session has no reporters at all', () => {
     globalThis.__wire = { data: { rows: [], expected: 0 } }
-    render(<WireView />)
+    renderWire()
     expect(screen.getByText(/no reporters/i)).toBeInTheDocument()
   })
 
   it('does not crash before the first fetch resolves', () => {
     globalThis.__wire = { data: undefined }
-    render(<WireView />)
+    renderWire()
     expect(screen.getByText(/no reporters|waiting/i)).toBeInTheDocument()
+  })
+})
+
+describe('WireView -- Seam 20, row click-through to Research (Calendar TickerActions Reuse V2)', () => {
+  it('the row is a real button and clicking it navigates to canonical Research', () => {
+    mockNavigate.mockClear()
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
+    renderWire()
+    const btn = screen.getByText('NVDA').closest('button')
+    expect(btn).toBeTruthy()
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/NVDA')
+  })
+
+  it('each row navigates to its OWN symbol, not a shared/stale one', () => {
+    mockNavigate.mockClear()
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000), row('AMD', 3000)], expected: 2 } }
+    renderWire()
+    fireEvent.click(screen.getByText('AMD').closest('button'))
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AMD')
+    mockNavigate.mockClear()
+    fireEvent.click(screen.getByText('NVDA').closest('button'))
+    expect(mockNavigate).toHaveBeenCalledWith('/research/NVDA')
+  })
+
+  it('the row is keyboard-focusable by default (a real <button>, no extra ARIA needed)', () => {
+    globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
+    renderWire()
+    const btn = screen.getByText('NVDA').closest('button')
+    expect(btn.tagName).toBe('BUTTON')
+    expect(btn).not.toHaveAttribute('disabled')
+    expect(btn).toHaveAttribute('title', 'View NVDA in Research')
   })
 })

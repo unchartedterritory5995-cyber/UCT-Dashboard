@@ -12,6 +12,15 @@ import { MemoryRouter } from 'react-router-dom'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
+// Seam 20 (Calendar TickerActions Reuse V2): InsightForSym rows now navigate
+// via useNavigate on click. Spy on it while leaving Link/useLocation/MemoryRouter
+// real, mirroring the same mock shape used in WireView.test.jsx.
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
 // Mock SWR-dependent hooks so no network calls happen
 vi.mock('../../hooks/usePreferences', () => ({
   default: vi.fn(() => ({
@@ -289,5 +298,29 @@ describe('MyStocksHub', () => {
   it('panel role is present', () => {
     renderHub()
     expect(screen.getByRole('tabpanel')).toBeTruthy()
+  })
+})
+
+describe('MyStocksHub -- Seam 20, Insights row click-through to Research (Calendar TickerActions Reuse V2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('the Insights row is a real button and clicking it navigates to canonical Research', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
+    const btn = screen.getByText('AAPL').closest('button')
+    expect(btn).toBeTruthy()
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL')
+  })
+
+  it('the Insights row is keyboard-focusable by default (a real <button>, no extra ARIA needed)', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
+    const btn = screen.getByText('AAPL').closest('button')
+    expect(btn.tagName).toBe('BUTTON')
+    expect(btn).not.toHaveAttribute('disabled')
+    expect(btn).toHaveAttribute('title', 'View AAPL in Research')
   })
 })
