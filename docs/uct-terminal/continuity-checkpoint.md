@@ -5,109 +5,114 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state, post
-**Seam 11** merge/deploy — a dedicated, owner-authorized Phase A
-(POSITION ↔ RELATED TRADES architecture review). **Seam 17 Remainder**
-(Journal Symbol Input Assist V1) was the program before it; Seam 1
-(read-side half, a real WRITE to production identity data) before that;
-Seam 19 (TickerActions Dedicated Scope + Convergence V1) before that.
-Full re-anchor report delivered to the owner in-conversation earlier;
-this doc keeps only the load-bearing conclusions. Both re-anchor
-MUST-FIX trust defects (Seam 28, Seam 29), Alert Durability V1 (Seam
-30), the keyboard accessibility program, Compare Coverage V1, Seam 20,
-Feature-Flag Governance Sweep, Seam 25, Seam 21, the `CommandPalette.jsx`
-jsonFetcher fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, and
-now **Seam 11** are all closed. Full per-program implementation detail
-for everything through Seam 17 Remainder lives in "CURRENT ACCEPTED"
-below and in the debt ledger — not re-summarized here again; this
-section now covers Seam 11 in full since it's the newest and most
-architecturally significant.
+**Last verified:** 2026-09-07, against live git + Railway state, post
+**Seam 14** merge/deploy (Ticker Search Surface Convergence V1). Prior
+programs this session, most recent first: Seam 11 (Position ↔ Related
+Trades, honest labeling), Seam 17 Remainder (Journal Symbol Input Assist
+V1), Seam 1 read-side half (a real WRITE to production identity data),
+Seam 19 (TickerActions Dedicated Scope + Convergence V1) — full detail
+for all of these lives in "CURRENT ACCEPTED" below and the debt ledger,
+not re-summarized here again. Both re-anchor MUST-FIX trust defects
+(Seam 28, Seam 29), Alert Durability V1 (Seam 30), the keyboard
+accessibility program, Compare Coverage V1, Seam 20, Feature-Flag
+Governance Sweep, Seam 25, Seam 21, the `CommandPalette.jsx` jsonFetcher
+fix, Seam 19, Seam 1 (read-side half), Seam 17 Remainder, Seam 11, and
+now **Seam 14** are all closed. This section covers Seam 14 in full
+since it's the newest.
 
-**Seam 11 — POSITION ↔ RELATED TRADES, RESOLVED not via new plumbing but
-via a REFRAMING the dedicated Phase A discovered.** The ledger classified
-this ABSENT_NO_SAFE_INFERENCE / ARCHITECTURE DECISION: broker-synced
-(and CSV-imported) closed trades carry a structurally-random
-`f"manual-{uuid.uuid4()}"` `position_id` sentinel (`trades.py::
-bulk_insert_trades`, shared by both sources), and the corresponding open
-`j2_positions` row is DELETED (not `closed_at`-stamped) the moment the
-broker stops holding it (`balances.py::reconcile_positions`) — confirmed
-both by code trace AND by direct production evidence (all 10 live
-broker-sourced `j2_positions` rows are currently OPEN; zero closed
-broker position rows exist despite 5,891 broker-sourced `j2_trades`
-rows). **The Phase A's central, decisive finding: `PositionDetailPage.jsx`
-already ships `HistorySection.jsx`, ALREADY correctly implementing
-ACCOUNT + SECURITY TRADE HISTORY (the directive's "Option B") for every
-trade source** — it filters by `symbol === sym` over an already
-account-scoped `trades` array (`useJ2Trades()` → `GET /api/j2/trades?
-account_id=...` → `list_trades_for_user`'s real `WHERE account_id = ?`),
-never touching the broken `position_id` at all, so it was never actually
-broken. Exact position lineage (the directive's "Option A") was
-DEFINITIVELY ruled out as unrecoverable for broker data — not merely
-unbuilt — by enumerating the RAW SnapTrade activity payload's own
-top-level JSON keys directly from production
-(`j2_broker_activities.raw_json`, 2,000-row sample, field NAMES only,
-zero values read): `id, symbol, option_symbol, currency, type,
-description, amount, price, units, fee, fx_rate,
-external_reference_id, settlement_date, trade_date, institution,
-option_type` — no position/lot/order-grouping field exists at the
-provider AT ALL (`external_reference_id` is present but NULL in 100% of
-sampled rows). SnapTrade's own `id` (a real per-transaction identifier)
-is captured and preserved forever in `raw_json` but is dropped at the
-`snaptrade_adapter.py::to_equity_fill` conversion boundary — propagating
-it would let a trade reference its exact constituent raw activities
-(a real, optional future enhancement, NOT required for Seam 11 and NOT
-built this round) but would NOT by itself solve exact lineage, since
-the provider has no lot-grouping concept to recover. The MANUAL
-close-position path (`trades.py::close_position`) already IS exact
-lineage today, correctly (`position_id` = a genuine FK, verified by
-authenticated lookup) — confirmed untouched, and confirmed via
-production data to have literally never fired even once in this
-database's whole history (0 of 5,891 trades have a non-sentinel
-`position_id`) — a real, notable, but non-blocking fact about actual
-usage, not a defect. **The one genuine gap: dishonest-by-omission
-labeling** — the section said bare "History," which a member could
-misread as "the trades that built/closed this exact position," untrue
-after a close-then-reopen cycle (which the same `bkpos:{account}:
-{symbol}:{side}` external_id key cannot distinguish — confirmed the
-sharpest real limit on ever achieving Option A for broker data, schema
-or no schema change). **Fix, merge `ab69e2cee`/`228d8caeb`**: added an
-honest caption ("Trade history for this security in this account — not
-limited to this specific position") per the directive's own suggested
-exact wording; title/behavior/tests otherwise unchanged. Zero schema
-change, zero migration, zero `position_id`/sentinel touched, zero
-financial calculation changed, zero P&L/cost-basis/quantity/broker-ID
-mutation of any kind — this fully satisfies Section XIX's own
-pre-authorization for the "the recommended model is ACCOUNT+SECURITY
-TRADE HISTORY, deterministic from existing canonical data" case, so
-implementation proceeded without a stop. 7 new tests
-(`HistorySection.test.jsx`, standalone unit coverage: honest-caption
-text, symbol-scoped-not-position_id-scoped proof via a synthetic
-sentinel-bearing trade fixture, close-then-reopen dual-lifecycle
-rendering, unchanged click-through/keyboard/empty-state behavior); full
-`journal-2-0/` regression green (183 files/1,721 tests, up from
-182/1,714); clean production build. Production data audit was READ-ONLY
-throughout (SQLite opened `mode=ro` — a write attempt would raise, not
-silently succeed) and never printed member-identifying values — only
-aggregate counts and structural field-name/shape inventories.
-**Options are cleanly out of scope by construction, not exclusion**:
-`j2_option_strategies` carries its full lifecycle (open→closed,
-`net_exit`/`pnl_*`) on ONE row — no separate position/trade split, no
-sentinel, no analogous problem exists there.
+**Seam 14 — TICKER SEARCH SURFACE CONVERGENCE, RESOLVED via a bounded,
+evidence-driven V1, not a blanket rewrite.** A dedicated Phase A
+inventoried every live `/api/ticker-search` consumer and found the
+ledger's "7+ duplicated implementations" framing needed real
+correction, not just re-confirmation: most surfaces are legitimately
+distinct by the directive's own test ("does this reimplement search/
+identity/ranking semantics that SHOULD come from the shared contract?")
+— `CommandPalette.jsx`/`SymbolSearch.jsx` are the canonical global
+search / security picker (unchanged); `tickerMention.js` ($TICKER
+community-post autocomplete) is ARCHITECTURALLY FORCED duplication (a
+TipTap Suggestion plugin cannot mount a React hook); `CalendarHeader.jsx`'s
+search resolves a ticker's next-report date and jumps calendar weeks —
+feature-specific selection semantics, not a symbol picker at all.
+**Two genuine, confirmed bugs found and fixed**: `modelbook/shared/
+ChartExampleKit.jsx`'s exported `TickerSearchInput` (My Playbook) and
+`SetupsView.jsx`'s own byte-identical copy-pasted local duplicate (Setup
+Library) both had ZERO keyboard navigation (mouse/touch only) and ZERO
+stale-response protection — an inline fetch/debounce reimplementation
+that never adopted the ALREADY-EXISTING, ALREADY-SHIPPED shared hook
+(`useTickerSuggest.js`, purpose-built for exactly this reuse case,
+previously adopted by exactly ONE consumer: Watchlists' `TickerCombobox.
+jsx`). Both now consume the hook directly — fixing both bugs — while
+keeping their own CSS module / lightweight visual wrapper, preserving
+this session's own established principle (Journal Symbol Input Assist
+V1) that different interaction models can share a search CONTRACT
+without sharing a visible COMPONENT. **Writing direct test coverage for
+`useTickerSuggest.js` itself (previously ZERO, despite being live
+production code) caught a real, previously-undiscovered gap in the hook**:
+it relied SOLELY on `AbortController` for stale-response protection, no
+independent sequence guard — harmless in real browsers (which honor
+`AbortSignal` correctly) but a genuine robustness gap, caught the moment
+a test used a hand-rolled fetch mock that ignores the signal (mirroring
+`CommandPalette.jsx`'s own established test pattern). Fixed with the
+same `reqIdRef` guard `CommandPalette.jsx`/`SecuritySymbolInput.jsx`
+already use — benefits all three consumers (`TickerCombobox` included)
+for free, zero observable behavior change in real browsers.
+**`SwitchTickerBox` (`TickerPopup.jsx`) and `MobileSymbolSheet.jsx` are
+real, confirmed duplication too, but NOT converged this round** — both
+have meaningfully different Enter-key/empty-state semantics from
+`useTickerSuggest`'s established consumption pattern (`SwitchTickerBox`'s
+"typed beats un-navigated hover" Enter priority; `useTickerSuggest`
+returns a non-empty `POPULAR_TICKERS` list even for an empty query, which
+would newly show a dropdown on bare focus) on a MUCH higher-traffic
+surface (every `TickerPopup` instance app-wide) — forcing convergence
+risked a real behavior change for comparatively low payoff versus the
+two admin-only forms fixed here, which had ACTUAL bugs, not just
+duplicated-but-correctly-working code. Left explicitly recorded as a
+future candidate (Section VII of the directive already permitted this:
+"Do not assume they must be rewritten"), not silently dropped.
+**A genuine ledger inaccuracy surfaced and corrected**:
+`ComparisonPicker.jsx` (the `ChartToolbar` "⇄ compare symbols" popover)
+was recorded LEGACY_DEAD/zero-live-search-as-a-retirement-candidate — it
+is NEITHER dead (confirmed live: `StockChart.jsx` → `ChartToolbar.jsx`
+line 1443 → `ComparisonPicker.jsx`, on every chart in the app) NOR was
+its 7-hardcoded-ticker (`QQQ, SPY, IWM, DIA, NDX, VIX, BTC-USD`),
+zero-live-search gap silently fixed as a side effect — **whether it
+should get live search or be retired in favor of the `SymbolSearch`-based
+Compare flow (which DOES have full live search, 8 call sites, fixed by
+this session's own Seam 15) is a real product/UX choice, OWNER DECISION
+REQUIRED, not resolved unilaterally.** 26 new tests across 4 new files
+(`useTickerSuggest.test.js`, `ChartExampleKit.tickerSearch.test.jsx`,
+`SetupsView.tickerSearch.test.jsx`) covering keyboard nav, stale-response
+protection (the signal-ignoring-mock pattern), ARIA, unchanged prop
+contracts, typed-value fallback, error degradation; broad regression
+across ModelBook + hooks + Watchlists green (43 tests); clean production
+build; production-verified (commit SHA match + the compiled ModelBook
+chunk carries the new `role="combobox"`/`tickerSearch` markers that
+didn't exist in the prior build).
 
-**A fresh re-scan of the debt ledger after Seam 11 found the remaining
-pool thinned further but still not exhausted of everything — HOLDING**:
-Seam 6/7/8/14 each still need their own Phase A or a real architecture
-decision; Seam 13 still risks colliding with the concurrent Notebook
-session (still actively landing commits — Wave G, Thesis Intelligence,
-on `origin/master` during this very program); Seam 18/22/24 still need
-a product decision or are gated; Seam 3/4/27 remain explicitly
-LOW-PRIORITY. Awareness Reachability Restoration V1 remains deliberately
-SKIPPED pending a genuine owner monetization/entitlement decision (see
-the top-of-file section) — do not resolve it unilaterally. Pattern
-Vision interrupt condition re-checked and still does not apply
-(`PATTERN_VISION_ENABLED=1` live-read, evidence window Mon 9/7/Tue
-9/8/Wed 9/9 has not started). S7 NVDA interrupt condition re-checked and
-still does not apply (`alert_fires` table: 0 rows).
+**A fresh re-scan of the debt ledger after Seam 14 found the remaining
+pool thinned further but still not exhausted — HOLDING**: Seam 6/7/8
+each still need their own Phase A or a real architecture decision (Seam
+14 itself is now RESOLVED, not on this list); Seam 13 still risks
+colliding with the concurrent Notebook session (still actively landing
+commits — Wave G, Thesis Intelligence, on `origin/master` during this
+very program); Seam 18/22/24 still need a product decision or are
+gated, and the new `ComparisonPicker.jsx` live-search-or-retire question
+joins that list; Seam 3/4/27 remain explicitly LOW-PRIORITY.
+`SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
+recorded, NOT-bounded-for-a-quick-V1 candidate (needs either a
+`useTickerSuggest` opt-in-flag extension or a careful surgical
+adaptation preserving exact Enter-key semantics — real, if small,
+design work, not urgent). Awareness Reachability Restoration V1 remains
+deliberately SKIPPED pending a genuine owner monetization/entitlement
+decision (see the top-of-file section) — do not resolve it
+unilaterally. **Pattern Vision's evidence window has now STARTED but
+NOT completed**: today is 2026-09-07 (Mon 9/7, the holiday-safety day)
+— `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET ACCEPTED;
+Tue 9/8 (real session #1) and Wed 9/9 (real session #2) have not
+happened yet. Re-check this gate specifically at the start of the next
+program — it is the closest live external event to firing. S7 NVDA
+interrupt condition re-checked and still does not apply (`alert_fires`
+table: 0 rows).
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -2130,6 +2135,46 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   manufacture activity against a genuinely thinned-but-still-gated
   ledger — the next eligible unblocked item, if any, needs its own fresh
   read of this section, not an assumption from this snapshot.
+  **The owner then explicitly directed a dedicated Phase A for Seam 14**
+  (Ticker Search Surface Convergence V1, "verify the '7+' count rather
+  than trust it," implementation authorized automatically if Phase A
+  proves a READY/READY WITH CONDITIONS case, stop only for a real
+  material UX choice) — **RESOLVED, merge `7837b782a`/`e96fe1107`**. The
+  dedicated Phase A found the ledger's own "7+ duplicated
+  implementations" count needed correction, not just re-verification:
+  most named surfaces are legitimately distinct by the directive's own
+  test. Fixed two genuine, confirmed bugs (zero keyboard nav + zero
+  stale-response protection) by converging `ChartExampleKit.jsx`'s
+  exported `TickerSearchInput` and `SetupsView.jsx`'s byte-identical
+  local duplicate onto the already-shipped `useTickerSuggest.js` hook;
+  writing the hook's own first-ever direct test coverage caught and
+  fixed a real stale-response robustness gap in the hook itself
+  (benefiting `TickerCombobox.jsx` too). `SwitchTickerBox`/
+  `MobileSymbolSheet.jsx` explicitly left unconverged (real semantic
+  differences on a much higher-traffic surface). Also corrected a
+  genuine ledger inaccuracy (`ComparisonPicker.jsx` is live, not dead)
+  and flagged its underlying live-search-or-retire gap as a fresh,
+  genuine OWNER DECISION REQUIRED item rather than fixing it
+  unilaterally. Full detail in the top-of-file "Last verified" section
+  and the Seam 14 debt-ledger entry (RESOLVED) above/below.
+  **A fresh re-scan of the debt ledger after Seam 14 found the
+  remaining pool thinned further (Seam 14 now also closed) but still
+  not exhausted — HOLDING.** Seam 6/7/8 each still need their own
+  Phase A or a real architecture decision; Seam 13 still risks
+  colliding with the concurrent Notebook session; Seam 18/22/24 still
+  need a product decision or are gated, joined now by the new
+  `ComparisonPicker.jsx` live-search-or-retire question;
+  `SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence is a real,
+  recorded, not-yet-bounded future candidate; Seam 3/4/27 remain
+  explicitly LOW-PRIORITY. **Pattern Vision's evidence window has now
+  STARTED (today is Mon 2026-09-07, the holiday-safety day) but NOT
+  completed** — Tue 9/8 and Wed 9/9 haven't happened yet;
+  `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET ACCEPTED.
+  Re-check this specific gate at the start of whatever comes next — it
+  is the closest live external event to actually firing this week. S7
+  interrupt condition re-checked live and still does not apply. Do not
+  manufacture activity against a genuinely thinned-but-still-gated
+  ledger.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -2302,29 +2347,58 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   panel links via explicit trade/position references, not the ticker
   column). Fix shape: reuse the same read-only chip pattern, keyed on
   `j2_notes.ticker`, no new schema. Reclassified FOLLOW-UP ENHANCEMENT.
-- **Seam 14 — duplicated ticker-search implementations across the app
-  (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
-  scored HIGH, deliberately NOT consolidated this round).** At least 7
-  independent `/api/ticker-search`-adjacent implementations exist beyond
-  the canonical `SymbolSearch.jsx`: `TickerPopup.jsx`'s `SwitchTickerBox`
-  (own fetch+debounce+dropdown), `MobileSymbolSheet.jsx` (full from-scratch
-  reimplementation for the phone chart symbol picker — imports only
-  SymbolSearch's `POPULAR_RESULTS` constant, so a SymbolSearch fix silently
-  does NOT reach mobile chart symbol selection), `TickerCombobox.jsx` +
-  `useTickerSuggest.js` (Watchlists add-symbol — an always-open multi-add
-  ARIA combobox with explicitly documented rationale for NOT using
-  SymbolSearch, a defensible duplicate not an oversight),
-  `tickerMention.js` ($TICKER community-post autocomplete — architecturally
-  FORCED duplication, a TipTap/ProseMirror Suggestion plugin cannot mount a
-  React component), `ChartExampleKit.jsx`'s `TickerSearchInput` (admin-only
-  Model Book form field, low traffic/risk), and `ComparisonPicker.jsx` (the
-  ChartToolbar "⇄" popover — LEGACY_DEAD: a third, independently hardcoded
-  "popular tickers" list with ZERO live search, a retirement candidate not
-  a convergence one). Only `TickerPopup.jsx`'s `SwitchTickerBox` and
-  `MobileSymbolSheet.jsx` are genuine convergence candidates (same use case
-  as SymbolSearch, no lost feature-specific semantics); consolidating
-  `MobileSymbolSheet.jsx` specifically requires building a touch/Sheet mode
-  for SymbolSearch first (real, MEDIUM/HIGH-cost work, not this V1's bar).
+- **Seam 14 — RESOLVED 2026-09-07, merge `7837b782a`/`e96fe1107`
+  (Ticker Search Surface Convergence V1).** Was: recorded as "7+
+  duplicated implementations, deliberately NOT consolidated" from Search
+  / Command Convergence V1's Phase A. **A dedicated Phase A found the
+  count/framing itself needed correction**: most named surfaces are
+  legitimately distinct (canonical global/picker unchanged; `tickerMention.js`
+  is architecturally forced duplication; `CalendarHeader.jsx`'s search has
+  feature-specific selection semantics, not a symbol picker). Fixed:
+  `ChartExampleKit.jsx`'s exported `TickerSearchInput` (My Playbook) and
+  `SetupsView.jsx`'s byte-identical copy-pasted local duplicate (Setup
+  Library) — both had ZERO keyboard nav and ZERO stale-response
+  protection — now both consume the already-shipped `useTickerSuggest.js`
+  hook (previously adopted by exactly one consumer, `TickerCombobox.jsx`),
+  keeping their own CSS/visual wrapper. New direct test coverage for
+  `useTickerSuggest.js` itself (previously zero) caught a real gap in the
+  hook — no independent stale-response sequence guard, `AbortController`
+  only — fixed with the same `reqIdRef` pattern `CommandPalette.jsx`/
+  `SecuritySymbolInput.jsx` use, benefiting all 3 consumers. 26 new
+  tests, clean build, production-verified. **`SwitchTickerBox`
+  (`TickerPopup.jsx`) and `MobileSymbolSheet.jsx` remain real, confirmed
+  duplication, explicitly NOT converged** — meaningfully different
+  Enter-key/empty-state semantics from `useTickerSuggest`'s established
+  pattern, on a much higher-traffic surface; real future candidate, not
+  urgent. `TickerCombobox.jsx` + `useTickerSuggest.js` reclassified from
+  "defensible duplicate" to "the correct shared primitive, now with 3
+  consumers." **A genuine ledger correction**: `ComparisonPicker.jsx` is
+  NOT `LEGACY_DEAD` — confirmed live on every chart
+  (`StockChart.jsx`→`ChartToolbar.jsx`→`ComparisonPicker.jsx`) with a
+  real, still-open gap (7 hardcoded tickers, zero live search) — see the
+  new "ComparisonPicker.jsx live-search-or-retire" entry below,
+  OWNER DECISION REQUIRED, not resolved this round. Full detail in the
+  top-of-file "Last verified" section above.
+- **ComparisonPicker.jsx — live-search-or-retire, OWNER DECISION
+  REQUIRED (surfaced by Seam 14's Phase A, 2026-09-07, NOT resolved —
+  a genuine product/UX choice, not a bounded V1).** `ChartToolbar.jsx`'s
+  "⇄ compare symbols" popover (live on every chart via `StockChart.jsx`)
+  offers only 7 hardcoded tickers (`QQQ, SPY, IWM, DIA, NDX, VIX,
+  BTC-USD`) with ZERO live search — while the OTHER "+Compare" flow
+  elsewhere in the app (`SymbolSearch.jsx`, 8 call sites, fixed by this
+  session's own Seam 15) has full live search against any symbol. Two
+  different Compare UX flows currently coexist with materially different
+  capability. This was previously mis-recorded as `LEGACY_DEAD` — it is
+  live and reachable; that was simply wrong, not stale. Options: (a)
+  give `ComparisonPicker.jsx` live search via the canonical
+  `/api/ticker-search` contract (likely via `useTickerSuggest.js`, now
+  the established shared primitive), converging the two Compare flows;
+  (b) retire `ComparisonPicker.jsx` entirely in favor of routing its
+  "⇄" button through the `SymbolSearch.jsx`-based Compare flow; (c)
+  leave it as an intentionally minimal "quick compare against major
+  benchmarks" UX, distinct by design from full symbol search — and just
+  correct the documentation (done). Needs an explicit owner call before
+  any code changes; the ledger correction alone is what shipped.
 - **Seam 15 — SymbolSearch.jsx self-exclusion — CLOSED by Identity
   Normalization Hardening V1, merge `9c1bff81f`, 2026-09-06, via a smaller
   mechanism than originally proposed here.** The originally-proposed fix
@@ -2681,8 +2755,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    Ticker Search Identity Convergence V1 / Seam 16 (merge
    `8ebb6f076`/`910eca619`), Seam 19 (merge `7a0dd2a78`/`66f6e34f2`),
    Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`),
-   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), and Seam 11 (merge
-   `ab69e2cee`/`228d8caeb`) are all ACCEPTED + LIVE as of this checkpoint —
+   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), Seam 11 (merge
+   `ab69e2cee`/`228d8caeb`), and Seam 14 (merge `7837b782a`/`e96fe1107`)
+   are all ACCEPTED + LIVE as of this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
