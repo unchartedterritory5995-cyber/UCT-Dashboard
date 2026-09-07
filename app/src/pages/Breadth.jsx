@@ -737,6 +737,46 @@ export default function Breadth() {
   // The backend withholds the live read the moment the 4:15 collector writes
   // today's row, so an estimate never sits beside the number it estimated.
   const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' || activeTab === 'overview' })
+
+  // ⌨️ THE DRILL'S DOOR WAS MOUSE-ONLY. Every drillable cell was a bare
+  // `<td onClick>` — no role, no tabIndex, no key handling — so it was invisible
+  // to the keyboard and announced as a plain table cell. None of the dialog's own
+  // keyboard work could be reached, because the thing that OPENS it could not be.
+  //
+  // ⛔ ONE TAB STOP PER ROW, not per cell. There are 473 drillable cells rendered
+  // (43 rows x ~11) against 43 tabbable elements on the whole page, so making each
+  // one tabbable would take the tab order from 43 stops to 516 — worse for the
+  // keyboard users it is meant to help. The first drillable cell in each row is
+  // the stop; the arrows move along the row from there.
+  //
+  // ⛔ And that is also why vertical movement is left to Tab rather than the up/down
+  // arrows: this table is VIRTUALIZED, so a row outside the rendered window is not
+  // in the DOM and cannot be focused. Tab reaches each row as it renders; an arrow
+  // handler would have to drive the virtualizer to scroll first, which is a second
+  // authority over the scroll position.
+  const onCellKey = useCallback((e, row, col) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault()
+      openDrill(row, col, liveBreadth)
+      return
+    }
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+    const cell = e.currentTarget
+    const cells = Array.from(cell.closest('tr')?.querySelectorAll('td[data-drill]') || [])
+    if (!cells.length) return
+    const i = cells.indexOf(cell)
+    const next = e.key === 'Home' ? cells[0]
+      : e.key === 'End' ? cells[cells.length - 1]
+        : cells[i + (e.key === 'ArrowRight' ? 1 : -1)]
+    if (!next || next === cell) return
+    e.preventDefault()
+    // Roving tabindex: the single stop travels with the focus, so Shift+Tab comes
+    // back to where you were rather than to the start of the row.
+    cell.tabIndex = -1
+    next.tabIndex = 0
+    next.focus()
+  }, [openDrill, liveBreadth])
+
   // Views/Overview read the latest window, today's live row on top.
   const rows = useMemo(
     () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
@@ -1120,6 +1160,12 @@ export default function Breadth() {
                     </tr>
                   )
                 }
+                // The row's single tab stop. Derived from `visibleCols` because
+                // that IS the render order below — a second ordering here would
+                // put the stop on a cell that is not the first one on screen.
+                const firstDrillKey = visibleCols.find(
+                  c => !collapsedCols.has(c.key) && drillTarget(row, c, liveBreadth),
+                )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
@@ -1222,6 +1268,18 @@ export default function Breadth() {
                                   : isDrillable ? 'Click to see stocks' : undefined
                         }
                         onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
+                        {...(isDrillable ? {
+                          'data-drill': '',
+                          role: 'button',
+                          tabIndex: col.key === firstDrillKey ? 0 : -1,
+                          onKeyDown: (e) => onCellKey(e, row, col),
+                          // A bare role=button would be announced as just the
+                          // number. Name it with the metric, the value and the
+                          // session, because "134" alone says nothing about what
+                          // pressing it opens.
+                          'aria-label': `${col.label} ${val === null || val === undefined ? 'no reading' : val}`
+                            + `${row._live ? ', live session' : `, ${row.date}`} — open the list of stocks`,
+                        } : {})}
                       >
                         {fmtCell(col, val)}
                       </td>

@@ -482,6 +482,16 @@
   text-underline-offset: 2px;
 }
 
+/* The cell is a real control now (role=button, one tab stop per row, arrows
+   along the row), so keyboard focus has to be VISIBLE. `:focus-visible` keeps
+   the ring off mouse clicks. An inset outline, because a table cell's outline
+   is otherwise clipped by the sticky header and the scroll container. */
+.drillable:focus-visible {
+  outline: 2px solid var(--ut-gold, #dcbb5e);
+  outline-offset: -2px;
+  color: var(--ut-gold, #dcbb5e);
+}
+
 .drillable:hover {
   text-decoration-color: var(--ut-gold, #dcbb5e);
   color: var(--ut-gold, #dcbb5e);
