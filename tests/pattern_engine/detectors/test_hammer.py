@@ -211,3 +211,134 @@ def test_no_reversal_context_never_fires():
         f"Paired control with strong hammer anatomy + reversal context should fire with "
         f"confidence >= 70.0, got {result_dn[0]['confidence']}"
     )
+
+
+# ---------------------------------------------------------------------------
+# ADR-scaled decline threshold — regression test
+# ---------------------------------------------------------------------------
+#
+# Independent blind-corpus evidence (lab/quality/blind_corpus/hammer,
+# case_0022/NBR) found the decline branch of the reversal-context gate
+# (dp >= _MIN_DECLINE_FOR_REVERSAL, a flat 5%) trivially satisfied by ordinary
+# day-to-day chop in a high-ADR name, letting a hammer-shaped candle fire
+# mid-uptrend on that branch alone — exactly the anti-pattern the gate's own
+# docstring warns against. Fixed by requiring the decline to also clear 2x the
+# stock's own trailing ADR when neither of the other two (stronger) context
+# signals (at_swing_low / below_50sma) holds.
+
+def test_high_adr_chop_alone_does_not_satisfy_decline_gate():
+    """A high-ADR (volatile) name's ordinary chop can rack up a flat-5% 15-bar
+    drawdown without ever being in a real downtrend — that alone must NOT
+    satisfy the reversal-context gate once ADR-scaling is applied.
+    """
+    T0 = 1700000000
+    DT = 86400
+
+    # 39-bar choppy, mildly-rising name with a large daily range relative to
+    # price (ADR ~3%, well above the 2.5% (=5%/2x) breakeven this test needs
+    # to disprove). Bar count stays < 49 so `_below_sma50` is trivially False
+    # (its own `i < 49: return False` guard) regardless of price level — the
+    # test only needs to isolate the decline branch. One deliberately deep
+    # "spike-low" bar sits inside the 10-bar swing-low lookback so the final
+    # bar's low is provably NOT the window minimum (a candle whose low IS the
+    # lowest in its own lookback trivially satisfies `_is_swing_low` by
+    # construction, which would confound this test with a different gate
+    # branch) — the final bar still clears the flat 5% decline floor against
+    # the 15-bar high, purely via ordinary chop amplitude.
+    bars = []
+    t = T0
+    base = 80.0
+    n = 39
+    for k in range(n):
+        mid = base + k * 0.03  # gentle uptrend drift
+        amp = 1.6  # +/- amplitude -> ~3.2 range on an ~81 base = ~4% single-bar range
+        if k % 2 == 0:
+            o, c, h, l = mid - 0.3, mid + amp * 0.5, mid + amp, mid - 0.4
+        else:
+            o, c, h, l = mid + 0.3, mid - amp * 0.5, mid + 0.4, mid - amp
+        bars.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": 1_000_000.0})
+        t += DT
+
+    spike_idx = len(bars) - 6  # inside the 10-bar swing-low lookback, ahead of the final bar
+    spike_mid = base + spike_idx * 0.03
+    bars[spike_idx] = {
+        "t": bars[spike_idx]["t"], "o": spike_mid, "h": spike_mid + 0.5,
+        "l": spike_mid - 12.0, "c": spike_mid + 0.2, "v": 1_000_000.0,
+    }
+
+    # Final bar: perfect hammer anatomy, engineered so recent_decline_pct (15-bar
+    # high to this bar's low) clears the flat 5% floor via ordinary chop alone.
+    last_high_15 = max(b["h"] for b in bars[-14:])
+    low_final = last_high_15 * 0.94  # ~6% drawdown from the 15-bar high
+    bars.append({
+        "t": t, "o": low_final + 0.30, "h": low_final + 0.35,
+        "l": low_final, "c": low_final + 0.50, "v": 2_000_000.0,
+    })
+
+    ctx = {
+        "trend_stage": 2, "rs_trend": "flat", "ma_alignment": "mixed",
+        "volume_signature": "neutral", "regime": "neutral",
+        "nearest_resistance": None, "nearest_support": None,
+        "days_to_earnings": None, "sector_strength_rank": None,
+    }
+
+    from api.services.pattern_engine.detectors.candlestick.hammer import (
+        _is_swing_low, _below_sma50, _recent_decline_pct, _adr_pct,
+    )
+    i = len(bars) - 1
+    assert not _is_swing_low(bars, i), "test construction: must not be at a swing low"
+    assert not _below_sma50(bars, i), "test construction: must not be below the 50-SMA"
+    assert _recent_decline_pct(bars, i) >= 0.05, "test construction: must clear the flat 5% floor"
+    assert _adr_pct(bars, i) >= 0.02, "test construction: must be a real high-ADR name"
+
+    result = detect_hammer(bars, ctx)
+    assert result == [], (
+        "REGRESSION: a high-ADR name's ordinary chop satisfying only the flat "
+        "5% decline floor (no swing low, no below-50sma) must NOT pass the "
+        "reversal-context gate once the decline requirement is ADR-scaled. "
+        f"Got {len(result)} detection(s)."
+    )
+
+
+def test_low_adr_flat_five_percent_decline_still_satisfies_gate():
+    """A quiet, low-ADR name should still qualify on the flat 5% floor alone
+    (2x its own tiny ADR is smaller than 5%, so the floor — not the ADR
+    multiple — is the binding constraint, same as before this fix)."""
+    T0 = 1700000000
+    DT = 86400
+    bars = []
+    t = T0
+    # Low-ADR (~1%) steady decline over 15 bars: 100 -> ~93 (7% decline),
+    # comfortably clearing the flat 5% floor while ADR*2 (~2%) does not bind.
+    for k in range(15):
+        px = 100.0 - k * 0.5
+        bars.append({
+            "t": t, "o": px + 0.1, "h": px + 0.5, "l": px - 0.5, "c": px, "v": 500_000.0,
+        })
+        t += DT
+    # Final bar: perfect hammer anatomy at the low.
+    px = 93.0
+    bars.append({
+        "t": t, "o": px + 0.20, "h": px + 0.25, "l": px - 1.20, "c": px + 0.40, "v": 900_000.0,
+    })
+
+    ctx = {
+        "trend_stage": 4, "rs_trend": "down", "ma_alignment": "stacked_bearish",
+        "volume_signature": "neutral", "regime": "bearish",
+        "nearest_resistance": None, "nearest_support": None,
+        "days_to_earnings": None, "sector_strength_rank": None,
+    }
+
+    from api.services.pattern_engine.detectors.candlestick.hammer import (
+        _adr_pct, _recent_decline_pct,
+    )
+    i = len(bars) - 1
+    assert _adr_pct(bars, i) < 0.02, "test construction: must be a genuinely low-ADR name"
+    assert _recent_decline_pct(bars, i) >= 0.05
+
+    result = detect_hammer(bars, ctx)
+    assert len(result) >= 1, (
+        "A low-ADR name's real decline clearing the flat 5% floor must still "
+        "satisfy the reversal-context gate (ADR-scaling must not raise the bar "
+        "for names where 2x ADR is smaller than the flat floor)."
+    )

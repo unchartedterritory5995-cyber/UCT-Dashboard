@@ -51,6 +51,8 @@ _BODY_TO_RANGE_MAX = 0.35
 _SCAN_LOOKBACK = 5
 _SWING_LOOKBACK = 10
 _MIN_DECLINE_FOR_REVERSAL = 0.05  # 5% recent drawdown required for reversal gate
+_ADR_LOOKBACK = 21
+_MIN_DECLINE_ADR_MULT = 2.0  # a decline must also clear 2x the stock's own ADR
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -71,16 +73,24 @@ def detect_hammer(bars: List[Bar], context: dict) -> List[Detection]:
         sw = _is_swing_low(bars, i)
         b50 = _below_sma50(bars, i)
         dp = _recent_decline_pct(bars, i)
+        adr = _adr_pct(bars, i)
 
         # Hard reversal-context gate (precondition — see docstring).
         # A hammer is a REVERSAL pattern: it is meaningless without a
         # reversal context. No matter how perfect the geometry or volume,
         # if the price is NOT in a reversal-friendly location this candidate
         # is discarded unconditionally.
+        #
+        # The decline branch is volatility-scaled: a flat 5% 15-bar drawdown
+        # is ordinary day-to-day chop for a high-ADR name (it does not, by
+        # itself, mean "a downtrend into support"), so the decline must also
+        # clear 2x the stock's own average daily range. A low-ADR name still
+        # only needs the flat 5% floor.
+        decline_threshold = max(_MIN_DECLINE_FOR_REVERSAL, _MIN_DECLINE_ADR_MULT * adr)
         has_reversal_context = (
             sw
             or b50
-            or dp >= _MIN_DECLINE_FOR_REVERSAL
+            or dp >= decline_threshold
         )
         if not has_reversal_context:
             continue  # anti-pattern: hammer in non-reversal location
@@ -173,6 +183,15 @@ def _below_sma50(bars: List[Bar], i: int) -> bool:
         return False
     sma = sum(closes) / len(closes)
     return bars[i]["c"] < sma
+
+
+def _adr_pct(bars: List[Bar], i: int) -> float:
+    """Average daily range (as a fraction of close) over the trailing window
+    ending at bar i — the stock's own typical day-to-day volatility."""
+    start = max(0, i - _ADR_LOOKBACK + 1)
+    window = bars[start:i + 1]
+    vals = [(b["h"] - b["l"]) / b["c"] for b in window if b.get("c")]
+    return sum(vals) / len(vals) if vals else 0.0
 
 
 def _recent_decline_pct(bars: List[Bar], i: int) -> float:
