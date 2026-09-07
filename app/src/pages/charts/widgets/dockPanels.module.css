@@ -877,3 +877,49 @@
 .vCur { width: 58px; text-align: right; font-weight: 700; font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .vAvg { width: 54px; text-align: right; color: var(--text-muted, #8b8574); font-size: 11px; font-variant-numeric: tabular-nums; }
 .vDelta { width: 42px; text-align: right; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PROTOTYPES (design study) — delete with prototypes.js if not approved.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── Overview · Business trend ──────────────────────────────────────────── */
+.btStrip { margin-top: 7px; }
+.btLabel {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); margin-bottom: 3px;
+}
+.btBars { display: grid; column-gap: 3px; height: 34px; }
+.btCol { min-width: 0; height: 34px; }
+.btSvg { width: 100%; height: 34px; display: block; }
+/* Reported = filled. Estimate = outline, never a fill: a projected year must
+   not be able to pass for a measured one at a glance. */
+.btPos { fill: var(--dock-up-text, #3fc885); }
+.btNeg { fill: var(--dock-down-text, #f1696e); }
+.btEst { fill: none; stroke: var(--accent, #c9a84c); stroke-width: 1; }
+.btZero { stroke: rgba(255, 255, 255, 0.16); stroke-width: 0.5; }
+.btAxis { display: grid; column-gap: 3px; margin-top: 4px; }
+/* Names only the two endpoints — enough to fix the strip's direction without
+   repeating the year list that sits directly beneath it. */
+.btEnds {
+  display: flex; justify-content: space-between; margin-top: 3px;
+  font-size: 8.5px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums;
+}
+.btYear {
+  font-size: 8.5px; text-align: center; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums; overflow: hidden;
+}
+.btYearEst { color: var(--accent, #c9a84c); }
+.btNote { margin-top: 6px; font-size: 9.5px; color: var(--text-muted, #cfcac0); }
+
+/* ── Financials · expanded metric trend ─────────────────────────────────── */
+.fmTrend {
+  margin: 2px 0 8px; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Earnings · reaction ────────────────────────────────────────────────── */
+.erChart { padding: 2px var(--et-pad, 12px) 0; }
+.erNote {
+  margin: 2px 0 0; padding: 0 var(--et-pad, 12px);
+  font-size: 9.5px; line-height: 1.45; color: var(--text-muted, #cfcac0);
+}

@@ -27,6 +27,8 @@ import useEarningsTable from '../../../hooks/useEarningsTable'
 import useOwnership from '../../../hooks/useOwnership'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
+import BusinessTrend from './BusinessTrend'
+import { PROTOTYPES } from './prototypes'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -199,6 +201,13 @@ export default function DockProfile({ sym }) {
   const { data: full } = useMobileSWR(sym ? `/api/fundamentals-full/${encodeURIComponent(sym)}` : null, jsonFetcher, { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false })
   const { data: fund } = useMobileSWR(sym ? `/api/fundamentals/${encodeURIComponent(sym)}` : null, jsonFetcher, { refreshInterval: 600000, dedupingInterval: 60000, revalidateOnFocus: false })
   const { data: earn } = useEarningsTable(sym || null)
+  // PROTOTYPE: Business trend reads the normalized ANNUAL series from
+  // earnings-intel (ungated, already company-cached, and already the shape the
+  // Earnings tab uses). The request is skipped entirely when the prototype is
+  // off, so the study costs a normal viewer nothing.
+  const { data: intel } = useMobileSWR(
+    PROTOTYPES && sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
+    jsonFetcher, { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false })
   const g = useGrowth(earn?.quarterly)
 
   // Two INDEPENDENT disclosures with different jobs: `More` opens the company
@@ -390,6 +399,9 @@ export default function DockProfile({ sym }) {
           <Row k="Short Float" v={fund?.short_pct_float != null ? `${num(fund.short_pct_float, 1)}%` : '—'} />
         </Group>
       </section>
+
+      {/* PROTOTYPE: one visual, after the numbers it summarises. */}
+      {PROTOTYPES && <BusinessTrend annual={intel?.annual} />}
 
       {/* ── Ownership snapshot ── */}
       <OwnershipSnapshot sym={sym} instPct={f.held_pct_institutions ?? fund?.inst_own_pct} insiderPct={f.held_pct_insiders} />
