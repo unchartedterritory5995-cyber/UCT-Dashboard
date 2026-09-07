@@ -286,6 +286,33 @@ def channel_width_parallel_score(
     return min(width_left, width_right) / max(width_left, width_right)
 
 
+def bar_ts(bars: list, idx: float) -> int:
+    """Real Unix timestamp for a bar-index-space value, bounds-checked.
+
+    Several classical detectors re-key pivots with `t = bar_index` before
+    calling `fit_trendline`/`fit_pair_parallel` (so the fitted slope is
+    price-per-bar, not price-per-second) — a deliberate, documented choice for
+    the internal fit. But the resulting Trendline's `p1`/`p2` "t" is still a
+    bar INDEX, and anything that reaches an externally-visible field
+    (`geometry.anchors[].t`, which the frontend feeds straight into
+    lightweight-charts' `timeToCoordinate`) needs the bar's REAL timestamp
+    instead — a small integer index there does not resolve to a point on the
+    time axis and the shape silently fails to render.
+
+    Mirrors the inline conversion `major_trendlines.py` already does by hand
+    (`p1_t_unix = int(bars[p1_bar_idx]["t"]) if 0 <= p1_bar_idx < len(bars)
+    else int(bars[-1]["t"])`) as one shared, reviewable helper. An
+    out-of-range index clamps to the last bar rather than raising — a fitted
+    line's endpoint is always one of the pivots/bounds that produced it, so
+    this should never trigger in practice; it exists only as the same
+    defensive fallback the precedent already uses.
+    """
+    i = int(idx)
+    if i < 0 or i >= len(bars):
+        i = len(bars) - 1
+    return int(bars[i]["t"])
+
+
 def polynomial_fit(xs: list[float], ys: list[float], degree: int) -> list[float]:
     """Fit a polynomial of given degree; returns coefficients [c_n, ..., c_1, c_0].
 

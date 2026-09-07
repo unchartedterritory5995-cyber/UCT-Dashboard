@@ -33,7 +33,7 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     compute_structure_quality, structure_extras, structure_geom_boost,
     structure_narrative_sentence,
 )
-from api.services.pattern_engine.primitives.geometry import price_at
+from api.services.pattern_engine.primitives.geometry import bar_ts, price_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.primitives.volume import volume_signature
@@ -523,10 +523,10 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": [
-                {"t": int(c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
-                {"t": int(c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
-                {"t": int(c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
-                {"t": int(c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
+                {"t": bar_ts(bars, c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
+                {"t": bar_ts(bars, c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
+                {"t": bar_ts(bars, c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
+                {"t": bar_ts(bars, c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
             ],
             "extras": {
                 "depth_pct": round(c["depth_pct"] * 100, 2),

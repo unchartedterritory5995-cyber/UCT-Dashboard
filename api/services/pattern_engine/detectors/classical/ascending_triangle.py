@@ -37,6 +37,7 @@ from api.services.pattern_engine.narrative_helpers_structure import (
     structure_narrative_sentence,
 )
 from api.services.pattern_engine.primitives.geometry import (
+    bar_ts,
     fractional_slope,
     price_at,
 )
@@ -558,10 +559,10 @@ def _build_detection(bars, c, confidence, context,
         "geometry": {
             "shape": "trendline_pair",
             "anchors": [
-                {"t": int(c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
-                {"t": int(c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
-                {"t": int(c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
-                {"t": int(c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
+                {"t": bar_ts(bars, c["upper_line"]["p1"]["t"]), "price": float(c["upper_line"]["p1"]["price"])},
+                {"t": bar_ts(bars, c["upper_line"]["p2"]["t"]), "price": float(c["upper_line"]["p2"]["price"])},
+                {"t": bar_ts(bars, c["lower_line"]["p1"]["t"]), "price": float(c["lower_line"]["p1"]["price"])},
+                {"t": bar_ts(bars, c["lower_line"]["p2"]["t"]), "price": float(c["lower_line"]["p2"]["price"])},
             ],
             "extras": {
                 "pattern_bars": c["pattern_count"],
