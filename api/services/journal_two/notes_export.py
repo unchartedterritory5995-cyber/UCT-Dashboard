@@ -258,6 +258,7 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
 
 
 _NOTE_LINK_MARKER = "internal-note-link://"
+_DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
 
 
 def _make_note_link_aware_resolver(
@@ -267,7 +268,10 @@ def _make_note_link_aware_resolver(
     parameter `_block`'s `noteLink` case calls also answers
     `internal-note-link://<id>` markers -- see that case's own comment for
     why this rides the existing single-resolver plumbing instead of a
-    second parameter threaded through 13 call sites.
+    second parameter threaded through 13 call sites. Wave J extends the
+    SAME plumbing for `document-excerpt://<id>` markers (directive §60-61 --
+    excerpt export is "a major requirement"): rather than a fourth resolver
+    parameter, one more marker prefix on the same mechanism.
 
     `note_paths`, when given, maps note id -> the RELATIVE .md path that
     note was (or will be) written to IN THIS SAME EXPORT (directive §57:
@@ -281,6 +285,20 @@ def _make_note_link_aware_resolver(
     note_paths = note_paths or {}
 
     def resolve(url: str | None):
+        if url and url.startswith(_DOCUMENT_EXCERPT_MARKER):
+            excerpt_id = url[len(_DOCUMENT_EXCERPT_MARKER):]
+            if not excerpt_id:
+                return None
+            row = conn.execute(
+                "SELECT e.captured_text, e.page_number, e.annotation, d.name"
+                " FROM j2_note_excerpts e JOIN j2_note_documents d ON d.id = e.document_id"
+                " WHERE e.id = ? AND e.user_id = ?",
+                (excerpt_id, user_id),
+            ).fetchone()
+            if row is None:
+                return None  # source document/excerpt no longer resolves -- omit, never fabricate
+            citation = f"{row['name'] or 'Document'}, p.{row['page_number']}"
+            return row["captured_text"], citation, row["annotation"]
         if not url or not url.startswith(_NOTE_LINK_MARKER):
             return base_resolver(url) if base_resolver else None
         note_id = url[len(_NOTE_LINK_MARKER):]
@@ -459,6 +477,24 @@ def _block(node: dict[str, Any], resolver=None) -> str:
             return "*[linked note]*"
         title, href = resolved
         return f"[{title}]({href})"
+    if ntype == "documentExcerpt":
+        # Wave J. Resolves via the SAME resolver parameter noteLink uses
+        # (document-excerpt://<id> marker, see
+        # _make_note_link_aware_resolver) -- a portable, human-readable
+        # blockquote + citation line, directive §61's own example shape
+        # ("> selected source text -- Document, p.17"), never an opaque
+        # UCT-only reference (directive §27).
+        excerpt_id = attrs.get("excerptId") or ""
+        resolved = resolver(f"{_DOCUMENT_EXCERPT_MARKER}{excerpt_id}") if resolver and excerpt_id else None
+        if resolved is None:
+            return "*[excerpt source no longer available]*"
+        quote, citation, annotation = resolved
+        lines = [f"> {ln}" for ln in quote.split("\n")]
+        lines.append(f"> — {citation}")
+        if annotation:
+            lines.append("")
+            lines.append(f"*{annotation}*")
+        return "\n".join(lines)
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -905,6 +941,7 @@ def _resolve_thesis_evidence_by_note(
     from api.services.journal_two import fact_registry
     note_targets = [r["target_id"] for r in rows if r["target_type"] == "note"]
     fact_targets = [r["target_id"] for r in rows if r["target_type"] == "fact"]
+    excerpt_targets = [r["target_id"] for r in rows if r["target_type"] == "document_excerpt"]
     note_titles: dict[str, str] = {}
     if note_targets:
         ph = ",".join("?" for _ in note_targets)
@@ -922,11 +959,25 @@ def _resolve_thesis_evidence_by_note(
         ).fetchall():
             fdef = fact_registry.get_fact_type(r["fact_type"])
             fact_labels[r["id"]] = f"{r['ticker']} {fdef.label if fdef else r['fact_type']}"
+    # Wave J: "{Document Name} p.{N}" -- the page-is-the-citation-unit
+    # convention (checkpoint decision 12), never an internal excerpt id.
+    excerpt_labels: dict[str, str] = {}
+    if excerpt_targets:
+        ph = ",".join("?" for _ in excerpt_targets)
+        for r in conn.execute(
+            f"SELECT e.id, e.page_number, d.name FROM j2_note_excerpts e"
+            f" JOIN j2_note_documents d ON d.id = e.document_id"
+            f" WHERE e.user_id = ? AND e.id IN ({ph})",
+            (user_id, *excerpt_targets),
+        ).fetchall():
+            excerpt_labels[r["id"]] = f"{r['name'] or 'Document'}, p.{r['page_number']}"
 
     out: dict[str, list[dict[str, str]]] = {}
     for r in rows:
         if r["target_type"] == "note":
             label = note_titles.get(r["target_id"])
+        elif r["target_type"] == "document_excerpt":
+            label = excerpt_labels.get(r["target_id"])
         else:
             label = fact_labels.get(r["target_id"])
         if label is None:

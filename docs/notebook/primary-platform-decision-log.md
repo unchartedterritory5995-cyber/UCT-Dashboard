@@ -1856,6 +1856,173 @@ duplicated here.
 
 ---
 
+## Wave J — Document Intelligence II: page-aware evidence, excerpts, highlights, annotations (2026-09-07)
+
+**The wave's framing was corrected at the directive level and that correction
+shaped every decision below.** Wave J was NOT organized around "we need OCR."
+OCR is a capability; the PRODUCT JOB is turning financial source documents
+into durable, citable research evidence. Everything built here serves that
+sentence, and OCR itself remains unbuilt and deliberately out of scope — no
+engine chosen, no privacy/cost model committed, and no private document sent
+to any external service.
+
+**The entry checkpoint's central question (what IS an excerpt) resolved as a
+first-class, note-content-independent row.** `j2_note_excerpts` stores the
+captured passage, its page, and a W3C-Web-Annotation-shaped text-quote
+selector (`quote_prefix`/`quote_suffix` robust, `char_start`/`char_end`
+supplementary). The excerpt is NOT a slice of note body JSON and NOT a
+derived view of the document text: it is evidence that outlives both. Its
+membership in a note is a sidecar (`j2_note_excerpt_refs`), mirroring the
+`j2_note_fact_refs` pattern Wave F established, so `list_note_excerpts` reads
+THROUGH the sidecar rather than by bare `note_id`.
+
+**Two captions, deliberately, because they answer different questions.**
+`j2_note_excerpts.annotation` is "why this passage matters" and travels with
+the excerpt anywhere it is used; `j2_thesis_evidence.caption` is "why it
+supports/opposes THIS thesis" and belongs to the edge, not the passage. This
+mirrors the Wave F/G precedent exactly rather than inventing a third model.
+
+**The Wave G extension point paid off as designed.** `j2_thesis_evidence`
+`target_type` was deliberately left an open string; adding `document_excerpt`
+was a one-line tuple change plus one `_target_exists` branch. No schema
+migration, no evidence-table redesign.
+
+**PDF.js replaced the Wave I iframe for exactly one measured reason.** Not
+because PDF.js is more sophisticated: an iframe viewer exposes ZERO selectable
+text to the host page (measured live, not assumed), so text capture — the
+whole wave — is impossible through it. PDF.js's canvas + `TextLayer` produces
+transparent positioned spans over the rendered page, and the native
+`Selection`/`Range` APIs work over them. `@tanstack/react-virtual` (already a
+dependency, previously unused) virtualizes the pages.
+
+### Five live-browser defects, none catchable by any test we could have written
+
+Every one was found by driving the real product in Chrome against a real
+multi-page financial PDF. Four were SILENT — the excerpt saved, the card
+appeared, and only the durability guarantee or the member's own attachment
+was quietly gone.
+
+1. **The text-quote anchor was empty for essentially every real excerpt.**
+   The page's canonical text was built as `items.map(i => i.str).join('')`
+   while the selection came from the browser, and those are not the same
+   string: pdfjs renders one `<span>` per item separated by `<br>`, so a
+   selection crossing a rendered line carries a newline the item-join never
+   had, and a wrapped line's items carry no trailing space (producing
+   "...the meaning ofthe Private..."). `indexOf()` therefore returned -1 for
+   any selection longer than one line — which is nearly every excerpt a member
+   would actually take — so `quote_prefix`, `quote_suffix`, `char_start` and
+   `char_end` ALL landed null, and the page highlight could never be redrawn.
+   **Resolution:** `_buildPageText` is now the single place either the page
+   text or its text-node offset map is derived, walking the real DOM so it
+   reproduces exactly what a selection returns; offsets are captured from the
+   live `Range` (`_offsetOfPoint`) rather than searched for, which is both
+   exact and immune to a repeated phrase. Measured after the fix on a real
+   two-line capture: `charStart` 261, `charEnd` 416, a real 200-character
+   context window on both sides, highlight drawn across both line boxes.
+2. **Saving an excerpt DELETED the attachment it came from.** Clicking a PDF
+   chip to open the preview leaves ProseMirror holding a `NodeSelection` on
+   that chip, and `insertContent` REPLACES the selection. Verified against the
+   persisted note body afterwards: the `attachmentChip` node was simply gone,
+   leaving `[documentExcerpt, paragraph]`. **Resolution:**
+   `insertContentAt(selection.to)`, which preserves a selected node and also
+   lands the excerpt immediately after the chip it came from.
+   `CaptureInboxTray` already guarded the same hazard and resolves it
+   differently (falling back to `'end'`) because a banked capture has no
+   anchor in the note; an excerpt does. Both reasons are recorded at both call
+   sites so the divergence reads as a decision, not a drift.
+3. **"Save excerpt" was a silent no-op on a PDF attached in the same
+   session.** `useNoteDocuments` is fetched at note-open and never
+   revalidates, so a document created after that had no resolvable id and the
+   handler returned early — on the single most likely path (attach a PDF, then
+   excerpt it). **Resolution:** the id is re-resolved from the server at save
+   time, and any failure past that point raises into the existing toast. It
+   can no longer fail silently.
+4. **Pages rendered at 3.02x on a wide viewport.** Fit-to-width against a
+   near-full-viewport preview Sheet turned a 612pt letter page into an 1883px
+   render: 72px body text, roughly one paragraph per screen, right edge
+   clipped. **Resolution:** fit-to-width capped at `MAX_PAGE_WIDTH` (960px,
+   just above the ~816px 96dpi natural size of a letter page).
+5. **The text layer's own dimensions were being silently dropped.** pdfjs's
+   `TextLayer` CONSTRUCTOR calls `setLayerDimensions`, which sets width/height
+   to `round(down, var(--total-scale-factor) * <pt>px, var(--scale-round-x))`
+   — and pdfjs declares no fallback for `--scale-round-*`, so with them unset
+   the entire expression is invalid and both dimensions are dropped. It looked
+   correct only because the text layer's `inset: 0` was covering for it, and
+   any width/height set before the constructor is clobbered a line later.
+   Found by reading `pdf.mjs`, not by watching it fail. **Resolution:** the
+   two custom properties are set alongside `--total-scale-factor`, exactly as
+   `pdf_viewer.css` sets them on `.pdfViewer .page`.
+
+Plus two smaller live findings folded into the same fix pass: stale highlight
+rects are now dropped before a re-render rather than painted at the old scale
+(caught after a viewport resize — gold bars sat a paragraph above the passage
+they marked; a highlight that briefly ISN'T there is honest, one that points
+at the wrong sentence is not), and the zero-width rect a `Range` yields at a
+`<br>` boundary is filtered out.
+
+**A defect I nearly reported and did not.** Several synthetic-drag and
+triple-click attempts produced no selection at all while ProseMirror held
+focus, which looked exactly like a focus-hijack defect in the preview Sheet.
+It is not: CDP does not deliver a real triple-click, and a synthetic drag
+whose endpoint lands outside a text node yields an empty selection. With both
+endpoints inside text, selection works with the editor focused. Recorded
+because "the tool's limitation looked like the product's bug" is a failure
+mode worth naming.
+
+### The last unwired slice, closed
+
+The excerpt FTS index, service and endpoint (`excerpt_search.py`,
+`GET /notes/excerpts/search`) shipped earlier in the wave with **zero
+callers** — precisely the "built, tested, green, and reachable from nothing"
+shape this repo's own reachability audit exists to catch. `useExcerptSearch`
+plus an Evidence section in the sidebar make it reachable. It is a THIRD
+section, never merged into Notes or Documents, for the reason the backend
+already gives: a passage a member deliberately kept is not the same kind of
+hit as a page the words happen to appear on, and ranking them against each
+other buries the curated one under the raw. Verified live: `margins` returns 4
+document pages and 1 saved excerpt, counted and rendered apart.
+
+### One deliberate behaviour change to a Wave G surface
+
+A `document_excerpt` thesis-evidence row previously showed its caption
+INSTEAD of its citation. Found in a live pass: a thesis with several captioned
+excerpts then reads as a list of sentences with no sources at all — and
+page-aware citation is this wave's entire point. The row now shows both,
+caption first, source dimmed behind it. The test that asserted the old
+behaviour was rewritten to state the new rule and why.
+
+### Explicitly NOT built (and why that is the right call)
+
+- **OCR** — no engine, no privacy model, no cost model. The `text_origin`
+  column is already shaped for `'ocr'`; nothing else was committed. Per the
+  directive: a private document must never be silently sent to an external
+  OCR/AI service, and that decision is not an implementation wave's to make.
+- **Ask Document / Ask Notebook / any semantic or vector retrieval** —
+  directive-scoped out.
+- **Pinch-zoom / a zoom control in the PDF viewer** — fit-to-width is honest
+  at 390px (verified: no horizontal overflow, page fits, highlight renders)
+  but a letter page at 0.52x is small. Recorded as debt, not built.
+- **Cross-page selection** — an excerpt is page-scoped by design
+  (`page_number` is a single column). A selection spanning a page boundary
+  offers no Save action rather than silently capturing half of it.
+
+### One consistency observation, deliberately not "fixed"
+
+`GET /notes/{id}/documents` returns 404 for a note the caller does not own,
+while `GET /notes/{id}/excerpts` returns `200 {"excerpts": []}`. Neither
+leaks: the excerpt list reads through the tenant-scoped sidecar, so an empty
+result is structural, and an empty 200 is exactly as non-confirming about the
+note's existence as a 404. Changing a shipped status code to make two
+endpoints look alike would be a contract change in service of symmetry, not
+correctness. Recorded so the next reader does not mistake it for an oversight.
+
+Verification detail (the live browser E2E sequence, each defect's exact
+reproduction, the mobile audit numbers) lives in
+`prelaunch-primary-notebook-build-plan.md`'s Wave J closure section, not
+duplicated here.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

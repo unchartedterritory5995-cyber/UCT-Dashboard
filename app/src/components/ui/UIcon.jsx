@@ -290,6 +290,15 @@ const ICONS = {
   paperclip: (
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   ),
+  // Wave J: a captured passage. Distinct from `document` on purpose — the
+  // Notebook's search sections its results Notes / Documents / Evidence, and
+  // two of those three reading as the same glyph would undo the sectioning.
+  quote: (
+    <>
+      <path d="M9.5 6.5C7 7.8 5.5 10 5.5 12.8v4.7h5.2v-5.2H8.2c0-1.8.7-3.2 2.2-4.2z" />
+      <path d="M18 6.5c-2.5 1.3-4 3.5-4 6.3v4.7h5.2v-5.2h-2.5c0-1.8.7-3.2 2.2-4.2z" />
+    </>
+  ),
 
   // ── Domain / misc ───────────────────────────────────────────────────────
   rocket: (

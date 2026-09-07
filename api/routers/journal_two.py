@@ -2628,6 +2628,95 @@ def search_note_documents_endpoint(
     } for r in rows]}
 
 
+# ── Wave J: excerpts / highlights / annotations ──────────────────────────────
+from api.services.journal_two import note_excerpts, excerpt_search
+
+
+@router.post("/notes/{note_id}/excerpts")
+def create_excerpt_endpoint(
+    note_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create one saved excerpt AND place its node in the destination note's
+    body in a single call -- the low-friction "select text -> Save excerpt"
+    flow never requires the client to separately open/edit the destination
+    note (checkpoint decision 20/21/22)."""
+    document_id = payload.get("documentId")
+    page_number = payload.get("pageNumber")
+    captured_text = payload.get("capturedText")
+    if not document_id or not isinstance(document_id, str):
+        raise HTTPException(status_code=400, detail="documentId is required")
+    try:
+        excerpt = note_excerpts.create_excerpt(
+            user["id"], note_id,
+            document_id=document_id,
+            page_number=page_number,
+            captured_text=captured_text,
+            quote_prefix=payload.get("quotePrefix"),
+            quote_suffix=payload.get("quoteSuffix"),
+            char_start=payload.get("charStart"),
+            char_end=payload.get("charEnd"),
+            annotation=payload.get("annotation"),
+        )
+    except note_excerpts.ExcerptValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"excerpt": excerpt}
+
+
+@router.get("/notes/{note_id}/excerpts")
+def list_note_excerpts_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"excerpts": note_excerpts.list_note_excerpts(user["id"], note_id)}
+
+
+@router.get("/excerpts/{excerpt_id}")
+def get_excerpt_endpoint(excerpt_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """A single excerpt, carrying its source document's attachment URL --
+    lets a thesis-evidence row (which only carries a bare `document_excerpt`
+    target id, possibly from a note whose body never inserted this excerpt
+    as a node) open the exact source page directly, with no second
+    document lookup."""
+    excerpt = note_excerpts.get_excerpt(user["id"], excerpt_id)
+    if excerpt is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"excerpt": excerpt}
+
+
+@router.patch("/excerpts/{excerpt_id}")
+def update_excerpt_endpoint(
+    excerpt_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The one editable field -- the annotation ("why this matters"), never
+    the captured source text itself (checkpoint decision 14/74)."""
+    updated = note_excerpts.update_excerpt_annotation(user["id"], excerpt_id, payload.get("annotation"))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"excerpt": updated}
+
+
+@router.get("/notes/excerpts/search")
+def search_excerpts_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Excerpt/annotation lexical search -- tenant-scoped, sectioned
+    separately from both note search and document-page search (never
+    blended into one score; see excerpt_search.py)."""
+    rows = excerpt_search.search_excerpts(user["id"], q, limit=limit)
+    return {"results": [{
+        "excerptId": r["excerpt_id"], "snippet": r["snippet"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "documentId": r["document_id"],
+        "documentName": r["document_name"], "pageNumber": r["page_number"],
+        "annotation": r["annotation"],
+    } for r in rows]}
+
+
 @router.get("/note-folders")
 def list_folders_endpoint(
     user: dict = Depends(get_current_user),

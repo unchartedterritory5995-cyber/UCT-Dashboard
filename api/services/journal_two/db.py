@@ -1064,6 +1064,123 @@ CREATE TRIGGER IF NOT EXISTS j2_note_document_pages_fts_ad AFTER DELETE ON j2_no
     WHERE document_id = old.document_id AND page_number = old.page_number;
 END;
 
+-- Wave J: an excerpt is BOTH the durable "saved passage" object and the
+-- in-document highlight -- one row serves both facets (checkpoint decision
+-- 15), never two storage systems. `note_id` mirrors j2_fact_observations'
+-- own note-owned shape (the destination chosen at save time, not
+-- necessarily the document's own owning note) so the SAME excerpt can be
+-- referenced by any of the user's theses via j2_thesis_evidence
+-- (target_type='document_excerpt'), exactly like a captured fact already
+-- can be today. `captured_text` is written once and never rewritten by a
+-- future re-extraction pass (checkpoint decision 14 -- source-text
+-- immutability; trust over reconstruction). `quote_prefix`/`quote_suffix`
+-- are the ROBUST re-anchor path (a text-quote-with-context selector, the
+-- same shape the W3C Web Annotation Data Model uses for the identical
+-- problem); `char_start`/`char_end` are a supplementary fast-path hint,
+-- never load-bearing alone (checkpoint decision 13/71). `annotation` is
+-- the excerpt's own SOURCE annotation ("why this passage matters",
+-- portable across every thesis that later cites it) -- deliberately
+-- distinct from j2_thesis_evidence.caption ("why THIS excerpt supports/
+-- opposes THIS particular thesis"), the same two-caption shape Wave F's
+-- fact.caption + Wave G's evidence.caption already coexist as today
+-- (checkpoint decision 16/75).
+CREATE TABLE IF NOT EXISTS j2_note_excerpts (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT NOT NULL,
+    note_id        TEXT NOT NULL,
+    document_id    TEXT NOT NULL,
+    page_number    INTEGER NOT NULL,
+    captured_text  TEXT NOT NULL,
+    quote_prefix   TEXT,
+    quote_suffix   TEXT,
+    char_start     INTEGER,
+    char_end       INTEGER,
+    annotation     TEXT,
+    created_at     TEXT NOT NULL,
+    modified_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_note
+    ON j2_note_excerpts(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_document
+    ON j2_note_excerpts(document_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_user
+    ON j2_note_excerpts(user_id);
+
+-- Note-content sidecar for documentExcerpt nodes -- SAME "rebuildable
+-- projection, never edited directly" contract as j2_note_fact_refs, kept
+-- in sync by notes._sync_note_excerpt_refs at the same call sites
+-- _sync_note_fact_refs already uses. `list_note_excerpts` reads THROUGH
+-- this sidecar (joined to j2_note_excerpts), not by j2_note_excerpts.note_id
+-- directly -- an excerpt row's own note_id is where it was ORIGINALLY
+-- saved (ownership, for cascade-delete purposes); this sidecar is what's
+-- CURRENTLY placed in a given note's body right now, and can include an
+-- excerpt originally saved elsewhere (mirrors j2_note_fact_refs exactly).
+CREATE TABLE IF NOT EXISTS j2_note_excerpt_refs (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    position    INTEGER NOT NULL,
+    excerpt_id  TEXT NOT NULL,
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpt_refs_excerpt
+    ON j2_note_excerpt_refs(excerpt_id);
+CREATE TRIGGER IF NOT EXISTS j2_notes_excerpt_refs_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_excerpt_refs WHERE note_id = old.id;
+END;
+
+-- Cascade from the NOTE the excerpt was saved into (mirrors every other
+-- note-owned sidecar table).
+CREATE TRIGGER IF NOT EXISTS j2_notes_excerpts_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_excerpts WHERE note_id = old.id;
+END;
+-- Cascade from the SOURCE DOCUMENT: if the document is genuinely gone, a
+-- citation still claiming it exists would be dishonest (checkpoint
+-- decision 57) -- any note/thesis-evidence row still referencing a deleted
+-- excerpt id degrades via the same "no longer available" pattern
+-- FinancialFactView already established for a deleted fact, not a new UX
+-- idiom invented for this.
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_excerpts_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_excerpts WHERE document_id = old.id;
+END;
+
+-- Standalone FTS5 mirror over captured_text + annotation, same rowid-map
+-- pattern j2_notes_fts_map/j2_note_document_pages_fts_map already establish
+-- for a TEXT-primary-keyed source table (an excerpt id has no stable
+-- implicit rowid either).
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_note_excerpts_fts USING fts5(
+    excerpt_id UNINDEXED,
+    user_id UNINDEXED,
+    text,
+    tokenize = 'porter unicode61'
+);
+CREATE TABLE IF NOT EXISTS j2_note_excerpts_fts_map (
+    excerpt_id  TEXT PRIMARY KEY,
+    fts_rowid   INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_ai AFTER INSERT ON j2_note_excerpts BEGIN
+    INSERT INTO j2_note_excerpts_fts(excerpt_id, user_id, text)
+    VALUES (new.id, new.user_id, new.captured_text || ' ' || COALESCE(new.annotation, ''));
+    INSERT INTO j2_note_excerpts_fts_map(excerpt_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+-- Annotation edits update the FTS row in place (delete + reinsert at the
+-- SAME map entry) rather than leaving a stale annotation searchable
+-- forever -- captured_text itself never changes after insert (immutability,
+-- checkpoint decision 14), so only the annotation half of this trigger's
+-- own concatenation can ever actually differ between INSERT and UPDATE.
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_au AFTER UPDATE OF annotation ON j2_note_excerpts BEGIN
+    DELETE FROM j2_note_excerpts_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id);
+    INSERT INTO j2_note_excerpts_fts(excerpt_id, user_id, text)
+    VALUES (new.id, new.user_id, new.captured_text || ' ' || COALESCE(new.annotation, ''));
+    UPDATE j2_note_excerpts_fts_map SET fts_rowid = last_insert_rowid() WHERE excerpt_id = new.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_ad AFTER DELETE ON j2_note_excerpts BEGIN
+    DELETE FROM j2_note_excerpts_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id);
+    DELETE FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id;
+END;
+
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
 -- row so a revoked link stays dead instead of being re-mintable by accident.

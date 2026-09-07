@@ -20,6 +20,7 @@ import { NoteFind } from './noteFindExtension'
 import { NoteLink } from './noteLinkNode'
 import { NoteLinkMenuExtension } from '../components/notebook/NoteLinkMenu'
 import { FinancialFact } from './financialFactNode'
+import { DocumentExcerpt } from './documentExcerptNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
@@ -78,6 +79,7 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // WidgetEmbed/NoteLink above -- TipTap drops unknown node types at parse
     // time.
     FinancialFact,
+    DocumentExcerpt,
   ]
 }
 
@@ -143,6 +145,7 @@ export function extractPlainText(doc) {
     if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
     if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
     if (node.type === 'attachmentChip') out.push(`[file: ${node.attrs?.name || 'file'}]`)
+    if (node.type === 'documentExcerpt') out.push('[excerpt]')
     // searchText is derived from the registry at the only moments params
     // change (buildWidgetEmbedAttrs) — both serializers read the stored line.
     if (node.type === 'widgetEmbed') out.push(node.attrs?.searchText || '[widget]')

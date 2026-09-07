@@ -13,6 +13,14 @@ vi.mock('../../lib/noteCreation', () => ({
   createNoteFromTemplateViaApi: (...a) => createNoteFromTemplateViaApi(...a),
 }))
 
+// Wave J: this workspace's document rows open DocumentPreviewSheet, which now
+// renders PdfDocumentViewer (real pdfjs-dist -- Worker/Canvas2D/ReadableStream,
+// none of which jsdom implements). Mocked here exactly as
+// DocumentPreviewSheet.test.jsx and NoteEditorPage.*.test.jsx already do, so
+// this file's own concern (does a READY row open the preview at all) stays
+// isolated from PDF rendering, which is live-browser-verified instead.
+vi.mock('./PdfDocumentViewer', () => ({ default: () => <div data-testid="pdf-viewer-stub" /> }))
+
 import TickerResearchWorkspace from './TickerResearchWorkspace'
 
 const EMPTY_SUMMARY = {
@@ -125,7 +133,11 @@ describe('TickerResearchWorkspace', () => {
     renderWorkspace({ onOpenNote })
     fireEvent.click(screen.getByText('report.pdf'))
     expect(onOpenNote).not.toHaveBeenCalled()
-    expect(screen.getByTitle('Preview of report.pdf')).toBeTruthy()
+    // Wave J: DocumentPreviewSheet no longer renders an <iframe title="...">;
+    // it renders PdfDocumentViewer inside a Sheet whose dialog carries the
+    // aria-label. Same assertion swap already applied in
+    // NoteEditorPage.attachments.test.jsx and DocumentPreviewSheet.test.jsx.
+    expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeTruthy()
   })
 
   it('a PENDING document shows "Processing…" and clicking it opens the owning note instead', () => {

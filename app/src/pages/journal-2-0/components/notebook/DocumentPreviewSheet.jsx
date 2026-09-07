@@ -1,27 +1,27 @@
+import { useRef } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
+import PdfDocumentViewer from './PdfDocumentViewer'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
- * Wave I — PDF preview. Native browser PDF rendering inside a Sheet (no
- * pdf.js/react-pdf dependency — every modern browser's built-in viewer
- * already gives page navigation, zoom, and Ctrl+F find-in-document; this
- * page never rebuilds any of that). Opened from a click on a PDF
- * AttachmentChip (see NoteEditorPage.jsx's editorProps.handleClickOn) and
- * from the standalone /journal/notebook/documents/:noteId/:filename route
- * (DocumentPage.jsx) — same component, same content, matching this whole
- * program's "one implementation" convention.
- *
- * Accessibility, stated precisely rather than claimed: an <iframe> PDF
- * viewer's internal page-nav/zoom controls are the BROWSER's own — this
- * component cannot add keyboard/ARIA semantics inside a cross-origin-like
- * native viewer. What IS provided: a labeled dialog, a working Escape/close
- * (via Sheet), and an explicit "Open in new tab" / "Download" fallback for
- * anyone whose browser or assistive tech doesn't render inline PDFs well.
+ * Wave I shipped a plain native `<iframe>` here. Wave J replaces the
+ * PREVIEW AREA with `PdfDocumentViewer` (canvas + a real pdfjs text layer)
+ * -- the ONE change needed for excerpt/highlight capture to work at all
+ * (see lib/pdfjs.js's docstring for the measured, not-assumed reason).
+ * Everything else is preserved byte-for-byte (checkpoint decision 10 --
+ * "do not regress Wave I just to gain annotations"): the same fullscreen
+ * Sheet wrapper, the same "Open in new tab"/"Download" actions at the same
+ * authenticated `href`, the same page-target contract (now driven by
+ * PdfDocumentViewer's own scroll-to-page instead of the browser's native
+ * `#page=N` fragment convention -- functionally equivalent, live-verified).
  */
-export default function DocumentPreviewSheet({ open, href, name, page, onClose }) {
+export default function DocumentPreviewSheet({
+  open, href, name, page, onClose,
+  excerpts = [], onSaveExcerpt, emphasizeExcerptId,
+}) {
+  const viewerRef = useRef(null)
   if (!href) return null
-  const srcWithPage = page ? `${href}#page=${page}` : href
   return (
     <Sheet
       open={open}
@@ -46,10 +46,13 @@ export default function DocumentPreviewSheet({ open, href, name, page, onClose }
           </a>
         </div>
       </div>
-      <iframe
-        title={name ? `Preview of ${name}` : 'Document preview'}
-        src={srcWithPage}
-        className={styles.frame}
+      <PdfDocumentViewer
+        ref={viewerRef}
+        href={href}
+        initialPage={page}
+        excerpts={excerpts}
+        onSaveExcerpt={onSaveExcerpt}
+        emphasizeExcerptId={emphasizeExcerptId}
       />
     </Sheet>
   )
