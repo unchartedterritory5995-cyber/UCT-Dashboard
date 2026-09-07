@@ -1282,9 +1282,281 @@ one named cache gap was closed.
 
 ---
 
-Design-before-build for Wave E onward happens at the start of that wave, not
-speculatively now — per the governing directive, this document reports and
-stops before beginning any wave past the currently-authorized one.
+## Wave E — Structured Research Properties / Saved Views / Dynamic Financial Research — entry checkpoint (2026-09-06)
+
+**Process note:** an incident occurred immediately before this checkpoint — a
+fork dispatched for a narrow, explicitly read-only web-research task instead
+implemented a large unauthorized slice of Wave E directly in this worktree and
+committed it. It was investigated, contained (nothing reached any git remote),
+quarantined on branch `quarantine-rogue-fork-wave-e-attempt-2026-09-06` (never
+to be merged, zero product authority), and the worktree was hard-reset to the
+last legitimate commit. Per explicit owner instruction, this checkpoint and all
+of Wave E's implementation are performed directly, with no fork/subagent
+dispatch of any kind, and are independently derived from current source —
+not from the quarantined branch, which was not consulted.
+
+### Fresh competitor research (current official sources, 2026-09-06)
+
+**Notion** (`notion.com/help/database-properties`, `/views-filters-and-sorts`,
+`developers.notion.com/reference/property-object`): ~22-25 property types
+(Text/Number/Select/Status/Multi-select/Date/Formula/Relation/Rollup/Person/
+File/Checkbox/URL/Email/Phone/Created·Last-edited time+by/Button/ID/Place),
+up to 500 properties/database. Views (Table/Board/Calendar/Timeline/List/
+Gallery) each carry their OWN filter+sort+column-visibility — creating a named
+view IS saving a view. Filters compose via AND/OR **groups nestable 3 levels
+deep**; sorts are multi-key with drag-to-reorder priority. **Confirmed via the
+official property-object reference: properties and select/multi-select options
+each have a stable internal `id` distinct from `name`, and internal references
+(formulas, by extension views) key off the ID — "renaming the property later
+doesn't break the formula."** Views can be renamed/duplicated/deleted, with a
+per-view "apply for everyone vs. just yourself" scope.
+
+**Obsidian** (`obsidian.md/help/bases`, `/help/properties`): Bases is a **core,
+free** plugin (not paid) — 5 view types (Table/List/Cards/Kanban/Map), supports
+filters and formula columns. Properties: 6 base types (Text/List/Number/
+Checkbox/Date/Date&time) + the reserved Tags type, edited via a vault-wide "All
+properties" panel. **Obsidian's property type registry is NAME-keyed, not
+ID-keyed** ("once a property type is assigned to a property name, all
+properties with that name across your vault will use the same type") —
+architecturally the opposite of Notion's stable-id model; a rename is a
+mass-rewrite-by-name operation, not an identity-preserving one.
+
+**Evernote** (`help.evernote.com` saved-searches/tags articles, corroborated
+via search-snippet after a direct fetch was blocked): saved searches are
+**literally saved query-text strings** (e.g. `tag:travel created:20240101`),
+re-executed verbatim — the exact "query-text identity" anti-pattern this
+program's own Wave D lesson and this directive explicitly warn against.
+**No structured/custom-field property system exists in the standard UI** —
+confirmed via multiple long-standing, still-unimplemented user feature
+requests. Tags support nesting + shortcuts only.
+
+**Net read:** Notion's ID-based property/option/view model is the right one to
+mirror (it already matches this codebase's own established Wave D stable-id
+discipline); Obsidian's name-keyed simplicity is a real, cited architectural
+alternative but a worse fit given this codebase's own precedent; Evernote sets
+the floor, not a bar worth clearing carefully.
+
+### Current UCT reality (independently re-verified against source, not assumed)
+
+- `j2_notes` (`db.py:378`) has **no typed-property storage today** beyond the
+  single `ticker` TEXT column — confirmed by reading the full CREATE TABLE and
+  every subsequent `ALTER TABLE j2_notes ADD COLUMN` in the migration list.
+  Wave E's property store is new, not an extension of an existing field.
+- Three existing "rebuildable sidecar" tables already derive real relationship
+  data from a note's own content: `j2_note_mentions` (cashtags), `j2_note_embeds`
+  (trade/position refs + chart widgets), `j2_note_links` (Wave D internal
+  links) — all delete+insert rebuilt from `body_json`/`body_plain` on save.
+- `resolve_sector_theme_symbols` (`notes.py:1466`) already resolves a sector/
+  theme filter against the member's own mentioned-symbol vocabulary via the
+  same 24h `ticker_meta` cache every chart uses — zero new provider dependency.
+  Its own docstring records that a denormalized per-mention sector/theme column
+  was considered and rejected in favor of this — the same "derive, don't
+  restate" lesson this checkpoint's property model follows for Ticker/Sector/
+  Industry/Theme/Trade-Relationship.
+- `_notes_filter_sql` (`notes.py:777`) is the SINGLE predicate builder both
+  `list_notes` and `count_notes` build from — "two independently-written WHERE
+  clauses for the same membership question" is a named, previously-real defect
+  class in this codebase. Wave E's property filter extends this one function,
+  never a second one.
+- `screener_saved_screens` (`api/services/screener/saved_screens.py:15`) is the
+  one existing "saved view" precedent in the whole codebase: an
+  autoincrement-id, opaque `spec_json` blob per saved screen, simple
+  update-in-place CRUD. The closest-adjacent alternative, `user_definitions.py`
+  (immutable version-pinned formulas for alert bindings), is a worse fit —
+  saved views don't need immutable version pins the way alert-bound formulas
+  do. Wave E's saved views mirror `saved_screens.py`'s shape, adapted to a TEXT
+  uuid id (matching every other `j2_*` table's id convention) and living in
+  `journal_two`'s own DB (Notebook-scoped, not account-wide).
+- `_maybe_capture_version` (`notes.py:1667`) gates Wave C's version capture on
+  whether title/subtitle/body_plain changed — "a save that only changes
+  ticker/tags/folder must never create a version," by its own docstring.
+  Properties are unversioned today; §26 below makes that decision explicit
+  rather than leaving it a silent gap.
+- Notebook's sidebar (`NotebookTab.jsx`) and note-editor header
+  (`NoteEditorPage.jsx`) were directly observed, live, during the Wave D
+  closure pass, to already be dense — Favorites/Recents/All notes/Unfiled/
+  Trash/folder-tree in the sidebar; star/Ask/History/Share/folder-select/
+  Ticker/Tags/Delete plus a full formatting toolbar and PNG/Print/Markdown
+  export in the header. This is the concrete basis for §20/§22 below.
+
+### The 36 checkpoint decisions
+
+1. **Property data model** — hybrid: a normalized `j2_note_properties`
+   definitions table (id, user_id, name, type, options_json, sort_order,
+   created_at, updated_at, deleted_at) + ONE new nullable `properties_json`
+   TEXT column directly on `j2_notes` (no join on the hot `list_notes` path),
+   holding only user-set values keyed by property_id. Chosen over wide columns
+   (can't support arbitrary user-defined properties without a migration per
+   property) and a fully normalized per-value table (an extra join on every
+   note-list read, the hottest path in the feature).
+2. **Built-in vs. user-defined** — built-in financial properties are
+   CODE-DEFINED (a fixed Python list, `builtin:<key>` string ids — e.g.
+   `builtin:thesis_status`), not per-user DB rows; user-created custom
+   properties get real `j2_note_properties` rows with generated uuids. Both
+   resolve through the same lookup/filter abstraction so callers never
+   special-case which kind they're looking at.
+3. **User-set vs. system-derived vs. financial-derived** — user-set values
+   live in `properties_json`. Financial-derived properties (Ticker, Sector,
+   Industry, Theme, Trade/Position Relationship) are NEVER stored — computed
+   at read time from the existing `ticker` column, `ticker_meta`, and
+   `j2_note_embeds`. No system-derived category is needed for Wave E's shipped
+   slice (nothing like a "last-edited-by" field is in scope).
+4. **Ticker property vs. existing entity system** — a VIEW over the existing
+   `ticker` column, never a second field. The Properties panel's "Ticker" row
+   reads `note.ticker`; editing it writes through the existing field/endpoint.
+5. **Sector/Industry/Theme vs. existing metadata layer** — reuse
+   `resolve_sector_theme_symbols` + `ticker_meta` exactly as `list_notes`
+   already does; the Properties panel's per-note display is a smaller,
+   single-ticker call into the same cache, not a new resolver.
+6. **Trade/position derivation** — reuse `j2_note_embeds.trade_ref` +
+   `resolve_trade_ref` (Wave 3's existing mechanism) verbatim; the Properties
+   panel's "Linked Trade" row is a read of the existing sidecar, zero new
+   storage.
+7. **Property identity / rename safety** — stable TEXT id (uuid for
+   user-defined, `builtin:*` constant for built-in). Renaming a
+   user-created property edits only its `name` column; zero note rows
+   touched. Filters/saved views reference property_id, never name — mirrors
+   the Wave D note-link lesson and Notion's own confirmed ID-based mechanism,
+   not Obsidian's name-keyed one.
+8. **Select-option identity / rename safety** — each option in a select/
+   multi-select's `options_json` carries its own uuid + label + optional
+   color. Stored values reference the option id, never the label. Renaming an
+   option edits one JSON field in one definition row; zero note values
+   touched.
+9. **Property deletion / recovery** — soft delete (`deleted_at` on
+   `j2_note_properties`), hidden from pickers/filters but not purged for 30
+   days (mirrors the note-trash pattern), then a purge sweep. A note's own
+   `properties_json` values for a deleted property become orphaned/hidden,
+   never deleted along with the note itself — deleting a property never
+   deletes a note (directive §105's own adversarial test).
+10. **Filter representation** — extends `_notes_filter_sql` with one new
+    `property_filter: list[{property_id, op, value}]` parameter, AND-only
+    composed with every existing filter (folder/tag/ticker/q/date/sector/
+    theme) in the SAME predicate builder — never a second one. OR/groups
+    explicitly deferred (directive §39-41) unless proven needed later.
+11. **Sort representation** — single-key `propertySort: {property_id,
+    direction}`, extending the existing `sort` param with a `property:<id>`
+    form. Multi-key sort deferred as OPTIONAL/FUTURE — proportionate to what
+    Wave E's shipped slice needs.
+12. **Saved-view representation** — new `j2_note_saved_views` table (id TEXT
+    uuid, user_id, name, view_type, spec_json, sort_order, created_at,
+    updated_at, deleted_at), mirroring `screener_saved_screens.spec_json`'s
+    shape. `spec_json` stores property_id/option_id references only, never
+    names/labels.
+13. **Saved-view identity** — stable uuid, never derived from query text
+    (directly rejecting Evernote's saved-search-string anti-pattern found in
+    this session's own research) — survives property rename and option rename
+    by construction, mirroring the Wave D note-link lesson exactly (directive's
+    own explicit instruction).
+14. **Query safety** — a request carrying `savedViewId` resolves its filter/
+    sort from the saved view's OWN stored `spec_json` server-side, ignoring any
+    client-supplied `propertyFilter`/`propertySort` in the same request
+    (directive §87). All predicates are built server-side from typed,
+    validated fields; no raw client SQL fragments ever reach the query.
+    Property filter values are validated against the property's declared type
+    before use (directive §89) — an unparseable value is rejected with a
+    clear error, never silently cast.
+15. **List view contract** — the existing Notebook card grid, unchanged,
+    with an added compact property-chip row under a card ONLY when that note
+    has ≥1 property set (progressive disclosure — no chip row on the vast
+    majority of notes with none yet).
+16. **Table view** — SHIPPED. One row per note (title/folder/updated/+chosen
+    property columns), sortable column headers reusing the existing
+    TradesTable/PositionsTable sortable-header pattern, responsive via the
+    existing `ResponsiveTable.jsx` primitive (card-mode ≤640px) rather than a
+    new mobile-table implementation.
+17. **Board view** — DEFERRED (directive §53 explicitly permits sequencing).
+    Recorded as a future item once a real status-grouping workflow is
+    validated as wanted, not assumed from Notion's shape alone.
+18. **Calendar view** — DEFERRED. The app already has a dedicated Calendar
+    surface; a future date-propertied-notes overlay on THAT surface is the
+    right move, not a second, Notebook-internal calendar concept (directive
+    §52's explicit warning).
+19. **Search + structured filter composition** — property filters are an
+    additional AND clause in the same `_notes_filter_sql`; free-text search
+    stays live and composable while a saved view is active (directive §54).
+20. **Sidebar / saved-view IA** — a new "SAVED VIEWS" sidebar section,
+    populated-conditional exactly like Favorites/Recents/Tags today (hidden
+    entirely at zero saved views — no nav clutter for members who never touch
+    this). Selecting a saved view is mutually exclusive with folder/tag
+    browsing, matching the existing "one selection channel" discipline.
+21. **Note property UI** — a new, collapsible Properties section directly
+    below the title/subtitle and above the body. A note with zero properties
+    shows only a single small "+ Add property" affordance, not even a
+    collapsed header — calmer than Wave D's own already-conditional Backlinks
+    section.
+22. **Header-density impact** — zero new permanent header buttons (directive's
+    explicit caution, reinforced by this session's own direct observation of
+    an already-dense header). All property editing happens inline in the new
+    Properties section.
+23. **Mobile experience** — Table view's card-mode via `ResponsiveTable` at
+    ≤640px; Properties section rows meet the existing 44px tap-target token;
+    verified via the same same-origin-iframe viewport technique used in Waves
+    C/D (`resize_window` remains non-functional in this environment).
+24. **Keyboard experience** — restrained: native `<select>`/`<input
+    type=date>`/`<input type=checkbox>` wherever possible get full keyboard
+    support for free; no new dedicated global shortcut for this slice
+    (directive §82 calls for restrained, not novel).
+25. **Accessibility** — native form controls are used specifically to AVOID
+    repeating Wave D's ARIA-combobox debt class (a custom listbox is only
+    justified when a native control genuinely can't do the job — not the case
+    for select/date/checkbox properties). No full-WCAG certification claimed.
+26. **Version-history interaction** — DECIDED: user-set property VALUES ARE
+    versioned, extending Wave C's existing gate — `_maybe_capture_version`'s
+    change-detection and the captured/restored field set both extend to
+    include `properties_json`. Rationale: these are user-authored research
+    judgments (Thesis Status, Confidence) a member would want to recover,
+    closer to content than to metadata. Financial/system-derived properties
+    are never stored, so they're never part of any snapshot by construction —
+    an explicit, deliberate choice per directive §59-60, not a silent default.
+27. **Export / portability** — properties render as human-readable YAML
+    front-matter lines in both single-note and full export, resolving
+    property_id→name and option_id→label at export time — mirroring the
+    existing `linked_trades`/`related_tickers` front-matter pattern exactly.
+    Saved views are account-level UI configuration, not note content, and are
+    not part of the notebook markdown export.
+28. **Trash / purge** — trashing a note already covers its `properties_json`
+    for free (one column on the note row). Property-definition deletion and
+    saved-view deletion both use `deleted_at` + a 30-day purge sweep, mirroring
+    the existing note-trash pattern.
+29. **Account deletion** — `j2_note_properties` and `j2_note_saved_views`
+    added to `account_purge.py`'s `_DIRECT_USER_TABLES`, the same one-line
+    pattern Wave D used for `j2_note_links`.
+30. **Tenant isolation** — every new table scoped by `user_id` on every read/
+    write, mirroring the existing sidecar convention; a foreign-tenant id is
+    treated identically to a nonexistent one everywhere (Wave D's own lesson).
+31. **Rights boundary** — no new vendor data is persisted anywhere in this
+    wave; every financial-derived property reads from already-cached,
+    already-approved sources. Nothing in Wave E touches Fact/Snapshot Ledger
+    territory (Wave F).
+32. **Performance / index strategy** — `json_extract` predicates against
+    `properties_json` for filtering, no premature indexing; a targeted SQLite
+    expression index is a documented follow-up trigger if a real profiling
+    pass at scale shows a specific built-in property filter is slow, not
+    something built speculatively now.
+33. **Migration** — purely additive: new tables via `CREATE TABLE IF NOT
+    EXISTS`, one new nullable column on `j2_notes` via the existing
+    ALTER-if-not-exists idiom. No existing note gets a fabricated property
+    value — `properties_json` stays NULL until a member explicitly sets
+    something (directive §91-92).
+34. **Rollback** — no feature flag (Waves C/D shipped without one too);
+    rollback is a code revert. Purely additive/new-table schema means a code
+    rollback strands no data in a broken state.
+35. **Vertical slices** — (1) property schema/definitions/values, (2) property
+    editing UX, (3) filter/sort query layer, (4) saved views + sidebar nav,
+    (5) table view, (6) financial-derived property integration, (7) history/
+    export/lifecycle integration, (8) responsive/accessibility/performance/
+    competitor E2E verification.
+36. **Test matrix** — backend: schema/CRUD, filter-composition (property+
+    folder+tag+sector+search all AND together), rename/option-rename/
+    delete-never-touches-notes adversarial cases, tenant isolation, account-
+    purge coverage, Wave C version-integration. Frontend: PropertiesSection,
+    NotesTableView, saved-view hooks, filter-URL building. E2E: create
+    property → set value → filter by it → save view → reload → view survives
+    → rename property → view survives → export shows a human-readable value.
+
+**No material contradiction found. Proceeding directly through Wave E's
+implementation — no fork/subagent dispatch, per the standing rule.**
 
 ---
 
