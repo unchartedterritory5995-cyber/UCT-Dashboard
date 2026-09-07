@@ -10,9 +10,8 @@ inside UCT.*
 capabilities. A gap is only listed once, in the layer where the fix belongs.
 
 **Status of this document.** Part A (architecture-derived gaps) is complete and every claim is
-code-verified with a `path:line` citation. Part B (per-gap OOS script counts) is populated from
-the OOS-2 baseline; rows carrying `[OOS PENDING]` were written before that run and must be
-filled, never estimated.
+code-verified with a `path:line` citation. Part B now carries the OOS-2 measured demand
+(freeze `5df718c2`, n=60). Part D adds the four defects the baseline itself surfaced.
 
 ---
 
@@ -283,8 +282,45 @@ Derived from the register, not from a preferred plan:
 
 ---
 
+---
+
+## PART D — GAPS THE OOS-2 BASELINE ITSELF SURFACED (2026-09-07)
+
+None of these was visible from architecture reading. Each was found by running a blind corpus
+and then verifying the mechanism directly.
+
+| ID | Gap | Layer | Sev | Evidence |
+|---|---|---|---|---|
+| **C-01** | **`readsBars` asserts bar-reading for ANY `call` node without inspecting its arguments**, so a constant-valued call (`max(8, 42)`) is never hidden, counts as usable, and can make a whole script `ok:true`. | EXEC | **S1** | `pine.js:8175`; probe: `readsBars(max(8,42)) === true`, `readsBars(20-(7-5)*4) === false` |
+| **C-02** | **Acceptance can rest on a contentless output.** 3/60 scripts accepted after every meaningful series was correctly refused — 1 on two constants, 2 on bare `open/high/low/close` from `plotcandle`. In one, the *selected* output is `open`. | IMPORT | **S1** | OOS-2 §4; 3 independent adjudicators, 18 FAITHFUL / 3 MISLEADING |
+| **C-03** | **A refusal that names the wrong cause.** `f(...).field` (Pine v6 method/UDT access) trips the lexer's character guard and reports *"Pine has no character like this one"* on valid source. | IMPORT + UX | S2 | 4/60; probe-isolated |
+| **C-04** | **A silent decline.** `ok:false` with `refusal:null` — no message at all — when a script's only `plot()` is the `plot(0)` placeholder table indicators conventionally carry. | UX | S2 | 1/60, `long_tail__17` |
+
+**C-02 is causally downstream of V-02.** `plotcandle`'s entire payload is its `color=` argument;
+because presentation is discarded at the door, the call degenerates into four raw price columns
+that read bars honestly and carry nothing. Fixing V-02 removes half of C-02 at the root.
+
+### Measured demand behind Part A's clusters (n=60, source-only)
+
+| Cluster | Primitive | scripts | call sites |
+|---|---|---:|---:|
+| 3 | `label`/`line`/`box`/`table` objects (V-24) | **43/60** | **1204** |
+| 2 | dynamic colour (V-12) | **40/60** | — |
+| 1 | `plot()` styling carried by nobody (V-02…V-05) | 33/60 | 195 |
+| 3 | `plotshape`/`char`/`arrow` (V-22) | 19/60 | 69 |
+| 2 | `fill()` — schema-inert (V-10) | 17/60 | 35 |
+| 3 | `bgcolor`/`barcolor` (V-20/21) | 17/60 | 24 |
+| 1 | `hline()` dropped at import (V-07) | 10/60 | 19 |
+| 3 | `plotcandle`/`plotbar` (V-23) | 5/60 | 6 |
+
+Multi-timeframe (`security` or `request.security`) is demanded by **12/60**.
+
+---
+
 ## AMENDMENTS
 
 Append only; each dated, each stating what changed and why.
 
-*(none yet)*
+**2026-09-07 — Part B populated from OOS-2; Part D added.** Four new gaps (C-01…C-04) recorded
+from the baseline run. H-01's prediction was confirmed: the development corpus is 100% V1 and the
+blind corpus is 72% V5, and acceptance falls from 75% (V3) to 23% (V5).

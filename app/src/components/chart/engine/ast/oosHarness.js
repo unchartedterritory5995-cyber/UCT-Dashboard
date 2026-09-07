@@ -95,6 +95,34 @@ export function sourceVisualDemand(src) {
   }
 }
 
+/** ⭐⭐ THE HONEST VERSION OF `readsBars`, USED ONLY TO MEASURE — never to fix.
+ *
+ *  `pine.js:8169`'s `readsBars` returns TRUE for any node of type `call`, without
+ *  looking at that call's arguments. So `max(8, 42)` — a call over two literals,
+ *  constant on every bar of every symbol forever — is reported as reading bars.
+ *  Verified by direct probe, not inferred.
+ *
+ *  That matters because `hidden = authorHid || !readsBars(ast)` is the guard that
+ *  exists precisely to stop a dead column being offered: a constant-valued CALL
+ *  walks straight through it, counts as usable, and can therefore make a whole
+ *  script `ok: true` on the strength of nothing that varies.
+ *
+ *  It is the same blind spot `pine.community.test.js` already documented for
+ *  scripts 27 and 28 — "`X && 0` LOOKS like it reads bars: it contains a call" —
+ *  closed there for the and/or folding case and still open in general.
+ *
+ *  A tree genuinely reads bars only if it contains a `series` node. */
+function containsSeries(node) {
+  const stack = [node]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series') return true
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return false
+}
+
 function outputRow(row) {
   const parsed = row.formula ? parseFormula(row.formula) : null
   const ok = !!(parsed && parsed.ok)
@@ -110,6 +138,8 @@ function outputRow(row) {
     parses: ok,
     yieldsBool: ok ? !!treeYieldsBool(parsed.ast) : false,
     readsBars: ok ? !!readsBars(parsed.ast) : false,
+    // What the engine's own guard SAYS, beside what is actually true.
+    containsSeries: ok ? containsSeries(parsed.ast) : false,
     inputsFolded: Array.isArray(row.inputsFolded) ? row.inputsFolded.length : 0,
   }
 }
@@ -132,6 +162,9 @@ function summarise(out) {
     outputsHiddenByAuthor: rows.filter((r) => r.hiddenReason === 'author').length,
     outputsHiddenAsConstant: rows.filter((r) => r.hiddenReason === 'constant').length,
     outputsBool: usable.filter((r) => r.yieldsBool).length,
+    // ⛔ A SCRIPT WHOSE EVERY KEPT COLUMN IS CONSTANT IS NOT AN IMPORT.
+    usableThatReadNoBar: usable.filter((r) => !r.containsSeries).length,
+    everyUsableIsConstant: usable.length > 0 && usable.every((r) => !r.containsSeries),
     outputsNumeric: usable.filter((r) => !r.yieldsBool).length,
     outputKinds: [...new Set(rows.map((r) => r.kind).filter(Boolean))].sort(),
     selectedIndex: out.selected ?? -1,
@@ -202,6 +235,10 @@ export function measureScript(name, source) {
       || (demand.calls.barcolor || 0) > 0
     // P7 — a column that can never fire.
     probes.P7_constant_column = accepted.outputsHiddenAsConstant > 0
+    // The mechanical form of pattern 7, and the one that actually fires: every
+    // column the member would be offered is the same number on every bar.
+    probes.P7_every_kept_column_is_constant = !!accepted.everyUsableIsConstant
+    probes.P7_some_kept_column_is_constant = (accepted.usableThatReadNoBar || 0) > 0
     probes.P7_selected_is_constant = !!(accepted.selected && accepted.selected.hiddenReason === 'constant')
     // P1/P2 — state or a block the walker could not fold, yet the script still passed.
     probes.P1_P2_state_present_but_accepted =
