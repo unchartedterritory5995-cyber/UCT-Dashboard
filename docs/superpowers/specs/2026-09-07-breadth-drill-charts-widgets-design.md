@@ -84,6 +84,67 @@ widgetKey    activeRef      settingsOverride  onSettingsPersist  onScanVisibleSy
 So the list requires **no new table**. It requires pointing the existing one at
 breadth data.
 
+### 2.4 Measured parity gap
+
+Captured 2026-09-07 from production at 1800×1100, same session, same window
+size — the charts board and the `UP 4%+ · 2026-09-04` drill side by side.
+
+**Chart**
+
+| Element | Charts widget | Breadth drill |
+|---|---|---|
+| Widget header — colour dot, `+`, `▣`, `⧉`, `✕` | present | **absent entirely** |
+| Chart tab strip (`1D`, `1D ×`, `+`) | present | **absent** |
+| Company logo before the symbol | present | **absent** |
+| Symbol + name treatment | muted grey | gold |
+| Date navigator `◀ 9/4/2026 ▶ ⌄` | present | **absent** |
+| Theme + chart-type icons, right of the tf bar | present | **absent** |
+| Drawing toolbar, left group | 19 tools, ends in `★` | ~17, **no `★`** |
+| Drawing toolbar, right group | right-aligned, separated | runs inline after the left group |
+| `FLAG` button + symbol bar above the chart | absent | present (breadth-only) |
+| `↑ ↓ to navigate` hint | absent | present (breadth-only) |
+| Session toggle · market clock · tf row · cap/earnings/rating | present | present |
+
+**List**
+
+| Element | Watchlist widget | Breadth drill list |
+|---|---|---|
+| Widget header chrome | present | absent |
+| `‹ Lists` · centred gold title · `+` · ⚙ | present | absent |
+| Appearance panel | full (below) | **none** |
+| Columns | 23 available, user-configurable | **8, fixed** |
+| Column right-click menu | present | absent |
+| Sort by clicking a header | present | absent |
+| Star / flag column | present | absent (flag is a chart-bar button) |
+| Company logos | present, toggleable | absent |
+| Tick flash on price update | present, toggleable | absent |
+| Footer count (`1 stock`) | present | absent (count sits in the modal title) |
+| Row heat tint · group rows · chip strip | absent | present (breadth-only) |
+
+**The watchlist appearance panel**, in full — none of which the drill has:
+Templates ▾ · Save as Template · Reset · UCT theme (whole-widget look) ·
+Canvas background Solid/Gradient + colour · Text size (whole watchlist) · Text
+colour (all columns except % change) · % Change up/down colours · Gridlines line
+colour (all column + row lines) · Tick flash background tint + up/down tints ·
+Symbol column company-logos toggle.
+
+**The 23 watchlist columns:** Price · Vol · % Chg · Company Name · RVOL · IPO
+Date · Market Cap · Next Earnings · UCT Rating · $ Change · % from Open · % from
+High · % from Low · Daily Closing Range · Dollar Volume · **Sector** ·
+**Industry** · **Theme** · 5-Day Change · 30-Day Change · 60-Day Change · 90-Day
+Change · Attention — plus Reset columns.
+
+⭐ **Two findings that change the plan:**
+
+1. **Sector, Industry and Theme are already watchlist columns.** The grouping
+   dimensions exist as data in the watchlist today. §5's endpoint work is about
+   *bucketing* rows by theme, not about sourcing the value.
+2. **ATR% and 50SMA are NOT watchlist columns.** They are breadth-only fields.
+   For the uniformity the owner asked for they must become **real watchlist
+   columns available to every list**, not breadth-private extras — otherwise the
+   breadth list is once again a table with columns no other list can show, which
+   is the exact divergence this work exists to remove.
+
 ---
 
 ## 3. Target architecture
@@ -161,6 +222,13 @@ Columns use the **global watchlist column key** (`WL_COLS_LS`, i.e. no
 This is the deliberate reading of "exactly like the watchlist widgets"; passing
 a breadth-private key is a one-word change if the owner later wants divergence.
 
+**ATR% and 50SMA become real watchlist columns** (§2.4 finding 2). They join
+`EXTRA_COLS` in `Watchlists.jsx` alongside the existing 23, so every list can
+show them and the breadth list is not a special case. Both are already computed
+per-symbol on the breadth payload; for a normal watchlist they resolve through
+the same meta path the other derived columns use, and render `—` where absent —
+the behaviour every optional column already has.
+
 ---
 
 ## 4. Changes by file
@@ -177,11 +245,16 @@ a breadth-private key is a one-word change if the owner later wants divergence.
 
 ### 4.2 Changed (shared frontend — the only three)
 
-1. **`app/src/pages/Watchlists.jsx`** — add a `groupMode` prop,
-   `'accordion' | 'multi'`, **defaulting to `'accordion'`**. Only the
-   `toggleGroupExpand` reducer and the initial expanded set change. Scanner and
-   Period-Sort pass nothing and are byte-identical afterward; breadth passes
-   `'multi'` for all-groups-open with per-group collapse.
+1. **`app/src/pages/Watchlists.jsx`** — two additions:
+   - a `groupMode` prop, `'accordion' | 'multi'`, **defaulting to
+     `'accordion'`**. Only the `toggleGroupExpand` reducer and the initial
+     expanded set change. Scanner and Period-Sort pass nothing and are
+     byte-identical afterward; breadth passes `'multi'` for all-groups-open with
+     per-group collapse.
+   - **`atr` and `a50` added to `EXTRA_COLS`** (+ `COL_LABELS`, `COL_META`,
+     `COL_FULL_MINW`) so ATR% and 50SMA become columns every watchlist can show.
+     Additive — no existing column, order or stored layout changes, and a list
+     without the data renders `—` like any other optional column.
 
 2. **`app/src/pages/charts/widgets/WatchlistWidget.jsx`** — the ad-hoc source
    branch in §3.2. Prop shape unchanged.
@@ -260,7 +333,7 @@ the endpoint now, Theme ships in a follow-up and Sector/Industry land unchanged.
 |---|---|---|
 | Group rows | All expanded, per-group collapse | Seeing which industries dominate *is* the point of a breadth drill; an accordion destroys it |
 | Grouping controls | Inside the list widget | The widget must stay self-contained so it survives being ejected to its own window |
-| Columns | Global watchlist layout; ATR%/50SMA/Industry offered in the column menu | "Exactly like the watchlist widgets" |
+| Columns | Global watchlist layout; ATR% and 50SMA **promoted to real watchlist columns** for every list | "Exactly like the watchlist widgets" — a breadth-private column set would recreate the divergence this work removes. Sector/Industry/Theme already exist as columns (§2.4) |
 | Chip strip | Dropped | Breadth-only invention; sorted group headers give the same read |
 | Row heat tint | Dropped | No charts-page analogue; % Chg is already coloured |
 | Modal title bar | Slim: `UP 4%+ · 134 stocks · 2026-09-04` + ✕ | Drill identity and date have no other home; modal needs an unambiguous close |
