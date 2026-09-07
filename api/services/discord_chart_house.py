@@ -237,8 +237,10 @@ def build_render_url(sym: str, tf: str, stats: dict | None, *, base_url: str, to
         params["indicators"] = _b64url(opts["indicators"])
     if opts.get("preset"):
         params["preset"] = str(opts["preset"])          # one of the app's own theme presets
-    if opts.get("darkpool"):
-        params["darkpool"] = 1     # dark-pool zone overlay (ChartRender ?darkpool=1)
+    if opts.get("dpzones"):
+        # Server-computed dark-pool zones, embedded (base64url JSON) so the overlay
+        # needs no client fetch/auth — ChartRender ?dpzones= → StockChart darkPoolBars.
+        params["dpzones"] = _b64url(opts["dpzones"])
     if opts.get("compare"):
         # comparison overlays: the page draws each as a %-rebased line (ChartRender ?compare=)
         params["compare"] = ",".join(str(x).upper() for x in list(opts["compare"])[:3])
@@ -270,7 +272,16 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
     secret = os.environ.get("CHART_RENDERER_SECRET", "")
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     base = os.environ.get("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
-    page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=options)
+    opts = dict(options or {})
+    if opts.get("darkpool") and not opts.get("dpzones"):
+        # Compute dark-pool zones server-side (darkpool.db is web-local; the endpoint
+        # is flow-user-gated so the headless page can't fetch them) and embed them.
+        try:
+            from api import darkpool_db
+            opts["dpzones"] = darkpool_db.get_ticker_zones(sym, limit=25) or []
+        except Exception as e:  # noqa: BLE001 — overlay is decoration; never break the render
+            log.warning("[discord-chart] dark-pool zones failed for %s: %s", sym, e)
+    page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=opts)
     try:
         import httpx
         own = client is None

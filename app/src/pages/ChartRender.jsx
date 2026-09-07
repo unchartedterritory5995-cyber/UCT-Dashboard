@@ -67,7 +67,6 @@ import { useSearchParams } from 'react-router-dom'
 // carry a price-scale label in their own colour, which is the second signal.
 export const COMPARE_COLORS = ['#c084fc', '#22d3ee', '#e8e8ea']
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
-import { useDarkPoolBars } from '../components/chart/useDarkPoolBars'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
@@ -266,9 +265,15 @@ export default function ChartRender() {
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
   const hidePriceLine = priceLineParam === '0' || priceLineParam === 'false'
-  // ?darkpool=1 — overlay dark-pool zones (same overlay as the LiveMassive popup;
-  // reuses useDarkPoolBars + StockChart's darkPoolBars prop). Default off.
-  const darkPoolOn = sp.get('darkpool') === '1'
+  // ?dpzones=<base64url JSON> — dark-pool zones computed SERVER-SIDE (render_house_chart
+  // → darkpool_db.get_ticker_zones) and embedded, so the overlay needs no client fetch
+  // and no auth (the /api/darkpool/zones endpoint is flow-user-gated and the headless
+  // page has no session). Same shape StockChart's darkPoolBars prop expects; present in
+  // the HTML at first paint, so no readiness race with the pixel-settle gate.
+  const dpZones = useMemo(() => {
+    const z = decodeB64UrlJson(sp.get('dpzones'))
+    return Array.isArray(z) ? z : []
+  }, [sp])
   //   ?stats=<base64url JSON>  a compact price-action / volume strip under the
   //            header (Discord /chart). The NUMBERS are computed server-side
   //            (api/services/discord_chart_render.compute_stats — one authority);
@@ -582,7 +587,6 @@ export default function ChartRender() {
   const barsKey = `${sym}|${tf}|${compareSyms.join(',')}`
   const barsKeyRef = useRef(null)
   const readyPartsRef = useRef({ bars: false, comparisons: false })
-  const dpLoadedSymRef = useRef(null)   // sym whose dark-pool zones fetch has resolved
   if (barsKeyRef.current !== barsKey) {
     barsKeyRef.current = barsKey
     readyPartsRef.current = { bars: false, comparisons: false }
@@ -603,19 +607,11 @@ export default function ChartRender() {
   }
   const publishBarsReady = () => {
     const r = readyPartsRef.current
-    // Dark-pool overlay is HTML divs — invisible to the pixel-settle gate — so hold
-    // the renderer's ready precondition until the zones fetch for THIS sym resolves,
-    // or the screenshot could fire before the overlay paints. Keyed on sym (zones are
-    // TF-independent) so a timeframe switch never re-arms the wait.
-    const dpReady = !darkPoolOn || dpLoadedSymRef.current === sym
-    window.__chartBarsReady = r.bars && (compareSyms.length === 0 || r.comparisons) && dpReady
+    window.__chartBarsReady = r.bars && (compareSyms.length === 0 || r.comparisons)
   }
   const onBarsReady = () => { readyPartsRef.current.bars = true; publishBarsReady() }
   const onDrawnBarCount = (n) => { window.__chartBarCount = Number.isFinite(n) ? n : null }
   const onComparisonsReady = () => { readyPartsRef.current.comparisons = true; publishBarsReady() }
-  const darkPoolBars = useDarkPoolBars(sym, darkPoolOn, () => {
-    dpLoadedSymRef.current = sym; publishBarsReady()
-  })
 
   useEffect(() => {
     window.__chartReady = false
@@ -881,7 +877,7 @@ export default function ChartRender() {
             // the same treatment the footer's wall-clock stamp already gets, and
             // NOT a tolerance: that case must still be 0 on every run.
             hidePriceLine={hidePriceLine}
-            darkPoolBars={darkPoolBars.length ? darkPoolBars : null}
+            darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
             alwaysShowLegend
             liveUpdates={false}
