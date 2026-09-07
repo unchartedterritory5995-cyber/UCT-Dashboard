@@ -1,0 +1,2422 @@
+{
+  "case_0000": {
+    "symbol": "BNS",
+    "as_of_t": 20260903,
+    "detector_fired": true,
+    "detector_top_confidence": 70.56,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 66,
+      "candidates": [
+        {
+          "pole_top_idx": 347,
+          "pole_top_t": 20260622,
+          "extracted": false,
+          "pole_base_idx": 334,
+          "pole_pct": 0.1215,
+          "pole_bars": 13,
+          "flag_count": 52,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 355,
+          "pole_top_t": 20260702,
+          "extracted": false,
+          "pole_base_idx": 349,
+          "pole_pct": 0.0357,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20260716,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.0742,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 372,
+          "pole_top_t": 20260728,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.0511,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 386,
+          "pole_top_t": 20260817,
+          "extracted": false,
+          "pole_base_idx": 369,
+          "pole_pct": 0.0729,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 393,
+          "pole_top_t": 20260826,
+          "extracted": true,
+          "pole_pct": 0.1048,
+          "pole_bars": 20,
+          "flag_count": 6,
+          "retrace_pct": 0.4573,
+          "parallel_score": 0.8891,
+          "flag_low": 90.84,
+          "flag_high": 95.34,
+          "pole_base_idx": 373,
+          "pole_base_t": 20260729,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8385,
+          "geom_score": 95.02,
+          "vol_score": 20.19,
+          "ctx_score": 100.0,
+          "confidence": 70.56,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 70.56,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 393,
+        "pole_top_t": 20260826,
+        "extracted": true,
+        "pole_pct": 0.1048,
+        "pole_bars": 20,
+        "flag_count": 6,
+        "retrace_pct": 0.4573,
+        "parallel_score": 0.8891,
+        "flag_low": 90.84,
+        "flag_high": 95.34,
+        "pole_base_idx": 373,
+        "pole_base_t": 20260729,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8385,
+        "geom_score": 95.02,
+        "vol_score": 20.19,
+        "ctx_score": 100.0,
+        "confidence": 70.56,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "CHPT",
+    "as_of_t": 20250808,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 71,
+      "candidates": [
+        {
+          "pole_top_idx": 340,
+          "pole_top_t": 20250514,
+          "extracted": false,
+          "pole_base_idx": 323,
+          "pole_pct": 0.2903,
+          "pole_bars": 17,
+          "flag_count": 59,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 354,
+          "pole_top_t": 20250604,
+          "extracted": false,
+          "pole_base_idx": 346,
+          "pole_pct": 0.3429,
+          "pole_bars": 8,
+          "flag_count": 45,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 358,
+          "pole_top_t": 20250610,
+          "extracted": false,
+          "pole_base_idx": 355,
+          "pole_pct": 0.3162,
+          "pole_bars": 3,
+          "flag_count": 41,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20250627,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.2539,
+          "pole_bars": 4,
+          "flag_count": 29,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 383,
+          "pole_top_t": 20250717,
+          "extracted": false,
+          "pole_base_idx": 382,
+          "pole_pct": 0.1942,
+          "pole_bars": 1,
+          "flag_count": 16,
+          "flag_high": 13.6,
+          "retrace_pct": 2.3673,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20250723,
+          "extracted": false,
+          "pole_base_idx": 382,
+          "pole_pct": 0.1684,
+          "pole_bars": 5,
+          "flag_count": 12,
+          "flag_high": 13.56,
+          "retrace_pct": 2.5765,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "MO",
+    "as_of_t": 20250428,
+    "detector_fired": true,
+    "detector_top_confidence": 75.19,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 73,
+      "candidates": [
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20250225,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.13,
+          "pole_bars": 17,
+          "flag_count": 43,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 361,
+          "pole_top_t": 20250304,
+          "extracted": false,
+          "pole_base_idx": 349,
+          "pole_pct": 0.1181,
+          "pole_bars": 12,
+          "flag_count": 38,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 365,
+          "pole_top_t": 20250310,
+          "extracted": false,
+          "pole_base_idx": 349,
+          "pole_pct": 0.1387,
+          "pole_bars": 16,
+          "flag_count": 34,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20250317,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.087,
+          "pole_bars": 12,
+          "flag_count": 29,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20250331,
+          "extracted": false,
+          "pole_base_idx": 363,
+          "pole_pct": 0.0837,
+          "pole_bars": 17,
+          "flag_count": 19,
+          "flag_high": 60.1,
+          "retrace_pct": 1.5828,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20250422,
+          "extracted": true,
+          "pole_pct": 0.117,
+          "pole_bars": 10,
+          "flag_count": 4,
+          "retrace_pct": 0.1828,
+          "parallel_score": 0.9257,
+          "flag_low": 57.87,
+          "flag_high": 58.93,
+          "pole_base_idx": 385,
+          "pole_base_t": 20250407,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.6901,
+          "geom_score": 100.0,
+          "vol_score": 38.74,
+          "ctx_score": 90.0,
+          "confidence": 75.19,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 75.19,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20250422,
+        "extracted": true,
+        "pole_pct": 0.117,
+        "pole_bars": 10,
+        "flag_count": 4,
+        "retrace_pct": 0.1828,
+        "parallel_score": 0.9257,
+        "flag_low": 57.87,
+        "flag_high": 58.93,
+        "pole_base_idx": 385,
+        "pole_base_t": 20250407,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.6901,
+        "geom_score": 100.0,
+        "vol_score": 38.74,
+        "ctx_score": 90.0,
+        "confidence": 75.19,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "GGN",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 64.22,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 55,
+      "candidates": [
+        {
+          "pole_top_idx": 333,
+          "pole_top_t": 20260602,
+          "extracted": false,
+          "pole_base_idx": 330,
+          "pole_pct": 0.0297,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20260617,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.0755,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 355,
+          "pole_top_t": 20260706,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.0464,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 362,
+          "pole_top_t": 20260715,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.0422,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 382,
+          "pole_top_t": 20260812,
+          "extracted": false,
+          "pole_base_idx": 364,
+          "pole_pct": 0.1498,
+          "pole_bars": 18,
+          "flag_count": 17,
+          "flag_high": 5.73,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 391,
+          "pole_top_t": 20260825,
+          "extracted": true,
+          "pole_pct": 0.1888,
+          "pole_bars": 19,
+          "flag_count": 8,
+          "retrace_pct": 0.2088,
+          "parallel_score": 0.7598,
+          "flag_low": 5.54,
+          "flag_high": 5.72,
+          "pole_base_idx": 372,
+          "pole_base_t": 20260729,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.9451,
+          "geom_score": 100.0,
+          "vol_score": 6.86,
+          "ctx_score": 75.0,
+          "confidence": 64.22,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 64.22,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 391,
+        "pole_top_t": 20260825,
+        "extracted": true,
+        "pole_pct": 0.1888,
+        "pole_bars": 19,
+        "flag_count": 8,
+        "retrace_pct": 0.2088,
+        "parallel_score": 0.7598,
+        "flag_low": 5.54,
+        "flag_high": 5.72,
+        "pole_base_idx": 372,
+        "pole_base_t": 20260729,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.9451,
+        "geom_score": 100.0,
+        "vol_score": 6.86,
+        "ctx_score": 75.0,
+        "confidence": 64.22,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "CACI",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 70.62,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 71,
+      "candidates": [
+        {
+          "pole_top_idx": 332,
+          "pole_top_t": 20260601,
+          "extracted": false,
+          "pole_base_idx": 318,
+          "pole_pct": 0.1727,
+          "pole_bars": 14,
+          "flag_count": 67,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 336,
+          "pole_top_t": 20260605,
+          "extracted": false,
+          "pole_base_idx": 318,
+          "pole_pct": 0.1704,
+          "pole_bars": 18,
+          "flag_count": 63,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20260707,
+          "extracted": false,
+          "pole_base_idx": 346,
+          "pole_pct": 0.1863,
+          "pole_bars": 10,
+          "flag_count": 43,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 371,
+          "pole_top_t": 20260728,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.1752,
+          "pole_bars": 5,
+          "flag_count": 28,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 383,
+          "pole_top_t": 20260813,
+          "extracted": true,
+          "pole_pct": 0.5677,
+          "pole_bars": 17,
+          "flag_count": 16,
+          "retrace_pct": 0.3046,
+          "parallel_score": 0.9651,
+          "flag_low": 608.0,
+          "flag_high": 677.0,
+          "pole_base_idx": 366,
+          "pole_base_t": 20260721,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7401,
+          "geom_score": 100.0,
+          "vol_score": 32.48,
+          "ctx_score": 75.0,
+          "confidence": 70.62,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 394,
+          "pole_top_t": 20260828,
+          "extracted": false,
+          "pole_base_idx": 392,
+          "pole_pct": 0.0546,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 70.62,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 383,
+        "pole_top_t": 20260813,
+        "extracted": true,
+        "pole_pct": 0.5677,
+        "pole_bars": 17,
+        "flag_count": 16,
+        "retrace_pct": 0.3046,
+        "parallel_score": 0.9651,
+        "flag_low": 608.0,
+        "flag_high": 677.0,
+        "pole_base_idx": 366,
+        "pole_base_t": 20260721,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.7401,
+        "geom_score": 100.0,
+        "vol_score": 32.48,
+        "ctx_score": 75.0,
+        "confidence": 70.62,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "L",
+    "as_of_t": 20260428,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 69,
+      "candidates": [
+        {
+          "pole_top_idx": 324,
+          "pole_top_t": 20260108,
+          "extracted": false,
+          "pole_base_idx": 322,
+          "pole_pct": 0.0353,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 345,
+          "pole_top_t": 20260209,
+          "extracted": false,
+          "pole_base_idx": 334,
+          "pole_pct": 0.1367,
+          "pole_bars": 11,
+          "flag_count": 54,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 354,
+          "pole_top_t": 20260223,
+          "extracted": false,
+          "pole_base_idx": 334,
+          "pole_pct": 0.0965,
+          "pole_bars": 20,
+          "flag_count": 45,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 359,
+          "pole_top_t": 20260302,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.0415,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 374,
+          "pole_top_t": 20260323,
+          "extracted": false,
+          "pole_base_idx": 372,
+          "pole_pct": 0.0401,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 386,
+          "pole_top_t": 20260409,
+          "extracted": false,
+          "pole_base_idx": 378,
+          "pole_pct": 0.08,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "WFG",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 57.53,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 77,
+      "candidates": [
+        {
+          "pole_top_idx": 342,
+          "pole_top_t": 20260204,
+          "extracted": false,
+          "pole_base_idx": 324,
+          "pole_pct": 0.2673,
+          "pole_bars": 18,
+          "flag_count": 57,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 348,
+          "pole_top_t": 20260212,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.1301,
+          "pole_bars": 9,
+          "flag_count": 51,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20260317,
+          "extracted": false,
+          "pole_base_idx": 360,
+          "pole_pct": 0.0662,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20260331,
+          "extracted": true,
+          "pole_pct": 0.1221,
+          "pole_bars": 7,
+          "flag_count": 19,
+          "retrace_pct": 0.4917,
+          "parallel_score": 0.8286,
+          "flag_low": 62.82,
+          "flag_high": 67.64,
+          "pole_base_idx": 373,
+          "pole_base_t": 20260320,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7515,
+          "geom_score": 72.27,
+          "vol_score": 31.07,
+          "ctx_score": 42.0,
+          "confidence": 52.58,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 385,
+          "pole_top_t": 20260408,
+          "extracted": true,
+          "pole_pct": 0.129,
+          "pole_bars": 12,
+          "flag_count": 14,
+          "retrace_pct": 0.4351,
+          "parallel_score": 0.8323,
+          "flag_low": 63.46,
+          "flag_high": 67.64,
+          "pole_base_idx": 373,
+          "pole_base_t": 20260320,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7447,
+          "geom_score": 72.55,
+          "vol_score": 31.92,
+          "ctx_score": 42.0,
+          "confidence": 52.9,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20260417,
+          "extracted": true,
+          "pole_pct": 0.1435,
+          "pole_bars": 19,
+          "flag_count": 7,
+          "retrace_pct": 0.4923,
+          "parallel_score": 0.8008,
+          "flag_low": 63.46,
+          "flag_high": 67.36,
+          "pole_base_idx": 373,
+          "pole_base_t": 20260320,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.6183,
+          "geom_score": 74.26,
+          "vol_score": 47.72,
+          "ctx_score": 42.0,
+          "confidence": 57.53,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 57.53,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 392,
+        "pole_top_t": 20260417,
+        "extracted": true,
+        "pole_pct": 0.1435,
+        "pole_bars": 19,
+        "flag_count": 7,
+        "retrace_pct": 0.4923,
+        "parallel_score": 0.8008,
+        "flag_low": 63.46,
+        "flag_high": 67.36,
+        "pole_base_idx": 373,
+        "pole_base_t": 20260320,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.6183,
+        "geom_score": 74.26,
+        "vol_score": 47.72,
+        "ctx_score": 42.0,
+        "confidence": 57.53,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0007": {
+    "symbol": "DFTX",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 73,
+      "candidates": [
+        {
+          "pole_top_idx": 358,
+          "pole_top_t": 20260709,
+          "extracted": false,
+          "pole_base_idx": 338,
+          "pole_pct": 1.2347,
+          "pole_bars": 20,
+          "flag_count": 41,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 363,
+          "pole_top_t": 20260716,
+          "extracted": false,
+          "pole_base_idx": 354,
+          "pole_pct": 0.1433,
+          "pole_bars": 9,
+          "flag_count": 36,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20260727,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.0926,
+          "pole_bars": 4,
+          "flag_count": 29,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 374,
+          "pole_top_t": 20260731,
+          "extracted": false,
+          "pole_base_idx": 371,
+          "pole_pct": 0.1169,
+          "pole_bars": 3,
+          "flag_count": 25,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 379,
+          "pole_top_t": 20260807,
+          "extracted": false,
+          "pole_base_idx": 371,
+          "pole_pct": 0.2336,
+          "pole_bars": 8,
+          "flag_count": 20,
+          "flag_high": 47.55,
+          "retrace_pct": 1.3156,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20260819,
+          "extracted": false,
+          "pole_base_idx": 371,
+          "pole_pct": 0.1737,
+          "pole_bars": 16,
+          "flag_count": 12,
+          "flag_high": 46.57,
+          "retrace_pct": 1.4243,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0008": {
+    "symbol": "MO",
+    "as_of_t": 20260427,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 86,
+      "candidates": [
+        {
+          "pole_top_idx": 338,
+          "pole_top_t": 20260128,
+          "extracted": false,
+          "pole_base_idx": 324,
+          "pole_pct": 0.174,
+          "pole_bars": 14,
+          "flag_count": 61,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20260205,
+          "extracted": false,
+          "pole_base_idx": 324,
+          "pole_pct": 0.2108,
+          "pole_bars": 20,
+          "flag_count": 55,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 359,
+          "pole_top_t": 20260227,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.1868,
+          "pole_bars": 20,
+          "flag_count": 40,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20260316,
+          "extracted": false,
+          "pole_base_idx": 368,
+          "pole_pct": 0.045,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 381,
+          "pole_top_t": 20260331,
+          "extracted": false,
+          "pole_base_idx": 377,
+          "pole_pct": 0.0698,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20260410,
+          "extracted": false,
+          "pole_base_idx": 377,
+          "pole_pct": 0.0805,
+          "pole_bars": 11,
+          "flag_count": 11,
+          "flag_high": 67.57,
+          "retrace_pct": 0.7609,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0009": {
+    "symbol": "GGN",
+    "as_of_t": 20250808,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 48,
+      "candidates": [
+        {
+          "pole_top_idx": 301,
+          "pole_top_t": 20250319,
+          "extracted": false,
+          "pole_base_idx": 290,
+          "pole_pct": 0.0896,
+          "pole_bars": 11,
+          "flag_count": 98,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 321,
+          "pole_top_t": 20250416,
+          "extracted": false,
+          "pole_base_idx": 314,
+          "pole_pct": 0.1875,
+          "pole_bars": 7,
+          "flag_count": 78,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 343,
+          "pole_top_t": 20250519,
+          "extracted": false,
+          "pole_base_idx": 323,
+          "pole_pct": 0.0434,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 366,
+          "pole_top_t": 20250623,
+          "extracted": false,
+          "pole_base_idx": 356,
+          "pole_pct": 0.0228,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 374,
+          "pole_top_t": 20250703,
+          "extracted": false,
+          "pole_base_idx": 356,
+          "pole_pct": 0.0296,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20250714,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.051,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0010": {
+    "symbol": "GNL",
+    "as_of_t": 20251216,
+    "detector_fired": true,
+    "detector_top_confidence": 71.43,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 74,
+      "candidates": [
+        {
+          "pole_top_idx": 332,
+          "pole_top_t": 20250911,
+          "extracted": false,
+          "pole_base_idx": 322,
+          "pole_pct": 0.0915,
+          "pole_bars": 10,
+          "flag_count": 67,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 348,
+          "pole_top_t": 20251003,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.0387,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 357,
+          "pole_top_t": 20251016,
+          "extracted": false,
+          "pole_base_idx": 354,
+          "pole_pct": 0.0641,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 373,
+          "pole_top_t": 20251107,
+          "extracted": false,
+          "pole_base_idx": 361,
+          "pole_pct": 0.0802,
+          "pole_bars": 12,
+          "flag_count": 26,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 386,
+          "pole_top_t": 20251126,
+          "extracted": true,
+          "pole_pct": 0.1197,
+          "pole_bars": 17,
+          "flag_count": 13,
+          "retrace_pct": 0.3631,
+          "parallel_score": 0.7903,
+          "flag_low": 8.05,
+          "flag_high": 8.49,
+          "pole_base_idx": 369,
+          "pole_base_t": 20251103,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8509,
+          "geom_score": 98.17,
+          "vol_score": 18.64,
+          "ctx_score": 100.0,
+          "confidence": 71.43,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 390,
+          "pole_top_t": 20251203,
+          "extracted": false,
+          "pole_base_idx": 377,
+          "pole_pct": 0.0713,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 71.43,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 386,
+        "pole_top_t": 20251126,
+        "extracted": true,
+        "pole_pct": 0.1197,
+        "pole_bars": 17,
+        "flag_count": 13,
+        "retrace_pct": 0.3631,
+        "parallel_score": 0.7903,
+        "flag_low": 8.05,
+        "flag_high": 8.49,
+        "pole_base_idx": 369,
+        "pole_base_t": 20251103,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8509,
+        "geom_score": 98.17,
+        "vol_score": 18.64,
+        "ctx_score": 100.0,
+        "confidence": 71.43,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0011": {
+    "symbol": "SGHC",
+    "as_of_t": 20250808,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 66,
+      "candidates": [
+        {
+          "pole_top_idx": 336,
+          "pole_top_t": 20250508,
+          "extracted": false,
+          "pole_base_idx": 328,
+          "pole_pct": 0.1667,
+          "pole_bars": 8,
+          "flag_count": 63,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 350,
+          "pole_top_t": 20250529,
+          "extracted": false,
+          "pole_base_idx": 337,
+          "pole_pct": 0.0947,
+          "pole_bars": 13,
+          "flag_count": 49,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 362,
+          "pole_top_t": 20250616,
+          "extracted": false,
+          "pole_base_idx": 347,
+          "pole_pct": 0.2266,
+          "pole_bars": 15,
+          "flag_count": 37,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 378,
+          "pole_top_t": 20250710,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.2794,
+          "pole_bars": 12,
+          "flag_count": 21,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 383,
+          "pole_top_t": 20250717,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.2595,
+          "pole_bars": 17,
+          "flag_count": 16,
+          "flag_high": 11.84,
+          "retrace_pct": 0.9514,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 396,
+          "pole_top_t": 20250805,
+          "extracted": false,
+          "pole_base_idx": 394,
+          "pole_pct": 0.0727,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0012": {
+    "symbol": "BXC",
+    "as_of_t": 20260904,
+    "detector_fired": true,
+    "detector_top_confidence": 72.23,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 62,
+      "candidates": [
+        {
+          "pole_top_idx": 330,
+          "pole_top_t": 20260528,
+          "extracted": false,
+          "pole_base_idx": 314,
+          "pole_pct": 0.1693,
+          "pole_bars": 16,
+          "flag_count": 69,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 350,
+          "pole_top_t": 20260626,
+          "extracted": false,
+          "pole_base_idx": 332,
+          "pole_pct": 0.3191,
+          "pole_bars": 18,
+          "flag_count": 49,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 363,
+          "pole_top_t": 20260716,
+          "extracted": false,
+          "pole_base_idx": 357,
+          "pole_pct": 0.2998,
+          "pole_bars": 6,
+          "flag_count": 36,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 371,
+          "pole_top_t": 20260728,
+          "extracted": false,
+          "pole_base_idx": 357,
+          "pole_pct": 0.2525,
+          "pole_bars": 14,
+          "flag_count": 28,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 381,
+          "pole_top_t": 20260811,
+          "extracted": true,
+          "pole_pct": 0.8385,
+          "pole_bars": 7,
+          "flag_count": 18,
+          "retrace_pct": 0.4631,
+          "parallel_score": 0.8976,
+          "flag_low": 73.99,
+          "flag_high": 91.63,
+          "pole_base_idx": 374,
+          "pole_base_t": 20260731,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.537,
+          "geom_score": 88.16,
+          "vol_score": 57.88,
+          "ctx_score": 75.0,
+          "confidence": 72.23,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20260826,
+          "extracted": true,
+          "pole_pct": 0.6872,
+          "pole_bars": 18,
+          "flag_count": 7,
+          "retrace_pct": 0.3448,
+          "parallel_score": 0.7186,
+          "flag_low": 73.99,
+          "flag_high": 83.0,
+          "pole_base_idx": 374,
+          "pole_base_t": 20260731,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.718,
+          "geom_score": 97.52,
+          "vol_score": 35.25,
+          "ctx_score": 75.0,
+          "confidence": 70.32,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 72.23,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 381,
+        "pole_top_t": 20260811,
+        "extracted": true,
+        "pole_pct": 0.8385,
+        "pole_bars": 7,
+        "flag_count": 18,
+        "retrace_pct": 0.4631,
+        "parallel_score": 0.8976,
+        "flag_low": 73.99,
+        "flag_high": 91.63,
+        "pole_base_idx": 374,
+        "pole_base_t": 20260731,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.537,
+        "geom_score": 88.16,
+        "vol_score": 57.88,
+        "ctx_score": 75.0,
+        "confidence": 72.23,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0013": {
+    "symbol": "PSTG",
+    "as_of_t": 20250204,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 79,
+      "candidates": [
+        {
+          "pole_top_idx": 354,
+          "pole_top_t": 20241126,
+          "extracted": false,
+          "pole_base_idx": 345,
+          "pole_pct": 0.2137,
+          "pole_bars": 9,
+          "flag_count": 45,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 359,
+          "pole_top_t": 20241204,
+          "extracted": false,
+          "pole_base_idx": 345,
+          "pole_pct": 0.505,
+          "pole_bars": 14,
+          "flag_count": 40,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 367,
+          "pole_top_t": 20241216,
+          "extracted": false,
+          "pole_base_idx": 355,
+          "pole_pct": 0.3025,
+          "pole_bars": 12,
+          "flag_count": 32,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 374,
+          "pole_top_t": 20241226,
+          "extracted": false,
+          "pole_base_idx": 355,
+          "pole_pct": 0.2767,
+          "pole_bars": 19,
+          "flag_count": 25,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20250106,
+          "extracted": false,
+          "pole_base_idx": 363,
+          "pole_pct": 0.0988,
+          "pole_bars": 17,
+          "flag_count": 19,
+          "flag_high": 73.67,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 390,
+          "pole_top_t": 20250122,
+          "extracted": false,
+          "pole_base_idx": 384,
+          "pole_pct": 0.2153,
+          "pole_bars": 6,
+          "flag_count": 9,
+          "flag_high": 73.59,
+          "retrace_pct": 0.7839,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0014": {
+    "symbol": "CZR",
+    "as_of_t": 20251216,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 79,
+      "candidates": [
+        {
+          "pole_top_idx": 323,
+          "pole_top_t": 20250828,
+          "extracted": false,
+          "pole_base_idx": 310,
+          "pole_pct": 0.1622,
+          "pole_bars": 13,
+          "flag_count": 76,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 328,
+          "pole_top_t": 20250905,
+          "extracted": false,
+          "pole_base_idx": 310,
+          "pole_pct": 0.141,
+          "pole_bars": 18,
+          "flag_count": 71,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20250929,
+          "extracted": false,
+          "pole_base_idx": 327,
+          "pole_pct": 0.1521,
+          "pole_bars": 17,
+          "flag_count": 55,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 363,
+          "pole_top_t": 20251024,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.0914,
+          "pole_bars": 5,
+          "flag_count": 36,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 369,
+          "pole_top_t": 20251103,
+          "extracted": false,
+          "pole_base_idx": 367,
+          "pole_pct": 0.1433,
+          "pole_bars": 2,
+          "flag_count": 30,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20251201,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.2649,
+          "pole_bars": 15,
+          "flag_count": 11,
+          "flag_high": 24.94,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0015": {
+    "symbol": "VCYT",
+    "as_of_t": 20260702,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 89,
+      "candidates": [
+        {
+          "pole_top_idx": 345,
+          "pole_top_t": 20260415,
+          "extracted": false,
+          "pole_base_idx": 333,
+          "pole_pct": 0.1947,
+          "pole_bars": 12,
+          "flag_count": 54,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 349,
+          "pole_top_t": 20260421,
+          "extracted": false,
+          "pole_base_idx": 333,
+          "pole_pct": 0.1757,
+          "pole_bars": 16,
+          "flag_count": 50,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 353,
+          "pole_top_t": 20260427,
+          "extracted": false,
+          "pole_base_idx": 333,
+          "pole_pct": 0.1815,
+          "pole_bars": 20,
+          "flag_count": 46,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 361,
+          "pole_top_t": 20260507,
+          "extracted": false,
+          "pole_base_idx": 342,
+          "pole_pct": 0.3776,
+          "pole_bars": 19,
+          "flag_count": 38,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20260604,
+          "extracted": false,
+          "pole_base_idx": 365,
+          "pole_pct": 0.342,
+          "pole_bars": 15,
+          "flag_count": 19,
+          "flag_high": 60.91,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 384,
+          "pole_top_t": 20260610,
+          "extracted": false,
+          "pole_base_idx": 365,
+          "pole_pct": 0.3293,
+          "pole_bars": 19,
+          "flag_count": 15,
+          "flag_high": 60.91,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0016": {
+    "symbol": "GGN",
+    "as_of_t": 20251216,
+    "detector_fired": true,
+    "detector_top_confidence": 65.19,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 51,
+      "candidates": [
+        {
+          "pole_top_idx": 335,
+          "pole_top_t": 20250916,
+          "extracted": false,
+          "pole_base_idx": 318,
+          "pole_pct": 0.1377,
+          "pole_bars": 17,
+          "flag_count": 64,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 352,
+          "pole_top_t": 20251009,
+          "extracted": false,
+          "pole_base_idx": 338,
+          "pole_pct": 0.073,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 357,
+          "pole_top_t": 20251016,
+          "extracted": false,
+          "pole_base_idx": 338,
+          "pole_pct": 0.0771,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20251112,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.0886,
+          "pole_bars": 6,
+          "flag_count": 23,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20251201,
+          "extracted": true,
+          "pole_pct": 0.1166,
+          "pole_bars": 18,
+          "flag_count": 11,
+          "retrace_pct": 0.2593,
+          "parallel_score": 0.6716,
+          "flag_low": 5.03,
+          "flag_high": 5.23,
+          "pole_base_idx": 370,
+          "pole_base_t": 20251104,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7229,
+          "geom_score": 97.59,
+          "vol_score": 34.63,
+          "ctx_score": 50.0,
+          "confidence": 65.19,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20251205,
+          "extracted": true,
+          "pole_pct": 0.0882,
+          "pole_bars": 10,
+          "flag_count": 7,
+          "retrace_pct": 0.2619,
+          "parallel_score": 0.5775,
+          "flag_low": 5.07,
+          "flag_high": 5.23,
+          "pole_base_idx": 382,
+          "pole_base_t": 20251120,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.9479,
+          "geom_score": 92.64,
+          "vol_score": 6.51,
+          "ctx_score": 50.0,
+          "confidence": 56.18,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 65.19,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 388,
+        "pole_top_t": 20251201,
+        "extracted": true,
+        "pole_pct": 0.1166,
+        "pole_bars": 18,
+        "flag_count": 11,
+        "retrace_pct": 0.2593,
+        "parallel_score": 0.6716,
+        "flag_low": 5.03,
+        "flag_high": 5.23,
+        "pole_base_idx": 370,
+        "pole_base_t": 20251104,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.7229,
+        "geom_score": 97.59,
+        "vol_score": 34.63,
+        "ctx_score": 50.0,
+        "confidence": 65.19,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0017": {
+    "symbol": "BANC",
+    "as_of_t": 20260904,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 75,
+      "candidates": [
+        {
+          "pole_top_idx": 328,
+          "pole_top_t": 20260526,
+          "extracted": false,
+          "pole_base_idx": 311,
+          "pole_pct": 0.0652,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 342,
+          "pole_top_t": 20260615,
+          "extracted": false,
+          "pole_base_idx": 322,
+          "pole_pct": 0.128,
+          "pole_bars": 20,
+          "flag_count": 57,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 366,
+          "pole_top_t": 20260721,
+          "extracted": false,
+          "pole_base_idx": 357,
+          "pole_pct": 0.0998,
+          "pole_bars": 9,
+          "flag_count": 33,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20260804,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.0769,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 385,
+          "pole_top_t": 20260817,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.0818,
+          "pole_bars": 12,
+          "flag_count": 14,
+          "flag_high": 19.72,
+          "retrace_pct": 1.2185,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20260826,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.0292,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0018": {
+    "symbol": "SLG",
+    "as_of_t": 20260702,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 79,
+      "candidates": [
+        {
+          "pole_top_idx": 340,
+          "pole_top_t": 20260408,
+          "extracted": false,
+          "pole_base_idx": 333,
+          "pole_pct": 0.1357,
+          "pole_bars": 7,
+          "flag_count": 59,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 349,
+          "pole_top_t": 20260421,
+          "extracted": false,
+          "pole_base_idx": 333,
+          "pole_pct": 0.2859,
+          "pole_bars": 16,
+          "flag_count": 50,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 354,
+          "pole_top_t": 20260428,
+          "extracted": false,
+          "pole_base_idx": 351,
+          "pole_pct": 0.0673,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 361,
+          "pole_top_t": 20260507,
+          "extracted": false,
+          "pole_base_idx": 351,
+          "pole_pct": 0.1291,
+          "pole_bars": 10,
+          "flag_count": 38,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20260529,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.1644,
+          "pole_bars": 6,
+          "flag_count": 23,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 384,
+          "pole_top_t": 20260610,
+          "extracted": true,
+          "pole_pct": 0.3189,
+          "pole_bars": 14,
+          "flag_count": 15,
+          "retrace_pct": 0.3173,
+          "parallel_score": 0.6216,
+          "flag_low": 48.5,
+          "flag_high": 53.48,
+          "pole_base_idx": 370,
+          "pole_base_t": 20260520,
+          "volume_contracted": false,
+          "flag_pole_vol_ratio": 1.0075,
+          "reject_reason": "volume_not_contracted"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0019": {
+    "symbol": "VTRS",
+    "as_of_t": 20260428,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 62,
+      "candidates": [
+        {
+          "pole_top_idx": 328,
+          "pole_top_t": 20260114,
+          "extracted": false,
+          "pole_base_idx": 321,
+          "pole_pct": 0.1066,
+          "pole_bars": 7,
+          "flag_count": 71,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 336,
+          "pole_top_t": 20260127,
+          "extracted": false,
+          "pole_base_idx": 321,
+          "pole_pct": 0.1001,
+          "pole_bars": 15,
+          "flag_count": 63,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 348,
+          "pole_top_t": 20260212,
+          "extracted": false,
+          "pole_base_idx": 331,
+          "pole_pct": 0.2988,
+          "pole_bars": 17,
+          "flag_count": 51,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20260325,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.049,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 381,
+          "pole_top_t": 20260401,
+          "extracted": false,
+          "pole_base_idx": 379,
+          "pole_pct": 0.0692,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 393,
+          "pole_top_t": 20260420,
+          "extracted": true,
+          "pole_pct": 0.1826,
+          "pole_bars": 14,
+          "flag_count": 6,
+          "retrace_pct": 0.366,
+          "parallel_score": 0.9188,
+          "flag_low": 14.36,
+          "flag_high": 15.05,
+          "pole_base_idx": 379,
+          "pole_base_t": 20260330,
+          "volume_contracted": false,
+          "flag_pole_vol_ratio": 1.2479,
+          "reject_reason": "volume_not_contracted"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0020": {
+    "symbol": "IBB",
+    "as_of_t": 20250429,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 73,
+      "candidates": [
+        {
+          "pole_top_idx": 343,
+          "pole_top_t": 20250206,
+          "extracted": false,
+          "pole_base_idx": 326,
+          "pole_pct": 0.0917,
+          "pole_bars": 17,
+          "flag_count": 56,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 353,
+          "pole_top_t": 20250221,
+          "extracted": false,
+          "pole_base_idx": 347,
+          "pole_pct": 0.0578,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 363,
+          "pole_top_t": 20250307,
+          "extracted": false,
+          "pole_base_idx": 360,
+          "pole_pct": 0.0418,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 369,
+          "pole_top_t": 20250317,
+          "extracted": false,
+          "pole_base_idx": 365,
+          "pole_pct": 0.0337,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 374,
+          "pole_top_t": 20250324,
+          "extracted": false,
+          "pole_base_idx": 365,
+          "pole_pct": 0.0269,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 390,
+          "pole_top_t": 20250415,
+          "extracted": false,
+          "pole_base_idx": 386,
+          "pole_pct": 0.1272,
+          "pole_bars": 4,
+          "flag_count": 9,
+          "flag_high": 125.61,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0021": {
+    "symbol": "CACI",
+    "as_of_t": 20250429,
+    "detector_fired": true,
+    "detector_top_confidence": 74.49,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 70,
+      "candidates": [
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20250226,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.0578,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20250310,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.2577,
+          "pole_bars": 11,
+          "flag_count": 35,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 371,
+          "pole_top_t": 20250319,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.2534,
+          "pole_bars": 18,
+          "flag_count": 28,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 382,
+          "pole_top_t": 20250403,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.1426,
+          "pole_bars": 9,
+          "flag_count": 17,
+          "flag_high": 469.75,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 389,
+          "pole_top_t": 20250414,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.2022,
+          "pole_bars": 16,
+          "flag_count": 10,
+          "flag_high": 469.75,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 396,
+          "pole_top_t": 20250424,
+          "extracted": true,
+          "pole_pct": 0.3106,
+          "pole_bars": 15,
+          "flag_count": 3,
+          "retrace_pct": 0.2482,
+          "parallel_score": 0.7899,
+          "flag_low": 442.12,
+          "flag_high": 460.15,
+          "pole_base_idx": 381,
+          "pole_base_t": 20250402,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.6276,
+          "geom_score": 95.89,
+          "vol_score": 46.55,
+          "ctx_score": 85.0,
+          "confidence": 74.49,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 74.49,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 396,
+        "pole_top_t": 20250424,
+        "extracted": true,
+        "pole_pct": 0.3106,
+        "pole_bars": 15,
+        "flag_count": 3,
+        "retrace_pct": 0.2482,
+        "parallel_score": 0.7899,
+        "flag_low": 442.12,
+        "flag_high": 460.15,
+        "pole_base_idx": 381,
+        "pole_base_t": 20250402,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.6276,
+        "geom_score": 95.89,
+        "vol_score": 46.55,
+        "ctx_score": 85.0,
+        "confidence": 74.49,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0022": {
+    "symbol": "RYN",
+    "as_of_t": 20260428,
+    "detector_fired": true,
+    "detector_top_confidence": 56.15,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 77,
+      "candidates": [
+        {
+          "pole_top_idx": 333,
+          "pole_top_t": 20260122,
+          "extracted": false,
+          "pole_base_idx": 313,
+          "pole_pct": 0.1664,
+          "pole_bars": 20,
+          "flag_count": 66,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 361,
+          "pole_top_t": 20260304,
+          "extracted": false,
+          "pole_base_idx": 356,
+          "pole_pct": 0.0819,
+          "pole_bars": 5,
+          "flag_count": 38,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 371,
+          "pole_top_t": 20260318,
+          "extracted": false,
+          "pole_base_idx": 367,
+          "pole_pct": 0.0325,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 375,
+          "pole_top_t": 20260324,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.0539,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20260410,
+          "extracted": true,
+          "pole_pct": 0.1103,
+          "pole_bars": 14,
+          "flag_count": 12,
+          "retrace_pct": 0.4558,
+          "parallel_score": 0.7438,
+          "flag_low": 20.66,
+          "flag_high": 21.73,
+          "pole_base_idx": 373,
+          "pole_base_t": 20260320,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7973,
+          "geom_score": 75.79,
+          "vol_score": 25.33,
+          "ctx_score": 60.0,
+          "confidence": 56.15,
+          "reject_reason": null,
+          "would_fire": true
+        },
+        {
+          "pole_top_idx": 394,
+          "pole_top_t": 20260421,
+          "extracted": true,
+          "pole_pct": 0.0914,
+          "pole_bars": 16,
+          "flag_count": 5,
+          "retrace_pct": 0.467,
+          "parallel_score": 0.5745,
+          "flag_low": 20.88,
+          "flag_high": 21.63,
+          "pole_base_idx": 378,
+          "pole_base_t": 20260327,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.9399,
+          "geom_score": 83.8,
+          "vol_score": 7.51,
+          "ctx_score": 60.0,
+          "confidence": 54.9,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 56.15,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 387,
+        "pole_top_t": 20260410,
+        "extracted": true,
+        "pole_pct": 0.1103,
+        "pole_bars": 14,
+        "flag_count": 12,
+        "retrace_pct": 0.4558,
+        "parallel_score": 0.7438,
+        "flag_low": 20.66,
+        "flag_high": 21.73,
+        "pole_base_idx": 373,
+        "pole_base_t": 20260320,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.7973,
+        "geom_score": 75.79,
+        "vol_score": 25.33,
+        "ctx_score": 60.0,
+        "confidence": 56.15,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0023": {
+    "symbol": "THO",
+    "as_of_t": 20260428,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 81,
+      "candidates": [
+        {
+          "pole_top_idx": 348,
+          "pole_top_t": 20260212,
+          "extracted": false,
+          "pole_base_idx": 338,
+          "pole_pct": 0.1162,
+          "pole_bars": 10,
+          "flag_count": 51,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 370,
+          "pole_top_t": 20260317,
+          "extracted": false,
+          "pole_base_idx": 368,
+          "pole_pct": 0.0524,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20260325,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.1252,
+          "pole_bars": 3,
+          "flag_count": 23,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20260331,
+          "extracted": false,
+          "pole_base_idx": 373,
+          "pole_pct": 0.1101,
+          "pole_bars": 7,
+          "flag_count": 19,
+          "flag_high": 85.0,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 385,
+          "pole_top_t": 20260408,
+          "extracted": false,
+          "pole_base_idx": 382,
+          "pole_pct": 0.1141,
+          "pole_bars": 3,
+          "flag_count": 14,
+          "flag_high": 85.0,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20260417,
+          "extracted": false,
+          "pole_base_idx": 382,
+          "pole_pct": 0.1385,
+          "pole_bars": 10,
+          "flag_count": 7,
+          "flag_high": 82.89,
+          "retrace_pct": 0.7969,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0024": {
+    "symbol": "RYN",
+    "as_of_t": 20250429,
+    "detector_fired": true,
+    "detector_top_confidence": 50.82,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 76,
+      "candidates": [
+        {
+          "pole_top_idx": 335,
+          "pole_top_t": 20250127,
+          "extracted": false,
+          "pole_base_idx": 325,
+          "pole_pct": 0.086,
+          "pole_bars": 10,
+          "flag_count": 64,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 343,
+          "pole_top_t": 20250206,
+          "extracted": false,
+          "pole_base_idx": 325,
+          "pole_pct": 0.0896,
+          "pole_bars": 18,
+          "flag_count": 56,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20250310,
+          "extracted": false,
+          "pole_base_idx": 347,
+          "pole_pct": 0.1139,
+          "pole_bars": 17,
+          "flag_count": 35,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 372,
+          "pole_top_t": 20250320,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.0536,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 382,
+          "pole_top_t": 20250403,
+          "extracted": false,
+          "pole_base_idx": 366,
+          "pole_pct": 0.0473,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20250423,
+          "extracted": true,
+          "pole_pct": 0.1246,
+          "pole_bars": 9,
+          "flag_count": 4,
+          "retrace_pct": 0.4824,
+          "parallel_score": 0.9189,
+          "flag_low": 24.27,
+          "flag_high": 24.96,
+          "pole_base_idx": 386,
+          "pole_base_t": 20250409,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8645,
+          "geom_score": 72.71,
+          "vol_score": 16.93,
+          "ctx_score": 50.0,
+          "confidence": 50.82,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 50.82,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20250423,
+        "extracted": true,
+        "pole_pct": 0.1246,
+        "pole_bars": 9,
+        "flag_count": 4,
+        "retrace_pct": 0.4824,
+        "parallel_score": 0.9189,
+        "flag_low": 24.27,
+        "flag_high": 24.96,
+        "pole_base_idx": 386,
+        "pole_base_t": 20250409,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8645,
+        "geom_score": 72.71,
+        "vol_score": 16.93,
+        "ctx_score": 50.0,
+        "confidence": 50.82,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0025": {
+    "symbol": "BNS",
+    "as_of_t": 20260427,
+    "detector_fired": true,
+    "detector_top_confidence": 77.28,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 67,
+      "candidates": [
+        {
+          "pole_top_idx": 339,
+          "pole_top_t": 20260129,
+          "extracted": false,
+          "pole_base_idx": 325,
+          "pole_pct": 0.0688,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 348,
+          "pole_top_t": 20260211,
+          "extracted": false,
+          "pole_base_idx": 344,
+          "pole_pct": 0.0619,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 355,
+          "pole_top_t": 20260223,
+          "extracted": false,
+          "pole_base_idx": 344,
+          "pole_pct": 0.0553,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 372,
+          "pole_top_t": 20260318,
+          "extracted": false,
+          "pole_base_idx": 369,
+          "pole_pct": 0.0293,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 377,
+          "pole_top_t": 20260325,
+          "extracted": false,
+          "pole_base_idx": 374,
+          "pole_pct": 0.0408,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20260421,
+          "extracted": true,
+          "pole_pct": 0.1514,
+          "pole_bars": 15,
+          "flag_count": 4,
+          "retrace_pct": 0.2788,
+          "parallel_score": 0.808,
+          "flag_low": 74.37,
+          "flag_high": 76.69,
+          "pole_base_idx": 380,
+          "pole_base_t": 20260330,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.5783,
+          "geom_score": 100.0,
+          "vol_score": 52.71,
+          "ctx_score": 83.0,
+          "confidence": 77.28,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 77.28,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20260421,
+        "extracted": true,
+        "pole_pct": 0.1514,
+        "pole_bars": 15,
+        "flag_count": 4,
+        "retrace_pct": 0.2788,
+        "parallel_score": 0.808,
+        "flag_low": 74.37,
+        "flag_high": 76.69,
+        "pole_base_idx": 380,
+        "pole_base_t": 20260330,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.5783,
+        "geom_score": 100.0,
+        "vol_score": 52.71,
+        "ctx_score": 83.0,
+        "confidence": 77.28,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (post-fix detector) -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}
