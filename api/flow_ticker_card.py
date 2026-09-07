@@ -23,8 +23,8 @@ _MIXED = (201, 168, 76)   # gold for two-sided / unclear leans
 
 # (header, x, align) — one row per CONTRACT (no ticker column; it's one ticker)
 _COLS = [
-    ("STRIKE", 120, "r"), ("C/P", 138, "l"), ("EXP · DTE", 210, "l"),
-    ("WHEN", 415, "l"), ("PREMIUM", 600, "r"), ("VOL", 722, "r"),
+    ("STRIKE", 120, "r"), ("C/P", 138, "l"), ("EXP · DTE", 200, "l"),
+    ("ITM/OTM", 360, "l"), ("WHEN", 460, "l"), ("PREMIUM", 600, "r"), ("VOL", 722, "r"),
     ("OI", 828, "r"), ("V/OI", 912, "r"), ("PERF", 1012, "r"), ("DIR", 1032, "l"),
 ]
 
@@ -45,6 +45,18 @@ def _md_compact(s) -> str:
         return "—"
     p = s.split("/")
     return f"{p[0]}/{p[1]}" if len(p) >= 2 else s
+
+
+def _fmt_money(pct):
+    """(text, color) for the ITM/OTM column. `pct` is signed moneyness from
+    _moneyness(): positive = ITM, negative = OTM, |pct|<1 = ATM."""
+    try:
+        p = float(pct)
+    except (TypeError, ValueError):
+        return ("—", _DIM)
+    if abs(p) < 1.0:
+        return ("ATM", _DIM)
+    return (f"{abs(p):.0f}% {'ITM' if p > 0 else 'OTM'}", _DIM)
 
 
 def _fmt_perf(p):
@@ -156,8 +168,10 @@ def render_ticker_flow_card(data: dict) -> bytes:
         _exp = c.get("exp") or ""
         if c.get("dte") is not None:
             _exp = f"{_exp} · {_num(c, 'dte')}d"
-        txt(210, y, _exp, f_row, _DIM)
-        txt(415, y, _md_compact(c.get("first_seen")), f_row, _DIM)
+        txt(200, y, _exp, f_row, _DIM)
+        _mtext, _mcol = _fmt_money(c.get("moneynessPct"))
+        txt(360, y, _mtext, f_row, _mcol)
+        txt(460, y, _md_compact(c.get("first_seen")), f_row, _DIM)
         txt(600, y, _fmt_prem(c.get("premium")), f_rowb, _GOLD, "r")
         v = _num(c, "volume"); txt(722, y, f"{v:,}" if v is not None else "—", f_row, _TXT, "r")
         o = _num(c, "oi"); txt(828, y, f"{o:,}" if o is not None else "—", f_row, _DIM, "r")
