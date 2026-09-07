@@ -314,8 +314,16 @@ def _doc_shape(row):
     trees = compute.get("trees") or {}
 
     def chips(p):
+        # A plot earns a legend chip when it declares a `legend` block that is not
+        # hidden. ⛔ AND WHEN IT IS NOT ITSELF HIDDEN: C1-A carries a conditional
+        # colour as a HIDDEN condition column, which still gets a chip (marked
+        # `data-hidden`) but is never expected to DRAW. Counting it as a plot that
+        # should draw would report every dynamically-coloured import as
+        # CHART_PARTIAL — a harness artefact wearing the shape of a render defect,
+        # which is the class of mistake this file has already made five times.
         lg = p.get("legend")
-        return isinstance(lg, dict) and lg.get("hide") is not True
+        return (isinstance(lg, dict) and lg.get("hide") is not True
+                and p.get("hidden") is not True)
 
     inputs = [i for i in (d.get("inputs") or []) if isinstance(i, dict)]
     guide = next((p for p in plots if not chips(p)), None)
@@ -469,7 +477,7 @@ def _open_workspace(page, base, timeout=30000):
     return None
 
 
-def run_one(page, base, name, source, out_dir):
+def run_one(page, base, name, source, out_dir, keep=False):
     """One complete journey. Every phase timed, every claim a real read."""
     t = {}
 
@@ -743,6 +751,12 @@ def run_one(page, base, name, source, out_dir):
         row["result"] = "FULL_JOURNEY_PASS"
 
     # Leave the chart as we found it, so the next script's diff is honest.
+    # ⛔ …UNLESS THE CALLER ASKED TO KEEP IT. A pixel check has to run against a
+    # chart that still HAS the indicator on it, and re-importing for the probe
+    # would measure a different render than the one just classified.
+    if keep:
+        row["cleanup_removed"] = "skipped (--keep)"
+        return row
     try:
         removed = page.evaluate(JS_REMOVE_INSTANCES,
                                 sorted({c["instanceId"] for c in new_chips}))
@@ -773,6 +787,8 @@ def main():
     ap.add_argument("--password", default=os.environ.get("C0_PASSWORD", "OosTest2026!"))
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--keep", action="store_true",
+                    help="leave imported indicators on the chart (for a pixel probe)")
     args = ap.parse_args()
 
     from playwright.sync_api import sync_playwright
@@ -810,7 +826,7 @@ def main():
             name = f.stem
             print(f"--- {name}")
             try:
-                row = run_one(page, args.base, name, f.read_text(encoding="utf-8"), out_dir)
+                row = run_one(page, args.base, name, f.read_text(encoding="utf-8"), out_dir, args.keep)
             except Exception as e:
                 row = {"script": name, "result": "CHART_ERROR", "detail": str(e)[:300]}
             report["rows"].append(row)

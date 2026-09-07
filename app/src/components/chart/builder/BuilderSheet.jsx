@@ -456,6 +456,28 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // and its column still reaches the alert seam and the scan.
       legend: { decimals: 2 },
       ...(r.hidden ? { hidden: true } : {}),
+      // ⭐⭐ C1-A: THE AUTHOR'S CONDITIONAL COLOUR, carried as the schema's own
+      // per-point mode. `colorMode: 'column:<key>'` names ANOTHER row of this
+      // same document — the hidden one holding the condition — and
+      // `binder.toPoints` colours each point by whether that column is non-zero.
+      //
+      // ⛔ ALL THREE OR NONE. `defSchema` refuses a `column:` mode without both
+      // colours (a mode with nothing to alternate between draws one flat colour
+      // while registering happily), so a half-set row must not reach it.
+      ...(r.colorMode && r.colorUp && r.colorDown
+        ? { colorMode: r.colorMode, colorUp: r.colorUp, colorDown: r.colorDown }
+        : {}),
+      // ⭐⭐ C1-B — the band, as `defSchema.plots[].fill` already validates it.
+      // ⛔ ONLY WHEN THE NAMED EDGE IS REALLY IN THIS DOCUMENT. `defSchema`
+      // refuses a fill naming a plot nobody declares, so a stale `with` would
+      // make the whole document unsaveable rather than merely undrawn.
+      ...(r.fill && r.fill.with && rows.some((o) => o.key === r.fill.with)
+        ? {
+          fill: { with: r.fill.with },
+          ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),
+          ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
+        }
+        : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length
@@ -2068,9 +2090,45 @@ export default function BuilderSheet({
                       return add.length ? [...prev, ...add] : prev
                     })
                   }
-                  setPlotRows(carried.map((out, i) => {
+                  // ⭐⭐ C1-A — A CONDITIONAL COLOUR BECOMES A HIDDEN COLUMN.
+                  //
+                  // `plot(x, color = up ? green : red)` is the corpus' commonest
+                  // visual idiom. The schema's answer is `colorMode:
+                  // 'column:<key>'`, which colours each point by whether ANOTHER
+                  // column of the same document is non-zero — so the condition
+                  // has to BE a column. It rides as an ordinary hidden plot row:
+                  // one evaluator, one answer, and every existing rail (the
+                  // formula field, the read-back, the save gate) applies to it
+                  // unchanged.
+                  //
+                  // ⛔ THE HIDDEN ROW IS A REAL ROW, NOT A SIDE CHANNEL. It gets
+                  // a legal unique key from the same `taken` set every visible
+                  // row uses, so a script whose plot is literally titled
+                  // "value c" cannot collide with one.
+                  const condRows = []
+                  const colourPatch = (presentation, baseKey) => {
+                    const cc = presentation && presentation.colorCondition
+                    if (!cc || !cc.formula) return null
+                    if (!presentation.colorUp || !presentation.colorDown) return null
+                    let k = `${baseKey}_c`
+                    while (taken.has(k)) k = `${k}_`
+                    taken.add(k)
+                    condRows.push({
+                      ...newPlotRow(k),
+                      source: String(cc.formula),
+                      label: `${baseKey} colour rule`,
+                      hidden: true,
+                    })
+                    return {
+                      colorMode: `column:${k}`,
+                      colorUp: presentation.colorUp,
+                      colorDown: presentation.colorDown,
+                    }
+                  }
+                  const visible = carried.map((out, i) => {
                     const op = (out && out.presentation) || {}
-                    const row = newPlotRow(keyFor(out && out.title, i))
+                    const key = keyFor(out && out.title, i)
+                    const row = newPlotRow(key)
                     return {
                       ...row,
                       source: String((out && out.source) || ''),
@@ -2079,8 +2137,45 @@ export default function BuilderSheet({
                       ...(Number.isFinite(op.width)
                         ? { width: Math.max(1, Math.min(4, Math.round(op.width))) } : {}),
                       ...(typeof op.style === 'string' ? { style: op.style } : {}),
+                      ...(colourPatch(op, key) || {}),
                     }
-                  }))
+                  })
+                  // Plot 1's own rule, if it has one. Its key is fixed (`value`),
+                  // and its patch reaches the row through `setPlot0`.
+                  const p0 = colourPatch((picked2.presentation || {}).output, 'value')
+                  if (p0) setPlot0((prev) => ({ ...prev, ...p0 }))
+
+                  // ⭐⭐ C1-B — `fill(plotA, plotB)` BECOMES `plots[a].fill.with`.
+                  //
+                  // The edges arrive as indexes into the handback's own output
+                  // list (PineBox re-seats them for exactly this), so index 0 is
+                  // plot 1 and index n is `visible[n - 1]`. The band is declared
+                  // on the FIRST edge and names the second, which is the shape
+                  // `defSchema.plots[].fill` already validates and
+                  // `binder`'s fill primitive already draws.
+                  //
+                  // ⛔ A BAND WHOSE EITHER EDGE WAS NOT CARRIED IS DROPPED. Past
+                  // `CARRY_MAX`, or refused, the second edge simply is not in the
+                  // document — and an area between a line and nothing is not what
+                  // the author drew.
+                  const keyAt = (i) => (i === 0 ? 'value' : (visible[i - 1] || {}).key)
+                  const fillPatches = new Map()
+                  for (const f of ((picked2.presentation || {}).fills || [])) {
+                    const from = keyAt(f.a)
+                    const to = keyAt(f.b)
+                    if (!from || !to || from === to || fillPatches.has(from)) continue
+                    fillPatches.set(from, {
+                      fill: { with: to },
+                      ...(typeof f.color === 'string' ? { fillColor: f.color } : {}),
+                      ...(Number.isFinite(f.opacity) ? { fillOpacity: f.opacity } : {}),
+                    })
+                  }
+                  const withFills = visible.map(
+                    (r) => (fillPatches.has(r.key) ? { ...r, ...fillPatches.get(r.key) } : r))
+                  if (fillPatches.has('value')) {
+                    setPlot0((prev) => ({ ...prev, ...fillPatches.get('value') }))
+                  }
+                  setPlotRows([...withFills, ...condRows])
                   const dropped = extraOutputs.length - carried.length
                   if (dropped > 0) {
                     setPickerNote(`This script declares ${extraOutputs.length + 1} columns. `
@@ -2089,7 +2184,31 @@ export default function BuilderSheet({
                 } else if (picked2 && Array.isArray(picked2.outputs)) {
                   // A single-output import REPLACES any rows a previous paste
                   // left standing — same rule as levels and the param manifest.
-                  setPlotRows([])
+                  //
+                  // ⭐ …EXCEPT ITS OWN COLOUR RULE. A one-plot script can colour
+                  // conditionally too, and the condition still has to ride as a
+                  // hidden column. Without this branch, C1-A would work only for
+                  // multi-plot imports — which is exactly the kind of gap that
+                  // reads as "dynamic colour is supported" until somebody pastes
+                  // a single-plot script.
+                  const cc = ((picked2.presentation || {}).output || {})
+                  if (cc.colorCondition && cc.colorCondition.formula
+                      && cc.colorUp && cc.colorDown) {
+                    setPlotRows([{
+                      ...newPlotRow('value_c'),
+                      source: String(cc.colorCondition.formula),
+                      label: 'value colour rule',
+                      hidden: true,
+                    }])
+                    setPlot0((prev) => ({
+                      ...prev,
+                      colorMode: 'column:value_c',
+                      colorUp: cc.colorUp,
+                      colorDown: cc.colorDown,
+                    }))
+                  } else {
+                    setPlotRows([])
+                  }
                 }
                 setSource(formula)
                 setBuildMode('formula')

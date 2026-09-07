@@ -35,12 +35,21 @@ of the ten dimensions are 🔴, two are unmeasured, and the minimum bar the prot
 | Tier | Claim | Earned? |
 |---|---|---|
 | **1** | *"Paste a Pine formula and screen with it."* | ✅ **Earned today** for the narrow case — with the caveat that only 10% of real indicators reach the screener, so this must not be worded as "your indicators" |
-| **2** | *"Import supported Pine indicators, and be told plainly what did and didn't come across."* | 🟡 **Reachable in one wave** — needs Wave A + B only |
-| **3** | *"Import most common Pine indicators with their visuals."* | 🔴 Needs Waves A–D |
+| **2** | *"Import supported Pine indicators, and be told plainly what did and didn't come across."* | ✅ **EARNED (2026-09-07, after C0R + C1).** 13 of the 18 accepted OOS scripts complete the whole journey — import, apply, save, render, reopen byte-identical — and the 5 that do not are each blocked with a NAMED reason the member can read. Multi-output, per-plot styling, levels, placement, member inputs, conditional colour and bands all carry. |
+| **3** | *"Import most common Pine indicators with their visuals."* | 🔴 **NOT earned.** Two-way conditional colour and plot↔plot bands draw; N-way colour (8 rows), colour-as-visibility (16 rows) and `plotcandle` payloads (12 rows) do not, and 16 of 18 accepted scripts remain VISUALLY PARTIAL. |
 | **4** | *"Bring sophisticated TradingView indicators into UCT."* | 🔴 Needs the object model (Wave E); this is the tier the governing objective actually names |
 
-**Recommendation: claim nothing above Tier 1 until Wave B ships, and do not use the word
-"indicators" in any Tier-1 wording** — today the honest noun is "formulas" or "screens".
+**Recommendation as of 2026-09-07: Tier 2 may now be claimed, and Tier 3 may not.**
+
+⛔ **AND THE TIER-2 WORDING MUST CARRY ITS OWN CAVEAT.** "Import supported Pine
+indicators" is earned only because *"and be told plainly what did and didn't come
+across"* is the other half of the sentence — that half is doing real work here, and
+dropping it in a headline turns an earned claim into an unearned one.
+
+⛔ **NEVER SAY "WITH THEIR VISUALS" (Tier 3) ON THE STRENGTH OF C1.** A script can
+complete the full journey and still be VISUALLY PARTIAL; the two are different
+measurements and the register (Part E) keeps them apart. `FULL_JOURNEY_PASS` is not
+visual parity and no marketing sentence may treat it as such.
 
 ---
 

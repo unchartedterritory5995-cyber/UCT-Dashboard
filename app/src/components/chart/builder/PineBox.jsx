@@ -637,6 +637,26 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const presentation = saidSomething
       ? { ...scriptPres, output: outPres }
       : null
+    // ⛔⛔ C1-B — THE BAND'S EDGES ARE RE-INDEXED HERE, and this is the whole
+    // reason it is done at this door rather than downstream.
+    //
+    // `presentation.fills` names its two edges by their index in the
+    // TRANSLATOR's output array. The array handed back below is a different one:
+    // the member's SELECTED column is moved to the front and every refused or
+    // hidden output is filtered out. Passing the translator's indexes through
+    // unchanged would draw the band between two arbitrary other plots — a
+    // plausible-looking picture of a relationship the script never asserted,
+    // which is the worst kind of wrong.
+    //
+    // ⛔ AND A BAND WHOSE EDGE DID NOT SURVIVE IS DROPPED, not half-drawn.
+    if (presentation && Array.isArray(scriptPres.fills) && scriptPres.fills.length && report) {
+      const order = [active, ...report.outputs.filter((o) => o.formula && !o.hidden && o !== active)]
+      const seat = new Map()
+      order.forEach((o, i) => { const j = report.outputs.indexOf(o); if (j >= 0) seat.set(j, i) })
+      presentation.fills = scriptPres.fills
+        .map((f) => ({ ...f, a: seat.get(f.a), b: seat.get(f.b) }))
+        .filter((f) => f.a !== undefined && f.b !== undefined && f.a !== f.b)
+    }
     // ⭐⭐ C0.1 — THE WHOLE INDICATOR, NOT ONE OF ITS PLOTS.
     //
     // ⚰️ THIS DOOR HANDED BACK ONE COLUMN. A four-plot Pine indicator became four

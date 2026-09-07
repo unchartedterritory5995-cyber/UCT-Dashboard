@@ -414,11 +414,23 @@ export function legendChips(bindings, seriesData, registry, instances) {
     if (inst.deleted === true) continue
     const def = get(inst.defId)
     if (!def) continue
-    const isHidden = inst.hidden === true
+    const instHidden = inst.hidden === true
     const inputs = (inst.inputs && typeof inst.inputs === 'object') ? inst.inputs : {}
 
     for (const plot of (def.plots || [])) {
       if (!plot || !plot.legend || plot.legend.hide === true) continue
+      // ⛔⛔ A PLOT-LEVEL `hidden` IS HIDDEN TOO, and reading only the INSTANCE's
+      // flag was a real member-visible bug.
+      // ⚰️ MEASURED on the live chart the day C1-A shipped: a conditional colour
+      // rides as a HIDDEN condition column, `planBindings` correctly gives a
+      // hidden plot no series, and this loop then found no binding for it and
+      // stamped its chip `data-computed="false"` — "no value on these bars",
+      // with a tooltip telling the member to try a longer timeframe. Every
+      // dynamically-coloured import showed one, for a column that is working
+      // exactly as designed and was never meant to draw.
+      // The two flags mean the same thing to a reader — "nobody looked" — so
+      // they answer the same way (see the `computed` note below).
+      const isHidden = instHidden || plot.hidden === true
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
       if (bound) { out.push({ ...bound, hidden: false, computed: true }); continue }
       const label = chipLabel(def, plot, inputs)

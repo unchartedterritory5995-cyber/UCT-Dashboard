@@ -7448,6 +7448,10 @@ export function translatePine(source, opts = {}) {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
   const levels = []
+  /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
+   *  Resolved to output indexes after the outputs are known, because a fill may
+   *  legally appear before either plot it joins. */
+  const fills = []
 
   let lexed
   try {
@@ -7862,7 +7866,12 @@ export function translatePine(source, opts = {}) {
       // COLUMN is what the screener wants, and it is right there.
       if (rhs[0].kind === 'ident' && own(OUTPUT_CALLS, rhs[0].value)
           && isPunct(rhs[1], '(')) {
-        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0] })
+        // ⭐⭐ C1-B — THE HANDLE NAME IS KEPT. `fill(p1, p2, …)` joins two plot
+        // HANDLES, so a band cannot be read at all without knowing which output
+        // each handle names. It was discarded here; the binding stays opaque
+        // (nothing can read a chart object as a number), and this is only a
+        // label for the fill reader below.
+        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0], handle: nameTok.value })
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
           `\`${nameTok.value}\` holds a plot handle, which is a chart object rather than a number`)
         continue
@@ -7976,6 +7985,35 @@ export function translatePine(source, opts = {}) {
             })
           }
         } catch { /* a level this grammar cannot fold stays an ignored line */ }
+        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        continue
+      }
+      // ⭐⭐ C1-B — `fill(handleA, handleB, color = …)` IS THE BAND.
+      //
+      // Measured over the frozen 60: 35 `fill()` calls across 18 scripts, and
+      // **33 of the 35 join two PLOT handles**. Exactly one joins two `hline`s.
+      // That measurement is why this reads handles rather than levels, and why
+      // the renderer it feeds is a series primitive rather than a baseline.
+      //
+      // ⛔ IT STILL EMITS THE CHART-ONLY NOTE, like `hline` above: the band is
+      // now carried, but the call is still not a column, and the member's
+      // disclosure list should go on saying so.
+      if (word === 'fill') {
+        try {
+          const fargs = parseArguments(new Cursor(toks.slice(2)))
+          const positional = fargs.filter((a) => !a.name)
+          const a = positional[0] && positional[0].value
+          const b = positional[1] && positional[1].value
+          if (a && b && a.type === 'name' && b.type === 'name') {
+            const pres = outputPresentation(fargs, { env })
+            fills.push({
+              a: a.name,
+              b: b.name,
+              ...(pres.color ? { color: pres.color } : {}),
+              ...(Number.isFinite(pres.opacity) ? { opacity: pres.opacity } : {}),
+            })
+          }
+        } catch { /* a fill this grammar cannot read stays an ignored line */ }
         notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
         continue
       }
@@ -8113,7 +8151,9 @@ export function translatePine(source, opts = {}) {
         // renderer would shift a column that has already been shifted.
         displace: shift < 0 ? shift : 0,
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
-        presentation: outputPresentation(args),
+        // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
+        // be resolved into a real tree here rather than guessed at downstream.
+        presentation: outputPresentation(args, { env, resolver }),
         hidden: authorHid || flat,
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
@@ -8238,7 +8278,11 @@ export function translatePine(source, opts = {}) {
     // `overlay` is the author's pane intent, read from the declaration this door
     // previously only glanced at for a title. `levels` are the `hline` values it
     // used to discard. Per-output styling rides on each row's `presentation`.
-    presentation: { overlay, levels },
+    // ⭐⭐ C1-B — the bands, resolved from plot HANDLES to output INDEXES here,
+    // because that is the first point at which both are known. A fill whose two
+    // handles do not both name a surviving output is DROPPED rather than
+    // half-carried: a band with one edge is not a band.
+    presentation: { overlay, levels, fills: resolveFillHandles(fills, outputs, resolved) },
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table),
     notes: withExcerpts(notes, lines),
@@ -8357,6 +8401,27 @@ const PINE_COLOURS = Object.freeze({
   'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
 })
 
+/**
+ * ⭐⭐ THE SAME EIGHTEEN COLOURS UNDER THEIR PINE v3/v4 SPELLING — `red`, not
+ * `color.red`.
+ *
+ * ⚰️ MEASURED, AND IT WAS A LARGE SILENT LOSS. Wave B read `color.x` only, so
+ * every v3/v4 script's colour argument fell through to "an expression this door
+ * cannot say" — including plain `color=aqua`, which is not an expression at all.
+ * In the frozen 60 that is most of `cm-ultimate-rsi-mtf` (`aqua`, `red`, `lime`,
+ * `gray`, `orange`) and both of `waddah-attar`'s conditionals (`lime`/`green`,
+ * `orange`/`red`). The colour was simply not read.
+ *
+ * ⛔ DERIVED FROM THE `color.` TABLE, NEVER RE-TYPED. Two hand-written tables of
+ * the same eighteen hexes is the second-authority defect this file names
+ * elsewhere; the day a vendor hex moves, one of them would keep the old value.
+ *
+ * ⚠️ `grey`/`gray` both survive the strip, which is correct — Pine accepts both.
+ */
+const PINE_COLOURS_BARE = Object.freeze(Object.fromEntries(
+  Object.entries(PINE_COLOURS).map(([k, v]) => [k.slice('color.'.length), v]),
+))
+
 /** Pine plot style → the name `defSchema.PLOT_STYLES` already validates.
  *  ⛔ A STYLE WITH NO COUNTERPART IS ABSENT FROM THIS MAP ON PURPOSE, so it is
  *  REPORTED as uncarried rather than mapped onto something that draws a
@@ -8375,7 +8440,15 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
-const isColourName = (v) => !!v && v.type === 'name' && Object.hasOwn(PINE_COLOURS, v.name)
+// ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
+// the script has bound that name to something else — a member's own variable
+// called `green` must not silently become a colour. The bound-name check is the
+// caller's (`staticColourOf` is handed a node the env has already been asked
+// about); here the question is only whether the SPELLING names a Pine colour.
+const isColourName = (v) => !!v && v.type === 'name'
+  && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
+const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)
+  ? PINE_COLOURS[v.name] : PINE_COLOURS_BARE[v.name])
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every
@@ -8387,32 +8460,242 @@ const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
 /** The presentation ONE output call declares. Returns only what was actually
  *  written — an absent argument is absent, never a default invented here, so a
  *  consumer can tell "the author said line" from "the author said nothing". */
-function outputPresentation(args) {
+/** A parse node that IS a static colour → its hex, else null.
+ *
+ *  ⛔ THE SAME THREE FORMS `outputPresentation` ALREADY READS for a literal
+ *  colour — a named `color.x`, a `#RRGGBB` literal, and `color.new(base, t)` —
+ *  factored out rather than re-typed, so the branches of a conditional and a
+ *  plain `color=` can never disagree about what counts as a colour. */
+function staticColourOf(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    // ⛔⛔ A NAME IS FOLLOWED, AND THE SCRIPT'S OWN BINDING WINS.
+    // ⚰️ Measured: without this, `C = #5C8E33` followed by `plot(x, color = C)`
+    // — a plain STATIC colour behind a name, and one of the commonest things in
+    // the corpus — read as "an expression this door cannot say" and the plot drew
+    // in the builder's default. The name was never opened.
+    // And the precedence matters in the other direction too: Pine v3/v4 colour
+    // names like `red` live in the global namespace, so a member writing
+    // `green = ta.sma(close, 20)` must get their average, not a colour.
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return staticColourOf(bound.node, bound.env || env, depth + 1)
+    }
+    // Bound to something this door cannot open (an opaque binding) — then a bare
+    // colour spelling is the member's variable, not Pine's constant.
+    if (bound && Object.hasOwn(PINE_COLOURS_BARE, node.name)
+        && !Object.hasOwn(PINE_COLOURS, node.name)) return null
+    return isColourName(node) ? colourHexOf(node) : null
+  }
+  if (node.type === 'colour') return String(node.value)
+  // ⭐ `color.rgb(r, g, b)` IS A STATIC COLOUR when its channels are literals —
+  // an author spelling the same fixed colour a different way. Alpha, when given,
+  // is Pine's fourth argument and is a TRANSPARENCY like `color.new`'s.
+  if (node.type === 'call' && node.name === 'color.rgb') {
+    const ch = (node.args || []).slice(0, 3).map((a) => numberValue((a || {}).value))
+    if (ch.length === 3 && ch.every((v) => v !== null && v >= 0 && v <= 255)) {
+      const hex = ch.map((v) => Math.round(v).toString(16).padStart(2, '0').toUpperCase()).join('')
+      const a4 = (node.args || [])[3]
+      if (a4 !== undefined && numberValue(a4.value) === null) return null
+      return `#${hex}`
+    }
+    return null
+  }
+  // ⭐ `input.color(<default>, …)` — the author's own colour picker. Its DEFAULT
+  // is a real static colour and showing it is strictly better than showing the
+  // builder's. ⚠️ The KNOB does not come across (`input.color` is not a Track F
+  // kind), and that loss is already reported by `skippedInputs` — this carries
+  // the value without claiming the control.
+  if (node.type === 'call' && node.name === 'input.color') {
+    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1)
+  }
+  if (node.type === 'call' && node.name === 'color.new') {
+    // ⛔⛔ A DYNAMIC TRANSPARENCY MAKES THE WHOLE COLOUR DYNAMIC.
+    // `color.new(color.red, close)` fades the line bar by bar; reading only the
+    // BASE and calling it static hands the member one flat red and loses the
+    // entire effect — silently, which is the failure C1 exists to stop. Caught
+    // by `pine.presentation.test.js`'s own "never guessed" case, which is the
+    // only reason this branch is strict.
+    const t = ((node.args || [])[1] || {}).value
+    if (t !== undefined && numberValue(t) === null) return null
+    const base = ((node.args || [])[0] || {}).value
+    if (isColourName(base)) return colourHexOf(base)
+    if (base && base.type === 'colour') return String(base.value)
+  }
+  return null
+}
+
+/** The opacity a `color.new(base, transp)` asks for, or null. */
+function colourNewAlpha(node) {
+  if (!node || node.type !== 'call' || node.name !== 'color.new') return null
+  const t = numberValue(((node.args || [])[1] || {}).value)
+  return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
+}
+
+/**
+ * ⭐⭐ C1-A: A COLOUR EXPRESSION → `{test, up, down}`, OR NULL.
+ *
+ * Pine's commonest visual idiom, and the whole of C1-A's demand: measured over
+ * the frozen 60, **49 scripts** colour a plot from an expression. The two shapes
+ * that dominate are the conditional itself and a NAME bound to one —
+ *
+ *     plot(x, color = close > ma ? color.green : color.red)
+ *     col = close > ma ? color.green : color.red
+ *     plot(x, color = col)                                  ← 217 occurrences
+ *
+ * — so a reader that only understood the inline form would carry a small
+ * minority of the real corpus. This follows a bound name through the same `env`
+ * the value expression resolves against.
+ *
+ * ⛔ BOTH BRANCHES MUST BE STATIC COLOURS. `cond ? a : someOtherExpression` is a
+ * colour this door still cannot say, and guessing one of the two would be worse
+ * than declining: the member would get a confident wrong picture. It falls
+ * through to `colorDynamic`, which is the honest "demanded and uncarried".
+ *
+ * ⛔ AND THE DEPTH IS BOUNDED. `a = b`, `b = a` is a legal thing to write and an
+ * unbounded chase would hang the import on it.
+ */
+/** How many DISTINCT static colours a nested colour conditional wants, or 0 when
+ *  any leaf is not a static colour. Bounded like every other chase here. */
+function staticColourArity(node, env, depth = 0, seen = new Set()) {
+  if (!node || depth > 8) return 0
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen)
+  }
+  if (node.type === 'ternary') {
+    const y = staticColourArity(node.yes, env, depth + 1, seen)
+    const n = staticColourArity(node.no, env, depth + 1, seen)
+    return (y && n) ? seen.size : 0
+  }
+  const hex = staticColourOf(node, env)
+  if (!hex) return 0
+  seen.add(hex)
+  return seen.size
+}
+
+function colourConditional(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') {
+      return colourConditional(bound.node, bound.env || env, depth + 1)
+    }
+    return null
+  }
+  if (node.type !== 'ternary') return null
+  const up = staticColourOf(node.yes, env)
+  const down = staticColourOf(node.no, env)
+  if (!up || !down) {
+    // ⭐⭐ AN N-WAY COLOUR CHAIN IS MEASURED, NOT JUST DECLINED.
+    // `rising ? bull : falling ? bear : neutral` and
+    // `a ? (b ? c1 : c2) : (b ? c3 : c4)` are real and common — `ttm-squeeze`
+    // wants FOUR colours, `coppock-curve` THREE. A plot carries exactly two
+    // (`colorUp`/`colorDown`), so these cannot be said without new schema, which
+    // this wave is not authorized to add.
+    //
+    // ⛔ SO THE ANSWER IS THE ARITY, NOT SILENCE. "Dynamic colour is uncarried"
+    // is a fact nobody can act on; "this rule needs 4 colours and the schema
+    // holds 2" names the exact capability the gap register should carry, and it
+    // is measured per output rather than estimated once.
+    // ⭐ `cond ? <colour> : na` IS A VISIBILITY GATE WEARING A COLOUR ARGUMENT,
+    // and it is the single largest uncarried class in the corpus. Pine hides the
+    // plot on those bars; this schema has no per-point visibility for a line, and
+    // carrying only the INNER colour would draw a line exactly where the author
+    // hid one — a confident wrong picture, which is worse than declining.
+    // Reported under its own name so the gap register can carry the capability
+    // rather than the symptom.
+    const isNa = (n) => !!n && ((n.type === 'name' && n.name === 'na')
+      || (n.type === 'call' && n.name === 'na'))
+    if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
+    const arity = staticColourArity(node, env)
+    return arity > 2 ? { arity } : null
+  }
+  // The transparency of either branch, if they agree on one. Two DIFFERENT
+  // opacities are a per-point alpha this schema has no field for; carrying one of
+  // them would silently apply it to both.
+  const a = colourNewAlpha(node.yes)
+  const b = colourNewAlpha(node.no)
+  const opacity = (a !== null && b !== null && a === b) ? a : null
+  return { test: node.test, up, down, opacity }
+}
+
+/**
+ * `fill(a, b, …)` by HANDLE → by output INDEX.
+ *
+ * ⛔ BOTH EDGES OR NEITHER. A band whose second edge refused, or was never a
+ * plot, is not a band — carrying it with one edge would draw an area between a
+ * line and nothing, which is a shape the author never asked for.
+ */
+function resolveFillHandles(fills, outputs, resolved) {
+  if (!fills.length) return []
+  const byHandle = new Map()
+  outputs.forEach((o, i) => { if (o && o.handle) byHandle.set(o.handle, i) })
+  const out = []
+  for (const f of fills) {
+    const ai = byHandle.get(f.a)
+    const bi = byHandle.get(f.b)
+    if (ai === undefined || bi === undefined || ai === bi) continue
+    if (!resolved[ai] || resolved[ai].refusal || !resolved[bi] || resolved[bi].refusal) continue
+    out.push({ a: ai, b: bi, ...(f.color ? { color: f.color } : {}),
+      ...(Number.isFinite(f.opacity) ? { opacity: f.opacity } : {}) })
+  }
+  return out
+}
+
+function outputPresentation(args, ctx) {
   const pres = {}
   const arg = (n) => args.find((a) => a.name === n)
 
   const c = arg('color')
   if (c) {
-    if (isColourName(c.value)) pres.color = PINE_COLOURS[c.value.name]
-    // ⭐ A HEX LITERAL IS ALREADY THE ANSWER — `#FF9800` needs no table.
-    else if (c.value && c.value.type === 'colour') pres.color = String(c.value.value)
-    // ⛔⛔ A CALL NODE'S `args` ARE `{name, value}` PAIRS, NOT RAW NODES.
+    // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
+    // literal, and `color.new(base, <literal>)`. `staticColourOf` is the same
+    // function the branches of a CONDITIONAL colour go through, so the two paths
+    // cannot disagree about what counts as a colour.
+    // ⛔ A CALL NODE'S `args` ARE `{name, value}` PAIRS, NOT RAW NODES.
     // `parseArguments` returns Pine's own positional-and-named shape, so reading
     // `args[0].type` looks at the PAIR and finds nothing — the second time this
     // wave read one level too shallow and got a silent "the author said nothing".
-    else if (c.value && c.value.type === 'call' && c.value.name === 'color.new'
-             && (isColourName(((c.value.args || [])[0] || {}).value)
-                 || (((c.value.args || [])[0] || {}).value || {}).type === 'colour')) {
-      const base = c.value.args[0].value
-      pres.color = base.type === 'colour' ? String(base.value) : PINE_COLOURS[base.name]
-      const t = numberValue(((c.value.args || [])[1] || {}).value)
-      if (t !== null) pres.opacity = Math.max(0, Math.min(1, 1 - t / 100))
+    const flat = staticColourOf(c.value, ctx && ctx.env)
+    if (flat) {
+      pres.color = flat
+      const a = colourNewAlpha(c.value)
+      if (a !== null) pres.opacity = a
     } else {
-      // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 40 of the 60
+      // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
+      // The condition is resolved into an ordinary canonical tree and travels as
+      // `colorCondition`; downstream it becomes a hidden column and the plot's
+      // `colorMode: 'column:<key>'`, which `binder.toPoints` draws per point.
+      //
+      // ⛔ A FAILURE HERE MUST NEVER REFUSE THE OUTPUT. The colour is
+      // presentation; the column is the indicator. If the condition cannot be
+      // resolved — it reaches an unsupported call, a mutable name, anything —
+      // the plot still imports, and the colour falls back to the honest
+      // "demanded and uncarried" marker below.
+      const cond = ctx && ctx.env ? colourConditional(c.value, ctx.env) : null
+      let carried = false
+      // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
+      if (cond && cond.arity) pres.colorDynamicArity = cond.arity
+      if (cond && cond.naGated) pres.colorNaGated = true
+      if (cond && cond.up && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.test)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorUp = cond.up
+          pres.colorDown = cond.down
+          pres.colorCondition = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
+      // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 49 of the 60
       // OOS scripts colour conditionally, and for a `plotcandle` it is the entire
-      // payload. It is recorded as DEMANDED-AND-UNCARRIED rather than dropped,
-      // so the import can say so instead of quietly showing one flat colour.
-      pres.colorDynamic = true
+      // payload. What this door still cannot say is recorded as
+      // DEMANDED-AND-UNCARRIED rather than dropped, so the import can say so
+      // instead of quietly showing one flat colour.
+      if (!carried) pres.colorDynamic = true
     }
   }
 

@@ -575,11 +575,17 @@ export function seriesOptionsForPlot(plot, ctx) {
  * `colorUp`/`colorDown` are the two colours it needs (a mode without them is
  * unrenderable, which is why `defSchema` requires them together).
  *
- * Everything else — including `colorMode: 'column:<key>'`, which is a legal
- * schema value with no v1 consumer — returns null and draws in the series colour.
+ * ⭐ `colorMode: 'column:<key>'` is NOT handled here — it has its own resolver
+ * (`columnColorsForPlot`, below) because it needs a column name as well as two
+ * colours. Everything else returns null and draws in the series colour.
  */
 export function signColorsForPlot(plot) {
   if (!plot || plot.colorMode !== 'sign') return null
+  return twoColoursOf(plot)
+}
+
+/** The two colours a per-point mode needs, with the plot's alpha applied. */
+function twoColoursOf(plot) {
   const alpha = plotAlpha(plot)
   const dim = (raw) => {
     if (typeof raw !== 'string' || !raw) return null
@@ -589,6 +595,42 @@ export function signColorsForPlot(plot) {
   const up = dim(plot.colorUp)
   const down = dim(plot.colorDown)
   return (up && down) ? { up, down } : null
+}
+
+/**
+ * ⭐⭐ C1: THE PER-POINT COLOURS A `colorMode: 'column:<key>'` PLOT DRAWS WITH.
+ *
+ * Pine's commonest visual idiom by a distance — measured over the frozen 60,
+ * **49 of them** colour a plot from an expression rather than a literal:
+ *
+ *     up = close > ma
+ *     plot(close, color = up ? color.green : color.red)
+ *
+ * `colorMode: 'sign'` cannot say that: it colours by the sign of the plot's OWN
+ * value, and here the deciding quantity is a different series. `column:<key>` is
+ * the schema's existing answer — it has been legal, validated and reference-
+ * checked since v1 and drawn by NOBODY. This is its renderer.
+ *
+ * ⛔ THE CONDITION RIDES AS A COLUMN, NOT AS AN EXPRESSION IN THE PRESENTATION.
+ * The document already carries a compute lane with a column per plot; a colour
+ * rule that re-derived `close > ma` from a second, presentation-side expression
+ * would be a SECOND evaluator over the same data, free to disagree with the one
+ * that drew the line. So the translator emits the condition as an ordinary
+ * hidden column and this reads it — one evaluator, one answer.
+ *
+ * ⛔ AND `colorUp`/`colorDown` ARE THE SAME TWO FIELDS `sign` USES. A third
+ * spelling for "the two colours a per-point mode needs" is the second-authority
+ * defect this file already avoids once.
+ *
+ * @returns {{key: string, up: string, down: string}|null}
+ */
+export function columnColorsForPlot(plot) {
+  if (!plot || typeof plot.colorMode !== 'string') return null
+  if (!plot.colorMode.startsWith('column:')) return null
+  const key = plot.colorMode.slice('column:'.length)
+  if (!key) return null
+  const two = twoColoursOf(plot)
+  return two ? { key, up: two.up, down: two.down } : null
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────

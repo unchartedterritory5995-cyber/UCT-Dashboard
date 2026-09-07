@@ -308,17 +308,21 @@ export const PLOT_LINE_STYLES = Object.freeze(['solid', 'dashed', 'dotted', 'lar
  *   * `plots[].precision` validated for every plot, read only for histograms
  *     (N-4) — same shape. Wired.
  *
- * `column:<key>` is different in kind: NO SHIPPED DEFINITION DECLARES IT, so
- * there is nothing to drop. It is here because the reference-integrity check
- * below (does that column exist?) is the expensive half and is cheap to keep
- * true, and because a per-point colour column is how B3's first bar-colouring
- * indicator will express itself. `pool.signColorsForPlot` returns null for it and
- * says so; the series renders in its own colour, which is the correct v1
- * behaviour for a mode with no consumer.
+ * `column:<key>` was validated-but-inert through v1 — reference-checked, drawn by
+ * nobody, and this note used to say so. ⭐⭐ **C1 GAVE IT A RENDERER.**
+ * `pool.columnColorsForPlot` resolves it and `binder.toPoints` colours each point
+ * by whether the named column is non-zero on that bar, exactly as this comment
+ * predicted ("the two places that must learn it").
  *
- * The day a definition declares one, `signColorsForPlot` and `binder.toPoints`
- * are the two places that must learn it — and a test asserting per-point colours
- * is the thing to write first. Until then: validated, inert, and deliberate.
+ * It is how a Pine `color = cond ? colour_a : colour_b` survives import, and that
+ * is not a niche shape: measured over the frozen 60-script out-of-sample corpus,
+ * **49 colour a plot from an expression rather than a literal**. `sign` cannot
+ * express any of them, because the deciding quantity is a different series from
+ * the one being drawn.
+ *
+ * ⛔ IT REQUIRES `colorUp`/`colorDown`, same as `sign` and for the same reason: a
+ * per-point mode with nothing to alternate between draws one flat colour while
+ * registering happily.
  */
 export const COLOR_MODES = Object.freeze(['fixed', 'sign'])
 
@@ -1559,15 +1563,29 @@ function validateColorModes(plots, columnKeys, errors) {
       )
       return
     }
-    // Reachable, checked — and deliberately inert at render time in v1. See the
-    // note on COLOR_MODES: no shipped definition declares `column:<key>`, so
-    // there is no author declaration being dropped here. Keeping the reference
-    // check true costs nothing and is what makes the mode safe to start using.
+    // ⭐⭐ C1: NO LONGER INERT. `pool.columnColorsForPlot` + `binder.toPoints`
+    // draw this mode per point, colouring by whether the named column is
+    // non-zero on that bar. It is how a Pine `color = cond ? a : b` survives
+    // import — 49 of the frozen 60 scripts colour from an expression.
     const col = mode.slice('column:'.length)
     if (!columnKeys.has(col)) {
       errors.push(
         `${path}: ${fmt(mode)} references column ${fmt(col)}, which no plot or event declares ` +
         `(available columns: ${list([...columnKeys]) || 'none'})`,
+      )
+      return
+    }
+    // ⛔ THE SAME TWO COLOURS, FOR THE SAME REASON AS `sign`. A per-point mode
+    // with nothing to alternate between registers happily and then draws one
+    // flat colour — which is the exact "declared it and stopped" defect the
+    // `sign` branch above exists to make impossible. Reusing `colorUp`/
+    // `colorDown` rather than inventing a second spelling keeps one vocabulary
+    // for "the two colours a per-point mode needs".
+    const missing = ['colorUp', 'colorDown'].filter((f) => !isNonEmptyString(plot[f]))
+    if (missing.length) {
+      errors.push(
+        `${path}: colour mode ${fmt(mode)} colours each point by whether column ${fmt(col)} is ` +
+        `non-zero, so the plot must declare both colorUp and colorDown — missing ${list(missing)}`,
       )
     }
   })

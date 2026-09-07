@@ -84,13 +84,38 @@ describe('per-output styling is carried, and what is NOT carried is reported', (
     expect(p.styleUncarried).toBe('plot.style_cross')
   })
 
-  it('⛔⛔ A CONDITIONAL COLOUR IS THE INDICATOR TALKING — say so, do not flatten', () => {
-    // 40 of the 60 OOS scripts colour conditionally, and for a `plotcandle` it is
-    // the ENTIRE payload. Picking one branch and showing a flat colour would be
-    // the silent-false-success shape Wave A exists to stop, moved into pixels.
+  // ⚰️ THIS CASE USED TO ASSERT `colorDynamic: true` FOR A CONDITIONAL, and that
+  // was the right answer while nothing could carry one: 49 of the 60 OOS scripts
+  // colour from an expression, and picking one branch to show a flat colour is
+  // the silent-false-success shape Wave A exists to stop, moved into pixels.
+  // ⭐ C1-A CARRIES IT. The claim is unchanged — DO NOT FLATTEN — and is now met
+  // by carrying the whole rule instead of by declining to.
+  it('⭐⭐ A CONDITIONAL BETWEEN TWO STATIC COLOURS IS CARRIED, condition and all', () => {
     const p = pres('plot(close, color = close > open ? color.green : color.red)')
-    expect(p.colorDynamic).toBe(true)
+    expect(p.colorUp).toBe('#4CAF50')
+    expect(p.colorDown).toBe('#F23645')
+    expect(p.colorCondition.formula).toBe('close > open')
+    // ⛔ AND IT IS NO LONGER REPORTED AS UNCARRIED — a document that both carries
+    // the rule and warns it was dropped tells the member two different things.
+    expect(p.colorDynamic).toBeUndefined()
+    // ⛔ NOR IS A SINGLE FLAT COLOUR INVENTED.
     expect(p.color).toBeUndefined()
+  })
+
+  it('⭐ …through a NAME, which is how 217 of the corpus\' colour arguments read', () => {
+    const p = pres('col = close > open ? color.green : color.red\nplot(close, color = col)')
+    expect(p.colorUp).toBe('#4CAF50')
+    expect(p.colorDown).toBe('#F23645')
+    expect(p.colorCondition.formula).toBe('close > open')
+  })
+
+  it('⛔⛔ A BRANCH THAT IS NOT A STATIC COLOUR IS STILL REPORTED, NEVER GUESSED', () => {
+    // `cond ? a : someExpression` is a colour this door cannot say. Carrying one
+    // of the two branches would give the member a confident wrong picture.
+    const p = pres('plot(close, color = close > open ? color.green : color.new(color.red, close))')
+    expect(p.colorDynamic).toBe(true)
+    expect(p.colorUp).toBeUndefined()
+    expect(p.colorCondition).toBeUndefined()
   })
 
   it('⭐ absent is absent — a plot that says nothing carries nothing', () => {

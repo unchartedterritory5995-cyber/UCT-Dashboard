@@ -1,0 +1,9 @@
+//@version=5
+// Both at once, on one indicator — the shape a real published script takes.
+indicator("C1 Colour And Fill", overlay = true)
+fast = ta.ema(close, 10)
+slow = ta.ema(close, 30)
+bull = fast > slow
+f = plot(fast, title = "Fast", color = bull ? color.green : color.red, linewidth = 2)
+s = plot(slow, title = "Slow", color = color.gray)
+fill(f, s, color = color.new(color.teal, 85))

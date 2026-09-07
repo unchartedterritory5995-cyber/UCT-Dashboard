@@ -23,6 +23,21 @@ would surface.
 
 ### A1. Presentation is discarded at the door, not at the renderer
 
+> ⚰️⚰️ **SUPERSEDED BY WAVES B / C0 / C1 — READ THIS BEFORE THE PARAGRAPHS BELOW.**
+> Every specific claim in this section was TRUE when written and most are now false.
+> `overlay`, `color`, `linewidth`, `style` and `transp` are read
+> (`outputPresentation`); `hline` levels are carried; the hand-back is
+> `{source, inputs, paramManifest, presentation, outputs}` and every carried output
+> brings its own inputs; a **conditional** colour is carried as
+> `colorMode: 'column:<key>'` and DRAWN per point; `fill(plotA, plotB)` is carried
+> and drawn by a series primitive. What remains true, and is the reason this
+> section is kept rather than deleted, is its CONCLUSION: *"a large share of visual
+> fidelity needs no renderer work at all — it needs the importer to carry what the
+> source already says into fields that already draw."* That is exactly what the
+> three waves did, and the measured remainder is in **Part E**.
+> ⛔ `displace` is still carried by nobody. That one stands.
+
+
 `app/src/components/chart/engine/ast/pine.js` is 8,457 lines and the string `overlay` appears in
 it **zero times** (verified by direct count). The only presentation argument the translator reads
 at all is `display`, at `pine.js:8343` (`args.find((a) => a.name === 'display')`), and it is read
@@ -324,3 +339,43 @@ Append only; each dated, each stating what changed and why.
 **2026-09-07 — Part B populated from OOS-2; Part D added.** Four new gaps (C-01…C-04) recorded
 from the baseline run. H-01's prediction was confirmed: the development corpus is 100% V1 and the
 blind corpus is 72% V5, and acceptance falls from 75% (V3) to 23% (V5).
+
+
+---
+
+## PART E — WHAT C0R AND C1 MEASURED, AND WHAT IS LEFT (2026-09-07)
+
+Every row here is a MEASURED count over the frozen 60 (`5df718c2`) or the 18
+accepted scripts, not an estimate. Clustered by the product capability that would
+close it, per this register's own rule.
+
+### E1 — CLOSED by C0R / C1
+
+| Capability | Evidence |
+|---|---|
+| A definition may not reach Save naming a free symbol | 8/8 previously SAVE_BLOCKED scripts are past it; `builderInputs.symbolClosure.test.js` |
+| Sibling outputs carry the inputs their formulas name | 6 of those 8; `pineBoxSiblingInputs` + `BuilderSheet.siblingInputUnion` |
+| A bool input as a visibility gate keeps its semantics | `pineBoolVisibility.test.js`, evaluated at both toggle states |
+| Static colour behind a NAME | 20 output rows moved from "uncarried expression" to the author's actual colour |
+| v3/v4 bare colour constants (`red`, `lime`, `aqua`) | were read by nothing; now the same 18 hexes as `color.x` |
+| `color.rgb(r,g,b)` and `input.color(default)` | carried as static colours |
+| **Conditional colour, drawn per point** | `colorMode: 'column:<key>'`, 4 rules across 2 saved definitions |
+| **Bands between two plots** | series primitive; 6 bands across 4 saved definitions; A/B pixel proof |
+
+### E2 — OPEN, with the number that sizes each one
+
+| # | Gap | Measured demand | Where the fix belongs |
+|---|---|---|---|
+| E2.1 | **Document size cap, 65,536 bytes** | 2 of 18 (`supertrend` 362 KB, `rsi-levels` 370 KB) | the definition store, or a smaller multi-tree encoding — a document holds one tree per plot and these declare 10 and 28 columns |
+| E2.2 | **Compute budget at chart scale** (`interpret:steps`) | 2 of 18 | `interpret`'s budget vs 5,000 bars. ⚠️ AND: 3 of `master-line-lite`'s 7 columns evaluate cleanly at 5,000 bars in isolation while the chart reports all 7 empty — a partial budget failure may be taking the whole document down. **Needs its own investigation; not concluded.** |
+| E2.3 | **N-way colour rules** | 8 output rows (5 want 3 colours, 3 want 4) | a plot carries `colorUp`/`colorDown` — two. A palette field is new schema. |
+| E2.4 | **`cond ? colour : na` — per-point visibility** | 16 output rows | there is no per-point hide for a line. Carrying only the inner colour would draw a line exactly where the author hid one. |
+| E2.5 | **`plotcandle` colour payload** | 12 output rows | the object model; explicitly out of scope for C0/C1 |
+| E2.6 | **`var color X = …` not followed** | a handful | a `var` binding may be reassigned; following it blindly would yield a wrong colour |
+| E2.7 | `ta.alma`, `ta.pivothigh` right-bars, non-re-seeding `var` accumulators | 3 import refusals across the parity set + OOS | the grammar / the bounded accumulator |
+| E2.8 | `displace` (negative `plot(offset=)`) | unchanged from A1 | carried by nobody, still |
+
+⛔ **E2.3 AND E2.4 ARE WHY "DYNAMIC COLOUR IS SUPPORTED" MUST NOT BE SAID FLATLY.**
+Two-way conditionals are supported and drawn. Three- and four-way rules, and colour
+used as a visibility gate, are not — and together they are 24 output rows against the
+2-way class's handful. The scorecard states it that way.

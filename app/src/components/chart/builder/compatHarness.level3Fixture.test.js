@@ -92,22 +92,45 @@ describe('compat harness Lane 2, Level 3 — placement boundary + colorMode', ()
     expect(defs).toHaveLength(0)
   })
 
-  it('DISCOVERY: colorMode:"column:<key>" is schema-VALID (installs), confirming the known VALIDATED-BUT-INERT boundary', () => {
+  // ⚰️ THIS PROBE USED TO ASSERT `colorMode:"column:<key>"` INSTALLS WITH NO
+  // COLOURS, recording it as the "VALIDATED-BUT-INERT" boundary. That was the
+  // truth while nothing drew the mode.
+  // ⭐ C1-A GAVE IT A RENDERER (`pool.columnColorsForPlot` + `binder.toPoints`),
+  // and a mode that DRAWS must declare the two colours it alternates between —
+  // exactly as `sign` above already must, and for the same reason: without them
+  // it registers happily and paints one flat colour. The discovery is preserved
+  // (it is schema-legal and installs); it now installs under the full contract.
+  it('DISCOVERY: colorMode:"column:<key>" installs — and, since C1-A, is DRAWN rather than inert', () => {
     const ev = evaluateFormula('change(close)', BUILDER_INPUT_SCOPE)
     const doc = buildDefinition({
       defId: 'u_1e402100c006', name: 'Column color probe', source: 'change(close)',
       ast: ev.ast, mode: ev.verdict.mode, readback: ev.readback,
       placement: { target: 'pane' },
     })
+    doc.plots[0] = {
+      ...doc.plots[0],
+      colorMode: `column:${doc.plots[0].key}`,
+      colorUp: '#1ae51a',
+      colorDown: '#c41f2d',
+    }
+    const { defs, errors } = validateUserDefinitions([doc])
+    expect(errors, JSON.stringify(errors)).toEqual([])
+    expect(defs).toHaveLength(1)
+  })
+
+  it('⛔⛔ MUTATION: colorMode:"column:<key>" WITHOUT colorUp/colorDown is REFUSED', () => {
+    // The other half of the change above, stated as its own case so the new
+    // requirement cannot be deleted without a red test.
+    const ev = evaluateFormula('change(close)', BUILDER_INPUT_SCOPE)
+    const doc = buildDefinition({
+      defId: 'u_1e402100c007', name: 'Column color no colours', source: 'change(close)',
+      ast: ev.ast, mode: ev.verdict.mode, readback: ev.readback,
+      placement: { target: 'pane' },
+    })
     doc.plots[0] = { ...doc.plots[0], colorMode: `column:${doc.plots[0].key}` }
     const { defs, errors } = validateUserDefinitions([doc])
-    // ⭐ This is the whole point of the probe: it VALIDATES (schema-legal),
-    // matching the design doc's own citation that colorMode:'column:<key>' is
-    // "VALIDATED-BUT-INERT," not refused outright. Whether it actually DRAWS
-    // anything is a render-layer (Layer B live) question this probe does not
-    // answer without a browser -- recorded as PARTIAL below, not SUPPORTED.
-    expect(errors).toEqual([])
-    expect(defs).toHaveLength(1)
+    expect(errors.length, 'a column-mode plot with no colours must be refused').toBeGreaterThan(0)
+    expect(defs).toHaveLength(0)
   })
 
   it('writes the Section-3 compat_harness result for Level 3', () => {
@@ -137,10 +160,12 @@ describe('compat harness Lane 2, Level 3 — placement boundary + colorMode', ()
               + 'but buildDefinition()\'s own row API has no field for it -- only '
               + 'reachable by patching the document directly, not through the '
               + 'current BuilderSheet UI form',
-            'colorMode:"column:<key>" is schema-VALID (installs cleanly), '
-              + 'consistent with the already-known VALIDATED-BUT-INERT finding '
-              + '-- whether it actually draws requires a live render, not '
-              + 'answered here',
+            'colorMode:"column:<key>" is schema-VALID (installs cleanly) AND, '
+              + 'since C1-A, is DRAWN: pool.columnColorsForPlot resolves it and '
+              + 'binder.toPoints colours each point by whether the named column '
+              + 'is non-zero. It now REQUIRES colorUp/colorDown, exactly as '
+              + '"sign" does. The earlier VALIDATED-BUT-INERT finding is '
+              + 'SUPERSEDED, not merely re-stated',
           ],
         },
         chart_render: { status: 'ENVIRONMENT_BLOCKED', reason: 'RISK-027 still blocks a live pixel re-run in this session' },

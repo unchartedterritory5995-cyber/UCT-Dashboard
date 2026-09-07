@@ -52,10 +52,25 @@ import {
   firstBindNeedsSetData,
   seriesOptionsForPlot,
   signColorsForPlot,
+  columnColorsForPlot,
   bindingKey,
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
+import { createFillPrimitive } from './fillPrimitive'
+
+/** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
+ *  declares them, else its series colour at a low default alpha.
+ *  ⛔ DEFAULTED HERE, NOT IN THE SCHEMA. `defSchema` validates SHAPE; inventing a
+ *  colour there would write it into every stored document as though the author
+ *  had chosen it, which is the same "stamped default" defect `legendMode` names. */
+function effectiveFillColour(plot) {
+  const color = (plot && typeof plot.fillColor === 'string' && plot.fillColor)
+    || (plot && typeof plot.color === 'string' && plot.color) || '#2962FF'
+  const opacity = (plot && Number.isFinite(plot.fillOpacity))
+    ? Math.max(0, Math.min(1, plot.fillOpacity)) : 0.15
+  return { color, opacity }
+}
 
 /** poolKey → the LWC series constructor to hand `addSeries`. */
 const SERIES_CTOR = {
@@ -86,15 +101,32 @@ const SERIES_CTOR = {
  * `>= 0` is green, matching the legacy comparison exactly. A whitespace point
  * carries no colour, which is correct: there is no bar to colour.
  */
-function toPoints(column, bars, adjustTime, signColors) {
+function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     const time = adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
     if (!Number.isFinite(v)) { out[i] = { time }; continue }
-    out[i] = signColors
-      ? { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
-      : { time, value: v }
+    if (signColors) {
+      out[i] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
+      continue
+    }
+    // ⭐⭐ C1 — PER-POINT COLOUR FROM A COMPUTED COLUMN (`colorMode: 'column:'`).
+    //
+    // ⛔ A NON-FINITE CONDITION GETS NO COLOUR AT ALL, not `down`. `na` is the
+    // author saying nothing on that bar — Pine's own `plot(x, color = na)` draws
+    // the point in no new colour — and picking a side would paint a warmup bar
+    // the "false" colour, which reads as a real signal for as many bars as the
+    // condition's own lookback. Omitting `color` leaves the series colour, which
+    // is what an uncoloured point already means everywhere else in this file.
+    if (colColors && condColumn) {
+      const c = condColumn[i]
+      if (Number.isFinite(c)) {
+        out[i] = { time, value: v, color: c !== 0 ? colColors.up : colColors.down }
+        continue
+      }
+    }
+    out[i] = { time, value: v }
   }
   return out
 }
@@ -579,13 +611,22 @@ export function createBinder({ chart, LWC }) {
      *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
     const pointsFor = (b, column) => {
       const sc = signColorsForPlot(b.plot)
-      const up = sc ? sc.up : null
-      const down = sc ? sc.down : null
+      // ⭐ C1 — the deciding column for `colorMode: 'column:<key>'`, looked up
+      // through the SAME `bindingKey` every column in this pass is stored under,
+      // so a colour rule can only ever name a column of its own instance.
+      const cc = sc ? null : columnColorsForPlot(b.plot)
+      const cond = cc ? columns.get(bindingKey(b.instanceId, cc.key)) : undefined
+      const up = sc ? sc.up : (cc ? cc.up : null)
+      const down = sc ? sc.down : (cc ? cc.down : null)
       const m = pointMemo.get(b.key)
+      // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
+      // while the VALUE column did not (a different input, the same maths) would
+      // serve the previous pass's colours — the memo would be answering a
+      // question nobody asked.
       if (m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
-          && m.up === up && m.down === down) return m.points
-      const points = toPoints(column, bars, adjustTime, sc)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, points })
+          && m.up === up && m.down === down && m.cond === cond) return m.points
+      const points = toPoints(column, bars, adjustTime, sc, cc, cond)
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, cond, points })
       return points
     }
 
@@ -782,6 +823,40 @@ export function createBinder({ chart, LWC }) {
         }
       }
 
+      // ⭐⭐ C1-B: THE AREA BETWEEN THIS PLOT AND ANOTHER (`fill: {with}`).
+      //
+      // The primitive is created ONCE per binding and thereafter only re-fed
+      // through `setOptions`. Re-attaching on every pass would leak one
+      // primitive per frame — the same lifecycle mistake `guideHandles` above
+      // exists to prevent, and with no `removePriceLine` equivalent to notice it.
+      //
+      // ⛔ IT MUST ALSO SURVIVE A RE-TENANT. A pooled series keeps whatever was
+      // attached to it, so a fill from the PREVIOUS occupant would go on drawing
+      // over the new one's numbers. `source !== 'same'` is the same signal the
+      // guides use, and it detaches here for the same reason.
+      let fill = (b.from && b.from.fill) || null
+      const fillSpec = b.plot && b.plot.fill
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      if (fill && (b.source !== 'same' || !fillWith)) {
+        attempt(() => series.detachPrimitive(fill.primitive))
+        fill = null
+      }
+      if (fillWith) {
+        const other = columns.get(bindingKey(b.instanceId, fillWith))
+        const own = columns.get(b.key)
+        if (own && other) {
+          const colour = effectiveFillColour(b.plot)
+          if (!fill) {
+            fill = createFillPrimitive({})
+            attempt(() => series.attachPrimitive(fill.primitive))
+          }
+          fill.setOptions({
+            upper: own, lower: other, times: bars.map((bar) => adjustTime(bar.t)),
+            color: colour.color, opacity: colour.opacity,
+          })
+        }
+      }
+
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
       const points = pointsFor(b, columns.get(b.key))
       if (firstBindNeedsSetData(b, planMode)) {
@@ -800,6 +875,9 @@ export function createBinder({ chart, LWC }) {
         poolKey: b.poolKey,
         series,
         guideHandles,
+        // ⭐ C1-B — carried so the next pass reuses it (never re-attaches) and can
+        // detach it when this series changes tenant.
+        fill,
         guideSig: b.guideSig,
         paneIndex,
         scaleId,
