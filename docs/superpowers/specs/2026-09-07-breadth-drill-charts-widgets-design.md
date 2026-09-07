@@ -164,22 +164,65 @@ mechanism the charts tab uses — the link is not new code.
 
 ### 3.1 Hosting widgets outside the workspace
 
-`WorkspaceContext` ships `WORKSPACE_FALLBACK` **for exactly this purpose**:
+⛔ **An earlier draft of this spec said "spread `WORKSPACE_FALLBACK` and override
+a few members". That is wrong, and it is a documented trap.**
 
-> "For hosts OUTSIDE the charts workspace that need to provide one real member
-> (e.g. /ai-search …). Spread this, override the member — never hand-copy the
-> shape (second-authority defect)."
+`ChartsWorkspace`'s provider supplies **23** members. `WORKSPACE_FALLBACK`
+declares **19**. Four have drifted out of sync:
 
-The drill board spreads it and overrides only:
+| Missing from the fallback | Read by | Consequence of `undefined` |
+|---|---|---|
+| `widgetCanvasByType` | `WidgetHost` | Widget chrome stops following the widget's own canvas colour |
+| `widgetCanvasById` | `WidgetHost` | Same, per-widget |
+| `chartApiById` | `ChartWidget:212` | The chart never registers its imperative API — capture state and compare-symbols go dead |
+| `activeWatchlistRef` | `WatchlistWidget`, `ScannerResults`, `ThemesWidget`, `EtfHoldingsResults`, `PeriodSortResults` | `isActiveWidget()` is `!activeRef || …` — an undefined ref passes **vacuously**, so the list claims every arrow key and every Shift+F |
 
-| Member | Value |
-|---|---|
-| `groupSyms` / `setGroupSym` | Local state — the list→chart link |
-| `crosshairBus` | A real bus so the chart's crosshair behaves normally |
-| `activeChartRef` | A real ref so hotkeys arbitrate as on the charts tab |
-| `chartsTheme` | Mirrors the user's workspace theme pref |
+The precedent is already in the tree. `app/src/pages/journal-2-0/components/
+notebook/frozenWorkspace.js` hosts these same widgets inside a note, and its
+build rule is explicit:
 
-Hand-copying the fallback shape is forbidden; spread it.
+> "the ENTIRE surface the real provider supplies is enumerated here, every
+> member stubbed DELIBERATELY — a member accidentally falling through to
+> WorkspaceContext's FALLBACK (or to undefined) is a silent dead end. The
+> FALLBACK itself omits four members the real provider carries … so 'the
+> fallback covers it' is exactly the trap."
+
+It also records the vacuous-guard bug by name: a null `activeRef` means an
+embedded widget "would swallow the page's arrow keys / capture hotkeys (P2 audit
+finding)".
+
+**So the drill follows `frozenWorkspace`, not the fallback.** A new
+`drillWorkspaceValue()` enumerates all 23 members explicitly, and
+`drillWorkspace.test.jsx` copies `frozenWorkspace.test.jsx` — deriving the real
+provider's key set from `ChartsWorkspace.jsx`'s source and failing **by name**
+when the workspace grows a member the drill doesn't carry.
+
+The difference from the notebook: the notebook is a **frozen** host — every
+write is inert. The drill is a **live** host. These must be real, not stubs:
+
+| Member | Drill value | Why real |
+|---|---|---|
+| `groupSyms` / `setGroupSym` | Local state | The list → chart link |
+| `crosshairBus` | Real bus | Crosshair behaves as on the board |
+| `activeChartRef` | Real ref | Chart hotkeys arbitrate correctly |
+| `activeWatchlistRef` | Real ref | **Not a sentinel** — the list must own ↑/↓ and Shift+F, and a null ref would make the guard pass vacuously |
+| `chartApiById` | Real `{current: new Map()}` per board | Chart registers its API; capture state works |
+| `widgetCanvasByType` / `ById` | Derived via `widgetChrome.js` | Per-widget canvas chrome, same as the board |
+| `chartsTheme` | Mirrors the user's workspace theme pref | |
+
+Deliberately inert, because they have no meaning in a two-widget modal —
+each stubbed with a comment saying so, never left to fall through:
+`aiSearchBus` (no AI Search widget to receive it), `floatNewWidget`,
+`applyThemeToAllCharts`, `applyThemeToAllWidgets`, `periodSortMode` +
+`onPeriodSelected` / `onPeriodCancel`, `replayCutoff` / `exitReplay` /
+`replayArmPick` / `onReplayCutoffPicked` / `onReplayPickCancel`, `startMarker` /
+`startMarkerStyle`.
+
+⚠️ Those inert members are a **real functional divergence** from the charts tab —
+Replay mode, Custom-Period Sort, "Add widget" from the chart's right-click menu,
+and "apply theme to all charts" will not work inside the drill. They are listed
+in §7.2 as accepted limits rather than hidden. If any must work, it is a
+scoped addition, not a discovery mid-implementation.
 
 ### 3.2 The list widget — no new widget type
 
@@ -242,6 +285,8 @@ the behaviour every optional column already has.
 | `app/src/pages/breadth/drill/BreadthDrillList.jsx` | `Watchlists` scan-mode adapter (models `ScannerResults`) |
 | `app/src/pages/breadth/drill/DrillSourceContext.js` | Carries `{ symbols, meta, groups, label, date, asOf, live }` |
 | `app/src/pages/breadth/drill/drillBoardPrefs.js` | Read/seed/write `breadth_drill_board` |
+| `app/src/pages/breadth/drill/drillWorkspace.js` | All 23 context members enumerated explicitly — modelled on `frozenWorkspace.js`, live rather than frozen (§3.1) |
+| `app/src/pages/breadth/drill/drillWorkspace.test.jsx` | Copy of `frozenWorkspace.test.jsx` — derives the provider's key set from `ChartsWorkspace.jsx` source, fails **by name** on drift |
 
 ### 4.2 Changed (shared frontend — the only three)
 
@@ -344,7 +389,48 @@ the endpoint now, Theme ships in a follow-up and Sector/Industry land unchanged.
 
 ---
 
-## 7. Parity limits (accepted, and why)
+## 7. Functional parity
+
+Visual parity is the easy half. This section is the functional contract.
+
+### 7.1 Capability audit
+
+**Chart widget.** Every capability below comes from `ChartWidget`, not
+`ChartPane`, so the drill gains all of them the moment it mounts the widget:
+
+| Capability | Depends on | Works in the drill |
+|---|---|---|
+| Chart tabs — add / close / rename / switch | `onReplaceWidget` from the host | ✅ host supplies it |
+| Per-tab independent settings blobs | `opts.chartTabs[i].settings` | ✅ |
+| Colour groups (link / unlink, cycle) | `groupSyms` / `setGroupSym` | ✅ real |
+| Crosshair sync | `crosshairBus` | ✅ real |
+| Hotkey arbitration (one TF keypress retimes one chart) | `activeChartRef` | ✅ real |
+| Right-click menu — Set alert · Reset view · Chart settings · AI search | `createAlert`, `paneRef` | ✅ |
+| Context-aware settings targets — watermark · axis · MA · volume · candles · canvas | `paneRef.openSettings(target)` | ✅ |
+| Saved chart-settings templates (`chart_templates`) | pref | ✅ |
+| Alerts scoped to this chart | `chartId` | ✅ host supplies a stable id |
+| Imperative API registration / capture state | `chartApiById` | ✅ real map |
+| Drawing tools, indicators, compare, date nav, session toggle | `ChartPane` | ✅ |
+| Replay mode · Custom-Period Sort · Add-widget · theme-all | workspace-level state | ❌ inert — §7.2 |
+
+**Watchlist widget.** All of these are `Watchlists` behaviour and survive scan
+mode:
+
+| Capability | Works in the drill |
+|---|---|
+| 23 configurable columns, add/remove via right-click menu | ✅ |
+| Column reorder by dragging a header, and resize-drag | ✅ |
+| Sort by clicking a header | ✅ |
+| Flag star (and Shift+F) | ✅ |
+| Live streamed prices + tick flash | ✅ |
+| Full appearance panel — templates, UCT theme, canvas, text, % change, gridlines, tick flash, company logos | ✅ per-widget via `settingsOverride` / `onSettingsPersist` |
+| Per-symbol context menu incl. Research / Ask AI | ✅ |
+| Virtualized rendering for large lists (`ScanRows`) | ✅ — and it already renders group/member rows, which is what the breadth grouping rides on |
+| Arrow-key navigation owning its own scroll | ✅ **provided `activeWatchlistRef` is real** (§3.1) |
+| Footer | ✅ scan mode uses `scanFooter` (count · updated · refresh) rather than the plain `wlCountFooter` |
+| Add / remove / reorder symbols, per-symbol notes | ❌ — §7.2 |
+
+### 7.2 Parity limits (accepted, and why)
 
 These cannot be engineered away and should be stated rather than discovered:
 
@@ -355,6 +441,12 @@ These cannot be engineered away and should be stated rather than discovered:
    leave an empty pane. The `⧉` pop-out and `▣` float remain.
 3. **The snapshot date is fixed** for a historical drill. The date navigator
    displays it; navigating away from it re-scopes the chart only, not the list.
+4. **Workspace-level modes are inert.** Replay mode, Custom-Period Sort,
+   "Add widget" from the chart's right-click menu, and "apply theme to all
+   charts / all widgets" have no meaning in a two-widget modal and are stubbed
+   deliberately (§3.1). Each stub carries a comment saying why, so a future
+   reader does not mistake it for an oversight. Making any of them work is a
+   scoped addition, not a bug.
 
 ---
 
@@ -366,7 +458,10 @@ These cannot be engineered away and should be stated rather than discovered:
 | Unit | `drillBoardPrefs` seeds from `uctDefaultChartSettings` on first open and round-trips edits |
 | Unit | `WatchlistWidget` renders the picker when `opts.source` is absent, and the drill list when present — pinning the branch cannot swallow normal watchlists |
 | Integration | Selecting a row sets `groupSyms.A` and the chart re-renders on that symbol |
-| Integration | The provider spreads `WORKSPACE_FALLBACK` — a rail asserting every fallback key survives, per the second-authority warning in `WorkspaceContext.jsx` |
+| Integration | `drillWorkspace.test.jsx` derives the provider key set from `ChartsWorkspace.jsx` source and fails BY NAME on drift (copy of `frozenWorkspace.test.jsx`) |
+| Integration | `activeWatchlistRef` is a REAL ref: a rail asserting the list owns ↑/↓ and Shift+F, and that a chart hotkey does not reach it. Guards against the vacuous-pass bug `frozenWorkspace.js` records |
+| Integration | Chart tabs add/close/rename inside the drill, proving `onReplaceWidget` is wired |
+| Chore | While here, **fix `WORKSPACE_FALLBACK` itself** — add the four drifted members so the next out-of-workspace host is not trapped, and add a rail pinning fallback keys ⊇ provider keys |
 | Regression | `ScannerResults` / `PeriodSortResults` snapshots unchanged |
 | Pixel | Screenshot the deployed drill and diff against a charts-tab watchlist + chart. Per `project_breadth_daily_tab_2026_08_26`, the live pixel check has caught defects a green suite did not — **count the pixels, and count the tests across every master merge** |
 
