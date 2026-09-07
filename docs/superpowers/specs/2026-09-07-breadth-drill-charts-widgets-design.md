@@ -1,0 +1,315 @@
+# Breadth drill → real charts widgets
+
+**Date:** 2026-09-07
+**Branch:** `feat/breadth-drill-charts-widgets`
+**Status:** design, awaiting owner review
+
+---
+
+## 1. Objective
+
+The breadth drill popup is currently a bespoke surface: its own table, its own
+chart wiring, its own CSS. The charts workspace has a watchlist widget and a
+chart widget that are strictly more capable. Members therefore learn two
+different list UIs and two different chart UIs depending on which door they came
+through.
+
+**The objective is structural convergence.** Clicking a breadth cell must open
+the *actual* charts-tab widgets — same components, same customization, same
+capabilities — differing only in
+
+- **where** they are (a popup reached from the breadth page), and
+- **what populates them** (the breadth cell's constituents instead of a saved
+  watchlist).
+
+This is not a restyle. Nothing in the drill may be a lookalike of a widget; it
+must *be* the widget.
+
+---
+
+## 2. Current state
+
+### 2.1 What exists
+
+`DrillModal` — `app/src/pages/Breadth.jsx:361`, roughly 340 lines of JSX — plus
+its stylesheet block in `app/src/pages/Breadth.module.css` (`.drill*`, lines
+435–846 and 1504–1540).
+
+It renders:
+
+| Region | Today |
+|---|---|
+| Header | `.drillTitle` + `.drillSub` + `GroupControls` + `CopyTickersButton` + `.drillClose` |
+| Left | A hand-built `<table class="drillTable">` — 8 fixed columns, industry group rows, row heat tint, `GroupSummaryStrip` chip rail |
+| Right | `.drillChartBar` (symbol, name, flag button, "↑ ↓ to navigate") over a bare `<ChartPane>` |
+
+### 2.2 Why the chart "isn't identical"
+
+`DrillModal` renders **`ChartPane` directly**. `ChartPane` is only the chart
+shell. `ChartWidget` (`app/src/pages/charts/widgets/ChartWidget.jsx`, 722 lines)
+is what the charts tab actually mounts, and it adds everything the drill lacks:
+
+- chart **tabs** (multiple independent chart profiles in one slot)
+- **color groups** (the link mechanism)
+- the **crosshair bus**
+- **hotkey arbitration** (`activeChartRef`)
+- the **right-click menu** — Set alert · Reset view · Chart settings · AI search
+- saved **chart-settings templates** (`chart_templates`)
+- **per-widget settings persistence** (`opts.settings` / per-tab blobs)
+
+Note that `stored={null}` with no `onStore` is *not* a defect: `ChartPane`
+documents that combination as "this surface IS the user's one chart", so global
+`chart_settings` already flow through. The gap is the widget wrapper, not the
+settings.
+
+### 2.3 Why the list "isn't identical"
+
+The drill's table is hand-built. The charts watchlist is `Watchlists.jsx`
+(`app/src/pages/Watchlists.jsx`, 2,992 lines) which supplies column
+add/remove/reorder/resize, the right-click column menu, sorting, the ⚙
+appearance panel, the flag star, live streamed prices, and the per-symbol
+context menu.
+
+Critically, **`Watchlists` already supports ad-hoc membership**. Scan mode
+(`pickList="__scan__"` + `scanSymbols=[…]`) renders the full table with
+membership supplied by the caller. `ScannerResults.jsx` and
+`PeriodSortResults.jsx` already use it. Its relevant props:
+
+```
+scanSymbols  scanGroups  metaOverride  perfOverride  scanFooter  scanCriteria
+backLabel    colStorageKey  defaultColCfg  scanEmptyText  ephemeralCols
+widgetKey    activeRef      settingsOverride  onSettingsPersist  onScanVisibleSyms
+```
+
+So the list requires **no new table**. It requires pointing the existing one at
+breadth data.
+
+---
+
+## 3. Target architecture
+
+```
+Breadth cell click
+  └─ BreadthDrillModal                       (overlay + slim title bar + close)
+      └─ WorkspaceContext.Provider           ({...WORKSPACE_FALLBACK, overrides})
+          └─ BreadthDrillBoard               (resizable two-pane split)
+              ├─ WidgetHost  type="watchlist"   → WatchlistWidget → Watchlists (scan mode)
+              └─ WidgetHost  type="chart"       → ChartWidget    → ChartPane
+```
+
+Both widgets sit on **colour group A**. Selecting a row calls
+`setGroupSym('A', sym)`; the chart reads `groupSyms.A`. That is the same
+mechanism the charts tab uses — the link is not new code.
+
+### 3.1 Hosting widgets outside the workspace
+
+`WorkspaceContext` ships `WORKSPACE_FALLBACK` **for exactly this purpose**:
+
+> "For hosts OUTSIDE the charts workspace that need to provide one real member
+> (e.g. /ai-search …). Spread this, override the member — never hand-copy the
+> shape (second-authority defect)."
+
+The drill board spreads it and overrides only:
+
+| Member | Value |
+|---|---|
+| `groupSyms` / `setGroupSym` | Local state — the list→chart link |
+| `crosshairBus` | A real bus so the chart's crosshair behaves normally |
+| `activeChartRef` | A real ref so hotkeys arbitrate as on the charts tab |
+| `chartsTheme` | Mirrors the user's workspace theme pref |
+
+Hand-copying the fallback shape is forbidden; spread it.
+
+### 3.2 The list widget — no new widget type
+
+`WatchlistWidget` already receives `opts` and branches on `opts.watchKey`. It
+gains **one branch** for an ad-hoc source:
+
+```js
+// Ad-hoc source: membership is supplied by the host, not a saved list.
+// The payload rides a context, NOT opts — opts is persisted, and a 134-symbol
+// payload must never enter the layout blob.
+const drill = useContext(DrillSourceContext)
+if (opts?.source === 'breadthDrill' && drill) {
+  return <BreadthDrillList drill={drill} opts={opts} onOptsChange={onOptsChange} … />
+}
+if (!watchKey) return <WatchlistPicker … />
+```
+
+This matters: the `watchlist` entry in `WORKSPACE_WIDGETS` keeps `standardProps`
+(`{ color, opts, onOptsChange }`) unchanged, so **`registry.test.js` needs no
+edit and no new widget type appears in the /charts add-widget catalog.**
+
+`BreadthDrillList` is a near-clone of `ScannerResults`: it renders `Watchlists`
+in scan mode with the drill's symbols, `metaOverride` carrying the breadth
+fields (ATR%, 50SMA distance, %chg), `scanFooter` showing the count and as-of
+stamp, and `backLabel` returning to the group controls.
+
+### 3.3 Persistence
+
+The board keeps a small pref, `breadth_drill_board`, holding the two widgets'
+`opts` — nothing else. Both widgets are seeded on first open exactly the way a
+newly added charts widget is (`themeNewWidgetOpts` / `uctDefaultChartSettings`),
+so the drill's chart starts as a normal chart and keeps whatever the user then
+customises.
+
+Symbols, meta and group buckets are **never** persisted — they arrive per-open
+through `DrillSourceContext`.
+
+Columns use the **global watchlist column key** (`WL_COLS_LS`, i.e. no
+`colStorageKey` override). Change columns anywhere and the breadth list matches.
+This is the deliberate reading of "exactly like the watchlist widgets"; passing
+a breadth-private key is a one-word change if the owner later wants divergence.
+
+---
+
+## 4. Changes by file
+
+### 4.1 New
+
+| File | Purpose |
+|---|---|
+| `app/src/pages/breadth/drill/BreadthDrillModal.jsx` | Overlay, slim title bar, Esc/✕, the `WorkspaceContext` provider |
+| `app/src/pages/breadth/drill/BreadthDrillBoard.jsx` | Two `WidgetHost`s + resizable split + pop-out plumbing |
+| `app/src/pages/breadth/drill/BreadthDrillList.jsx` | `Watchlists` scan-mode adapter (models `ScannerResults`) |
+| `app/src/pages/breadth/drill/DrillSourceContext.js` | Carries `{ symbols, meta, groups, label, date, asOf, live }` |
+| `app/src/pages/breadth/drill/drillBoardPrefs.js` | Read/seed/write `breadth_drill_board` |
+
+### 4.2 Changed (shared frontend — the only three)
+
+1. **`app/src/pages/Watchlists.jsx`** — add a `groupMode` prop,
+   `'accordion' | 'multi'`, **defaulting to `'accordion'`**. Only the
+   `toggleGroupExpand` reducer and the initial expanded set change. Scanner and
+   Period-Sort pass nothing and are byte-identical afterward; breadth passes
+   `'multi'` for all-groups-open with per-group collapse.
+
+2. **`app/src/pages/charts/widgets/WatchlistWidget.jsx`** — the ad-hoc source
+   branch in §3.2. Prop shape unchanged.
+
+3. **`app/src/pages/breadth/grouping/useBreadthGrouping.js`** — allow
+   `'theme'` alongside `'industry' | 'sector'` (see §5).
+
+### 4.3 Deleted
+
+From `Breadth.jsx`: `DrillModal`'s table renderer, group-header rows, heat
+classes, `GroupSummaryStrip` usage, `CopyTickersButton` (the watchlist has its
+own copy affordance), and the bespoke chart panel — roughly 340 lines.
+
+From `Breadth.module.css`: `.drillTable`, `.drillTh*`, `.drillTd*`,
+`.drillRow*`, `.drillHeat*`, `.drillGroup*`, `.drillChart*`, `.drillFlagBtn`,
+`.flagToast` — roughly 400 lines. `.drillOverlay` / `.drillDialog` /
+`.drillHeader` survive as the modal shell.
+
+**The grouping toolkit has exactly one consumer, and it is this modal.** Verified
+against `origin/master`:
+
+| Symbol | Call sites |
+|---|---|
+| `useBreadthGrouping` | `Breadth.jsx:381` — inside `DrillModal`, only |
+| `GroupControls` | `Breadth.jsx:500` — inside `DrillModal`, only |
+| `GroupSummaryStrip` | `Breadth.jsx:522` — inside `DrillModal`, only |
+
+The comments in `useBreadthGrouping.js` and `groupItems.js` claim the toolkit is
+"shared by the drill modal AND the CustomScan scanner". **That is stale** —
+`CustomScan` appears nowhere in `app/src` except in those two comments. Nothing
+else consumes the toolkit.
+
+Consequences:
+
+- `useBreadthGrouping` + `GroupControls` move wholesale into
+  `BreadthDrillList`; no compatibility shim is owed to a second consumer.
+- Dropping the chip strip makes `GroupSummaryStrip.jsx`, its `.module.css` and
+  its `.test.jsx` **dead code — delete all three.** Leaving them would be a
+  third grouping surface with no renderer.
+- Correct the two stale comments in the same commit so the next reader is not
+  misled the way this design initially was.
+
+---
+
+## 5. Theme grouping — the one gap
+
+`useGroupMeta` fetches `/api/breadth/industries` and returns
+`{ industries, sectors }` only. **There is no per-ticker theme map**, so Theme
+grouping cannot be wired client-side without either N lookups or intersecting
+`/api/groups` membership against the drill's tickers.
+
+**Recommendation:** extend the existing `/api/breadth/industries` response with a
+`themes` map (`{TICKER: theme|null}`). The server already holds the membership
+that `/api/groups` serves, so this is one additional map on a round-trip that
+already happens — no new endpoint, no second fetch, and every grouped breadth
+surface gains Theme at once.
+
+A ticker may belong to several themes, so the endpoint contract must state which
+one it returns. **This is a requirement on the new field, not an existing
+property** — the current response has no theme concept at all. Proposed
+contract: return one theme per ticker, chosen by the same ordering
+`/api/groups` already uses to rank a ticker's memberships, and `null` for a
+ticker in none. Nulls bucket under `Unclassified`, which the grouping toolkit
+already filters out of summaries. If that ordering turns out not to exist
+server-side, the field ships as `themes: {TICKER: [names]}` and the client takes
+the first — decided during implementation, against the real endpoint.
+
+This is the only backend change in the plan. If the owner would rather not touch
+the endpoint now, Theme ships in a follow-up and Sector/Industry land unchanged.
+
+---
+
+## 6. Decisions taken
+
+| Decision | Call | Reasoning |
+|---|---|---|
+| Group rows | All expanded, per-group collapse | Seeing which industries dominate *is* the point of a breadth drill; an accordion destroys it |
+| Grouping controls | Inside the list widget | The widget must stay self-contained so it survives being ejected to its own window |
+| Columns | Global watchlist layout; ATR%/50SMA/Industry offered in the column menu | "Exactly like the watchlist widgets" |
+| Chip strip | Dropped | Breadth-only invention; sorted group headers give the same read |
+| Row heat tint | Dropped | No charts-page analogue; % Chg is already coloured |
+| Modal title bar | Slim: `UP 4%+ · 134 stocks · 2026-09-04` + ✕ | Drill identity and date have no other home; modal needs an unambiguous close |
+| Chart tabs | Included | Part of the real widget |
+| Date navigator | Included | The honest home for the snapshot date, currently expressed as a white-painted candle |
+| Board layout | Resizable split, not the RGL grid | `renderGrid` is a closure inside the 2,623-line `ChartsWorkspace`; lifting it is a separate refactor. Widget *capabilities* are unaffected — only free-form rearranging inside the modal |
+| Pop-out | Enabled per widget via existing `PopoutWindow` | Delivers "separate popouts but linked" without that refactor |
+
+---
+
+## 7. Parity limits (accepted, and why)
+
+These cannot be engineered away and should be stated rather than discovered:
+
+1. **Membership is read-only.** Scan mode has no add/remove/reorder and no
+   per-symbol notes, because the breadth cell *is* the membership. Flag star,
+   price alerts, Research and Ask AI all still work.
+2. **Widget `✕` is suppressed.** The modal owns closing; a closed widget would
+   leave an empty pane. The `⧉` pop-out and `▣` float remain.
+3. **The snapshot date is fixed** for a historical drill. The date navigator
+   displays it; navigating away from it re-scopes the chart only, not the list.
+
+---
+
+## 8. Testing
+
+| Level | What |
+|---|---|
+| Unit | `groupMode` reducer: `'accordion'` collapses siblings, `'multi'` does not; **a rail asserting the default is `'accordion'`** so Scanner/Period-Sort can't silently change |
+| Unit | `drillBoardPrefs` seeds from `uctDefaultChartSettings` on first open and round-trips edits |
+| Unit | `WatchlistWidget` renders the picker when `opts.source` is absent, and the drill list when present — pinning the branch cannot swallow normal watchlists |
+| Integration | Selecting a row sets `groupSyms.A` and the chart re-renders on that symbol |
+| Integration | The provider spreads `WORKSPACE_FALLBACK` — a rail asserting every fallback key survives, per the second-authority warning in `WorkspaceContext.jsx` |
+| Regression | `ScannerResults` / `PeriodSortResults` snapshots unchanged |
+| Pixel | Screenshot the deployed drill and diff against a charts-tab watchlist + chart. Per `project_breadth_daily_tab_2026_08_26`, the live pixel check has caught defects a green suite did not — **count the pixels, and count the tests across every master merge** |
+
+---
+
+## 9. Out of scope
+
+- Lifting `renderGrid` out of `ChartsWorkspace` into a shared board component
+  (follow-up; would give free-form arrangement inside the modal)
+- Retiring the `CustomScan` grouping surface
+- Mobile drill layout (the charts workspace has its own mobile app shell)
+- Any change to `/charts` behaviour
+
+---
+
+## 10. Open question for the owner
+
+Section 5 — extend `/api/breadth/industries` with a `themes` map now, or ship
+Sector/Industry first and add Theme in a follow-up?
