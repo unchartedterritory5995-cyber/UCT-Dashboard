@@ -68,7 +68,11 @@ _log = logging.getLogger(__name__)
 # older shape and the new fields read as missing data. Bump on schema change.
 #   v4: fiscal_calendar identity, forward quarters + annual folded in, whole
 #       payload served without an entitlement check.
-_KIND = "earnings_intel_v4"
+#   v5: all-null statement periods dropped; meta.fiscal_calendar.style renamed
+#       to quarter_basis. Caught in validation BY this rule — v4 payloads kept
+#       serving the old shape from disk until the bump, which is precisely the
+#       failure the comment above warns about.
+_KIND = "earnings_intel_v5"
 _STALE_MAX = 45 * 86400
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
@@ -161,6 +165,12 @@ def _actuals_from_statements(statements: dict, cal: FiscalCalendar | None) -> di
             continue
         v = p.get("values") or {}
         rev, ni = v.get("revenue"), v.get("net_income")
+        # yfinance sometimes returns a trailing period with every figure blank
+        # (Walmart's 2025-01-31 column, observed 2026-09-07). Carrying it would
+        # put a row of em dashes in the table — an empty cell is a design
+        # failure, not data. Tier 1 already drops its equivalent.
+        if rev is None and v.get("eps_diluted") is None:
+            continue
         # After-tax margin per quarter. Growth without margin corroboration is
         # the classic trap — a sales surge funded by discounting looks identical
         # to a real one until you see the margin. Free: same statement row.

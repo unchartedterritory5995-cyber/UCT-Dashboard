@@ -235,7 +235,7 @@ class TestDescribe:
     def test_describes_a_known_calendar(self):
         d = FiscalCalendar(AVGO).describe()
         assert d["known"] is True
-        assert d["style"] == "52/53-week"
+        assert d["quarter_basis"] == "13-week blocks"
         assert d["fiscal_year_end"] == "2025-11-02"
         assert d["anchors_observed"] == 3
 

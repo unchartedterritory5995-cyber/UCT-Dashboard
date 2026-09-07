@@ -24,12 +24,18 @@ MU_QUARTERS = ["2026-05-28", "2026-02-26", "2025-11-27", "2025-08-28",
 
 
 def _statements(annual=MU_ANNUAL, quarters=MU_QUARTERS, values=None):
-    """A financial_statements-shaped payload."""
+    """A financial_statements-shaped payload.
+
+    Quarters not named in `values` still carry a token revenue: a period with no
+    revenue AND no EPS is dropped as an empty row (yfinance returns such columns
+    — Walmart's 2025-01-31), so a blank default would silently empty the fixture.
+    """
     values = values or {}
     return {
         "income": {
             "annual": [{"period": p, "values": {}} for p in annual],
-            "quarterly": [{"period": p, "values": values.get(p, {})} for p in quarters],
+            "quarterly": [{"period": p, "values": values.get(p, _q(p, revenue=1.0))}
+                          for p in quarters],
         },
         "meta": {"fiscal_year_end": "08-28"},
     }

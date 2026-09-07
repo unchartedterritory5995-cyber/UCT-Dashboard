@@ -35,7 +35,7 @@ const payload = (over = {}) => ({
   meta: {
     actuals_source: 'fmp/finnhub', estimates_available: true,
     eps_basis: 'consensus-comparable (provider adjusted)',
-    fiscal_calendar: { known: true, style: '52/53-week', fiscal_year_end: '2025-08-28' },
+    fiscal_calendar: { known: true, quarter_basis: '13-week blocks', fiscal_year_end: '2025-08-28', anchors_observed: 3 },
     fiscal_method: 'Fiscal periods are placed on the company\'s own filed fiscal-year-end dates.',
     yoy_method: 'same fiscal quarter one year earlier',
     surprise_method: '(actual − estimate) ÷ |estimate|',
@@ -52,6 +52,12 @@ function mockApi({ intel = payload(), filings = { filings: [] } } = {}) {
 
 const rows = () => document.querySelectorAll('[class*="etRow"]')
 const headCells = () => document.querySelector('[class*="etHead"]')?.children ?? []
+// A header cell ships BOTH a full and a short form (CSS picks one by container
+// width; jsdom applies no CSS, so textContent would read "EPS YoYYoY").
+const headLabels = () => [...headCells()].map(c => {
+  const full = c.querySelector('[class*="etHeadFull"]')
+  return (full || c).textContent
+})
 
 afterEach(() => { delete global.fetch; vi.restoreAllMocks() })
 
@@ -85,8 +91,14 @@ describe('column parity — the property that makes this a table', () => {
   it('names the five columns', async () => {
     render(<DockEarnings sym="MU" />)
     await screen.findByText('FY2026 Q3')
-    expect([...headCells()].map(c => c.textContent))
-      .toEqual(['Period', 'EPS', 'EPS YoY', 'Sales', 'Sales YoY'])
+    expect(headLabels()).toEqual(['Period', 'EPS', 'EPS YoY', 'Sales', 'Sales YoY'])
+  })
+
+  it('ships a short header form for the narrow breakpoint', async () => {
+    render(<DockEarnings sym="MU" />)
+    await screen.findByText('FY2026 Q3')
+    const short = [...headCells()].map(c => c.querySelector('[class*="etHeadShort"]')?.textContent)
+    expect(short).toEqual([undefined, undefined, 'YoY', undefined, 'YoY'])
   })
 })
 
@@ -275,8 +287,7 @@ describe('annual mode', () => {
     fireEvent.click(screen.getByText('Annual'))
     await screen.findByText('FY2025')
     // Same five columns, only the first one renamed.
-    expect([...headCells()].map(c => c.textContent))
-      .toEqual(['Year', 'EPS', 'EPS YoY', 'Sales', 'Sales YoY'])
+    expect(headLabels()).toEqual(['Year', 'EPS', 'EPS YoY', 'Sales', 'Sales YoY'])
     for (const row of rows()) expect(row.children).toHaveLength(5)
   })
 
@@ -325,7 +336,7 @@ describe('degradation', () => {
     await screen.findByText('FY2026 Q3')
     fireEvent.click(screen.getByText('Data & methodology'))
     await waitFor(() => expect(
-      screen.getByText(/52\/53-week, year ends 2025-08-28/)).toBeInTheDocument())
+      screen.getByText(/Year ends 2025-08-28 .* placed on 3 filed year-end dates/)).toBeInTheDocument())
   })
 
   it('renders nothing but a notice without a symbol', () => {

@@ -411,42 +411,6 @@
   .finVal, .finHeadVal { width: 84px; }
 }
 
-/* Earnings: the five columns NEVER drop. Every one of them is load-bearing —
-   unlike Financials, whose row is label-dominant and can shed a sparkline — and
-   the arithmetic says they fit: at 300px (the dock's own minimum) the widest
-   realistic content plus gaps and gutters comes to ~294px. So width buys
-   BREATHING ROOM, not extra columns: one custom property moves, and the header
-   moves with the rows because both read it. */
-@container dock (max-width: 339px) {
-  .etTable {
-    --et-cols: 52px minmax(0, 1fr) 46px minmax(0, 1fr) 46px;
-    --et-gap: 6px;
-    --et-pad: 10px;
-  }
-  /* Drop the century: "FY26 Q3" still reads unambiguously and is what buys the
-     five columns their room at the narrowest usable width. */
-  .etPeriodFull { display: none; }
-  .etPeriodShort { display: inline; }
-  .etStrip { gap: 2px 10px; }
-  .etCompareTitle { flex-basis: 44px; }
-}
-@container dock (min-width: 470px) {
-  .etTable {
-    --et-cols: 76px minmax(0, 1fr) 60px minmax(0, 1fr) 60px;
-    --et-gap: 10px;
-    --et-pad: 14px;
-  }
-  .etRow { padding-top: 6px; padding-bottom: 6px; }
-}
-@container dock (min-width: 620px) {
-  .etTable {
-    --et-cols: 88px minmax(0, 1fr) 68px minmax(0, 1fr) 68px;
-    --et-gap: 12px;
-    --et-pad: 16px;
-  }
-  .etCompareTitle { flex-basis: 64px; }
-}
-
 /* ─────────────────────────────────────────────────────────────────────────
    FINANCIALS tab
    ───────────────────────────────────────────────────────────────────────── */
@@ -656,7 +620,8 @@
   color: var(--text-muted, #7d7768);
   border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
 }
-.etHeadR { text-align: right; }
+.etHeadR { text-align: right; white-space: nowrap; }
+.etHeadShort { display: none; }
 
 .etBody {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
@@ -702,6 +667,11 @@
   text-align: right; font-size: 11px; font-weight: 600;
   color: var(--text, #f0efea); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* A reported LOSS reads red, as it does in Financials. Compounded because
+   `.etVal` sets a colour and is declared after `.neg` — at equal specificity the
+   later rule wins, so the plain class silently did nothing and Rivian's entire
+   EPS column rendered neutral. The same trap `.mVal.pos` solves in Overview. */
+.etVal.neg { color: var(--dock-down-text, #f1696e); }
 
 /* GROWTH — the payload of this table, so it takes the weight and the colour. */
 .etGrowth {
@@ -727,6 +697,14 @@
   color: var(--accent, #c9a84c);
 }
 .etRow + .etSection { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+/* A caveat that belongs to the whole section, said ONCE rather than repeated on
+   every row it applies to. Sentence case and un-tracked, so it reads as prose
+   beside the uppercase gold head rather than as a second heading. */
+.etSectionNote {
+  display: block; margin-top: 3px;
+  font-size: 9.5px; font-weight: 400; letter-spacing: 0; text-transform: none;
+  line-height: 1.4; color: var(--text-muted, #cfcac0);
+}
 
 /* ── deeper history — subtle, not a call to action ───────────────────────── */
 .etMore {
@@ -784,6 +762,55 @@
   font-size: 11px; font-weight: 700; color: var(--accent, #c9a84c); text-decoration: none;
 }
 .etPrimaryDoc:hover { text-decoration: underline; }
+
+/* ── Earnings responsive ──────────────────────────────────────────────────
+   ⚠️ These MUST stay after the .et* rules above. A container query carries no
+   extra specificity, so at equal specificity SOURCE ORDER decides: parked up
+   in the shared RESPONSIVE section they lost to `.etPeriodShort{display:none}`
+   and the period column rendered EMPTY at 300px. Caught in visual QA. */
+/* Earnings: the five columns NEVER drop. Every one of them is load-bearing —
+   unlike Financials, whose row is label-dominant and can shed a sparkline — and
+   the arithmetic says they fit: at 300px (the dock's own minimum) the widest
+   realistic content plus gaps and gutters comes to ~294px. So width buys
+   BREATHING ROOM, not extra columns: one custom property moves, and the header
+   moves with the rows because both read it. */
+@container dock (max-width: 339px) {
+  .etTable {
+    --et-cols: 52px minmax(0, 1fr) 46px minmax(0, 1fr) 46px;
+    --et-gap: 6px;
+    --et-pad: 10px;
+  }
+  /* Drop the century: "FY26 Q3" still reads unambiguously and is what buys the
+     five columns their room at the narrowest usable width. */
+  .etPeriodFull, .etHeadFull { display: none; }
+  .etPeriodShort, .etHeadShort { display: inline; }
+  .etStrip { gap: 2px 10px; }
+  .etCompareTitle { flex-basis: 44px; }
+}
+/* Above ~470px the slack has to go SOMEWHERE, and letting the two level columns
+   take it (they were plain 1fr) tore the row apart: at 560px there was ~120px of
+   air between "FY2026 Q3" and "$24.67", so the eye lost the connection between a
+   period and its own numbers. Capping the levels keeps the numeric block tight
+   and hands the remainder to the PERIOD column instead — which is exactly how
+   Financials spends its width, and keeps the two tabs reading as siblings. */
+@container dock (min-width: 470px) {
+  .etTable {
+    --et-cols: minmax(76px, 1fr) minmax(0, 92px) 60px minmax(0, 92px) 60px;
+    --et-gap: 10px;
+    --et-pad: 14px;
+  }
+  .etRow { padding-top: 6px; padding-bottom: 6px; }
+}
+@container dock (min-width: 620px) {
+  .etTable {
+    --et-cols: minmax(88px, 1fr) minmax(0, 104px) 68px minmax(0, 104px) 68px;
+    --et-gap: 12px;
+    /* Wider side padding at this size soaks up slack symmetrically instead of
+       letting all of it pile into one gap. */
+    --et-pad: 22px;
+  }
+  .etCompareTitle { flex-basis: 64px; }
+}
 
 /* ─────────────────────────────────────────────────────────────────────────
    VALUATION tab

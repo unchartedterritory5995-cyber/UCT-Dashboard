@@ -219,6 +219,24 @@ describe('buildRows — annual uses the same architecture', () => {
     expect(rows.find(r => r.label === 'FY2026').projectedGrowth).toBe(false)
   })
 
+  it('warns once, on the section, when growth is estimate-over-estimate', () => {
+    // FY2027's growth is measured against the FY2026 ESTIMATE, so there is no
+    // reported figure underneath it. Said once on the section head rather than
+    // repeated on every row it applies to.
+    const rows = buildRows(annualIntel, 'annual', 8)
+    const est = rows.find(r => r.kind === 'section' && r.title === 'Estimates')
+    expect(est.note).toMatch(/FY2027 compares one consensus estimate with another/)
+  })
+
+  it('carries no caveat when every estimate is measured against an actual', () => {
+    const clean = intel({ annual: {
+      estimates: [{ fiscal_year: 2026, label: 'FY2026', estimate: true, eps: 10, revenue: 4e10, eps_yoy_pct: 20, yoy_basis: 'vs_actual' }],
+      reported: [{ fiscal_year: 2025, label: 'FY2025', estimate: false, eps: 8, revenue: 3e10 }],
+    } })
+    const est = buildRows(clean, 'annual', 8).find(r => r.kind === 'section' && r.title === 'Estimates')
+    expect(est.note).toBeNull()
+  })
+
   it('applies the same gold threshold', () => {
     const rows = buildRows(annualIntel, 'annual', 8).filter(r => r.kind === 'row')
     expect(rows.find(r => r.label === 'FY2025').epsGrowth.tone).toBe('gold')

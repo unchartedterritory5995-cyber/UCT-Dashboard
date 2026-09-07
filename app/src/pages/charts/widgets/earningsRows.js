@@ -149,8 +149,9 @@ function annualRow(a) {
     sales: fmtSales(a.revenue),
     salesGrowth: growthCell(a.rev_yoy_pct, a.rev_yoy_note),
     // An estimate whose growth is measured against another estimate is a
-    // projection of a projection; the renderer marks it rather than passing it
-    // off as measured history.
+    // projection of a projection. The EST badge says the ROW is a forecast; this
+    // says its GROWTH has no measured figure underneath it either, which the
+    // section note and the cell tooltip both spell out.
     projectedGrowth: a.yoy_basis === 'vs_estimate',
     expandable: false,
     source: a,
@@ -178,7 +179,10 @@ export function buildRows(intel, mode = 'quarterly', limit = 8) {
     const est = (intel.annual?.estimates) || []
     const rep = (intel.annual?.reported) || []
     if (est.length) {
-      rows.push(section('Estimates'))
+      const projected = est.filter(a => a.yoy_basis === 'vs_estimate')
+      rows.push(section('Estimates', projected.length
+        ? `Growth for ${projected.map(a => a.label).join(' and ')} compares one consensus estimate with another, not with a reported result.`
+        : null))
       est.forEach(a => rows.push(annualRow(a)))
     }
     if (rep.length) {

@@ -349,7 +349,13 @@ class FiscalCalendar:
             "source": self.source,
             "fiscal_year_end": latest.isoformat(),
             "fiscal_year_end_month": latest.month,
-            "style": "52/53-week" if self.is_5253 else "month-anchored",
+            # How WE placed the quarters, not a claim about the company. Some
+            # sources normalise period ends to month ends, so a genuine
+            # 52/53-week filer can legitimately present as month-anchored here;
+            # the labels come out the same either way because the normalisation
+            # is consistent, but the UI must not assert Micron closes on the
+            # last day of August when what we mean is "that is how it reached us".
+            "quarter_basis": "13-week blocks" if self.is_5253 else "calendar months",
             "anchors_observed": len(self.anchors),
         }
 

@@ -49,10 +49,15 @@ const DEEP_LIMIT = 12        // as far as the model reaches
 const TONE = { gold: styles.etGold, up: styles.pos, down: styles.neg, none: styles.muted }
 
 // ── cells ───────────────────────────────────────────────────────────────────
-function Growth({ cell }) {
+function Growth({ cell, projected }) {
   if (!cell) return <span className={`${styles.etGrowth} ${styles.etEmpty}`}>—</span>
   return (
-    <span className={`${styles.etGrowth} ${TONE[cell.tone] || ''}${cell.semantic ? ' ' + styles.etSemantic : ''}`}>
+    <span
+      className={`${styles.etGrowth} ${TONE[cell.tone] || ''}${cell.semantic ? ' ' + styles.etSemantic : ''}`}
+      title={projected
+        ? 'Compares one consensus estimate with another — there is no reported figure underneath this growth rate.'
+        : undefined}
+    >
       {cell.text}
     </span>
   )
@@ -82,9 +87,9 @@ function Row({ row, open, onToggle, sym }) {
           {row.estimate && <span className={styles.etEst}>EST</span>}
         </span>
         <span className={`${styles.etVal}${row.epsNegative ? ' ' + styles.neg : ''}`}>{row.eps}</span>
-        <Growth cell={row.epsGrowth} />
+        <Growth cell={row.epsGrowth} projected={row.projectedGrowth} />
         <span className={styles.etVal}>{row.sales}</span>
-        <Growth cell={row.salesGrowth} />
+        <Growth cell={row.salesGrowth} projected={row.projectedGrowth} />
       </div>
       {open && <Detail q={row.source} sym={sym} />}
     </>
@@ -239,9 +244,19 @@ export default function DockEarnings({ sym }) {
         <div className={styles.etHead}>
           <span>{mode === 'annual' ? 'Year' : 'Period'}</span>
           <span className={styles.etHeadR}>EPS</span>
-          <span className={styles.etHeadR} title="Change against the same fiscal period one year earlier.">EPS YoY</span>
+          {/* At the narrowest width the metric prefix would wrap the header onto
+              a second line and stop it lining up with its own column. The
+              adjacent EPS / Sales column makes the prefix redundant there, so
+              the container query drops it — same two-form trick as the period. */}
+          <span className={styles.etHeadR} title="Change against the same fiscal period one year earlier.">
+            <span className={styles.etHeadFull}>EPS YoY</span>
+            <span className={styles.etHeadShort}>YoY</span>
+          </span>
           <span className={styles.etHeadR}>Sales</span>
-          <span className={styles.etHeadR} title="Change against the same fiscal period one year earlier.">Sales YoY</span>
+          <span className={styles.etHeadR} title="Change against the same fiscal period one year earlier.">
+            <span className={styles.etHeadFull}>Sales YoY</span>
+            <span className={styles.etHeadShort}>YoY</span>
+          </span>
         </div>
 
         <div className={styles.etBody}>
@@ -260,7 +275,12 @@ export default function DockEarnings({ sym }) {
             <>
               {rows.map(r => (
                 r.kind === 'section'
-                  ? <div key={r.key} className={styles.etSection}>{r.title}</div>
+                  ? (
+                    <div key={r.key} className={styles.etSection}>
+                      {r.title}
+                      {r.note && <span className={styles.etSectionNote}>{r.note}</span>}
+                    </div>
+                  )
                   : <Row key={r.key} row={r} sym={sym}
                       open={openKey === r.key}
                       onToggle={() => setOpenKey(openKey === r.key ? null : r.key)} />
@@ -292,7 +312,7 @@ export default function DockEarnings({ sym }) {
                     <span className={styles.finProvK}>Fiscal calendar</span>
                     <span className={styles.finProvV}>
                       {cal.known
-                        ? `${cal.style}, year ends ${cal.fiscal_year_end} — periods are the company's own fiscal quarters`
+                        ? `Year ends ${cal.fiscal_year_end} — periods are the company's own fiscal quarters, placed on ${cal.anchors_observed} filed year-end ${cal.anchors_observed === 1 ? 'date' : 'dates'}`
                         : 'Not established for this security'}
                     </span>
                   </div>
