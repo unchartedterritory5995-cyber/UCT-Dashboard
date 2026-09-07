@@ -17,7 +17,7 @@ surface.
 - **Repository root (canonical, do not work here directly):** `C:\Users\Patrick\uct-dashboard` — ⚠️ this checkout is STALE/PARKED per standing project convention; never treat it as authoritative, read `origin/master:<path>` instead if you need the true master state
 - **Active worktree (this is where all current work lives):** `C:\Users\Patrick\uct-dashboard-recognition-quality-harness-lab`
 - **Branch:** `recognition-quality-harness-lab`
-- **HEAD SHA:** `81ce79f26638f622e5561a4f7c5fc4a2b7439d74`
+- **HEAD SHA:** `3e75d6672` (this handoff document's own commit — the last commit made before shutdown; the prior HEAD, `81ce79f266...`, was the last commit containing actual research/code work, and this one adds only this document)
 - **Upstream comparison:** `origin/master` (branch has NEVER been pushed — verified via `git ls-remote origin recognition-quality-harness-lab` returning empty — all 8 commits on this branch are 100% local-only)
 - **Divergence from origin/master:** 8 ahead, 27 behind (master has moved on since this branch's base; that is expected and not a problem — this branch was never meant to merge)
 - **Checkpoint date/time:** 2026-09-07 09:56 CDT
@@ -232,6 +232,7 @@ the owner (see §Q).
 All of the following are on branch `recognition-quality-harness-lab`, **100% local-only** (verified via `git ls-remote origin recognition-quality-harness-lab` → empty), not pushed, not merged, not promoted to any release train:
 
 ```
+3e75d6672  docs: account-switch/full-shutdown continuity handoff (this document)
 81ce79f26  lab: currentness fix -- independent holdout adjudication + confusion matrices
 606c9c5e1  fix: pullback_to_50sma post-reclaim invalidation gate (partial currentness fix)
 fcac7b04d  fix: shared post-trigger currentness gate for shooting_star/hanging_man/bearish_engulfing
@@ -425,8 +426,8 @@ VCP, not the `EXPIRED`-state design. Confirm with the owner first regardless
 1. Open a new Claude Code session with working directory
    `C:\Users\Patrick\uct-dashboard-recognition-quality-harness-lab`.
 2. Run `git status` and `git log --oneline -10`. Confirm branch
-   `recognition-quality-harness-lab`, HEAD `81ce79f26...`, working tree
-   clean. **If HEAD differs from `81ce79f26...` or the tree is not clean,
+   `recognition-quality-harness-lab`, HEAD `3e75d6672...`, working tree
+   clean. **If HEAD differs from `3e75d6672...` or the tree is not clean,
    STOP and reconcile before doing anything else** — something changed
    after this checkpoint that this document does not know about.
 3. Read this handoff file in full.
@@ -450,7 +451,7 @@ VCP, not the `EXPIRED`-state design. Confirm with the owner first regardless
 > at the root of this worktree in full. Then run `git status` and
 > `git log --oneline -10` and confirm the repository state matches what
 > that document claims (branch `recognition-quality-harness-lab`, HEAD
-> `81ce79f26...`, clean tree) before doing anything else. Then read
+> `3e75d6672...`, clean tree) before doing anything else. Then read
 > `project_pattern_intelligence_lab_evidence_2026_09_06.md` from the memory
 > directory for full technical history. Do not resume any implementation,
 > research, or fix work yet — this workstream was explicitly paused by the
