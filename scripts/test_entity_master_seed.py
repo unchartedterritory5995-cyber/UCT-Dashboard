@@ -352,14 +352,20 @@ def test_dot_alias_added_for_a_confirmed_class_share(monkeypatch, db_path):
 
 
 def test_a_symbol_with_no_confirmed_dot_form_is_skipped(monkeypatch, db_path):
-    """CONTROL — the SPAC-unit case (e.g. NWAX-U): Massive's reference API
-    returns nothing for the dot-converted form, so no alias is invented."""
-    _seed_one_entity(db_path, "NWAX-U")
-    _patch_dot_alias_sources(monkeypatch, symbols=["NWAX-U"], ticker_details={})
+    """CONTROL — a hyphenated symbol whose dot form Massive's reference API
+    genuinely does not carry (a real 404, verified live 2026-09-06 against
+    CWEN-A/CWEN.A — NOT NWAX-U/NWAX.U, which turned out to BE confirmed:
+    Massive's reference API carries a dot-form row for that SPAC-unit
+    ticker too, disproving the assumption that only share classes get one.
+    This control is deliberately synthetic/symbol-agnostic rather than
+    re-asserting that specific example, since which real ticker lands here
+    is Massive's own coverage, not something this fix should assume)."""
+    _seed_one_entity(db_path, "CWEN-A")
+    _patch_dot_alias_sources(monkeypatch, symbols=["CWEN-A"], ticker_details={})
     result = seed.seed_dot_form_aliases(db_path=db_path)
     assert result["stats"]["no_dot_form_confirmed"] == 1
     assert result["stats"]["dot_aliases_added"] == 0
-    assert em_api.resolve("NWAX.U", db_path=db_path).status == "not_found"
+    assert em_api.resolve("CWEN.A", db_path=db_path).status == "not_found"
 
 
 def test_a_best_effort_failure_reads_as_unconfirmed_not_as_absence(monkeypatch, db_path):
