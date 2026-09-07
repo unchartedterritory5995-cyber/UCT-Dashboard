@@ -1,0 +1,26 @@
+{
+  "case_0000": {
+    "symbol": "ALG",
+    "as_of_t": 20260527,
+    "detector_fired": true,
+    "detector_top_confidence": 60.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "OMER",
+    "as_of_t": 20251216,
+    "detector_fired": true,
+    "detector_top_confidence": 55.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "EVRG",
+    "as_of_t": 20260316,
+    "detector_fired": true,
+    "detector_top_confidence": 55.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}

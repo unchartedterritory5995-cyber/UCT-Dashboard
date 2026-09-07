@@ -1,0 +1,26 @@
+{
+  "case_0000": {
+    "symbol": "NRP",
+    "as_of_t": 20260903,
+    "detector_fired": true,
+    "detector_top_confidence": 80.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "WSC",
+    "as_of_t": 20260610,
+    "detector_fired": true,
+    "detector_top_confidence": 100.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "GFR",
+    "as_of_t": 20251020,
+    "detector_fired": true,
+    "detector_top_confidence": 80.0,
+    "pipeline_trace": null,
+    "note": "CANDIDATE ONLY -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}
