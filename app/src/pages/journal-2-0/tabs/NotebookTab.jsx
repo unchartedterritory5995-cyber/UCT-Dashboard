@@ -9,6 +9,7 @@ import NotesTableView from '../components/notebook/NotesTableView'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
+import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import ImportWizard from '../components/notebook/import/ImportWizard'
 import ExportDialog from '../components/notebook/export/ExportDialog'
@@ -17,6 +18,7 @@ import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
+import { createNoteViaApi } from '../lib/noteCreation'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import styles from './NotebookTab.module.css'
@@ -82,6 +84,21 @@ export default function NotebookTab() {
     }, { replace: true })
   }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
+  // Wave H checkpoint decision 23: the Ticker Research Workspace's "View
+  // all Notes" action lands here via `?ticker=`, reusing this exact
+  // one-time-per-arrival-strip pattern (never a second filtering mechanism
+  // -- this composes with `?view=all` and, per decision 24, with `?q=`).
+  const [tickerFilter, setTickerFilter] = useState(null)
+  useEffect(() => {
+    const t = searchParams.get('ticker')
+    if (!t || searchParams.get('new')) return  // '?new=...&ticker=' is the UNRELATED note-seed deep link, not a filter
+    setTickerFilter(t.toUpperCase())
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('ticker')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [sort, setSort] = useState('updated')
   // Wave E: an active saved view is mutually exclusive with folder/tag
   // browsing (same "one selection channel" discipline as folder vs. Trash
@@ -206,6 +223,7 @@ export default function NotebookTab() {
   } = useJ2Notes({
     folderId: isTrashView ? undefined : folderId,
     tag: isTrashView ? undefined : tag,
+    ticker: isTrashView ? undefined : tickerFilter,
     sort: isTrashView ? 'deleted' : sort,
     deleted: isTrashView,
     // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
@@ -245,7 +263,14 @@ export default function NotebookTab() {
       { revalidate: false },
     )
   }, [mutateAllNotes])
-  const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter)
+  const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter || tickerFilter)
+  // Wave H checkpoint decision 32/57: bare-root (no note, no filter, no
+  // explicit ?view=all) renders Research Home instead of the flat All Notes
+  // grid. "All notes" itself stays one click away (the sidebar row), now
+  // via the explicit `view=all` flag rather than being indistinguishable
+  // from Home.
+  const viewAll = searchParams.get('view') === 'all'
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed
@@ -272,6 +297,9 @@ export default function NotebookTab() {
       // drop them here so the final URL is always clean.
       next.delete('new')
       next.delete('ticker')
+      // Wave H: opening a note leaves the explicit "All notes" grid state —
+      // same "leaving X clears Y" discipline as every other selection below.
+      next.delete('view')
       return next
     }, { replace: false })
   }
@@ -293,17 +321,40 @@ export default function NotebookTab() {
     next.delete('note')
     return next
   }, { replace: false })
-  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); if (noteId) clearNoteParam() }
-  const handleSelectTag = (t) => { setTag(t); setActiveView(null); if (noteId) clearNoteParam() }
+  // Wave H: `?view=all` is the explicit flag distinguishing "the All Notes
+  // grid, no filter" from bare-root Research Home -- both otherwise look
+  // identical (folderId=null, tag=null, no activeView). Selecting any real
+  // folder/tag/saved-view leaves that explicit-all-notes state.
+  const clearViewAllParam = () => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev)
+    next.delete('view')
+    return next
+  }, { replace: false })
+  const selectAllNotes = () => {
+    setFolderId(null)
+    setTag(null)
+    setActiveView(null)
+    setTickerFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'all')
+      next.delete('note')
+      return next
+    }, { replace: false })
+  }
+  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
+  const handleSelectTag = (t) => { setTag(t); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
   const handleSelectView = (view) => {
     // Wave E: mutually exclusive with folder/tag browsing -- same "one
     // selection channel" discipline as folder vs. Trash above.
     setFolderId(null)
     setTag(null)
+    setTickerFilter(null)
     setPropertyFilter(null)
     setPropertySort(null)
     setActiveView(view)
     setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    clearViewAllParam()
     if (noteId) clearNoteParam()
   }
   const handleQuickFilter = (propertyId, value) => {
@@ -390,7 +441,12 @@ export default function NotebookTab() {
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
-  // (plus its preset tags and, when known, the ticker).
+  // (plus its preset tags and, when known, the ticker). The actual network
+  // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
+  // Workspace's own New Note/New Thesis actions call the SAME path rather
+  // than a second creation flow -- this wrapper only adds NotebookTab's OWN
+  // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
+  // refresh bookkeeping) on top of it.
   const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
     setCreating(true)
     setPickerOpen(false)
@@ -399,37 +455,8 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      const res = await fetch('/api/j2/notes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          ...(bodyJson ? { bodyJson } : {}),
-          ...(tags && tags.length ? { tags } : {}),
-          ...(seededTicker ? { ticker: seededTicker } : {}),
-          ...(folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? { folderId } : {}),
-        }),
-      })
-      if (!res.ok) throw new Error(`${res.status}`)
-      const body = await res.json()
-      // Wave G: a template can also seed structured properties (e.g. the
-      // Thesis template's Research Type) -- create_note has no properties
-      // param of its own (Wave E's set_note_properties is a PUT-only path),
-      // so this is a follow-up patch, best-effort: a failure here still
-      // leaves a perfectly usable note, just without the pre-set property.
-      let created = body.note
-      if (properties && Object.keys(properties).length) {
-        try {
-          const putRes = await fetch(`/api/j2/notes/${created.id}`, {
-            method: 'PUT',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ properties }),
-          })
-          if (putRes.ok) created = (await putRes.json()).note
-        } catch { /* best-effort -- note creation itself already succeeded */ }
-      }
+      const safeFolderId = folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? folderId : undefined
+      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
@@ -541,6 +568,9 @@ export default function NotebookTab() {
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
+            onAddStarterViews={addStarterThesisViews}
+            isHome={isHome}
+            onSelectAllNotes={selectAllNotes}
           />
         </div>
       </div>
@@ -558,6 +588,16 @@ export default function NotebookTab() {
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
           <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
+        ) : isHome ? (
+          // Wave H: bare-root Research Home (checkpoint decision 33/57) --
+          // "All notes" itself is unchanged, one click away via the sidebar.
+          <ResearchHome
+            onOpenNote={openNote}
+            onCreateNote={() => createNote()}
+            onCreateThesis={() => handlePick(getTemplate('thesis'))}
+            onImport={() => setImportOpen(true)}
+            hasAnyNotes={allNotesTotal > 0}
+          />
         ) : (
           <>
         <div className={styles.toolbar}>
@@ -577,13 +617,17 @@ export default function NotebookTab() {
               <option value="title">Title</option>
             </select>
           )}
-          {(folderId || tag || activeView || propertyFilter) && (
+          {tickerFilter && (
+            <span className={styles.tickerFilterChip}>${tickerFilter}</span>
+          )}
+          {(folderId || tag || activeView || propertyFilter || tickerFilter) && (
             <button
               type="button"
               className={styles.clear}
               onClick={() => {
                 setFolderId(null); setTag(null)
                 setActiveView(null); setPropertyFilter(null); setPropertySort(null)
+                setTickerFilter(null)
               }}
             >
               Clear filter

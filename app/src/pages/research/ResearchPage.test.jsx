@@ -49,6 +49,16 @@ vi.mock('./hooks/useCompanyNews', () => ({
   }),
 }))
 
+// Wave H: "My Research" bridges to the SAME component Notebook's own route
+// mounts (checkpoint decision 6) -- mocked here so this file stays scoped to
+// ResearchPage's own tab-wiring, not the workspace's internals (covered by
+// TickerResearchWorkspace.test.jsx).
+vi.mock('../journal-2-0/components/notebook/TickerResearchWorkspace', () => ({
+  default: ({ symbol, showBackLink }) => (
+    <div data-testid="ticker-research-workspace" data-symbol={symbol} data-show-back={String(Boolean(showBackLink))} />
+  ),
+}))
+
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
 const auth = { user: { role: 'user' }, isPaid: true }
 vi.mock('../../context/AuthContext', () => ({
@@ -73,6 +83,22 @@ describe('ResearchPage', () => {
     // All 7 tabs are live now; switching to Ratings hides the Overview content.
     fireEvent.click(screen.getByRole('button', { name: 'Ratings' }))
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('Wave H: "My Research" mounts the SAME TickerResearchWorkspace component Notebook uses, without its own back link', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'My Research' }))
+    const workspace = screen.getByTestId('ticker-research-workspace')
+    expect(workspace.dataset.symbol).toBe('AAPL')
+    expect(workspace.dataset.showBack).toBe('false')
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('Wave H: ?section=research deep-links straight to My Research', () => {
+    auth.isPaid = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=research' })
+    expect(screen.getByTestId('ticker-research-workspace')).toBeInTheDocument()
   })
 
   it('shows the paywall teaser for a non-paid user', () => {

@@ -106,6 +106,26 @@ def test_list_notes_filter_by_ticker(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
+def test_list_notes_filter_by_ticker_also_matches_prose_mentions_and_embeds(conn):
+    """Wave H parity: the Notebook list's `?ticker=` filter is the query
+    behind the research workspace's own "View all Notes" link
+    (`/journal/notebook?view=all&ticker=<symbol>`), so it must answer the
+    SAME "which notes relate to this ticker" question
+    ticker_research._notes_for_symbols answers for the workspace itself —
+    ticker column OR embed OR cashtag mention, not the strict property-only
+    match this filter shipped with. Caught live: a note whose only NVDA
+    relationship was a `$NVDA` mention showed up in the NVDA workspace but
+    was silently absent from this same-ticker filtered list."""
+    prop_only = svc.create_note("u1", {"title": "Prop", "ticker": "NVDA"}, conn=conn)
+    prose_only = _note_with_text(conn, "Prose", "Watching $NVDA today.")
+    embed_only = _note_with_embeds(conn, "Embed", "NVDA")
+    svc.create_note("u1", {"title": "Unrelated", "ticker": "AAPL"}, conn=conn)
+
+    ids = {r["id"] for r in svc.list_notes("u1", ticker="NVDA", conn=conn)}
+    assert ids == {prop_only["id"], prose_only["id"], embed_only["id"]}
+    assert svc.count_notes("u1", ticker="NVDA", conn=conn) == 3
+
+
 def test_list_notes_filter_by_tag(conn):
     a = svc.create_note("u1", {"title": "A", "tags": ["earnings", "macro"]}, conn=conn)
     svc.create_note("u1", {"title": "B", "tags": ["macro"]}, conn=conn)

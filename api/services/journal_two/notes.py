@@ -882,8 +882,26 @@ def _notes_filter_sql(
         sql += " AND folder_id = ?"
         params.append(folder_id)
     if ticker:
-        sql += " AND ticker = ?"
-        params.append(ticker.strip().upper())
+        # Wave H: this must answer the SAME "which notes relate to this
+        # ticker" question ticker_research._notes_for_symbols answers for the
+        # research workspace (ticker column OR embed OR cashtag mention) —
+        # not just the note's own `ticker` property. A strict-equality-only
+        # version of this clause let the Notebook list's `?ticker=` chip (the
+        # workspace's own "View all Notes" link) disagree with the workspace
+        # it was linked from: a note whose only NVDA relationship was a
+        # `$NVDA` mention in its body showed up in the NVDA workspace but not
+        # in this same-ticker filtered list — two implementations of one
+        # membership question, the exact defect shape this file's own
+        # docstring above warns about.
+        t = ticker.strip().upper()
+        sql += (" AND (ticker = ?"
+                " OR EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.symbol = ?)"
+                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
+                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
+                " AND m.symbol = ?))")
+        params.extend([t, t, t])
     # "Every entry where I traded/mentioned AMD" — the name `embed_symbol`
     # predates P0-3 (Wave 1 Slice 2) and is kept for every existing caller's
     # sake, but it now answers from BOTH sidecars: accepted chart embeds

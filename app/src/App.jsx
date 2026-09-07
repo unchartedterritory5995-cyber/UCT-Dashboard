@@ -109,6 +109,7 @@ const TodaySurface = lazy(() => import('./pages/journal-2-0/surfaces/TodaySurfac
 const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurface'))
 const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
 const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
+const TickerResearchSurface = lazy(() => import('./pages/journal-2-0/surfaces/TickerResearchSurface'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -543,6 +544,11 @@ export default function App() {
                   <Route path="trades" element={<TradesSurface />} />
                   <Route path="calendar" element={<CalendarSurface />} />
                   <Route path="notebook" element={<NotebookSurface />} />
+                  {/* Wave H: the Ticker Research Workspace's own canonical
+                      route (checkpoint decision 8) -- a focused, single-
+                      purpose page, deliberately NOT nested inside
+                      NotebookTab's own three-pane shell. */}
+                  <Route path="notebook/research/:symbol" element={<TickerResearchSurface />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />

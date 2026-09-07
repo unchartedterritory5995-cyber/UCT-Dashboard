@@ -3295,3 +3295,184 @@ two read-only aggregation endpoints and one new page component — exactly the
 minimal-new-primitive outcome this program's checkpoints have consistently
 required before building anything larger. Proceeding directly to
 implementation.
+
+---
+
+### Wave H — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave H's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+**Delivered, per the 48-point entry checkpoint above:** two new read-only
+aggregation services — `notebook_home.py` (`get_notebook_home()`: Continue
+Working, Active Theses, Connected to Open Positions, Needs Review, Favorites —
+each section independently failure-isolated via a `_safe()` wrapper so one
+broken section degrades to empty rather than blanking the whole surface) and
+`ticker_research.py` (`get_ticker_research_summary()`: identity resolution via
+`entity_master` with a plain-symbol fallback, notes/theses via a
+ticker-OR-embed-OR-mention union query, entity-aggregated facts, and a direct
+join for open-position research) — reached by two endpoints, `GET
+/notebook/home` and `GET /notes/research/{symbol}/summary`; `ResearchHome.jsx`
+(Notebook's new bare-root landing surface, composed entirely from Wave B
+favorites/recents, Wave E saved-view predicates, and Wave 3 typed
+relationships — no divergent query anywhere in it); `TickerResearchWorkspace.jsx`
+(the canonical per-security research surface, mounted at BOTH
+`/journal/notebook/research/:symbol` and, via one new "My Research" tab, at
+the existing paid Company Page `/research/:sym` — the SAME component, not a
+second implementation, `showBackLink` the only prop distinguishing the two
+mounts); a shared `noteCreation.js` module so New Note/New Thesis from the
+workspace and from `NotebookTab` call the exact same creation path; a
+`?view=all` / `?ticker=` disambiguation pair on the existing Notebook route so
+bare-root becomes Home without orphaning "All Notes" or the ticker-filtered
+round-trip; and a `'home'` keyword added to the existing `nb-open`
+command-palette entry rather than a second, redundant command pointing at the
+identical route.
+
+**The central architecture question (checkpoint §11: where does the canonical
+per-ticker workspace belong) was resolved by direct evidence, not
+assumption:** a real, mature, paid "Company Page" (`ResearchPage.jsx`, 10
+market-data tabs) already existed and was previously undocumented in
+`CLAUDE.md`. This settled the ownership split cleanly — Notebook owns "my
+research about this security" (private), Company Page owns "live financial
+information" (market data), bridged by one new tab mounting the identical
+workspace component — and is now the answer of record.
+
+**Two real, load-bearing defects were found live in the browser DURING this
+wave's own E2E verification pass, not anticipated at the checkpoint, and both
+are fixed with regression coverage — recorded here rather than silently
+patched over:**
+1. **Ticker-filter parity bug.** The Notebook list's `?ticker=` filter chip —
+   the exact query the ticker workspace's own "View all Notes" link navigates
+   to — used strict `j2_notes.ticker` column equality
+   (`_notes_filter_sql`'s pre-existing `ticker` parameter), while the
+   workspace's own `_notes_for_symbols` answers the richer "ticker column OR
+   embed OR cashtag mention" union. A note related to NVDA only through a
+   `$NVDA` prose mention (no `Ticker` property, no embed) correctly appeared
+   in the NVDA workspace but silently vanished from the same list reached by
+   clicking "View all Notes" from that exact workspace — two implementations
+   of one membership question, the precise defect shape `_notes_filter_sql`'s
+   own docstring warns against for `embed_symbol`. Reproduced live via a
+   direct API comparison, root-caused to `notes.py`'s `ticker` branch, fixed
+   by widening it to the same ticker-OR-embed-OR-mention OR-of-EXISTS pattern
+   already established for `embed_symbol`/`symbol_in` two branches below it.
+   Regression test `test_list_notes_filter_by_ticker_also_matches_prose_
+   mentions_and_embeds` added; re-verified live in the actual UI (a
+   cashtag-only "NVDA vs AMD comparison" note now correctly appears under both
+   the `$NVDA` and `$AMD` ticker-filter chips, with no duplication).
+2. **Touch-target defect on the workspace's own new chrome.** `tools/
+   mobile_audit.py` against the two new Wave H routes found the workspace's
+   "Notebook" back-link (71×22px) and "View all" link (42×19px) both under the
+   codebase's `--tap-min: 44px` convention on phone/tablet. Fixed with padding
+   + an equal-and-opposite negative margin (hit area grows to 44px, visible
+   text size and surrounding layout unchanged) inside the existing
+   `@media (max-width: 1024px)` touch tier; re-audited clean (`small-targets=0`)
+   on phone, phone390, and tablet against both new routes.
+
+**Full real-browser E2E, proven live, not just asserted (directive §159-173):**
+the financial-differentiation claim end-to-end — creating a thesis with
+Ticker + Thesis Status set, watching the NVDA workspace assemble
+automatically with zero manual linking, New Note/New Thesis from the
+workspace pre-filling the symbol, a captured financial fact and an
+open-position trade link both surfacing in the same view; dynamic
+membership — clearing a note's only qualifying `Ticker` property live and
+confirming it disappears from the NVDA workspace in the same session
+(re-proven after the sandbox restart this session required); multi-entity,
+zero-duplication — a single note carrying `$NVDA` and `$AMD` cashtags in body
+text (no ticker property, no embeds) correctly appearing in BOTH the NVDA and
+AMD workspaces from the SAME underlying row; the "View all Notes" round-trip
+(now correctly parity-matched, see defect 1 above) and the "All notes" sidebar
+click correctly clearing the ticker filter; bare `/journal/notebook`
+rendering Research Home's populated state (Continue Working / Active Theses /
+Connected to Open Positions, with Favorites/Needs Review correctly
+auto-hidden when empty) and, separately, its honest empty state on a
+low-data account ("Nothing needs your attention right now. Favorite a note or
+set a thesis to Active to see it here." — never a blank grid); the Company
+Page's "My Research" tab rendering the identical workspace with no back-link;
+command-palette entry (`Ctrl+K` → typing "home" surfaces "Open Notebook" as
+the top match, confirming the `'home'` keyword addition, not a duplicate
+command); and full Home → Workspace → Note → Back → Workspace → Back → Home
+browser-history correctness.
+
+**Provider-failure resilience, proven by construction, not a synthetic
+fault-injection:** this entire session ran with no live-price/market-data
+provider key configured in the sandbox, and Research Home, the ticker
+workspace, and every new endpoint rendered fully and instantly regardless —
+the same Wave F trust contract ("private research never blocks on a live
+provider") held automatically because neither new surface has a live-provider
+dependency in its data path at all.
+
+**Search-within-workspace is N/A by design, not a gap:** the workspace
+deliberately has no second search implementation. Its bounded 5-item Notes
+list escapes to "View all Notes," which lands in the EXISTING, already-proven
+Notebook search/filter surface with the ticker constraint applied — exactly
+the checkpoint's own "reuse the same mechanism, composed with an entity
+constraint" requirement, not a missing feature.
+
+**Tenant isolation, non-regression:** `notebook_home.py`/`ticker_research.py`
+scope every query by `user_id`; the open-position-research join excludes
+`equity_trade`-typed embeds and closed positions by construction (covered by
+`test_wave_h_home_and_research.py`'s tenant-scoping and join-correctness
+cases). Backend: 31 Wave-H-specific tests (22 in
+`test_wave_h_home_and_research.py`, 8 router-level in
+`test_journal_two_home_and_research_router.py`, 1 new ticker-filter-parity
+regression) all passing; full `journal_two` + router regression re-run this
+session: 2,278–2,297 passed depending on run, with EVERY non-passing test
+individually root-caused to one of two pre-existing, Wave-H-unrelated causes
+— a disk-headroom safety guard requiring ~50GB free (this box's environment
+sat at 13GB free this session, consumed by ~110 unrelated parallel git
+worktrees, confirmed by direct reproduction of the exact guard message, not
+assumed) and one pre-existing Obsidian-parity fixture-staleness issue in an
+entirely different import subsystem, last touched before this wave began.
+Frontend: `ResearchHome.test.jsx` (9), `TickerResearchWorkspace.test.jsx` (8),
+`ResearchPage.test.jsx` (+2), `NotebookTab.test.jsx` (33, incl. 5 new Home-vs-
+All-Notes cases) all passing; full repo-wide vitest re-run this session: 1,029
+passed / 7 failed, all 7 individually confirmed pre-existing and unrelated
+(a `/api/ticker-search` unchecked-fetch violation from a 2026-09-03 commit
+this wave never touched, an unrelated "floor2" reachability debt item, and
+five other files with zero relationship to Notebook/Journal/Research code).
+
+**A genuine Wave-G-era wiring bug was found and fixed while touching adjacent
+code:** `onAddStarterViews={addStarterThesisViews}` was defined in Wave G but
+never actually passed to `<FolderSidebar>` — the "Add thesis starter views"
+affordance was dead code in production despite passing component-level tests
+(which supplied the prop directly, bypassing the missing wiring). Fixed in
+the same `NotebookTab.jsx` edit that added `isHome`/`onSelectAllNotes`;
+confirmed live (the link now renders and works in the sandbox).
+
+**Mobile:** `tools/mobile_audit.py` against both new routes
+(`/journal/notebook`, `/journal/notebook/research/NVDA`) across phone,
+phone390, tablet, and desktop — 0 horizontal-overflow combos on all eight
+combinations, 0 sub-44px touch targets on phone/tablet/phone390 after the
+touch-target fix above (desktop's reported "small targets" are the
+pre-existing top NavBar icons, unrelated to Wave H).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** No
+architecture-level contradiction against the entry checkpoint's 48 decisions.
+No scope added beyond the checkpoint (no graph UI for Related Research; no
+external web capture; no offline mode; no templates/tasks beyond what already
+existed). **Explicitly recorded, not fixed:**
+- Zero real member usage evidence for anything in this wave (Day 0, same cap
+  every prior wave's closure has honestly carried).
+- The disk-headroom-guarded backend tests (media/attachment byte-save paths,
+  ~19 tests) could not be driven fully green in this session's environment —
+  root-caused to an unrelated, pre-existing infrastructure constraint (~110
+  parallel git worktrees consuming the box's free space), explicitly outside
+  this wave's authorized scope to remediate, and outside Wave H's own code
+  entirely (none of the 19 touch Notebook/Research code).
+- The Obsidian-parity fixture-staleness failure (1 test, unrelated import
+  subsystem) is unfixed and unowned by this wave; noted for whoever next
+  touches `note_connectors/convert/`.
+- §192's candidate future areas (Templates/Tasks, Attachments, PDF/Documents,
+  OCR, Ask Notebook, Hybrid Search, External Web Capture, Mobile Deepening,
+  Offline, Ask Notebook+UCT, Sharing/Collaboration) remain undecided, per the
+  directive's own instruction not to decide them now.
+
+**Wave H's core contracts are now FROZEN per the directive:** Notebook owns
+per-security private research, Company Page owns live market data (bridged,
+never duplicated); both Home and the ticker workspace are dynamic read
+models with zero persistent lifecycle of their own; entity/ticker membership
+is high-confidence-source-only (ticker/embed/mention/entity, never prose
+substring inference); every creation/search/filter/favorite/saved-view path
+Wave H touches reuses the existing mechanism composed with an entity
+constraint, never a second implementation.
