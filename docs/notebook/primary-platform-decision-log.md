@@ -1299,8 +1299,46 @@ live-computation contract, the saved-view spec shape, the
 property reference), and the Wave C version-integration decision.
 
 **Production closure:** same isolated-temporary-worktree process as prior
-waves. Merge/deploy detail recorded once the push completes — see the
-immediately following entry.
+waves (`git worktree add ../wave-e-merge-tmp -b <tmp-branch> origin/master`,
+never switching this worktree's own branch). Clean `--no-ff` merge, zero
+conflicts. Re-fetched `origin/master` immediately before pushing — confirmed
+still an ancestor of the merge commit (no drift landed between fetch and
+push). Pushed as `757f9047b`. Temp worktree removed (Windows file-lock forced
+a PowerShell `Remove-Item -Recurse -Force` fallback + `git worktree prune`,
+the documented gotcha for this pattern on this box).
+
+Railway `web` service picked up the push automatically; watched
+`railway status --json` through BUILDING → DEPLOYING → **SUCCESS**.
+`latestDeployment.meta.commitHash` reads
+`757f9047b6e885f19c356273a6768986c0e7bf96` — byte-identical to
+`origin/master`'s HEAD, and Railway builds from source (Nixpacks/Dockerfile),
+not a supplied artifact, so this ties the running deploy directly to the
+pushed merge commit. Fresh-process confirmed: `GET /api/health` on
+`uctintelligence.com` (browser User-Agent — Cloudflare 1010-blocks a raw curl
+UA) returned `uptime_seconds: 31` moments after the flip to SUCCESS. All
+three of Wave E's new route families return a real, auth-gated
+`401 application/json` in production (not the SPA catch-all HTML): `GET
+/api/j2/property-defs`, `GET /api/j2/saved-views`, `POST
+/api/j2/property-defs`. **No bundle-content grep this time** — the predicted
+content-hashed chunk filename (`NotebookTab-HZom-vel.js`, matching this
+session's own local build of the identical commit) 404'd against production,
+meaning Railway's build environment produced a different content hash than
+this session's local build for reasons not investigated further (plausibly a
+Rollup/Node version or build-path difference); rather than guess at another
+filename or substitute an authenticated click-through this session has no
+real member credential for, the commit-hash match + fresh uptime + three
+live, correctly-auth-gated new routes are offered as the honest evidence set,
+per this program's own evidence-precision doctrine (a precise partial proof
+over a fabricated complete one).
+
+**Sanity-checked the LOCKED `broker_sync` merge invariant survived**:
+`grep -c broker_sync api/main.py` reads 10 post-merge, comfortably above the
+documented ≥7 floor.
+
+Verification detail (all seven fixed defects, rename-safety proof, mobile/
+performance/accessibility results, competitor task-matrix) lives in
+`prelaunch-primary-notebook-build-plan.md`'s Wave E closure section, not
+duplicated here.
 
 ---
 
