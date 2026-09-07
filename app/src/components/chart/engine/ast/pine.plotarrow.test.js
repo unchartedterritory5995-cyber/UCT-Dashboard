@@ -76,7 +76,16 @@ describe('plotarrow is an output', () => {
     for (const call of ['plotcandle(open, high, low, close)',
       'plotbar(open, high, low, close)']) {
       const out = translatePine(src(call))
-      expect(out.refusal, call).toBe(null)
+      // ⚰️ THIS ASSERTED `refusal === null`, WHICH IS A STRONGER CLAIM THAN THIS
+      // FILE MAKES. The pin here is that a candle is no longer PAINT — that it
+      // yields four role-titled columns instead of being swept aside with
+      // `bgcolor` and `barcolor`. It still does, and that is asserted below.
+      // What changed is the separate question of whether a candle built from the
+      // UNCHANGED price series is a usable import: it is not, because its meaning
+      // lives entirely in the `color=` argument this door drops, and OOS-2 found
+      // two published indicators accepted on exactly that basis. So the pin is
+      // now stated as what it always meant — not paint.
+      expect(out.refusal && out.refusal.guard, call).not.toBe('pine:no-output')
       expect(out.outputs.map((o) => o.title), call)
         .toEqual(['open', 'high', 'low', 'close'])
     }

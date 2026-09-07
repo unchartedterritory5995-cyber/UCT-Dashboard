@@ -100,9 +100,26 @@ describe('the Pine guard census, by name', () => {
 // ⛔ THE FOLD DID NOT CREATE THESE. It removed the thing standing in front of
 // them — which is what makes an unexercised guard the wrong thing to celebrate:
 // its sentence had never been read by anyone until a cast stopped hiding it.
+// ⭐⭐ `pine:constant-only` AND `pine:presentation-only` ARRIVED on 2026-09-07,
+// and they arrived as NEW GUARDS rather than by a corpus script stopping short.
+// Both name outcomes this door previously expressed as SILENCE — `ok:false` with
+// `refusal: null` — which OOS-2 found on a real published indicator and which
+// five tests in this directory had pinned as the expected shape.
+//   · `pine:constant-only` — every column the script would offer holds the same
+//     number on every bar.
+//   · `pine:presentation-only` — every column is an unchanged price series the
+//     script merely draws with, i.e. `plotcandle(open, high, low, close,
+//     color = <the indicator>)`, whose payload is the colour this door drops.
+// ⚠️ NEITHER IS UNEXERCISED IN THE SENSE THIS LIST WARNS ABOUT. The two published
+// corpora do not reach them, so they belong here — but both are pinned by
+// dedicated cases in `pine.plotcandle.test.js` and
+// `pine.forLoopReassignSilentWrongResult.test.js`, and the 60-script OOS corpus
+// reaches the passthrough PATH on two scripts (each surfacing an earlier, more
+// specific refusal first, which is the better sentence to show).
 const EXPECTED_UNEXERCISED = [
   'pine:character',
   'pine:colour-value',
+  'pine:constant-only',
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',
@@ -114,6 +131,7 @@ const EXPECTED_UNEXERCISED = [
   'pine:offset-literal',
   'pine:offset-negative',
   'pine:operator',
+  'pine:presentation-only',
   'pine:role-order',
   'pine:roundtrip',
   // ⭐⭐ ARRIVED 2026-08-29, and this is the "door got better" direction the note

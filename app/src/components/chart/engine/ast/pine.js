@@ -75,7 +75,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
@@ -283,6 +283,26 @@ export const REFUSALS = Object.freeze({
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⭐⭐ THE OUTCOME OOS-2 HAD NO WAY TO SAY. Two published indicators were
+  // ACCEPTED whose every offered column was the chart's own price bars:
+  // `plotcandle(open, high, low, close, color = <the whole indicator>)` expands
+  // to four columns whose values are literally `open`/`high`/`low`/`close`,
+  // because the payload of that call is its `color=` argument and this door does
+  // not yet carry presentation. Those columns read bars honestly and are
+  // arithmetically right, so nothing hid them — and one of the two had `open`
+  // selected as the member's representative output. Refusing beats offering the
+  // price back as somebody's indicator.
+  'pine:presentation-only':
+    'every column this script would offer is an unchanged price series it draws '
+    + 'with, so its meaning lives in colouring this engine does not carry yet',
+  // ⭐⭐ AND THE SIBLING OUTCOME, WHICH USED TO BE SILENCE. A script whose every
+  // plot folds to the same number on every bar offers a column that can never
+  // move. Before this guard existed the door returned `ok:false` with
+  // `refusal: null` — it declined and said nothing — and FIVE tests in this
+  // directory pinned that silence as the expected shape.
+  'pine:constant-only':
+    'every column this script would offer holds the same number on every bar, so '
+    + 'there is nothing here a chart or a screen could move on',
   // ⚰️⚰️ THIS SENTENCE STOPPED DESCRIBING ITS OWN GUARD. It read "a displaced
   // plot writes its value at a different bar from the one that produced it" — and
   // `pickOutputArgument`'s own docblock already records that this is "true about
@@ -8015,6 +8035,15 @@ export function translatePine(source, opts = {}) {
       // Asked ONCE each, because both answers are needed twice below.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)
+      // ⛔⛔ A CANDLE'S FOUR ARGUMENTS ARE STRUCTURE, NOT CONTENT.
+      // `plotcandle`/`plotbar` take open/high/low/close and say what they MEAN
+      // in `color=`. When those four arguments are the unchanged price series,
+      // the call draws the chart's own candles and the indicator lives entirely
+      // in a colour this door drops — so the four columns it expands to carry
+      // nothing from the script. `plot(close)` is untouched by this: the value
+      // of a `plot` IS its payload, and a member who plots the close meant to.
+      // Scoped to the multi-output roles for exactly that reason.
+      const bareRole = !!out.role && isBareSource(ast)
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -8060,6 +8089,8 @@ export function translatePine(source, opts = {}) {
         hiddenReason: authorHid ? 'author' : flat ? 'constant' : null,
         refusal: null,
       }
+      Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,
@@ -8078,6 +8109,33 @@ export function translatePine(source, opts = {}) {
       }
     }
     resolved.push(row)
+  }
+
+  // ⛔⛔ A CANDLE IS PASSTHROUGH ONLY IF **ALL FOUR** OF ITS ROLES ARE.
+  //
+  // Judged per STATEMENT, not per row, and that is the conservative choice on
+  // purpose. `plotcandle(open, high, low, cum(close))` is a real indicator whose
+  // close arm is computed — hiding its three raw arms would silently break the
+  // deliberate "one statement, four columns" contract this file expanded
+  // `plotcandle` to provide. Only when every arm is the unchanged price series
+  // does the call carry nothing: it redraws the chart's own candles, and whatever
+  // the script meant lives in the `color=` argument this door does not read.
+  // The four rows of one statement share the same token array, which is what
+  // groups them.
+  const byStatement = new Map()
+  for (const r of resolved) {
+    if (!r._stmt) continue
+    if (!byStatement.has(r._stmt)) byStatement.set(r._stmt, [])
+    byStatement.get(r._stmt).push(r)
+  }
+  for (const group of byStatement.values()) {
+    if (group.length < 2) continue
+    if (!group.every((r) => r._bareRole)) continue
+    for (const r of group) {
+      if (r.hidden) continue
+      r.hidden = true
+      r.hiddenReason = 'passthrough'
+    }
   }
 
   // ⛔ A HIDDEN OUTPUT IS NOT A COLUMN THE MEMBER GOT. Counting it made `ok`
@@ -8108,6 +8166,31 @@ export function translatePine(source, opts = {}) {
   // than the one the member pasted. Same for a `library()` and for an `import`,
   // whose behaviour depends on code that never arrived.
   const blocked = hardRefusals.length > 0
+
+  // ⭐⭐ NEVER DECLINE WITHOUT SAYING WHY, AND NAME THE REAL REASON.
+  //
+  // Two failures met here, both found by OOS-2. A script whose only usable
+  // columns were price passthrough was ACCEPTED (now they are hidden, so it is
+  // not) — and a script whose every output was hidden could return `ok:false`
+  // with `refusal: null`, i.e. decline in silence, which one real published
+  // indicator did because its only `plot()` was the `plot(0)` placeholder that
+  // table-drawing scripts conventionally carry.
+  //
+  // So when nothing usable survives and no refusal has been raised to explain
+  // it, the reason is derived from WHY the rows were hidden, and stated.
+  let noContent = null
+  if (!blocked && usable.length === 0 && refusals.length === 0) {
+    // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
+    // Ordered most-specific first: a passthrough says the meaning was in
+    // presentation, a constant says the column cannot move, and only an
+    // author-hidden-everything script genuinely offers no plot at all.
+    const reasons = new Set(resolved.filter((r) => r.hidden).map((r) => r.hiddenReason))
+    const guard = reasons.has('passthrough') ? 'pine:presentation-only'
+      : reasons.has('constant') ? 'pine:constant-only'
+        : 'pine:no-output'
+    noContent = refusalValue(guard, REFUSALS[guard], null)
+  }
+
   return {
     ok: usable.length > 0 && !blocked,
     version,
@@ -8116,8 +8199,8 @@ export function translatePine(source, opts = {}) {
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table),
     notes: withExcerpts(notes, lines),
-    refusal: (usable.length > 0 && !blocked) ? null : withExcerpt(refusals[0] || null, lines),
-    refusals: withExcerpts(refusals, lines),
+    refusal: (usable.length > 0 && !blocked) ? null : withExcerpt(refusals[0] || noContent || null, lines),
+    refusals: withExcerpts(noContent ? [noContent, ...refusals] : refusals, lines),
     // ⭐⭐ TRACK F (DEC-006) — the per-declaration IMMUTABLE metadata this call
     // minted (empty unless `opts.paramManifest` was set). Deliberately
     // METADATA ONLY, no `{treeIndex, astPath}` locators: this function has no
@@ -8157,8 +8240,28 @@ function chooseOutput(rows, table) {
   ].reduce((found, pred) => (found >= 0 ? found : pick(pred)), -1)
 }
 
-/** Does this tree read the tape at all? A `series` leaf or a `call` — anything
- *  else is arithmetic on literals and is the same number for every symbol. */
+/** Does this tree read the tape at all?
+ *
+ *  ⚰️ THIS SAID "A `series` LEAF OR A `call`", AND THE `call` HALF WAS UNSOUND.
+ *  Any call returned true without ever looking at its arguments, so
+ *  `max(8, 42)` — arithmetic on two literals — was reported as reading bars.
+ *  That is not a cosmetic slip: `hidden = authorHid || !readsBars(ast)` is the
+ *  one guard that stops a column which can never fire being offered, and
+ *  `chooseOutput` uses the same predicate to decide what a member sees FIRST.
+ *  A constant-valued call walked through both, counted as usable, and could
+ *  therefore make a whole script `ok: true` on the strength of nothing that
+ *  varies. OOS-2 found one real published indicator accepted exactly that way,
+ *  on the constants -12 and -88, after every series it actually computes had
+ *  been correctly refused.
+ *
+ *  ⛔ IT IS THE SAME BLIND SPOT `pine.community.test.js` ALREADY DOCUMENTED for
+ *  scripts 27 and 28 — "`X && 0` LOOKS like it reads bars: it contains a call".
+ *  That was closed for the and/or folding case only; the general case is this.
+ *
+ *  The rule now: a tree reads the tape if it contains a `series` node (which is
+ *  every identifier — price, clock and scalar), or a call the manifest declares
+ *  `reads: 'bars'`. Everything else is arithmetic on literals and is the same
+ *  number for every symbol on every bar. */
 /** ⭐ EXPORTED so a rail can ask THE ENGINE whether a tree touches a bar, rather
  *  than carrying its own copy of the walk. A test that re-implements this is a
  *  second authority over the one predicate that decides whether a column is a
@@ -8166,12 +8269,71 @@ function chooseOutput(rows, table) {
  *  mattered. `thinkscript.js` keeps its own `readsTheBar` because it walks its
  *  own node shapes before they become this engine's; that is a different tree,
  *  not a second opinion about the same one. */
-export function readsBars(node) {
+/** Is this tree an unchanged price series and nothing else — `close`, not
+ *  `close * 2` and not `sma(close, 20)`?
+ *
+ *  ⛔ THE TEST IS "UNTOUCHED", NOT "CONTAINS A SOURCE". A single `series` node
+ *  naming one of the five price fields, with no operation over it, is the only
+ *  shape that means "the caller handed this call the bar's own value". Anything
+ *  built ON a source is the script's own arithmetic and is content. */
+const PRICE_SOURCES = new Set(['open', 'high', 'low', 'close', 'volume'])
+export function isBareSource(node) {
+  return !!node && node.type === 'series' && PRICE_SOURCES.has(node.name)
+}
+
+const _BAR_READERS_FOR_TABLE = new WeakMap()
+
+/** The names that vary bar to bar NO MATTER WHAT THEY ARE HANDED, for one table.
+ *
+ *  Two declarations, both read off the manifest, neither listed here:
+ *
+ *  ⭐ `reads: 'bars'` — the entry is computed over the bar ARRAY rather than the
+ *  columns its arguments name. `vwap` takes no arguments at all, so argument
+ *  recursion alone would call it constant.
+ *
+ *  ⭐⭐ `recurrence` — the entry iterates bars, carrying its own previous value.
+ *  `x = 1.0 / x := x + 1 / plot(x)` folds to `accum` over two LITERALS and plots
+ *  1, 2, 3, 4 … — it is a counter, and it is emphatically not a constant. This
+ *  clause exists because omitting it made exactly that script refuse, and
+ *  `pine.forLoopReassignSilentWrongResult.test.js`'s non-vacuity control caught
+ *  it: a regression net doing precisely the job it was written for.
+ *
+ *  ⛔ DERIVED, NEVER LISTED — the same argument `parse.js` makes at
+ *  `barReadersOf`: a hand-list that happens to be right today is
+ *  indistinguishable from a derivation, and a mutation sweep proved such a list
+ *  survives every suite in this directory. */
+function barVaryingNamesFor(table) {
+  if (!table || typeof table !== 'object' || table === TABLE) return BAR_VARYING_SET
+  let set = _BAR_READERS_FOR_TABLE.get(table)
+  if (!set) {
+    const recs = Object.entries((table && table.functions) || {})
+      .filter(([, spec]) => spec && typeof spec.recurrence === 'object' && spec.recurrence)
+      .map(([name]) => name)
+    set = new Set([...barReadersOf(table), ...recs])
+    _BAR_READERS_FOR_TABLE.set(table, set)
+  }
+  return set
+}
+const BAR_VARYING_SET = new Set([...BAR_READERS, ...Object.keys(RECURRENCES)])
+
+export function readsBars(node, table = TABLE) {
+  const barFns = barVaryingNamesFor(table)
   const stack = [node]
   while (stack.length) {
     const n = stack.pop()
     if (!n || typeof n !== 'object') continue
-    if (n.type === 'series' || n.type === 'call') return true
+    // ⭐ EVERY IDENTIFIER IS A `series` NODE — price, clock AND scalar alike.
+    // `closedTable.json::_scalars_node` states it: "A SCALAR RIDES THE `series`
+    // NODE TYPE RATHER THAN ADDING ONE OF ITS OWN", because `parse.js` turns
+    // every identifier into one so the parser needs no table. So this single
+    // test covers `close`, `dayofweek` and `beta` together, and a scalar that
+    // is constant across bars but varies per SYMBOL stays a real column.
+    if (n.type === 'series') return true
+    // ⭐ A CALL THAT VARIES BAR TO BAR WHATEVER IT IS HANDED, DECLARED IN DATA:
+    // it reads the bar array itself (`vwap`, which takes no arguments at all) or
+    // it declares a recurrence (`accum`, which carries its own previous value —
+    // a counter over two literals is still a counter).
+    if (n.type === 'call' && barFns.has(n.name)) return true
     if (Array.isArray(n.args)) stack.push(...n.args)
   }
   return false

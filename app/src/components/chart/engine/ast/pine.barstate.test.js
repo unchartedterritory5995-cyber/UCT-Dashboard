@@ -32,7 +32,16 @@ const outOf = (expr) => {
   const found = (r.outputs || []).find((o) => o.ast || o.refusal)
   return {
     ast: found && found.ast ? found.ast : null,
-    refusal: (found && found.refusal) || r.refusal || null,
+    // ⚰️ THIS FELL BACK TO THE WHOLE-SCRIPT REFUSAL, AND THE CLAIM IS ABOUT THE
+    // NAME. Every fixture here is `plot(<name> …)` over literals, so the column
+    // it produces is legitimately the same number on every bar — and a script
+    // whose every column is constant is now refused as such instead of
+    // declining in silence. That says nothing about whether `barstate.isnew`
+    // RESOLVED, which is the only thing these tests assert. The per-output
+    // refusal answers that question exactly; the whole-script one answers a
+    // different question that this file does not ask. The fallback survives for
+    // a HARD refusal, where no output row exists to carry it.
+    refusal: found ? (found.refusal || null) : (r.refusal || null),
   }
 }
 

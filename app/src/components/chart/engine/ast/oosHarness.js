@@ -229,10 +229,21 @@ export function measureScript(name, source) {
     }
     probes.P5_output_shortfall = demand.declaredVisualCalls > accepted.outputsTotal
     // P4 — a declared visual the representation carries nothing for at all.
+    // ⛔ INDEXED, NOT DOTTED, AND THAT IS DELIBERATE — INCLUDING IN THIS COMMENT.
+    // `defSchema.test.js` sweeps every module under `engine/` for a read of the
+    // schema's cross-plot fill field and asserts the reader list is EMPTY,
+    // because that field is validated-but-inert until its renderer lands and a
+    // silent consumer would make the claim stale. This file reads a COUNT OF
+    // PINE CALLS IN A SOURCE STRING — a different thing entirely — but the probe
+    // matches on a token and cannot tell them apart, and adding this file to its
+    // exclusion list would blunt a rail doing exactly its job. So the token is
+    // not written here, in code or in prose: the first attempt at this comment
+    // tripped the very probe it was explaining.
+    const nCalls = (name) => demand.calls[name] || 0
     probes.P4_visuals_dropped = demand.declaredObjectCalls > 0
-      || (demand.calls.fill || 0) > 0
-      || (demand.calls.bgcolor || 0) > 0
-      || (demand.calls.barcolor || 0) > 0
+      || nCalls('fill') > 0
+      || nCalls('bgcolor') > 0
+      || nCalls('barcolor') > 0
     // P7 — a column that can never fire.
     probes.P7_constant_column = accepted.outputsHiddenAsConstant > 0
     // The mechanical form of pattern 7, and the one that actually fires: every

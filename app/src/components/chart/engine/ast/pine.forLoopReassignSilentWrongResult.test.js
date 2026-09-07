@@ -274,15 +274,27 @@ describe('RISK-043: non-vacuity — the fix is load-bearing, not a coincidental 
   it('an unrelated, never-mutated top-level reassignment site is not newly refused', () => {
     // `close` mutation via a plain top-level `:=` outside any loop already
     // has its own correct, pre-existing handling — this fix must not touch
-    // that path. (Fails for a pre-existing, unrelated reason — asserted only
-    // to pin that this reason has not changed shape.)
+    // that path.
+    //
+    // ⚰️ THIS ASSERTED `refusal === null`, WHICH PINNED A DEFECT. `x = 1.0 /
+    // x := x + 1 / plot(x)` folds to the formula `1 + 1` — a column holding the
+    // same number on every bar — so the door hid it, found nothing usable, and
+    // returned `ok:false` with `refusal: null`: it declined and said NOTHING.
+    // Five tests in this directory pinned that silence as the expected shape.
+    // The script is now refused as constant-only, with a sentence.
+    //
+    // The CONTROL's own claim is untouched and is what is asserted now: this
+    // site must not be newly refused BY THE RISK-043 FIX, i.e. not for
+    // `pine:reassign`. Asserting a bare null could never have distinguished
+    // "unaffected" from "silently dropped".
     const before = translatePine([
       '//@version=6', 'indicator("t")',
       'x = 1.0',
       'x := x + 1',
       'plot(x)',
     ].join('\r\n'))
-    expect(before.refusal).toBeNull()
+    expect(before.refusal && before.refusal.guard).not.toBe('pine:reassign')
+    expect(before.refusal.guard).toBe('pine:constant-only')
   })
 })
 
