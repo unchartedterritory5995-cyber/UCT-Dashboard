@@ -4,6 +4,7 @@ import useJ2Notes, {
   useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
 } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import useDocumentSearch from '../../hooks/useDocumentSearch'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -616,6 +617,13 @@ export default function FolderSidebar({
   const searching = Boolean(trimmedQuery) &&
     (trimmedQuery !== debouncedQuery || (searchEnabled && (searchLoading || searchValidating)))
 
+  // Wave I: page-aware PDF search, sectioned SEPARATELY from note results
+  // above (never blended into one list/score — checkpoint decision,
+  // directive §39-42). Query-only (no date/sector/theme filter support —
+  // those are note-property concepts a PDF page doesn't have).
+  const { results: documentResults, isLoading: documentsSearching } =
+    useDocumentSearch(debouncedQuery, { enabled: mode === 'search' })
+
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
   //
@@ -929,6 +937,37 @@ export default function FolderSidebar({
           ) : (
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+            </div>
+          )}
+
+          {/* Wave I: Documents section — a SEPARATE result list from Notes
+              above, never merged into one score. Only renders while there is
+              something to say (a real query in flight, or real results) so
+              an empty/filters-only search doesn't grow an extra empty block. */}
+          {trimmedQuery && (documentsSearching || documentResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {documentsSearching
+                  ? 'Searching documents…'
+                  : `${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!documentsSearching && documentResults.map((d) => (
+                <button
+                  key={`${d.documentId}-${d.pageNumber}`}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: d.noteId })}
+                  title={`${d.name || 'Document'} — p. ${d.pageNumber}, in "${d.noteTitle}"`}
+                >
+                  <UIcon name="document" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {d.name || 'Document'} · p.{d.pageNumber}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
+                  </span>
+                </button>
+              ))}
             </div>
           )}
         </div>

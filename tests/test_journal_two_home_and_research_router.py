@@ -102,10 +102,14 @@ def test_ticker_research_summary_returns_notes_theses_facts_trades(app, client):
     r = client.get("/api/j2/notes/research/NVDA/summary")
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"identity", "notes", "activeTheses", "pastTheses", "facts", "tradeSummary"}
+    # Wave I: "documents" added (bounded PDF list, deriving membership
+    # through the owning note — see ticker_research.py's
+    # _documents_for_symbols); every Wave H key is unchanged.
+    assert set(body.keys()) == {"identity", "notes", "activeTheses", "pastTheses", "facts", "documents", "tradeSummary"}
     assert body["identity"]["symbol"] == "NVDA"
     assert [n["id"] for n in body["notes"]] == [note_id]
     assert [n["id"] for n in body["activeTheses"]] == [note_id]
+    assert body["documents"] == []
     assert body["tradeSummary"] == {"openPositions": 0, "closedTrades": 0}
 
 
@@ -115,6 +119,7 @@ def test_ticker_research_summary_with_zero_research_still_200s(app, client):
     assert r.status_code == 200
     body = r.json()
     assert body["notes"] == []
+    assert body["documents"] == []
     assert body["tradeSummary"] == {"openPositions": 0, "closedTrades": 0}
 
 

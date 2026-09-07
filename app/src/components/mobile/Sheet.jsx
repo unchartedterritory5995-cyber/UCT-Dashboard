@@ -146,10 +146,19 @@ export default function Sheet({
 
   if (!open) return null
 
+  // Wave I (DocumentPreviewSheet, the first DESKTOP-triggered fullscreen
+  // caller): this ternary only special-cased bottom-sheet, so 'fullscreen'
+  // fell into the `maxWidth` branch and got capped to the desktop `modal`
+  // width (520px default) -- .panel_fullscreen's own CSS `width:100%` lost
+  // to that inline style. Invisible on the ONE prior fullscreen caller
+  // (MobileSymbolSheet) because it only ever mounts on touch viewports
+  // already narrower than 520px, so the cap was a silent no-op there.
   const panelStyle = isBottomSheet
     ? { transform: dragY ? `translateY(${dragY}px)` : undefined,
         transition: draggingRef.current ? 'none' : undefined }
-    : { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
+    : resolved === 'fullscreen'
+      ? undefined
+      : { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
 
   return createPortal(
     <div

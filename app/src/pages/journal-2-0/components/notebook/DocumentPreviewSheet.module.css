@@ -1,0 +1,70 @@
+.sheet {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  height: 100%;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border, #232932);
+  flex-shrink: 0;
+}
+.name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #e8eaed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.actionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+  text-decoration: none;
+  min-height: 32px;
+}
+.actionLink:hover {
+  color: #dcbb5e;
+}
+.frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #525659;
+}
+
+/* TOUCH tier is <=1024px (phone AND tablet), not <=640px — a tablet is
+   touch too. The tap-target floor lives here, separate from the <=640px
+   phone-only LAYOUT restructuring below (a real, previously-shipped defect
+   class in this codebase: "a floor restored only at <=640px leaves TABLET
+   broken"). */
+@media (max-width: 1024px) {
+  .actionLink {
+    min-height: var(--tap-min, 44px);
+  }
+}
+
+@media (max-width: 640px) {
+  .bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .actions {
+    align-self: stretch;
+    justify-content: flex-start;
+  }
+}

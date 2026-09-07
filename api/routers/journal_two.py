@@ -2537,12 +2537,23 @@ async def upload_note_attachment_endpoint(
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
+    content_type = file.content_type
     try:
         att = await notes_service.save_note_attachment(
             user["id"], note_id, file,
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave I: a PDF attachment gets a document row + async page-aware text
+    # extraction, queued AFTER the upload itself already succeeded — never
+    # blocking this response, and a failed/slow extraction can never make
+    # the underlying attachment (which is already saved) look broken.
+    if content_type == "application/pdf":
+        from api.services.journal_two import document_extraction
+        doc = document_extraction.create_document(
+            user["id"], note_id, att["url"], att.get("name"),
+        )
+        document_extraction.queue_extraction(doc["id"])
     return att
 
 
@@ -2560,6 +2571,61 @@ def serve_note_attachment(
     if path is None:
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(str(path))
+
+
+# ── Wave I: document processing status + page-aware search ──────────────────
+from api.services.journal_two import document_extraction, document_search
+
+
+@router.get("/notes/{note_id}/documents")
+def list_note_documents_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Every PDF attachment this note carries, with its extraction status —
+    lets the editor show "Processing…"/"Text couldn't be processed" honestly
+    without polling per-attachment. Always 200s: a note with zero PDFs
+    returns an empty list, never a 404 (a document row is a dynamic
+    processing artifact, not something that can be "not found")."""
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, attachment_url, name, status, page_count, created_at, processed_at "
+            "FROM j2_note_documents WHERE user_id = ? AND note_id = ? ORDER BY created_at",
+            (user["id"], note_id),
+        ).fetchall()
+        # camelCase, matching every other Notebook response shape
+        # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
+        # snake_case SQL column names into the one JSON shape in this file
+        # that didn't go through a service-layer dict-builder.
+        return {"documents": [{
+            "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
+            "status": r["status"], "pageCount": r["page_count"],
+            "createdAt": r["created_at"], "processedAt": r["processed_at"],
+        } for r in rows]}
+    finally:
+        conn.close()
+
+
+@router.get("/notes/documents/search")
+def search_note_documents_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Page-aware lexical search over this member's extracted PDF text —
+    tenant-scoped, sectioned separately from note search (never blended
+    into one score with j2_notes_fts results; see document_search.py)."""
+    rows = document_search.search_document_pages(user["id"], q, limit=limit)
+    return {"results": [{
+        "documentId": r["document_id"], "pageNumber": r["page_number"],
+        "snippet": r["snippet"], "noteId": r["note_id"], "noteTitle": r["note_title"],
+        "name": r["name"], "attachmentUrl": r["attachment_url"],
+    } for r in rows]}
 
 
 @router.get("/note-folders")
