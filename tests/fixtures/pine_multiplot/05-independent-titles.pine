@@ -1,0 +1,5 @@
+//@version=5
+indicator("Independent Titles", overlay = false)
+plot(ta.rsi(close, 14), title = "Momentum Fast", color = color.green)
+plot(ta.rsi(close, 28), title = "Momentum Slow", color = color.red)
+plot(ta.atr(14), title = "Range", color = color.yellow)

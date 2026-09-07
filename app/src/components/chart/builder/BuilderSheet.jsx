@@ -1999,6 +1999,69 @@ export default function BuilderSheet({
                   if (typeof o.style === 'string') patch.style = o.style
                   if (Object.keys(patch).length) setPlot0((prev) => ({ ...prev, ...patch }))
                 }
+                // ⭐⭐ C0.1 — ONE INDICATOR, MANY OUTPUTS.
+                //
+                // ⚰️ A FOUR-PLOT PINE INDICATOR USED TO BECOME FOUR APPLY ACTIONS
+                // into four unrelated builder rows. `buildDefinition` has always
+                // been able to write a multi-tree document; nothing ever handed
+                // it more than one tree. The extra outputs land as PLOT ROWS on
+                // the SAME document, so the indicator keeps one identity, one
+                // placement and one set of levels.
+                //
+                // ⛔ ROW ZERO IS THE MEMBER'S CHOSEN COLUMN and stays the scan
+                // plot — `outputs[0]` is `source` by construction — so the screen
+                // this import can produce is unchanged.
+                const picked2 = (picked && !Array.isArray(picked) && typeof picked === 'object')
+                  ? picked : null
+                const extraOutputs = picked2 && Array.isArray(picked2.outputs)
+                  ? picked2.outputs.slice(1) : []
+                if (extraOutputs.length) {
+                  // ⛔ A KEY IS `[a-z][A-Za-z0-9_]*`, UNIQUE, AND NOT THE LEVELS
+                  // GUIDE. Derived from the author's own plot title where that
+                  // yields a legal key, so a member reading the saved document
+                  // sees their own names; numbered otherwise. Uniqueness is
+                  // enforced here rather than left to the save gate, which would
+                  // refuse the whole document for a duplicate the import created.
+                  const taken = new Set(['value', LEVELS_PLOT_KEY])
+                  const keyFor = (title, i) => {
+                    const base = String(title || '').toLowerCase()
+                      .replace(/[^a-z0-9_]+/g, '_').replace(/^[^a-z]+/, '').replace(/_+$/, '')
+                    let k = base && /^[a-z][a-zA-Z0-9_]*$/.test(base) ? base.slice(0, 24) : `out${i + 2}`
+                    while (taken.has(k)) k = `${k}_`
+                    taken.add(k)
+                    return k
+                  }
+                  // ⚠️ A STATED CEILING, DISCLOSED RATHER THAN SILENT. A handful
+                  // of OOS scripts declare 18+ columns, and one row per column is
+                  // one live FormulaField per column. The cap is high enough that
+                  // no ordinary indicator meets it, and when it bites the member
+                  // is told in `pickerNote` instead of quietly losing plots —
+                  // "no silent omission" is the acceptance condition here.
+                  const CARRY_MAX = 12
+                  const carried = extraOutputs.slice(0, CARRY_MAX - 1)
+                  setPlotRows(carried.map((out, i) => {
+                    const op = (out && out.presentation) || {}
+                    const row = newPlotRow(keyFor(out && out.title, i))
+                    return {
+                      ...row,
+                      source: String((out && out.source) || ''),
+                      label: String((out && out.title) || ''),
+                      ...(typeof op.color === 'string' ? { color: op.color } : {}),
+                      ...(Number.isFinite(op.width)
+                        ? { width: Math.max(1, Math.min(4, Math.round(op.width))) } : {}),
+                      ...(typeof op.style === 'string' ? { style: op.style } : {}),
+                    }
+                  }))
+                  const dropped = extraOutputs.length - carried.length
+                  if (dropped > 0) {
+                    setPickerNote(`This script declares ${extraOutputs.length + 1} columns. `
+                      + `The first ${CARRY_MAX} were brought in; ${dropped} were not.`)
+                  }
+                } else if (picked2 && Array.isArray(picked2.outputs)) {
+                  // A single-output import REPLACES any rows a previous paste
+                  // left standing — same rule as levels and the param manifest.
+                  setPlotRows([])
+                }
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)

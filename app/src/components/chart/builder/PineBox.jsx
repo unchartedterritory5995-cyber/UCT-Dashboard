@@ -637,8 +637,41 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const presentation = saidSomething
       ? { ...scriptPres, output: outPres }
       : null
-    const extra = rows.length || paramManifest || presentation
-    onPick?.(extra ? { source: picked, inputs: rows, paramManifest, presentation } : picked)
+    // ⭐⭐ C0.1 — THE WHOLE INDICATOR, NOT ONE OF ITS PLOTS.
+    //
+    // ⚰️ THIS DOOR HANDED BACK ONE COLUMN. A four-plot Pine indicator became four
+    // separate Apply actions into four unrelated builder rows, each losing every
+    // relationship to its siblings — and the OOS corpus is full of indicators
+    // whose meaning IS the relationship (a signal line against its MACD, a band
+    // against its basis). `BuilderSheet.buildDefinition` has always been able to
+    // write a multi-tree document (`compute.trees` / `treesHash` / `scanPlot` /
+    // `sources`); nothing ever handed it more than one tree.
+    //
+    // ⛔ ONE INDICATOR IDENTITY, MANY OUTPUTS — never several saved indicators.
+    // The array is ORDERED as the script declares them, and `source` stays the
+    // member's CHOSEN column so it remains the scan plot and every existing
+    // caller reads the same field it always did.
+    //
+    // ⛔ A SCREEN CONDITION STAYS SINGLE. `conditionFrom` wraps ONE column into a
+    // comparison; the other plots are not part of that question, and carrying
+    // them would silently add trees to a document the member asked to be a screen.
+    // ⛔ DERIVED FROM `report`, NOT FROM THE `usable` MEMO BELOW. `usable` is
+    // declared AFTER this callback and is not in its dependency array, so
+    // reading it here would close over whichever render happened to run first —
+    // a stale-closure bug that would surface as "the second plot is missing,
+    // sometimes". `report` is already a declared dependency, and `usable` is
+    // exactly this filter over it.
+    const others = wrapped || !report ? [] : report.outputs
+      .filter((o) => o.formula && !o.hidden && o !== active)
+      .map((o) => ({ source: o.formula, title: o.title || null, presentation: o.presentation || {} }))
+    const outputs = wrapped ? null : [
+      { source: picked, title: (active && active.title) || null, presentation: outPres },
+      ...others,
+    ]
+    const extra = rows.length || paramManifest || presentation || (outputs && outputs.length > 1)
+    onPick?.(extra
+      ? { source: picked, inputs: rows, paramManifest, presentation, outputs }
+      : picked)
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
     // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —

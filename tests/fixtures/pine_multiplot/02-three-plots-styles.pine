@@ -1,0 +1,6 @@
+//@version=5
+indicator("Three Plots Styles", overlay = false)
+r = ta.rsi(close, 14)
+plot(r, title = "Fast", color = color.purple, linewidth = 2, style = plot.style_line)
+plot(ta.sma(r, 9), title = "Mid", color = color.orange, linewidth = 3, style = plot.style_stepline)
+plot(ta.sma(r, 21), title = "Slow", color = color.blue, linewidth = 1, style = plot.style_histogram)
