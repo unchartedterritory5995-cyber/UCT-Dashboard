@@ -317,6 +317,24 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
                   style={
                     onRowAction && c.key === 'symbol' ? { cursor: 'pointer' } : undefined
                   }
+                  // Seam: the phone TradeCard above is already a real
+                  // <button> (fully keyboard-accessible); this desktop
+                  // symbol-cell click-through was not -- the same feature
+                  // giving keyboard members a working path on one form
+                  // factor and none on the other. Deliberately NO
+                  // role="button" -- overriding a <td>'s native cell role
+                  // breaks table-structure semantics for real assistive
+                  // tech; tabIndex + onKeyDown alone close the actual gap
+                  // (no keyboard path to activate it at all).
+                  {...(onRowAction && c.key === 'symbol' ? {
+                    tabIndex: 0,
+                    onKeyDown: (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onRowAction('open', t)
+                      }
+                    },
+                  } : {})}
                 >
                   {cellFor(c.key, t, { reviewedIds, setups, onUpdateSetup })}
                 </td>
