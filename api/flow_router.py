@@ -71,11 +71,16 @@ from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
 from api.services import flow_aggregate
 from collections import OrderedDict
+import json
 import os
 import gzip
 import io
 import time
 import threading
+
+# ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
+# headroom without being an unbounded write into a single-process pod.
+_MAX_REPLICA_PUSH_BYTES = int(os.environ.get("OPTIONSFLOW_ETF_MAX_PUSH_BYTES", str(8 * 1024 * 1024)))
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -775,6 +780,51 @@ def build_aggregate(source: str, days: int, date_filter, version=None):
         lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
         date_filter,
     )
+
+
+@flow_router.post("/etf-replica/install")
+async def etf_replica_install(request: Request, _auth: dict = Depends(require_flow_admin)):
+    """Receive one canonical ETF/INDEX snapshot from web. Internal, not member-facing.
+
+    ⛔ THIS IS NOT THE ROUTING TABLE. It installs the Options-Flow-only replica.
+    `ticker_types` — which drives massive_processor.is_index_source() and
+    therefore where every live OPRA trade is stored — is untouched.
+
+    AUTH FIRST, BEFORE THE BODY IS READ. require_flow_admin runs as a dependency,
+    so an unauthenticated caller is rejected before any parsing or installing
+    happens. The bearer comparison is constant-time (flow_admin_auth).
+
+    The caller's `generation` is NOT trusted: the receiver recomputes the digest
+    from the rows it actually got, so a truncated or altered body is detectable
+    without trusting the sender. Response is small and operational — never the
+    dataset echoed back.
+    """
+    from api.services import optionsflow_etf_replica as _rep
+    if not _rep.receive_enabled():
+        return JSONResponse({"status": "rejected", "reason": "receive disabled"},
+                            status_code=503)
+    # Bound the body BEFORE reading it into memory: this pod is a single process
+    # that has OOM'd before, and an unbounded POST is a trivial way to hurt it.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared and declared > _MAX_REPLICA_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    raw = await request.body()
+    if len(raw) > _MAX_REPLICA_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        # Never log the body — it is large and this path is authenticated.
+        return JSONResponse({"status": "rejected", "reason": "invalid json"},
+                            status_code=400)
+    out = _rep.install_pushed_snapshot(payload)
+    code = 200 if out.get("status") in ("accepted", "already-current") else 400
+    return JSONResponse(out, status_code=code)
 
 
 @flow_router.get("/etf-replica-status")

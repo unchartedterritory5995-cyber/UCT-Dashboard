@@ -4970,8 +4970,32 @@ async def lifespan(app: FastAPI):
                     ticker_types.refresh_class_sets()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
+                # Event-driven replication: a completed canonical sync is exactly
+                # when flow-worker's Options Flow replica becomes stale.
+                # ⛔ Deliberately AFTER the except: a replication failure must
+                # never make the canonical sync look failed. Replication is
+                # subordinate to serving members.
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
+
+            # Self-healing cadence. Without it, a flow-worker outage at 05:30
+            # would leave the replica stale until the NEXT day's sync — which is
+            # the shape of the 55-day freeze this whole workstream exists to end.
+            # A matching generation costs a status probe and transfers nothing.
+            def _of_etf_reconcile():
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] reconcile raised: %s", _e)
+            _scheduler.add_job(_of_etf_reconcile, "interval", minutes=30,
+                               id="optionsflow_etf_replica_reconcile",
+                               max_instances=1, coalesce=True, replace_existing=True)
 
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
@@ -8478,6 +8502,18 @@ async def _ticker_types_stats():
 # it at the edge. Invalidation happens naturally when the next sync bumps
 # last_synced -- clients can key off that if they need to force-refresh.
 _ETF_INDEX_SYMBOLS_CACHE = {"payload": None, "cached_at": None}
+
+@app.get("/api/ticker-types/replica-push-status")
+async def _ticker_types_replica_push_status():
+    """Sender-side replication telemetry (web). The receiver reports separately at
+    /api/flow/etf-replica-status.
+
+    ⛔ This concerns the Options-Flow-only replica, NOT live OPRA routing.
+    """
+    from fastapi.responses import JSONResponse
+    from api.services import optionsflow_etf_push
+    return JSONResponse(optionsflow_etf_push.status())
+
 
 @app.get("/api/ticker-types/generation")
 async def _ticker_types_generation():
