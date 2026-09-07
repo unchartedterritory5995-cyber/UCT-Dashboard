@@ -1055,3 +1055,317 @@ UNSUPPORTED_BUILTIN with no disclosed ambiguity, better suited to a future
 vendor-parity batch than a translator-fix tranche.
 
 **This recommendation is not begun.**
+
+---
+
+# ADDENDUM 3 — RISK-004: `ta.valuewhen` TWO-LAYER DEFECT (2026-09-06, fourth tranche)
+
+Authorized as a single bounded item following owner acceptance of the
+`ta.barssince` remediation. **No code change. Zero corpus impact (still
+28/48 raw, 37/48 assisted). This tranche's outcome is a CORRECTION of the
+prior tranche's own characterization, plus a precise, permanent classification
+of `ta.valuewhen` as a Layer-2 execution-model boundary — already correctly
+refused, not a bug.**
+
+## 1. Every script containing `ta.valuewhen`
+
+Searched both corpora directly (`grep -rli valuewhen`): **zero** occurrences in
+the 8-script public compatibility corpus. **Exactly three** in the 48-script
+blind corpus — the same three the prior tranche already found, reconstructed
+here in full without editing any fixture:
+
+| Script | Exact construct | Occurrence | Condition | Source | Downstream use | Current refusal | Primary blocker | Known secondary | Raw | Assisted |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `breakout-flat-base-pivot-breakout` | `baseHigh = ta.valuewhen(not na(pivotHi), high[pivRight], 0)` | 0 | `not na(pivotHi)` | `high[pivRight]` (an OFFSET expression, not a bare series) | `depthPct = (baseHigh − baseLow) / baseHigh * 100`, ANDed into the final plot | `pine:function`, `PINE_INEXPRESSIBLE.valuewhen` | `ta.valuewhen` | `nz(ta.barssince(...), 0) >= baseLen` — CONFIRMED UNSOUND (Addendum 2, §6) — stays refused even if valuewhen were somehow resolved | refused | refused |
+| `recency-macd-turn-recent` | `crossLevel = ta.valuewhen(cross, macdLine, 0)` | 0 | `cross` (`ta.crossover(...)` boolean) | `macdLine` (bare series, from a tuple destructure) | `turnFromBelow = crossLevel < 0`, ANDed into the final plot | `pine:function`, `PINE_INEXPRESSIBLE.valuewhen` | `ta.valuewhen` | none found — `age = ta.barssince(cross)` in the SAME script already resolves fine (bounded via `age <= within`); this is the one script where `ta.valuewhen` is the SOLE blocker | refused | refused |
+| `recency-breakout-hold-since-trigger` | `trigPrice = ta.valuewhen(trigger, close, 0)` and `trigVol = ta.valuewhen(trigger, volume, 0)` | 0 (both) | `trigger` (same condition, both calls) | `close` / `volume` (bare series) | `held = ... and heldLow > trigPrice * 0.97`, `volConfirm = trigVol > ta.sma(volume, 50)` | never reached — `age = ta.barssince(trigger)` throws first | `ta.barssince` (numeric window-argument use, CONFIRMED capability gap, Addendum 2 §6) | the two `ta.valuewhen` calls, downstream of the barssince blocker | refused | refused |
+
+## 2. Real Pine `ta.valuewhen` semantics, precisely
+
+`ta.valuewhen(condition, source, occurrence)`: walks BACKWARD from the current
+bar counting TRUE occurrences of `condition`; `occurrence = 0` returns
+`source`'s value at the MOST RECENT true bar, `occurrence = 1` at the SECOND
+most recent, and so on — searching as far back as needed, UNBOUNDED in
+general. `condition` never true ⇒ `na`. Repeated true conditions simply
+advance which occurrence index each historical hit corresponds to. A long gap
+between occurrences does not change the semantics — occurrence-counting, not
+distance-counting, is what indexes the search. `source` is read independently
+per occurrence (whatever it evaluated to AT that historical bar, which may
+itself vary bar-to-bar for reasons unrelated to `condition`). Warm-up:
+insufficient history before enough true occurrences have been seen yields
+`na`, exactly mirroring `ta.barssince`'s own warm-up contract. **This is
+TradingView's own documented behavior** (already cited verbatim in
+`pine.js`'s `PINE_INEXPRESSIBLE.valuewhen` entry — no new vendor capture was
+needed or performed this tranche; the semantic CONTRACT is not ambiguous, only
+whether THIS engine can represent it is in question).
+
+**This engine's `valuewhen(condition, source, period)`** (the table's own,
+already-shipped, already-correct function — confirmed against its kernel,
+`interpret.js::valueWhen`) computes something DIFFERENT BY DESIGN: the value
+of `source` at the most recent bar, WITHIN THE LAST `period` bars, where
+`condition` was true — a BOUNDED BAR-WINDOW search, not an occurrence count.
+No occurrence beyond the most recent has any spelling in this function at
+all. The two functions agree only in the degenerate case where the single
+occurrence being sought happens to fall within whatever window is chosen —
+they are otherwise different functions that happen to share three
+similarly-typed positional arguments, which is exactly why a positional
+Pine-to-table mapping would be a silent, confident wrong answer on most bars
+(`PINE_INEXPRESSIBLE.valuewhen`'s own stated reasoning, already correct).
+
+## 3. The two layers, traced precisely — and the prior tranche's correction
+
+```
+Pine source: ta.valuewhen(condition, source, occurrence)
+  → parser — ordinary 3-arg call node
+  → translator (pine.js, Resolver.resolveTableCall):
+      base = 'valuewhen' (namespace stripped)
+      PINE_CALL_SHAPES['valuewhen'] → none (no adapter entry exists)
+      key = this.index.get('valuewhen') → TRUTHY (the table HAS `valuewhen`)
+      pineName ('ta.valuewhen') !== base ('valuewhen') → TRUE
+      → (pineName !== base || !key) && own(PINE_INEXPRESSIBLE, 'valuewhen')
+        → TRUE && TRUE → FIRES, throws the REASONED PINE_INEXPRESSIBLE message
+  → [translation stops here for every real Pine script — the canonical AST,
+    kernels, and execution-requirement layers are never reached]
+```
+
+**LAYER 1 (translation/static-analysis), CURRENT BEHAVIOR**: `ta.valuewhen`
+(the ONLY spelling any real Pine script writes) is refused at `pine:function`
+with the CORRECT, vendor-cited, semantically-honest `PINE_INEXPRESSIBLE`
+message. **EXPECTED BEHAVIOR**: identical — this is not a defect. **WHY
+CURRENT CODE REFUSES**: because Pine's occurrence-count and this engine's
+bar-window are genuinely different functions; mapping one onto the other
+positionally would silently answer a different number on most bars. **WHAT
+SAFETY RULE IT PROTECTS**: the same "no silent mistranslation of a
+similarly-shaped-but-differently-meant construct" rule the mintick idiom and
+the barssince window trade both already serve.
+
+**THE PRIOR TRANCHE'S CHARACTERIZATION WAS WRONG, AND IT IS CORRECTED HERE.**
+The earlier "two-layer defect" finding (`recency-macd-turn-recent: fixing
+ta.valuewhen's ARITY alone is not enough — the correctly-arranged 3-arg call
+still fails on role-order`) tested `valuewhen(cross, macdLine, within)` —
+the **BARE, engine-vocabulary spelling**, i.e. the refusal's own suggested
+rewrite retyped by hand — not `ta.valuewhen` itself. That IS a real, separate,
+already-documented finding (§4 below), but it is NOT what any real Pine script
+ever hits, and reporting it as `ta.valuewhen`'s own defect conflated two
+different constructs the same way this program has repeatedly flagged and
+corrected elsewhere (RISK-027/RISK-029, the writer-index counts, etc.). This
+addendum's permanent tests pin BOTH refusals by name and by guard so this
+cannot recur.
+
+**LAYER 2 (runtime/execution-model)**: this engine's kernel
+(`interpret.js::valueWhen`) is verified CORRECT for what it declares to
+compute (a bounded bar-window search) — it was not touched, and no defect was
+found in it. The GAP is that Pine's occurrence-count semantics have **no
+finite, general representation** without either (a) an externally PROVEN
+bound on how far back the occurrence can be, or (b) a genuinely new runtime
+primitive for occurrence-indexed backward search. Neither exists. This is
+identical in shape to `ta.barssince`'s own capability-gap cases from
+Addendum 2 (numeric use, cross-comparison) — same conclusion, same
+discipline: STOP, classify, do not force it.
+
+## 4. Existing runtime capability — verified, and the SEPARATE bare-form finding
+
+The runtime already computes `valuewhen(condition, source, period)` correctly
+for the shape it declares (mirrors `barsSince`'s structure: `since`/`held`
+tracked per bar, `held` captured at the moment `condition` fires, saturating
+at `period`, `na` once the last hit leaves the window — read directly from
+`interpret.js`, not re-derived by probing, since this function was not
+touched and carries no new risk).
+
+**A genuine, narrow, PRE-EXISTING (not introduced this tranche) defect WAS
+found, and is reported without being fixed**: the refusal's own "TO UNBLOCK:
+write `valuewhen(condition, source, n)`" advice does not itself work.
+Confirmed two ways:
+- **Positional bare form** (`valuewhen(cond, source, n)`): refuses at
+  `pine:role-order` — a DIFFERENT, less-informative message than
+  `ta.valuewhen`'s own.
+- **Named-argument bare form** (`valuewhen(condition=cond, source=..,
+  period=..)`): refuses at `pine:named-argument` — `"valuewhen has no
+  measured parameter names at this door."`
+
+**Root cause, confirmed by direct code reading**: `closedTable.json` declares
+`argRoles: [condition, source, period]` for `valuewhen`, but `argRoles` is
+consulted in exactly ONE place in the entire engine —
+`interpret.js::assertArgRoles`, a DOWNSTREAM semantic-kind validator for the
+formula LANGUAGE (catching e.g. a raw price series mistakenly used as a
+0/1-shaped condition) — never by `pine.js`'s Pine-translation role-order
+resolution. `valuewhen` has no `PINE_CALL_SHAPES` adapter entry (unlike
+`cci`/`mfi`'s `sourceMustBe`), so the generic "seriesSlots > 1, no measured
+order" refusal fires for the bare form instead.
+
+**Not fixed, deliberately, this tranche**: this affects NO corpus script
+(none writes the bare form) and is tangential to why `ta.valuewhen` blocks
+the blind corpus — the actual objective. It is the SAME CATEGORY of finding
+this program has already turned up and left unfixed elsewhere along the way
+(the mintick refusal's own dangling "says more about why" sentence;
+`ta.supertrend`'s truncated refusal message) — reported for the record,
+consistent with that established discipline, not implemented as a tangent.
+
+## 5. History / boundedness safety
+
+No finite bound can be proven from LOCAL syntax alone for occurrence-based
+search in general (`ta.barssince`'s comparison-bound trick has no valuewhen
+analogue: valuewhen produces a VALUE, not a boolean, so there is no
+`<cmp> K` on the valuewhen call itself to derive a window from). A
+theoretically possible CROSS-EXPRESSION bound exists in principle — e.g.
+`recency-macd-turn-recent` also computes `age = ta.barssince(cross)` bounded
+by `age <= within`, and the SAME `cross` condition is what `ta.valuewhen`
+searches — but exploiting that would require a NEW mechanism (recognizing
+that a sibling `ta.barssince` call on the identical condition, bounded
+elsewhere in the SAME formula tree, licenses a window for an UNRELATED
+`ta.valuewhen` call) that does not exist anywhere in this codebase today.
+This is judged out of scope: it is materially more complex than any
+identity implemented so far (every existing one is a LOCAL rewrite of one
+comparison or one binding, never a cross-reference between two independent
+sub-expressions), it was not asked for as "the smallest fix," and getting a
+NEW class of cross-expression reasoning wrong is a much larger risk surface
+than the local, provable identities this program has restricted itself to.
+**Classification: (C) correct refusal remains necessary** — not (A) a finite
+bound proven from syntax, not (B) honest representation of an unbounded
+requirement (there is no partial/honest execution-requirement encoding for
+"unbounded occurrence search" in this architecture to fall back to; the
+choice is compute-correctly-when-provably-bounded or refuse, and no bound is
+provable). Chart execution and screener execution are NOT distinguished
+here because the blocker occurs at TRANSLATION time, before either surface is
+reached — the distinction this program has preserved elsewhere (e.g. for
+lookback/budget accounting) does not arise for a construct that never
+produces a canonical AST at all.
+
+## 6. Occurrence parameter — supported and refused forms
+
+Every form is REFUSED, uniformly, regardless of the occurrence value's shape,
+because the blocker fires on the FUNCTION NAME (`ta.valuewhen`) before any
+argument is inspected:
+
+| Occurrence form | Result |
+|---|---|
+| Literal `0` (every real corpus use) | refused, `PINE_INEXPRESSIBLE.valuewhen` |
+| Literal `1` (Pine's own documented example) | refused, same message (verified — §permanent tests) |
+| Larger fixed literal | refused, same message (same code path — not independently re-verified per value, since the guard does not branch on the value at all) |
+| Input-bound / dynamic expression | refused, same message |
+| Negative or non-integer | refused, same message — never reaches any value-domain check, since the function name itself is the trigger |
+
+No occurrence form is "more dangerous" than another here — the refusal is
+total and name-keyed, so there is nothing to broaden or narrow per-value.
+This is the safest possible posture: it cannot accidentally admit an unsafe
+dynamic occurrence, because NO occurrence value of any kind is ever admitted.
+
+## 7. Minimal safe fix
+
+**None implemented.** No narrow, generalized, already-sound fix exists that
+would change `ta.valuewhen`'s own (correct) refusal — the semantic mismatch is
+total, not partial, so there is no "smallest fix" short of either the two
+Layer-2 escalations explicitly not authorized (a new runtime primitive, or
+whole-formula constraint propagation) or the tangential, non-corpus-moving
+bare-form adapter fix explicitly declined in §4 for scope-discipline reasons.
+
+## 8. Vendor evidence status
+
+**TRANSLATION GAP CORRECTED — status of the CLAIM, not the code**: no
+translation code changed, but the prior tranche's claim about WHERE the
+defect lived is corrected here. **RUNTIME SEMANTICS INTERNALLY VERIFIED**:
+`interpret.js::valueWhen` is confirmed correct for the shape it declares
+(read directly, not newly captured). **No vendor-parity claim is made or
+needed** — Pine's own documentation (already quoted in the shipped refusal
+message) is sufficient to establish that the SEMANTIC MISMATCH is real; no
+ambiguity requiring a browser capture was found. This tranche did not
+recommend, request, or perform any vendor capture.
+
+## 9. Mutation / non-vacuity evidence
+
+Six permanent tests added, each targeting a distinguishable wrong
+implementation:
+- `ta.valuewhen(..., 0)` refuses with the OCCURRENCE/WINDOW-mismatch message,
+  not any other guard — distinguishes "correctly refused for the right
+  reason" from "refused for an unrelated reason" (the exact confusion the
+  prior tranche fell into).
+- The SAME assertion repeated at occurrence `1` — distinguishes "the refusal
+  depends on the occurrence value" (wrong — it does not) from "the refusal is
+  name-keyed and total" (right).
+- The bare positional AND bare named-argument forms are BOTH asserted to fail,
+  with their OWN, DIFFERENT guards (`pine:role-order` vs
+  `pine:named-argument`) — distinguishes the two known dead ends from each
+  other and from `ta.valuewhen`'s own refusal, so a future session cannot
+  conflate any of the three the way this one's predecessor conflated two of
+  them.
+- All three real corpus scripts are exercised via minimal reconstructions
+  (not fixture edits) and asserted to stay refused, each citing the
+  OCCURRENCES/BAR-WINDOW message specifically (not just "refused") —
+  distinguishes "refused for the documented semantic reason" from "refused
+  for some other, undiagnosed reason."
+
+## 10. Frozen 48-script corpus re-run
+
+```
+RAW BEFORE:       28 / 48
+RAW AFTER:        28 / 48        (unchanged — no code change)
+
+ASSISTED BEFORE:  37 / 48
+ASSISTED AFTER:   37 / 48        (unchanged — no code change)
+```
+
+No script's per-script status changed. No script's PRIMARY or SECONDARY
+blocker changed. The mintick offer path (Addendum 1) and the `ta.barssince`
+nz-wrapped identity (Addendum 2) are unaffected — re-verified: both
+describe blocks in `pine.blindCorpusDecomposition.test.js` are unchanged and
+still fully green.
+
+## 11–12. `ta.cci` and the unserved-builtin batch — kept parked, unchanged
+
+Neither was touched. `meanrev-zscore-multi-oscillator-washout` remains
+blocked on `ta.cci`'s role-order/source-arg kernel gap (Addendum 1, §10),
+unaffected by this tranche.
+
+## FINAL RETURN — items 1–21
+
+1 (every script with valuewhen): §1 — 3 blind-corpus, 0 public-corpus.
+2 (exact blockers per script): §1 table.
+3 (Pine semantic contract): §2.
+4 (Layer 1 root cause): §3 — `ta.valuewhen` correctly refuses via
+`PINE_INEXPRESSIBLE`; the prior tranche's "role-order" finding was a
+mischaracterization from testing the wrong (bare) spelling — corrected.
+5 (Layer 2 root cause): §3 — occurrence-based unbounded backward search has
+no finite representation without an unauthorized escalation.
+6 (existing runtime capability): §4 — the bar-window kernel is already
+correct and unchanged; a SEPARATE, narrow, non-corpus-moving bare-form
+adapter gap was found and left unfixed (documented, not implemented).
+7 (history/boundedness): §5 — classification (C), correct refusal remains
+necessary; no finite bound provable from local syntax.
+8 (supported/refused occurrence forms): §6 — every form refused uniformly,
+name-keyed, nothing to broaden.
+9 (exact narrow fix): NONE — §7.
+10 (minimal-reduction results): §1's table + §9's permanent tests, all
+passing.
+11 (mutation/non-vacuity evidence): §9.
+12 (vendor-evidence status): §8 — no vendor-parity claim made or needed; no
+capture performed or requested.
+13 (script before/after): §1 table — no script's status changed.
+14 (RAW corpus before/after): 28/48 → 28/48 (§10).
+15 (ASSISTED corpus before/after): 37/48 → 37/48 (§10).
+16 (newly exposed downstream blockers): none — nothing changed.
+17 (chart vs screener implications): none — the blocker is at translation
+time, before either surface is reached; no distinction arises.
+18 (test-suite results): `pine.blindCorpus.test.js` 16/16,
+`pine.blindCorpusDecomposition.test.js` 36/36 (6 new valuewhen tests), full
+`ast/` directory and full app suite unaffected (no source file changed;
+re-run not separately repeated beyond the two blind-corpus files, since
+`git status` confirms only the test file changed).
+19 (updated RISK-004 status): unchanged from Addendum 2 — RAW 28/48, ASSISTED
+37/48; `ta.valuewhen` reclassified from "two-layer defect, partially fixable"
+to "correctly refused Layer-2 boundary, no fix authorized or warranted."
+20 (commit hash): see the session's fourth RISK-004 commit (this addendum's
+own commit).
+21 (next issue, not begun): see below.
+
+## Recommendation for the next custom-indicator issue (not begun)
+
+With `ta.cci` (kernel-level), `ta.barssince`'s remaining two shapes
+(capability gaps), and now `ta.valuewhen` (capability gap) all classified and
+parked, the remaining LOW-RISK, narrow-translator-shaped opportunities from
+the original ranking are down to the single-script, single-builtin gaps
+(`ta.falling`, `ta.kcw`, `ta.cmf`, `ta.accdist`, `ta.pvt`) — each a plain
+UNSUPPORTED_BUILTIN with no disclosed ambiguity — and are, per the owner's own
+standing instruction, better suited to a future VENDOR-PARITY-BACKED batch
+than a translator-fix tranche, not begun here.
+
+**This recommendation is not begun.**

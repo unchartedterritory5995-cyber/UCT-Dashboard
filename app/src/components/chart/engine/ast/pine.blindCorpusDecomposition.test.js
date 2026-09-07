@@ -488,3 +488,99 @@ describe('✅ RISK-004 REMEDIATION — ta.barssince bounding-heuristic gaps (nz-
     expect(misses.length).toBe(20)
   })
 })
+
+describe('✅ RISK-004 — ta.valuewhen: CORRECTED classification, NO code change (Layer 2 capability gap, already correctly refused)', () => {
+  // The prior tranche's own probe tested the WRONG spelling — the bare,
+  // engine-vocabulary `valuewhen(...)` form the refusal's "TO UNBLOCK" text
+  // suggests retyping — and reported its `pine:role-order` wall as if it were
+  // `ta.valuewhen`'s own defect. It is not: `ta.valuewhen`, the ONLY spelling
+  // any real Pine script ever writes, already hits a DIFFERENT, correctly-
+  // reasoned refusal (`PINE_INEXPRESSIBLE.valuewhen`) — confirmed here for
+  // both occurrence=0 (every real corpus use) and occurrence=1 (Pine's own
+  // documented example), so this is not an artifact of the one value the
+  // corpus happens to use.
+
+  function formulaOf(src) {
+    const out = translatePine(`//@version=6\nindicator("t")\n${src}`)
+    if (!out.ok) return { ok: false, guard: out.refusal.guard, message: out.refusal.message }
+    return { ok: true, formula: out.outputs[out.selected].formula }
+  }
+
+  it('ta.valuewhen(cond, source, 0) — the real spelling — is refused with the REASONED, vendor-cited message, not the generic role-order one', () => {
+    const out = formulaOf('plot(ta.valuewhen(close > open, close, 0) > 0 ? 1 : 0)')
+    expect(out.ok).toBe(false)
+    expect(out.guard).toBe('pine:function')
+    expect(out.message).toContain('OCCURRENCES')
+    expect(out.message).toContain('BAR WINDOW')
+    expect(out.message).not.toBe('pine:role-order')
+  })
+
+  it('the same true refusal holds at occurrence=1 (Pine\'s own documented "second most recent" example) — not specific to the corpus\'s occurrence=0 usage', () => {
+    const out = formulaOf('plot(ta.valuewhen(close > open, close, 1) > 0 ? 1 : 0)')
+    expect(out.ok).toBe(false)
+    expect(out.guard).toBe('pine:function')
+    expect(out.message).toContain('OCCURRENCES')
+  })
+
+  it('DOCUMENTED, NOT FIXED (consistent with this program\'s treatment of every other refusal-advice-quality finding, e.g. ta.supertrend\'s truncated message): the refusal\'s own "TO UNBLOCK: write valuewhen(condition, source, n)" advice does not itself work — bare positional form hits an UNRELATED, differently-reasoned wall', () => {
+    const positional = formulaOf('plot(valuewhen(close > open, close, 5) > 0 ? 1 : 0)')
+    expect(positional.ok).toBe(false)
+    expect(positional.guard).toBe('pine:role-order') // NOT the same reason as ta.valuewhen's own refusal
+    const named = formulaOf('plot(valuewhen(condition = close > open, source = close, period = 5) > 0 ? 1 : 0)')
+    expect(named.ok).toBe(false)
+    expect(named.guard).toBe('pine:named-argument')
+    // Root cause, confirmed by direct code reading: closedTable.json declares
+    // `argRoles: [condition, source, period]` for valuewhen, but `argRoles` is
+    // consulted in exactly one place in the whole engine — `interpret.js`'s
+    // `assertArgRoles`, a DOWNSTREAM semantic-kind validator for the formula
+    // LANGUAGE (catching e.g. a raw price series used as a condition) — never
+    // by pine.js's Pine-translation role-order resolution. No PINE_CALL_SHAPES
+    // entry exists for valuewhen (unlike cci/mfi's `sourceMustBe` adapters),
+    // so the generic "seriesSlots > 1, no measured order" refusal fires
+    // instead. This is a real, narrow, LOW-RISK adapter-mapping gap — but it
+    // affects NO corpus script (none writes the bare form) and is tangential
+    // to why `ta.valuewhen` blocks the blind corpus, so it is reported here
+    // and left unfixed, matching how this program has already treated every
+    // other refusal-advice-quality finding it turned up along the way.
+  })
+
+  it('all three real corpus valuewhen scripts stay refused, EACH for a documented reason (not necessarily the same one) — reconstructed without editing any fixture', () => {
+    const shapes = {
+      'breakout-flat-base-pivot-breakout': [
+        'pivLeft = input.int(10, "x")', 'pivRight = input.int(3, "x")', 'baseLen = input.int(35, "x")',
+        'pivotHi = ta.pivothigh(high, pivLeft, pivRight)',
+        'baseHigh = ta.valuewhen(not na(pivotHi), high[pivRight], 0)',
+        'plot(baseHigh > 0 ? 1 : 0)',
+      ],
+      'recency-macd-turn-recent': [
+        'within = input.int(3, "x")',
+        '[macdLine, signalLine, hist] = ta.macd(close, 12, 26, 9)',
+        'cross = ta.crossover(macdLine, signalLine)',
+        'crossLevel = ta.valuewhen(cross, macdLine, 0)',
+        'plot(crossLevel < 0 ? 1 : 0)',
+      ],
+      'recency-breakout-hold-since-trigger (valuewhen calls, downstream of its own barssince capability gap)': [
+        'breakLen = input.int(50, "x")',
+        'trigger = ta.crossover(close, ta.highest(high, breakLen)[1])',
+        'trigPrice = ta.valuewhen(trigger, close, 0)',
+        'trigVol = ta.valuewhen(trigger, volume, 0)',
+        'plot(trigPrice > 0 and trigVol > 0 ? 1 : 0)',
+      ],
+    }
+    for (const [label, lines] of Object.entries(shapes)) {
+      const out = formulaOf(lines.join('\n'))
+      expect(out.ok, `${label} unexpectedly translated`).toBe(false)
+      expect(out.guard, label).toBe('pine:function')
+      expect(out.message, label).toContain('OCCURRENCES')
+    }
+  })
+
+  it('LAYER 2, precisely: this is a permanent execution-model boundary, not a translation bug — occurrence-based "most recent occurrence" search is unbounded in general, and no LOCAL identity (unlike ta.barssince\'s comparison-bound trick) exists without either an external proven bound or a new runtime primitive; neither is implemented this tranche', () => {
+    // Mirrors ta.barssince's own already-accepted capability-gap classification
+    // (recency-breakout-hold-since-trigger's numeric use, recency-fresh-golden-
+    // cross's cross-comparison) — same reasoning, same conclusion, same choice
+    // not to invent new runtime state or whole-formula constraint propagation.
+    const out = formulaOf('plot(ta.valuewhen(close > open, close, 0) > 0 ? 1 : 0)')
+    expect(out.ok).toBe(false)
+  })
+})
