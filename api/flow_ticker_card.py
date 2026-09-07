@@ -106,20 +106,37 @@ def render_ticker_flow_card(data: dict) -> bytes:
     txt(94, 58, sub, f_sub, _DIM)
 
     # ── net-flow bar ─────────────────────────────────────────────────────────
+    # Three segments: Bull (green) · Unclassified (gold) · Bear (red). Unclassified
+    # = real premium with no clean aggressor side (negotiated blocks, blank-side
+    # prints). It is NEVER folded into bull/bear — a call block is not a bull bet —
+    # so a card that is all blocks reads "no clean side · $X unclassified" instead
+    # of a misleading "$0 · NEUTRAL" (owner call 2026-09-07).
     bull = float(net.get("bull") or 0); bear = float(net.get("bear") or 0)
-    tot = (bull + bear) or 1.0
+    uncl = float(net.get("unclassified") or 0)
+    tot = (bull + bear + uncl) or 1.0
     x0, x1 = 36, _W - 36
     bh = 20; by = 100; ly = by - 18
     txt(x0, ly, f"▲ {_fmt_prem(bull)} Bull", f_hdr, _BULL)
     net_d = bull - bear
     _ndir = (net.get("dir") or "").upper()
-    _ncol = _BULL if _ndir == "BULL" else (_BEAR if _ndir == "BEAR" else _GOLD)
-    ctext = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))} · {_ndir}"
-    txt((x0 + x1) / 2 - tw(ctext, f_hdr) / 2, ly, ctext, f_hdr, _ncol)
+    if bull == 0 and bear == 0 and uncl > 0:
+        ctext = f"NO CLEAN SIDE · {_fmt_prem(uncl)} unclassified"
+        ccol = _MIXED
+    else:
+        _base = f"NET {'+' if net_d >= 0 else '−'}{_fmt_prem(abs(net_d))} · {_ndir}"
+        ctext = f"{_base}  ·  {_fmt_prem(uncl)} uncl" if uncl > 0 else _base
+        ccol = _BULL if _ndir == "BULL" else (_BEAR if _ndir == "BEAR" else _MIXED)
+    txt((x0 + x1) / 2 - tw(ctext, f_hdr) / 2, ly, ctext, f_hdr, ccol)
     txt(x1, ly, f"{_fmt_prem(bear)} Bear ▼", f_hdr, _BEAR, "r")
-    bx = x0 + int((x1 - x0) * (bull / tot))
-    d.rounded_rectangle([s(x0), s(by), s(max(bx - 1, x0)), s(by + bh)], radius=s(4), fill=_BULL)
-    d.rounded_rectangle([s(min(bx + 1, x1)), s(by), s(x1), s(by + bh)], radius=s(4), fill=_BEAR)
+    span = x1 - x0
+    xa = x0 + int(span * (bull / tot))          # end of bull segment
+    xb = xa + int(span * (uncl / tot))          # end of unclassified segment
+    if xa > x0:
+        d.rounded_rectangle([s(x0), s(by), s(max(xa - 1, x0)), s(by + bh)], radius=s(4), fill=_BULL)
+    if xb > xa:
+        d.rectangle([s(xa + (1 if xa > x0 else 0)), s(by), s(min(xb, x1)), s(by + bh)], fill=_MIXED)
+    if xb < x1:
+        d.rounded_rectangle([s(min(xb + 1, x1)), s(by), s(x1), s(by + bh)], radius=s(4), fill=_BEAR)
 
     # ── column headers ───────────────────────────────────────────────────────
     for hdr, x, al in _COLS:

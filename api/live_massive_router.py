@@ -4448,7 +4448,7 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
     def _eff_vol(c):
         return max((c.get("total_volume") or 0), (c.get("agg_ask_volume") or 0))
 
-    bull = bear = 0.0
+    bull = bear = unclassified = 0.0
     for c in contracts:
         d, e = (c.get("direction") or ""), _eff_prem(c)
         if d == "Bull":
@@ -4458,7 +4458,13 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
         elif d == "Mixed":
             bull += (c.get("bull_premium") or 0)
             bear += (c.get("bear_premium") or 0)
-        # "Unclear" carries no clean side → excluded from the net read
+        else:
+            # "Unclear" = real premium with NO clean aggressor side (negotiated
+            # blocks, blank-side prints). We do NOT fabricate a direction from the
+            # C/P — a call block can be a covered write or a spread leg, not a bull
+            # bet (owner call 2026-09-07). It's surfaced as unclassified premium so
+            # the net bar is honest instead of a misleading "$0 NEUTRAL".
+            unclassified += e
     net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
     top = sorted(contracts, key=lambda c: -_eff_prem(c))[:int(top_n)]
     spot = next((c.get("spot") for c in contracts if c.get("spot")), None)
@@ -4519,7 +4525,8 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
         })
     result = {
         "ok": True, "symbol": sym, "source": se, "spot": spot,
-        "net": {"bull": round(bull), "bear": round(bear), "dir": net_dir},
+        "net": {"bull": round(bull), "bear": round(bear),
+                "unclassified": round(unclassified), "dir": net_dir},
         "window": {"start": ds[0] if ds else None, "end": ds[-1] if ds else None,
                    "active_days": len(ds), "days_requested": days_label},
         "contract_count": len(contracts), "contracts": slim, "query_date": today,
