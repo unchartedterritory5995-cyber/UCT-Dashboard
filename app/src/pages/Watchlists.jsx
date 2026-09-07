@@ -629,7 +629,7 @@ function CompareSearch({ onPick, baseSym }) {
   return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion' }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -1099,8 +1099,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = idxQuotes[k]
       merged[k.toUpperCase()] = { price: v?.price ?? null, change_pct: v?.change_pct ?? null, volume: null }
     }
+    // ⭐ HISTORICAL LISTS: a caller can PIN the quote for rows whose numbers are
+    // not "now". The breadth drill for 2026-09-04 is showing what those stocks did
+    // ON THAT DAY; streaming today's price into that table would silently relabel
+    // history as the present — the same class of defect as a mini-path from
+    // yesterday captioning today's number. Applied LAST so it beats both the live
+    // feed and the chart readout; a live drill passes nothing and streams normally.
+    if (quoteOverride) {
+      for (const s of Object.keys(quoteOverride)) {
+        merged[s] = { ...merged[s], ...quoteOverride[s] }
+      }
+    }
     return merged
-  }, [feedPrices, readoutTick, idxQuotes])
+  }, [feedPrices, readoutTick, idxQuotes, quoteOverride])
   // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
   // The widget has no chrome of its own (it IS this page), so the door lives
   // on each accordion header. Payload freeze (owner-approved): {sym, note,

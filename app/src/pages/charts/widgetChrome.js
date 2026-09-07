@@ -32,6 +32,24 @@ export function canvasEntry(canvas) {
   }
 }
 
+/** The TYPE-level canvas entry for a chart widget — what an UNCUSTOMIZED chart
+ *  paints, derived from the user's global `chart_settings`.
+ *
+ *  Extracted because a SECOND host now builds a `widgetCanvasByType` map (the
+ *  breadth drill board). Two copies of this derivation would be free to drift,
+ *  and the symptom would be quiet: a drill chart wearing a different frame from
+ *  the identical chart on /charts. Note that watchlists deliberately have NO
+ *  type-level entry — their appearance is fully per-widget and resolves through
+ *  `widgetOwnChrome`/`widgetCanvasById` — so a host hosting only a chart and a
+ *  watchlist needs exactly this one. */
+export function chartTypeCanvasEntry(chartSettingsPref, chartsTheme) {
+  const cs = mergeChartSettings(chartSettingsPref)
+  const canvas = chartsTheme === 'sunrise'
+    ? '#eaf1fa'
+    : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
+  return canvasEntry(canvas)
+}
+
 // The canvas color of a CHART widget's currently-active tab (main = opts.settings;
 // extra = the active chartTabs[i].settings). null when the active surface hasn't
 // diverged from the global default (→ caller falls back to the type default).

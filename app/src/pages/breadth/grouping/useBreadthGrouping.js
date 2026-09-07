@@ -3,8 +3,12 @@ import useGroupMeta from './useGroupMeta'
 import { groupItems } from './groupItems'
 
 // Owns the grouping state (List|Grouped + Sector|Industry + collapsed groups),
-// fetches the industry/sector maps, and computes the grouped buckets. Shared by
-// the drill modal AND CustomScan so both surfaces behave identically.
+// fetches the industry/sector maps, and computes the grouped buckets.
+//
+// ⚠️ Its comment used to say "shared by the drill modal AND CustomScan". That was
+// STALE: `CustomScan` appears nowhere in app/src except in comments. The single
+// consumer is `breadth/drill/BreadthDrillList`, which feeds the result to the real
+// watchlist table. Grep for the CONSUMER before believing a comment about sharing.
 //
 //   items         — row objects
 //   opts.tickerOf — row -> ticker  (default r => r.t)

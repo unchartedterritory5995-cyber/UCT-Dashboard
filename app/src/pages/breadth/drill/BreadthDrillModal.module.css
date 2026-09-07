@@ -1,0 +1,80 @@
+/* The drill overlay. Geometry is inherited from the surface it replaces so the
+   modal opens where members expect it; everything INSIDE is charts-workspace
+   chrome and is not styled here. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.dialog {
+  background: var(--bg-elevated, #1d1f23);
+  border: 1px solid var(--border, #2a2c31);
+  border-radius: var(--radius-lg, 8px);
+  width: 100%;
+  max-width: 1600px;
+  height: 96vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Slim identity bar: which cell, how many names, which session, and the one
+   unambiguous close. The widgets below carry no ✕ of their own — the modal
+   closes as a unit. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border, #2a2c31);
+  flex-shrink: 0;
+}
+.title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright, #f8f7f3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted, #cfcac0);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.when {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted, #8f8b83);
+}
+.close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8f8b83);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.close:hover { color: var(--text, #f0efea); }
+
+/* Phone: the split board is unusable at 390px, so the overlay goes full-bleed and
+   the board's own panes stack. Matches the app's canonical touch boundary. */
+@media (max-width: 640px) {
+  .overlay { padding: 0; }
+  .dialog { height: 100vh; border-radius: 0; border: none; max-width: none; }
+  .close { min-width: 44px; min-height: 44px; justify-content: center; }
+}

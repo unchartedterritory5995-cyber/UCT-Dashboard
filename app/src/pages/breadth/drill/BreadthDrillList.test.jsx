@@ -1,0 +1,187 @@
+// BreadthDrillList — the contract it hands the REAL watchlist table.
+//
+// Watchlists itself is mocked to a probe: this file is about WHAT the drill feeds
+// it, not about re-testing the table (which has its own suites). Rail 1 compares
+// that contract against ScannerResults — the widget this one is modelled on — by
+// reading ScannerResults' SOURCE, so the two cannot silently diverge.
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { cwd } from 'node:process'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+
+let lastProps = null
+vi.mock('../../Watchlists', () => ({
+  default: (props) => {
+    lastProps = props
+    return <div data-testid="watchlists-probe" />
+  },
+}))
+// The industry/sector map is a network fetch inside useGroupMeta; pin it so the
+// grouped assertions are deterministic.
+vi.mock('../grouping/useGroupMeta', () => ({
+  default: () => ({
+    industries: { AEHR: 'Semiconductor Equipment & Materials', COHU: 'Semiconductor Equipment & Materials', SRPT: 'Biotechnology' },
+    sectors: { AEHR: 'Technology', COHU: 'Technology', SRPT: 'Healthcare' },
+  }),
+}))
+
+import BreadthDrillList from './BreadthDrillList'
+import { DrillSourceContext } from './DrillSourceContext'
+import { WorkspaceContext } from '../../charts/WorkspaceContext'
+import { drillWorkspaceValue } from './drillWorkspace'
+
+const ITEMS = [
+  { t: 'AEHR', n: 'Aehr Test Systems', c: 86.26, vr: 1.7, atr: 10.7, a50: -0.5, pct: 13.1 },
+  { t: 'COHU', n: 'Cohu Inc', c: 50.72, vr: 0.9, atr: 6.7, a50: -0.8, pct: 10.3 },
+  { t: 'SRPT', n: 'Sarepta Therapeutics', c: 28.44, vr: 2.4, atr: 9.1, a50: -1.2, pct: 15.6 },
+]
+
+function ws(overrides = {}) {
+  return drillWorkspaceValue({
+    groupSyms: { A: null, B: null, C: null, D: null },
+    setGroupSym: () => {},
+    crosshairBus: { emit: () => {}, subscribe: () => () => {} },
+    activeChartRef: { current: null },
+    chartApiById: { current: new Map() },
+    activeWatchlistRef: { current: null },
+    ...overrides,
+  })
+}
+
+function mount(drill, wsValue = ws()) {
+  return render(
+    <WorkspaceContext.Provider value={wsValue}>
+      <DrillSourceContext.Provider value={drill}>
+        <BreadthDrillList color="A" />
+      </DrillSourceContext.Provider>
+    </WorkspaceContext.Provider>,
+  )
+}
+
+const LIVE = { items: ITEMS, label: 'UP 4%+', date: null, live: true, latestDate: '2026-09-04' }
+const HISTORICAL = { items: ITEMS, label: 'UP 4%+', date: '2026-08-01', live: false, latestDate: '2026-09-04' }
+
+beforeEach(() => { lastProps = null; localStorage.clear() })
+
+describe('BreadthDrillList — it feeds the REAL table, it does not build one', () => {
+  it('renders Watchlists in scan mode with the cell as membership', () => {
+    mount(LIVE)
+    expect(screen.getByTestId('watchlists-probe')).toBeTruthy()
+    expect(lastProps.pickList).toBe('__scan__')
+    expect(lastProps.embedded).toBe(true)
+    expect(Array.isArray(lastProps.scanSymbols)).toBe(true)
+    expect(lastProps.pickName).toBe('UP 4%+')
+  })
+
+  it('⛔ activeRef and widgetKey TRAVEL TOGETHER (the Shift+F-in-both-widgets bug)', () => {
+    // Watchlists reads them as a pair: isActiveWidget() is `!activeRef || …`, so a
+    // widgetKey without an activeRef leaves the widget permanently "active".
+    const ref = { current: null }
+    mount(LIVE, ws({ activeWatchlistRef: ref }))
+    expect(lastProps.activeRef).toBe(ref)
+    expect(lastProps.widgetKey).toBeTruthy()
+  })
+
+  it('carries the breadth-only fields the meta batch cannot supply', () => {
+    mount(LIVE)
+    expect(lastProps.metaOverride.AEHR).toMatchObject({
+      name: 'Aehr Test Systems', atr: 10.7, a50: -0.5,
+    })
+  })
+
+  it('offers no dead back button — there is no picker to return to', () => {
+    mount(LIVE)
+    expect(lastProps.onExitPick).toBeUndefined()
+  })
+})
+
+describe('BreadthDrillList — historical vs live quotes', () => {
+  it('⭐ a HISTORICAL drill pins its quotes to the snapshot day', () => {
+    mount(HISTORICAL)
+    expect(lastProps.quoteOverride.AEHR).toEqual({ price: 86.26, change_pct: 13.1, volume: null })
+    expect(lastProps.quoteOverride.SRPT).toEqual({ price: 28.44, change_pct: 15.6, volume: null })
+  })
+
+  it('a LIVE drill pins nothing and streams like any other watchlist', () => {
+    mount(LIVE)
+    expect(lastProps.quoteOverride).toBeNull()
+  })
+
+  it('the NEWEST recorded day is not history — it streams too', () => {
+    // drill.date === latestDate means the snapshot's day IS the current session's
+    // rightmost bar; pinning it would freeze a list that should still tick.
+    mount({ ...HISTORICAL, date: '2026-09-04' })
+    expect(lastProps.quoteOverride).toBeNull()
+  })
+})
+
+describe('BreadthDrillList — grouping', () => {
+  it('flat by default: top-level rows are tickers, no groups', () => {
+    mount(LIVE)
+    expect(lastProps.scanSymbols).toEqual(['AEHR', 'COHU', 'SRPT'])
+    expect(lastProps.scanGroups).toBeNull()
+  })
+
+  it('⛔ grouped: top-level rows are UPPERCASED group names, keyed the same way', async () => {
+    // The watchlist uppercases every row sym, so scanSymbols / scanGroups /
+    // metaOverride must all key the group name in uppercase or the lookup misses.
+    const user = userEvent.setup()
+    mount(LIVE)
+    await user.click(screen.getByRole('button', { name: 'Grouped' }))
+    expect(lastProps.scanSymbols).toContain('SEMICONDUCTOR EQUIPMENT & MATERIALS')
+    expect(lastProps.scanGroups['SEMICONDUCTOR EQUIPMENT & MATERIALS']).toEqual(['AEHR', 'COHU'])
+    expect(lastProps.metaOverride['SEMICONDUCTOR EQUIPMENT & MATERIALS']).toEqual({ group_count: 2 })
+    // Every scanGroups key must appear in scanSymbols, or that group renders no row.
+    for (const k of Object.keys(lastProps.scanGroups)) expect(lastProps.scanSymbols).toContain(k)
+  })
+
+  it('asks for ALL groups open, not the accordion', () => {
+    mount(LIVE)
+    expect(lastProps.groupExpand).toBe('multi')
+  })
+
+  it('switching to Sector regroups under the sector map', async () => {
+    const user = userEvent.setup()
+    mount(LIVE)
+    await user.click(screen.getByRole('button', { name: 'Grouped' }))
+    await user.click(screen.getByRole('button', { name: 'Sector' }))
+    expect(lastProps.scanSymbols).toContain('TECHNOLOGY')
+    expect(lastProps.scanGroups.TECHNOLOGY).toEqual(['AEHR', 'COHU'])
+  })
+})
+
+describe('the widget it replicates — ScannerResults is the reference', () => {
+  // Resolved from the vitest root (`app/`) rather than import.meta.url, which is
+  // not a file URL under this file's environment. The existence assertion below
+  // is the non-vacuity guard: a moved reference fails loudly instead of making
+  // every comparison in this block pass on an empty string.
+  const REF_PATH = resolve(cwd(), 'src/pages/charts/widgets/ScannerResults.jsx')
+  const reference = () => {
+    expect(existsSync(REF_PATH), `reference widget still lives at ${REF_PATH}`).toBe(true)
+    return readFileSync(REF_PATH, 'utf8')
+  }
+
+  it('uses the same scan-mode door ScannerResults does', () => {
+    const src = reference()
+    // Non-vacuity: if ScannerResults ever stops feeding the real table, this
+    // reference is wrong and the comparison below is meaningless.
+    expect(src).toContain('pickList="__scan__"')
+    expect(src).toContain("from '../../Watchlists'")
+    mount(LIVE)
+    expect(lastProps.pickList).toBe('__scan__')
+  })
+
+  it('passes every prop ScannerResults treats as load-bearing', () => {
+    const src = reference()
+    mount(LIVE)
+    // Derived from the reference rather than retyped: any prop ScannerResults
+    // passes AND that the drill also needs must actually be handed over.
+    const shared = ['embedded', 'pickList', 'scanSymbols', 'pickName', 'activeRef', 'widgetKey', 'scanFooter']
+    for (const p of shared) {
+      expect(src.includes(p), `ScannerResults still passes ${p}`).toBe(true)
+      expect(lastProps[p], `BreadthDrillList passes ${p}`).not.toBeUndefined()
+    }
+  })
+})

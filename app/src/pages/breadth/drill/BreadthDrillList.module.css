@@ -1,0 +1,41 @@
+/* The drill's list widget: a control bar over the real watchlist table.
+   Deliberately thin — every pixel below .ctrlBar belongs to Watchlists, and
+   restyling it here would rebuild the divergence this work removes. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Matches the watchlist's own pickHeader density so the two bars read as one
+   piece of chrome rather than a strip bolted on top. */
+.ctrlBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  flex-shrink: 0;
+}
+
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scan-mode footer, mirroring ScannerResults' so the count reads identically
+   wherever an ad-hoc list is shown. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted, #8f8b83);
+}
+.count { color: var(--text, #e0e0e0); }
+.when { color: var(--text-muted, #8f8b83); }

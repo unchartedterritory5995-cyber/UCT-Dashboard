@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import styles from './Breadth.module.css'
@@ -6,14 +6,11 @@ import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
 import TickerPopup from '../components/TickerPopup'
 import MarketBreadth from '../components/tiles/MarketBreadth'
-import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
-import { useFlagged } from '../hooks/useFlagged'
+import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
-import { prefetchBars, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
-import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
-import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
+import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
@@ -40,9 +37,6 @@ export {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS, TIER_CELL_COLORS,
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 }
-import useBreadthGrouping from './breadth/grouping/useBreadthGrouping'
-import GroupControls from './breadth/grouping/GroupControls'
-import GroupSummaryStrip from './breadth/grouping/GroupSummaryStrip'
 import UIcon from '../components/ui/UIcon'
 import PageHeader from '../components/PageHeader'
 
@@ -340,328 +334,15 @@ function cellClass(col, val, row = null) {
   return ''
 }
 
-// ── CopyTickersButton ─────────────────────────────────────────────────────
-function CopyTickersButton({ items }) {
-  const [copied, setCopied] = useState(false)
-  function handleCopy() {
-    const text = (items ?? []).map(i => i.t).join(',')
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-  return (
-    <button className={styles.copyBtn} onClick={handleCopy} title="Copy all tickers to clipboard">
-      {copied ? <><UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Copied</> : 'Copy List'}
-    </button>
-  )
-}
-
-// ── DrillModal ────────────────────────────────────────────────────────────
-function DrillModal({ drill, latestDate, onClose }) {
-  const items = drill.items ?? []
-  // Paint the snapshot's own day white on each stock's chart so you can see the
-  // bar that qualified it — UNLESS this is the most recent snapshot (its day is
-  // already the live/rightmost candle, no need to flag it). Daily TF only; a
-  // daily date won't match intraday/weekly bar times, so it simply no-ops there.
-  const highlightDay = !drill.live && drill.date && drill.date !== latestDate ? drill.date : null
-  // A live list is a moment inside an unfinished session, not a settled day —
-  // stamping it with a date would read as final. Same helper the row's own
-  // stamp uses, so the two can't drift apart.
-  const whenLabel = drill.live ? `LIVE · ${formatLiveClock(drill.asOf)}` : drill.date
-  const [selectedIdx, setSelectedIdx] = useState(0)
-  const [chartPeriod, setChartPeriod] = useState('D')
-
-  // Shared grouping toolkit (same engine used by CustomScan) — owns the
-  // List|Grouped + Sector|Industry state, the industry/sector fetch, and the
-  // grouped buckets / visible order / summary.
-  const {
-    viewMode, setViewMode, dimension, setDimension,
-    grouped, visibleOrder, collapsedGroups, toggleGroupCollapse, summary,
-  } = useBreadthGrouping(items, { tickerOf: i => i.t, pctOf: i => i.pct })
-
-  // Reset the cursor whenever the view shape changes.
-  useEffect(() => { setSelectedIdx(0) }, [viewMode, dimension])
-
-  // When the drill list first loads, warm the WHOLE list up front into durable IDB
-  // (daily immediately + the other scan TFs + the top rows into mem) so scrolling
-  // this list — often hundreds of names — is instant from the first row, and stays
-  // instant across reloads. Bounded/deferred/backpressure-guarded inside
-  // prewarmVisibleList; already-warm tickers skip. (Was a mem-only daily warm.)
-  const prefetchedListRef = useRef(null)
-  useEffect(() => {
-    if (!items.length || prefetchedListRef.current === items) return
-    prefetchedListRef.current = items
-    prewarmVisibleList(items.map(i => i.t), { chartTf: chartPeriod })
-  }, [items, chartPeriod])
-
-  // Sliding window ahead of cursor for arrow-key scanning (keeps adjacent tickers hot).
-  useEffect(() => {
-    if (!items.length) return
-    const t = setTimeout(() => {
-      const start = Math.max(0, selectedIdx - 1)
-      const end   = Math.min(items.length, selectedIdx + 4)
-      prefetchBars(items.slice(start, end).map(i => i.t), chartPeriod)
-    }, 250)
-    return () => clearTimeout(t)
-  }, [selectedIdx, items, chartPeriod])
-
-  // Same-frame scan paint: promote the ±6 neighbors into the synchronous mem cache
-  // (and fetch any cold ones) so the NEXT arrow press paints on the first render via
-  // StockChart's memPeek fallback — the accelerator the drill was missing (its
-  // sliding-window prefetch above only warmed IDB/SWR, so a switch still paid the
-  // async idbGet hop). Order matches the arrow handler (items).
-  const drillSyms = useMemo(() => items.map(i => i.t), [items])
-  useNeighborWarm(drillSyms, items[selectedIdx]?.t, chartPeriod)
-  const [flagToast, setFlagToast] = useState(null)
-  const { isFlagged, toggle: toggleFlag } = useFlagged()
-  const rowRefs = useRef([])
-  // Group-header refs (keyed by group key) so the summary strip can jump to a group.
-  const groupRefs = useRef({})
-  const pendingScrollKey = useRef(null)
-
-  // Jump to a group when its chip is clicked in the summary strip. If the group
-  // is collapsed, expand it first, then scroll once the rows have rendered.
-  const jumpToGroup = useCallback(key => {
-    if (collapsedGroups.has(key)) {
-      pendingScrollKey.current = key
-      toggleGroupCollapse(key)
-    } else {
-      groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [collapsedGroups, toggleGroupCollapse])
-
-  // Complete a deferred jump after a collapsed group has expanded.
-  useEffect(() => {
-    const key = pendingScrollKey.current
-    if (key && !collapsedGroups.has(key)) {
-      pendingScrollKey.current = null
-      requestAnimationFrame(() => groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-    }
-  }, [collapsedGroups])
-
-  // Clear flag toast after 1.5s
-  useEffect(() => {
-    if (!flagToast) return
-    const t = setTimeout(() => setFlagToast(null), 1500)
-    return () => clearTimeout(t)
-  }, [flagToast])
-
-  // Keyboard: Escape closes, arrows navigate, Shift+F flags selected ticker.
-  // Nav operates over visibleOrder (grouped order, minus collapsed rows).
-  useEffect(() => {
-    const handler = e => {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, visibleOrder.length - 1)) }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)) }
-      // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
-      // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
-      // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
-      // a TOGGLE leaves the flag on whichever parity the release happens to catch.
-      // Reported 2026-08-29.
-      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat) {
-        setSelectedIdx(cur => {
-          const sym = visibleOrder[cur]?.t
-          if (sym) {
-            const willFlag = !isFlagged(sym)
-            toggleFlag(sym)
-            setFlagToast(willFlag ? 'added' : 'removed')
-          }
-          return cur
-        })
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose, visibleOrder, isFlagged, toggleFlag])
-
-  // Clamp selection when the visible set shrinks (e.g. a group is collapsed)
-  const safeIdx = Math.min(selectedIdx, Math.max(0, visibleOrder.length - 1))
-
-  // Scroll selected row into view
-  useEffect(() => {
-    rowRefs.current[safeIdx]?.scrollIntoView({ block: 'nearest' })
-  }, [safeIdx])
-
-  const selected = visibleOrder[safeIdx]
-
-  return (
-    <div className={styles.drillOverlay} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={styles.drillDialog} onClick={e => e.stopPropagation()}>
-        <div className={styles.drillHeader}>
-          <div>
-            <div className={styles.drillTitle}>
-              {drill.label}
-              {drill.items && <span className={styles.drillCount}> ({drill.items.length.toLocaleString()} stocks)</span>}
-            </div>
-            <div className={styles.drillSubRow}>
-              <span className={styles.drillSub}>{whenLabel}</span>
-              {items.length > 0 && (
-                <GroupControls
-                  viewMode={viewMode}
-                  setViewMode={setViewMode}
-                  dimension={dimension}
-                  setDimension={setDimension}
-                />
-              )}
-              <CopyTickersButton items={grouped ? grouped.order : items} />
-            </div>
-          </div>
-          <button className={styles.drillClose} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>
-        </div>
-
-        <div className={styles.drillSplit}>
-          {/* ── Left: table ── */}
-          <div className={styles.drillTablePanel}>
-            {!drill.items ? (
-              <SkeletonTable rows={5} cols={3} />
-            ) : items.length === 0 ? (
-              <div className={styles.drillEmpty}>No stocks matched this filter {drill.live ? 'right now' : `on ${drill.date}`}.</div>
-            ) : (
-              <>
-              {grouped && <GroupSummaryStrip summary={summary} dimension={dimension} onPick={jumpToGroup} />}
-              <table className={styles.drillTable}>
-                <thead>
-                  <tr>
-                    <th className={`${styles.drillTh} ${styles.drillThNum}`}>#</th>
-                    <th className={styles.drillTh}>Ticker</th>
-                    <th className={styles.drillTh}>Company</th>
-                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Price</th>
-                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Vol</th>
-                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>ATR%</th>
-                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>50SMA</th>
-                    <th className={`${styles.drillTh} ${styles.drillThRight}`}>Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    // Shared row renderer. flatIdx = position within visibleOrder
-                    // so selection highlight, refs + ↑/↓ nav stay aligned in
-                    // both List and Grouped modes.
-                    const renderRow = (item, flatIdx) => {
-                      const absPct = Math.abs(item.pct)
-                      const rowHeat = item.pct >= 0
-                        ? absPct >= 15 ? styles.drillHeatG3 : absPct >= 8 ? styles.drillHeatG2 : styles.drillHeatG1
-                        : absPct >= 15 ? styles.drillHeatR3 : absPct >= 8 ? styles.drillHeatR2 : styles.drillHeatR1
-                      const isSelected = flatIdx === safeIdx
-                      return (
-                        <tr
-                          key={item.t}
-                          ref={el => rowRefs.current[flatIdx] = el}
-                          className={`${flatIdx % 2 === 0 ? styles.drillRowEven : styles.drillRowOdd} ${rowHeat} ${isSelected ? styles.drillRowSelected : ''}`}
-                          onClick={() => setSelectedIdx(flatIdx)}
-                          onPointerEnter={() => prefetchBarOnIntent(item.t, 'D')}
-                          onFocus={() => prefetchBarOnIntent(item.t, 'D')}
-                        >
-                          <td className={styles.drillTdNum}>{flatIdx + 1}</td>
-                          <td className={styles.drillTdTicker}>
-                            <TickerPopup sym={item.t} />
-                          </td>
-                          <td className={styles.drillTdName}>{item.n ?? ''}</td>
-                          <td className={styles.drillTdPrice}>
-                            {item.c != null ? `$${item.c.toFixed(2)}` : '—'}
-                          </td>
-                          <td className={item.vr >= 2 ? styles.drillTdVolHigh : item.vr >= 1.2 ? styles.drillTdVolMid : styles.drillTdVol}>
-                            {item.vr != null ? `${item.vr}x` : '—'}
-                          </td>
-                          <td className={styles.drillTdAtr}>
-                            {item.atr != null ? `${item.atr}%` : '—'}
-                          </td>
-                          <td className={item.a50 != null ? (item.a50 >= 0 ? styles.drillTdA50Up : styles.drillTdA50Dn) : styles.drillTdAtr}>
-                            {item.a50 != null ? `${item.a50 > 0 ? '+' : ''}${item.a50}` : '—'}
-                          </td>
-                          <td className={item.pct >= 0 ? styles.drillTdUp : styles.drillTdDn}>
-                            {item.pct > 0 ? '+' : ''}{item.pct}%
-                          </td>
-                        </tr>
-                      )
-                    }
-
-                    if (!grouped) return items.map((item, i) => renderRow(item, i))
-
-                    // Grouped: industry header rows interleaved; flat counter
-                    // only advances over rendered (non-collapsed) rows.
-                    let flat = -1
-                    return grouped.groups.map(g => {
-                      const isCollapsed = collapsedGroups.has(g.key)
-                      return (
-                        <Fragment key={g.key}>
-                          <tr
-                            ref={el => groupRefs.current[g.key] = el}
-                            className={styles.drillGroupRow}
-                            onClick={() => toggleGroupCollapse(g.key)}
-                          >
-                            <td className={styles.drillGroupCell} colSpan={8}>
-                              <span className={styles.drillGroupCaret}>{isCollapsed ? '▸' : '▾'}</span>
-                              <span className={styles.drillGroupName}>{g.key}</span>
-                              <span className={styles.drillGroupCount}>{g.count}</span>
-                              <span className={g.avgPct >= 0 ? styles.drillGroupAvgUp : styles.drillGroupAvgDn}>
-                                avg {g.avgPct > 0 ? '+' : ''}{g.avgPct.toFixed(1)}%
-                              </span>
-                            </td>
-                          </tr>
-                          {!isCollapsed && g.items.map(item => { flat += 1; return renderRow(item, flat) })}
-                        </Fragment>
-                      )
-                    })
-                  })()}
-                </tbody>
-              </table>
-              </>
-            )}
-          </div>
-
-          {/* ── Right: chart panel ── */}
-          {selected && (
-            <div className={styles.drillChartPanel}>
-              <div className={styles.drillChartBar}>
-                <span className={styles.drillChartSym}>{selected.t}</span>
-                {selected.n && <span className={styles.drillChartName}>{selected.n}</span>}
-                {flagToast && (
-                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                    {flagToast === 'added' ? <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Flagged</> : <><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Removed</>}
-                  </span>
-                )}
-                <button
-                  className={`${styles.drillFlagBtn}${isFlagged(selected.t) ? ' ' + styles.drillFlagBtnActive : ''}`}
-                  onClick={() => { const willFlag = !isFlagged(selected.t); toggleFlag(selected.t); setFlagToast(willFlag ? 'added' : 'removed') }}
-                  title={isFlagged(selected.t) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                ><UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{isFlagged(selected.t) ? 'Flagged' : 'Flag'}</button>
-                {/* The period tab row used to live here. Retired: ChartPane
-                    (below) renders the canonical timeframe bar now.
-                    `chartPeriod`/`setChartPeriod` stay — the prefetch effect
-                    above still reads chartPeriod, and ChartPane's onTfChange
-                    keeps it in sync with whatever the user picks. */}
-                <span className={styles.drillChartHint}>↑ ↓ to navigate</span>
-              </div>
-              <div className={styles.drillChartFrame}>
-                {/* The SAME chart the /charts workspace renders — identity
-                    row, session toggle, market clock, timeframe bar,
-                    market-cap/earnings/UCT-rating meta, settings gear and
-                    drawing tools. `onSymbolChange` is deliberately omitted:
-                    the symbol comes from the drill-list row the user
-                    selected, so the identity row is a static label, not a
-                    search box. */}
-                <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted, #777)', fontSize: 12 }}>Loading chart…</div>}>
-                  <ChartPane
-                    sym={selected.t}
-                    tf={chartPeriod}
-                    onTfChange={setChartPeriod}
-                    stored={null}
-                    stockChartProps={{
-                      highlightBarTime: chartPeriod === 'D' ? highlightDay : null,
-                      highlightColor: '#ffffff',
-                    }}
-                  />
-                </Suspense>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+// ── The drill modal ───────────────────────────────────────────────────────
+// Clicking a breadth cell opens the REAL charts-workspace widgets — a watchlist
+// widget holding the cell's constituents and the user's own chart widget, linked
+// by colour group A. The bespoke table + bare ChartPane that used to live here
+// (CopyTickersButton, DrillModal, ~320 lines) are deleted: the whole point is that
+// this surface is not a lookalike of those widgets, it IS them.
+// Lazy so the breadth bundle does not pull the charts workspace until a cell is
+// actually clicked.
+const BreadthDrillModal = lazy(() => import('./breadth/drill/BreadthDrillModal'))
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
@@ -1149,7 +830,11 @@ export default function Breadth() {
                          phaseClassFn={phaseClass} onDrill={openDrill} />
           <MarketBreadth />
         </div>
-        {drill && <DrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />}
+        {drill && (
+          <Suspense fallback={null}>
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />
+          </Suspense>
+        )}
       </div>
     )
   }
@@ -1526,7 +1211,11 @@ export default function Breadth() {
           </table>
         </div>
       )}
-      {drill && <DrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />}
+      {drill && (
+          <Suspense fallback={null}>
+            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onClose={() => setDrill(null)} />
+          </Suspense>
+        )}
     </div>
   )
 }
