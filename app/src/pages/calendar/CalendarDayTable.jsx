@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import { BeatDots, DateMovedChip, MoveUnavailableMark, moveIsUnavailable } from './cardBits'
 import styles from './Calendar.module.css'
 
@@ -44,7 +45,7 @@ function sortVal(e, key) {
   }
 }
 
-function Row({ e, gap, enrichReady, onSelect }) {
+function Row({ e, gap, enrichReady, onSelect, longPressProps }) {
   const reported = e.eps_act != null
   const surp = (reported && e.eps_est != null && e.eps_est !== 0)
     ? ((e.eps_act - e.eps_est) / Math.abs(e.eps_est)) * 100
@@ -55,7 +56,11 @@ function Row({ e, gap, enrichReady, onSelect }) {
          onClick={() => onSelect?.(e, e._timing)}>
       <span className={styles.dtCompany}>
         <CompanyLogo sym={e.sym} size={20} tile />
-        <span className={styles.dtSym}>
+        {/* Seam 19: right-click/long-press scoped to the sym itself (not the
+            whole wide row) -- matches VirtualResults.jsx/ResultCards.jsx's
+            existing precedent for dense multi-column tables. Tap still opens
+            the peek modal via the row's own onClick, unchanged. */}
+        <span className={styles.dtSym} {...longPressProps(e.sym)}>
           {e.sym}
           {e.mine && <UIcon name="star-fill" size={10} style={{ marginLeft: 4, verticalAlign: '-1px' }} />}
         </span>
@@ -109,6 +114,7 @@ function Row({ e, gap, enrichReady, onSelect }) {
 
 export default function CalendarDayTable({ entries, reactions, enrichReady = true, onSelect }) {
   const [sort, setSort] = useState(null)   // { key, dir: 1|-1 } | null = imp order
+  const ta = useTickerActions()
 
   const clickSort = (key) => {
     setSort(s => {
@@ -174,11 +180,13 @@ export default function CalendarDayTable({ entries, reactions, enrichReady = tru
             </div>
             {rows.map(e => (
               <Row key={`${key}-${e.sym}`} e={e} gap={reactions?.[e.sym]}
-                   enrichReady={enrichReady} onSelect={onSelect} />
+                   enrichReady={enrichReady} onSelect={onSelect}
+                   longPressProps={ta.longPressProps} />
             ))}
           </div>
         )
       })}
+      {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
 }
