@@ -457,15 +457,25 @@ def get_fundamentals_statements(ticker: str):
 
 @router.get("/api/earnings-intel/{ticker}")
 def get_earnings_intel_endpoint(ticker: str):
-    """Normalized quarterly earnings for the Company Intelligence panel's
-    Earnings tab: EPS and revenue actual vs consensus with surprise, year-over-
-    year growth against the same fiscal quarter, beat streaks and growth trend.
+    """The COMPLETE normalized earnings model for the Company Intelligence
+    panel's Earnings tab — reported quarters (EPS and revenue actual vs
+    consensus, surprise, year-over-year growth against the same fiscal quarter,
+    net margin), forward consensus quarters, annual history, annual estimates,
+    and the summary (next report, acceleration, beat streak).
 
-    Distinct from `/api/fundamentals/earnings-table`, which serves the older
-    annual + forward-estimate view — this one carries the quarterly HISTORY that
-    endpoint never had. Company-level and shared: the first viewer of a ticker
-    pays for the assembly, everyone after is served from storage. No auth
-    (public reference data, same bucket as the statements endpoint)."""
+    Fiscal periods are placed on the company's own filed fiscal-year-end dates
+    via `fiscal_calendar`, so a non-December filer (Micron, NVIDIA, Apple,
+    Microsoft, Walmart, Broadcom) gets the periods it actually reports.
+
+    ⚠️ Deliberately UNGATED, and that is a product decision rather than an
+    oversight (2026-09-07): every member sees the same Earnings research, so no
+    part of it may sit behind a plan check. It is also CHEAPER than the paid
+    `/api/fundamentals/earnings-table` path it replaced for this surface —
+    assembly is company-level and shared, persisted to the snapshot store, so
+    the first viewer of a ticker pays once and everyone after is served from
+    storage, instead of every user polling a per-request paid endpoint every
+    five minutes. `earnings-table` keeps its own gate; it is simply no longer on
+    this path."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}
