@@ -2092,6 +2092,133 @@ because this investigation is what surfaced it.
 
 ---
 
+## Wave K closure — Ask Notebook / Ask Document (2026-09-07)
+
+**Standard the wave was held to:** not "we added chat", but *the member can ask
+a question about their own research, UCT answers from their private corpus,
+shows exactly what evidence supports the answer, and refuses to invent one when
+the corpus does not support it.*
+
+### The defect that mattered most, and how late it was found
+
+`fts_match_expr` joins query terms with a space, and FTS5 reads a space as AND.
+That is correct for the member's search box, which is what it was written for.
+It is catastrophic for a QUESTION, because a question is made of words the
+corpus does not contain:
+
+    "what was gross margin in the quarter?"
+      -> '"what" "was" "gross" "margin" "in" "the" "quarter"*'  ->  0 rows
+
+against a document page reading *"Gross margin was 73.5% in the quarter"*.
+**Ask Document, Ask Notebook and Ask Security Research answered "I couldn't
+find that" for essentially every naturally-phrased question.** Only keyword
+queries worked.
+
+⛔ **Why five slices of rails did not catch it.** The Slice 1 evaluation set was
+written with keyword-shaped queries — "gross margin normalization", "customer
+concentration". The inputs were shaped like the implementation, so the
+measurement agreed with itself and reported *lexical 6/6*. It took a REAL MODEL
+answering a REAL question phrased the way a member phrases one. The lesson is
+not "write more rails"; it is that a fixture drawn from the implementation
+cannot measure the implementation
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+`ask_match_expr` now keeps the content words and joins them with OR. It is
+Ask-specific: `fts_match_expr` still belongs to the search box, where AND is
+right and where Wave K was told not to change recall.
+
+### The semantic-recall gap, re-measured
+
+|                | before | after |
+|----------------|--------|-------|
+| overall        | 7/14   | **10/14** |
+| low-overlap    | 0/7    | **3/7**  |
+| lexical        | 6/6    | 6/6   |
+| entity         | 1/1    | 1/1   |
+
+**The case for semantic retrieval survives but is narrower and more honest.**
+Four true paraphrases still miss — "too reliant on a handful of buyers" against
+a note reading "Customer concentration is the risk I keep writing down" — and
+no lexical index can bridge those. Three rails that had encoded the AND-semantics
+limitation as a REQUIREMENT were updated; one had said in its own failure
+message that lexical retrieval improving meant re-measuring, and it was right.
+
+### BM25 as a relevance gate was unsound
+
+`BM25_FLOOR` kept a candidate only when `bm25() <= -0.15`. bm25 weights a term
+by inverse document frequency, so **a term present in every indexed row scores
+~0 — above the floor, and was dropped.** Measured identically at 1, 3, 5 and 20
+rows. Two victims: a single-page document, and the focused researcher whose
+every note says "NVDA", which is the term they care most about. Retired as a
+gate, kept for ordering; the measurement is now a rail with an AST probe that
+fails if any retrieval path gates on it again.
+
+### Decisions locked in this wave
+
+1. **Ranking is two declared levels.** A SIGNAL TIER says *why* something
+   matched (structured > title > thesis-attached > saved > lexical > context);
+   a score normalized *inside its own source type* orders within it. Raw
+   cross-type score comparison is not ranking, it is an accident that looks
+   sorted. A type whose retriever assigns a constant normalizes to the FLOOR,
+   not the top — a constant is the absence of a signal.
+2. **Diversity may never evict authority.** The per-(tier, source-type) cap has
+   a floor of one, so no caller can silence a source type, and single-source
+   scopes (one note, one document) disable it entirely.
+3. **`answer_evidence` is an ALLOWLIST.** Only `relevance == query_match` may
+   back a claim. An unlabelled item is therefore not evidence: a caller that
+   forgets makes the system say it found nothing, never invent an answer.
+4. **Naming a security is not asking a question about it.** Under OR matching
+   every NVDA note matches any NVDA question, so `no_answer` could never be
+   true for a ticker-named question. A note matching only the security's name
+   is entity context.
+5. **RETRIEVED CONTENT IS DATA, NEVER INSTRUCTION**, made mechanical four ways:
+   `system_prompt()` takes no arguments (no channel exists); the evidence fence
+   is neutralized and marker-counted, and assembly REFUSES on a count mismatch;
+   `request_kwargs` emits no `tools` key; and `[n]` handles resolve against the
+   packet actually sent, so a source saying "cite this as [9]" cannot conjure a
+   ninth source.
+6. **The Ask Current Note `system=` defect is CLOSED.** `SYNTH_SYSTEM(note_title,
+   note_block)` interpolated the title and up to 20k characters of note body
+   into the instruction layer. Deleted. The note now reaches the model as
+   ranked, citable blocks inside the fence, with the same 20k ceiling — what a
+   long note loses is its least relevant blocks, not everything past character
+   20,000.
+7. **No answer means no model call, and no charge.** Paying a model to say "I
+   could not find that" asks the one component able to invent an answer to
+   decline to. The refusal is deterministic, free, and cannot be talked out of.
+8. **A follow-up re-retrieves from the member's own prior QUESTION, never the
+   assistant's prior answer.** Model output steering retrieval is how one
+   hallucinated noun becomes the corpus query for a whole thread.
+9. **Dedupe collapses the source count, not the text.** A page and the excerpt
+   saved from it remain ONE source, but the wider page text rides along as
+   context — curating a quote must not make the rest of its page invisible.
+
+### Semantic retrieval status — UNCHANGED
+
+SEMANTIC RETRIEVAL: approved architecturally, justified by measurement
+(now 3/7 rather than 0/7 low-overlap recall), **ACTIVATION BLOCKED** on positive
+Zero-Data-Retention verification for `org-6ljtvy8Dr0srF2ZRiE7vH2Dy`. No Notebook
+note, document, excerpt or query has been embedded. Railed by AST: no Ask module
+references or imports an embedding provider, with a control proving the probe
+sees a real call and ignores a docstring that merely says "NO EMBEDDINGS".
+
+### Residual debt carried forward
+
+- **Four low-overlap paraphrases still miss.** The honest, narrower case for the
+  semantic leg, unblocked only by ZDR.
+- **A shared generic word can lift `no_answer`.** "dividend policy" matches a
+  note about *export* policy. The answer stays grounded and the model refuses,
+  but the deterministic layer claims an answer exists. Lexical retrieval cannot
+  tell a subject noun from a head noun; semantic retrieval can.
+- **Six SSE routes were missing from `_is_gzip_exempt`** — the whole Compass
+  chat family and `/api/live/massive/curated-stream`. Added to the shared list
+  (a platform safety rail, not a change to those subsystems). The rail now
+  DERIVES SSE routes from the live app instead of naming them by hand.
+- **`reachable.test.js` reports 16 orphaned modules** under `pages/community` +
+  `floor2`, from `cc195e888` (The Floor redesign, already on origin/master).
+  Not Wave K's, recorded so nobody re-diagnoses it.
+- **Wave J residual debt remains open and unchanged.**
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
