@@ -8,6 +8,8 @@ import {
 } from '../../lib/tiptap'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import useNoteDocuments from '../../hooks/useNoteDocuments'
+import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import ConfirmModal from '../ConfirmModal'
@@ -713,8 +715,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // PDF upload can take, which is a worse experience than the image case
   // this was copied from.
   const [uploadToast, setUploadToast] = useState(null)
-  // Wave I: { href, name } of the PDF currently open in the preview Sheet, or null.
+  // Wave I: { href, name } of the PDF currently open in the preview Sheet, or
+  // null. Wave J extends it with `documentId` (needed to save an excerpt
+  // against) and `page`/`emphasizeExcerptId` (click-to-source targeting --
+  // the preview may open at an arbitrary document NOT attached to the
+  // currently-open note, e.g. from a thesis-evidence row referencing an
+  // excerpt captured in a different note).
   const [previewDoc, setPreviewDoc] = useState(null)
+  const { documents: noteDocuments } = useNoteDocuments(noteId)
+  const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -752,14 +761,110 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // fired. Capture phase + preventDefault() here runs before that native
   // download activates.
   const handleEditorClickCapture = (event) => {
+    // Wave J: a documentExcerpt card's citation button (see ExcerptView.jsx)
+    // -- click-to-source, the directive's own highest-value exit gate.
+    // Reuses this same capture-phase bridge Wave I established for the
+    // attachmentChip case, rather than a second click-handling mechanism.
+    const citation = event.target.closest?.('button[data-type="documentExcerptCitation"]')
+    if (citation) {
+      const documentId = citation.getAttribute('data-document-id')
+      const page = Number(citation.getAttribute('data-page'))
+      const excerptId = citation.getAttribute('data-excerpt-id')
+      const doc = noteDocuments.find((d) => d.id === documentId)
+      const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
+      if (doc) {
+        setPreviewDoc({
+          href: doc.attachmentUrl, name: doc.name, documentId, page,
+          emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt || null,
+        })
+      } else if (localExcerpt?.attachmentUrl) {
+        // The excerpt's own document isn't one of THIS note's attachments
+        // (an excerpt saved from elsewhere but inserted here) -- the
+        // excerpt row itself already carries everything needed.
+        setPreviewDoc({
+          href: localExcerpt.attachmentUrl, name: localExcerpt.documentName,
+          documentId, page, emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt,
+        })
+      }
+      return
+    }
+
+    // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+    // of downloading. AttachmentChip.renderHTML() emits a real
+    // `download="..."` attribute on the <a> (pre-existing, relied on by
+    // every import adapter for the "just download it" case), and a native
+    // `<a download>` click is handled by the browser ahead of ProseMirror's
+    // own synthetic click routing, so `handleClickOn` never fired. Capture
+    // phase + preventDefault() here runs before that native download
+    // activates.
     const chip = event.target.closest?.('a[data-type="attachmentChip"]')
     if (!chip) return
     const href = chip.getAttribute('href')
     const name = chip.getAttribute('data-name')
     if (!/\.pdf$/i.test(name || '') && !/\.pdf$/i.test(href || '')) return
     event.preventDefault()
-    setPreviewDoc({ href, name })
+    // Wave J: resolve this attachment's documentId (needed to save an
+    // excerpt against it) from the note's own already-fetched document
+    // list -- the chip's own attrs never carried an id (attachments have
+    // none of their own, per Wave I's filesystem-path identity model).
+    const doc = noteDocuments.find((d) => d.attachmentUrl === href)
+    setPreviewDoc({ href, name, documentId: doc?.id || null })
   }
+
+  // Wave J: create the excerpt AND insert its node, in that order -- the
+  // combined backend endpoint already does both atomically, so this is
+  // just the client-side mirror (insert the returned excerptId) plus the
+  // upload-failure toast idiom every other capture path in this file uses.
+  const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
+    const ed = editorRef.current
+    if (!ed || !previewDoc?.documentId) return
+    try {
+      const res = await fetch(`/api/j2/notes/${noteId}/excerpts`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId: previewDoc.documentId, pageNumber, capturedText,
+          quotePrefix, quoteSuffix, charStart, charEnd,
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      const { excerpt } = await res.json()
+      ed.chain().focus().insertContent({
+        type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
+      }).run()
+      await refreshExcerpts()
+    } catch (e) {
+      setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
+    }
+  }
+
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  const handleOpenExcerptSource = async (excerptId) => {
+    try {
+      const res = await fetch(`/api/j2/excerpts/${excerptId}`, { credentials: 'include' })
+      if (!res.ok) return
+      const { excerpt } = await res.json()
+      if (!excerpt?.attachmentUrl) return
+      setPreviewDoc({
+        href: excerpt.attachmentUrl, name: excerpt.documentName,
+        documentId: excerpt.documentId, page: excerpt.pageNumber,
+        emphasizeExcerptId: excerpt.id, emphasizeExcerpt: excerpt,
+      })
+    } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
+  }
+
+  const previewExcerpts = useMemo(() => {
+    if (!previewDoc?.documentId) return []
+    const fromNote = noteExcerpts.filter((e) => e.documentId === previewDoc.documentId)
+    if (previewDoc.emphasizeExcerpt && !fromNote.some((e) => e.id === previewDoc.emphasizeExcerpt.id)) {
+      return [...fromNote, previewDoc.emphasizeExcerpt]
+    }
+    return fromNote
+  }, [noteExcerpts, previewDoc])
 
   const ytId = parseYouTubeId(note?.heroImageUrl)
   // Video notes whose video is a Desk library session get the Desk theater's
@@ -1135,7 +1240,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         open={!!previewDoc}
         href={previewDoc?.href}
         name={previewDoc?.name}
+        page={previewDoc?.page}
         onClose={() => setPreviewDoc(null)}
+        excerpts={previewExcerpts}
+        onSaveExcerpt={handleSaveExcerpt}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
       />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
@@ -1464,7 +1573,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't
             being used as a thesis. */}
-        <ThesisSection noteId={noteId} note={note} />
+        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

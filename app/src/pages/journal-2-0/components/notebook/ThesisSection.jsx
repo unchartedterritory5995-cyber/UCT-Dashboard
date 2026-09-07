@@ -4,6 +4,7 @@ import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
 import useThesisSummary from '../../hooks/useThesisSummary'
 import useNoteFacts from '../../hooks/useNoteFacts'
+import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import styles from './ThesisSection.module.css'
 
@@ -23,6 +24,25 @@ function isThesisShaped(note, evidence, changelog) {
   if (Array.isArray(note.tags) && note.tags.includes('thesis')) return true
   if (evidence.length > 0 || changelog.length > 0) return true
   return false
+}
+
+/** Wave J — one document_excerpt evidence row. The evidence edge's own
+ * `caption` ("why THIS excerpt supports/opposes THIS thesis") is shown
+ * when present, exactly like the fact case; otherwise falls back to the
+ * excerpt's own citation line if it happens to already be loaded (this
+ * note's own `useNoteExcerpts`) -- neither branch requires a resolved
+ * excerpt to click through, since `onOpen` always hits GET /excerpts/{id}
+ * regardless (checkpoint decision: an evidence row must open its source
+ * even when the excerpt was captured into a DIFFERENT note). */
+function ExcerptEvidenceRow({ evidence, localExcerpt, onOpen }) {
+  const label = evidence.caption
+    || (localExcerpt ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}` : 'Document excerpt')
+  return (
+    <button type="button" className={styles.evidenceLink} onClick={onOpen}>
+      <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+      {label}
+    </button>
+  )
 }
 
 function eventLabel(e) {
@@ -69,9 +89,10 @@ function eventLabel(e) {
  * that's the one place this section deliberately shows itself with nothing
  * in it, because "no changes yet" is itself informative for a thesis.
  */
-export default function ThesisSection({ noteId, note }) {
+export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   const { evidence, changelog, isLoading, refresh } = useThesisSummary(noteId)
   const { facts } = useNoteFacts(noteId)
+  const { excerpts } = useNoteExcerpts(noteId)
   const navigate = useNavigate()
 
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -160,6 +181,12 @@ export default function ThesisSection({ noteId, note }) {
                     <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
                     {e.caption || 'Linked note'}
                   </button>
+                ) : e.targetType === 'document_excerpt' ? (
+                  <ExcerptEvidenceRow
+                    evidence={e}
+                    localExcerpt={excerpts.find((ex) => ex.id === e.targetId)}
+                    onOpen={() => onOpenExcerptSource?.(e.targetId)}
+                  />
                 ) : (
                   <span className={styles.evidenceLabel}>{e.caption || 'Captured fact'}</span>
                 )}
@@ -214,10 +241,43 @@ export default function ThesisSection({ noteId, note }) {
                 >
                   Captured fact
                 </button>
+                <button
+                  type="button"
+                  className={`${styles.stanceBtn} ${targetType === 'document_excerpt' ? styles.stanceBtnActive : ''}`}
+                  onClick={() => { setTargetType('document_excerpt'); setSelected(null) }}
+                >
+                  Document excerpt
+                </button>
               </div>
             </div>
 
-            {targetType === 'note' ? (
+            {targetType === 'document_excerpt' ? (
+              selected ? (
+                <div className={styles.selectedRow}>
+                  <span>{selected.title}</span>
+                  <button type="button" className={styles.clearSel} onClick={() => setSelected(null)}>Change</button>
+                </div>
+              ) : excerpts.length ? (
+                <ul className={styles.resultsList}>
+                  {excerpts.map((ex) => (
+                    <li key={ex.id}>
+                      <button
+                        type="button"
+                        className={styles.resultItem}
+                        onClick={() => setSelected({
+                          id: ex.id,
+                          title: `${ex.documentName || 'Document'} · p.${ex.pageNumber} — "${ex.capturedText.slice(0, 60)}${ex.capturedText.length > 60 ? '…' : ''}"`,
+                        })}
+                      >
+                        {ex.documentName || 'Document'} · p.{ex.pageNumber} — &ldquo;{ex.capturedText.slice(0, 60)}{ex.capturedText.length > 60 ? '…' : ''}&rdquo;
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className={styles.hint}>Save an excerpt from a PDF in this note first.</div>
+              )
+            ) : targetType === 'note' ? (
               selected ? (
                 <div className={styles.selectedRow}>
                   <span>{selected.title || 'Untitled'}</span>
