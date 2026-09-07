@@ -31,11 +31,17 @@
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
 import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
+import { splitAggregate } from './flowBootstrap'
 
 export const USAGE = [
   'usage:',
-  '  flow-facts aggregate [--date-filter=Last1] < flow.csv   dataset as JSON',
+  '  flow-facts aggregate [--date-filter=Last1] [--split] < flow.csv   dataset as JSON',
   '  flow-facts stats     < flow.csv   sizing/telemetry only, no row payload',
+  '',
+  '  --split  emit {bootstrap, deferred} instead of {D}. Same computation, same',
+  '           values; only the PARTITION differs, and the two halves recombine',
+  '           into the identical object. See flowBootstrap.js for what is',
+  '           deferred and the consumption audit that decided it.',
 ].join('\n')
 
 /**
@@ -138,7 +144,18 @@ export async function main(argv) {
     const dateFilter = flag ? flag.slice('--date-filter='.length) : null
     const csv = await readStdin()
     const { D, stats } = aggregateCsv(csv, { dateFilter })
-    const payload = cmd === 'stats' ? { ok: true, stats } : { ok: true, stats, D }
+    // --split changes only how the SAME result is partitioned for the wire. The
+    // default output stays byte-identical, so the existing endpoint and its
+    // fallback path are untouched by this flag existing.
+    let payload
+    if (cmd === 'stats') {
+      payload = { ok: true, stats }
+    } else if (argv.includes('--split')) {
+      const { bootstrap, deferred } = splitAggregate(D)
+      payload = { ok: true, stats, bootstrap, deferred }
+    } else {
+      payload = { ok: true, stats, D }
+    }
     process.stdout.write(JSON.stringify(payload) + '\n')
   } catch (err) {
     process.stderr.write(String((err && err.message) || err) + '\n')
