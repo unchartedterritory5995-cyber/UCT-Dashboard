@@ -777,6 +777,23 @@ def build_aggregate(source: str, days: int, date_filter, version=None):
     )
 
 
+@flow_router.get("/etf-replica-status")
+async def etf_replica_status():
+    """Is Options Flow's ETF classification replica current, and when did it last converge?
+
+    ⛔ THIS IS NOT THE ROUTING TABLE. `ticker_types` still drives
+    massive_processor.is_index_source() and is untouched by the replica; this
+    reports the SEPARATE Options-Flow-only copy.
+
+    Exists because the 55-day freeze found on 2026-09-07 (flow-worker stuck at
+    the 2026-07-14 generation while web synced daily) was invisible: nothing
+    reported replica age. A test can prove the stale-state logic; only telemetry
+    catches the next freeze.
+    """
+    from api.services import optionsflow_etf_replica as _rep
+    return JSONResponse(_rep.status())
+
+
 @flow_router.get("/aggregate-health")
 async def aggregate_health():
     """Is Options Flow's server-computed first paint actually working?

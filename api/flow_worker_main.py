@@ -362,6 +362,37 @@ def _start_flow_schedulers():
             except Exception as e:  # noqa: BLE001
                 log.warning("[scheduler] Flow DB prune error: %s", e)
 
+        # ── Options Flow ETF classification replica ─────────────────────
+        # ⛔ SEPARATE FROM ROUTING. This converges a DEDICATED table read only by
+        # the server-side Options Flow TOP 10. `ticker_types` — which drives
+        # massive_processor.is_index_source() and therefore where every live
+        # trade is stored — is deliberately NOT touched here. Wiring routing to
+        # the replica would bundle a member-visible semantic change into a
+        # performance migration; that is a separate owner decision.
+        #
+        # Boot + hourly, never on a request path. Web stays the single canonical
+        # writer; this is a read replica identified by content digest.
+        try:
+            from api.services import optionsflow_etf_replica as _of_etf
+            if _of_etf.enabled():
+                def _of_etf_refresh():
+                    try:
+                        _of_etf.refresh_if_stale()
+                    except Exception:
+                        log.exception("[of-etf-replica] scheduled refresh raised")
+                # Boot convergence, deferred so it never delays accepting traffic.
+                threading.Timer(20.0, _of_etf_refresh).start()
+                sched.add_job(_of_etf_refresh, "interval",
+                              seconds=_of_etf.REFRESH_EVERY_S,
+                              id="optionsflow_etf_replica_refresh",
+                              max_instances=1, coalesce=True)
+                log.info("[of-etf-replica] scheduled every %ss (boot refresh in 20s)",
+                         _of_etf.REFRESH_EVERY_S)
+            else:
+                log.info("[of-etf-replica] disabled (OPTIONSFLOW_ETF_REPLICA_ENABLED != 1)")
+        except Exception:
+            log.exception("[of-etf-replica] scheduler wiring failed — replica stays cold")
+
         try:
             from apscheduler.triggers.cron import CronTrigger
             from zoneinfo import ZoneInfo
