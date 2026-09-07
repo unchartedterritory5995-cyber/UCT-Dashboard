@@ -6,25 +6,36 @@
 > than appending to them.
 
 **Last verified:** 2026-09-06, against live git + Railway state, post
-Seam 25 (AI Search nightly-snapshot freshness disclosure) merge/deploy --
-the first program picked directly from the debt ledger after the
-same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR's own named
-priority stack (13-lens multi-agent current-state review + synthesis,
-~3.9M subagent tokens, 699 tool calls, zero lens failures) was exhausted.
-Full re-anchor report delivered to the owner in-conversation; this doc
-keeps only the load-bearing conclusions, not the full 30-section report.
-Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus Alert
-Durability V1 (Seam 30) plus the keyboard accessibility program plus
-Compare Coverage V1 (scoped via an explicit owner check-in, price-only)
-plus Seam 20 (Wire + MyStocksHub Insights row navigation) plus
-Feature-Flag Governance Sweep plus Seam 25 are now closed. **Seam 19
-(the broader TickerActions/useTickerActions context-menu reuse into
-`EarningsTile.jsx`/`CalendarDayTable.jsx`/`FeedView.jsx`) was
-DELIBERATELY NOT bundled into the Seam 20 pass — larger blast radius,
-its own separate V2 scope, still open.** Next program: **Seam 21**
-(Research companion link on MyStocksHub's News/Filings/Calls tabs,
-reusing the Seam 20/`EventCard.jsx` convergence pattern) -- also picked
-from the debt ledger, not a named stack item. Awareness Reachability
+Seam 21 (MyStocksHub News/Filings/Calls Research companion link)
+merge/deploy -- the third program picked directly from the debt ledger
+after the same-day owner-authorized WHOLE-PRODUCT STRATEGIC RE-ANCHOR's
+own named priority stack (13-lens multi-agent current-state review +
+synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens failures) was
+exhausted. Full re-anchor report delivered to the owner in-conversation;
+this doc keeps only the load-bearing conclusions, not the full 30-section
+report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
+Alert Durability V1 (Seam 30) plus the keyboard accessibility program
+plus Compare Coverage V1 (scoped via an explicit owner check-in,
+price-only) plus Seam 20 (Wire + MyStocksHub Insights row navigation)
+plus Feature-Flag Governance Sweep plus Seam 25 plus Seam 21 are now
+closed. **Seam 19 (the broader TickerActions/useTickerActions
+context-menu reuse into `EarningsTile.jsx`/`CalendarDayTable.jsx`/
+`FeedView.jsx`) was DELIBERATELY NOT bundled into the Seam 20 pass —
+larger blast radius, its own separate V2 scope, still open.**
+**A FULL re-scan of the debt ledger after Seam 21 found the remaining
+pool has thinned to items that each carry a real reason not to pick them
+up autonomously**: Seam 19 (larger blast radius, deliberately deferred
+twice already), Seam 1/6/7/8/11/14/17-remainder (each explicitly recorded
+as "not a bounded V1" / needs its own Phase A / architecture decision),
+Seam 13 (touches `PositionDetailPage.jsx`, which the concurrent,
+unrelated Notebook-platform session has been actively iterating on this
+same session — a protected-parallel-program conflict risk, not a
+technical blocker), Seam 18/22/24 (needs a product decision or is
+gated), Seam 3/4/27 (explicitly LOW-PRIORITY, "stop escalating"). One
+small, genuinely bounded item survived the re-scan and was picked up:
+**`CommandPalette.jsx`'s missing `r.ok` check** (recorded as pre-existing,
+out-of-scope debt during Search/Command Convergence V1's Phase A,
+2026-09-06, never picked up since) -- see below. Awareness Reachability
 Restoration V1 remains deliberately SKIPPED pending a genuine owner
 monetization/entitlement decision (see the top-of-file section) -- do not
 resolve it unilaterally.
@@ -1659,16 +1670,23 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
   Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
-  Feature-Flag Governance Sweep + Seam 25 — ALL DONE, ACCEPTED + LIVE.
-  Seam 21 (MyStocksHub News/Filings/Calls → Research companion link) —
-  STARTING NOW.** The re-anchor's own named priority stack is EXHAUSTED
-  (Feature-Flag Governance Sweep was its last item) — both Seam 25 and now
-  Seam 21 were selected directly from the debt ledger below rather than a
-  stack item. Seam 25 was picked first per the re-anchor's own stated
-  headline conclusion (trust-boundary consistency across already-built AI
-  surfaces); Seam 21 is next as the smaller/lower-risk of the two
-  remaining live candidates. **Seam 19 (Board/Table/Feed TickerActions
-  context-menu reuse) remains
+  Feature-Flag Governance Sweep + Seam 25 + Seam 21 +
+  `CommandPalette.jsx` jsonFetcher fix — ALL DONE, ACCEPTED + LIVE.
+  HOLDING — no further clearly-bounded independent work identified.**
+  The re-anchor's own named priority stack is EXHAUSTED (Feature-Flag
+  Governance Sweep was its last item); Seam 25, Seam 21, and the
+  CommandPalette fix were each selected directly from the debt ledger
+  below rather than a stack item. **A full re-scan of the ledger after
+  Seam 21 found every remaining item carries a real, recorded reason not
+  to pick it up autonomously** — see "Last verified" at the top of this
+  file for the itemized list (Seam 19 larger/deferred-twice, Seam
+  1/6/7/8/11/14/17-remainder each explicitly "not a bounded V1" in their
+  own entries, Seam 13 a parallel-program-conflict risk with the
+  concurrent Notebook session, Seam 18/22/24 needing a product decision
+  or gated, Seam 3/4/27 explicitly LOW-PRIORITY). This is the standing
+  directive's own "no independent work left" condition — reporting status
+  rather than manufacturing further activity. **Seam 19 (Board/Table/Feed
+  TickerActions context-menu reuse) remains
   its own open, separately-scoped V2 — deliberately not bundled into the
   Seam 20 pass** (larger blast radius across 3+ live files with existing
   click handlers to preserve; see the Seam 19 debt-ledger entry below,
@@ -1742,27 +1760,42 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   2026-09-04" — a real 2-day divergence example on the very first live
   check). 3 new tests in `test_ai_search_wave2_packs.py` + full
   1011-test `ai_search` surface green; clean `api.main` boot →
-  **now: Seam 21** (Awareness Reachability Restoration V1 still skipped,
-  see above).
-  **This program (Seam 21)**: MyStocksHub's News/Filings/Calls tabs
-  preserve only the external source (a real `<a href target=_blank>`
-  article/EDGAR filing, or inline `CallRecapSection`/`TranscriptPanel`)
-  with no Research companion action anywhere — unlike Seam 20's dead
-  ends, these DO preserve primary evidence; the gap is the absent SECOND
-  door (Research), not a broken first one. **Bounded Phase A required
-  before implementation**: re-read `MyStocksHub.jsx`'s `NewsTab`/
-  `FilingsTab`/`CallsTab` components plus `WireView.jsx`'s just-shipped
-  precedent against CURRENT code before writing any fix — this seam was
-  recorded 2026-09-06 by Event/News/Calendar → Research Convergence V1's
-  own Phase A and the framing may have drifted since (Seam 20 already
-  changed `MyStocksHub.jsx` once this session). Fix shape: a
-  `goToResearch` sibling action beside each existing external link/inline
-  panel — do NOT remove or alter the existing external-source access,
-  purely additive.
-  **The re-anchor's own named priority stack is now exhausted** — future
-  "next program" selections should be re-derived from the debt ledger
-  below (ranked by trust-boundary value per the re-anchor's headline
-  conclusion) rather than expecting another named stack entry.
+  **Seam 21** — ACCEPTED + LIVE, merge `8cba76ced`/`7b3d5b34c`:
+  MyStocksHub's News/Filings/Calls tabs preserved only the external
+  source (a real `<a href target=_blank>` article/EDGAR filing, or
+  inline `CallRecapSection`/`TranscriptPanel`) with no Research companion
+  action anywhere. Fix: additive-only per-tab companion actions —
+  News gets a `{ticker} in Research →` button per row (wrapped in a new
+  non-interactive flex container beside the untouched `<a>`, since a
+  `<button>` cannot nest inside an `<a>`; uses the first ticker actually
+  in the member's mySets when an item names several), Filings gets one
+  companion per sym GROUP header (unambiguous — every row under it shares
+  that sym), Calls gets one companion beside each card's sym header.
+  Existing external-source access completely untouched. Production-
+  verified live (deployed `MyStocksHub` chunk: 7 "in Research" strings,
+  up from 1 pre-Seam-21, matching Insights+News+Filings+Calls). 7 new
+  tests, full calendar surface (367 tests/27 files) green; clean build →
+  **CommandPalette.jsx jsonFetcher fix** — ACCEPTED + LIVE, merge
+  `dba97b6f7`/`2f0107dc0`: a bare `fetch(url).then(r => r.json())`
+  treated ANY response as valid data, including a 402 paywall body
+  (`{"detail": "..."}`, a truthy object) — recorded as pre-existing debt
+  during Search/Command Convergence V1's Phase A, never picked up since.
+  Fixed by routing through the already-shared, already-tested
+  `utils/jsonFetcher` (four other surfaces already converged on it for
+  this exact shape) instead of reinventing the check inline. New
+  regression test confirmed non-vacuous (verified it fails without the
+  fix, then restored the fix) before merge. Full CommandPalette suite (37
+  tests) + `jsonFetcher`'s own roster rail green; clean build.
+  **The re-anchor's own named priority stack is now exhausted, AND the
+  debt-ledger re-scan after this fix found no further clearly-bounded
+  item** (see the top-of-file summary for the full itemized reasoning) —
+  **holding here rather than manufacturing further activity.** The next
+  genuinely independent, bounded programs would need either (a) the
+  owner's monetization/entitlement decision on Awareness Reachability
+  Restoration V1, (b) an explicit decision to take on Seam 19's larger
+  scope, (c) a product decision on Seam 18, or (d) Pattern Vision's
+  classification landing (Tue 9/8 / Wed 9/9 window) unblocking Technical
+  Ask AI / Technical Research.
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
@@ -2016,15 +2049,15 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   SymbolSearch (or a validated variant, non-blocking on unknown tickers) into
   these two fields as a genuinely separate UI initiative — do not conflate
   with the spelling-safety fix that already shipped.
-- **Also confirmed genuinely pre-existing (not introduced by this program,
-  not fixed, out of scope):** `CommandPalette.jsx`'s own `fetch('/api/
-  ticker-search?...').then(r => r.json())` never checks `r.ok` before
-  parsing — a real bug (a non-2xx JSON error body would be treated as a
-  valid results payload) confirmed present on the base master SHA via
-  direct `git show`, i.e. it predates this program entirely and was never
-  touched by it. `jsonFetcher.test.js`'s own rail newly flagged it during
-  this program's regression run — recorded here so it isn't lost, not
-  claimed as this program's fix.
+- **`CommandPalette.jsx`'s missing `r.ok` check — RESOLVED 2026-09-06,
+  merge `dba97b6f7`/`2f0107dc0`.** Was: `fetch('/api/ticker-search?...').
+  then(r => r.json())` never checked `r.ok`, so a non-2xx error body
+  (e.g. a 402 paywall shape) was treated as valid results — recorded here
+  as pre-existing, out-of-scope debt during Search/Command Convergence
+  V1's Phase A, picked up as its own bounded fix once the debt ledger was
+  re-scanned after Seam 21. Fix: routed through the existing shared
+  `utils/jsonFetcher` instead of reinventing the check inline. New
+  regression test confirmed non-vacuous before merge.
 - **Seam 18 — News surfaces are code-correct but unreachable (surfaced by
   Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
   NOT fixed — a product decision, not a bounded V1).** `NewsFeed.jsx` already
@@ -2064,19 +2097,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `WireView.test.jsx` (+3), `WireView.coverage.test.jsx` (regression-fixed
   for the new `useNavigate()` Router dependency), `myStocksHub.test.jsx`
   (+2). Full regression on both files' existing suites green pre-merge.
-- **Seam 21 — MyStocksHub's News/Filings/Calls tabs preserve only the
-  external source, no in-app Research path (surfaced by Event / News /
-  Calendar → Research Convergence V1's Phase A, 2026-09-06, NOT fixed —
-  PARTIAL by design per the authorization's "preserve primary-source access"
-  principle, not a confirmed defect).** News/Filings render a real external
-  `<a href target=_blank>` (article / EDGAR filing) with no Research
-  companion action; Calls renders `CallRecapSection`/`TranscriptPanel` inline
-  with no `navigate()`/`/research/` reference anywhere in either component.
-  Unlike EventCard's dead ends, these DO preserve primary evidence — the gap
-  is the absent SECOND door (Research), not a broken first one. Worth a
-  bounded follow-up (`goToResearch` sibling action beside each existing
-  external link) but not selected this round given the smaller V1 already
-  found higher-leverage.
+- **Seam 21 — RESOLVED 2026-09-06, merge `8cba76ced`/`7b3d5b34c`.** Was:
+  MyStocksHub's News/Filings/Calls tabs preserved only the external
+  source, no in-app Research path (surfaced by Event / News / Calendar →
+  Research Convergence V1's Phase A). Fix: additive-only companion links
+  beside every existing external link/panel — News per-row (first mySets
+  ticker when an item names several), Filings per sym group, Calls per
+  card. Existing external access completely untouched. Production-
+  verified live; 7 new tests, full calendar suite (367 tests) green.
 - **Seam 22 — Event context preservation remains fully absent (surfaced by
   Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
   confirmed NOT NEEDED for V1, real gap for a future "Back to Calendar"
