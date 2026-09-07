@@ -250,21 +250,14 @@
   .citationChip { padding: 4px 8px; }
 }
 
-/* PHONE — the panel becomes a sheet anchored to the viewport rather than a
-   popover that would hang off the edge of a 390px screen. */
-@media (max-width: 640px) {
-  .wrap { display: block; }
-  .panel {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    top: auto;
-    width: auto;
-    max-width: none;
-    max-height: 72vh;
-    overflow-y: auto;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-  .answer { max-height: none; }
+/* PHONE / TOUCH — geometry belongs to `Sheet` now (see PanelShell). A
+   hand-rolled fixed panel here sat at z-index 50, UNDER the voice orb and the
+   feedback button at --z-fab: 350, and every numeric check still passed. What
+   remains is only the content inside the sheet. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
 }
+.sheetBody .answer { max-height: none; }

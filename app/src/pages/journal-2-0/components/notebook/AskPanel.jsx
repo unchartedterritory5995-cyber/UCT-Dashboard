@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
+import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import {
   PRECISE_STATES,
   citedSources,
@@ -56,6 +58,10 @@ export default function AskPanel({
   onClose = null,
 }) {
   const spec = SCOPES[scope] || SCOPES.notebook
+  // ⛔ THE ONE SANCTIONED USE OF useIsTouch: a CLICK-TRIGGERED choice between
+  // a Sheet and an anchored popover. It is stale at first paint, so it must
+  // never decide layout -- CSS media queries do that.
+  const isTouch = useIsTouch()
   const [open, setOpen] = useState(autoOpen)
   const [query, setQuery] = useState('')
   const [answer, setAnswer] = useState('')
@@ -79,8 +85,18 @@ export default function AskPanel({
     setScopeLabel(SCOPES[scope]?.label || SCOPES.notebook.label)
   }, [scope, target])
 
+  // ⛔ TWO FRAMES, NOT ONE. `Sheet` claims focus for its own panel on the
+  // frame after it mounts (its focus management, deliberately, so Escape and
+  // the trap work). Focusing on the same frame loses the race and the member
+  // has to tap the field before typing -- caught by the browser audit, which
+  // is the only place a lost focus race is visible.
   useEffect(() => {
-    if (open) inputRef.current?.focus()
+    if (!open) return undefined
+    let inner = 0
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => inputRef.current?.focus())
+    })
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner) }
   }, [open])
 
   const ask = useCallback(async () => {
@@ -183,8 +199,8 @@ export default function AskPanel({
         </button>
       )}
       {open && (
-        <div className={styles.panel} role="dialog"
-             aria-label={`Ask ${scopeLabel}`}>
+        <PanelShell isTouch={isTouch} label={`Ask ${scopeLabel}`}
+                    onClose={() => { setOpen(false); onClose?.() }}>
           <div className={styles.panelHeader}>
             {/* ⛔ SCOPE IS TEXT, NOT AN ICON TOOLTIP. A wrong-scope answer is
                 a trust defect, so what was searched is legible without
@@ -276,8 +292,39 @@ export default function AskPanel({
               ))}
             </div>
           )}
-        </div>
+        </PanelShell>
       )}
+    </div>
+  )
+}
+
+/**
+ * ⛔ ON TOUCH THIS MUST BE A `Sheet`, NOT A FIXED-POSITION DIV.
+ *
+ * The first version styled its own bottom sheet at `z-index: 50`. Every
+ * measurement passed -- no overflow, no sub-44px control, 16px input -- and a
+ * screenshot at 390px showed the panel BURIED under the voice orb, the
+ * feedback button and a Compass popover, all of which are `position: fixed`
+ * in the same corner at `--z-fab: 350`. The numbers could not see it; the
+ * picture could. THE BROWSER SEES WHAT NO TEST CAN.
+ *
+ * `Sheet` is the repo's primitive for exactly this ("use for ALL new
+ * modals/drawers/popovers on mobile") and sits at `--z-modal: 1000`, so it
+ * clears the FAB layer -- and brings the portal, focus trap, Escape handling,
+ * body-scroll lock, drag-to-dismiss and safe-area padding that a hand-rolled
+ * div silently lacked.
+ */
+function PanelShell({ isTouch, label, onClose, children }) {
+  if (isTouch) {
+    return (
+      <Sheet open onClose={onClose} variant="bottom-sheet" ariaLabel={label}>
+        <div className={styles.sheetBody}>{children}</div>
+      </Sheet>
+    )
+  }
+  return (
+    <div className={styles.panel} role="dialog" aria-label={label}>
+      {children}
     </div>
   )
 }
