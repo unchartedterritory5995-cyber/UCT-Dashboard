@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
+import useJ2SavedViews from '../hooks/useJ2SavedViews'
+import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
+import NotesTableView from '../components/notebook/NotesTableView'
+import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import TemplatePicker from '../components/notebook/TemplatePicker'
@@ -79,6 +83,19 @@ export default function NotebookTab() {
   }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
   const [sort, setSort] = useState('updated')
+  // Wave E: an active saved view is mutually exclusive with folder/tag
+  // browsing (same "one selection channel" discipline as folder vs. Trash
+  // above) -- holds the WHOLE view object (not just its id) so viewType/
+  // spec are available without a second lookup. `propertyFilter`/
+  // `propertySort` are the AD-HOC equivalents, used only while no saved
+  // view is active (a table-column-header click or a quick-filter chip).
+  const [activeView, setActiveView] = useState(null)
+  const [viewMode, setViewMode] = useState('list')
+  const [propertyFilter, setPropertyFilter] = useState(null)
+  const [propertySort, setPropertySort] = useState(null)
+  const [saveViewOpen, setSaveViewOpen] = useState(false)
+  const { savedViews, create: createSavedView } = useJ2SavedViews()
+  const { propertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
   const { symbol: focusSymbol } = useAppFocus()
@@ -191,6 +208,12 @@ export default function NotebookTab() {
     tag: isTrashView ? undefined : tag,
     sort: isTrashView ? 'deleted' : sort,
     deleted: isTrashView,
+    // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
+    // spec -- directive §87); the ad-hoc propertyFilter/propertySort below
+    // are only ever sent when no saved view is active.
+    savedViewId: !isTrashView ? activeView?.id : undefined,
+    propertyFilter: !isTrashView && !activeView ? propertyFilter : undefined,
+    propertySort: !isTrashView && !activeView ? propertySort : undefined,
   })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
@@ -222,7 +245,7 @@ export default function NotebookTab() {
       { revalidate: false },
     )
   }, [mutateAllNotes])
-  const hasActiveFilters = Boolean(folderId || tag)
+  const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter)
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed
@@ -270,8 +293,44 @@ export default function NotebookTab() {
     next.delete('note')
     return next
   }, { replace: false })
-  const handleSelectFolder = (id) => { setFolderId(id); if (noteId) clearNoteParam() }
-  const handleSelectTag = (t) => { setTag(t); if (noteId) clearNoteParam() }
+  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); if (noteId) clearNoteParam() }
+  const handleSelectTag = (t) => { setTag(t); setActiveView(null); if (noteId) clearNoteParam() }
+  const handleSelectView = (view) => {
+    // Wave E: mutually exclusive with folder/tag browsing -- same "one
+    // selection channel" discipline as folder vs. Trash above.
+    setFolderId(null)
+    setTag(null)
+    setPropertyFilter(null)
+    setPropertySort(null)
+    setActiveView(view)
+    setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    if (noteId) clearNoteParam()
+  }
+  const handleQuickFilter = (propertyId, value) => {
+    if (activeView) return // a saved view's spec is server-resolved; ad-hoc filters don't apply on top of it
+    setPropertyFilter([{ propertyId, op: 'eq', value }])
+  }
+  const handlePropertySort = (propertyId) => {
+    if (activeView) return
+    setPropertySort((prev) => ({
+      propertyId,
+      direction: prev?.propertyId === propertyId && prev.direction === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+  const handleSaveCurrentView = async (name) => {
+    // Deliberately property-filter/sort ONLY -- not folder/tag. A saved
+    // view is mutually exclusive with folder/tag browsing (activating one
+    // clears the other, same as Trash vs. folder above), and the server's
+    // savedViewId resolution only ever reads propertyFilter/propertySort
+    // out of a view's spec (directive §87 -- the server resolves its OWN
+    // stored spec, never a client-reconstructed one), so a folder/tag
+    // captured here would silently do nothing on activation. Keep the
+    // spec's actual capability matched to what it actually restores.
+    const spec = { propertyFilter, propertySort }
+    const view = await createSavedView(name, viewMode, spec)
+    setActiveView(view)
+    setSaveViewOpen(false)
+  }
 
   // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
   // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
@@ -427,6 +486,9 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            savedViews={savedViews}
+            activeViewId={activeView?.id ?? null}
+            onSelectView={handleSelectView}
           />
         </div>
       </div>
@@ -463,14 +525,50 @@ export default function NotebookTab() {
               <option value="title">Title</option>
             </select>
           )}
-          {(folderId || tag) && (
+          {(folderId || tag || activeView || propertyFilter) && (
             <button
               type="button"
               className={styles.clear}
-              onClick={() => { setFolderId(null); setTag(null) }}
+              onClick={() => {
+                setFolderId(null); setTag(null)
+                setActiveView(null); setPropertyFilter(null); setPropertySort(null)
+              }}
             >
               Clear filter
             </button>
+          )}
+          {!isTrashView && (
+            <div className={styles.viewModeWrap}>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'list' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('list')}
+                disabled={Boolean(activeView)}
+                title="List view"
+              >
+                <UIcon name="rows" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('table')}
+                disabled={Boolean(activeView)}
+                title="Table view"
+              >
+                <UIcon name="columns" size={14} gold={false} />
+              </button>
+              {!activeView && (
+                <button
+                  type="button"
+                  className={styles.saveViewBtn}
+                  onClick={() => setSaveViewOpen(true)}
+                  title="Save this view"
+                >
+                  <UIcon name="plus" size={12} gold={false} />
+                  Save view
+                </button>
+              )}
+            </div>
           )}
           <div className={styles.newWrap}>
             <button
@@ -534,6 +632,12 @@ export default function NotebookTab() {
           onClose={() => setExportOpen(false)}
         />
 
+        <SavedViewEditor
+          open={saveViewOpen}
+          onClose={() => setSaveViewOpen(false)}
+          onSave={handleSaveCurrentView}
+        />
+
         {error && (
           <div className={styles.error} role="alert">
             Couldn't load your notes — this looks like a connection problem, not lost work.{' '}
@@ -578,16 +682,29 @@ export default function NotebookTab() {
           </div>
         ) : (
           <>
-            <div className={styles.grid}>
-              {notes.map((n) => (
-                <NoteCard
-                  key={n.id}
-                  note={n}
-                  onOpen={openNote}
-                  onRestore={isTrashView ? restoreNote : undefined}
-                />
-              ))}
-            </div>
+            {viewMode === 'table' && !isTrashView ? (
+              <NotesTableView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                sort={sort}
+                onSortChange={setSort}
+                propertySort={activeView ? activeView.spec?.propertySort : propertySort}
+                onPropertySortChange={handlePropertySort}
+                onQuickFilter={handleQuickFilter}
+                onOpenNote={openNote}
+              />
+            ) : (
+              <div className={styles.grid}>
+                {notes.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    onOpen={openNote}
+                    onRestore={isTrashView ? restoreNote : undefined}
+                  />
+                ))}
+              </div>
+            )}
             {/* Incremental loading over infinite scroll: simpler, testable,
                 and it never fights the page's own scroll container (`.main`
                 above scrolls internally — a scroll-triggered fetch bound to

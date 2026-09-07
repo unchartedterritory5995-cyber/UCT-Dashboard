@@ -1,0 +1,39 @@
+.sortBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  padding: 6px 4px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.sortBtn:hover {
+  color: #dcbb5e;
+}
+.titleCell {
+  font-size: 13px;
+  color: var(--color-text-primary, #e8eaed);
+  font-weight: 500;
+}
+.emptyCell {
+  color: var(--color-text-muted, #98a0aa);
+  opacity: 0.6;
+}
+.valueChip {
+  background: rgba(220, 187, 94, 0.12);
+  border: 1px solid rgba(220, 187, 94, 0.3);
+  color: #dcbb5e;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 28px;
+}
+.valueChip:hover {
+  background: rgba(220, 187, 94, 0.22);
+}
