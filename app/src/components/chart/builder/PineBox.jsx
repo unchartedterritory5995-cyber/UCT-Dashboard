@@ -214,6 +214,22 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // ⭐ Pine's `notes` and thinkScript's `ignored` are the same list.
       ignored: t.ignored || t.notes || [],
       folded: t.folded || [],
+      // ⭐⭐ WAVE B — AND THIS LINE IS WHY THE WAVE EXISTS, COMMITTED TWICE.
+      //
+      // ⚰️ `inspectPine` above SPREADS its translation (`{...translated}`), so it
+      // carried the new `presentation` field the day the translator started
+      // producing one. This function does not spread — it names every field it
+      // forwards, deliberately, so that one shape answers for four dialects. The
+      // consequence is that a new field is INVISIBLE here until someone adds a
+      // line, and `ImportBox` — the only production paste door — goes through
+      // THIS function, not that one.
+      //
+      // So the visual program was read off the source, handed to a door that
+      // dropped it, and every unit test passed because they call `translatePine`
+      // directly. It took the real chart to see: an imported RSI arrived with its
+      // levels box empty. That is the same failure this whole wave is about — a
+      // carriage that stops one door short — committed inside the wave fixing it.
+      presentation: t.presentation || null,
     }
   }
 

@@ -1981,9 +1981,17 @@ export default function BuilderSheet({
                   if (pres.overlay === true) setTarget('price')
                   else if (pres.overlay === false) setTarget('pane')
                   // `hline(70)` / `hline(30)` — the levels this door used to drop.
-                  if (Array.isArray(pres.levels) && pres.levels.length) {
-                    setLevelsText(pres.levels.map((l) => l.value).join(', '))
-                  }
+                  // ⛔ REPLACE OUTRIGHT, NEVER MERGE — the same rule `paramManifest`
+                  // two lines up already follows, and for the same reason: a new
+                  // paste is a NEW SCRIPT. Setting these only when the incoming
+                  // script HAS levels left the previous import's levels standing
+                  // in the box, so pasting an RSI with `hline(50)` and then a
+                  // script with no levels at all showed 50 as if the second script
+                  // had asked for it. Caught on the real chart, not in a unit
+                  // test — the second import is a step a fixture does not take.
+                  setLevelsText(Array.isArray(pres.levels) && pres.levels.length
+                    ? pres.levels.map((l) => l.value).join(', ')
+                    : '')
                   const o = pres.output || {}
                   const patch = {}
                   if (typeof o.color === 'string') patch.color = o.color
