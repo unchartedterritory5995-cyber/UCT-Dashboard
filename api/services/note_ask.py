@@ -47,10 +47,22 @@ _SYNTH_PERUSER_CAP = int(os.environ.get("NOTE_ASK_SYNTH_PERUSER_CAP", "40"))
 _SYNTH_GLOBAL_HARD = float(os.environ.get("NOTE_ASK_SYNTH_COST_HARD", "25"))
 _APPROX_COST = 0.02  # rough per-call USD estimate, used ONLY for the cost gate
 
+# Concurrent streams per member. The daily cap bounds SPEND over a day; this
+# bounds what one member can hold open at an INSTANT, which is a different
+# resource: every open Ask stream pins a slot on the single shared event loop
+# for as long as the model is generating.
+#
+# PER-PROCESS, like every other guard in this pod (sync._locks,
+# recent_orders._last_poll, the notification dedups). Correct today because
+# the web pod is ONE uvicorn process; the first thing to revisit if it ever
+# goes multi-instance, where a second replica silently doubles this.
+_MAX_CONCURRENT = int(os.environ.get("NOTE_ASK_MAX_CONCURRENT", "2"))
+
 _synth_lock = threading.Lock()
 _synth_day = ""
 _synth_by_user: dict = {}
 _synth_spend = 0.0
+_inflight: dict = {}
 
 
 def _et_day():
@@ -99,3 +111,34 @@ def _async_client():
         timeout=llm_timeouts.seconds("NOTE_ASK_LLM_TIMEOUT_SECS",
                                      llm_timeouts.REQUEST_PATH_LONG),
     )
+
+
+def begin_stream(user_id) -> bool:
+    """Claim one concurrent slot. False means the member already has enough
+    open, which is a 429 -- not an error, and not a reason to charge them."""
+    with _synth_lock:
+        n = _inflight.get(user_id, 0)
+        if n >= _MAX_CONCURRENT:
+            return False
+        _inflight[user_id] = n + 1
+        return True
+
+
+def end_stream(user_id) -> None:
+    """Release the slot.
+
+    MUST be called from a `finally` -- a stream that ends by disconnect,
+    exception or cancellation still has to give the slot back, or a member
+    locks themselves out until the process restarts.
+    """
+    with _synth_lock:
+        n = _inflight.get(user_id, 0)
+        if n <= 1:
+            _inflight.pop(user_id, None)
+        else:
+            _inflight[user_id] = n - 1
+
+
+def inflight(user_id) -> int:
+    with _synth_lock:
+        return _inflight.get(user_id, 0)

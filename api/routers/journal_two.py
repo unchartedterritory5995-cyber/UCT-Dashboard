@@ -2394,6 +2394,15 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
         )
+    # The daily cap bounds spend over a day; this bounds what one member can
+    # hold open at once. Claimed AFTER the reservation so the failure path has
+    # exactly one thing to undo.
+    if not note_ask.begin_stream(user_id):
+        note_ask.refund_ask(user_id)
+        raise HTTPException(
+            status_code=429,
+            detail="You already have an answer in progress — wait for it to finish.",
+        )
 
     kwargs = asvc.request(prepared, query, model=asvc.model_name(),
                           max_tokens=asvc.max_tokens(), history=history)
@@ -2423,6 +2432,10 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             logger.exception(f"[ask] synthesis failed scope={scope}")
             yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
         finally:
+            # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
+            # cancellation all land here; a leaked slot locks the member out
+            # until the process restarts.
+            note_ask.end_stream(user_id)
             if not settled or not text.strip():
                 note_ask.refund_ask(user_id)
             resolved = asvc.resolve_answer(text, prepared)

@@ -294,6 +294,43 @@ def test_empty_answer_refunds_the_reservation(client, monkeypatch):
     assert r2.status_code == 200  # refunded, so this still fits under cap=1
 
 
+# ── Concurrency (Slice 7) ─────────────────────────────────────────────────
+
+def test_a_finished_stream_releases_its_concurrency_slot(client, monkeypatch):
+    """A slot that leaks locks the member out until the process restarts."""
+    monkeypatch.setattr(note_ask, "_MAX_CONCURRENT", 1)
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    for _ in range(3):
+        r = client.post(f"/api/j2/notes/{note['id']}/ask/stream",
+                        json={"query": "margins"})
+        assert r.status_code == 200
+
+
+def test_a_failed_stream_still_releases_its_slot(client, monkeypatch):
+    # The finally has to survive the failure path too, or one provider error
+    # costs the member every subsequent question.
+    monkeypatch.setattr(note_ask, "_MAX_CONCURRENT", 1)
+    monkeypatch.setattr(ask_service, "synthesize", _fake_raising_synthesize)
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    r1 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
+    assert r1.status_code == 200
+    assert any(e["type"] == "error" for e in _events(r1))
+    r2 = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
+    assert r2.status_code == 200
+
+
+def test_too_many_open_streams_is_a_429_that_does_not_charge(client, monkeypatch):
+    monkeypatch.setattr(note_ask, "_MAX_CONCURRENT", 0)
+    monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 1)
+    note = _note_with_body(client, "t", "margins compressed in Q3")
+    r = client.post(f"/api/j2/notes/{note['id']}/ask/stream", json={"query": "margins"})
+    assert r.status_code == 429
+    assert "in progress" in r.json()["detail"]
+    # The reservation was refunded, so the member did not pay for being told
+    # to wait: the one daily slot is still theirs.
+    assert note_ask._synth_by_user.get(PAID["id"], 0) == 0
+
+
 # ── Multi-user isolation (HTTP layer) ─────────────────────────────────────
 
 def test_a_member_cannot_ask_about_another_members_note(two_user_clients):
