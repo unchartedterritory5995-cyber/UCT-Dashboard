@@ -46,11 +46,14 @@ break Wave A search or reintroduce the offset error above. What §7 forbids is
 three DIFFERENT normalizations across location-creation and
 citation-resolution -- and this module is the single one both sides share.
 
-POSITION DRIFT IS NOT A CONCERN HERE
-------------------------------------
-Unlike a Wave J excerpt, an Ask citation is EPHEMERAL: it is computed at
-retrieval time against the note's current body and consumed in the same
-response. There is no stored position to go stale.
+POSITION DRIFT IS REAL, AND EPHEMERAL DOES NOT REMOVE IT
+--------------------------------------------------------
+My first reading of this was wrong and is corrected here rather than quietly
+replaced: an Ask citation outlives RETRIEVAL, not the response. The note can
+be edited or autosaved between the moment retrieval computed {from,to} and
+the moment the member clicks that citation in the finished answer, and stale
+positions frequently stay SYNTACTICALLY valid while addressing different
+text. See `fingerprint` (the fast path) and `verify` (the actual guarantee).
 """
 from __future__ import annotations
 
@@ -139,13 +142,14 @@ def flatten(doc: dict[str, Any] | None) -> dict[str, Any]:
         return after
 
     if not isinstance(doc, dict):
-        return {"text": "", "spans": []}
+        return {"text": "", "spans": [], "content_size": 0}
 
-    # The doc node itself is not addressable; its children start at 0.
+    # The doc node itself is not addressable; its children start at 0. The
+    # final position IS ProseMirror's `doc.content.size`.
     pos = 0
     for child in (doc.get("content") or []):
         pos = walk(child, pos)
-    return {"text": "".join(parts), "spans": spans}
+    return {"text": "".join(parts), "spans": spans, "content_size": pos}
 
 
 def _is_block(ntype: str | None) -> bool:
@@ -182,6 +186,60 @@ def pm_range(flat_start: int, flat_end: int, spans: list[dict[str, Any]]) -> dic
     return {"from": pm_from, "to": pm_to}
 
 
+def fingerprint(doc: dict[str, Any] | None) -> str:
+    """A cheap token that changes if and only if a stored ProseMirror position
+    could have stopped meaning what it meant.
+
+    Composition measured against the real prosemirror-model, not reasoned:
+
+      text alone           too weak   -- wrapping a paragraph in a blockquote
+                                        leaves the text identical and shifts
+                                        every later position (size 13 -> 15)
+      text + span list     too strict -- adding a bold mark SPLITS a text node
+                                        ([1,8] -> [1,3,8]) without invalidating
+                                        any position, so this would degrade a
+                                        citation on every formatting edit
+      text + content_size  exact      -- catches the blockquote wrap, ignores
+                                        the mark split
+
+    Both runtimes compute it cheaply: the backend from `flatten`, the frontend
+    from `doc.textBetween(0, size, '\n')` and `doc.content.size` -- the very
+    primitives the cross-runtime equivalence rail already pins together.
+
+    This is the FAST PATH, not the guarantee. `verify` is the guarantee.
+    """
+    import hashlib
+    flat = flatten(doc)
+    digest = hashlib.sha256(flat["text"].encode("utf-8")).hexdigest()[:16]
+    return f"{digest}:{flat['content_size']}"
+
+
+def verify(doc: dict[str, Any] | None, pm_from: int, pm_to: int, snippet: str) -> bool:
+    """Does `snippet` still live at exactly [pm_from, pm_to) in this doc?
+
+    THE ACTUAL GUARANTEE. A fingerprint can in principle be fooled (unwrap one
+    blockquote, wrap another: net size unchanged, text unchanged, positions
+    between them shifted). Rather than chase ever-more-precise fingerprints,
+    the navigator re-reads the text at the range it is about to jump to and
+    refuses if it is not the cited passage. Complete regardless of how the
+    fingerprint was computed.
+    """
+    if not snippet or pm_to <= pm_from:
+        return False
+    flat = flatten(doc)
+    lo = hi = None
+    for s in flat["spans"]:
+        if s["is_atom"]:
+            continue
+        if s["pm_start"] <= pm_from < s["pm_end"]:
+            lo = s["flat_start"] + (pm_from - s["pm_start"])
+        if s["pm_start"] < pm_to <= s["pm_end"]:
+            hi = s["flat_start"] + (pm_to - s["pm_start"])
+    if lo is None or hi is None or hi <= lo:
+        return False
+    return flat["text"][lo:hi] == snippet
+
+
 def locate(doc: dict[str, Any] | None, needle: str) -> list[dict[str, Any]]:
     """Every occurrence of `needle` in a note's canonical text, as ProseMirror
     ranges. Ambiguity is REPORTED, never resolved by picking the first hit --
@@ -199,3 +257,56 @@ def locate(doc: dict[str, Any] | None, needle: str) -> list[dict[str, Any]]:
             out.append({"flat_start": start, "flat_end": start + len(needle), **rng})
         start = text.find(needle, start + 1)
     return out
+
+
+# ── Citation validity ────────────────────────────────────────────────────────
+# Internal names. Member-facing copy stays simple ("open the note").
+VALID_EXACT = "valid_exact"            # fingerprint matched AND text verified
+RERESOLVED_EXACT = "reresolved_exact"  # note changed; re-found unambiguously
+VALID_NOTE_ONLY = "valid_note_only"    # can open the note, not the passage
+DEGRADED = "degraded"                  # ambiguous or gone; no passage claim
+
+# The only states in which a caller may claim an exact passage jump. Anything
+# else opens the note WITHOUT pretending precise navigation succeeded.
+PRECISE_STATES = frozenset({VALID_EXACT, RERESOLVED_EXACT})
+
+
+def resolve_note_citation(doc, pm_from, pm_to, snippet, expected_fingerprint,
+                          prefix: str = "", suffix: str = ""):
+    """Decide where a NOTE citation may navigate, given the note's CURRENT doc.
+
+    The requirement is one-directional: a failed precise citation is fine, a
+    confident jump to the wrong passage is not. Every path that cannot PROVE
+    it is looking at the cited passage returns a non-precise state.
+
+        1. fingerprint matches AND the text at [from,to) is still the snippet
+           -> VALID_EXACT, original positions
+        2. otherwise re-resolve the snippet against the CURRENT canonical text
+           - exactly one occurrence               -> RERESOLVED_EXACT
+           - several, but quote context picks one -> RERESOLVED_EXACT
+           - several and context cannot decide    -> VALID_NOTE_ONLY (never the
+             first occurrence: Slice 0 recorded that silent choice as a defect)
+           - none                                 -> DEGRADED
+    """
+    if expected_fingerprint and fingerprint(doc) == expected_fingerprint:
+        if verify(doc, pm_from, pm_to, snippet):
+            return {"state": VALID_EXACT, "from": pm_from, "to": pm_to}
+        # Fingerprint agreed but the text did not. Trust the text.
+
+    hits = locate(doc, snippet)
+    if len(hits) == 1:
+        return {"state": RERESOLVED_EXACT, "from": hits[0]["from"], "to": hits[0]["to"]}
+    if len(hits) > 1 and (prefix or suffix):
+        ctx = locate(doc, f"{prefix}{snippet}{suffix}")
+        if len(ctx) == 1:
+            only = ctx[0]
+            inner = pm_range(only["flat_start"] + len(prefix),
+                             only["flat_end"] - len(suffix),
+                             flatten(doc)["spans"])
+            if inner:
+                return {"state": RERESOLVED_EXACT, **inner}
+    if hits:
+        return {"state": VALID_NOTE_ONLY, "from": None, "to": None,
+                "reason": f"{len(hits)} occurrences; cannot disambiguate"}
+    return {"state": DEGRADED, "from": None, "to": None,
+            "reason": "cited passage is no longer in this note"}

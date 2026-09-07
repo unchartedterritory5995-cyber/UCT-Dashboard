@@ -174,3 +174,124 @@ class TestRobustness:
         atom = [s for s in flat["spans"] if s["is_atom"]][0]
         assert atom["pm_end"] - atom["pm_start"] == 1
         assert flat["text"] == "a[file: a-very-long-filename.pdf]b"
+
+
+# ── Position-drift guard (the gap in my own "ephemeral ⇒ no drift" reasoning) ──
+
+from api.services.journal_two.note_citation_text import (  # noqa: E402
+    DEGRADED,
+    PRECISE_STATES,
+    RERESOLVED_EXACT,
+    VALID_EXACT,
+    VALID_NOTE_ONLY,
+    fingerprint,
+    resolve_note_citation,
+    verify,
+)
+
+_P = lambda t: {"type": "paragraph", "content": [{"type": "text", "text": t}]}  # noqa: E731
+_DOC = lambda *ps: {"type": "doc", "content": list(ps)}  # noqa: E731
+
+
+class TestFingerprintStrictness:
+    """Measured against real prosemirror-model behaviour, not reasoned."""
+
+    def test_a_formatting_only_edit_does_NOT_invalidate_positions(self):
+        # Adding a bold mark splits a text node but shifts nothing. Treating
+        # this as "changed" would needlessly degrade citations on every
+        # formatting tweak.
+        plain = _DOC(_P("alpha"), _P("beta"))
+        bolded = _DOC(
+            {"type": "paragraph", "content": [
+                {"type": "text", "text": "al"},
+                {"type": "text", "text": "pha", "marks": [{"type": "bold"}]}]},
+            _P("beta"))
+        assert fingerprint(plain) == fingerprint(bolded)
+
+    def test_a_block_wrap_that_preserves_text_DOES_invalidate_positions(self):
+        # The case text-only fingerprinting would miss: identical text,
+        # every later position shifted by 2.
+        plain = _DOC(_P("alpha"), _P("beta"))
+        quoted = _DOC({"type": "blockquote", "content": [_P("alpha")]}, _P("beta"))
+        assert flatten(plain)["text"] == flatten(quoted)["text"]
+        assert fingerprint(plain) != fingerprint(quoted)
+
+    def test_an_ordinary_text_edit_changes_the_fingerprint(self):
+        assert fingerprint(_DOC(_P("alpha"))) != fingerprint(_DOC(_P("alphaX")))
+
+
+class TestVerifyIsTheRealGuarantee:
+    def test_verify_accepts_the_passage_it_cited(self):
+        doc = _DOC(_P("Management expects margins to normalize."))
+        hit = locate(doc, "margins to normalize")[0]
+        assert verify(doc, hit["from"], hit["to"], "margins to normalize")
+
+    def test_verify_rejects_a_range_that_now_holds_different_text(self):
+        doc = _DOC(_P("Management expects margins to normalize."))
+        hit = locate(doc, "margins to normalize")[0]
+        edited = _DOC(_P("XX Management expects margins to normalize."))
+        # Same numeric range, still syntactically valid, different text.
+        assert not verify(edited, hit["from"], hit["to"], "margins to normalize")
+
+    def test_verify_works_across_a_mark_boundary(self):
+        doc = _FIXTURES["markBoundary"]["json"]
+        hit = locate(doc, "expects gross margins to")[0]
+        assert verify(doc, hit["from"], hit["to"], "expects gross margins to")
+
+
+class TestResolveNoteCitation:
+    def test_unchanged_note_uses_the_original_positions(self):
+        doc = _DOC(_P("Management expects margins to normalize."))
+        hit = locate(doc, "margins to normalize")[0]
+        r = resolve_note_citation(doc, hit["from"], hit["to"],
+                                  "margins to normalize", fingerprint(doc))
+        assert r["state"] == VALID_EXACT
+        assert (r["from"], r["to"]) == (hit["from"], hit["to"])
+
+    def test_an_edited_note_re_resolves_rather_than_using_stale_positions(self):
+        before = _DOC(_P("Management expects margins to normalize."))
+        hit = locate(before, "margins to normalize")[0]
+        fp = fingerprint(before)
+        # A paragraph inserted ABOVE shifts every position after it.
+        after = _DOC(_P("New opening paragraph."), _P("Management expects margins to normalize."))
+        r = resolve_note_citation(after, hit["from"], hit["to"],
+                                  "margins to normalize", fp)
+        assert r["state"] == RERESOLVED_EXACT
+        assert r["from"] != hit["from"], "must not reuse the stale position"
+        assert verify(after, r["from"], r["to"], "margins to normalize")
+
+    def test_an_ambiguous_re_resolution_degrades_instead_of_guessing(self):
+        before = _DOC(_P("Revenue was strong."))
+        fp = fingerprint(before)
+        after = _DOC(_P("Revenue was strong."), _P("Revenue was strong."))
+        r = resolve_note_citation(after, 1, 8, "Revenue", fp)
+        assert r["state"] == VALID_NOTE_ONLY
+        assert r["from"] is None, "never pick an occurrence when ambiguous"
+
+    def test_quote_context_rescues_an_otherwise_ambiguous_re_resolution(self):
+        before = _DOC(_P("x"))
+        after = _DOC(_P("Revenue was strong."), _P("Revenue guidance was raised."))
+        r = resolve_note_citation(after, 1, 8, "Revenue", fingerprint(before),
+                                  suffix=" guidance")
+        assert r["state"] == RERESOLVED_EXACT
+        assert verify(after, r["from"], r["to"], "Revenue")
+
+    def test_a_deleted_passage_degrades_honestly(self):
+        before = _DOC(_P("Management expects margins to normalize."))
+        fp = fingerprint(before)
+        after = _DOC(_P("Entirely different content now."))
+        r = resolve_note_citation(after, 1, 20, "margins to normalize", fp)
+        assert r["state"] == DEGRADED
+        assert r["from"] is None
+
+    def test_a_fingerprint_match_with_wrong_text_still_refuses_the_stale_jump(self):
+        # The exotic case a fingerprint can be fooled by. verify() catches it,
+        # which is why verify and not the fingerprint is the guarantee.
+        doc = _DOC(_P("Management expects margins to normalize."))
+        r = resolve_note_citation(doc, 1, 10, "not the cited text", fingerprint(doc))
+        assert r["state"] not in PRECISE_STATES
+
+    def test_only_the_two_precise_states_may_claim_a_passage_jump(self):
+        assert PRECISE_STATES == {VALID_EXACT, RERESOLVED_EXACT}
+        for s in (VALID_NOTE_ONLY, DEGRADED):
+            assert s not in PRECISE_STATES
