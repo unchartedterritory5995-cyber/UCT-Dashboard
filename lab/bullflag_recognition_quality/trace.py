@@ -169,6 +169,11 @@ def _reattribute_extraction_failure(bars, pivots, pole_top_idx, pole_top) -> dic
         out["reject_reason"] = "no_flag_bars"
         return out
     flag_low = min(b["l"] for b in flag_bars)
+    flag_high = max(b["h"] for b in flag_bars)
+    out["flag_high"] = flag_high
+    if flag_high > pole_top["price"] * (1 + bf._MAX_FLAG_HIGH_OVERSHOOT_PCT):
+        out["reject_reason"] = "flag_high_exceeds_pole_top"
+        return out
     retrace = (pole_top["price"] - flag_low) / pole_height
     out["retrace_pct"] = round(retrace, 4)
     if retrace < bf._MIN_FLAG_RETRACE or retrace > bf._MAX_FLAG_RETRACE:

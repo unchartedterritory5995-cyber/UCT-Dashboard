@@ -44,6 +44,7 @@ _MIN_FLAG_RETRACE = 0.15
 _MAX_FLAG_RETRACE = 0.50
 _MIN_PARALLEL_SCORE = 0.55
 _CONFIDENCE_FLOOR = 50.0
+_MAX_FLAG_HIGH_OVERSHOOT_PCT = 0.02  # flag_high may exceed the pole top by at most this much
 
 
 def detect_bull_flag(bars: List[Bar], context: dict) -> List[Detection]:
@@ -154,6 +155,24 @@ def _try_extract_pattern(bars, pivots, pole_top_idx: int, pole_top) -> Optional[
 
     flag_low = min(b["l"] for b in flag_bars)
     flag_high = max(b["h"] for b in flag_bars)
+
+    # Stale-pole-top guard: a candidate pole top can be several bars old (only
+    # CONFIRMED swing-high pivots qualify -- see _candidate_pole_tops), and
+    # during a still-accelerating stock price can make a materially newer high
+    # before any real pullback begins. Without this check the retrace/depth
+    # math below evaluates the "flag" purely against the stale pole top's
+    # price, so a stock that ran well past that pole and only paused briefly
+    # at the very end can score as a textbook-moderate retrace even though
+    # the pole never actually stopped (real-data-verified: BHP's selected
+    # pole top on 2026-02-11 was $75.14, but price reached $82.34 on
+    # 2026-02-25 -- 9.6% higher -- before the pullback the old code treated
+    # as a valid flag; CMBT showed the same shape, $13.16 -> $14.93, +13.5%).
+    # A small tolerance allows ordinary noise (a flag oscillating right at
+    # the pole's high is a normal, valid shape) without accepting a fresh,
+    # material new high as "still the same flag."
+    if flag_high > pole_top["price"] * (1 + _MAX_FLAG_HIGH_OVERSHOOT_PCT):
+        return None
+
     # Find the absolute bar index of the flag low (for higher-low + MA-pullback checks).
     flag_low_idx = pole_top_idx + 1
     for i, b in enumerate(flag_bars):
