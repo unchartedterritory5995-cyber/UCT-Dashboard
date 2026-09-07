@@ -2023,6 +2023,75 @@ duplicated here.
 
 ---
 
+## Wave K — semantic retrieval: APPROVED, ACTIVATION BLOCKED ON ZDR (2026-09-07)
+
+**Status, in the owner's own three lines:**
+SEMANTIC RETRIEVAL: **ARCHITECTURALLY APPROVED** · **QUALITY-JUSTIFIED** ·
+**ACTIVATION BLOCKED ON ZERO DATA RETENTION**.
+
+**The quality justification is measured, not asserted.** The Slice 1
+deterministic baseline recalls 6/6 lexical and 1/1 entity probes and **0/7**
+low-lexical-overlap probes. The misses are ordinary member language --
+"margin pressure" against a note that says "gross margin normalization",
+"what could go wrong", "too reliant on a handful of buyers",
+"profitability squeeze", "geopolitical exposure". Naming the ticker does not
+rescue them: `NVDA margin pressure` returns the thesis and a captured price,
+neither of which mentions margins. This is a real hole in the member outcome,
+not polish.
+
+**The activation gate is the exact OpenAI project's retention configuration,
+and it is NOT confirmed.** Measured from the production pod (read-only GETs
+only; no Notebook content, no member text, and no secret was transmitted or
+printed):
+
+| fact | value |
+|---|---|
+| key kind | project-scoped (`sk-proj-`), 164 chars |
+| `GET /v1/models` | 200 — the key is live |
+| `openai-organization` / `openai-project` response headers | **absent** |
+| organization (from `/v1/me`) | **`org-6ljtvy8Dr0srF2ZRiE7vH2Dy`**, title **"Personal"**, `is_default: true` |
+| `GET /v1/organization/projects` | **403 — missing scope `api.management.read`** |
+| `GET /v1/organization/admin_api_keys` | **403 — same missing scope** |
+
+Three things follow, and the distinction between them matters:
+
+1. **ZDR cannot be verified programmatically from here.** The Admin/Management
+   API needs an admin-scoped key the pod does not have, and OpenAI exposes no
+   public endpoint that reports a project's retention posture. This is a
+   capability gap, not evidence either way.
+2. **The evidence available points AGAINST ZDR being already enabled.** The
+   organization is the default **Personal** org. ZDR is an explicitly-enabled
+   arrangement, not a default state; the documented default for
+   `/v1/embeddings` is up to 30 days of abuse-monitoring retention. A default
+   Personal org on standard terms is the shape of an account that has NOT had
+   ZDR turned on.
+3. **Endpoint eligibility is not project configuration.** `/v1/embeddings`
+   being ZDR-*eligible* says nothing about whether ZDR is *enabled here* --
+   exactly the inference the owner prohibited, alongside "the key exists",
+   "voice_embeddings already embeds", and "another project has ZDR".
+
+**Therefore no Notebook content has been sent to `/v1/embeddings`, and none
+will be until the exact project is confirmed ZDR.** Slice 1 is NOT redesigned
+around lexical retrieval and is NOT discarded: the hybrid architecture stands,
+with the semantic leg dark.
+
+**What would satisfy the gate** (owner action, not engineering): confirm in
+the OpenAI dashboard for `org-6ljtvy8Dr0srF2ZRiE7vH2Dy` -- Settings →
+Organization → Data controls -- that Zero Data Retention is enabled for the
+project this key belongs to, or obtain it from OpenAI for that project. An
+admin-scoped key would also let this be re-verified programmatically rather
+than by screenshot, which is the more durable outcome.
+
+**A related pre-existing exposure, surfaced by this check and NOT introduced
+by Wave K:** `voice_embeddings` already sends member-derived content (voice
+memory facts, session summaries, voice-uploaded documents) to this same
+project, ungated, in production. If this org is not ZDR, that content is
+already subject to default retention. That is a live finding about shipped
+behaviour and belongs to the voice workstream, not to Wave K -- recorded here
+because this investigation is what surfaced it.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

@@ -399,3 +399,62 @@ def test_MEASURE_semantic_recall_gap(corpus, capsys):
         "semantic recommendation built on the old number"
     )
     assert by_class["entity"][0][1], "entity routing must not regress"
+
+
+# ── §6 entity-resolution privacy rail ────────────────────────────────────────
+
+class TestEntityResolutionDoesNotLeakQueryFragments:
+    """⛔ REGRESSION RAIL for a real defect found during benchmarking.
+
+    The first resolve_entity() called entity_master.resolve() on every
+    word-like token in the query. entity_master reaches yfinance OVER THE
+    NETWORK, so the first evaluation run fired ~40 live 404 lookups for
+    fragments of private member questions -- CUSTOM, CONCEN, TRATIO, PRESSU,
+    CHANNE, CHECKS. Private research questions must never be dribbled out to a
+    quote provider as accidental ticker probes.
+
+    The fix is an ordering guarantee: the member's OWN corpus is the candidate
+    universe, and network-backed resolution is reached only for a symbol they
+    actually write about. These tests pin that ordering.
+    """
+
+    def test_prose_words_are_never_ticker_candidates(self):
+        for q in ["customer concentration", "what could go wrong",
+                  "margin pressure", "supplier feedback", "is demand accelerating"]:
+            assert ar.candidate_symbols(q) == [], f"{q!r} produced ticker candidates"
+
+    def test_common_words_that_are_real_tickers_are_still_not_candidates(self):
+        # MY, THE, FOR, ON, IT, RISK are all genuinely listed symbols. A symbol
+        # universe does not settle a ticker match.
+        assert ar.candidate_symbols("what are my risks for it on the note") == []
+
+    def test_only_uppercase_or_cashtag_tokens_are_candidates(self):
+        assert ar.candidate_symbols("NVDA risks") == ["NVDA"]
+        assert ar.candidate_symbols("$nvda vs AMD") == ["NVDA", "AMD"]
+        assert ar.candidate_symbols("nvda risks") == []
+
+    def test_resolution_never_touches_the_network_for_an_unowned_symbol(self, corpus, monkeypatch):
+        # A symbol the member has never written about cannot help retrieve
+        # THEIR research, so there is nothing to resolve -- and nothing to send.
+        calls = []
+        import api.services.journal_two.ticker_research as tr
+        monkeypatch.setattr(tr, "resolve_research_symbols",
+                            lambda s: calls.append(s) or {"symbol": s, "symbols": [s]})
+        assert ar.resolve_entity(corpus, U, "TSLA MSFT GOOG outlook") is None
+        assert calls == [], "resolved a symbol absent from the member's corpus"
+
+    def test_resolution_is_reached_only_for_a_symbol_the_member_owns(self, corpus, monkeypatch):
+        calls = []
+        import api.services.journal_two.ticker_research as tr
+        monkeypatch.setattr(tr, "resolve_research_symbols",
+                            lambda s: calls.append(s) or {"symbol": s, "entityId": "E", "symbols": [s]})
+        ar.resolve_entity(corpus, U, "NVDA TSLA comparison")
+        assert calls == ["NVDA"], "must resolve only the owned symbol, once"
+
+    def test_a_full_prose_question_triggers_zero_resolution_attempts(self, corpus, monkeypatch):
+        calls = []
+        import api.services.journal_two.ticker_research as tr
+        monkeypatch.setattr(tr, "resolve_research_symbols",
+                            lambda s: calls.append(s) or {"symbol": s, "symbols": [s]})
+        ar.retrieve(U, "am I too reliant on a handful of buyers", conn=corpus)
+        assert calls == [], "a prose question must not probe any ticker"
