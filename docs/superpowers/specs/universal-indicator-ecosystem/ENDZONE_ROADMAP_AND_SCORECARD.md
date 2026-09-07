@@ -185,3 +185,50 @@ Stated plainly, because the objective is ambitious and two of these are structur
    methodology; "does this fill mean the same thing as TradingView's fill" does not, and the
    Complex Pine Visual Parity Set is the proposed instrument but has not yet been run against
    TradingView.
+
+---
+
+# POST-WAVES-A+B UPDATE (2026-09-07)
+
+Measured on the same frozen corpus (`5df718c2`). Baseline preserved unchanged.
+
+## Scorecard movement
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| A | REAL-WORLD COMPATIBILITY | 🔴 | 🔴 | 18/60 unchanged — Wave A removed 3 false acceptances rather than adding real ones. **This is the honest direction.** |
+| B | CORRECTNESS | 🟡 | ✅ | 3 → **0** silent false successes; truthful outcome 93.3% → **100%** on all four corpora |
+| C | COMPLEX VISUAL FIDELITY | 🔴 | 🟡 | `overlay` 0 → 49/60 · levels 0 → 10/60 · per-output styling 0 → 16/18 accepted. Objects/fills/shapes still absent |
+| D | PARAMETER FIDELITY | 🟡 | 🟡 | unchanged (17/18); edit/save/reopen still unverified |
+| E | SAVE / REOPEN | ⬜ | ⬜ | still unmeasured; P-01 (source not persisted) still open |
+| F | SCREENER INTEGRATION | 🔴 | 🔴 | untouched by design (B18) |
+| G | IMPORT UX | 🔴 | 🟡 | uncarried presentation is now *reported* (`colorDynamic`, `styleUncarried`); no FULL/PARTIAL verdict yet |
+| H | PERFORMANCE | ⬜ | ⬜ | not measured |
+| I | FAILURE TRANSPARENCY | 🟡 | ✅ | silent decline eliminated; two new guards name outcomes previously expressed as silence |
+| J | REGRESSION SAFETY | 🟡 | ✅ | 27 new permanent cases incl. a mutation control; OOS corpus re-runnable |
+
+**The marketable claim is still not earned.** A and F remain 🔴 and E/H unmeasured.
+Tier 1 remains the honest ceiling, still without the word "indicators".
+
+## Wave C requirements, as they now stand
+
+1. **The object model** — `label`/`line`/`box`/`table`/`polyline`/`linefill`.
+   43/60 scripts, 1,204 call sites, and the direct cause of 8 `pine:no-output`
+   refusals. Unchanged by A+B and now the single largest item.
+2. **Dynamic colour** — `colorMode:'column:<key>'` un-inerted. Wave B measured the
+   demand exactly: **47 output rows across the accepted scripts** carry a
+   conditional colour that is reported and not drawn.
+3. **`fill` renderer** — 17/60 scripts; schema-validated and drawn by nothing.
+4. **Shapes with glyph and anchoring** — 19/60; value-only today.
+5. **`plotcandle` as a real candle series** — Wave A refuses the all-bare case
+   truthfully; only a secondary OHLC series makes it an import.
+6. **23 `styleUncarried` sites** — mostly `plot.style_cross`, awaiting a marker
+   primitive LWC does not provide natively.
+
+## Recommended next wave
+
+**Wave C1 — dynamic colour + fill**, in that order. Both are schema-declared and
+inert, both have measured demand (47 rows / 17 scripts), and both are renderer
+work inside an existing, validated vocabulary — no new object lifecycle. That
+keeps the object model (the genuine architecture project) behind the two cheapest
+remaining fidelity wins.
