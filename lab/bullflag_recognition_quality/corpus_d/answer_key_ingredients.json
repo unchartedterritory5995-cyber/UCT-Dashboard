@@ -1,0 +1,1280 @@
+{
+  "case_0000": {
+    "symbol": "DNOW",
+    "as_of_t": 20260814,
+    "detector_fired": true,
+    "detector_top_confidence": 71.71,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 73,
+      "candidates": [
+        {
+          "pole_top_idx": 330,
+          "pole_top_t": 20260506,
+          "extracted": false,
+          "pole_base_idx": 318,
+          "pole_pct": 0.2011,
+          "pole_bars": 12,
+          "flag_count": 69,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 336,
+          "pole_top_t": 20260514,
+          "extracted": false,
+          "pole_base_idx": 318,
+          "pole_pct": 0.179,
+          "pole_bars": 18,
+          "flag_count": 63,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 345,
+          "pole_top_t": 20260528,
+          "extracted": false,
+          "pole_base_idx": 331,
+          "pole_pct": 0.0632,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20260612,
+          "extracted": false,
+          "pole_base_idx": 347,
+          "pole_pct": 0.1136,
+          "pole_bars": 9,
+          "flag_count": 43,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 384,
+          "pole_top_t": 20260724,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.1714,
+          "pole_bars": 14,
+          "flag_count": 15,
+          "flag_high": 17.2,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20260810,
+          "extracted": true,
+          "pole_pct": 0.3001,
+          "pole_bars": 7,
+          "flag_count": 4,
+          "retrace_pct": 0.2393,
+          "parallel_score": 0.8572,
+          "flag_low": 16.25,
+          "flag_high": 16.93,
+          "pole_base_idx": 388,
+          "pole_base_t": 20260730,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8371,
+          "geom_score": 97.79,
+          "vol_score": 20.37,
+          "ctx_score": 100.0,
+          "confidence": 71.71,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 71.71,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20260810,
+        "extracted": true,
+        "pole_pct": 0.3001,
+        "pole_bars": 7,
+        "flag_count": 4,
+        "retrace_pct": 0.2393,
+        "parallel_score": 0.8572,
+        "flag_low": 16.25,
+        "flag_high": 16.93,
+        "pole_base_idx": 388,
+        "pole_base_t": 20260730,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8371,
+        "geom_score": 97.79,
+        "vol_score": 20.37,
+        "ctx_score": 100.0,
+        "confidence": 71.71,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0001": {
+    "symbol": "SN",
+    "as_of_t": 20260814,
+    "detector_fired": true,
+    "detector_top_confidence": 71.14,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 72,
+      "candidates": [
+        {
+          "pole_top_idx": 319,
+          "pole_top_t": 20260421,
+          "extracted": false,
+          "pole_base_idx": 304,
+          "pole_pct": 0.2817,
+          "pole_bars": 15,
+          "flag_count": 80,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 329,
+          "pole_top_t": 20260505,
+          "extracted": false,
+          "pole_base_idx": 315,
+          "pole_pct": 0.0934,
+          "pole_bars": 14,
+          "flag_count": 70,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 346,
+          "pole_top_t": 20260529,
+          "extracted": false,
+          "pole_base_idx": 340,
+          "pole_pct": 0.2344,
+          "pole_bars": 6,
+          "flag_count": 53,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 369,
+          "pole_top_t": 20260702,
+          "extracted": false,
+          "pole_base_idx": 352,
+          "pole_pct": 0.3188,
+          "pole_bars": 17,
+          "flag_count": 30,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 379,
+          "pole_top_t": 20260717,
+          "extracted": false,
+          "pole_base_idx": 372,
+          "pole_pct": 0.095,
+          "pole_bars": 7,
+          "flag_count": 20,
+          "flag_high": 191.22,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 396,
+          "pole_top_t": 20260811,
+          "extracted": true,
+          "pole_pct": 0.3478,
+          "pole_bars": 13,
+          "flag_count": 3,
+          "retrace_pct": 0.1711,
+          "parallel_score": 0.9402,
+          "flag_low": 182.78,
+          "flag_high": 190.28,
+          "pole_base_idx": 383,
+          "pole_base_t": 20260723,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8835,
+          "geom_score": 100.0,
+          "vol_score": 14.56,
+          "ctx_score": 100.0,
+          "confidence": 71.14,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 71.14,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 396,
+        "pole_top_t": 20260811,
+        "extracted": true,
+        "pole_pct": 0.3478,
+        "pole_bars": 13,
+        "flag_count": 3,
+        "retrace_pct": 0.1711,
+        "parallel_score": 0.9402,
+        "flag_low": 182.78,
+        "flag_high": 190.28,
+        "pole_base_idx": 383,
+        "pole_base_t": 20260723,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8835,
+        "geom_score": 100.0,
+        "vol_score": 14.56,
+        "ctx_score": 100.0,
+        "confidence": 71.14,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0002": {
+    "symbol": "PH",
+    "as_of_t": 20260413,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 71,
+      "candidates": [
+        {
+          "pole_top_idx": 318,
+          "pole_top_t": 20251212,
+          "extracted": false,
+          "pole_base_idx": 301,
+          "pole_pct": 0.1267,
+          "pole_bars": 17,
+          "flag_count": 81,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 334,
+          "pole_top_t": 20260107,
+          "extracted": false,
+          "pole_base_idx": 315,
+          "pole_pct": 0.0829,
+          "pole_bars": 19,
+          "flag_count": 65,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20260122,
+          "extracted": false,
+          "pole_base_idx": 331,
+          "pole_pct": 0.0894,
+          "pole_bars": 13,
+          "flag_count": 55,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 367,
+          "pole_top_t": 20260225,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.1356,
+          "pole_bars": 19,
+          "flag_count": 32,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20260325,
+          "extracted": false,
+          "pole_base_idx": 381,
+          "pole_pct": 0.0658,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 392,
+          "pole_top_t": 20260401,
+          "extracted": false,
+          "pole_base_idx": 390,
+          "pole_pct": 0.0818,
+          "pole_bars": 2,
+          "flag_count": 7,
+          "flag_high": 991.7,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0003": {
+    "symbol": "USLM",
+    "as_of_t": 20260814,
+    "detector_fired": true,
+    "detector_top_confidence": 77.13,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 78,
+      "candidates": [
+        {
+          "pole_top_idx": 346,
+          "pole_top_t": 20260529,
+          "extracted": false,
+          "pole_base_idx": 341,
+          "pole_pct": 0.151,
+          "pole_bars": 5,
+          "flag_count": 53,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 352,
+          "pole_top_t": 20260608,
+          "extracted": false,
+          "pole_base_idx": 341,
+          "pole_pct": 0.1278,
+          "pole_bars": 11,
+          "flag_count": 47,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 360,
+          "pole_top_t": 20260618,
+          "extracted": false,
+          "pole_base_idx": 341,
+          "pole_pct": 0.1483,
+          "pole_bars": 19,
+          "flag_count": 39,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 366,
+          "pole_top_t": 20260629,
+          "extracted": false,
+          "pole_base_idx": 354,
+          "pole_pct": 0.0796,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 386,
+          "pole_top_t": 20260728,
+          "extracted": false,
+          "pole_base_idx": 372,
+          "pole_pct": 0.2367,
+          "pole_bars": 14,
+          "flag_count": 13,
+          "flag_high": 122.37,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20260810,
+          "extracted": true,
+          "pole_pct": 0.1762,
+          "pole_bars": 15,
+          "flag_count": 4,
+          "retrace_pct": 0.3071,
+          "parallel_score": 0.7095,
+          "flag_low": 116.74,
+          "flag_high": 121.56,
+          "pole_base_idx": 380,
+          "pole_base_t": 20260720,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.5958,
+          "geom_score": 100.0,
+          "vol_score": 50.52,
+          "ctx_score": 85.0,
+          "confidence": 77.13,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 77.13,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20260810,
+        "extracted": true,
+        "pole_pct": 0.1762,
+        "pole_bars": 15,
+        "flag_count": 4,
+        "retrace_pct": 0.3071,
+        "parallel_score": 0.7095,
+        "flag_low": 116.74,
+        "flag_high": 121.56,
+        "pole_base_idx": 380,
+        "pole_base_t": 20260720,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.5958,
+        "geom_score": 100.0,
+        "vol_score": 50.52,
+        "ctx_score": 85.0,
+        "confidence": 77.13,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0004": {
+    "symbol": "TRV",
+    "as_of_t": 20260414,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 74,
+      "candidates": [
+        {
+          "pole_top_idx": 322,
+          "pole_top_t": 20251219,
+          "extracted": false,
+          "pole_base_idx": 315,
+          "pole_pct": 0.0638,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 354,
+          "pole_top_t": 20260206,
+          "extracted": false,
+          "pole_base_idx": 341,
+          "pole_pct": 0.1358,
+          "pole_bars": 13,
+          "flag_count": 45,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20260223,
+          "extracted": false,
+          "pole_base_idx": 359,
+          "pole_pct": 0.0595,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 369,
+          "pole_top_t": 20260302,
+          "extracted": false,
+          "pole_base_idx": 359,
+          "pole_pct": 0.0723,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20260317,
+          "extracted": false,
+          "pole_base_idx": 377,
+          "pole_pct": 0.0522,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 396,
+          "pole_top_t": 20260409,
+          "extracted": false,
+          "pole_base_idx": 388,
+          "pole_pct": 0.0759,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0005": {
+    "symbol": "USLM",
+    "as_of_t": 20251020,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 77,
+      "candidates": [
+        {
+          "pole_top_idx": 341,
+          "pole_top_t": 20250729,
+          "extracted": false,
+          "pole_base_idx": 321,
+          "pole_pct": 0.1703,
+          "pole_bars": 20,
+          "flag_count": 58,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 352,
+          "pole_top_t": 20250813,
+          "extracted": false,
+          "pole_base_idx": 343,
+          "pole_pct": 0.2996,
+          "pole_bars": 9,
+          "flag_count": 47,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20250829,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.1833,
+          "pole_bars": 6,
+          "flag_count": 35,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 376,
+          "pole_top_t": 20250917,
+          "extracted": false,
+          "pole_base_idx": 358,
+          "pole_pct": 0.2001,
+          "pole_bars": 18,
+          "flag_count": 23,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20250923,
+          "extracted": false,
+          "pole_base_idx": 367,
+          "pole_pct": 0.1048,
+          "pole_bars": 13,
+          "flag_count": 19,
+          "flag_high": 135.52,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 386,
+          "pole_top_t": 20251001,
+          "extracted": false,
+          "pole_base_idx": 367,
+          "pole_pct": 0.1204,
+          "pole_bars": 19,
+          "flag_count": 13,
+          "flag_high": 135.52,
+          "retrace_pct": 0.9601,
+          "reject_reason": "retrace_out_of_range"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0006": {
+    "symbol": "PH",
+    "as_of_t": 20260813,
+    "detector_fired": true,
+    "detector_top_confidence": 72.19,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 76,
+      "candidates": [
+        {
+          "pole_top_idx": 337,
+          "pole_top_t": 20260514,
+          "extracted": false,
+          "pole_base_idx": 329,
+          "pole_pct": 0.0393,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20260526,
+          "extracted": false,
+          "pole_base_idx": 340,
+          "pole_pct": 0.0487,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 365,
+          "pole_top_t": 20260625,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.2316,
+          "pole_bars": 17,
+          "flag_count": 34,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 379,
+          "pole_top_t": 20260716,
+          "extracted": false,
+          "pole_base_idx": 372,
+          "pole_pct": 0.0517,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 385,
+          "pole_top_t": 20260724,
+          "extracted": false,
+          "pole_base_idx": 372,
+          "pole_pct": 0.0768,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 394,
+          "pole_top_t": 20260806,
+          "extracted": true,
+          "pole_pct": 0.1772,
+          "pole_bars": 14,
+          "flag_count": 5,
+          "retrace_pct": 0.2878,
+          "parallel_score": 0.7824,
+          "flag_low": 1052.29,
+          "flag_high": 1089.35,
+          "pole_base_idx": 380,
+          "pole_base_t": 20260717,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.8499,
+          "geom_score": 100.0,
+          "vol_score": 18.76,
+          "ctx_score": 100.0,
+          "confidence": 72.19,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 72.19,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 394,
+        "pole_top_t": 20260806,
+        "extracted": true,
+        "pole_pct": 0.1772,
+        "pole_bars": 14,
+        "flag_count": 5,
+        "retrace_pct": 0.2878,
+        "parallel_score": 0.7824,
+        "flag_low": 1052.29,
+        "flag_high": 1089.35,
+        "pole_base_idx": 380,
+        "pole_base_t": 20260717,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.8499,
+        "geom_score": 100.0,
+        "vol_score": 18.76,
+        "ctx_score": 100.0,
+        "confidence": 72.19,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0007": {
+    "symbol": "SPRY",
+    "as_of_t": 20250626,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 73,
+      "candidates": [
+        {
+          "pole_top_idx": 332,
+          "pole_top_t": 20250320,
+          "extracted": false,
+          "pole_base_idx": 320,
+          "pole_pct": 0.5087,
+          "pole_bars": 12,
+          "flag_count": 67,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 344,
+          "pole_top_t": 20250407,
+          "extracted": false,
+          "pole_base_idx": 330,
+          "pole_pct": 0.2453,
+          "pole_bars": 14,
+          "flag_count": 55,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 355,
+          "pole_top_t": 20250423,
+          "extracted": false,
+          "pole_base_idx": 346,
+          "pole_pct": 0.3085,
+          "pole_bars": 9,
+          "flag_count": 44,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 362,
+          "pole_top_t": 20250502,
+          "extracted": false,
+          "pole_base_idx": 346,
+          "pole_pct": 0.2758,
+          "pole_bars": 16,
+          "flag_count": 37,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 380,
+          "pole_top_t": 20250529,
+          "extracted": false,
+          "pole_base_idx": 371,
+          "pole_pct": 0.3305,
+          "pole_bars": 9,
+          "flag_count": 19,
+          "flag_high": 18.21,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20250609,
+          "extracted": false,
+          "pole_base_idx": 371,
+          "pole_pct": 0.2764,
+          "pole_bars": 16,
+          "flag_count": 12,
+          "flag_high": 18.21,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0008": {
+    "symbol": "CORT",
+    "as_of_t": 20250626,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 77,
+      "candidates": [
+        {
+          "pole_top_idx": 339,
+          "pole_top_t": 20250331,
+          "extracted": false,
+          "pole_base_idx": 323,
+          "pole_pct": 1.237,
+          "pole_bars": 16,
+          "flag_count": 60,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20250424,
+          "extracted": false,
+          "pole_base_idx": 338,
+          "pole_pct": 0.4161,
+          "pole_bars": 18,
+          "flag_count": 43,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 364,
+          "pole_top_t": 20250506,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.2212,
+          "pole_bars": 11,
+          "flag_count": 35,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 378,
+          "pole_top_t": 20250527,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.1712,
+          "pole_bars": 8,
+          "flag_count": 21,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 382,
+          "pole_top_t": 20250602,
+          "extracted": false,
+          "pole_base_idx": 370,
+          "pole_pct": 0.2518,
+          "pole_bars": 12,
+          "flag_count": 17,
+          "flag_high": 77.42,
+          "retrace_pct": 1.1361,
+          "reject_reason": "retrace_out_of_range"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20250610,
+          "extracted": false,
+          "pole_base_idx": 383,
+          "pole_pct": 0.1138,
+          "pole_bars": 5,
+          "flag_count": 11,
+          "flag_high": 77.42,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0009": {
+    "symbol": "G",
+    "as_of_t": 20251020,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 68,
+      "candidates": [
+        {
+          "pole_top_idx": 337,
+          "pole_top_t": 20250723,
+          "extracted": false,
+          "pole_base_idx": 331,
+          "pole_pct": 0.0479,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 342,
+          "pole_top_t": 20250730,
+          "extracted": false,
+          "pole_base_idx": 331,
+          "pole_pct": 0.0395,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 349,
+          "pole_top_t": 20250808,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.0685,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 359,
+          "pole_top_t": 20250822,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.0998,
+          "pole_bars": 11,
+          "flag_count": 40,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 368,
+          "pole_top_t": 20250905,
+          "extracted": false,
+          "pole_base_idx": 348,
+          "pole_pct": 0.0976,
+          "pole_bars": 20,
+          "flag_count": 31,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 381,
+          "pole_top_t": 20250924,
+          "extracted": false,
+          "pole_base_idx": 379,
+          "pole_pct": 0.0498,
+          "reject_reason": "pole_pct_below_min"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0010": {
+    "symbol": "ARLO",
+    "as_of_t": 20250626,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 78,
+      "candidates": [
+        {
+          "pole_top_idx": 318,
+          "pole_top_t": 20250228,
+          "extracted": false,
+          "pole_base_idx": 307,
+          "pole_pct": 0.3179,
+          "pole_bars": 11,
+          "flag_count": 81,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 329,
+          "pole_top_t": 20250317,
+          "extracted": false,
+          "pole_base_idx": 327,
+          "pole_pct": 0.0937,
+          "pole_bars": 2,
+          "flag_count": 70,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 346,
+          "pole_top_t": 20250409,
+          "extracted": false,
+          "pole_base_idx": 343,
+          "pole_pct": 0.2602,
+          "pole_bars": 3,
+          "flag_count": 53,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 372,
+          "pole_top_t": 20250516,
+          "extracted": false,
+          "pole_base_idx": 353,
+          "pole_pct": 0.5866,
+          "pole_bars": 19,
+          "flag_count": 27,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20250610,
+          "extracted": true,
+          "pole_pct": 0.3265,
+          "pole_bars": 11,
+          "flag_count": 11,
+          "retrace_pct": 0.2887,
+          "parallel_score": 0.8314,
+          "flag_low": 16.34,
+          "flag_high": 17.7,
+          "pole_base_idx": 377,
+          "pole_base_t": 20250523,
+          "volume_contracted": false,
+          "flag_pole_vol_ratio": 1.3765,
+          "reject_reason": "volume_not_contracted"
+        },
+        {
+          "pole_top_idx": 393,
+          "pole_top_t": 20250617,
+          "extracted": true,
+          "pole_pct": 0.3348,
+          "pole_bars": 16,
+          "flag_count": 6,
+          "retrace_pct": 0.3063,
+          "parallel_score": 0.8261,
+          "flag_low": 16.34,
+          "flag_high": 17.52,
+          "pole_base_idx": 377,
+          "pole_base_t": 20250523,
+          "volume_contracted": false,
+          "flag_pole_vol_ratio": 1.6294,
+          "reject_reason": "volume_not_contracted"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0011": {
+    "symbol": "CORT",
+    "as_of_t": 20260814,
+    "detector_fired": true,
+    "detector_top_confidence": 72.46,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 71,
+      "candidates": [
+        {
+          "pole_top_idx": 301,
+          "pole_top_t": 20260325,
+          "extracted": false,
+          "pole_base_idx": 293,
+          "pole_pct": 0.5844,
+          "pole_bars": 8,
+          "flag_count": 98,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 336,
+          "pole_top_t": 20260514,
+          "extracted": false,
+          "pole_base_idx": 321,
+          "pole_pct": 0.3382,
+          "pole_bars": 15,
+          "flag_count": 63,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 359,
+          "pole_top_t": 20260617,
+          "extracted": false,
+          "pole_base_idx": 339,
+          "pole_pct": 0.5644,
+          "pole_bars": 20,
+          "flag_count": 40,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 373,
+          "pole_top_t": 20260709,
+          "extracted": false,
+          "pole_base_idx": 361,
+          "pole_pct": 0.2291,
+          "pole_bars": 12,
+          "flag_count": 26,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 384,
+          "pole_top_t": 20260724,
+          "extracted": false,
+          "pole_base_idx": 375,
+          "pole_pct": 0.1502,
+          "pole_bars": 9,
+          "flag_count": 15,
+          "flag_high": 122.21,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 388,
+          "pole_top_t": 20260730,
+          "extracted": true,
+          "pole_pct": 0.4398,
+          "pole_bars": 13,
+          "flag_count": 11,
+          "retrace_pct": 0.3989,
+          "parallel_score": 0.5761,
+          "flag_low": 107.32,
+          "flag_high": 118.53,
+          "pole_base_idx": 375,
+          "pole_base_t": 20260713,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.7032,
+          "geom_score": 89.22,
+          "vol_score": 37.1,
+          "ctx_score": 100.0,
+          "confidence": 72.46,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 72.46,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 388,
+        "pole_top_t": 20260730,
+        "extracted": true,
+        "pole_pct": 0.4398,
+        "pole_bars": 13,
+        "flag_count": 11,
+        "retrace_pct": 0.3989,
+        "parallel_score": 0.5761,
+        "flag_low": 107.32,
+        "flag_high": 118.53,
+        "pole_base_idx": 375,
+        "pole_base_t": 20260713,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.7032,
+        "geom_score": 89.22,
+        "vol_score": 37.1,
+        "ctx_score": 100.0,
+        "confidence": 72.46,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0012": {
+    "symbol": "KBR",
+    "as_of_t": 20260814,
+    "detector_fired": true,
+    "detector_top_confidence": 80.09,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 78,
+      "candidates": [
+        {
+          "pole_top_idx": 350,
+          "pole_top_t": 20260604,
+          "extracted": false,
+          "pole_base_idx": 337,
+          "pole_pct": 0.2251,
+          "pole_bars": 13,
+          "flag_count": 49,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 356,
+          "pole_top_t": 20260612,
+          "extracted": false,
+          "pole_base_idx": 337,
+          "pole_pct": 0.2108,
+          "pole_bars": 19,
+          "flag_count": 43,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 371,
+          "pole_top_t": 20260707,
+          "extracted": false,
+          "pole_base_idx": 361,
+          "pole_pct": 0.2034,
+          "pole_bars": 10,
+          "flag_count": 28,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 377,
+          "pole_top_t": 20260715,
+          "extracted": false,
+          "pole_base_idx": 361,
+          "pole_pct": 0.1598,
+          "pole_bars": 16,
+          "flag_count": 22,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 384,
+          "pole_top_t": 20260724,
+          "extracted": false,
+          "pole_base_idx": 381,
+          "pole_pct": 0.1067,
+          "pole_bars": 3,
+          "flag_count": 15,
+          "flag_high": 38.57,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 395,
+          "pole_top_t": 20260810,
+          "extracted": true,
+          "pole_pct": 0.2001,
+          "pole_bars": 7,
+          "flag_count": 4,
+          "retrace_pct": 0.2908,
+          "parallel_score": 0.7534,
+          "flag_low": 36.7,
+          "flag_high": 38.51,
+          "pole_base_idx": 388,
+          "pole_base_t": 20260730,
+          "volume_contracted": true,
+          "flag_pole_vol_ratio": 0.578,
+          "geom_score": 100.0,
+          "vol_score": 52.75,
+          "ctx_score": 97.0,
+          "confidence": 80.09,
+          "reject_reason": null,
+          "would_fire": true
+        }
+      ],
+      "final_fired": true,
+      "final_confidence": 80.09,
+      "n_pole_top_candidates": 6,
+      "best_candidate": {
+        "pole_top_idx": 395,
+        "pole_top_t": 20260810,
+        "extracted": true,
+        "pole_pct": 0.2001,
+        "pole_bars": 7,
+        "flag_count": 4,
+        "retrace_pct": 0.2908,
+        "parallel_score": 0.7534,
+        "flag_low": 36.7,
+        "flag_high": 38.51,
+        "pole_base_idx": 388,
+        "pole_base_t": 20260730,
+        "volume_contracted": true,
+        "flag_pole_vol_ratio": 0.578,
+        "geom_score": 100.0,
+        "vol_score": 52.75,
+        "ctx_score": 97.0,
+        "confidence": 80.09,
+        "reject_reason": null,
+        "would_fire": true
+      }
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  },
+  "case_0013": {
+    "symbol": "DOCU",
+    "as_of_t": 20260814,
+    "detector_fired": false,
+    "detector_top_confidence": null,
+    "pipeline_trace": {
+      "n_bars": 400,
+      "liquidity_ok": true,
+      "n_pivots": 74,
+      "candidates": [
+        {
+          "pole_top_idx": 328,
+          "pole_top_t": 20260504,
+          "extracted": false,
+          "pole_base_idx": 312,
+          "pole_pct": 0.1718,
+          "pole_bars": 16,
+          "flag_count": 71,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 339,
+          "pole_top_t": 20260519,
+          "extracted": false,
+          "pole_base_idx": 321,
+          "pole_pct": 0.1791,
+          "pole_bars": 18,
+          "flag_count": 60,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 347,
+          "pole_top_t": 20260601,
+          "extracted": false,
+          "pole_base_idx": 335,
+          "pole_pct": 0.3003,
+          "pole_bars": 12,
+          "flag_count": 52,
+          "reject_reason": "flag_bar_count_out_of_range"
+        },
+        {
+          "pole_top_idx": 357,
+          "pole_top_t": 20260615,
+          "extracted": false,
+          "pole_base_idx": 356,
+          "pole_pct": 0.0695,
+          "reject_reason": "pole_pct_below_min"
+        },
+        {
+          "pole_top_idx": 379,
+          "pole_top_t": 20260717,
+          "extracted": false,
+          "pole_base_idx": 360,
+          "pole_pct": 0.3174,
+          "pole_bars": 19,
+          "flag_count": 20,
+          "flag_high": 65.25,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        },
+        {
+          "pole_top_idx": 387,
+          "pole_top_t": 20260729,
+          "extracted": false,
+          "pole_base_idx": 383,
+          "pole_pct": 0.2697,
+          "pole_bars": 4,
+          "flag_count": 12,
+          "flag_high": 65.25,
+          "reject_reason": "flag_high_exceeds_pole_top"
+        }
+      ],
+      "final_fired": false,
+      "final_confidence": null,
+      "n_pole_top_candidates": 6
+    },
+    "note": "CANDIDATE ONLY (detector unchanged since Corpus C) -- not adjudicated ground truth. Never shown to the blind judge."
+  }
+}
