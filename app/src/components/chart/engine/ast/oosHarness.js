@@ -170,6 +170,10 @@ function summarise(out) {
     selectedIndex: out.selected ?? -1,
     selected: (out.selected >= 0 && rows[out.selected]) ? rows[out.selected] : null,
     inputParams: (out.inputParams || []).length,
+    // ⭐ WAVE B — what the script's visual program said, and how much of it
+    // crossed the door. Measured, never assumed.
+    presentation: out.presentation || null,
+    rowPresentation: (out.outputs || []).map((r) => r.presentation || {}),
     notes: (out.notes || []).map((n) => n.code || n.guard || String(n).slice(0, 60)),
     rows,
   }

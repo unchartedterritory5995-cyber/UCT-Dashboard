@@ -588,7 +588,41 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // and screens correctly, exactly as it does today, just without the
     // control. The pure-numeric artifact path (no condition) is unaffected.
     const paramManifest = wrapped ? null : activeParamManifest
-    onPick?.((rows.length || paramManifest) ? { source: picked, inputs: rows, paramManifest } : picked)
+    // ⭐⭐ WAVE B — THE SCRIPT'S VISUAL PROGRAM TRAVELS WITH ITS FORMULA.
+    //
+    // ⚰️ EVERYTHING A PINE AUTHOR SAID ABOUT HOW THEIR INDICATOR LOOKS USED TO
+    // DIE HERE. The translator now reads `overlay=` off the declaration, the
+    // `hline` levels it used to discard, and each output's own colour, width,
+    // style and opacity — and this was the door that dropped them, handing back
+    // a formula string so the receiving row was born `style:'line'`, default
+    // colour, default width. The renderer could always draw these; nothing ever
+    // told it what to draw.
+    //
+    // ⛔ THE STRING FORM IS STILL UNCHANGED FOR A CALLER WITH NOTHING TO SAY.
+    // `StarterLibrary` hands back a bare string and still does; the object form
+    // appears only when this paste actually carries something extra.
+    //
+    // ⚠️ AND IT CARRIES WHAT WAS *NOT* CARRIED TOO — `colorDynamic`,
+    // `styleUncarried`. A conditional colour is 40 of the 60 OOS scripts, and
+    // the honest thing is to say it was demanded and dropped rather than show
+    // one flat colour and call the import complete.
+    //
+    // ⛔⛔ AND "NOTHING TO SAY" MEANS THE BARE STRING, STILL. `report.presentation`
+    // is always PRESENT (it is a shape, not a signal), so handing the object form
+    // whenever it exists would make every paste an object and break the guarded
+    // contract two paragraphs up — which is exactly what happened on the first
+    // attempt, and what `pineBox.onPick` pins in two directions. The object form
+    // appears only when the script actually SAID something visual.
+    const outPres = (active && active.presentation) || {}
+    const scriptPres = (report && report.presentation) || {}
+    const saidSomething = scriptPres.overlay !== null && scriptPres.overlay !== undefined
+      ? true
+      : ((scriptPres.levels || []).length > 0 || Object.keys(outPres).length > 0)
+    const presentation = saidSomething
+      ? { ...scriptPres, output: outPres }
+      : null
+    const extra = rows.length || paramManifest || presentation
+    onPick?.(extra ? { source: picked, inputs: rows, paramManifest, presentation } : picked)
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
     // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —

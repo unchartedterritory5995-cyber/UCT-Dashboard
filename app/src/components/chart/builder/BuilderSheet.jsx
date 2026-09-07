@@ -1961,6 +1961,36 @@ export default function BuilderSheet({
                 // script, and its astPath locators have nothing to do with
                 // whatever the previous paste's manifest pointed at.
                 setParamManifest(pickedParamManifest)
+                // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, APPLIED.
+                //
+                // A fourth independent field on the same object form, and like
+                // `inputs` and `paramManifest` it lands only what it was handed.
+                // Every target here is a field `defSchema` already validates and
+                // `binder.js` already draws — the loss was never in the renderer,
+                // it was that nothing carried the author's intent this far.
+                //
+                // ⛔ ABSENT MEANS ABSENT, NEVER A DEFAULT INVENTED HERE. The
+                // translator omits what the author did not write, so a script
+                // that says nothing about colour keeps the builder's own default
+                // rather than being told it asked for one.
+                const pres = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && picked.presentation && typeof picked.presentation === 'object')
+                  ? picked.presentation : null
+                if (pres) {
+                  // `overlay=true` is the author saying "on the price chart".
+                  if (pres.overlay === true) setTarget('price')
+                  else if (pres.overlay === false) setTarget('pane')
+                  // `hline(70)` / `hline(30)` — the levels this door used to drop.
+                  if (Array.isArray(pres.levels) && pres.levels.length) {
+                    setLevelsText(pres.levels.map((l) => l.value).join(', '))
+                  }
+                  const o = pres.output || {}
+                  const patch = {}
+                  if (typeof o.color === 'string') patch.color = o.color
+                  if (Number.isFinite(o.width)) patch.width = Math.max(1, Math.min(4, Math.round(o.width)))
+                  if (typeof o.style === 'string') patch.style = o.style
+                  if (Object.keys(patch).length) setPlot0((prev) => ({ ...prev, ...patch }))
+                }
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)

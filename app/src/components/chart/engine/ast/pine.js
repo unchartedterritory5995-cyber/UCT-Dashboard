@@ -7445,6 +7445,10 @@ export function translatePine(source, opts = {}) {
     return { ...blank, refusal: refusalValue('pine:empty', REFUSALS['pine:empty'], null), refusals: [refusalValue('pine:empty', REFUSALS['pine:empty'], null)] }
   }
 
+  // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
+  let overlay = null
+  const levels = []
+
   let lexed
   try {
     lexed = lexPine(source)
@@ -7618,6 +7622,9 @@ export function translatePine(source, opts = {}) {
       declaration = word
       const firstString = toks.find((t) => t.kind === 'string')
       title = firstString ? firstString.value : null
+      // ⭐⭐ WAVE B: THE AUTHOR'S PANE INTENT IS NOW READ. It always sat right
+      // here in the tokens and was walked past.
+      overlay = declarationOverlay(toks)
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
@@ -7944,6 +7951,34 @@ export function translatePine(source, opts = {}) {
     if (isPunct(toks[1], '(')) {
       const dot = word.indexOf('.')
       const ns = dot > 0 ? word.slice(0, dot) : null
+      // ⭐⭐ WAVE B: `hline` IS A LEVEL, AND THE SCHEMA HAS HAD ONE ALL ALONG.
+      // `defSchema` carries a first-class `hlines` plot with a `levels` array and
+      // `binder.js` draws each as a real price line. This door recorded the call
+      // as an ignored line and threw the number away. Ten of the sixty OOS
+      // scripts draw levels, and an RSI import arriving without 70 and 30 is not
+      // the indicator the member pasted.
+      // ⛔ IT STILL EMITS THE CHART-ONLY NOTE. The level is now CARRIED, but the
+      // call is still not a column, and the member's disclosure list should keep
+      // saying so.
+      if (word === 'hline') {
+        try {
+          const hargs = parseArguments(new Cursor(toks.slice(2)))
+          const positional = hargs.filter((a) => !a.name)
+          const priceArg = hargs.find((a) => a.name === 'price') || positional[0]
+          const titleArg = hargs.find((a) => a.name === 'title') || positional[1]
+          const v = numberValue(priceArg && priceArg.value)
+          if (v !== null) {
+            levels.push({
+              value: v,
+              title: titleArg && titleArg.value && titleArg.value.type === 'string'
+                ? titleArg.value.value : null,
+              ...outputPresentation(hargs),
+            })
+          }
+        } catch { /* a level this grammar cannot fold stays an ignored line */ }
+        notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
+        continue
+      }
       if (CHART_ONLY_CALLS.has(word)) {
         notes.push(noteOf('pine:chart-only', chartOnlyNote(word), first))
         continue
@@ -8077,6 +8112,8 @@ export function translatePine(source, opts = {}) {
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
         displace: shift < 0 ? shift : 0,
+        // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
+        presentation: outputPresentation(args),
         hidden: authorHid || flat,
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
@@ -8152,6 +8189,7 @@ export function translatePine(source, opts = {}) {
     const r = refusalValue('pine:no-output', REFUSALS['pine:no-output'], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
+      presentation: { overlay, levels },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
@@ -8196,6 +8234,11 @@ export function translatePine(source, opts = {}) {
     version,
     declaration,
     title,
+    // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, alongside its calculations.
+    // `overlay` is the author's pane intent, read from the declaration this door
+    // previously only glanced at for a title. `levels` are the `hline` values it
+    // used to discard. Per-output styling rides on each row's `presentation`.
+    presentation: { overlay, levels },
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table),
     notes: withExcerpts(notes, lines),
@@ -8279,6 +8322,130 @@ function chooseOutput(rows, table) {
 const PRICE_SOURCES = new Set(['open', 'high', 'low', 'close', 'volume'])
 export function isBareSource(node) {
   return !!node && node.type === 'series' && PRICE_SOURCES.has(node.name)
+}
+
+
+// ─── WAVE B: PRESENTATION CARRIAGE ──────────────────────────────────────────
+//
+// ⭐⭐ THIS DOOR USED TO READ EXACTLY ONE PRESENTATION ARGUMENT. The string
+// `overlay` appeared ZERO times in this file, and the only styling argument read
+// at all was `display`, used solely to hide. Everything a Pine author says about
+// how their indicator LOOKS — which pane, what colour, how thick, what shape,
+// which levels — was parsed past and dropped, and the receiving plot row was
+// born `style:'line'`, default colour, default width.
+//
+// ⛔ THE RENDERER WAS NEVER THE LIMIT. `defSchema` already expresses eight plot
+// styles, per-plot colour, width, line style, opacity, precision, legend, levels
+// and placement, and `binder.js` already draws them. The loss began HERE, at the
+// import boundary, which is why carrying it is worth more per line than any
+// renderer work.
+//
+// ⚠️ WHAT IS NOT CLAIMED: this reads the presentation a Pine author WROTE. It
+// does not promise UCT draws every one of them — a style with no counterpart is
+// reported and left unset rather than silently mapped onto a near neighbour.
+
+/** TradingView's own published constants. ⛔ THESE ARE THE VENDOR'S HEX VALUES,
+ *  not our palette: an imported indicator that comes back a different red has
+ *  not been imported faithfully, and "close enough" is the whole failure this
+ *  wave exists to stop. */
+const PINE_COLOURS = Object.freeze({
+  'color.aqua': '#00BCD4', 'color.black': '#363A45', 'color.blue': '#2962FF',
+  'color.fuchsia': '#E040FB', 'color.gray': '#787B86', 'color.grey': '#787B86',
+  'color.green': '#4CAF50', 'color.lime': '#00E676', 'color.maroon': '#880E4F',
+  'color.navy': '#311B92', 'color.olive': '#808000', 'color.orange': '#FF9800',
+  'color.purple': '#9C27B0', 'color.red': '#F23645', 'color.silver': '#B2B5BE',
+  'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
+})
+
+/** Pine plot style → the name `defSchema.PLOT_STYLES` already validates.
+ *  ⛔ A STYLE WITH NO COUNTERPART IS ABSENT FROM THIS MAP ON PURPOSE, so it is
+ *  REPORTED as uncarried rather than mapped onto something that draws a
+ *  different picture. `plot.style_cross` is the live example: `defSchema`
+ *  reserves `cross` and refuses it because LWC draws circle/square/arrow markers
+ *  only, so silently sending `markers` would put dots where a member wrote
+ *  crosses and call it fidelity. */
+const PINE_PLOT_STYLES = Object.freeze({
+  'plot.style_line': 'line',
+  'plot.style_linebr': 'line',
+  'plot.style_stepline': 'stepline',
+  'plot.style_histogram': 'histogram',
+  'plot.style_columns': 'histogram',
+  'plot.style_area': 'area',
+  'plot.style_areabr': 'area',
+  'plot.style_circles': 'markers',
+})
+
+const isColourName = (v) => !!v && v.type === 'name' && Object.hasOwn(PINE_COLOURS, v.name)
+
+// ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
+// vocabularies, one letter apart, and the wrong one fails SILENTLY — every
+// literal simply reads as absent, so `linewidth = 2` was dropped and every
+// `hline` produced an empty level list while the code looked correct. Read
+// `parsePrimary`: `{ type: 'number' }`, `{ type: 'string' }`, `{ type: 'colour' }`.
+const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
+
+/** The presentation ONE output call declares. Returns only what was actually
+ *  written — an absent argument is absent, never a default invented here, so a
+ *  consumer can tell "the author said line" from "the author said nothing". */
+function outputPresentation(args) {
+  const pres = {}
+  const arg = (n) => args.find((a) => a.name === n)
+
+  const c = arg('color')
+  if (c) {
+    if (isColourName(c.value)) pres.color = PINE_COLOURS[c.value.name]
+    // ⭐ A HEX LITERAL IS ALREADY THE ANSWER — `#FF9800` needs no table.
+    else if (c.value && c.value.type === 'colour') pres.color = String(c.value.value)
+    // ⛔⛔ A CALL NODE'S `args` ARE `{name, value}` PAIRS, NOT RAW NODES.
+    // `parseArguments` returns Pine's own positional-and-named shape, so reading
+    // `args[0].type` looks at the PAIR and finds nothing — the second time this
+    // wave read one level too shallow and got a silent "the author said nothing".
+    else if (c.value && c.value.type === 'call' && c.value.name === 'color.new'
+             && (isColourName(((c.value.args || [])[0] || {}).value)
+                 || (((c.value.args || [])[0] || {}).value || {}).type === 'colour')) {
+      const base = c.value.args[0].value
+      pres.color = base.type === 'colour' ? String(base.value) : PINE_COLOURS[base.name]
+      const t = numberValue(((c.value.args || [])[1] || {}).value)
+      if (t !== null) pres.opacity = Math.max(0, Math.min(1, 1 - t / 100))
+    } else {
+      // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 40 of the 60
+      // OOS scripts colour conditionally, and for a `plotcandle` it is the entire
+      // payload. It is recorded as DEMANDED-AND-UNCARRIED rather than dropped,
+      // so the import can say so instead of quietly showing one flat colour.
+      pres.colorDynamic = true
+    }
+  }
+
+  const w = numberValue((arg('linewidth') || {}).value)
+  if (w !== null) pres.width = w
+
+  const st = arg('style')
+  if (st && st.value && st.value.type === 'name') {
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
+    else pres.styleUncarried = st.value.name
+  }
+
+  const tr = numberValue((arg('transp') || {}).value)
+  if (tr !== null) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  return pres
+}
+
+/** `indicator(..., overlay = true)` — the author's own statement about WHICH
+ *  PANE their indicator belongs in, which this door has never read.
+ *  ⛔ A TOKEN SCAN, NOT A PARSE. A declaration carries arguments this grammar has
+ *  no node for (`max_lines_count`, `format`, `scale`), and parsing it to reach
+ *  one boolean would make an unrelated argument able to refuse the whole script. */
+function declarationOverlay(toks) {
+  for (let i = 0; i < toks.length - 2; i += 1) {
+    if (toks[i].kind === 'ident' && toks[i].value === 'overlay' && isPunct(toks[i + 1], '=')) {
+      const v = toks[i + 2]
+      if (v && v.kind === 'ident' && (v.value === 'true' || v.value === 'false')) {
+        return v.value === 'true'
+      }
+      return null
+    }
+  }
+  return null
 }
 
 const _BAR_READERS_FOR_TABLE = new WeakMap()
