@@ -212,3 +212,33 @@ def test_the_endpoint_never_echoes_the_dataset_back():
     for ret in ("accepted", "already-current"):
         assert ret in fn
     assert '"rows":' not in fn.split("return")[-1]
+
+
+# ── the hardening applies to EVERY bearer check, not just the one I touched ──
+def test_no_PUSH_SECRET_comparison_anywhere_uses_a_plain_equality():
+    """⛔ There are FOUR separate bearer checks in this repo, not one.
+
+    Hardening flow_admin_auth alone would have left three timing-leaky copies
+    (routers/cot.py, routers/media_evidence_bridge.py, routers/journal_two.py)
+    while the commit message claimed the class was fixed. This derives the set
+    from the source so a fifth copy fails here instead of shipping.
+    """
+    import re
+    offenders = []
+    for path in (REPO / "api").rglob("*.py"):
+        if "test_" in path.name:
+            continue
+        txt = path.read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r'^[^#\n]*==\s*f"Bearer \{', txt, re.M):
+            offenders.append(f"{path.relative_to(REPO)}: {m.group(0).strip()[:70]}")
+    assert not offenders, "plain == on a bearer secret leaks a prefix by timing:\n" + "\n".join(offenders)
+
+
+def test_CONTROL_the_scanner_can_actually_find_a_bearer_comparison():
+    """Without this the rail above passes on any regex that matches nothing."""
+    import re
+    hits = 0
+    for path in (REPO / "api").rglob("*.py"):
+        if re.search(r'f"Bearer \{', path.read_text(encoding="utf-8", errors="replace")):
+            hits += 1
+    assert hits >= 4, f"expected several bearer sites, found {hits}"
