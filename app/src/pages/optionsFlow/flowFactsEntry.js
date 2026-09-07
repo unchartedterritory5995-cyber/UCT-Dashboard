@@ -31,17 +31,18 @@
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
 import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
-import { splitAggregate } from './flowBootstrap'
+import { partsFrom } from './flowBootstrap'
 
 export const USAGE = [
   'usage:',
   '  flow-facts aggregate [--date-filter=Last1] [--split] < flow.csv   dataset as JSON',
   '  flow-facts stats     < flow.csv   sizing/telemetry only, no row payload',
   '',
-  '  --split  emit {bootstrap, deferred} instead of {D}. Same computation, same',
-  '           values; only the PARTITION differs, and the two halves recombine',
-  '           into the identical object. See flowBootstrap.js for what is',
-  '           deferred and the consumption audit that decided it.',
+  '  --split  emit {parts} instead of {D}: `bootstrap` plus ONE part per deferred',
+  '           key. Same computation, same values; only the PARTITION differs, and',
+  '           recombining every part yields the identical object. Per-key parts so',
+  '           a surface fetches what it reads — never most of the tape on the first',
+  '           tab click. See flowBootstrap.js for the consumption audit.',
 ].join('\n')
 
 /**
@@ -150,9 +151,32 @@ export async function main(argv) {
     let payload
     if (cmd === 'stats') {
       payload = { ok: true, stats }
+    } else if (argv.includes('--split-frames')) {
+      // ⛔ FRAMES, NOT JSON, AND THE REASON IS THE POD.
+      // The caller is a single uvicorn process that has OOM'd on this box before.
+      // Handing it {parts:{...}} would make it json.loads() a 20+ MB document and
+      // materialise a six-figure object graph — transiently, but once per data
+      // version, on the request path of whoever missed the cache. Length-prefixed
+      // frames let it slice each part out as opaque BYTES and gzip them without
+      // ever parsing the arrays. The partition itself is still partsFrom(), so
+      // this is a transport detail and not a second authority on what is deferred.
+      //
+      //   STATS <byteLen>\n<json>\n
+      //   PART <name> <byteLen>\n<json>\n   (repeated, one per part)
+      const parts = partsFrom(D)
+      const chunks = []
+      const frame = (header, body) => {
+        const b = Buffer.from(body, 'utf8')
+        chunks.push(Buffer.from(`${header} ${b.length}\n`, 'utf8'), b, Buffer.from('\n', 'utf8'))
+      }
+      frame('STATS', JSON.stringify(stats))
+      for (const name of Object.keys(parts)) frame(`PART ${name}`, JSON.stringify(parts[name]))
+      process.stdout.write(Buffer.concat(chunks))
+      return
     } else if (argv.includes('--split')) {
-      const { bootstrap, deferred } = splitAggregate(D)
-      payload = { ok: true, stats, bootstrap, deferred }
+      // One part per deferred key, not one deferred blob — so a surface can be
+      // served exactly what it reads instead of most of the tape on first click.
+      payload = { ok: true, stats, parts: partsFrom(D) }
     } else {
       payload = { ok: true, stats, D }
     }
