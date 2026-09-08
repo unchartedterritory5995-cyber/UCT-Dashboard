@@ -1695,6 +1695,20 @@ _PHASE_2_ALTERS = [
     # instead of an ordinary edit. Stamped ONLY by restore_note_version's
     # existing force=True capture path -- NULL for every other version.
     "ALTER TABLE j2_note_versions ADD COLUMN restored_from_version_id TEXT",
+    # Wave L (Capture Everywhere): a captured web source is a DOCUMENT, so it
+    # reuses pages/excerpts/thesis-evidence/Ask rather than opening a parallel
+    # store (entry checkpoint §2). Two columns, no table rebuild:
+    #   source_kind — 'attachment' (every pre-Wave-L row) | 'web'
+    #   source_url  — the human-meaningful page URL, for 'web' rows only
+    # ⛔ `attachment_url` STAYS the note-scoped IDENTITY column and NEVER holds
+    # a page URL. `document_extraction._resolve_pdf_bytes` regex-parses it to
+    # read bytes off disk, and note_shares rewrites attachment URLs for share
+    # links — a real URL in that column would reach both. A web row's identity
+    # is the opaque `web:<sha256>` token from web_capture.web_document_identity,
+    # which the anchored ^/api/j2/notes/attachments/… regex cannot match, so the
+    # PDF path declines it instead of touching the filesystem.
+    "ALTER TABLE j2_note_documents ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'attachment'",
+    "ALTER TABLE j2_note_documents ADD COLUMN source_url TEXT",
 ]
 
 
