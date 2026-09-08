@@ -2657,7 +2657,27 @@ export default function ChartDrawingOverlay({
           on coarse-pointer devices until the first completed placement (or ✕).
           Inline-styled like the overlay's other DOM chrome; palette matches the
           drawing context menu. */}
-      {coarsePointer && !tapHintSeen && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput && (
+      {/* ⭐ MOB-11 + MOB-18 — ONE SURFACE, BECAUSE THEY ARE ONE MOMENT.
+          The chip that lived here was a one-time COACH MARK: gated on
+          `!tapHintSeen`, so the moment a user dismissed it or placed their first
+          drawing, a half-finished placement had no narration and no way out. On
+          a phone that is the worst state on this surface — a channel wants three
+          taps, you have made one, and the only escapes are a keyboard key that
+          does not exist and completing a drawing you no longer want so you can
+          undo it.
+
+          So the chip now has two lives. With NOTHING pending it is the coach mark
+          it always was (still one-time, still dismissable). With a placement IN
+          PROGRESS it is a live HUD that says which point you are on and offers
+          Cancel — and that half is NOT gated on `tapHintSeen`, because it is not
+          teaching anything, it is reporting state.
+
+          ⛔ CANCEL REUSES ESCAPE'S PATH (`setPendingPoints([])`) rather than
+          adding a second abort. Escape already meant exactly this, and two abort
+          routines drift the first time one of them learns about a new tool. The
+          tool stays ARMED: the user aborted a placement, not a decision to draw. */}
+      {coarsePointer && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput
+        && (pendingPoints.length > 0 || !tapHintSeen) && (
         <div
           data-testid="tap-tap-hint"
           style={{
@@ -2673,11 +2693,31 @@ export default function ChartDrawingOverlay({
         >
           {pendingPoints.length === 0
             ? `Tap ${(POINT_COUNT[activeTool] || 2) === 3 ? '3 points' : '2 points'} to place`
-            : 'Now tap the next point'}
+            /* MOB-11 · the count, not just "next". "Point 2 of 3" tells you how
+               much is left; "Now tap the next point" did not, and on a
+               three-point tool that is the whole question. */
+            : `Point ${pendingPoints.length + 1} of ${POINT_COUNT[activeTool] || 2}`}
+          {pendingPoints.length > 0 && (
+            <button
+              type="button"
+              data-testid="cancel-placement"
+              aria-label="Cancel placement"
+              onClick={() => setPendingPoints([])}
+              style={{
+                minHeight: 28, padding: '0 10px', borderRadius: 999, border: 'none',
+                background: 'rgba(239, 68, 68, 0.18)', color: '#f0a3a3',
+                fontSize: 12.5, lineHeight: 1, cursor: 'pointer', touchAction: 'manipulation',
+                fontFamily: 'inherit',
+              }}
+            >Cancel</button>
+          )}
           <button
             type="button"
             aria-label="Dismiss drawing hint"
             onClick={markTapHintSeen}
+            /* Only the COACH half is dismissable. Hiding the live HUD would take
+               Cancel with it, which is the affordance the user is reaching for. */
+            hidden={pendingPoints.length > 0}
             style={{
               minWidth: 28, minHeight: 28, borderRadius: '50%', border: 'none',
               background: 'rgba(201, 168, 76, 0.16)', color: '#c9a84c',
