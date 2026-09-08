@@ -141,7 +141,7 @@ const COL_LABELS = {
   periodchg: ['% Change', '% Chg'],
   grpcount: ['Stocks', 'Stocks'],
   weight: ['Weight %', 'Wt %'],
-  atr: ['ATR %', 'ATR%'], a50: ['% from 50SMA', '50SMA'],
+  atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
 }
 const COL_FULL_MINW = {
@@ -174,7 +174,7 @@ const EXTRA_COLS = [
   { key: 'perf90d', label: '90-Day Change' },
   { key: 'attention', label: 'Attention' },
   { key: 'atr', label: 'ATR %' },
-  { key: 'a50', label: '% from 50SMA' },
+  { key: 'a50', label: 'ATR from 50SMA' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
@@ -470,9 +470,22 @@ const WatchRow = React.memo(function WatchRow({
     // ATR % — a magnitude, never signed, so it gets a plain cell (not pctCell,
     // whose green/red tint would imply a direction volatility does not have).
     if (key === 'atr') return <span key="atr" className={styles.metaCell}>{Number.isFinite(atr) ? `${Number(atr).toFixed(1)}%` : '—'}</span>
-    // Distance from the 50-day — signed, so it reads as a tinted % like the
-    // other directional columns.
-    if (key === 'a50') return pctCell('a50', a50)
+    // Distance from the 50-day in ATR MULTIPLES — signed, so it keeps the
+    // green/red tint the directional columns have.
+    //
+    // ⛔ NOT `pctCell`, and the label is not a %. The collector stores
+    // `(close - sma50) / atr_abs` (`_sma50_atr_map` in breadth_collector.py) — a
+    // MULTIPLE, not a percentage — and this rendered it through the % cell at
+    // `.toFixed(2)`, so a name sitting 8.3 ATRs above its 50-day read as
+    // "+8.30%". Two wrongs in one cell: a unit the number never had, and a
+    // second decimal its 1dp source never carried. It now prints what is
+    // stored, in the unit it is stored, at the precision it is stored — the
+    // same `x` form RVOL uses.
+    if (key === 'a50') return (
+      <FlashCell key="a50" value={a50} tint={tintEnabled} flashEnabled={tintEnabled}
+        className={`${styles.changeCell} ${a50 != null ? (a50 >= 0 ? styles.gain : styles.loss) : ''}`}
+        display={Number.isFinite(a50) ? `${a50 >= 0 ? '+' : ''}${Number(a50).toFixed(1)}x` : '—'} />
+    )
     // Watchlist Intelligence V1: a bell badge when any deterministic fact fired
     // (earnings proximity, new filing, analyst action, notable price move) —
     // opens a popover listing each fact + its evidence date/source/freshness.
