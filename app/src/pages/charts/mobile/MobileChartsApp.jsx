@@ -9,7 +9,7 @@ import MobileSymbolStrip from './MobileSymbolStrip'
 import MobileChartToolbar from './MobileChartToolbar'
 import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
-import MobileChartTypeSheet from './MobileChartTypeSheet'
+import MobileChartTypeSheet, { selectedTypeKey, chartTypePatch } from './MobileChartTypeSheet'
 import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
@@ -419,8 +419,8 @@ export default function MobileChartsApp({
       <MobileChartTypeSheet
         open={sheet === 'type'}
         onClose={closeSheet}
-        chartType={cs?.chartType || 'candles'}
-        onPick={(t) => write({ ...cs, chartType: t, preset: 'custom' })}
+        chartType={selectedTypeKey(cs)}
+        onPick={(t) => write({ ...cs, ...chartTypePatch(t), preset: 'custom' })}
         className={sheetTheme}
       />
       <MobileIndicatorSheet
