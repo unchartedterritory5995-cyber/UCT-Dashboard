@@ -932,6 +932,21 @@ def _resolve_facts_by_note(
     return out
 
 
+from api.services.journal_two import web_capture as wc
+
+
+def _export_domain(url: str | None) -> str:
+    """Host only — a citation line, never a member's tracking parameters."""
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(raw).hostname or "").removeprefix("www.")
+    except Exception:  # noqa: BLE001 - a malformed url costs the domain, nothing else
+        return ""
+
+
 def _resolve_thesis_evidence_by_note(
     conn: sqlite3.Connection, user_id: str, note_ids: list[str],
 ) -> dict[str, list[dict[str, str]]]:
@@ -976,16 +991,37 @@ def _resolve_thesis_evidence_by_note(
             fact_labels[r["id"]] = f"{r['ticker']} {fdef.label if fdef else r['fact_type']}"
     # Wave J: "{Document Name} p.{N}" -- the page-is-the-citation-unit
     # convention (checkpoint decision 12), never an internal excerpt id.
+    #
+    # ⛔⛔ WAVE N: THAT CONVENTION IS TRUE ONLY FOR A REAL PAGINATED DOCUMENT.
+    # `target_type='document_excerpt'` is the RELATIONAL NAMESPACE, not the
+    # source semantics -- Wave N made a captured web passage attachable under
+    # the same type, and its `page_number` is a CAPTURE ORDINAL. Labelling it
+    # here produced "Reuters: NVDA margins, p.2" in the export: Wave M's `p.N`
+    # defect surviving into the one artefact that leaves UCT entirely and lands
+    # in the member's permanent archive.
+    #
+    # `source_kind` has disambiguated this since Wave L; export simply never
+    # asked. Found by the §1 downstream consumer audit.
     excerpt_labels: dict[str, str] = {}
     if excerpt_targets:
         ph = ",".join("?" for _ in excerpt_targets)
         for r in conn.execute(
-            f"SELECT e.id, e.page_number, d.name FROM j2_note_excerpts e"
+            f"SELECT e.id, e.page_number, d.name, d.source_kind, d.source_url"
+            f" FROM j2_note_excerpts e"
             f" JOIN j2_note_documents d ON d.id = e.document_id"
             f" WHERE e.user_id = ? AND e.id IN ({ph})",
             (user_id, *excerpt_targets),
         ).fetchall():
-            excerpt_labels[r["id"]] = f"{r['name'] or 'Document'}, p.{r['page_number']}"
+            name = r["name"] or "Document"
+            if r["source_kind"] == wc.SOURCE_KIND_WEB:
+                # Provenance without fabricated pagination: what it is, what it
+                # came from, and where -- never "full article", never a page.
+                domain = _export_domain(r["source_url"])
+                excerpt_labels[r["id"]] = (
+                    f"Captured passage, {name} ({domain})" if domain
+                    else f"Captured passage, {name}")
+            else:
+                excerpt_labels[r["id"]] = f"{name}, p.{r['page_number']}"
 
     out: dict[str, list[dict[str, str]]] = {}
     for r in rows:

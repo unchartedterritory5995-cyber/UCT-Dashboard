@@ -254,8 +254,12 @@ describe('ThesisSection — Wave J document excerpt evidence', () => {
     excerptsResult = { excerpts: [] } // not locally resolvable
     const onOpenExcerptSource = vi.fn()
     renderIt(PLAIN_NOTE, { onOpenExcerptSource })
-    expect(screen.getByText('Document excerpt')).toBeTruthy() // generic fallback label
-    fireEvent.click(screen.getByText('Document excerpt'))
+    // ⚰️ The fallback label changed in Wave N: "Document excerpt" was a lie for
+    // a captured web passage, which reaches this same branch. The INTENT of
+    // this test is the OPEN behaviour for a target this note cannot resolve
+    // locally, and that is unchanged.
+    expect(screen.getByText('Saved evidence')).toBeTruthy() // source-neutral fallback
+    fireEvent.click(screen.getByText('Saved evidence'))
     expect(onOpenExcerptSource).toHaveBeenCalledWith('ex-from-elsewhere')
   })
 })
@@ -324,6 +328,48 @@ describe('⛔⛔ Wave N — a CAPTURED WEB PASSAGE is attachable evidence', () =
                      sourceTitle: 'NVDA 10-Q', sourceUrl: null, pageNumber: 47 }],
     }
     openExcerptPicker()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeTruthy()
+  })
+})
+
+describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in the thesis', () => {
+  // ⚰️ The attached-evidence row was a FOURTH formatter spelling
+  // `${documentName} · p.${pageNumber}`, and it renders inside the THESIS —
+  // the most consequential surface. It also fell through to the literal string
+  // "Document excerpt" for a capture, because `localExcerpt` comes from the
+  // body-refs sidecar a capture is never in. Calling a Reuters clipping a
+  // "Document excerpt" is the same category error in words instead of numbers.
+  const attached = {
+    id: 'e1', targetType: 'document_excerpt', targetId: 'cap1',
+    stance: 'opposes', caption: null, removedAt: null,
+  }
+  const webCandidate = {
+    id: 'cap1', evidenceType: 'document_excerpt', sourceKind: 'web',
+    sourceTitle: 'Reuters: NVDA margins',
+    sourceUrl: 'https://www.reuters.com/markets/nvda',
+    pageNumber: null, text: 'Gross margin normalizes toward the mid-70s.',
+    annotation: 'I think management is too optimistic.', alreadyAttached: true,
+  }
+
+  it('shows what it actually is, with no page and no "Document excerpt"', () => {
+    summaryResult = { evidence: [attached], changelog: [], isLoading: false, refresh: vi.fn() }
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [webCandidate] }
+    renderIt(PLAIN_NOTE)
+    expect(screen.getByText(/Captured passage/)).toBeTruthy()
+    expect(screen.queryByText(/p\.\d/)).toBeNull()
+    expect(screen.queryByText(/^Document excerpt$/)).toBeNull()
+  })
+
+  it('⭐ CONTROL: an attached PDF excerpt still shows its real page', () => {
+    summaryResult = {
+      evidence: [{ ...attached, targetId: 'ex9', stance: 'supports' }],
+      changelog: [], isLoading: false, refresh: vi.fn(),
+    }
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [] }
+    excerptsResult = {
+      excerpts: [{ id: 'ex9', documentName: 'NVDA 10-Q', pageNumber: 47, capturedText: 'x' }],
+    }
+    renderIt(PLAIN_NOTE)
     expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeTruthy()
   })
 })

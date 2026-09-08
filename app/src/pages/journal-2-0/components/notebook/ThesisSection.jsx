@@ -39,20 +39,36 @@ function isThesisShaped(note, evidence, changelog) {
  * excerpt to click through, since `onOpen` always hits GET /excerpts/{id}
  * regardless (checkpoint decision: an evidence row must open its source
  * even when the excerpt was captured into a DIFFERENT note). */
-function ExcerptEvidenceRow({ evidence, localExcerpt, onOpen }) {
+function ExcerptEvidenceRow({ evidence, localExcerpt, candidate, onOpen }) {
   // The citation is NOT interchangeable with the caption, so it is never
   // replaced by one. The caption answers "why does this support the thesis";
-  // the citation answers "which passage, on which page, of which document"
-  // -- and a thesis whose evidence list reads as four sentences of reasoning
-  // with no sources is exactly the thing this wave exists to prevent. Both,
-  // in that order, the source dimmed behind the reason.
-  const citation = localExcerpt
-    ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}`
-    : null
+  // the citation answers "which passage, of which source" -- and a thesis whose
+  // evidence list reads as four sentences of reasoning with no sources is
+  // exactly the thing this wave exists to prevent. Both, in that order, the
+  // source dimmed behind the reason.
+  //
+  // ⛔⛔ WAVE N, found by the §1 downstream audit: this was a FOURTH formatter
+  // spelling `${documentName} · p.${pageNumber}`, and it renders inside the
+  // THESIS -- the most consequential surface of all. For a web capture that
+  // page number is a capture ordinal.
+  // ⛔ It also fell through to the literal string "Document excerpt" for a
+  // captured passage, because `localExcerpt` comes from the body-refs sidecar a
+  // capture is never in. Calling a Reuters clipping a "Document excerpt" is the
+  // same category error in words instead of numbers.
+  // `candidate` carries `sourceKind` (and `pageNumber: null` for web), so the
+  // ONE canonical labeller can answer here too.
+  const citation = candidate
+    ? searchResultTitle({
+        sourceKind: candidate.sourceKind, name: candidate.sourceTitle,
+        pageNumber: candidate.pageNumber, sourceUrl: candidate.sourceUrl,
+      }, { kind: 'page' })
+    : localExcerpt
+      ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}`
+      : null
   return (
     <button type="button" className={styles.evidenceLink} onClick={onOpen}>
       <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
-      {evidence.caption || citation || 'Document excerpt'}
+      {evidence.caption || citation || 'Saved evidence'}
       {evidence.caption && citation && (
         <span className={styles.evidenceCitation}> — {citation}</span>
       )}
@@ -116,8 +132,12 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   // ⭐ WAVE N: what this note OWNS that can be evidence — captured web
   // passages included. `useNoteExcerpts` answers "embedded in the body",
   // which is why a capture was invisible here.
-  const { candidates, refresh: refreshCandidates } = useEvidenceCandidates(
-    noteId, { enabled: targetType === 'document_excerpt' })
+  // ⛔ NOT gated on the picker being open. The ATTACHED evidence list needs the
+  // same rows to label a captured passage truthfully — gating this on the
+  // picker meant a thesis rendered its own evidence as the bare fallback until
+  // the member happened to open Add Evidence. One note's own candidates, so
+  // the cost is a small scoped query rather than a corpus scan.
+  const { candidates, refresh: refreshCandidates } = useEvidenceCandidates(noteId)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
@@ -211,6 +231,7 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
                   <ExcerptEvidenceRow
                     evidence={e}
                     localExcerpt={excerpts.find((ex) => ex.id === e.targetId)}
+                    candidate={candidates.find((c) => c.id === e.targetId)}
                     onOpen={() => onOpenExcerptSource?.(e.targetId)}
                   />
                 ) : (

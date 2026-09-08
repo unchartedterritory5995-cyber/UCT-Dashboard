@@ -73,6 +73,41 @@ def coverage_for(capture_type: str | None) -> str:
     return _COVERAGE_BY_CAPTURE.get(capture_type or "pdf_full_text", COVERAGE_COMPLETE)
 
 
+# ── One question, one answer: "is this row a web capture?" ───────────────────
+# ⛔⛔ WAVE N §1. Two columns answer it and different layers picked different
+# ones. `capture_type` (pdf_full_text | web_passage | web_reference) is Wave L's
+# and is what this module reads; `source_kind` (attachment | web) is Wave M's
+# and is what the search surfaces select. NEITHER is wrong — capture_type is
+# strictly finer, because only it separates a captured passage from a
+# reference-only capture — but nothing joined them, so the web branch below was
+# UNREACHABLE from every real query: no Ask SQL selected capture_type, and every
+# captured web passage was labelled "· p.1" to both the model and the member and
+# declared `document_complete` coverage of an article we hold one paragraph of.
+# The rail lives beside the real queries (`test_evidence_capture_kind.py`),
+# because a hand-built row fixture cannot see a missing column.
+_WEB_CAPTURE_TYPES = frozenset({"web_passage", "web_reference"})
+SOURCE_KIND_WEB = "web"
+
+
+def is_web_capture(row) -> bool:
+    """Accepts EITHER column, so a row carrying only one still tells the truth."""
+    return (_row_get(row, "capture_type") in _WEB_CAPTURE_TYPES
+            or _row_get(row, "source_kind") == SOURCE_KIND_WEB)
+
+
+def coverage_for_row(row) -> str:
+    """Coverage from a retrieved row, preferring the finer column.
+
+    ⛔ A row that says only `source_kind='web'` must NOT fall through to
+    `document_complete`. We are holding what the member clipped, never the
+    article; the honest floor for an unspecified web capture is the passage.
+    """
+    ct = _row_get(row, "capture_type")
+    if ct:
+        return coverage_for(ct)
+    return COVERAGE_PASSAGE_ONLY if is_web_capture(row) else COVERAGE_COMPLETE
+
+
 def _row_get(row, key, default=None):
     if isinstance(row, dict):
         return row.get(key, default)
@@ -87,7 +122,7 @@ def passage_label(row, page_number) -> str:
     Labelling it "p.2" would invent a precision the source never had and imply
     the article has pages we hold. Member-facing text says what it is."""
     name = _row_get(row, "name") or _row_get(row, "document_name") or "Document"
-    if _row_get(row, "capture_type") in ("web_passage", "web_reference"):
+    if is_web_capture(row):
         return f"{name} · captured passage {page_number}"
     return f"{name} · p.{page_number}"
 
@@ -218,7 +253,7 @@ def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, An
                     "page_number": row["page_number"]},
         citation_validity=CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
-        coverage=coverage_for(_row_get(row, "capture_type")),
+        coverage=coverage_for_row(row),
         curation=0, score=score,
     )
 
@@ -243,7 +278,7 @@ def from_excerpt(row, *, anchor_ok: bool, score: float = 0.0) -> dict[str, Any]:
                     "page_number": row["page_number"]},
         citation_validity=CITE_EXACT if anchor_ok else CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
-        coverage=coverage_for(_row_get(row, "capture_type")),
+        coverage=coverage_for_row(row),
         curation=1, score=score,
     )
 

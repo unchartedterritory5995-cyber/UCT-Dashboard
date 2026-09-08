@@ -86,6 +86,35 @@ _WS_RUN = re.compile(r"[ \t ]+")
 _NL_RUN = re.compile(r"\n{3,}")
 
 
+# ── What a query must SELECT to know what a row is ───────────────────────────
+# ⛔⛔ WAVE N §1. A capture only announces itself through these three columns,
+# and a consumer that does not select them cannot tell a clipped paragraph from
+# page 1 of a filing. Wave L put the branch in `ask_evidence`; Wave M put
+# `source_kind`/`source_url` in the search queries; nothing joined them, so
+# Ask's web branch was unreachable from every real query and every captured
+# passage reached the model as "· p.1, document_complete".
+#
+# ⭐ CONDITIONAL, and asked of the SCHEMA. A database that predates these
+# columns cannot HOLD a web capture, so "nothing here is one" is the true
+# answer there — while a `no such column` catch would be indistinguishable from
+# a real failure and would turn one into a confident empty result. Wave M
+# selected them unconditionally and turned 31 Ask/router tests red on schemas
+# that legitimately do not have them; this is that fix as well.
+CAPTURE_COLUMNS = ("capture_type", "source_kind", "source_url")
+
+
+def capture_columns(conn, alias: str = "d") -> str:
+    """A LEADING-COMMA projection of the capture columns, or "" if absent."""
+    try:
+        cols = {r[1] for r in conn.execute(
+            "PRAGMA table_info(j2_note_documents)")}
+    except Exception:  # noqa: BLE001 - a schema we cannot inspect has no captures
+        return ""
+    if not set(CAPTURE_COLUMNS) <= cols:
+        return ""
+    return "".join(f", {alias}.{c} AS {c}" for c in CAPTURE_COLUMNS)
+
+
 def sanitize_text(raw: Any, *, limit: int) -> str:
     """Plain text, always. Never markup, never a rendered string.
 

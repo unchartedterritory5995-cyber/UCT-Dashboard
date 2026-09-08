@@ -369,6 +369,13 @@ def _excerpts(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
             "annotation": row.get("annotation"),
             "quote_prefix": None,
             "quote_suffix": None,
+            # ⛔ WAVE N. This dict is a HAND-BUILT PROJECTION of the search row,
+            # so anything it forgets is invisible to the evidence envelope even
+            # when the query selected it. Dropping the capture kind here made
+            # every captured web passage in the corpus-wide scope label itself
+            # "· p.1" and declare document-complete coverage.
+            "capture_type": row.get("capture_type"),
+            "source_kind": row.get("source_kind"),
         }
         # anchor_ok=False until the Wave J anchor audit has vouched for it:
         # an unverified anchor must not be presented as precise (§21).
@@ -639,6 +646,7 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
         " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name, d.note_id AS note_id"
+        f"{_capture_cols(conn)}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
         " JOIN j2_notes n ON n.id = d.note_id"
@@ -664,6 +672,7 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
         return []
     rows = conn.execute(
         "SELECT e.* , d.name AS document_name"
+        f"{_capture_cols(conn)}"
         " FROM j2_note_excerpts_fts f"
         " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
         " JOIN j2_note_documents d ON d.id = e.document_id"
@@ -679,6 +688,18 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
         out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
                                    score=0.8))
     return out
+
+
+# ⛔⛔ WAVE N §1. `passage_label` and `coverage_for` decide whether a row is a
+# captured web passage or a page of a real document — and BOTH read columns no
+# Ask query selected, so every branch they own was unreachable and a captured
+# Reuters paragraph reached the model as "· p.1, document_complete".
+# `web_capture.capture_columns` is the ONE place that names those columns and
+# the one place that asks whether this schema HAS them; a second copy here is
+# precisely the divergence that produced the defect.
+def _capture_cols(conn) -> str:
+    from api.services.journal_two.web_capture import capture_columns
+    return capture_columns(conn)
 
 
 def _no_capture_tables(exc: sqlite3.OperationalError) -> bool:
@@ -723,6 +744,7 @@ def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
             " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
             " bm25(j2_note_document_pages_fts) AS score,"
             " d.name AS name, d.note_id AS note_id"
+            f"{_capture_cols(conn)}"
             " FROM j2_note_document_pages_fts p"
             " JOIN j2_note_documents d ON d.id = p.document_id"
             " JOIN j2_notes n ON n.id = d.note_id"
@@ -760,6 +782,7 @@ def _excerpts_in_note(conn, user_id: str, note_id: str, q: str,
     try:
         rows = conn.execute(
             "SELECT e.* , d.name AS document_name"
+            f"{_capture_cols(conn)}"
             " FROM j2_note_excerpts_fts f"
             " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
             " JOIN j2_note_documents d ON d.id = e.document_id"
@@ -1126,6 +1149,7 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
         " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name"
+        f"{_capture_cols(conn)}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
         " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
@@ -1137,7 +1161,9 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         row["user_id"] = user_id
         out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6))
     for r in conn.execute(
-        "SELECT e.*, d.name AS document_name FROM j2_note_excerpts_fts f"
+        "SELECT e.*, d.name AS document_name"
+        f"{_capture_cols(conn)}"
+        " FROM j2_note_excerpts_fts f"
         " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
         " JOIN j2_note_documents d ON d.id = e.document_id"
         " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
