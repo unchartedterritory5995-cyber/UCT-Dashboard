@@ -1826,6 +1826,8 @@ def register_company_news_jobs(scheduler):
     if os.environ.get("COMPANY_NEWS_INGEST_ENABLED", "") not in ("1", "true", "yes"):
         return False
 
+    from datetime import timedelta
+
     from apscheduler.triggers.cron import CronTrigger
     from apscheduler.triggers.interval import IntervalTrigger
 
@@ -1873,12 +1875,22 @@ def register_company_news_jobs(scheduler):
     # 20 min walks a ~3,700-name universe in about 8 hours. Kept separate from
     # NEWS_FALLBACK_SYMBOLS, which bounds the METERED FMP fallback.
     SEC_SYMS = int(os.environ.get("NEWS_SEC_SYMBOLS_PER_CYCLE", "150"))
+    # ⛔ Both jobs get an explicit early `next_run_time`. An IntervalTrigger
+    # schedules its FIRST run one full interval AFTER the scheduler starts, and
+    # every deploy restarts the scheduler -- so on a day with frequent deploys
+    # the 20-minute per-company sweep NEVER FIRED ONCE. Its rotation cursor sat
+    # at None while the 5-minute FMP job (which survives by being shorter than
+    # the gap between deploys) made it look like ingestion was healthy.
+    # Staggered so a boot does not run both sweeps at the same moment.
+    _soon = datetime.now(_ET) + timedelta(minutes=1)
     scheduler.add_job(_poll, trigger=IntervalTrigger(minutes=poll_min),
                       id="company_news_fmp", max_instances=1,
-                      replace_existing=True, coalesce=True)
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon)
     scheduler.add_job(_per_company, trigger=IntervalTrigger(minutes=20),
                       id="company_news_percompany", max_instances=1,
-                      replace_existing=True, coalesce=True)
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon + timedelta(minutes=2))
     scheduler.add_job(_prune, trigger=CronTrigger(hour=4, minute=20, timezone=_ET),
                       id="company_news_prune", max_instances=1,
                       replace_existing=True)

@@ -1227,3 +1227,49 @@ class TestUniverseRotation:
         from api.services.news import ingest
         monkeypatch.setattr(ingest, "_universe_all", lambda: [])
         assert ingest._active_universe(10, rotate="t_empty") == []
+
+
+class TestIngestionActuallyRuns:
+    """Scheduling a job is not the same as it ever running.
+
+    An APScheduler IntervalTrigger fires its FIRST run one full interval AFTER
+    the scheduler starts, and every deploy restarts the scheduler. On a day with
+    frequent deploys the 20-minute per-company sweep never fired once: its
+    rotation cursor sat at None in production while the 5-minute FMP job -- which
+    survives only by being shorter than the gap between deploys -- made
+    ingestion look healthy. Found 8 Sep 2026 by reading the live cursor.
+    """
+
+    def _jobs(self, monkeypatch):
+        monkeypatch.setenv("COMPANY_NEWS_INGEST_ENABLED", "1")
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import api.main as m
+        sched = BackgroundScheduler()
+        assert m.register_company_news_jobs(sched) is True
+        return {j.id: j for j in sched.get_jobs()}
+
+    def test_every_interval_job_runs_soon_after_boot(self, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+        jobs = self._jobs(monkeypatch)
+        now = datetime.now(timezone.utc)
+        for jid in ("company_news_fmp", "company_news_percompany"):
+            nrt = getattr(jobs[jid], "next_run_time", None)
+            assert nrt is not None, f"{jid} has no first run scheduled"
+            delay = nrt - now
+            assert delay < timedelta(minutes=10), (
+                f"{jid} waits {delay} before its first run; a deploy cadence "
+                f"faster than that starves it forever")
+
+    def test_the_two_sweeps_are_staggered(self, monkeypatch):
+        """Both firing on the same boot tick would collide a 150-symbol SEC
+        sweep with an FMP pull for no reason."""
+        jobs = self._jobs(monkeypatch)
+        a = jobs["company_news_fmp"].next_run_time
+        b = jobs["company_news_percompany"].next_run_time
+        assert a != b
+
+    def test_disabled_by_default(self, monkeypatch):
+        monkeypatch.delenv("COMPANY_NEWS_INGEST_ENABLED", raising=False)
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import api.main as m
+        assert m.register_company_news_jobs(BackgroundScheduler()) is False
