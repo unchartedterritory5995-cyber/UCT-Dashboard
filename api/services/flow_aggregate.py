@@ -270,6 +270,11 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         "entries": [{"key": str(k), "version": v[0], "gz_bytes": len(v[1])}
                     for k, v in _CACHE.items()],
         "stats_process_local": stats(),
+        # ⛔ The split is only steerable if its cost is VISIBLE. parts_cache_state
+        # existed but no endpoint served it, so the per-part gzipped sizes — the
+        # whole basis for deciding what belongs on first paint — could not be read
+        # from production at all, only estimated from a one-off local fixture.
+        "parts": parts_cache_state(),
         "reason": None,
     }
     if not out["enabled"]:
@@ -389,6 +394,37 @@ def _read_frames(raw: bytes) -> dict:
     return out
 
 
+def envelope_bootstrap(frames: dict, stats: dict) -> dict:
+    """Wrap the bootstrap frame as the SAME {ok, stats, D} envelope whole-D returns.
+
+    ⛔ WITHOUT THIS, `stats.availableDates` DISAPPEARS AND THE DATE PICKER WITH IT.
+    The page derives the date-range picker's calendar from `stats.availableDates`
+    because deriving it otherwise needs the raw tape (Phase A). The whole-D
+    endpoint returns `{ok, stats, D}` so the value rides along; the parts stream
+    emits stats as its OWN frame, so a bootstrap served as a bare D subset drops
+    it and the picker gates itself off — the precise regression Phase A fixed,
+    reintroduced by a change of transport rather than of logic.
+
+    ⛔ BYTE CONCATENATION, NEVER A PARSE. The whole point of length-prefixed
+    frames is that this process never materialises the arrays (the pod has OOM'd
+    on this path before). Only `stats` is parsed, and it is a few scalars plus the
+    date list. `boot` goes in as opaque bytes and comes out unchanged.
+
+    Returns the frames dict with `bootstrap` replaced; other frames untouched.
+    A missing bootstrap frame is returned as-is for the caller to reject.
+    """
+    boot = frames.get("bootstrap")
+    if boot is None:
+        return frames
+    out = dict(frames)
+    out["bootstrap"] = (
+        b'{"ok":true,"stats":'
+        + json.dumps(stats, separators=(",", ":")).encode("utf-8")
+        + b',"D":' + boot + b'}'
+    )
+    return out
+
+
 def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     """{part_name: gzipped_json_bytes} plus 'stats', from ONE node run."""
     if not available():
@@ -425,6 +461,22 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
         except Exception:
             stats = {}
     stats["buildMs"] = int((time.monotonic() - t0) * 1000)
+
+    # ⛔ THE BOOTSTRAP PART CARRIES ITS OWN STATS, OR availableDates DISAPPEARS.
+    # The page derives the date-range picker's calendar from `stats.availableDates`
+    # (Phase A) because deriving it needs the raw tape. The whole-D endpoint
+    # returns {ok, stats, D} so that value rides along; the parts stream emits
+    # stats as its own frame, so a bootstrap served as a bare D subset would drop
+    # it and the picker would gate itself off again — the exact regression Phase A
+    # was fixed for, reintroduced by the transport.
+    #
+    # Wrapping is BYTE CONCATENATION around the opaque bootstrap bytes: the point
+    # of frames is that this process never parses the arrays, and that holds here.
+    # Only `stats` is parsed, and it is a handful of scalars plus the date list.
+    #
+    # The result is the SAME {ok, stats, D} envelope the whole-D path returns, so
+    # the client has one shape to understand rather than two.
+    frames = envelope_bootstrap(frames, stats)
 
     gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
     _STATS["builds"] += 1

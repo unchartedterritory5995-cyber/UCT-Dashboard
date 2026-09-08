@@ -928,7 +928,25 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
                                 headers={**ph, "Content-Encoding": "gzip"})
             return Response(content=gzip.decompress(pgz),
                             media_type="application/json", headers=ph)
-        # Build declined (busy/unavailable) — fall through to whole-D below.
+        # ⛔ A KNOWN PART THAT COULD NOT BE BUILT MUST NOT FALL THROUGH TO WHOLE-D.
+        # This used to drop into the whole-D path, which answers a ~200 KB request
+        # for one part with the ~2,900 KB (24 MB decoded) full aggregate. On a cold
+        # cache that is the WORST case, not a graceful one: the single-flight lock
+        # means the first part request builds while its two siblings are declined,
+        # so a three-part first paint would have pulled the full aggregate TWICE.
+        #
+        # 503 is this endpoint's own documented contract — "a 503 here means 'not
+        # built', never 'no flow'" — and it is what lets the caller choose: retry
+        # the sibling parts once the build that declined it has landed, or fall
+        # back to the tape. Answering with 24 MB takes that choice away.
+        #
+        # An UNKNOWN part name still falls through (see the guard above): that is a
+        # contract drift, not a build failure, and must never cost a member an error.
+        return JSONResponse(
+            {"error": "part not built", "part": part},
+            status_code=503,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
     flow_aggregate._STATS["endpoint_requests"] += 1   # member traffic only
     built = build_aggregate(source, days, date_filter, version)

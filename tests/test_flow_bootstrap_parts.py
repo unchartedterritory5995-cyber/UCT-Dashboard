@@ -137,13 +137,39 @@ def test_the_endpoint_consults_the_flag_and_the_allowlist_before_serving_a_part(
     assert "get_cached_or_build_part" in block
 
 
-def test_the_part_path_falls_through_rather_than_erroring():
-    """A member must never get a 4xx because a part name drifted — the flag is a
-    performance opt-in, so an unknown part means 'serve the old thing'."""
+def test_an_UNKNOWN_part_falls_through_rather_than_erroring():
+    """A member must never get an error because a part NAME drifted — the flag is
+    a performance opt-in, so an unknown part means 'serve the old thing'.
+
+    ⛔ This is about the GUARD, not the build. The guard is a plain boolean
+    condition with no error branch of its own, so an unrecognised name simply
+    does not enter the part path and lands on whole-D below.
+    """
     src = (REPO / "api" / "flow_router.py").read_text(encoding="utf-8")
     block = src[src.index('part = request.query_params.get("part")'):]
+    guard = block[:block.index("got = flow_aggregate.get_cached_or_build_part")]
+    assert "status_code" not in guard, "an unknown part name must not raise"
+    assert "is_part_name(part)" in guard
+
+
+def test_a_KNOWN_part_that_cannot_be_built_does_NOT_serve_the_whole_aggregate():
+    """⛔ THE OPPOSITE CASE, AND IT USED TO FALL THROUGH.
+
+    A declined build dropping into the whole-D path answers a ~200 KB request for
+    one part with the ~2,900 KB gzipped (24 MB decoded) full aggregate. It matters
+    precisely BECAUSE the builder is single-flight: the first of three concurrent
+    part requests builds while its two siblings are declined, so a three-part
+    first paint would have pulled the full aggregate twice on every cold cache.
+    503 is this endpoint's own documented "not built" contract and leaves the
+    caller free to retry the siblings or fall back to the tape.
+    """
+    src = (REPO / "api" / "flow_router.py").read_text(encoding="utf-8")
+    block = src[src.index('got = flow_aggregate.get_cached_or_build_part'):]
     block = block[:block.index("flow_aggregate._STATS")]
-    assert "status_code=4" not in block and "status_code=5" not in block
+    assert "status_code=503" in block, "a declined KNOWN part still falls through to whole-D"
+    # ...and it must be the LAST word of the part path, not a branch something
+    # else can step past into the whole-D build.
+    assert "return JSONResponse" in block
 
 
 def test_the_part_path_uses_the_same_csv_source_as_the_whole_D_path():
@@ -152,3 +178,76 @@ def test_the_part_path_uses_the_same_csv_source_as_the_whole_D_path():
     src = (REPO / "api" / "flow_router.py").read_text(encoding="utf-8")
     provider = 'gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")'
     assert src.count(provider) == 2, "part path and build_aggregate must share the provider"
+
+# ── the bootstrap part must carry stats, or the date picker vanishes again ────
+def test_the_bootstrap_part_carries_stats_so_availableDates_survives():
+    """⛔ THE PHASE-A REGRESSION, REACHABLE AGAIN THROUGH THE TRANSPORT.
+
+    The date-range picker renders only when `availableDates` is non-empty, and
+    with the tape deferred the ONLY source of that value is `stats.availableDates`
+    on the aggregate. The parts stream emits stats as its own frame, so a bootstrap
+    served as a bare D subset would drop it and the control would gate itself off —
+    a regression caused by changing transport, not logic, which is exactly the kind
+    a partition test would not notice.
+    """
+    frames = {"bootstrap": b'{"CONV":[1,2],"TICKER_DB":{}}',
+              "all_trades": b'[{"S":"NVDA"}]'}
+    stats = {"availableDates": ["9/4/2026"], "totalTrades": 29514}
+    out = fa.envelope_bootstrap(frames, stats)
+
+    body = json.loads(out["bootstrap"])
+    assert body["ok"] is True
+    assert body["stats"]["availableDates"] == ["9/4/2026"]
+    # the D subset must survive BYTE-FOR-BYTE, not merely round-trip equal
+    assert body["D"] == {"CONV": [1, 2], "TICKER_DB": {}}
+    assert b'{"CONV":[1,2],"TICKER_DB":{}}' in out["bootstrap"]
+
+
+def test_the_envelope_is_the_SAME_shape_the_whole_D_endpoint_returns():
+    """One shape for the client to understand, not two. `fetchPrehydrate` already
+    accepts {ok, stats, D}; a different envelope here would need a second reader."""
+    out = fa.envelope_bootstrap({"bootstrap": b'{}'}, {"availableDates": []})
+    assert set(json.loads(out["bootstrap"])) == {"ok", "stats", "D"}
+
+
+def test_the_envelope_never_parses_the_deferred_arrays():
+    """The frames exist so this process never materialises a 16 MB array.
+
+    ⛔ IDENTITY (`is`) CANNOT TEST THIS. CPython returns the SAME object from
+    `bytes(b"...")`, so an `is` assertion passes against a wrapper that copies —
+    it was written that way first and a copying mutant survived it. Unparseable
+    bytes discriminate properly: anything that tried to decode this frame would
+    raise, so surviving it unchanged is proof the wrapper only moved bytes.
+    """
+    junk = b'<<< not json >>>' + bytes([0xFF, 0xFE])   # not even valid UTF-8
+    out = fa.envelope_bootstrap({"bootstrap": b'{}', "all_trades": junk}, {})
+    assert out["all_trades"] == junk
+
+
+def test_build_parts_ACTUALLY_APPLIES_the_envelope():
+    """⛔ THE HELPER CAN BE PERFECT AND CALLED BY NOBODY.
+
+    Deleting the call from build_parts left every test above green while the
+    served bootstrap went back to a bare subset and the date picker vanished —
+    this repo's most-repeated defect, reproduced by a one-line mutation.
+    """
+    import inspect
+    src = inspect.getsource(fa.build_parts)
+    assert "envelope_bootstrap(" in src, "build_parts does not apply the envelope"
+    # ...and BEFORE compression, or the cached blob is the unwrapped one.
+    assert src.index("envelope_bootstrap(") < src.index("gzip.compress"),         "the envelope is applied after the part is already compressed"
+
+
+def test_a_missing_bootstrap_frame_is_left_for_the_caller_to_reject():
+    """build_parts already treats a bootstrap-less stream as unusable; the wrapper
+    must not invent one and make a broken stream look serviceable."""
+    out = fa.envelope_bootstrap({"all_trades": b"[]"}, {"availableDates": []})
+    assert "bootstrap" not in out
+
+
+def test_CONTROL_a_bare_subset_really_would_lose_availableDates():
+    """Without this the tests above could pass against a transport that never
+    risked the bug."""
+    bare = b'{"CONV":[1,2]}'
+    assert "availableDates" not in json.loads(bare)
+
