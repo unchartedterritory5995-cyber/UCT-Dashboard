@@ -3,7 +3,7 @@
  *
  *   INTELLIGENCE HEADER   identity · what it does · sector/industry · company facts
  *   THE STORY             why the stock is moving (signature block, gold rail)
- *   FUNDAMENTALS          one system: Valuation · Growth · Price & Performance ·
+ *   FUNDAMENTALS          one system: Growth · Valuation · Price & Performance ·
  *                         Profitability · Financial Health
  *
  * Ownership is NOT here. It had a snapshot-plus-explore block at the bottom of
@@ -12,8 +12,8 @@
  *
  * The first viewport is DESIGNED, not inherited. Orientation (who/what/why) is
  * paid for in as little vertical space as it can be — company facts ride inline
- * with the identity and the Story defaults to ~60 words — so that Valuation,
- * Growth and Price & Performance all clear the fold at the default panel size.
+ * with the identity and the Story defaults to ~60 words — so that Growth,
+ * Valuation and Price & Performance all clear the fold at the default panel size.
  * Profitability and Financial Health keep every row, just below it.
  *
  * Hierarchy is carried by typography and spacing rather than cards: one gold
@@ -275,10 +275,13 @@ export default function DockProfile({ sym }) {
 
       {/* ── Fundamentals — one system (layer 2).
              Order is deliberate for a CHARTING product: the user is staring at a
-             price chart, so Valuation → Growth → Price & Performance are the
-             three groups that earn the first screen. Profitability and Financial
-             Health are financial-QUALITY questions — still here in full, just
-             below the fold, where a reader who is digging will find them. ── */}
+             price chart, so Growth → Valuation → Price & Performance are the
+             three groups that earn the first screen. Growth leads (owner call,
+             8 Sep 2026): it is the directional read that pairs with the move on
+             the chart, where valuation is the static multiple you check second.
+             Profitability and Financial Health are financial-QUALITY questions —
+             still here in full, just below the fold, where a reader who is
+             digging will find them. ── */}
       <section className={`${styles.section} ${styles.layerBreak}`}>
         {/* No "Fundamentals" head: Valuation / Growth / Price & Performance /
             Profitability / Financial Health are self-evidently company metrics,
@@ -286,7 +289,16 @@ export default function DockProfile({ sym }) {
             above the panel's most valuable content. The layer divider alone is
             the transition out of the Story, and the gold group titles ARE the
             section headings now. */}
-        <Group title="Valuation" first>
+        <Group title="Growth" first>
+          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={sgn(f.revenue_growth_pct)} p />
+          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={sgn(f.earnings_growth_pct)} p />
+          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={sgn(g.salesYoY)} />
+          <Row k="EPS Last Q" v={g.epsLastQ != null ? fmtEps(g.epsLastQ) : '—'} />
+          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={sgn(g.epsQoQ)} />
+          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={sgn(g.epsYoY)} />
+        </Group>
+
+        <Group title="Valuation">
           <Row k="Market Cap" v={str(f.market_cap)} p />
           <Row k="Ent. Value" v={str(f.enterprise_value)} />
           <Row k="P/E (ttm)" v={num(f.pe_trailing)} p />
@@ -297,15 +309,6 @@ export default function DockProfile({ sym }) {
           <Row k="P/B" v={num(f.pb)} />
           <Row k="EV / Revenue" v={num(f.ev_to_revenue)} />
           <Row k="Div Yield" v={fund?.div_yield != null ? `${num(fund.div_yield)}%` : '—'} />
-        </Group>
-
-        <Group title="Growth">
-          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={sgn(f.revenue_growth_pct)} p />
-          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={sgn(f.earnings_growth_pct)} p />
-          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={sgn(g.salesYoY)} />
-          <Row k="EPS Last Q" v={g.epsLastQ != null ? fmtEps(g.epsLastQ) : '—'} />
-          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={sgn(g.epsQoQ)} />
-          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={sgn(g.epsYoY)} />
         </Group>
 
         {/* Chart context, as a peer group rather than its own gold-headed section:
