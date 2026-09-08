@@ -46,6 +46,36 @@ def test_python_allowlist_matches_the_js_contract_exactly():
     assert sorted(fa.PART_NAMES) == sorted(_js_part_names())
 
 
+def _js_derived_part_names():
+    """Parse DERIVED_PART_NAMES out of flowBootstrap.js."""
+    src = JS_MODULE.read_text(encoding="utf-8")
+    m = re.search(r"export const DERIVED_PART_NAMES = Object\.freeze\(\[(.*?)\]\)", src, re.S)
+    assert m, "DERIVED_PART_NAMES not found in flowBootstrap.js"
+    keys = re.findall(r"'([^']+)'", m.group(1))
+    assert keys, "DERIVED_PART_NAMES parsed empty"
+    return keys
+
+
+def test_derived_parts_match_the_js_contract_exactly():
+    """TOP_PICKS travels over the parts transport but is NOT in the partition.
+
+    Two lists, one authority each. If the server allowlists a derived part the
+    client does not know about (or the reverse), a request 400s or a computed
+    product is silently unreachable and the page falls back to shipping the raw
+    arrays -- which is the whole cost 3b exists to remove.
+    """
+    assert sorted(fa.DERIVED_PART_NAMES) == sorted(_js_derived_part_names())
+
+
+def test_derived_parts_are_requestable_but_not_part_of_the_partition():
+    for name in fa.DERIVED_PART_NAMES:
+        assert fa.is_part_name(name), f"{name} must be requestable"
+        assert name not in fa.PART_NAMES, (
+            f"{name} is DERIVED -- putting it in the partition makes "
+            "'the parts recombine into D' false while every test still passes"
+        )
+
+
 def test_the_control_can_actually_fail():
     """A parser that finds nothing would make the test above vacuously true."""
     names = _js_part_names()
@@ -172,12 +202,28 @@ def test_a_KNOWN_part_that_cannot_be_built_does_NOT_serve_the_whole_aggregate():
     assert "return JSONResponse" in block
 
 
-def test_the_part_path_uses_the_same_csv_source_as_the_whole_D_path():
+def test_every_builder_shares_one_csv_provider():
     """Two different providers for one dataset is how a part comes from a
-    different CSV than the bootstrap it is merged into."""
+    different CSV than the bootstrap it is merged into.
+
+    ⛔ THE EXPECTED COUNT IS DERIVED, NOT TYPED. This asserted `== 2` and went
+    red the day a third legitimate caller appeared (the first-paint preparer)
+    using the very same provider -- the invariant held and the number had
+    drifted. A hand-typed count beside the thing it describes is the defect this
+    repo keeps re-committing; so count the call sites that need a provider and
+    require the provider expression to appear exactly that many times. A new
+    caller with a DIFFERENT provider now fails this, which is the real rule.
+    """
     src = (REPO / "api" / "flow_router.py").read_text(encoding="utf-8")
     provider = 'gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")'
-    assert src.count(provider) == 2, "part path and build_aggregate must share the provider"
+    sites = (src.count("flow_aggregate.get_cached_or_build_part(")
+             + src.count("flow_aggregate.get_cached_or_build("))
+    assert sites >= 2, (
+        "found fewer than two builder call sites -- this probe has stopped "
+        "seeing the thing it grades, so its verdict is vacuous")
+    assert src.count(provider) == sites, (
+        f"{sites} builder call sites but {src.count(provider)} uses of the shared "
+        "provider -- one of them is feeding a build from a different CSV")
 
 # ── the bootstrap part must carry stats, or the date picker vanishes again ────
 def test_the_bootstrap_part_carries_stats_so_availableDates_survives():

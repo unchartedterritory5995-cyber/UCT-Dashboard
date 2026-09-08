@@ -317,7 +317,7 @@ complexity, low initial frequency, or dependent on real usage — never a dumpin
 | G-083 | Read-only offline cache of recently-viewed notes. |
 | G-044/G-084 | Mobile capture / share-sheet (real usage data should prioritize this, not assumption). |
 | G-093/G-094 (extend) | Any bidirectional sync work, if member demand surfaces. |
-| G-080 (activation) | Flip `J2_SHARE_LINKS_ENABLED` on — policy decision once real demand exists, not an engineering gap. |
+| G-080 (activation) | ⛔ **SUPERSEDED 2026-09-07 — do not read this row as pending work.** The flag was found already `1` in production with no durable record of the §21/activation approval, and was returned to `0` by owner ruling. Re-enabling now requires affirmative evidence the review completed, not merely demand. See the gap ledger's G-080 row and the decision log's G-080 entry. |
 | — | Tasks/reminders (financial-native: review-thesis-before-earnings, revisit-position-in-N-days) — not yet a gap-ledger row; add one when scoped. |
 | — | Calendar/catalyst view over structured research dates — depends on G-021/G-025 landing first. |
 
@@ -5027,6 +5027,57 @@ and the certification report. The readiness scorecard's AI row is deliberately
 held at **5**, not 6, until that production verification exists — the ladder's 6
 means production-verified, and writing it before the deploy would be exactly the
 kind of rounding-up that artifact exists to resist.
+
+
+#### WAVE K RELEASE — EXECUTED (2026-09-07)
+
+The 8G-B shared-production hold was **explicitly cleared by the owner**, and the
+parked checkpoint was resumed from step 1 rather than trusting any of its stored
+proofs. That mattered: master had moved five commits, so the parked merge-tree
+result had expired exactly as the checkpoint warned. Re-run against current master:
+still zero conflicts.
+
+**Deployed:** `550283e02`, a merge of `notebook-primary-platform` into master,
+pushed fast-forward (`9c6078503..550283e02`), no force. Merged in the isolated
+worktree `_wavek-master-merge-temp`; the `broker_sync` invariant was checked after
+the merge AND again immediately before the push (`grep -c broker_sync api/main.py`
+= 10, floor 7).
+
+**Production verification** — full point-by-point record in
+`docs/notebook/wave-k-production-certification.md`. The load-bearing ones:
+
+- **Fresh process:** uptime 779s → 56s, then monotonic across ten samples; RSS fell
+  1564.7 MB → 1158.5 MB.
+- **The Ask routes are real, mounted, auth-gated application routes.** Read the
+  transition, not the endpoint: `POST /api/j2/ask/stream` answered **405 before the
+  deploy and 401 after**. 405 is this app's SPA-catch-all signature — the same tell
+  that exposed the `broker_sync` unmount — and a nonexistent route still answers 405
+  on POST and 200 `text/html` on GET, so the probe demonstrably distinguishes.
+- **The Ask UI is in the shipped bundle**, in `DocumentPreviewSheet-3ViUeKcD.js`
+  (Vite names the shared chunk after one of `AskPanel`'s importers).
+
+⛔ **The first bundle sweep returned ZERO markers and was wrong.** It swept
+`index-BPpk_v_Y.js` — the pre-deploy bundle — because `index.html` had been fetched
+while the old pod was still serving. The current entry is `index-JF_32lGS.js`. A
+stale artifact reads exactly like a missing feature, and the only thing that
+separated them was checking the entry hash. **Cache-bust the index and compare the
+entry hash before believing any bundle grep.**
+
+**Not certified, and stated plainly:** no production Ask round-trip with a real
+member session. Every production check is an unauthenticated probe — routes real,
+gated, UI shipped. That a member's question returns a grounded, cited answer is
+proven in the fail-closed sandbox (Slice 8a, real model) and a real browser
+(Slice 8b), not in production. It is the one SANDBOX↔PROD gap in this wave.
+
+**One pre-existing failure carried forward, not ours:**
+`optionsFlow/flowParts.test.js` fails on the merged tree, and `git diff
+origin/master HEAD` over the OptionsFlow paths is empty — no frontend file outside
+`journal-2-0/` differs from master at all, so it fails identically on master. It
+belongs to the live OptionsFlow perf-migration workstream on partner-owned files
+and was left untouched.
+
+**Next:** the post-Wave-K integrity mini-pass (G-063 temporal gate · raw-error rail
+· gap-ledger reconciliation), then Wave L. Not started.
 
 #### WAVE K RELEASE CHECKPOINT — PARKED (owner ruling, 2026-09-07)
 

@@ -370,8 +370,22 @@ describe('folder delete error surfacing', () => {
     removeMock.mockReset()
   })
 
-  it('alerts with the server-provided detail when deleting a folder fails, instead of an unhandled rejection', async () => {
-    const detail = 'cannot delete: a folder named \'Setups\' already exists at the destination — rename it first'
+  // ⛔ THIS TEST USED TO REQUIRE THE DEFECT. It asserted
+  // `alert(detail)` — a native alert carrying the raw exception — which is
+  // exactly the class the integrity mini-pass removed (see
+  // rawErrorSurface.test.js). The INTENT it was written for is right and is
+  // kept verbatim: a failed delete must reach the member, never vanish into an
+  // unhandled rejection. Only the mechanism changed.
+  //
+  // ⚠️ Honest trade-off, recorded rather than hidden: this fixture's server
+  // detail ("...rename it first") is genuinely useful copy, and the member no
+  // longer sees it. At the catch site a helpful server message and a stack
+  // fragment are the same `Error`, so nothing here can tell them apart. Making
+  // that distinction possible — an API layer that marks member-safe server
+  // details — is a real follow-up, not something to fake by letting every
+  // exception through.
+  it('surfaces a failed delete to the member WITHOUT rendering the raw exception', async () => {
+    const detail = "cannot delete: a folder named 'Setups' already exists at the destination — rename it first"
     removeMock.mockRejectedValueOnce(new Error(detail))
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
 
@@ -380,11 +394,16 @@ describe('folder delete error surfacing', () => {
 
     const journalButton = screen.getByText('Journal').closest('button')
     fireEvent.click(within(journalButton).getByTitle('Delete folder'))
-    // Wave B: native confirm() replaced with ConfirmModal -- confirm the
-    // dialog before the mutation fires.
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
+    // The member is told, in an alert REGION (not a native modal).
+    const alertRegion = await screen.findByRole('alert')
+    expect(alertRegion).toHaveTextContent(/couldn't delete that folder/i)
+    // ...and the raw exception is nowhere on screen.
+    expect(alertRegion).not.toHaveTextContent(/rename it first/i)
+    expect(document.body.textContent).not.toContain(detail)
+    // ...and no native alert() was used.
+    expect(alertSpy).not.toHaveBeenCalled()
     expect(removeMock).toHaveBeenCalledWith('c')
   })
 })

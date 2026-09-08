@@ -297,7 +297,8 @@ export default function TradeJournalTab({ settings }) {
       )
     } catch (e) {
       refresh()  // roll back to server truth
-      showToast(`Couldn't update setup: ${String(e.message || e)}`, 'error')
+      console.error('[journal] update setup failed', e)
+      showToast("Couldn't update that setup — it's been rolled back.", 'error')
     }
   }, [mutateTrades, mutate, refresh, showToast])
 

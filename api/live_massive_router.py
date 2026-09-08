@@ -4528,23 +4528,65 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             pass
         return None
 
+    # OI history for the sparkline: daily OI over the window from the snapshot store
+    # (same universe as flow.db — every carded contract is covered — 90-day retention),
+    # so each row shows the position BUILDING or FADING, far richer than a single delta.
+    _oisnap = None
+    try:
+        from api import oi_snapshots as _oisnap  # noqa: F401
+    except Exception:
+        _oisnap = None
+
+    def _oi_series(c):
+        if _oisnap is None:
+            return None
+        try:
+            k = _oisnap.make_key(sym, c.get("cp"), c.get("strike"), c.get("exp"))
+            h = _oisnap.get_history(k, max(int(lookback) + 5, 10))
+            s = [p["oi"] for p in h if p.get("oi") is not None]
+            return s or None
+        except Exception:  # noqa: BLE001 — sparkline is decoration; never break the card
+            return None
+
     # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
     slim = []
     for c in top:
-        _loi, _now = _enrich(c)
+        _loi, _now = _enrich(c)                                   # live chain: fresh OCC OI + price
+        _hist = _oi_series(c) or []                               # daily snapshot history
         _entry = c.get("avg_fill")
+        # LATEST OI: FRESHEST first. The live chain reflects the current OCC print;
+        # the once-daily snapshot store lags until its 9:30 ET capture and can miss a
+        # build entirely (IREN 65C read 558 from the snapshot vs the real 13,816 live).
+        # Fall back to the snapshot's latest (still OCC-sourced — this is what kept the
+        # ORCL 175C fix from falling to a stale flow-time max_oi), then max_oi last.
+        _oi_val = (_loi if _loi is not None
+                   else (_hist[-1] if _hist else c.get("max_oi")))
+        # Sparkline = snapshot history + the live 'now' point appended, so the line's
+        # endpoint always equals the LATEST OI shown and a just-built OI the snapshot
+        # hasn't captured yet still appears as the final uptick.
+        _series = list(_hist)
+        if _loi is not None and (not _series or _series[-1] != _loi):
+            _series.append(_loi)
+        _series = _series or None
+        _vol_val = _eff_vol(c)                                    # cumulative flow volume
         slim.append({
             "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
             "exp": c.get("exp"), "dte": c.get("dte"),
-            "premium": _eff_prem(c), "volume": _eff_vol(c),
-            "oi": _loi if _loi is not None else c.get("max_oi"),  # LATEST OI (fallback flow-time)
-            "voi": c.get("cum_voi"),
+            "premium": _eff_prem(c), "volume": _vol_val,
+            "oi": _oi_val,
+            # V/OI reconciled to the DISPLAYED figures (flow volume ÷ latest OI) so the
+            # three columns tie out. The old cum_voi used the OI at flow-time, which on a
+            # newly-opened contract (entry OI ~0) printed absurd ratios (e.g. 2641x) next
+            # to a latest-OI column that had since grown — VOL÷OI looked like ~1x. Now
+            # V/OI ≈ 1 means "most of the current OI came from this flow" (new positioning).
+            "voi": (round(_vol_val / _oi_val, 1) if _oi_val else None),
             "direction": c.get("direction"),
             "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
             "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
             "days_active": c.get("days_active"),
             "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
             "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
+            "oiSeries": _series,                 # daily OI over the window (sparkline)
         })
     result = {
         "ok": True, "symbol": sym, "source": se, "spot": spot,

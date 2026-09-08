@@ -494,7 +494,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -1145,17 +1145,29 @@ export function _intradayLoadReserve(bars, tf) {
   }
   if (tf === 'D' || tf === 'W' || tf === 'M') {
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    // Only reserve when a developing-period bar is actually expected — i.e. today (ET) is a
-    // weekday. On weekends there's no session pending, so no late bar will land; reserving
-    // would just open a phantom right gap that never fills. (Weekday holidays — rare — still
-    // reserve, a harmless ≤1-bar gap in the future pad.)
-    let dow = 6
-    try { dow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay() } catch { return 0 }
-    if (dow === 0 || dow === 6) return 0
+    // Only reserve when a developing-period bar is actually expected today — a trading session
+    // (weekday, not an NYSE holiday). On a weekend/holiday no late bar lands, so reserving would
+    // just open a phantom right gap that never fills.
+    if (!isTradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
   return 0
+}
+
+// The ISO date of the CURRENT developing bar for a D/W/M tf (today / this week's Friday / first
+// of this month) — the SAME `t` the real developing bar will carry (computeBarTime), or null when
+// today is not a trading session (nothing is seeded on a weekend/holiday). Used to seed a
+// whitespace slot in the CANDLE SERIES that the real developing bar then REPLACES, so LWC's
+// shiftVisibleRangeOnNewBar never fires (a replacement is not a new bar) — the final piece that
+// stops the "today's candle opens on tomorrow, then snaps back" slide.
+export function _developingBarISO(tf) {
+  if (!(tf === 'D' || tf === 'W' || tf === 'M')) return null
+  if (!isTradingSessionTodayET()) return null
+  try {
+    const iso = computeBarTime(tf, Date.now() / 1000)
+    return (typeof iso === 'string' && iso.length >= 10) ? iso : null
+  } catch { return null }
 }
 
 // ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
@@ -1292,6 +1304,8 @@ function buildFutureWhitespace(lastLwcTime, tf, minCount, targetSlot = null) {
       cur += 86400000
       const dow = new Date(cur).getUTCDay()
       if (dow === 0 || dow === 6) continue                 // daily: business days only, to match the bars
+      if (isHolidayISO(fmt(cur))) continue                 // ...and skip NYSE full holidays (no bar exists on a
+                                                           // closed weekday like Labor Day → no phantom axis slot)
     }
     const slot = fmt(cur)
     if (slot <= base) continue
@@ -6816,9 +6830,20 @@ export default function StockChart({
         const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
         arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
+      // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
+      // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
+      // paint the stale provisional ends at the last SEALED period; today's real bar then appends
+      // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
+      // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
+      // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
+      if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
+        const _dev = _developingBarISO(resolvedTf)
+        const _lastRaw = displayBars[displayBars.length - 1]?.t
+        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) arr.push({ time: adjustTime(_dev) })
+      }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick]
+    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later

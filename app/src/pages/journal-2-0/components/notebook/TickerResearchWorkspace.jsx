@@ -61,16 +61,26 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [actionError, setActionError] = useState('')
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
 
+  // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
+  // Two defects in one line: a raw provider/backend exception rendered to a
+  // member (Wave B removed that class elsewhere; Wave H reintroduced it here),
+  // and a native `alert()` — the modal the scorecard already names as the
+  // trust-eroding pattern. The copy now says what happened and what is still
+  // true of the member's data, in the house idiom, and the exception goes to
+  // the console where an engineer can read it.
   const handleNewNote = async () => {
     setCreating(true)
+    setActionError('')
     try {
       const note = await createNoteViaApi({ ticker: symbol })
       openNote(note)
     } catch (e) {
-      alert(`Could not create note: ${e.message || e}`)
+      console.error('[research] create note failed', e)
+      setActionError("Couldn't create that note. Nothing was saved — try again.")
     } finally {
       setCreating(false)
     }
@@ -78,11 +88,13 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
 
   const handleNewThesis = async () => {
     setCreating(true)
+    setActionError('')
     try {
       const note = await createNoteFromTemplateViaApi('thesis', { ticker: symbol })
       openNote(note)
     } catch (e) {
-      alert(`Could not create thesis: ${e.message || e}`)
+      console.error('[research] create thesis failed', e)
+      setActionError("Couldn't start that thesis. Nothing was saved — try again.")
     } finally {
       setCreating(false)
     }
@@ -103,6 +115,10 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           <UIcon name="chevronRight" size={12} style={{ transform: 'rotate(180deg)', marginRight: 4 }} gold={false} />
           Notebook
         </button>
+      )}
+
+      {actionError && (
+        <div className={styles.actionError} role="alert">{actionError}</div>
       )}
 
       <div className={styles.header}>

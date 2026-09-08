@@ -80,7 +80,28 @@ correctness (G-061) is the differentiator this whole program calls its moat, and
 this is a hole in it. The fix is small and scoped: gate `reconstructable` on
 whether the captured date was future-relative to capture time.
 
-### C. The cheapest high-leverage UX gap in the entire audit is still open, eleven waves later 🟠
+### C. ⛔ RETRACTED 2026-09-07 — this finding was WRONG
+
+**Notebook already participates in the command palette, and has since Wave B.**
+`components/CommandPalette.jsx` imports `useJ2Favorites`/`useJ2Recents` from
+`pages/journal-2-0/`, ships static Notebook commands (New note · Open Notebook ·
+Search Notebook · Trash) and matches note rows through `notebookNoteRowsMatch()`.
+Its own comment says so: *"Wave B: Notebook joins the ONE existing command palette
+rather than growing a second, Notebook-specific one."* Wave H extended it, and
+Wave H's own closure record lists "command-palette entry" as live-verified.
+
+**How I got it wrong:** I grepped `pages/journal-2-0/` for a *registration* and
+found none — but the architecture is the reverse, the palette PULLS from Notebook.
+The original audit made the same mistake, and I repeated it instead of catching
+it (`lesson_grep_for_a_name_finds_one_ask_the_module_finds_ten`). This is the same
+class of error I opened §0 by accusing the ledger of.
+
+**What survives:** the *other* half of the Power-User Efficiency score — no
+note-level keyboard shortcut set. That is a real, smaller gap, and it is not this
+row. **Wave L's scope loses "palette participation" and keeps the shortcuts.**
+
+<details><summary>The retracted claim, kept for the record</summary>
+
 
 G-102. Re-verified by fresh grep today: `CommandPalette.jsx` exists app-wide
 (`Layout.jsx`, `Settings.jsx` participate) and **`pages/journal-2-0/` registers
@@ -92,7 +113,12 @@ Notion users reach for `Cmd+K`; Obsidian users reach for the quick switcher. In 
 they get a palette that cannot find their notes. **This is not a missing capability
 — the capability exists and Notebook simply is not wired into it.**
 
+</details>
+
 ### D. The raw-error defect class recurred in a later wave 🟠
+
+**Status 2026-09-07: FIXED + RAILED** in the Notebook scope by the integrity mini-pass; the wider `journal-2-0/` instance count (104 across 32 files) is now tracked as gap-ledger **G-128**.
+
 
 Wave B fixed the raw-error leaks (G-100). Wave H then reintroduced the exact
 pattern in `TickerResearchWorkspace.jsx:73,85`:
@@ -117,7 +143,7 @@ railed is a fix with a shelf life; this one lasted one wave.
 | 2 | **Semantic recall.** "I know I wrote something about margin pressure" returns nothing when the note says "gross margin normalization" | Everyone, weekly | Notion, Evernote (both semantic); Obsidian via Smart Connections' **local** model |
 | 3 | **No OCR.** A scanned 10-K or a screenshot of a chart is text-invisible | Document-heavy | Evernote (server-side OCR) |
 | 4 | **No mobile capture.** No share-sheet; the PWA manifest is a stub (`start_url:/dashboard`, one SVG icon, no 192/512 PNGs, no maskable icon) | Everyone, daily | All three |
-| 5 | **No keyboard speed.** No palette participation, no note-level shortcuts | Power users, constantly | Notion, Obsidian |
+| 5 | **No keyboard speed** — *narrowed 2026-09-07*: the palette DOES cover Notebook (retraction, §1C); what is missing is a note-level shortcut set | Power users, constantly | Notion, Obsidian |
 | 6 | **No offline.** No service worker at all | Obsidian switchers especially | Obsidian (native), Evernote, Notion (degraded) |
 | 7 | **Note bodies are plaintext at rest.** Connector tokens are Fernet-encrypted; note content is not (G-004, P1) | Anyone told this is their primary store | Baseline expectation for the pitch |
 
@@ -189,9 +215,10 @@ acquisition, retention). **Deliberately not inherited from the old roadmap order
 2. **Finish G-040's four uncovered surfaces** — Screener, Options Flow, COT Data,
    Model Book. Cheapest capture win available: the mechanism exists at nine call
    sites and simply is not wired at four. **Do this before building an extension.**
-3. **Command palette participation (G-102).** Notes, saved views, Ask, and
-   "new note in this ticker's research" as commands. Cheap, and it is the
-   difference between "an app I use" and "an app I live in".
+3. ~~Command palette participation (G-102).~~ **RETRACTED — already shipped in
+   Wave B** (see §1C). What remains is a **note-level keyboard shortcut set**,
+   which is smaller and genuinely open; Power-User Efficiency stays low on that
+   alone, not on palette absence.
 4. **Mobile capture + a real PWA manifest** — share-sheet target, proper icon set.
 5. **Note-level keyboard shortcuts** to lift Power-User Efficiency off 3.
 

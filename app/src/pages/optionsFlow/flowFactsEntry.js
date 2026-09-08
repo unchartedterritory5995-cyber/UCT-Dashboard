@@ -30,8 +30,11 @@
 // the exit code is 2, and NOTHING is written to stdout — so a caller can never
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
-import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
+import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom, makeIsETF } from './flowCompute'
 import { partsFrom } from './flowBootstrap'
+import { buildTopPickProduct } from './flowTopPicksProduct'
+import { buildSearchProduct } from './flowSearchProduct'
+import { readFileSync } from 'node:fs'
 
 export const USAGE = [
   'usage:',
@@ -119,6 +122,35 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
   }
 }
 
+/**
+ * Load the ETF/index replica the TOP 10 product must be classified against.
+ *
+ * The file is `{"generation": "<digest>", "symbols": ["SPY", ...]}` written by
+ * the caller from `optionsflow_etf_replica`. A path, not stdin, because stdin
+ * already carries the CSV; a file, not an env var, because the set is ~19.5k
+ * symbols.
+ *
+ * ⛔ RETURNS NULL ON ANY PROBLEM, AND NULL MEANS "DO NOT EMIT THE PRODUCT".
+ * It must never fall back to classifying with the hardcoded set alone: that
+ * would produce a well-formed TOP 10 computed against a DIFFERENT universe than
+ * the browser uses, stamped with a generation that would then match. Declining
+ * to emit leaves the client on its existing path, which is the safe direction.
+ */
+export function loadEtfReplica(path) {
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8'))
+    const gen = raw && raw.generation
+    if (typeof gen !== 'string' || gen === '') return null
+    if (!Array.isArray(raw.symbols)) return null
+    const set = new Set()
+    for (const sym of raw.symbols) set.add(String(sym || '').toUpperCase())
+    if (set.size === 0) return null
+    return { generation: gen, symbols: set }
+  } catch {
+    return null
+  }
+}
+
 function readStdin() {
   return new Promise((resolve, reject) => {
     const chunks = []
@@ -151,7 +183,7 @@ function routeConsoleToStderr() {
 
 export async function main(argv) {
   const cmd = argv[0]
-  if (cmd !== 'aggregate' && cmd !== 'stats') {
+  if (cmd !== 'aggregate' && cmd !== 'stats' && cmd !== 'search') {
     process.stderr.write(USAGE + '\n')
     process.exitCode = 2
     return
@@ -160,8 +192,39 @@ export async function main(argv) {
   try {
     const flag = argv.find(a => a.startsWith('--date-filter='))
     const dateFilter = flag ? flag.slice('--date-filter='.length) : null
+    const etfFlag = argv.find(a => a.startsWith('--etf-file='))
+    const replica = etfFlag ? loadEtfReplica(etfFlag.slice('--etf-file='.length)) : null
     const csv = await readStdin()
+    if (cmd === 'search') {
+      // The Search deep dive for ONE ticker.
+      //
+      // ⛔ `erSoon` IS NULL, DELIBERATELY. `processFlowData` treats a Set as the
+      // authority and sets `er = set.has(symbol)`; null lets the tape's own
+      // column speak. Computing with null is what makes this product
+      // USER-INDEPENDENT and therefore cacheable — the client re-applies its own
+      // earnings set on arrival (flowSearchProduct.applyErOverlay), which is
+      // deep-equal to having computed it with that set. Proven in
+      // searchErIndependence.test.js, with the wrong-set control.
+      //
+      // ⛔ NO --date-filter HERE. `/api/flow/ticker` has no range parameter: it
+      // returns the ticker's COMPLETE history and the page scopes it at render
+      // time (_scopeAllDirectional). Filtering here would make the product
+      // range-specific, which would both change the answer and silently break
+      // a cache key that legitimately omits range.
+      const rows = parseCSV(csv)
+      const D = rows.length ? processFlowData(rows, null) : null
+      const product = buildSearchProduct(D)
+      process.stdout.write(JSON.stringify({ ok: true, product, rows: rows.length }) + String.fromCharCode(10))
+      return
+    }
     const { D, stats } = aggregateCsv(csv, { dateFilter })
+    // 3b: the TOP 10 product. Built ONLY when a replica was supplied and read
+    // cleanly — see loadEtfReplica. It is emitted as its own part and is
+    // DERIVED, not a partition of D, so partsFrom() keeps its lossless
+    // property: bootstrap + the deferred parts still reconstitute D exactly.
+    const topPicks = replica
+      ? buildTopPickProduct(D, { isEtfFn: makeIsETF(replica.symbols), generation: replica.generation })
+      : null
     // --split changes only how the SAME result is partitioned for the wire. The
     // default output stays byte-identical, so the existing endpoint and its
     // fallback path are untouched by this flag existing.
@@ -188,12 +251,15 @@ export async function main(argv) {
       }
       frame('STATS', JSON.stringify(stats))
       for (const name of Object.keys(parts)) frame(`PART ${name}`, JSON.stringify(parts[name]))
+      if (topPicks) frame('PART TOP_PICKS', JSON.stringify(topPicks))
       process.stdout.write(Buffer.concat(chunks))
       return
     } else if (argv.includes('--split')) {
       // One part per deferred key, not one deferred blob — so a surface can be
       // served exactly what it reads instead of most of the tape on first click.
-      payload = { ok: true, stats, parts: partsFrom(D) }
+      payload = { ok: true, stats, parts: topPicks
+        ? { ...partsFrom(D), TOP_PICKS: topPicks }
+        : partsFrom(D) }
     } else {
       payload = { ok: true, stats, D }
     }

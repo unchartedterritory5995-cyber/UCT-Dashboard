@@ -1043,6 +1043,33 @@ def get_snapshot_lists(date_str: str, keys: Optional[list] = None) -> Optional[d
         return None
 
 
+def get_snapshot_counts(date_str: str) -> Optional[dict]:
+    """The snapshot's SCALAR metrics — every non-list field, which is where the
+    counts live (`down_50pct_month` beside `down_50pct_month_list`).
+
+    ⭐ A caller that edits a list has to be able to check the count that is
+    rendered beside it. `count_period_return` and `list_period_return` mask
+    identically, so `count == len(list)` holds by construction; a maintenance job
+    that cannot READ the count cannot verify that premise before acting on it,
+    and would have to rewrite the count on faith.
+
+    Scalars only, so this stays tiny next to the lists it accompanies.
+    """
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+            ).fetchone()
+        if not row:
+            return None
+        m = json.loads(row["metrics"])
+        return {k: v for k, v in m.items()
+                if not k.endswith("_list") and (v is None or isinstance(v, (int, float, str)))}
+    except Exception as e:
+        print(f"[breadth_monitor] get_snapshot_counts error: {e}")
+        return None
+
+
 def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     """Return a single *_list metric for a given date, or None if not found."""
     try:

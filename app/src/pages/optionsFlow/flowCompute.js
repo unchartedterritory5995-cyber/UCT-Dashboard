@@ -1783,6 +1783,38 @@ export const STOCK_OVERRIDE_TICKERS = new Set([
   "SPCX",
 ]);
 
+/**
+ * The page's EFFECTIVE ETF/index predicate: `isETFSymbol` plus the runtime set.
+ *
+ * ⛔ ONE AUTHORITY, and 3b is why it has to be. OptionsFlow.jsx built this
+ * predicate inline in a useCallback; the server now has to classify with the
+ * SAME rule, because classification decides which universe a ticker belongs to
+ * and therefore which TOP 10 a member sees. Two copies of these five lines
+ * would be a second authority over the product's own membership — and the
+ * divergence would be silent, since both sides would happily produce a
+ * well-formed ten-row table.
+ *
+ * `remoteSet` is the fetched ETF/index universe (≈19.5k symbols) or null.
+ * Null is NOT "no ETFs": the hardcoded fallback still classifies, which is
+ * exactly the first-render behaviour the page has always had.
+ *
+ * ⛔ Order is load-bearing. STOCK_OVERRIDE_TICKERS wins over EVERYTHING,
+ * including the trade's own stocketf column and the remote set — upstream
+ * providers mislabel real equities (SPCX is the known case), and without the
+ * override that flow is filtered off the Stocks tab entirely.
+ */
+export function makeIsETF(remoteSet) {
+  return (sym, stocketf) => {
+    const upper = (sym||"").toUpperCase();
+    if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
+    const st = (stocketf||"").toUpperCase();
+    if (st === "ETF" || st === "INDEX") return true;
+    if (KNOWN_ETF_TICKERS.has(upper)) return true;
+    if (remoteSet && remoteSet.has(upper)) return true;
+    return false;
+  };
+}
+
 export function isETFSymbol(sym, stocketf) {
   const upper = (sym||"").toUpperCase();
   if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
@@ -1825,6 +1857,31 @@ export function isETFSymbol(sym, stocketf) {
 // Returns { candidates, standoutCandidates, ad } — the three locals the renderer
 // consumes. `top5Filter` and the final .slice(0,10) stay in the page, so
 // switching Both/Calls/Puts/Unusual/Standout never costs a round trip.
+/**
+ * How fresh is a ticker's flow, as the TOP 10 table words it.
+ *
+ * ⛔ ONE AUTHORITY. This expression was written out TWICE inside
+ * `buildTopPickCandidates` (the ranked list and the standout list), which is a
+ * second authority over one value — the two could drift and the table would
+ * label the same ticker differently in two views with nothing failing.
+ *
+ * ⛔ IT TAKES `now` AS AN ARGUMENT, and that is load-bearing for 3b. These
+ * two fields are the ONLY part of a candidate that depends on the clock rather
+ * than on the tape. When the picks are computed on the SERVER and cached per
+ * data version, `now` is build time, not render time — so a product built
+ * before midnight would still say "Today" the next morning. The client re-derives
+ * both fields from the carried `lastDate` at render time using this same
+ * function, so there is one expression and one clock: the reader's.
+ */
+export function freshnessFrom(lastDate, now) {
+  const d = lastDate instanceof Date ? lastDate : (lastDate ? new Date(lastDate) : null)
+  const valid = d && !Number.isNaN(d.getTime())
+  const daysSince = valid ? Math.max(0, Math.round((now - d) / 86400000)) : 30
+  const lastDateStr = valid ? `${d.getMonth() + 1}/${d.getDate()}` : "—"
+  const freshLabel = daysSince <= 1 ? "Today" : daysSince <= 2 ? "Yesterday" : lastDateStr
+  return { daysSince, freshLabel }
+}
+
 export function buildTopPickCandidates(directionalRows, tradeRows, {
   dataMode, capFilter, isEtfFn, includeStandout = false,
 } = {}) {
@@ -1918,9 +1975,7 @@ export function buildTopPickCandidates(directionalRows, tradeRows, {
     if((tk.band==="Large"||tk.band==="Mega") && topDTE>180) score*=0.2;
     else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8;
     // Exit detection — penalize closing flow, not age
-    const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-    const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
-    const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
+    const { daysSince, freshLabel } = freshnessFrom(tk.lastDate, _now);
     // Bid-side exit ratio on top contract: high bid% = closing trades
     const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
     // OI retention: lastOI vs maxOI — declining OI = positions closed
@@ -1991,9 +2046,7 @@ export function buildTopPickCandidates(directionalRows, tradeRows, {
       // day-trade churn), and ultra-short expirations (<5 DTE = gamma scalp / day-trade).
       if(net<1e6 || tk.swp<1 || purity<80 || bidRatio>0.25 || tk.minDTE<5) return null;
       const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
-      const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-      const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
-      const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
+      const { daysSince, freshLabel } = freshnessFrom(tk.lastDate, _now);
       const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
       const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
       let posStatus = "ACTIVE";

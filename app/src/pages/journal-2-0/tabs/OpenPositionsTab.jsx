@@ -595,7 +595,10 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
               mutate((key) => typeof key === 'string' && key.startsWith('/api/j2/calendar'))
               setToast({ message: `Deleted ${s.underlying} strategy.`, tone: 'success' })
             } catch (e) {
-              setToast({ message: `Couldn't delete: ${e.message}`, tone: 'error' })
+              // The exception is for the engineer; the member gets what
+              // happened and what is still true of their data.
+              console.error('[options] delete strategy failed', e)
+              setToast({ message: "Couldn't delete that strategy. Nothing was removed.", tone: 'error' })
             }
           }}
           onClose={() => setOptionsDeleteTarget(null)}

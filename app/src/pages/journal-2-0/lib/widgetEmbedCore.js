@@ -4,7 +4,7 @@
 // view / slash menu / capture paths all build on it.
 
 import {
-  widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable,
+  widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable, asOfDayOf,
 } from '../../../widgets/registry'
 import { peekDrawings } from '../../../components/chart/drawingsStore'
 import { resolveOwnChartMergedSettings } from '../../../components/chart/pane/ownChartSettings'
@@ -227,6 +227,50 @@ export function parseCompareSlashArgs(rest) {
  *  kind: 'live'        → mount the widget's embed component with frozen params
  *        'image'       → render the stored archive image
  *        'placeholder' → neither is possible; a labeled chip, never a crash */
+/** An ISO instant → the ET SESSION day it fell in. Same en-CA/ET idiom as
+ *  `etTodayIso`, for the same reason: never `toISOString()` (that is UTC, and
+ *  a 9pm ET capture is already tomorrow there), never the local zone. */
+export function etDayOf(iso) {
+  const t = Date.parse(String(iso ?? ''))
+  if (!Number.isFinite(t)) return null
+  try {
+    return new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  } catch {
+    return new Date(t).toISOString().slice(0, 10)
+  }
+}
+
+/** ⛔ THE TEMPORAL GATE (G-063). Could this capture's subject already have
+ *  HAPPENED when the member captured it?
+ *
+ *  The invariant: what the member could know at capture time must not silently
+ *  become what became true later. A member who captured Thursday's calendar on
+ *  Tuesday was looking at an EXPECTATION; re-rendering it live in October
+ *  shows them the RESULT, inside a note they wrote as a pre-event thesis.
+ *
+ *  The question is KNOWABILITY, not string ordering, and the honest precision
+ *  is the DAY — `date` is 'YYYY-MM-DD' and the widget renders one ET session,
+ *  so nothing here can distinguish a 9am capture from a 5pm one. Therefore a
+ *  day counts as knowable only once it had FULLY ELAPSED at capture:
+ *
+ *    asOfDay <  capture ET day  → settled before capture      → live is faithful
+ *    asOfDay == capture ET day  → the day was still unfolding → NOT knowable
+ *    asOfDay >  capture ET day  → hadn't happened at all      → NOT knowable
+ *
+ *  Same-day is deliberately on the NOT-knowable side: at day precision we
+ *  cannot show the capture followed the outcome, and the failure directions are
+ *  not symmetric — wrongly showing the archive costs a re-render, wrongly
+ *  showing live rewrites the member's own research.
+ *
+ *  Widgets that declare no `asOfDay` are untouched. */
+export function outcomeKnowableAtCapture(attrs) {
+  const asOf = asOfDayOf(attrs?.widgetId, attrs?.params)
+  if (!asOf) return true                       // widget makes no as-of claim
+  const capturedDay = etDayOf(attrs?.capturedAt)
+  if (!capturedDay) return false               // no trustworthy capture time → fail safe
+  return asOf < capturedDay
+}
+
 export function resolveEmbedRender(attrs) {
   const meta = widgetMeta(attrs?.widgetId)
   const hasImage = !!attrs?.fallback?.url
@@ -234,6 +278,11 @@ export function resolveEmbedRender(attrs) {
   const verdict = validateParams(attrs.widgetId, attrs.params || {})
   if (!verdict.ok) return { kind: hasImage ? 'image' : 'placeholder', reason: 'invalid-params' }
   if (attrs.mode === 'live' && meta.liveCapable) return { kind: 'live', reason: 'live-mode' }
+  // G-063: the knowability gate sits BEFORE reconstruction, because
+  // reconstruction is exactly the mechanism that would substitute later truth.
+  if (!outcomeKnowableAtCapture(attrs)) {
+    return { kind: hasImage ? 'image' : 'placeholder', reason: 'captured-before-outcome' }
+  }
   if (isReconstructable(attrs.widgetId, attrs.params)) return { kind: 'live', reason: 'reconstructable' }
   return { kind: hasImage ? 'image' : 'placeholder', reason: 'image-only' }
 }

@@ -39,6 +39,7 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import subprocess
 import threading
 import time
@@ -242,7 +243,15 @@ def stats() -> dict:
     return dict(_STATS)
 
 
-def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
+# The view the page OPENS ON: stocks, a 1-day fetch window, the Last1 date
+# selection. ⛔ ONE AUTHORITY. `health()` grades warmth against this view and the
+# background preparer warms this view; if those two ever named it separately, a
+# preparer could report success for a view nobody opens while health honestly
+# said cold, and each would look right on its own.
+DEFAULT_VIEW = ("stocks", 1, "Last1")
+
+
+def health(current_version=None, view=DEFAULT_VIEW) -> dict:
     """Is the fast path ACTUALLY available right now?
 
     ⛔ READS THE ARTIFACT, NOT A COUNTER. The verdict is "is there a usable
@@ -289,15 +298,46 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         return out
     out["available"] = True
 
-    cached = _CACHE.get(tuple(view))
-    if cached is None:
-        out["reason"] = "cold"
-    elif current_version is not None and cached[0] != current_version:
-        # A warm entry for a SUPERSEDED version is not warm: the next caller
-        # rebuilds. Reporting it as warm is how a stalled warmer would hide.
-        out["reason"] = f"stale (cached v{cached[0]} vs current v{current_version})"
+    def _grade(entry, label=""):
+        """(warm?, reason) for one cache entry against the current version.
+
+        `label` is a PREFIX, empty for the whole-D path so its long-standing
+        reason strings ("cold", "stale (...)") are unchanged — they are a
+        diagnostic contract, and renaming them to suit a new caller would be a
+        gratuitous break.
+        """
+        if entry is None:
+            return False, f"{label}cold"
+        if current_version is not None and entry[0] != current_version:
+            # A warm entry for a SUPERSEDED version is not warm: the next caller
+            # rebuilds. Reporting it as warm is how a stalled warmer would hide.
+            return False, (f"{label}stale (cached v{entry[0]} vs current "
+                           f"v{current_version})")
+        return True, None
+
+    warm_whole, reason_whole = _grade(_CACHE.get(tuple(view)))
+    out["warm_whole"] = warm_whole
+
+    # ⛔ GRADE THE TRANSPORT MEMBERS ACTUALLY TAKE. This graded ONLY the whole-D
+    # cache, and with the parts transport enabled in production that is not the
+    # path a member's first paint uses. Observed on prod 2026-09-08:
+    #     "warm": true, "parts": {"enabled": true, "entries": []}
+    # — the verdict said the fast path was ready while the path members take was
+    # completely cold, which is exactly the class of defect this function's own
+    # docstring warns about (a health check reading a proxy, not the artifact).
+    #
+    # ⛔ `bootstrap` IS A SUFFICIENT PROBE, by construction rather than by luck:
+    # `get_cached_or_build_part` writes EVERY part from one build in a single
+    # pass, so if bootstrap is present at this version its siblings are too.
+    if parts_enabled():
+        warm_parts, reason_parts = _grade(
+            _PARTS_CACHE.get(tuple(view) + ("bootstrap",)), "parts ")
+        out["warm_parts"] = warm_parts
+        out["warm"] = warm_parts
+        out["reason"] = reason_parts
     else:
-        out["warm"] = True
+        out["warm"] = warm_whole
+        out["reason"] = reason_whole
     return out
 
 
@@ -425,6 +465,46 @@ def envelope_bootstrap(frames: dict, stats: dict) -> dict:
     return out
 
 
+def _cleanup_etf_file(path: str | None) -> None:
+    """Remove the staged replica file. Never raises — a leftover temp file is a
+    nuisance; an exception here would fail a build that already succeeded."""
+    if not path:
+        return
+    try:
+        os.unlink(path)
+    except Exception:
+        pass
+
+
+def _write_etf_replica_file() -> str | None:
+    """Serialise the installed ETF/index replica for the node bundle.
+
+    Returns a temp-file path, or None when there is nothing trustworthy to pass
+    — in which case the bundle emits no TOP_PICKS part at all.
+
+    ⛔ `optionsflow_etf_replica.symbols()` returns an EMPTY set when no
+    generation is installed, and an empty set is NOT "there are no ETFs" — it
+    is "we cannot classify". Emitting a product from it would classify every
+    ticker as a stock and stamp the result with a generation, which the client
+    would then match and trust.
+    """
+    try:
+        from api.services import optionsflow_etf_replica as _rep
+        gen = (_rep.local_generation() or {}).get("generation")
+        if not gen:
+            return None
+        syms = _rep.symbols()
+        if not syms:
+            return None
+        fd, path = tempfile.mkstemp(prefix="uct-flow-etf-", suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"generation": gen, "symbols": sorted(syms)}, fh)
+        return path
+    except Exception:
+        log.exception("[flow-agg] could not stage the ETF replica; TOP_PICKS will be skipped")
+        return None
+
+
 def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     """{part_name: gzipped_json_bytes} plus 'stats', from ONE node run."""
     if not available():
@@ -433,22 +513,46 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     argv = [node_bin(), bundle_path(), "aggregate", "--split-frames"]
     if df:
         argv.append(f"--date-filter={df}")
+    # 3b: hand the bundle the ETF/index replica so it can compute TOP 10 with
+    # the SAME classifier the browser uses, and stamp the product with the
+    # replica's content digest.
+    #
+    # ⛔ A FILE, NOT STDIN (the CSV owns stdin) AND NOT AN ENV VAR (the set is
+    # ~19.5k symbols).
+    # ⛔ NO REPLICA => NO FILE => the bundle emits no TOP_PICKS part and the
+    # client stays on its existing path. That is the safe direction and it is
+    # why nothing here raises: a classification we cannot vouch for must not
+    # become a well-formed TOP 10 that the client would then accept.
+    etf_path = _write_etf_replica_file()
+    if etf_path:
+        argv.append(f"--etf-file={etf_path}")
     t0 = time.monotonic()
+    _st = {"csv_kb": len(csv_text) // 1024}
+    # ⛔ try/FINALLY, not a call after the except arms: the timeout and
+    # failed-to-start branches both `return None`, so a cleanup placed after
+    # them leaks the staged replica on exactly the paths that repeat.
     try:
-        proc = subprocess.run(argv, input=csv_text.encode("utf-8"),
-                              capture_output=True, timeout=BUILD_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        log.warning("[flow-agg] parts build timed out after %.0fs", BUILD_TIMEOUT_S)
-        return None
-    except Exception:
-        log.exception("[flow-agg] parts build failed to start")
-        return None
+        try:
+            proc = subprocess.run(argv, input=csv_text.encode("utf-8"),
+                                  capture_output=True, timeout=BUILD_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            log.warning("[flow-agg] parts build timed out after %.0fs", BUILD_TIMEOUT_S)
+            return None
+        except Exception:
+            log.exception("[flow-agg] parts build failed to start")
+            return None
+    finally:
+        _cleanup_etf_file(etf_path)
     if proc.returncode != 0:
         log.warning("[flow-agg] parts build exited %s: %s", proc.returncode,
                     (proc.stderr or b"")[:300].decode("utf-8", "replace"))
         return None
 
+    _st["spawn_ms"] = int((time.monotonic() - t0) * 1000)
+    _t_frames = time.monotonic()
     frames = _read_frames(proc.stdout)
+    _st["frames_ms"] = int((time.monotonic() - _t_frames) * 1000)
+    _st["stdout_kb"] = len(proc.stdout or b"") // 1024
     if not frames or "bootstrap" not in frames:
         log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
                     len(proc.stdout), len(frames))
@@ -478,10 +582,24 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     # the client has one shape to understand rather than two.
     frames = envelope_bootstrap(frames, stats)
 
+    _t_gz = time.monotonic()
     gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
+    _st["gzip_ms"] = int((time.monotonic() - _t_gz) * 1000)
     _STATS["builds"] += 1
-    log.info("[flow-agg] parts built in %d ms: %s", stats["buildMs"],
-             ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
+    # ⛔ STAGE DECOMPOSITION, not just a total. "the build takes ~6 s" is not an
+    # actionable fact: the question is how much is CSV acquisition, how much is
+    # node startup, how much is the parse, how much is processFlowData itself,
+    # and how much is transport work this process does afterwards. `parseMs` and
+    # `processMs` come from inside the node run; the rest are measured here.
+    # Without this, optimisation is guesswork and "precompute it" becomes an
+    # excuse not to delete redundant work first.
+    log.info(
+        "[flow-agg] parts built in %d ms :: csv=%dKB spawn+run=%dms "
+        "(node parse=%sms process=%sms) frames=%dms stdout=%dKB gzip=%dms :: %s",
+        stats["buildMs"], _st.get("csv_kb", 0), _st.get("spawn_ms", 0),
+        stats.get("parseMs", "?"), stats.get("processMs", "?"),
+        _st.get("frames_ms", 0), _st.get("stdout_kb", 0), _st.get("gzip_ms", 0),
+        ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
     return {"parts": gz, "stats": stats}
 
 
@@ -549,5 +667,19 @@ PART_NAMES = (
 )
 
 
+# Parts DERIVED from the dataset rather than carved out of it. Mirrors
+# DERIVED_PART_NAMES in flowBootstrap.js.
+# ⛔ Kept OUT of PART_NAMES on purpose: that tuple is a PARTITION whose
+# members recombine into exactly the object processFlowData returned. TOP_PICKS
+# is computed FROM that object, so folding it in would make the losslessness
+# property quietly false while every test still passed.
+DERIVED_PART_NAMES = (
+    "TOP_PICKS",
+)
+
+# Everything a caller may request over the parts transport.
+SERVED_PART_NAMES = PART_NAMES + DERIVED_PART_NAMES
+
+
 def is_part_name(name: str) -> bool:
-    return name in PART_NAMES
+    return name in SERVED_PART_NAMES
