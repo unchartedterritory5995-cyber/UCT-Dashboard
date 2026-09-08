@@ -4551,9 +4551,17 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
     # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
     slim = []
     for c in top:
-        _loi, _now = _enrich(c)
+        _loi, _now = _enrich(c)                                   # live chain: price (for PERF) + OI
+        _series = _oi_series(c)                                   # daily OI history (snapshot store)
         _entry = c.get("avg_fill")
-        _oi_val = _loi if _loi is not None else c.get("max_oi")   # LATEST OI (fallback flow-time)
+        # LATEST OI = the snapshot store's latest point FIRST: it's OCC-sourced (T+1,
+        # matches broker/ThinkorSwim), it's ALWAYS the sparkline's endpoint (so the
+        # number and the trend line can't disagree), and it never depends on a live
+        # chain fetch that can time out (that failure showed a stale flow-time max_oi
+        # — ORCL 175C read 6,116 vs the real 9,959). Then live chain, then flow-time.
+        _snap_latest = _series[-1] if _series else None
+        _oi_val = (_snap_latest if _snap_latest is not None
+                   else (_loi if _loi is not None else c.get("max_oi")))
         _vol_val = _eff_vol(c)                                    # cumulative flow volume
         slim.append({
             "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
@@ -4572,7 +4580,7 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             "days_active": c.get("days_active"),
             "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
             "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
-            "oiSeries": _oi_series(c),           # daily OI over the window (sparkline)
+            "oiSeries": _series,                 # daily OI over the window (sparkline)
         })
     result = {
         "ok": True, "symbol": sym, "source": se, "spot": spot,
