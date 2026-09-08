@@ -22,6 +22,7 @@ fallback are now FMP-primary, Finnhub-fallback.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait
 from typing import Any
@@ -30,6 +31,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.services.fundamentals import get_fundamentals, _fmt_billions
 from api.services.earnings_table import get_earnings_table
+from api.services.financial_statements import get_statements
 from api.services import fundamentals_snapshot_store as snap_store
 from api.services import fmp_client
 from api.services.cache import cache
@@ -425,3 +427,58 @@ def get_fundamentals_endpoint(ticker: str):
             return payload
 
     return _build_snapshot(sym)
+
+
+@router.get("/api/fundamentals-full/{ticker}")
+def get_fundamentals_full(ticker: str):
+    """Rich fundamentals "data window" for a ticker — the FULL metric set
+    (valuation, profitability, growth, balance-sheet, margins) that the compact
+    `/api/fundamentals/{ticker}` deliberately omits. Backs the chart's Stock
+    Profile dock. No auth (public reference data, same bucket as the compact
+    endpoint); `get_fundamentals` caches internally so repeat views never re-hit
+    the bounded yfinance pool."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {}
+    return get_fundamentals(sym)
+
+
+@router.get("/api/fundamentals-statements/{ticker}")
+def get_fundamentals_statements(ticker: str):
+    """Historical income / balance-sheet / cash-flow statements (annual + quarterly
+    + TTM) for the Company Intelligence panel's Financials tab. Sourced from
+    yfinance (already a dependency — no new paid provider), curated to a stable set
+    of line items, cached 12h, every fetch bounded. No auth (public reference data,
+    same bucket as the other fundamentals endpoints)."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {}
+    return get_statements(sym)
+
+
+@router.get("/api/earnings-intel/{ticker}")
+def get_earnings_intel_endpoint(ticker: str):
+    """The COMPLETE normalized earnings model for the Company Intelligence
+    panel's Earnings tab — reported quarters (EPS and revenue actual vs
+    consensus, surprise, year-over-year growth against the same fiscal quarter,
+    net margin), forward consensus quarters, annual history, annual estimates,
+    and the summary (next report, acceleration, beat streak).
+
+    Fiscal periods are placed on the company's own filed fiscal-year-end dates
+    via `fiscal_calendar`, so a non-December filer (Micron, NVIDIA, Apple,
+    Microsoft, Walmart, Broadcom) gets the periods it actually reports.
+
+    ⚠️ Deliberately UNGATED, and that is a product decision rather than an
+    oversight (2026-09-07): every member sees the same Earnings research, so no
+    part of it may sit behind a plan check. It is also CHEAPER than the paid
+    `/api/fundamentals/earnings-table` path it replaced for this surface —
+    assembly is company-level and shared, persisted to the snapshot store, so
+    the first viewer of a ticker pays once and everyone after is served from
+    storage, instead of every user polling a per-request paid endpoint every
+    five minutes. `earnings-table` keeps its own gate; it is simply no longer on
+    this path."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {}
+    from api.services.earnings_intel import get_earnings
+    return get_earnings(sym)

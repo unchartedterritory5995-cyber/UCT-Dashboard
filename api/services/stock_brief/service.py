@@ -46,10 +46,13 @@ _STATS_FAIL_TTL = 30          # a bars-fetch failure/empty year self-heals in 30
 _EARN_TTL = int(os.environ.get("STOCK_BRIEF_EARN_TTL", "900") or 900)        # 15 min
 _EARN_FAIL_TTL = 60           # get_chart_markers raising self-heals in 1 min, not 15
 _RETRY_AFTER = int(os.environ.get("STOCK_BRIEF_RETRY_AFTER", "3600") or 3600)            # retry a FAILED gen after ~1h (self-heals once the API is funded again)
-# Re-research the company description + thematic narrative ~monthly so the story
-# stays current with the year's drivers (a lot changes in a year), WITHOUT paying
-# per view. This is the ONLY recurring LLM cost — one call per stock per month.
-_REFRESH_AFTER = int(os.environ.get("STOCK_BRIEF_REFRESH_AFTER", str(30 * 86400)))       # re-gen the profile every ~30 days
+# Re-research the company description + thematic narrative ~quarterly so the story
+# stays current with the year's drivers WITHOUT paying per view. Generate-once,
+# reuse-broadly, serve-stale-while-refreshing (see `brief()` — the old story keeps
+# showing until a new one is stored). This is the ONLY recurring LLM cost. A
+# quarter aligns to the earnings cadence; event-based invalidation (regenerate on a
+# new earnings print) is a clean future upgrade layered on the same store.
+_REFRESH_AFTER = int(os.environ.get("STOCK_BRIEF_REFRESH_AFTER", str(90 * 86400)))        # re-gen the profile every ~90 days (quarterly)
 _DAILY_CAP = int(os.environ.get("STOCK_BRIEF_DAILY_CAP", "300") or 300)      # generations/day (per process)
 
 # Single-process generate-once dedupe + daily cap (matches the one-uvicorn web pod
