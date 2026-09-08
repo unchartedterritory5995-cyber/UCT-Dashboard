@@ -1191,7 +1191,7 @@ if (typeof window !== 'undefined') {
 // the real today bar lands. Falls back to the whitespace slot when no sane live price is
 // known yet (a freshly-typed cold ticker → reserve-only until data arrives, no wrong price).
 // Dark: at PCT=0/opt-out the seed is the whitespace point exactly as today → byte-identical.
-export const SEED_LIVE_PCT = 0
+export const SEED_LIVE_PCT = 100
 export function _seedLiveEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.seedLive.enabled') : null
