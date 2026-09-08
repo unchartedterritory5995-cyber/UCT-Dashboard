@@ -2260,3 +2260,94 @@ remains open** (§70), now with two waves of evidence.
 | **V10.7** | REALTIME | ⛔ **UNVERIFIED AND EXPLICITLY OPEN.** Carried state commits inside the call with no rollback path. Historical output matches; forming-bar re-execution, bar confirmation and rollback are untested and the architecture has not been exercised against them (§73/§74). |
 | **V10.8** | RESOURCE | Scan-wide CPU/memory/concurrency policy. Carried state is trivially bounded per symbol (12 MB / 5,000 symbols); the 487 s heavy scan is bar-loop dispatch, shared with 2F-2B's 214 s. |
 | **V10.9** | PERSISTENCE | `carried[]`, `carriedBase` and `carriedCount` join the artifact shape. Live recurrence state is NOT persisted and must not be — the program plus parameters reconstruct it from source bars (§72). |
+
+
+## PART W — THE FULL-SURFACE CENSUS AFTER 2F-2C (§87/§97, 2026-09-08)
+
+169 scripts, five corpora. Two instruments, deliberately not merged:
+`capabilityDemandCensus` owns DEMAND (fed by runtime state, scope-aware walk);
+`executionShapeCensus` owns REACH (a script names a member at all — a ceiling).
+⚠️ **They are not comparable and must never be summed.**
+
+### W1 — Demand, sites and first blockers
+
+| family | DEMAND (scripts) | SITES | FIRST BLOCKER | executing with demand |
+|---|---:|---:|---:|---:|
+| presentation | 156 | 1,127 | **21** | 27 |
+| tuple | 46 | 207 | **15** | 0 |
+| text | 51 | 678 | **11** | 0 |
+| collection | 45 | 1,655 | **9** | 0 |
+| mtf | 33 | 128 | 5 | 2 |
+| udt | 9 | 13 | 5 | 0 |
+| loop | 47 | 280 | 4 | 0 |
+| udf | 76 | 520 | 2 | 0 |
+| history | 35 | 172 | 1 | 0 |
+| object | 67 | 1,816 | 1 | 0 |
+| conversion | 29 | 95 | 1 | 0 |
+| **windowedOverState** | 24 | 165 | **1** | 0 |
+| state | 89 | 2,412 | — | 1 |
+| elseIf | 27 | 75 | — | 0 |
+| switch | 14 | 17 | 0 | 0 |
+| varip | 0 | 0 | 0 | 0 |
+
+⭐ **THE BUILTIN WALL IS ESSENTIALLY GONE.** `windowedOverState` was the wave
+sequence's target and its first-blocker count went **11 → 8 → 1** across 2F-2B and
+2F-2C. Its DEMAND is unchanged at 24, because demand never was the same number —
+which is the whole point of tracking both.
+
+### W2 — Execution-shape reach (ceiling, not demand)
+
+| shape | REACH | status |
+|---|---:|---|
+| finiteWindow | 126 | ✅ 2F-2B |
+| carried | 112 | 🟡 2F-2C — 2 of 16 members |
+| pointwise | 86 | ✅ 2F-1 |
+| windowComposite | 20 | ⬜ composition over `FINITE_WINDOW` |
+| forward | 18 | ⬜ reads a bar that has not happened |
+| offsetOne | 17 | ⬜ needs only `x[1]`, which ships |
+
+### W3 — The current first-blocker distribution, whole corpus
+
+| blocker | n | | blocker | n |
+|---|---:|---|---|---:|
+| **OK (fully executing)** | **27** | | `pine:character` | 4 |
+| `runtime:presentation` | 21 | | `runtime:loop` | 4 |
+| `runtime:tuple` | 15 | | `runtime:directive` | 3 |
+| `pine:builtin` | 14 | | `pine:request` | 3 |
+| `pine:block` | 12 | | `runtime:function-global-state` | 2 |
+| `pine:function` | 10 | | `runtime:request-with-state` | 2 |
+| `pine:text-value` | 10 | | `runtime:call-undeclared-builtin-state` | 2 |
+| `pine:collection` | 9 | | `runtime:declaration` | 2 |
+| `pine:undefined` | 5 | | `runtime:call-windowed-state` | **1** |
+| `pine:colour-value` | 5 | | `runtime:history-expression` | 1 |
+| `pine:statement` | 5 | | `runtime:call-text-state` | 1 |
+| `runtime:udt` | 5 | | `runtime:call-conversion-state` | 1 |
+| | | | *(6 more at 1 each)* | |
+
+### W4 — ⛔ WHAT THE EVIDENCE SAYS ABOUT ORDERING — and what it does not
+
+**PRESENTATION is the largest wall on every axis**: 21 first blockers, 156 scripts
+of demand, 1,127 sites. Nothing else is close. It is also the layer that decides
+whether an executing program produces anything a member can SEE, so it is a
+plausible next program on both counts.
+
+⛔ **BUT THIS IS NOT A RECOMMENDATION, AND §88 IS RIGHT TO WARN.** Three cautions
+the numbers alone do not carry:
+
+1. **A large first-blocker count is not evidence of a cheap fix.** `presentation`
+   already has 27 scripts EXECUTING with presentation demand — the wall is
+   specifically presentation calls fed by RUNTIME state, which is a narrower and
+   possibly much smaller job than "156 scripts want plots".
+2. **`pine:*` blockers total 74** — larger than every runtime blocker combined.
+   Those are the COLUMNAR door: missing builtins (14), block forms (12), text
+   values (10), collections (9). Some are grammar, some are table gaps, and they
+   are not this runtime's to fix.
+3. **Two consecutive waves moved the acceptance number by zero.** Any ordering
+   argument that predicts "ship X and N scripts execute" should be treated as a
+   hypothesis to measure, not a plan — 2F-2B and 2F-2C both looked like that
+   before they ran.
+
+⭐ **THE CHEAPEST NAMED ITEM REMAINS `offsetOne`** (`ta.change`, `ta.crossover`,
+`ta.crossunder`): reach 17 scripts, needs only `x[1]`, which shipped in 2F-2A.
+It is still not proposed — §56/§86 require its full overload semantics first, and
+`ta.change` has non-numeric forms this engine has not examined.
