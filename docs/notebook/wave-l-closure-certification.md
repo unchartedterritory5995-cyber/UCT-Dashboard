@@ -259,3 +259,73 @@ touched** (`git diff origin/master...HEAD` over their paths is empty):
 `chart/engine/ast/pine.blindCorpus` — the indicator workstream's.
 
 ⛔ **This is not "the entire repository is green", and it is not claimed to be.**
+
+---
+
+## 12. PRODUCTION — deployed and verified 2026-09-08
+
+| Item | Value |
+|---|---|
+| Branch commit | `dbeaca53e` (`notebook-primary-platform`, pushed) |
+| Merge commit pushed to master | `7226939c8` |
+| Serving entry bundle | `/assets/index-DVnQg2EZ.js` |
+| Fresh process | ✅ `uptime_seconds: 43` on `/api/health` |
+| `broker_sync` invariant | 10 (floor 7) — preserved through the merge |
+
+⛔ **Master moved twice during release and was reconciled, never forced.** The
+first push was rejected as non-fast-forward; the second reconciled two further
+company-panel commits. The only file overlapping this wave was `api/main.py`
+(both the `logging_redaction` lifespan wiring and `broker_sync` survived), and
+only the drift-affected rails were re-run: 21 passed.
+
+### Frontend asset proof — COMPLETE sweep, 288 assets
+
+| Marker | Chunk |
+|---|---|
+| `/journal/share` | `index-DVnQg2EZ.js` |
+| `share-signin` | **`ShareTargetPage-B0EVX0wa.js`** (a real code-split chunk) |
+| storage-refusal copy | `ShareTargetPage-B0EVX0wa.js` |
+| `/journal/capture-connect` | `index-DVnQg2EZ.js` |
+| `This note` (Slice 5 context destination) | `index-DVnQg2EZ.js` |
+
+⚰️ **THE FIRST TWO SWEEPS WERE WRONG IN THE TWO WAYS THIS PROGRAM ALREADY KNEW
+ABOUT, and both were caught rather than believed.** The first found **4 assets**
+and reported COMPLETE — the chunk-discovery pattern matched almost nothing, and
+a walker that finds nothing raises no error. The second, with discovery fixed,
+swept 286 assets against entry `index-C-EZqwzY.js` and found **zero** Wave L
+markers — because Railway had not finished building the push yet, so that was the
+PREVIOUS build. *A stale artifact reads exactly like a missing feature.* The tool
+now carries a sanity floor on "COMPLETE" and the run above is against the entry
+hash that changed after the deploy landed.
+
+### Member-flow verification (real Chromium, 390×844, production)
+
+| Check | Result |
+|---|---|
+| **B** `/journal/share` reachable | ✅ renders "Sign in to save this" |
+| **B** intro animation not obstructing | ✅ `elementFromPoint` → `coveredBy: null` |
+| **B** lapsed-session continuation | ✅ `next=%2Fjournal%2Fshare` — **bare route** |
+| **B** no payload in `?next=` | ✅ |
+| **B** query scrubbed from the address bar | ✅ `search: ""` after load |
+| **B** no horizontal overflow at 390px | ✅ `overflowX: 0` |
+| **C** `/journal/capture-connect` reachable | ✅ "Sign in to connect", `coveredBy: null` |
+| Routes auth-gated, not SPA fallthrough | ✅ `POST /api/j2/capture` → **401**, `POST /api/j2/ask/stream` → **401** (405 is this app's catch-all signature; 401 proves both are mounted) |
+| **E** G-080 | ✅ `J2_SHARE_LINKS_ENABLED=0` |
+| **F** semantic activation | ✅ **zero** embedding/semantic env vars present |
+
+### ⛔ What production verification did NOT cover
+
+**A (in-app contextual destination) and D (Ask Current Note reading a captured
+passage) were NOT verified with a production member session.** I have no
+production member credentials, and creating notes and captures in the owner's
+live Notebook to test would pollute real member research — which the release
+instruction forbids.
+
+What is proven for them: the code is **in the serving bundle** (the `This note`
+context label ships in the entry chunk), the routes are **mounted and
+auth-gated** in production, and the behaviour is certified in the fail-closed
+sandbox against the same commit. What is **not** proven: a real member
+round-trip on production data.
+
+⭐ This is the same honest limit Wave K recorded for Ask, and it is stated rather
+than rounded up.
