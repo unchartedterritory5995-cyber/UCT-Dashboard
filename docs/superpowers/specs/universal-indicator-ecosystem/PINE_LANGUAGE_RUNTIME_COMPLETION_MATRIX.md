@@ -600,3 +600,32 @@ halves of the fold's integer guard left the suite green. Covered now.
 annotated in place rather than deleted — **a green test asserting a capability has
 NOT shipped, on the day it shipped, is exactly what this register exists to make
 visible.**
+
+## EXECUTION SHAPES — all 70 closed-table builtins (2026-09-08)
+
+Measured by `ast/executionShapeCensus.test.js`. The partition is TOTAL and
+DISJOINT and railed as such; `pointwise`, `finiteWindow` and `forward` are
+DERIVED from `isPointwise`, `FINITE_WINDOW` and the table's own `forward:` flag,
+so they cannot drift from the authorities that own them.
+
+| shape | members | status | REACH (of 169 scripts) | what a bar loop needs |
+|---|---:|---|---:|---|
+| `pointwise` | 19 | ✅ 2F-1 | 86 | nothing — one bar in, one out |
+| `finiteWindow` | 12 | ✅ 2F-2B | 126 | `span` committed bars + the live one |
+| `carried` | 16 | ⬜ **2F-2C** | **112** | N scalar cells, one step per bar, a reset rule |
+| `windowComposite` | 17 | ⬜ | 20 | composition over `FINITE_WINDOW` |
+| `offsetOne` | 3 | ⬜ | 17 | **`x[1]` — already shipped** |
+| `forward` | 3 | ⬜ | 18 | a bar that has not happened |
+
+⚠️ **REACH IS A CEILING, NOT DEMAND.** It counts any mention, including over
+plain columns the pure lane already serves. `capabilityDemandCensus.test.js`
+owns the narrower "fed by runtime state" number; the two are not comparable and
+must never be summed.
+
+⭐⭐⭐ **THE SCAN-BACKWARDS FAMILY IS `barssince` + `valuewhen`, AND IT IS A
+SUBSET OF `carried`.** Both columnar implementations are single FORWARD passes
+carrying two scalars with a declared reset on `na` — structurally identical to
+`smoothCol`'s `prev`/`count`/`sum`. The name describes the semantics, not the
+execution; a runtime that took it literally would build ring machinery for a
+problem that needs one cell. Their `int` argument is a bounded-fetch honesty
+limit, not a scan depth. Full measurement: gap register **PART U**.

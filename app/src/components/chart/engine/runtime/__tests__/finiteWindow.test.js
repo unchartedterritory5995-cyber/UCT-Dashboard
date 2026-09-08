@@ -309,6 +309,26 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
       .toBe('runtime:call-undeclared-builtin-state')
   })
 
+  it('⛔⛔ A PINE SPELLING THE TABLE HOLDS UNDER ANOTHER NAME IS NOT "UNDECLARED"', () => {
+    // `PINE_CALL_SHAPES` maps eight Pine names onto a differently-spelled table
+    // entry — `crossover`→`crossOver`, `log`→`ln`, `wpr`→`williams_r`, and the
+    // four DMI legs. `builtinStateFamily` asked the table with the BARE PINE
+    // NAME and missed every one, answering `call-undeclared-builtin-state`:
+    // "the closed table does not have this builtin". It does. That refusal
+    // sends the next engineer to ADD A BUILTIN THAT ALREADY EXISTS, and it is
+    // the same misfiling `plot(...)` bound to a name caused in 2F-2.
+    //
+    // ⚠️ AND IT MOVED NO CORPUS NUMBER — `call-undeclared-builtin-state` is 2
+    // scripts before and after, because no corpus script hits one of the eight
+    // as its FIRST blocker. A diagnostic can be wrong without being visible.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 105) ? 1 : 0)\n`)
+    expect(r.guard).not.toBe('runtime:call-undeclared-builtin-state')
+    expect(r.guard).toBe('runtime:call-windowed-state')
+    // ⭐ NON-VACUITY: a name the table genuinely does NOT declare must still
+    // answer `undeclared`, or the fix has simply deleted the family.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
+      .toBe('runtime:call-undeclared-builtin-state')
+  })
   it('⛔ a window over an EXPRESSION needs its own series, and says so', () => {
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x + 1, 3))\n`).guard)
       .toBe('runtime:history-expression')

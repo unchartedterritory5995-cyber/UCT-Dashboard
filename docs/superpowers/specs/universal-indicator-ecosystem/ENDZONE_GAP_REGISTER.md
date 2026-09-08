@@ -1934,3 +1934,134 @@ a runaway SCAN. Nothing in this runtime budgets a 5,000-symbol pass.
 | **T5.7** | VENDOR | ⛔ **NO WINDOW SEMANTIC IS VENDOR-PINNED IN THIS WAVE, AND NONE IS CLAIMED.** Every window value is verified against this engine's own columnar door, which is a CONSISTENCY proof, not a vendor proof. The columnar lane's own window semantics were pinned in earlier waves; the runtime adds no new semantic, only a second consumer of the same reducer. Anything that WOULD be a new semantic — a warm-up boundary that differs from `rolling`'s, a tie-break, a `na` inside a window — is answered by the shared table, not by the runtime. |
 | **T5.8** | RESOURCE | `WINDOW_CELLS` bounds one execution, not one scan. A 5,000-symbol pass over the heavy shape is 3.5 minutes and 38 billion cells and NOTHING refuses it. Carried to whichever wave owns screener budgeting. |
 | **T5.9** | PERSISTENCE | Carried and widened. `windows[]` and `OP.WINDOW` join `history[]`/`historyBase`/`historyCount` in the artifact shape; the version contract must cover them before anything is saved. |
+
+
+## PART U — SCAN-BACKWARDS NAMED, RECURRENCE MEASURED (2026-09-08)
+
+⛔ **NOTHING IN THIS PART IS IMPLEMENTED.** It is the measurement the sequence
+asked for before 2F-2C, and 2F-2C is not to begin without owner/ChatGPT review.
+Instrument: `app/src/components/chart/engine/ast/executionShapeCensus.test.js`
+(9 cases, 169 scripts, five corpora).
+
+### U1 — ⭐⭐⭐ THE HEADLINE: the two families are ONE mechanism
+
+**`barssince` and `valuewhen` are not backward scans in this engine.** Both
+columnar implementations are single FORWARD passes carrying two scalars:
+
+| function | carried cells | reset |
+|---|---|---|
+| `smoothCol` (`ema`, `rma`) | `prev`, `count`, `sum` | non-finite input |
+| `barsSince` | `since`, `run` | `na` condition |
+| `valueWhen` | `since`, `held` | `na` condition |
+
+That is the same shape three times. **The name "scan backwards" describes the
+SEMANTICS, not the execution** — and a runtime that took it literally would build
+ring-walking machinery for a problem that needs one carried cell per site.
+
+⭐ The `int` argument on `barssince(cond, n)` / `valuewhen(cond, src, n)` is a
+**bounded-fetch honesty limit**, not a scan depth. `barsSince`'s own comment says
+it: *a hit this engine can see is final however short the fetch; only the
+sentinel is a claim about bars that had to be read.* So the family does not need
+deep history either.
+
+⭐⭐ **The storage already exists.** A carried cell block per call site is 2E's
+`persistBase`, shipped and vendor-pinned. Recurrence is not blocked on a new
+store; it is blocked on FACTORING — turning each member into `{init, step}` the
+way 2F-2B turned finite windows into `{span, reduce}`, so ONE authority serves the
+columnar lane (which folds the whole column) and the runtime (which steps one
+bar). Nothing here is a proposal; it is what the measurement found.
+
+### U2 — The partition: all 70 closed-table builtins, by what a bar loop needs
+
+Total, disjoint, and railed. Three of the six shapes are DERIVED from an existing
+authority (`isPointwise`, `FINITE_WINDOW`, and the table's own `forward:` flag),
+so they cannot drift; the other three are this file's reading of the
+implementations and every member cites the function that grounds it. A builtin
+added tomorrow fails the partition rail rather than joining no family.
+
+| shape | members | status | REACH (scripts of 169) |
+|---|---:|---|---:|
+| `pointwise` | 19 | ✅ 2F-1 | 86 |
+| `finiteWindow` | 12 | ✅ 2F-2B | 126 |
+| `carried` | **16** | ⬜ **2F-2C** | **112** |
+| `windowComposite` | 17 | ⬜ composition over `FINITE_WINDOW` | 20 |
+| `offsetOne` | 3 | ⬜ **needs nothing new** | 17 |
+| `forward` | 3 | ⬜ reads a bar that has not happened | 18 |
+
+⚠️ **REACH IS A CEILING, NOT DEMAND.** It counts a script that names a member at
+all, including over plain columns the pure lane already serves.
+`capabilityDemandCensus.test.js` owns the narrower "fed by runtime state" number
+and this instrument deliberately does not re-derive it — two numbers for one
+question is the defect this program keeps paying for.
+
+### U3 — Recurrence, measured
+
+**16 members, reach 112 of 169 scripts (66%).**
+
+| member | scripts | member | scripts |
+|---|---:|---|---:|
+| `ema` | 63 | `barssince` | 11 |
+| `atr` | 55 | `valuewhen` | 9 |
+| `rsi` | 27 | `vwap` | 5 |
+| `rma` | 16 | `macd` | 5 |
+
+Per corpus: oos1 33 · blind 39 · community 16 · parity 10 · curated 14 — present
+everywhere, not an artifact of one collection.
+
+⭐ `atr`, `rsi`, `adx`, `plusDI`, `minusDI` and `macd` ride on `ema`/`rma`: they
+are RMA or EMA underneath. So **one carried-state mechanism covers 6 of the 8
+most-reached members**, and the accumulators (`vwap`, `avwap`, `accum`,
+`cumFrom`, `obvN`, `pvtN`) are the simplest possible instance of the same thing.
+
+### U4 — What the still-blocked scripts are actually waiting on
+
+All 8 scripts still held by `runtime:call-windowed-state` reach the `carried`
+shape — asserted in the census, so it cannot quietly stop being true.
+
+| also waiting on | scripts |
+|---|---|
+| `carried` alone | 4 |
+| `carried` + `offsetOne` | 2 (`klinger-volume-oscillator`, ×2 corpora) |
+| `carried` + `windowComposite` | 2 (`master-line-plus`, ×2 corpora) |
+
+### U5 — ⭐ A CHEAP ADJACENT FINDING, with its own control
+
+`ta.change(x)` over runtime state **refuses**, while the hand-written `x - x[1]`
+**executes** — the same computation, one spelled with a builtin name.
+
+`change`, `crossOver` and `crossUnder` read the PREVIOUS BAR of their arguments
+and nothing else. That is `x[1]`, shipped in 2F-2A and per-call-site in P7.2.
+They are refused only because the front end routes every non-pointwise,
+non-finite-window name to one guard. **17 scripts reach this shape.** It is not
+proposed here, and 2F-2B is the reason for the caution: shipping a family moved
+zero scripts, and none of these 17 is blocked on `offsetOne` alone.
+
+### U6 — ⛔ A MISFILED REFUSAL, FIXED — and it moved nothing
+
+`PINE_CALL_SHAPES` maps eight Pine spellings onto a differently-named table
+entry: `crossover`→`crossOver`, `crossunder`→`crossUnder`, `log`→`ln`,
+`wpr`→`williams_r`, and the four DMI legs. `builtinStateFamily` asked the table
+with the BARE PINE NAME and missed all eight, answering
+`runtime:call-undeclared-builtin-state` — which reads as *"the closed table does
+not have this builtin"* and **sends the next engineer to add one that already
+exists.** The two classifiers beside it already made that hop; the diagnostic did
+not. Same shape as the `plot(...)`-bound-to-a-name misfiling in 2F-2.
+
+⚠️ **It changed no corpus number** — `call-undeclared-builtin-state` is 2 scripts
+before and after, because no corpus script hits one of the eight as its FIRST
+blocker. Recorded that way deliberately: a diagnostic can be wrong for months
+without being visible, and reporting this as a measurement improvement would be
+a claim the numbers do not support.
+
+### U7 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **U7.1** | ⭐ NAMED | SCAN-BACKWARDS / EVENT-HISTORY = exactly `barssince` + `valuewhen`. **It is a SUBSET of `carried`, not a separate mechanism**, and it needs no ring. Reach 11 and 9 scripts. Zero scripts are blocked on it alone. |
+| **U7.2** | RUNTIME / RECURRENCE | `carried`, 16 members, reach 112/169. The whole remaining `call-windowed-state` population. **2F-2C — HELD for owner/ChatGPT review.** |
+| **U7.3** | DESIGN QUESTION, unanswered | Can a recurrent member be factored `{init, step}` so ONE authority serves both lanes, as `{span, reduce}` does for windows? `smoothCol` is written as a whole-column loop; the runtime needs one bar of it. **No implementation has been attempted and none should be before review.** |
+| **U7.4** | VENDOR, UNPINNED | Recurrent warm-up is a REAL semantic and nothing pins it. `smoothCol` seeds EMA with an SMA of the first n bars; `barsSince` resets on `na` and emits its bound as a sentinel. TradingView's behaviour for both is NOT captured. ⛔ 2F-2C cannot be called verified without those pins — this is the wave's biggest vendor exposure and it is larger than 2F-2B's, which added no new semantic at all. |
+| **U7.5** | RUNTIME / CHEAP | `offsetOne` — `change`/`crossOver`/`crossUnder` need only `x[1]`, which ships. 17 scripts reach it; `ta.change(x)` refuses while `x - x[1]` executes. Not proposed, measured. |
+| **U7.6** | TABLE / COMPOSITION | `windowComposite`, 17 members, reach 20 scripts (`hma` 9, `percentrank` 6). Reducible to `FINITE_WINDOW` members by composition — including `hma`, `bbw` and `percentrank`, which 2F-2B excluded with stated reasons that have not been re-measured since. |
+| **U7.7** | RUNTIME / FORWARD | `pivothigh`/`pivotlow`/`ichimokuChikou` read a bar that has not happened. Reach 18 scripts. The columnar lane serves them via a declared `forward:`; a bar loop cannot, and what a runtime should do at the unresolved tail is an open product question, not a mechanism gap. |
+| **U7.8** | INSTRUMENT | REACH is a ceiling and is labelled as one everywhere. It is NOT comparable to `capabilityDemandCensus`'s "fed by runtime state" numbers, and the two must never be added together. |

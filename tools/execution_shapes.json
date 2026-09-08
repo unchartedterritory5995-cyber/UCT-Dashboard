@@ -1,0 +1,160 @@
+{
+  "scripts": 169,
+  "shapes": {
+    "pointwise": {
+      "scripts": 86,
+      "byCorpus": {
+        "oos1": 47,
+        "blind": 6,
+        "community": 12,
+        "parity": 9,
+        "curated": 12
+      },
+      "members": {
+        "nz": 32,
+        "max": 6,
+        "min": 6,
+        "na": 69,
+        "pow": 1,
+        "sqrt": 1,
+        "round": 6,
+        "sign": 1,
+        "abs": 2,
+        "ln": 1
+      }
+    },
+    "finiteWindow": {
+      "scripts": 126,
+      "byCorpus": {
+        "oos1": 40,
+        "blind": 47,
+        "community": 17,
+        "parity": 9,
+        "curated": 13
+      },
+      "members": {
+        "sma": 97,
+        "stdev": 19,
+        "highest": 58,
+        "lowest": 51,
+        "sum": 1,
+        "wma": 15,
+        "highestbars": 3,
+        "lowestbars": 1,
+        "median": 3,
+        "dev": 1,
+        "rising": 5,
+        "falling": 2
+      }
+    },
+    "carried": {
+      "scripts": 112,
+      "byCorpus": {
+        "oos1": 33,
+        "blind": 39,
+        "community": 16,
+        "parity": 10,
+        "curated": 14
+      },
+      "members": {
+        "ema": 63,
+        "atr": 55,
+        "rsi": 27,
+        "barssince": 11,
+        "valuewhen": 9,
+        "rma": 16,
+        "vwap": 5,
+        "macd": 5
+      }
+    },
+    "windowComposite": {
+      "scripts": 20,
+      "byCorpus": {
+        "oos1": 10,
+        "blind": 8,
+        "parity": 2
+      },
+      "members": {
+        "percentrank": 6,
+        "hma": 9,
+        "bbw": 2,
+        "cci": 1,
+        "mfi": 3,
+        "stoch": 1
+      }
+    },
+    "offsetOne": {
+      "scripts": 17,
+      "byCorpus": {
+        "oos1": 8,
+        "community": 2,
+        "parity": 3,
+        "curated": 4
+      },
+      "members": {
+        "change": 17
+      }
+    },
+    "forward": {
+      "scripts": 18,
+      "byCorpus": {
+        "oos1": 9,
+        "blind": 1,
+        "community": 3,
+        "parity": 2,
+        "curated": 3
+      },
+      "members": {
+        "pivothigh": 18,
+        "pivotlow": 17
+      }
+    }
+  },
+  "blocked": {
+    "runtime:call-windowed-state": 8,
+    "runtime:presentation": 20,
+    "runtime:function-global-state": 2,
+    "pine:character": 4,
+    "runtime:directive": 3,
+    "pine:block": 12,
+    "pine:collection": 9,
+    "pine:function": 10,
+    "pine:request": 3,
+    "pine:statement": 5,
+    "runtime:udt": 5,
+    "pine:text-value": 10,
+    "runtime:call-text-state": 1,
+    "runtime:call-conversion-state": 1,
+    "pine:builtin": 14,
+    "runtime:request-with-state": 2,
+    "pine:colour-value": 3,
+    "runtime:tuple": 15,
+    "pine:window": 1,
+    "OK": 27,
+    "runtime:loop": 4,
+    "pine:role-order": 1,
+    "pine:undefined": 1,
+    "runtime:call-undeclared-builtin-state": 2,
+    "runtime:history-expression": 1,
+    "pine:drawing": 1,
+    "runtime:declaration": 2,
+    "runtime:statement": 1,
+    "runtime:expression-statement": 1
+  },
+  "members": {
+    "carried": [
+      "oos1/high_engagement__02-waddah-attar-explosion-lazybear.pine",
+      "oos1/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
+      "community/06-qqe-mod.pine",
+      "community/13-relative-strength-vs-benchmark-spy.pine"
+    ],
+    "carried+offsetOne": [
+      "oos1/high_engagement__16-klinger-volume-oscillator-everget.pine",
+      "parity/high_engagement__16-klinger-volume-oscillator-everget.pine"
+    ],
+    "carried+windowComposite": [
+      "oos1/long_tail__05-master-line-plus.pine",
+      "parity/long_tail__05-master-line-plus.pine"
+    ]
+  }
+}

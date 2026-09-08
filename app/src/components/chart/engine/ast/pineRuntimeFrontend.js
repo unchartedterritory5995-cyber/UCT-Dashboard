@@ -669,12 +669,22 @@ export function buildRuntimeIr(source, opts = {}) {
     // after — stripping first is what let `str.upper` be filed as windowed.
     if (/^str\./.test(name)) return 'runtime:call-text-state'
     const bare = name.replace(/^(ta|math|str|array|matrix|map)\./, '')
-    const spec = TABLE.functions[bare]
+    // ⛔⛔ THE PINE SPELLING IS NOT ALWAYS THE TABLE'S SPELLING, and asking the
+    // table with the bare Pine name misfiles EIGHT of them. `PINE_CALL_SHAPES`
+    // maps `crossover`→`crossOver`, `log`→`ln`, `wpr`→`williams_r` and the four
+    // DMI legs; without this hop `ta.crossover(x, 105)` over runtime state came
+    // back `call-undeclared-builtin-state` — which reads as "the closed table
+    // does not have this builtin" and sends the next engineer to ADD ONE THAT
+    // ALREADY EXISTS. The two classifiers above already make this hop; this
+    // diagnostic did not, so the completion matrix counted the difference.
+    const shape = PINE_CALL_SHAPES[bare]
+    const table = shape && shape.table ? shape.table : bare
+    const spec = TABLE.functions[table]
     if (spec && isPointwise(spec)) return 'runtime:call-pointwise-state'
     // `na`/`nz` are Pine forms rather than table entries, and both are pointwise
     // by construction — they read one value and answer about that value.
-    if (bare === 'na' || bare === 'nz') return 'runtime:call-pointwise-state'
-    if (CONVERSION_NAMES.has(bare)) return 'runtime:call-conversion-state'
+    if (table === 'na' || table === 'nz') return 'runtime:call-pointwise-state'
+    if (CONVERSION_NAMES.has(table)) return 'runtime:call-conversion-state'
     // ⛔⛔ AND THE RESIDUAL IS NOT AUTOMATICALLY "WINDOWED". Only a name the
     // closed table actually declares can be said to need the series bridge; a
     // name it does not declare is blocked on the builtin existing, and calling
