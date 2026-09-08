@@ -18,6 +18,8 @@ export default function MobileMoreSheet({
   onAddWidget,             // (type) => void
   onOpenLayouts,           // MOB-01 — the workspace/layout sheet (row hidden when absent)
   activeLayoutName,        // name of the open named layout, or null for the working board
+  onOpenBoards,            // the Drawing Boards sheet (row hidden when absent)
+  activeBoardName,         // name of the ACTIVE drawing board, or null
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
@@ -73,6 +75,22 @@ export default function MobileMoreSheet({
             <span className={styles.rowLabel}>Layouts</span>
             <span className={styles.rowRight}>
               {activeLayoutName ? <span className={styles.rowSub}>{activeLayoutName}</span> : null}
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+          </button>
+        )}
+
+        {/* Drawing boards sit BESIDE Layouts because they are the same kind of
+            thing to a user: a named saved set they switch between. Two named-set
+            managers in two unrelated places is exactly the scattering the
+            interaction grammar forbids. */}
+        {onOpenBoards && (
+          <button type="button" className={styles.row} aria-label="Drawing boards"
+            onClick={() => { haptics.tap(); onClose(); onOpenBoards() }}>
+            <span className={styles.rowIcon}><UIcon name="rows" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Drawing boards</span>
+            <span className={styles.rowRight}>
+              {activeBoardName ? <span className={styles.rowSub}>{activeBoardName}</span> : null}
               <UIcon name="chevronRight" size={14} gold={false} />
             </span>
           </button>

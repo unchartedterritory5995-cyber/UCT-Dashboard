@@ -14,6 +14,11 @@ import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
+import MobileBoardsSheet from './MobileBoardsSheet'
+// The ACTIVE board's name for the Tools row's subtitle. Read here rather than
+// inside the row so the sheet stays the only thing that mounts the manager.
+import useTracings from '../../../components/chart/useTracings'
+import { tracingLabel } from '../../../components/chart/drawingsStore'
 import { pushRecent } from './mobileRecents'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
@@ -86,6 +91,8 @@ export default function MobileChartsApp({
   // Filled by StockChart with the mounted ChartToolbar's imperative API — the
   // door the ƒx sheet uses to open the real IndicatorLibraryDialog.
   const toolbarApiRef = useRef(null)
+  const { tracings: _boards, activeId: _activeBoardId } = useTracings()
+  const _activeBoard = _boards.find((t) => t.id === _activeBoardId)
 
   // The global FABs (voice orb bottom-right, feedback "?" bottom-left) anchor
   // just above the tab bar — exactly where the chart toolbar now lives. Stamp
@@ -446,10 +453,18 @@ export default function MobileChartsApp({
         onAddWidget={handleAddFromSheet}
         onOpenLayouts={() => setSheet('layouts')}
         activeLayoutName={layoutsActive?.name || null}
+        onOpenBoards={() => setSheet('boards')}
+        activeBoardName={_activeBoard ? tracingLabel(_activeBoard) : null}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
         onDrawOnChart={drawOnChart}
+        className={sheetTheme}
+      />
+      <MobileBoardsSheet
+        open={sheet === 'boards'}
+        onClose={closeSheet}
+        sym={sym}
         className={sheetTheme}
       />
     </div>
