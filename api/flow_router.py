@@ -901,33 +901,65 @@ def diag_search_capacity(source: str = "stocks", builds: int = 0, top: int = 12,
         if cand:
             probe_targets.append((label, cand[0], cand[1]))
 
-    probes = []
-    for label, sym, nrows in probe_targets:
-        timings = []
-        for _ in range(3):
+    # TWO probes per bucket, measured side by side on the SAME symbol in the
+    # SAME call, because the question is not "is a probe fast" but "is the
+    # COUNT(*) the thing that costs" -- and only a paired measurement answers
+    # that. The MAX(id) form is the candidate; MAX(rowid),COUNT(*) is the
+    # incumbent that measured 1,006-1,493 ms on MU and was rejected.
+    #
+    # `id` is INTEGER PRIMARY KEY AUTOINCREMENT => monotonic, never reused, so
+    # MAX(id) is EXACT for inserts. It is NOT exact for prunes (a delete by
+    # CreatedDate can remove a mid-range id and move neither MIN nor MAX);
+    # pairing it with a global prune generation counter is what would close
+    # that, and that is a DESIGN question this measurement only informs.
+    _PROBE_REPS = 7
+
+    def _time_probe(sql, sym):
+        timings, val, err = [], None, None
+        for _ in range(_PROBE_REPS):
             t1 = time.monotonic()
             try:
                 with db._conn() as conn:
-                    r = conn.execute(
-                        "SELECT MAX(rowid), COUNT(*) FROM flow WHERE Symbol=? AND source=?",
-                        (sym, src),
-                    ).fetchone()
+                    row = conn.execute(sql, (sym, src)).fetchone()
+                val = list(row) if row else None
             except Exception as e:
-                r = ("err", str(e))
+                err = str(e)
             timings.append(round((time.monotonic() - t1) * 1000, 2))
-        probes.append({"bucket": label, "sym": sym, "rows": nrows,
-                       "probe_ms": timings, "cold_ms": timings[0],
-                       "warm_ms": min(timings[1:]) if len(timings) > 1 else None,
-                       "value": [r[0], r[1]] if r and r[0] != "err" else None})
+        srt = sorted(timings)
+        return {
+            "ms": timings,
+            "cold_ms": timings[0],
+            "p50_ms": _diag_percentile(srt, 0.50),
+            "p90_ms": _diag_percentile(srt, 0.90),
+            "p95_ms": _diag_percentile(srt, 0.95),
+            "p99_ms": _diag_percentile(srt, 0.99),
+            "max_ms": srt[-1],
+            "spread_ms": round(srt[-1] - srt[0], 2),
+            "value": val,
+            "error": err,
+        }
+
+    SQL_MAXID = "SELECT MAX(id) FROM flow WHERE Symbol=? AND source=?"
+    SQL_INCUMBENT = "SELECT MAX(rowid), COUNT(*) FROM flow WHERE Symbol=? AND source=?"
+
+    probes = []
+    for label, sym, nrows in probe_targets:
+        probes.append({
+            "bucket": label, "sym": sym, "rows": nrows,
+            "max_id": _time_probe(SQL_MAXID, sym),
+            "max_rowid_count": _time_probe(SQL_INCUMBENT, sym),
+        })
     out["freshness_probe"] = probes
+    out["probe_reps"] = _PROBE_REPS
 
     # --- 4: the query plan SQLite actually chooses ---------------------------
     try:
         with db._conn() as conn:
-            plan = conn.execute(
-                "EXPLAIN QUERY PLAN SELECT MAX(rowid), COUNT(*) FROM flow "
-                "WHERE Symbol=? AND source=?", ("AAPL", src)).fetchall()
-        out["probe_query_plan"] = [" ".join(str(x) for x in row) for row in plan]
+            plans = {}
+            for nm, sql in (("max_id", SQL_MAXID), ("max_rowid_count", SQL_INCUMBENT)):
+                rowsp = conn.execute("EXPLAIN QUERY PLAN " + sql, ("AAPL", src)).fetchall()
+                plans[nm] = [" ".join(str(x) for x in r) for r in rowsp]
+        out["probe_query_plan"] = plans
     except Exception as e:
         out["probe_query_plan"] = ["error: %s" % e]
 
