@@ -1273,3 +1273,78 @@ class TestIngestionActuallyRuns:
         from apscheduler.schedulers.background import BackgroundScheduler
         import api.main as m
         assert m.register_company_news_jobs(BackgroundScheduler()) is False
+
+
+class TestPressSweep:
+    """One request per symbol, resumable, and one bad symbol never aborts it.
+
+    Built after NBIS showed an empty feed while FMP held 19 displayable Business
+    Wire releases for it. The market-wide lane only sees the last few hours, so
+    anything published before ingestion started is absent until this pass runs.
+    """
+
+    def _fake_fmp(self, monkeypatch, calls, *, fail_on=()):
+        from api.services.news import ingest
+
+        def fetch_symbol(sym, lane, *, budget=None, limit=25, **kw):
+            calls.append(sym)
+            if budget is not None:
+                budget.spend(1) if hasattr(budget, "spend") else None
+            if sym in fail_on:
+                raise RuntimeError("boom")
+            return [{
+                "provider": "fmp", "provider_id": f"{sym}-1",
+                "publisher": "Business Wire", "title": f"{sym} reports results",
+                "url": f"https://example.com/{sym}", "body": "",
+                "published_at": _dt(hours=2), "tags": [sym],
+            }]
+
+        monkeypatch.setattr(ingest.fmp_news, "fetch_symbol", fetch_symbol)
+        return ingest
+
+    def test_visits_every_symbol_once(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        res = ingest.run_press_sweep(["MU", "NBIS", "LITE"], job="t_press")
+        assert sorted(calls) == ["LITE", "MU", "NBIS"]
+        assert res["complete"] is True
+        assert res["items"] == 3
+
+    def test_one_bad_symbol_does_not_abort_the_pass(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls, fail_on={"NBIS"})
+        res = ingest.run_press_sweep(["MU", "NBIS", "LITE"], job="t_press_fail")
+        assert sorted(calls) == ["LITE", "MU", "NBIS"]
+        assert res["failures"] == 1
+        assert res["complete"] is True
+        assert res["items"] == 2          # the other two still stored
+
+    def test_budget_pauses_and_the_next_run_resumes(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        syms = [f"S{i:02d}" for i in range(6)]
+        first = ingest.run_press_sweep(syms, budget=3, job="t_press_resume")
+        assert first["complete"] is False
+        done = len(calls)
+        assert 0 < done < len(syms)
+        second = ingest.run_press_sweep(syms, job="t_press_resume")
+        assert second["complete"] is True
+        assert sorted(calls) == sorted(syms), "resumed where it paused"
+
+    def test_restart_ignores_a_stored_cursor(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        from api.services.news import store
+        store.set_backfill("t_press_restart", "2")
+        ingest.run_press_sweep(["A", "B", "C"], job="t_press_restart",
+                               restart=True)
+        assert sorted(calls) == ["A", "B", "C"]
+
+    def test_it_actually_stores_displayable_wire_copy(self, db, monkeypatch):
+        """The point of the pass: issuer releases must land SHOWN, not rejected."""
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        ingest.run_press_sweep(["NBIS"], job="t_press_store")
+        items = store.feed("NBIS")["items"]
+        assert len(items) == 1
+        assert items[0]["source_class"] == "wire"
