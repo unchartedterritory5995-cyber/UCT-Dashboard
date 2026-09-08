@@ -54,10 +54,12 @@ CAPTURE_WEB_PASSAGE = "web_passage"
 
 CAPTURE_TYPES = frozenset({CAPTURE_PDF_FULL_TEXT, CAPTURE_WEB_REFERENCE, CAPTURE_WEB_PASSAGE})
 
-#: What a retrieval consumer may claim about a document's coverage.
-COVERAGE_COMPLETE = "document_complete"
-COVERAGE_PASSAGE_ONLY = "selected_passage_only"
-COVERAGE_METADATA_ONLY = "metadata_only"
+#: What a retrieval consumer may claim. ⭐ ONE vocabulary: these are re-exported
+#: from the evidence envelope that owns them, never redefined here — a second
+#: definition is how two "coverage" concepts drift into disagreement.
+from api.services.journal_two.ask_evidence import (  # noqa: E402
+    COVERAGE_COMPLETE, COVERAGE_METADATA_ONLY, COVERAGE_PASSAGE_ONLY, coverage_for,
+)
 
 TEXT_ORIGIN_WEB_PASSAGE = "web_passage"
 
@@ -81,12 +83,7 @@ def capture_coverage(document_row: Any) -> str:
     `document_complete`. Ask may answer FROM the passage; it may never imply it
     searched the article.
     """
-    ctype = _get(document_row, "capture_type") or CAPTURE_PDF_FULL_TEXT
-    if ctype == CAPTURE_WEB_PASSAGE:
-        return COVERAGE_PASSAGE_ONLY
-    if ctype == CAPTURE_WEB_REFERENCE:
-        return COVERAGE_METADATA_ONLY
-    return COVERAGE_COMPLETE
+    return coverage_for(_get(document_row, "capture_type") or CAPTURE_PDF_FULL_TEXT)
 
 
 def _get(row: Any, key: str) -> Any:
