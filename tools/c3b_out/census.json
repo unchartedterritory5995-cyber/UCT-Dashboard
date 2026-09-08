@@ -1,0 +1,3263 @@
+{
+  "generatedAt": "2026-09-08T04:03:14.113Z",
+  "corpus": 60,
+  "populations": {
+    "all60": [
+      "high_engagement__02-waddah-attar-explosion-lazybear",
+      "high_engagement__03-supertrend-kivancozbilgic",
+      "high_engagement__04-ttm-squeeze-greeny",
+      "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo",
+      "high_engagement__09-on-balance-volume-everget",
+      "high_engagement__10-rsi-divergence-faytterro",
+      "high_engagement__11-vumanchu-cipher-a-vumanchu",
+      "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody",
+      "high_engagement__13-ultimate-opening-range-breakout-luxalgo",
+      "high_engagement__14-heikin-ashi-candle-overlay-bjorgum",
+      "high_engagement__15-linear-regression-channel-lonesometheblue",
+      "high_engagement__16-klinger-volume-oscillator-everget",
+      "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd",
+      "high_engagement__18-cross-correlation-kioseff-trading",
+      "high_engagement__19-anchored-vwap-stuehmer",
+      "high_engagement__20-ehlers-fisher-transform-cheatcountry",
+      "high_engagement__21-parabolic-sar-deviation-bigbeluga",
+      "high_engagement__22-reversal-probability-profile-algoalpha",
+      "high_engagement__23-sweep-reversal-map-plus-herman",
+      "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "long_tail__01-ny-macro-status",
+      "long_tail__02-relative-volume-candles-narrow-ranges",
+      "long_tail__03-heikin-ashi-lag-meter",
+      "long_tail__04-warm-up-curtain",
+      "long_tail__05-master-line-plus",
+      "long_tail__06-sector-rotation-leadership-persistence",
+      "long_tail__07-hurst-exponent-regime",
+      "long_tail__08-vix-term-structure",
+      "long_tail__09-signal-follow-through-ledger",
+      "long_tail__10-mtf-supply-demand",
+      "long_tail__11-percent-range-tool",
+      "long_tail__12-setup-grader",
+      "long_tail__13-volatility-of-returns",
+      "long_tail__14-vwap-z-score-oscillator",
+      "long_tail__15-agreed-upon-dol",
+      "long_tail__16-spy-position-helper",
+      "long_tail__17-db-seasonal-by-date-range",
+      "long_tail__18-deltalabs-equal-highs-equal-lows",
+      "long_tail__19-session-fibs-falcon-ai",
+      "long_tail__20-cot-pulse-cloud-trend",
+      "mid_engagement__01-zeiierman-trend-pressure",
+      "mid_engagement__03-volatility-supply-demand-zones",
+      "mid_engagement__04-cisd-order-block",
+      "mid_engagement__05-supertrend-fibonacci-ote",
+      "mid_engagement__07-3way-bollinger-trend",
+      "mid_engagement__08-hourly-alpha-profile-terminal",
+      "mid_engagement__09-relative-volume-breakout-context",
+      "mid_engagement__10-smc-engine",
+      "mid_engagement__12-structure-participation-matrix",
+      "mid_engagement__13-spma-trend",
+      "mid_engagement__14-master-line-lite",
+      "mid_engagement__15-multi-timeframe-ma-forecast",
+      "mid_engagement__16-ict-smc-guide",
+      "mid_engagement__17-volume-surge-radar",
+      "mid_engagement__18-market-profile-tpo",
+      "mid_engagement__19-oliver-kell-volume-monitor",
+      "mid_engagement__20-mann-kendall-trend-significance",
+      "mid_engagement__21-market-compass-dynamic-range",
+      "mid_engagement__22-rsi-levels-regime-map",
+      "mid_engagement__23-distilled-htf-po3"
+    ],
+    "objectDemand": [
+      "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo",
+      "high_engagement__10-rsi-divergence-faytterro",
+      "high_engagement__13-ultimate-opening-range-breakout-luxalgo",
+      "high_engagement__15-linear-regression-channel-lonesometheblue",
+      "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd",
+      "high_engagement__18-cross-correlation-kioseff-trading",
+      "high_engagement__21-parabolic-sar-deviation-bigbeluga",
+      "high_engagement__22-reversal-probability-profile-algoalpha",
+      "high_engagement__23-sweep-reversal-map-plus-herman",
+      "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "long_tail__01-ny-macro-status",
+      "long_tail__03-heikin-ashi-lag-meter",
+      "long_tail__04-warm-up-curtain",
+      "long_tail__05-master-line-plus",
+      "long_tail__06-sector-rotation-leadership-persistence",
+      "long_tail__07-hurst-exponent-regime",
+      "long_tail__08-vix-term-structure",
+      "long_tail__09-signal-follow-through-ledger",
+      "long_tail__10-mtf-supply-demand",
+      "long_tail__11-percent-range-tool",
+      "long_tail__12-setup-grader",
+      "long_tail__15-agreed-upon-dol",
+      "long_tail__16-spy-position-helper",
+      "long_tail__17-db-seasonal-by-date-range",
+      "long_tail__18-deltalabs-equal-highs-equal-lows",
+      "long_tail__19-session-fibs-falcon-ai",
+      "long_tail__20-cot-pulse-cloud-trend",
+      "mid_engagement__01-zeiierman-trend-pressure",
+      "mid_engagement__03-volatility-supply-demand-zones",
+      "mid_engagement__04-cisd-order-block",
+      "mid_engagement__05-supertrend-fibonacci-ote",
+      "mid_engagement__07-3way-bollinger-trend",
+      "mid_engagement__08-hourly-alpha-profile-terminal",
+      "mid_engagement__09-relative-volume-breakout-context",
+      "mid_engagement__10-smc-engine",
+      "mid_engagement__12-structure-participation-matrix",
+      "mid_engagement__14-master-line-lite",
+      "mid_engagement__15-multi-timeframe-ma-forecast",
+      "mid_engagement__16-ict-smc-guide",
+      "mid_engagement__17-volume-surge-radar",
+      "mid_engagement__18-market-profile-tpo",
+      "mid_engagement__19-oliver-kell-volume-monitor",
+      "mid_engagement__20-mann-kendall-trend-significance",
+      "mid_engagement__21-market-compass-dynamic-range",
+      "mid_engagement__22-rsi-levels-regime-map",
+      "mid_engagement__23-distilled-htf-po3"
+    ],
+    "reachable": [
+      "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo",
+      "high_engagement__10-rsi-divergence-faytterro",
+      "high_engagement__18-cross-correlation-kioseff-trading",
+      "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "long_tail__01-ny-macro-status",
+      "long_tail__03-heikin-ashi-lag-meter",
+      "long_tail__04-warm-up-curtain",
+      "long_tail__05-master-line-plus",
+      "long_tail__07-hurst-exponent-regime",
+      "long_tail__08-vix-term-structure",
+      "long_tail__11-percent-range-tool",
+      "long_tail__12-setup-grader",
+      "long_tail__16-spy-position-helper",
+      "long_tail__19-session-fibs-falcon-ai",
+      "long_tail__20-cot-pulse-cloud-trend",
+      "mid_engagement__01-zeiierman-trend-pressure",
+      "mid_engagement__05-supertrend-fibonacci-ote",
+      "mid_engagement__09-relative-volume-breakout-context",
+      "mid_engagement__10-smc-engine",
+      "mid_engagement__14-master-line-lite",
+      "mid_engagement__15-multi-timeframe-ma-forecast",
+      "mid_engagement__16-ict-smc-guide",
+      "mid_engagement__17-volume-surge-radar",
+      "mid_engagement__19-oliver-kell-volume-monitor",
+      "mid_engagement__20-mann-kendall-trend-significance",
+      "mid_engagement__21-market-compass-dynamic-range",
+      "mid_engagement__22-rsi-levels-regime-map"
+    ],
+    "loopBlocked": [
+      "high_engagement__13-ultimate-opening-range-breakout-luxalgo",
+      "high_engagement__15-linear-regression-channel-lonesometheblue",
+      "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd",
+      "high_engagement__21-parabolic-sar-deviation-bigbeluga",
+      "high_engagement__22-reversal-probability-profile-algoalpha",
+      "high_engagement__23-sweep-reversal-map-plus-herman",
+      "long_tail__06-sector-rotation-leadership-persistence",
+      "long_tail__09-signal-follow-through-ledger",
+      "long_tail__10-mtf-supply-demand",
+      "long_tail__15-agreed-upon-dol",
+      "long_tail__17-db-seasonal-by-date-range",
+      "long_tail__18-deltalabs-equal-highs-equal-lows",
+      "mid_engagement__03-volatility-supply-demand-zones",
+      "mid_engagement__04-cisd-order-block",
+      "mid_engagement__07-3way-bollinger-trend",
+      "mid_engagement__08-hourly-alpha-profile-terminal",
+      "mid_engagement__12-structure-participation-matrix",
+      "mid_engagement__18-market-profile-tpo",
+      "mid_engagement__23-distilled-htf-po3"
+    ]
+  },
+  "aggregates": {
+    "A_allObjectDemand": {
+      "label": "A",
+      "scripts": 46,
+      "famScripts": {
+        "line": 23,
+        "label": 30,
+        "box": 20,
+        "table": 29,
+        "polyline": 3,
+        "linefill": 3
+      },
+      "famCalls": {
+        "line": {
+          "new": 85,
+          "set": 111,
+          "get": 12,
+          "delete": 79
+        },
+        "label": {
+          "new": 103,
+          "set": 76,
+          "get": 0,
+          "delete": 89
+        },
+        "box": {
+          "new": 40,
+          "set": 37,
+          "get": 4,
+          "delete": 32
+        },
+        "table": {
+          "new": 35,
+          "set": 10,
+          "get": 0,
+          "delete": 0
+        },
+        "polyline": {
+          "new": 9,
+          "set": 0,
+          "get": 0,
+          "delete": 5
+        },
+        "linefill": {
+          "new": 4,
+          "set": 2,
+          "get": 0,
+          "delete": 3
+        }
+      },
+      "setMethods": {
+        "line.set_color": 22,
+        "line.set_width": 10,
+        "line.set_style": 9,
+        "line.set_extend": 3,
+        "line.set_xy1": 11,
+        "line.set_xy2": 11,
+        "line.set_x2": 31,
+        "line.set_y1": 7,
+        "line.set_y2": 7,
+        "label.set_style": 2,
+        "label.set_text": 22,
+        "label.set_x": 13,
+        "label.set_y": 3,
+        "label.set_color": 4,
+        "label.set_textcolor": 18,
+        "label.set_xy": 9,
+        "label.set_size": 2,
+        "label.set_text_font_family": 2,
+        "label.set_tooltip": 1,
+        "box.set_text": 2,
+        "box.set_text_color": 1,
+        "box.set_text_size": 2,
+        "box.set_text_halign": 1,
+        "box.set_text_valign": 1,
+        "box.set_top": 4,
+        "box.set_right": 11,
+        "box.set_bgcolor": 4,
+        "box.set_border_color": 4,
+        "box.set_border_width": 2,
+        "box.set_bottom": 4,
+        "box.set_extend": 1,
+        "table.set_position": 3,
+        "table.set_bgcolor": 3,
+        "table.set_frame_color": 2,
+        "table.set_border_color": 2,
+        "linefill.set_color": 2
+      },
+      "getMethods": {
+        "line.get_y2": 2,
+        "line.get_x1": 8,
+        "line.get_y1": 2,
+        "box.get_top": 2,
+        "box.get_bottom": 2
+      },
+      "cellSet": {},
+      "tableCell": 402,
+      "tableClear": 3,
+      "tiers": {
+        "CREATE_ONLY": 4,
+        "CREATE_UPDATE_DELETE": 30,
+        "CREATE_UPDATE": 12
+      },
+      "flagCounts": {
+        "VAR_REFERENCE_REQUIRED": 38,
+        "TABLE_REQUIRED": 29,
+        "MULTI_FAMILY": 34,
+        "COLLECTION_REQUIRED": 23
+      },
+      "needUpdate": 35,
+      "needDelete": 30,
+      "needVarRef": 36,
+      "needReassign": 15,
+      "needCollection": 23,
+      "collectionOps": {
+        "get": 62,
+        "set": 4,
+        "size": 41,
+        "pop": 9,
+        "push": 69,
+        "shift": 25,
+        "clear": 7,
+        "remove": 12
+      },
+      "needTable": 29,
+      "multiFamily": 34,
+      "conditionalCreate": 38,
+      "conditionalUpdate": 33,
+      "conditionalDelete": 28,
+      "declaresMax": 32,
+      "maxDeclarations": {
+        "boxes": {
+          "scripts": 19,
+          "min": 40,
+          "max": 500,
+          "median": 500
+        },
+        "lines": {
+          "scripts": 22,
+          "min": 60,
+          "max": 500,
+          "median": 500
+        },
+        "labels": {
+          "scripts": 24,
+          "min": 2,
+          "max": 500,
+          "median": 500
+        },
+        "polylines": {
+          "scripts": 2,
+          "min": 4,
+          "max": 100,
+          "median": 100
+        }
+      },
+      "histIndex": 0
+    },
+    "B_reachable": {
+      "label": "B",
+      "scripts": 27,
+      "famScripts": {
+        "line": 9,
+        "label": 14,
+        "box": 7,
+        "table": 19,
+        "polyline": 1,
+        "linefill": 2
+      },
+      "famCalls": {
+        "line": {
+          "new": 36,
+          "set": 43,
+          "get": 8,
+          "delete": 26
+        },
+        "label": {
+          "new": 52,
+          "set": 37,
+          "get": 0,
+          "delete": 43
+        },
+        "box": {
+          "new": 12,
+          "set": 3,
+          "get": 0,
+          "delete": 7
+        },
+        "table": {
+          "new": 22,
+          "set": 8,
+          "get": 0,
+          "delete": 0
+        },
+        "polyline": {
+          "new": 4,
+          "set": 0,
+          "get": 0,
+          "delete": 3
+        },
+        "linefill": {
+          "new": 3,
+          "set": 1,
+          "get": 0,
+          "delete": 2
+        }
+      },
+      "setMethods": {
+        "line.set_x2": 5,
+        "line.set_xy1": 9,
+        "line.set_xy2": 9,
+        "line.set_extend": 1,
+        "line.set_color": 9,
+        "line.set_style": 1,
+        "line.set_width": 9,
+        "label.set_x": 5,
+        "label.set_text": 13,
+        "label.set_xy": 9,
+        "label.set_textcolor": 9,
+        "label.set_size": 1,
+        "box.set_top": 1,
+        "box.set_bottom": 1,
+        "box.set_right": 1,
+        "table.set_position": 2,
+        "table.set_bgcolor": 2,
+        "table.set_frame_color": 2,
+        "table.set_border_color": 2,
+        "linefill.set_color": 1
+      },
+      "getMethods": {
+        "line.get_x1": 8
+      },
+      "cellSet": {},
+      "tableCell": 227,
+      "tableClear": 2,
+      "tiers": {
+        "CREATE_ONLY": 4,
+        "CREATE_UPDATE_DELETE": 13,
+        "CREATE_UPDATE": 10
+      },
+      "flagCounts": {
+        "VAR_REFERENCE_REQUIRED": 24,
+        "TABLE_REQUIRED": 19,
+        "MULTI_FAMILY": 17,
+        "COLLECTION_REQUIRED": 7
+      },
+      "needUpdate": 19,
+      "needDelete": 13,
+      "needVarRef": 23,
+      "needReassign": 10,
+      "needCollection": 7,
+      "collectionOps": {
+        "push": 5,
+        "size": 4,
+        "shift": 3,
+        "get": 2,
+        "set": 2
+      },
+      "needTable": 19,
+      "multiFamily": 17,
+      "conditionalCreate": 20,
+      "conditionalUpdate": 17,
+      "conditionalDelete": 11,
+      "declaresMax": 15,
+      "maxDeclarations": {
+        "boxes": {
+          "scripts": 6,
+          "min": 200,
+          "max": 500,
+          "median": 500
+        },
+        "lines": {
+          "scripts": 8,
+          "min": 200,
+          "max": 500,
+          "median": 500
+        },
+        "labels": {
+          "scripts": 9,
+          "min": 2,
+          "max": 500,
+          "median": 500
+        },
+        "polylines": {
+          "scripts": 1,
+          "min": 4,
+          "max": 4,
+          "median": 4
+        }
+      },
+      "histIndex": 0
+    }
+  },
+  "scripts": [
+    {
+      "name": "high_engagement__02-waddah-attar-explosion-lazybear",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__03-supertrend-kivancozbilgic",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__04-ttm-squeeze-greeny",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__08-market-structure-break-ob-probability-toolkit-luxalgo",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_ONLY",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 12,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "sBox": "box",
+        "sLabel": "label",
+        "t_able": "table"
+      },
+      "reassign": 7,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 21,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {
+        "boxes": 500,
+        "lines": 500,
+        "labels": 500
+      },
+      "loops": 4,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 12,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__09-on-balance-volume-everget",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__10-rsi-divergence-faytterro",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_ONLY",
+      "flags": [
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label"
+      ],
+      "creates": 6,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "linedizi",
+          "linedizi2",
+          "linedizi3",
+          "linedizi4",
+          "linedizi5",
+          "linedizi6"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 6,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {
+        "lines": 500
+      },
+      "loops": 13,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 6,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__11-vumanchu-cipher-a-vumanchu",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__12-cm-ultimate-rsi-mtf-chrismoody",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__13-ultimate-opening-range-breakout-luxalgo",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 12,
+      "updates": 0,
+      "deletes": 8,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "dash": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "activeVPBoxes"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 29,
+        "update": 0,
+        "del": 22
+      },
+      "maxCounts": {
+        "labels": 500,
+        "lines": 500,
+        "boxes": 500
+      },
+      "loops": 5,
+      "opsInsideLoops": 1,
+      "opsOutsideLoops": 11,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__14-heikin-ashi-candle-overlay-bjorgum",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__15-linear-regression-channel-lonesometheblue",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label"
+      ],
+      "creates": 3,
+      "updates": 9,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {
+        "line.set_color": 1,
+        "line.set_width": 1,
+        "line.set_style": 1,
+        "line.set_extend": 1,
+        "label.set_style": 1,
+        "label.set_text": 1,
+        "label.set_x": 1,
+        "label.set_y": 1,
+        "label.set_color": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "sidelab": "label"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "fibolines",
+          "reglines"
+        ],
+        "ops": {
+          "get": 6,
+          "set": 2
+        },
+        "opTotal": 8
+      },
+      "conditional": {
+        "create": 1,
+        "update": 2,
+        "del": 2
+      },
+      "maxCounts": {
+        "lines": 300
+      },
+      "loops": 3,
+      "opsInsideLoops": 8,
+      "opsOutsideLoops": 6,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__16-klinger-volume-oscillator-everget",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__17-volume-profile-and-volume-indicator-dgt-dgtrd",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table",
+        "polyline"
+      ],
+      "creates": 16,
+      "updates": 24,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {
+        "line.set_xy1": 1,
+        "line.set_xy2": 1,
+        "line.set_color": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 21,
+      "varRefs": {
+        "change": "table",
+        "logo": "table"
+      },
+      "reassign": 2,
+      "collections": {
+        "vars": [
+          "vh",
+          "vp"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 27,
+        "update": 41,
+        "del": 4
+      },
+      "maxCounts": {
+        "boxes": 500,
+        "lines": 500
+      },
+      "loops": 15,
+      "opsInsideLoops": 8,
+      "opsOutsideLoops": 34,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__18-cross-correlation-kioseff-trading",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_ONLY",
+      "flags": [
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "box",
+        "table"
+      ],
+      "creates": 3,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 3,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 20,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 3,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__19-anchored-vwap-stuehmer",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__20-ehlers-fisher-transform-cheatcountry",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__21-parabolic-sar-deviation-bigbeluga",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label"
+      ],
+      "creates": 4,
+      "updates": 0,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 6,
+        "update": 0,
+        "del": 2
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500
+      },
+      "loops": 2,
+      "opsInsideLoops": 2,
+      "opsOutsideLoops": 4,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__22-reversal-probability-profile-algoalpha",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 11,
+      "updates": 20,
+      "deletes": 12,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 1,
+        "line.set_color": 2,
+        "line.set_style": 2,
+        "label.set_x": 1,
+        "label.set_color": 3,
+        "label.set_textcolor": 3,
+        "label.set_text": 2,
+        "label.set_style": 1,
+        "box.set_text": 1,
+        "box.set_text_color": 1,
+        "box.set_text_size": 1,
+        "box.set_text_halign": 1,
+        "box.set_text_valign": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "pivotMarks",
+          "profileBoxes",
+          "profileLabels",
+          "profileLines"
+        ],
+        "ops": {
+          "size": 4,
+          "pop": 4,
+          "push": 7
+        },
+        "opTotal": 15
+      },
+      "conditional": {
+        "create": 30,
+        "update": 81,
+        "del": 16
+      },
+      "maxCounts": {
+        "boxes": 500,
+        "labels": 500,
+        "lines": 500
+      },
+      "loops": 29,
+      "opsInsideLoops": 35,
+      "opsOutsideLoops": 8,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__23-sweep-reversal-map-plus-herman",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 6,
+      "updates": 20,
+      "deletes": 9,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 2,
+        "line.set_color": 2,
+        "line.set_style": 2,
+        "label.set_textcolor": 2,
+        "box.set_top": 1,
+        "box.set_right": 4,
+        "box.set_bgcolor": 2,
+        "box.set_border_color": 2,
+        "box.set_border_width": 2,
+        "box.set_bottom": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "bearishBoxId": "box",
+        "bearishLineId": "line",
+        "bearishLabelId": "label",
+        "bullishBoxId": "box",
+        "bullishLineId": "line",
+        "bullishLabelId": "label"
+      },
+      "reassign": 6,
+      "collections": {
+        "vars": [
+          "historicalBoxesArray",
+          "historicalLabelsArray",
+          "historicalLinesArray"
+        ],
+        "ops": {
+          "size": 1,
+          "shift": 3,
+          "push": 6
+        },
+        "opTotal": 10
+      },
+      "conditional": {
+        "create": 16,
+        "update": 54,
+        "del": 18
+      },
+      "maxCounts": {
+        "boxes": 200,
+        "lines": 200,
+        "labels": 200
+      },
+      "loops": 2,
+      "opsInsideLoops": 3,
+      "opsOutsideLoops": 32,
+      "histIndex": 0
+    },
+    {
+      "name": "high_engagement__24-coppock-curve-multi-filter-markittick",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "table",
+        "linefill"
+      ],
+      "creates": 13,
+      "updates": 42,
+      "deletes": 12,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 5,
+        "label.set_x": 5,
+        "label.set_text": 4
+      },
+      "cellSetMethods": {},
+      "tableCell": 28,
+      "varRefs": {
+        "slLine": "line",
+        "entryLine": "line",
+        "tp1Line": "line",
+        "tp2Line": "line",
+        "tp3Line": "line",
+        "slLbl": "label",
+        "entryLbl": "label",
+        "tp1Lbl": "label",
+        "tp2Lbl": "label",
+        "tp3Lbl": "label",
+        "riskFill": "linefill",
+        "rewardFill": "linefill",
+        "dash": "table"
+      },
+      "reassign": 12,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 12,
+        "update": 79,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 2,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 67,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__01-ny-macro-status",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 2,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 2,
+      "varRefs": {
+        "t": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "vlines"
+        ],
+        "ops": {
+          "push": 1,
+          "size": 1,
+          "shift": 1
+        },
+        "opTotal": 3
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 2
+      },
+      "maxCounts": {
+        "lines": 500
+      },
+      "loops": 2,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 6,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__02-relative-volume-candles-narrow-ranges",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__03-heikin-ashi-lag-meter",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "box",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 25,
+      "deletes": 1,
+      "gets": 0,
+      "setMethods": {
+        "table.set_position": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 24,
+      "varRefs": {
+        "panel": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "lagBoxes"
+        ],
+        "ops": {
+          "push": 1,
+          "size": 2,
+          "shift": 1
+        },
+        "opTotal": 4
+      },
+      "conditional": {
+        "create": 1,
+        "update": 34,
+        "del": 2
+      },
+      "maxCounts": {
+        "boxes": 500
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 28,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__04-warm-up-curtain",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "table"
+      ],
+      "creates": 3,
+      "updates": 7,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {
+        "table.set_position": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 6,
+      "varRefs": {
+        "observedLine": "line",
+        "declaredLine": "line",
+        "panel": "table"
+      },
+      "reassign": 2,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 4,
+        "update": 8,
+        "del": 2
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 12,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__05-master-line-plus",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 8,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 8,
+      "varRefs": {
+        "t": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 9,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 9,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__06-sector-rotation-leadership-persistence",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 14,
+      "deletes": 1,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 14,
+      "varRefs": {
+        "hud": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "end_labels"
+        ],
+        "ops": {
+          "size": 2,
+          "get": 1,
+          "clear": 1,
+          "push": 1
+        },
+        "opTotal": 5
+      },
+      "conditional": {
+        "create": 1,
+        "update": 18,
+        "del": 2
+      },
+      "maxCounts": {
+        "labels": 500
+      },
+      "loops": 9,
+      "opsInsideLoops": 4,
+      "opsOutsideLoops": 13,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__07-hurst-exponent-regime",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 15,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 15,
+      "varRefs": {
+        "t": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 1,
+        "update": 23,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 1,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 16,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__08-vix-term-structure",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 4,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 4,
+      "varRefs": {
+        "tbl": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 2,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 5,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__09-signal-follow-through-ledger",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "box",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 18,
+      "deletes": 1,
+      "gets": 0,
+      "setMethods": {
+        "table.set_position": 1,
+        "table.set_bgcolor": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 16,
+      "varRefs": {
+        "pnl": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "winBox"
+        ],
+        "ops": {
+          "push": 1,
+          "size": 1,
+          "shift": 1
+        },
+        "opTotal": 3
+      },
+      "conditional": {
+        "create": 5,
+        "update": 20,
+        "del": 4
+      },
+      "maxCounts": {
+        "boxes": 500,
+        "labels": 500
+      },
+      "loops": 4,
+      "opsInsideLoops": 2,
+      "opsOutsideLoops": 19,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__10-mtf-supply-demand",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 5,
+      "updates": 0,
+      "deletes": 3,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "drawnBoxes",
+          "drawnLabels",
+          "drawnLines"
+        ],
+        "ops": {
+          "size": 6,
+          "get": 3,
+          "clear": 3,
+          "push": 5
+        },
+        "opTotal": 17
+      },
+      "conditional": {
+        "create": 3,
+        "update": 0,
+        "del": 3
+      },
+      "maxCounts": {
+        "boxes": 500,
+        "labels": 500
+      },
+      "loops": 14,
+      "opsInsideLoops": 3,
+      "opsOutsideLoops": 5,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__11-percent-range-tool",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label"
+      ],
+      "creates": 2,
+      "updates": 10,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {
+        "line.set_xy1": 1,
+        "line.set_xy2": 1,
+        "line.set_extend": 1,
+        "line.set_color": 1,
+        "line.set_style": 1,
+        "line.set_width": 1,
+        "label.set_xy": 1,
+        "label.set_text": 1,
+        "label.set_textcolor": 1,
+        "label.set_size": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 2,
+      "collections": {
+        "vars": [
+          "outp_labels",
+          "outp_lines"
+        ],
+        "ops": {
+          "get": 2,
+          "set": 2
+        },
+        "opTotal": 4
+      },
+      "conditional": {
+        "create": 2,
+        "update": 0,
+        "del": 2
+      },
+      "maxCounts": {},
+      "loops": 2,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 14,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__12-setup-grader",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 21,
+      "deletes": 1,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 21,
+      "varRefs": {
+        "gradeLabel": "label",
+        "gradeTable": "table"
+      },
+      "reassign": 1,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 1,
+        "update": 23,
+        "del": 1
+      },
+      "maxCounts": {
+        "labels": 100
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 24,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__13-volatility-of-returns",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__14-vwap-z-score-oscillator",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 1,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__15-agreed-upon-dol",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 5,
+      "updates": 9,
+      "deletes": 4,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 9,
+      "varRefs": {
+        "tb": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "bxs",
+          "lbs",
+          "lns",
+          "swp"
+        ],
+        "ops": {
+          "push": 4,
+          "size": 7,
+          "shift": 1,
+          "get": 3,
+          "remove": 3
+        },
+        "opTotal": 18
+      },
+      "conditional": {
+        "create": 11,
+        "update": 15,
+        "del": 8
+      },
+      "maxCounts": {
+        "boxes": 40,
+        "labels": 40,
+        "lines": 60
+      },
+      "loops": 19,
+      "opsInsideLoops": 9,
+      "opsOutsideLoops": 9,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__16-spy-position-helper",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 16,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 16,
+      "varRefs": {
+        "dashboard": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 16,
+        "del": 0
+      },
+      "maxCounts": {
+        "labels": 500
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 17,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__17-db-seasonal-by-date-range",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 2,
+      "updates": 26,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 26,
+      "varRefs": {
+        "summary_box": "table",
+        "detail_table": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 2,
+        "update": 28,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 5,
+      "opsInsideLoops": 2,
+      "opsOutsideLoops": 26,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__18-deltalabs-equal-highs-equal-lows",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label"
+      ],
+      "creates": 8,
+      "updates": 30,
+      "deletes": 8,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 12,
+        "line.set_y1": 6,
+        "line.set_y2": 6,
+        "label.set_x": 2,
+        "label.set_y": 2,
+        "label.set_text": 2
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "eqhLabel",
+          "eqhLine",
+          "eqhLowerLine",
+          "eqhUpperLine",
+          "eqlLabel",
+          "eqlLine",
+          "eqlLowerLine",
+          "eqlUpperLine"
+        ],
+        "ops": {
+          "get": 22,
+          "remove": 8,
+          "push": 8
+        },
+        "opTotal": 38
+      },
+      "conditional": {
+        "create": 32,
+        "update": 84,
+        "del": 24
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500
+      },
+      "loops": 10,
+      "opsInsideLoops": 14,
+      "opsOutsideLoops": 32,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__19-session-fibs-falcon-ai",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 3,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 3,
+      "varRefs": {
+        "wm": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 1,
+        "update": 3,
+        "del": 0
+      },
+      "maxCounts": {
+        "labels": 500
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 5,
+      "histIndex": 0
+    },
+    {
+      "name": "long_tail__20-cot-pulse-cloud-trend",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "label"
+      ],
+      "creates": 1,
+      "updates": 0,
+      "deletes": 1,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "idxLabel": "label"
+      },
+      "reassign": 1,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 1,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {
+        "lines": 500
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 2,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__01-zeiierman-trend-pressure",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED"
+      ],
+      "familiesUsed": [
+        "box"
+      ],
+      "creates": 1,
+      "updates": 0,
+      "deletes": 3,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "ubx": "box",
+        "lbx": "box"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "a",
+          "bh"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 7
+      },
+      "maxCounts": {
+        "boxes": 500
+      },
+      "loops": 1,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 4,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__03-volatility-supply-demand-zones",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 6,
+      "updates": 8,
+      "deletes": 10,
+      "gets": 6,
+      "setMethods": {
+        "line.set_extend": 1,
+        "line.set_x2": 3,
+        "box.set_extend": 1,
+        "box.set_right": 1,
+        "box.set_text": 1,
+        "box.set_text_size": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "floorRay": "line",
+        "ceilRay": "line"
+      },
+      "reassign": 3,
+      "collections": {
+        "vars": [
+          "buyMids",
+          "buyZones",
+          "deadMids",
+          "deadZones",
+          "mids",
+          "msLabels",
+          "msLines",
+          "sellMids",
+          "sellZones",
+          "zones"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 6,
+        "update": 15,
+        "del": 8
+      },
+      "maxCounts": {
+        "boxes": 300,
+        "lines": 400,
+        "labels": 200
+      },
+      "loops": 9,
+      "opsInsideLoops": 15,
+      "opsOutsideLoops": 13,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__04-cisd-order-block",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 5,
+      "updates": 3,
+      "deletes": 5,
+      "gets": 0,
+      "setMethods": {
+        "line.set_style": 1,
+        "label.set_text_font_family": 2
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 1,
+      "collections": {
+        "vars": [
+          "labels",
+          "lines",
+          "sdLabels",
+          "sdLines"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 5,
+        "update": 3,
+        "del": 4
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500,
+        "boxes": 500
+      },
+      "loops": 15,
+      "opsInsideLoops": 5,
+      "opsOutsideLoops": 8,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__05-supertrend-fibonacci-ote",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "linefill"
+      ],
+      "creates": 25,
+      "updates": 57,
+      "deletes": 24,
+      "gets": 8,
+      "setMethods": {
+        "line.set_xy1": 8,
+        "line.set_xy2": 8,
+        "line.set_color": 8,
+        "line.set_width": 8,
+        "label.set_xy": 8,
+        "label.set_text": 8,
+        "label.set_textcolor": 8,
+        "linefill.set_color": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "lbB0": "label",
+        "lbB236": "label",
+        "lbB382": "label",
+        "lbB50": "label",
+        "lbB618": "label",
+        "lbB705": "label",
+        "lbB786": "label",
+        "lbB100": "label",
+        "l0": "line",
+        "l236": "line",
+        "l382": "line",
+        "l50": "line",
+        "l618": "line",
+        "l705": "line",
+        "l786": "line",
+        "l100": "line",
+        "oteFill": "linefill",
+        "lbl0": "label",
+        "lbl236": "label",
+        "lbl382": "label",
+        "lbl50": "label",
+        "lbl618": "label",
+        "lbl705": "label",
+        "lbl786": "label",
+        "lbl100": "label"
+      },
+      "reassign": 9,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 75,
+        "update": 40,
+        "del": 9
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 51,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__07-3way-bollinger-trend",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 8,
+      "updates": 23,
+      "deletes": 4,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 2,
+        "line.set_y1": 1,
+        "line.set_y2": 1,
+        "label.set_tooltip": 1,
+        "box.set_right": 4,
+        "box.set_top": 2,
+        "box.set_bottom": 2
+      },
+      "cellSetMethods": {},
+      "tableCell": 10,
+      "varRefs": {
+        "dash": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "tEntryLabel",
+          "tEntryLine",
+          "tRewardBox",
+          "tRiskBox",
+          "tStopLine"
+        ],
+        "ops": {
+          "push": 5,
+          "get": 9,
+          "shift": 5
+        },
+        "opTotal": 19
+      },
+      "conditional": {
+        "create": 30,
+        "update": 51,
+        "del": 16
+      },
+      "maxCounts": {
+        "lines": 100,
+        "labels": 200,
+        "boxes": 200
+      },
+      "loops": 6,
+      "opsInsideLoops": 15,
+      "opsOutsideLoops": 20,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__08-hourly-alpha-profile-terminal",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 2,
+      "updates": 34,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 34,
+      "varRefs": {
+        "hft_table": "table",
+        "quant_hud": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 45,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 4,
+      "opsInsideLoops": 14,
+      "opsOutsideLoops": 22,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__09-relative-volume-breakout-context",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "table"
+      ],
+      "creates": 2,
+      "updates": 16,
+      "deletes": 2,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 16,
+      "varRefs": {
+        "dashboard": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "eventLabels"
+        ],
+        "ops": {
+          "push": 1,
+          "size": 1,
+          "shift": 1
+        },
+        "opTotal": 3
+      },
+      "conditional": {
+        "create": 2,
+        "update": 38,
+        "del": 2
+      },
+      "maxCounts": {
+        "labels": 100
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 20,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__10-smc-engine",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "box",
+        "table"
+      ],
+      "creates": 4,
+      "updates": 13,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {
+        "box.set_top": 1,
+        "box.set_bottom": 1,
+        "box.set_right": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 10,
+      "varRefs": {
+        "ib_box": "box",
+        "hud": "table"
+      },
+      "reassign": 1,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 3,
+        "update": 15,
+        "del": 0
+      },
+      "maxCounts": {
+        "boxes": 200,
+        "lines": 200
+      },
+      "loops": 1,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 17,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__12-structure-participation-matrix",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 6,
+      "updates": 26,
+      "deletes": 4,
+      "gets": 0,
+      "setMethods": {
+        "label.set_text": 1,
+        "label.set_size": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 24,
+      "varRefs": {
+        "latestHeroLabel": "label",
+        "matrix": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "eventBoxes",
+          "eventLines",
+          "items",
+          "mainLabels",
+          "outcomeLabels",
+          "railLabels"
+        ],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 18,
+        "update": 63,
+        "del": 1
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500,
+        "boxes": 500
+      },
+      "loops": 8,
+      "opsInsideLoops": 8,
+      "opsOutsideLoops": 28,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__13-spma-trend",
+      "hasObjects": false,
+      "reachable": false,
+      "tier": "NONE",
+      "flags": [],
+      "familiesUsed": [],
+      "creates": 0,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 4,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 0,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__14-master-line-lite",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 1,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 1,
+      "varRefs": {
+        "t": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 1,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 2,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__15-multi-timeframe-ma-forecast",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "polyline"
+      ],
+      "creates": 7,
+      "updates": 0,
+      "deletes": 3,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "hist_pl": "polyline",
+        "fc_pl_time": "polyline",
+        "fc_pl_idx": "polyline"
+      },
+      "reassign": 4,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 27,
+        "update": 0,
+        "del": 6
+      },
+      "maxCounts": {
+        "polylines": 4,
+        "labels": 2
+      },
+      "loops": 7,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 10,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__16-ict-smc-guide",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "box",
+        "table"
+      ],
+      "creates": 7,
+      "updates": 15,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 15,
+      "varRefs": {
+        "guide": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "bearBoxes",
+          "bullBoxes"
+        ],
+        "ops": {
+          "push": 2
+        },
+        "opTotal": 2
+      },
+      "conditional": {
+        "create": 6,
+        "update": 15,
+        "del": 0
+      },
+      "maxCounts": {
+        "boxes": 200,
+        "lines": 200,
+        "labels": 200
+      },
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 22,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__17-volume-surge-radar",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 1,
+      "updates": 21,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 21,
+      "varRefs": {
+        "t": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 0,
+        "update": 26,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 1,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 22,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__18-market-profile-tpo",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "COLLECTION_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "polyline"
+      ],
+      "creates": 13,
+      "updates": 1,
+      "deletes": 10,
+      "gets": 0,
+      "setMethods": {
+        "line.set_x2": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [
+          "hist_box",
+          "hist_lbl",
+          "hist_line",
+          "live_box",
+          "live_lbl",
+          "live_line",
+          "npoc_line"
+        ],
+        "ops": {
+          "push": 7,
+          "size": 6,
+          "clear": 3,
+          "shift": 4,
+          "get": 1,
+          "remove": 1
+        },
+        "opTotal": 22
+      },
+      "conditional": {
+        "create": 32,
+        "update": 1,
+        "del": 9
+      },
+      "maxCounts": {
+        "polylines": 100,
+        "lines": 500,
+        "labels": 500,
+        "boxes": 500
+      },
+      "loops": 11,
+      "opsInsideLoops": 11,
+      "opsOutsideLoops": 13,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__19-oliver-kell-volume-monitor",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_ONLY",
+      "flags": [],
+      "familiesUsed": [
+        "label"
+      ],
+      "creates": 1,
+      "updates": 0,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {},
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 2,
+        "update": 0,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 1,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__20-mann-kendall-trend-significance",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED"
+      ],
+      "familiesUsed": [
+        "table"
+      ],
+      "creates": 2,
+      "updates": 18,
+      "deletes": 0,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 18,
+      "varRefs": {
+        "lt": "table",
+        "st": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 2,
+        "update": 23,
+        "del": 0
+      },
+      "maxCounts": {},
+      "loops": 2,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 20,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__21-market-compass-dynamic-range",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box"
+      ],
+      "creates": 21,
+      "updates": 0,
+      "deletes": 21,
+      "gets": 0,
+      "setMethods": {},
+      "cellSetMethods": {},
+      "tableCell": 0,
+      "varRefs": {
+        "boxMain": "box",
+        "boxOverbought": "box",
+        "boxOversold": "box",
+        "lineL100": "line",
+        "lineL89": "line",
+        "lineL75": "line",
+        "lineL625": "line",
+        "lineL50": "line",
+        "lineL375": "line",
+        "lineL25": "line",
+        "lineL11": "line",
+        "lineL0": "line",
+        "labelL100": "label",
+        "labelL89": "label",
+        "labelL75": "label",
+        "labelL625": "label",
+        "labelL50": "label",
+        "labelL375": "label",
+        "labelL25": "label",
+        "labelL11": "label",
+        "labelL0": "label"
+      },
+      "reassign": 21,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 47,
+        "update": 0,
+        "del": 3
+      },
+      "maxCounts": {},
+      "loops": 0,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 24,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__22-rsi-levels-regime-map",
+      "hasObjects": true,
+      "reachable": true,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "label",
+        "table"
+      ],
+      "creates": 5,
+      "updates": 25,
+      "deletes": 9,
+      "gets": 0,
+      "setMethods": {
+        "table.set_bgcolor": 2,
+        "table.set_frame_color": 2,
+        "table.set_border_color": 2
+      },
+      "cellSetMethods": {},
+      "tableCell": 19,
+      "varRefs": {
+        "a1": "label",
+        "a2": "label",
+        "a3": "label",
+        "a4": "label",
+        "a5": "label",
+        "aE": "label",
+        "aS": "label",
+        "aT": "label",
+        "aR": "label",
+        "tb": "table",
+        "lg": "table"
+      },
+      "reassign": 0,
+      "collections": {
+        "vars": [],
+        "ops": {},
+        "opTotal": 0
+      },
+      "conditional": {
+        "create": 3,
+        "update": 27,
+        "del": 9
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500,
+        "boxes": 500
+      },
+      "loops": 4,
+      "opsInsideLoops": 0,
+      "opsOutsideLoops": 39,
+      "histIndex": 0
+    },
+    {
+      "name": "mid_engagement__23-distilled-htf-po3",
+      "hasObjects": true,
+      "reachable": false,
+      "tier": "CREATE_UPDATE_DELETE",
+      "flags": [
+        "VAR_REFERENCE_REQUIRED",
+        "COLLECTION_REQUIRED",
+        "TABLE_REQUIRED",
+        "MULTI_FAMILY"
+      ],
+      "familiesUsed": [
+        "line",
+        "label",
+        "box",
+        "table",
+        "linefill"
+      ],
+      "creates": 31,
+      "updates": 54,
+      "deletes": 43,
+      "gets": 2,
+      "setMethods": {
+        "line.set_x2": 5,
+        "line.set_xy1": 1,
+        "line.set_xy2": 1,
+        "line.set_color": 7,
+        "line.set_style": 2,
+        "label.set_x": 4,
+        "label.set_text": 3,
+        "label.set_textcolor": 4,
+        "box.set_border_color": 2,
+        "box.set_bgcolor": 2,
+        "box.set_right": 1,
+        "linefill.set_color": 1
+      },
+      "cellSetMethods": {},
+      "tableCell": 21,
+      "varRefs": {
+        "tb": "table"
+      },
+      "reassign": 10,
+      "collections": {
+        "vars": [
+          "gfA",
+          "gfB",
+          "gfF",
+          "gfK",
+          "gfLb",
+          "mbBx",
+          "panBx",
+          "panLb",
+          "panLn",
+          "pvLb",
+          "pvLn",
+          "sepLb",
+          "sepLn"
+        ],
+        "ops": {
+          "size": 10,
+          "shift": 8,
+          "push": 20,
+          "get": 15,
+          "pop": 5
+        },
+        "opTotal": 58
+      },
+      "conditional": {
+        "create": 181,
+        "update": 121,
+        "del": 123
+      },
+      "maxCounts": {
+        "lines": 500,
+        "labels": 500,
+        "boxes": 500
+      },
+      "loops": 25,
+      "opsInsideLoops": 82,
+      "opsOutsideLoops": 46,
+      "histIndex": 0
+    }
+  ]
+}

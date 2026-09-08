@@ -101,6 +101,16 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
 import { memberNumber } from './memberValue.js'
+// ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
+// statements; `objectProgram.js` owns the canonical shape they become. Neither
+// imports this file, so there is no cycle and the object model stays authorable
+// without Pine (the Builder-future-proofing rule this wave was given).
+import { collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL } from './pineObjects.js'
+import {
+  OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
+  FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP,
+} from './objectProgram.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -7433,6 +7443,538 @@ function foldStatements(stmts, ctx, env) {
  *   refusals: Array<object>,
  * }}
  */
+// ─── ⭐⭐ C3B — PINE'S OBJECT STATEMENTS → A CANONICAL OBJECT PROGRAM ────────
+//
+// ⛔ THE TREES COME OUT SEPARATELY, ON PURPOSE. Ops carry `{v:'tree', i}`, not a
+// copied AST, and the document writer turns those indices into V2 graph node
+// references. Inlining the trees here would work and would silently undo C2C's
+// ×48 compaction — a line whose y-coordinate is `close` must be an integer in
+// the saved document, not a second copy of a tree a plot already stores.
+const OBJECT_ENUM_VALUES = Object.freeze({
+  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
+  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
+  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
+  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
+  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
+  'line.style_arrow_both': 'arrow_both',
+  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
+  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
+  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
+  'text.align_top': 'top', 'text.align_bottom': 'bottom',
+  'position.top_left': 'top_left', 'position.top_center': 'top_center',
+  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
+  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
+  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
+  'position.bottom_right': 'bottom_right',
+})
+
+/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
+ *  decides what a style draws; this door only has to carry what was written. */
+const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
+const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
+
+function objectEnumValue(name) {
+  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
+  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
+  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
+  return undefined
+}
+
+function buildObjectProgram(stmts, source, env, makeResolver) {
+  const collected = collectObjectOps(stmts, { isPunct, findTop, parseArguments, Cursor })
+  const diagnostics = {
+    loopBlocked: collected.diagnostics.loopBlocked.length,
+    loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
+    getters: [...new Set(collected.diagnostics.getters)].sort(),
+    unsupported: [...new Set(collected.diagnostics.unsupported)].sort(),
+    outOfScope: [...new Set(collected.diagnostics.outOfScope)].sort(),
+    unresolvedValues: 0,
+    droppedOps: 0,
+    // ⛔ A COUNT WITHOUT A REASON IS NOT A DIAGNOSTIC. "16 ops dropped" cannot
+    // tell an engineer whether the guard, the handle or the content was the
+    // gate that refused, and those are three different pieces of work.
+    dropReasons: {},
+  }
+  const dropped = (why) => {
+    diagnostics.droppedOps += 1
+    diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
+  }
+  if (!collected.ops.length) return { program: null, diagnostics }
+
+  const trees = []
+  const byFormula = new Map()
+  /** ⭐ THE SCOPE IN FORCE FOR THE OP BEING BUILT. Set per op from its own
+   *  block-local bindings; `env` when there are none. */
+  let scopeEnv = env
+  const GETTER_RE = /^(line|label|box|table|linefill)\.get_[a-z_0-9]+$/
+  /** Is an object GETTER anywhere in this parse subtree?
+   *
+   *  ⛔⛔ A GETTER READS RUNTIME OBJECT STATE BACK INTO A VALUE, and the V2
+   *  computation graph is pure by construction — there is no node that means
+   *  "whatever that line's x1 is now", and there never can be without making
+   *  the graph depend on the object program that depends on it. So it is
+   *  refused BY NAME, at the value door, wherever it appears — including nested
+   *  inside `str.tostring(line.get_x1(l))`, which is how the corpus writes it.
+   *  Reported rather than folded, because a coordinate quietly replaced by
+   *  `NaN` draws a different chart and says nothing. */
+  const findGetter = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'call' && GETTER_RE.test(String(node.name || ''))) return node.name
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+      const hit = findGetter(node[k], depth + 1)
+      if (hit) return hit
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        const hit = findGetter(a && a.value !== undefined ? a.value : a, depth + 1)
+        if (hit) return hit
+      }
+    }
+    return null
+  }
+  /** A parse node → its canonical tree, or null if this door cannot say it. */
+  const canonicalOf = (node) => {
+    const getter = findGetter(node)
+    if (getter) { diagnostics.getters.push(getter); return null }
+    try {
+      return makeResolver(scopeEnv).resolve(node)
+    } catch {
+      diagnostics.unresolvedValues += 1
+      return null
+    }
+  }
+  /** A canonical tree → a `{v:'tree', i}` reference, deduped by formula.
+   *  ⭐ INTERNING HERE IS THE FIRST SHARING PASS; `buildGraph` does the second
+   *  by content digest. Two passes are not redundant: this one keeps the tree
+   *  LIST short, which is what the document actually carries. */
+  const internTree = (ast) => {
+    if (!ast) return null
+    const f = printFormula(ast)
+    if (byFormula.has(f)) return { v: 'tree', tree: byFormula.get(f) }
+    const i = trees.length
+    trees.push(ast)
+    byFormula.set(f, i)
+    return { v: 'tree', tree: i }
+  }
+  const resolveTree = (node) => internTree(canonicalOf(node))
+
+  /** A bound name → the expression it holds, so `stateText` can be opened the
+   *  way `staticColourOf` already opens a colour behind a name. */
+  const openName = (node, scope, depth) => {
+    if (!node || node.type !== 'name' || depth > 8) return null
+    const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope }
+    return null
+  }
+
+  /**
+   * ⭐⭐ A TEXT EXPRESSION — the half of the reachable corpus a numeric model
+   * could not reach. See `objectProgram.js`'s own note: 19 of the 27 reachable
+   * scripts are table-driven and a table is made of strings.
+   *
+   * ⛔ IT NEVER INVENTS CONTENT. A piece it cannot read returns null, the
+   * property is refused, and (for a cell's text, which IS the cell) the whole
+   * operation is dropped and counted. A blank cell where the author wrote a
+   * number reads as a working dashboard and is not one.
+   */
+  const textNodeOf = (node, scope, depth = 0) => {
+    if (!node || depth > 12) return null
+    if (node.type === 'string') return { t: 'lit', s: String(node.value) }
+    if (node.type === 'number') {
+      const ref = internTree({ type: 'num', value: Number(node.value) })
+      return ref ? { t: 'num', tree: ref.tree } : null
+    }
+    if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
+      const ast = canonicalOf(node.args && node.args[0] && node.args[0].value)
+      if (!ast) return null
+      const ref = internTree(ast)
+      const fmtNode = node.args && node.args[1] && node.args[1].value
+      const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
+      return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const a = textNodeOf(node.left, scope, depth + 1)
+      const b = textNodeOf(node.right, scope, depth + 1)
+      if (!a || !b) return null
+      return { t: 'cat', args: [a, b] }
+    }
+    if (node.type === 'ternary') {
+      const cond = resolveTree(node.test)
+      const then = textNodeOf(node.yes, scope, depth + 1)
+      const other = textNodeOf(node.no, scope, depth + 1)
+      if (!cond || !then || !other) return null
+      return { t: 'if', cond, then, else: other }
+    }
+    const opened = openName(node, scope, depth)
+    if (opened) return textNodeOf(opened.node, opened.env, depth + 1)
+    // ⚠️ LAST RESORT: a bare numeric expression in a text slot. Pine would have
+    // required a string, so this is a value the author already stringified some
+    // way this door cannot read — carrying the NUMBER is closer to the truth
+    // than carrying nothing, and it is the only branch here that guesses.
+    const ast = canonicalOf(node)
+    if (!ast) return null
+    const ref = internTree(ast)
+    return ref ? { t: 'num', tree: ref.tree } : null
+  }
+
+  /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
+   *  reachable table scripts colour conditionally far more often than not. */
+  const colorNodeOf = (node, scope, depth = 0) => {
+    if (!node || depth > 12) return null
+    const hex = staticColourOf(node, scope)
+    if (hex) return { c: 'lit', hex }
+    if (node.type === 'ternary') {
+      const cond = resolveTree(node.test)
+      const then = colorNodeOf(node.yes, scope, depth + 1)
+      const other = colorNodeOf(node.no, scope, depth + 1)
+      if (!cond || !then || !other) return null
+      return { c: 'if', cond, then, else: other }
+    }
+    const opened = openName(node, scope, depth)
+    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1)
+    return null
+  }
+
+  const TEXT_SLOTS = new Set(['text', 'tooltip'])
+  const isColourSlot = (k) => k === 'bgcolor' || k.includes('color')
+
+  const valueRef = (node, slot) => {
+    if (!node) return null
+    if (slot && TEXT_SLOTS.has(slot)) {
+      const t = textNodeOf(node, scopeEnv)
+      return t ? { v: 'text', node: t } : null
+    }
+    if (slot && isColourSlot(slot)) {
+      const c = colorNodeOf(node, scopeEnv)
+      return c ? { v: 'color', node: c } : null
+    }
+    if (node.type === 'string') return { v: 'const', value: node.value }
+    if (node.type === 'colour') return { v: 'const', value: node.value }
+    if (node.type === 'name') {
+      if (node.name === 'bar_index') return { v: 'bar' }
+      if (node.name === 'time') return { v: 'time' }
+      const e = objectEnumValue(node.name)
+      if (e !== undefined) return { v: 'const', value: e }
+      const opened = openName(node, scopeEnv, 0)
+      if (opened) {
+        const e2 = opened.node.type === 'name' ? objectEnumValue(opened.node.name) : undefined
+        if (e2 !== undefined) return { v: 'const', value: e2 }
+      }
+    }
+    const hex = staticColourOf(node, scopeEnv)
+    if (hex) return { v: 'const', value: hex }
+    if (node.type === 'number') return { v: 'const', value: Number(node.value) }
+    return resolveTree(node)
+  }
+
+  /** ⛔ GEOMETRY IS REQUIRED, STYLING IS NOT. A line with no `y1` is not a line
+   *  and must be dropped; a line with no `style` is a line drawn solid, which is
+   *  Pine's own default. Conflating the two either loses whole objects to a
+   *  colour this door cannot read, or draws objects at coordinate zero. */
+  const REQUIRED = {
+    line: new Set(['x1', 'y1', 'x2', 'y2']),
+    label: new Set(['x', 'y']),
+    box: new Set(['left', 'top', 'right', 'bottom']),
+    table: new Set(),
+    linefill: new Set(['line1', 'line2']),
+  }
+
+  /** ⛔⛔ CONTENT IS NOT STYLING. If the author WROTE a caption and this door
+   *  cannot carry it, the object is dropped rather than drawn empty — a
+   *  captionless label at the right price reads as "the author labelled nothing
+   *  here", which is a claim they never made. Same rule as a table cell, whose
+   *  text IS the cell. An ABSENT caption is fine: `label.new(x, y)` is a legal
+   *  Pine marker and stays one. */
+  const CONTENT = { label: new Set(['text']), box: new Set(['text']) }
+
+  // ── registers and collections, with GENERATED ids ─────────────────────────
+  // ⛔ A PINE NAME IS NOT AN ID. `assertObjectProgram` requires `^[a-z][a-z0-9_]*$`
+  // and Pine names are freely cased, so the mapping is explicit rather than a
+  // lowercase() that would collide `Box` with `box`.
+  const regId = new Map()
+  const collId = new Map()
+  const regs = []
+  const colls = []
+  const locals = []
+  for (const [name, d] of collected.decls) {
+    if (d.kind === 'coll') {
+      const id = `c${colls.length}`
+      collId.set(name, id)
+      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP })
+    } else {
+      const id = `r${regs.length}`
+      regId.set(name, id)
+      regs.push({ id, family: d.family })
+      if (d.kind === 'local') locals.push(id)
+    }
+  }
+
+  const targetRef = (argNode) => {
+    const v = argNode && argNode.value
+    if (!v) return null
+    if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
+    if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
+      const cn = v.args[0] && v.args[0].value
+      if (cn && cn.type === 'name' && collId.has(cn.name)) {
+        const idx = valueRef(v.args[1] && v.args[1].value)
+        if (idx) return { r: 'coll', id: collId.get(cn.name), index: idx }
+      }
+    }
+    return null
+  }
+
+  /**
+   * The guard stack → ONE canonical tree, then one reference to it.
+   *
+   * ⛔⛔ THE COMBINATION HAPPENS IN THE TREE, NOT IN THE VALUE VOCABULARY. It
+   * would have been easy to invent `{v:'and', …}` / `{v:'not', …}` reference
+   * kinds; that would put a second boolean algebra in the repo, one the V2
+   * graph could not share, could not hash, and could not fold. `a and not b` is
+   * an ordinary canonical expression, so it interns, dedupes and evaluates
+   * through exactly the machinery every plot already uses.
+   *
+   * ⚠️ An `else` branch is `!(previous condition)`, which is the honest reading
+   * of Pine's own semantics and NOT the same as "the condition is false" when
+   * the condition is `na` — `!` on `na` stays `na`, and `evaluateObjects` treats
+   * a non-finite guard as "did not fire". A drawing that appears during warmup
+   * is worse than one that appears a bar late.
+   */
+  const guardOf = (guards) => {
+    let acc = null
+    let lastBarOnly = false
+    for (const g of guards) {
+      let node
+      try { node = parseWholeExpression(g.toks) } catch { return undefined }
+      // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
+      // `BUILTIN_CONSTANT_TREE` deliberately refuses it, and that ruling is
+      // right for a SCAN: "the last bar" depends on how many bars were asked
+      // for, so a screener column built on it would disagree with itself
+      // between a 500-bar and a 5,000-bar request. An OBJECT PROGRAM is not a
+      // column — it is a picture of the chart as it stands, and the chart has
+      // exactly one last bar. `if barstate.islast` is the corpus's own idiom
+      // for "draw the dashboard once", used by most of the reachable table
+      // scripts, so refusing it here would cost the population C3B targets for
+      // a reason that does not apply to it.
+      // ⛔ IT NEVER BECOMES A GRAPH NODE. It is lifted OUT of the expression
+      // into a flag on the operation, so no tree, no hash and no screener
+      // column can ever contain it.
+      if (!g.negate) {
+        const split = splitLastBar(node)
+        if (split.isLast) {
+          lastBarOnly = true
+          if (!split.rest) continue
+          node = split.rest
+        }
+      }
+      const ast = canonicalOf(node)
+      if (!ast) return undefined
+      const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
+      acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
+    }
+    if (acc === null) return { when: null, lastBarOnly }
+    const ref = internTree(acc)
+    return ref === null ? undefined : { when: ref, lastBarOnly }
+  }
+
+  const namedOrPositional = (args, order) => {
+    const out = {}
+    const positional = args.filter((a) => !a.name)
+    positional.forEach((a, i) => { if (order[i]) out[order[i]] = a.value })
+    for (const a of args) if (a.name) out[a.name] = a.value
+    return out
+  }
+
+  /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
+   *  conjuncts are lifted; anything else stays in the expression and refuses. */
+  const splitLastBar = (node) => {
+    if (!node) return { rest: node, isLast: false }
+    if (node.type === 'name' && node.name === 'barstate.islast') return { rest: null, isLast: true }
+    if (node.type === 'binary' && (node.op === 'and' || node.op === '&&')) {
+      const a = splitLastBar(node.left)
+      const b = splitLastBar(node.right)
+      if (!a.isLast && !b.isLast) return { rest: node, isLast: false }
+      const rest = a.rest && b.rest
+        ? { type: 'binary', op: node.op, left: a.rest, right: b.rest, tok: node.tok }
+        : (a.rest || b.rest)
+      return { rest, isLast: true }
+    }
+    return { rest: node, isLast: false }
+  }
+
+  /** An op's block-local bindings → a resolver scope layered over `env`.
+   *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
+   *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
+  const scopeCache = new Map()
+  const scopeFor = (locals) => {
+    if (!locals || !locals.length) return env
+    if (scopeCache.has(locals)) return scopeCache.get(locals)
+    const scoped = new Map(env)
+    for (const b of locals) {
+      let node
+      try { node = parseWholeExpression(b.toks) } catch { continue }
+      scoped.set(b.name, exprBinding(node, scoped, b.toks[0]))
+    }
+    scopeCache.set(locals, scoped)
+    return scoped
+  }
+
+  const ops = []
+  // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
+  // register would let yesterday's object survive into a bar where Pine had `na`.
+  // Clearing them first, every bar, is exactly what Pine does.
+  for (const id of locals) ops.push({ k: 'setreg', reg: id, value: null, when: null })
+
+  for (const op of collected.ops) {
+    scopeEnv = scopeFor(op.locals)
+    const g = guardOf(op.guards)
+    if (g === undefined) { dropped(`guard:${op.k}`); continue }
+    const when = g.when
+    const lastBarOnly = g.lastBarOnly ? { lastBarOnly: true } : null
+    if (op.k === 'create') {
+      const order = CREATE_POSITIONAL[op.family] || []
+      const raw = namedOrPositional(op.args, order)
+      const props = {}
+      let bad = false
+      const required = REQUIRED[op.family] || new Set()
+      for (const [k, node] of Object.entries(raw)) {
+        if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) continue
+        if (op.family === 'linefill' && (k === 'line1' || k === 'line2')) {
+          const r = targetRef({ value: node })
+          if (!r) { bad = true; break }
+          props[k] = r
+          continue
+        }
+        const v = valueRef(node, k)
+        if (!v) {
+          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) { bad = true; break }
+          diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+          continue
+        }
+        props[k] = v
+      }
+      // ⛔ AND A REQUIRED PROPERTY THAT WAS NEVER WRITTEN IS ALSO FATAL.
+      // `label.new(x, y)` with `y` absent is not a label at a default height —
+      // Pine has no default there, so neither may this.
+      if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
+      if (bad) { dropped(`create:${op.family}`); continue }
+      ops.push({
+        k: 'create',
+        family: op.family,
+        site: op.site,
+        into: op.into && regId.has(op.into) ? regId.get(op.into) : null,
+        when,
+        ...lastBarOnly,
+        props,
+      })
+    } else if (op.k === 'update') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('update:target'); continue }
+      const props = {}
+      let bad = false
+      op.props.forEach((name, i) => {
+        const node = op.args[i] && op.args[i].value
+        const v = node ? valueRef(node, name) : null
+        if (!v) bad = true
+        else props[name] = v
+      })
+      if (bad || !Object.keys(props).length) { dropped('update:props'); continue }
+      ops.push({ k: 'update', target, when, ...lastBarOnly, props })
+    } else if (op.k === 'delete') {
+      const target = targetRef(op.target)
+      if (!target) { dropped('delete:target'); continue }
+      ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    } else if (op.k === 'cell') {
+      const target = targetRef(op.target)
+      const col = op.col ? valueRef(op.col.value) : null
+      const row = op.row ? valueRef(op.row.value) : null
+      if (!target) { dropped('cell:target'); continue }
+      if (!col || !row) { dropped('cell:address'); continue }
+      const raw = namedOrPositional(op.args, CELL_POSITIONAL)
+      const props = {}
+      let badCell = false
+      for (const [k, node] of Object.entries(raw)) {
+        if (!OBJECT_CELL_PROPS.includes(k)) continue
+        const v = valueRef(node, k)
+        if (!v) {
+          // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
+          // is dropped, never emitted blank: an empty cell in a dashboard reads
+          // as "the value is empty", which is a different and worse claim than
+          // "we could not import this row".
+          if (k === 'text') { badCell = true; break }
+          diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
+          continue
+        }
+        props[k] = v
+      }
+      if (badCell) { dropped('cell:text'); continue }
+      ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+    } else if (op.k.startsWith('coll_')) {
+      const id = collId.get(op.coll)
+      if (!id) { dropped('coll:unknown'); continue }
+      const method = op.k.slice('coll_'.length)
+      if (method === 'push') {
+        const value = targetRef(op.args[0])
+        if (!value) { dropped('coll:push'); continue }
+        ops.push({ k: 'push', coll: id, value, when, ...lastBarOnly })
+      } else if (method === 'set') {
+        const index = op.args[0] ? valueRef(op.args[0].value) : null
+        const value = targetRef(op.args[1])
+        if (!index || !value) { dropped('coll:set'); continue }
+        ops.push({ k: 'collset', coll: id, index, value, when, ...lastBarOnly })
+      } else if (method === 'remove') {
+        const index = op.args[0] ? valueRef(op.args[0].value) : null
+        if (!index) { dropped('coll:remove'); continue }
+        ops.push({ k: 'collremove', coll: id, index, when, ...lastBarOnly })
+      } else if (method === 'shift') {
+        ops.push({ k: 'collremove', coll: id, index: { v: 'const', value: 0 }, when, ...lastBarOnly })
+      } else if (method === 'clear') {
+        ops.push({ k: 'collclear', coll: id, when, ...lastBarOnly })
+      } else {
+        diagnostics.unsupported.push(`array.${method}`)
+        dropped(`coll:${method}`)
+      }
+    }
+  }
+
+  // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
+  // envelope is read rather than invented — and clamped to ours, because a
+  // script asking for 500 boxes must not be able to ask for 50,000.
+  const limits = {}
+  for (const m of String(source).matchAll(/max_([a-z]+)_count\s*=\s*(\d+)/g)) {
+    const fam = { lines: 'line', labels: 'label', boxes: 'box' }[m[1]]
+    if (fam) limits[fam] = Math.min(Number(m[2]), DEFAULT_OBJECT_LIMITS[fam])
+  }
+
+  // ⛔ EVERY REGISTER AND COLLECTION THAT NOTHING USES IS DROPPED. A declared
+  // `var line l = na` whose every write was refused would otherwise ship as a
+  // register that can never hold anything — shape without meaning.
+  const usedRegs = new Set()
+  const usedColls = new Set()
+  for (const o of ops) {
+    if (o.into) usedRegs.add(o.into)
+    if (o.reg) usedRegs.add(o.reg)
+    if (o.coll) usedColls.add(o.coll)
+    for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
+      if (r && r.r === 'reg') usedRegs.add(r.id)
+      if (r && r.r === 'coll') usedColls.add(r.id)
+    }
+  }
+  const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
+  if (!keptOps.some((o) => o.k === 'create')) return { program: null, diagnostics }
+
+  return {
+    program: {
+      programVersion: OBJECT_PROGRAM_VERSION,
+      regs: regs.filter((r) => usedRegs.has(r.id)),
+      colls: colls.filter((c) => usedColls.has(c.id)),
+      ops: keptOps,
+      trees,
+      ...(Object.keys(limits).length ? { limits } : {}),
+    },
+    diagnostics,
+  }
+}
+
 export function translatePine(source, opts = {}) {
   const table = opts.table || TABLE
   const blank = {
@@ -8256,6 +8798,26 @@ export function translatePine(source, opts = {}) {
   //
   // So when nothing usable survives and no refusal has been raised to explain
   // it, the reason is derived from WHY the rows were hidden, and stated.
+  // ── ⭐⭐ C3B: THE OBJECT PROGRAM ────────────────────────────────────────
+  // ⛔ RUN AFTER THE WALK, ON THE FINISHED `env`. An object's coordinates are
+  // ordinary expressions and must resolve through exactly the bindings a plot
+  // would see — including the closing pass's corrections, which is why this
+  // cannot run during the walk. And it CONSUMES NOTHING: the value walk has
+  // already finished, so adding this could not move a single existing output.
+  // ⚠️ Wrapped, because a script that defeats the object reader must still get
+  // its columns. A thrown object pass would otherwise cost a member the whole
+  // translation for the sake of a drawing.
+  let objectPass = { program: null, diagnostics: null }
+  try {
+    objectPass = buildObjectProgram(stmts, source, env, () => new Resolver(env, table, declaredTypes,
+      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null }))
+  } catch (err) {
+    // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
+    // object reader and nothing about how, which is a diagnostic that cannot be
+    // acted on — the exact shape this repo keeps rediscovering.
+    objectPass = { program: null, diagnostics: { failed: true, error: String(err && err.message) } }
+  }
+
   let noContent = null
   if (!blocked && usable.length === 0 && refusals.length === 0) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
@@ -8283,6 +8845,13 @@ export function translatePine(source, opts = {}) {
     // handles do not both name a surviving output is DROPPED rather than
     // half-carried: a band with one edge is not a band.
     presentation: { overlay, levels, fills: resolveFillHandles(fills, outputs, resolved) },
+    // ⭐⭐ C3B — THE OBJECT PROGRAM, beside the columns and never inside them.
+    // `null` when the script draws no graphical objects, which is 14 of the
+    // frozen 60. `diagnostics` is ALWAYS present, because "this script draws
+    // objects inside a loop and we refuse loops" is a fact a member must be
+    // able to read even when the program is null.
+    objects: objectPass.program,
+    objectDiagnostics: objectPass.diagnostics,
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table),
     notes: withExcerpts(notes, lines),
