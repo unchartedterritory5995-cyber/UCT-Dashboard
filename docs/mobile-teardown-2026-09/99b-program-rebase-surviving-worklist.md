@@ -16,7 +16,8 @@ tombstone) · `90-independent-validation.md` · `95-census-errata.md` ·
 | **MOB-01** phone layout door | `7b0877781` — device-verified, iPhone 15 / iOS 17.5 |
 | **MOB-07** coarse-pointer primitive | `bcff456a8` — 16 behavioural tests, 6 mutations red |
 | **MOB-06′** percent-scale path + contextual `$ Vol`/`Avg ND` + the presentation contract | `0f1a5e2f5` — 29 tests, 10 mutations red, **real-device ALL PASS** |
-| **Wave 1 integration** | `f1370b73b` — 21 cases on one chart, incl. the named Percent/Log rail |
+| **Wave 1 integration** | `f1370b73b` — 24 cases on one chart, incl. the named Percent/Log rail |
+| **MOB-09 · MOB-04 · MOB-11 · MOB-18 · Clear-all · Repeat** | see the surviving-item table below |
 
 ## NOT_REPRODUCED — the gap did not survive measurement
 
@@ -35,19 +36,19 @@ tombstone) · `90-independent-validation.md` · `95-census-errata.md` ·
 | **MEASURE-02** landscape | 🟡 **PARTIAL, done tonight.** Real iPhone 13 / iOS 17.5, portrait → landscape → portrait, live readout: the presentation contract holds in both orientations, and the reveal correctly rides the **landscape branch** of the media list (`max-width:640` false, `landscape branch` true). ⛔ App-level state preservation across rotation is **NOT** measured — see the blocker below |
 | **MOB-02** residue | do the watchlist columns **populate** with a live vendor feed? Needs a sandbox with a vendor key |
 
-## SURVIVING_BUILD_ITEM — in dependency order
+## SURVIVING_BUILD_ITEM — status after the finish sprint
 
-| # | item | why it survives | size |
-|---|---|---|---|
-| 1 | **MOB-09** tracings sync highwatermark | ⛔ **REPRODUCES ON CURRENT CODE.** `useTracingsSync.js:43-46` writes the highwatermark **before** an unawaited `setPref`, and the adopt gate is a strict `server.updatedAt > hw`. A failed push pins the device forever: the server holds drawings it will never adopt. Silent data loss, and MOB-05's prerequisite | S |
-| 2 | **MOB-04** all-tools reach | 18 tools in a `overflow-x:auto` row with `scrollbar-width:none` and no fade/affordance — measured in `MobileDrawBar.module.css:51-55`. Core to the sprint's stated DRAWINGS goal | S |
-| 3 | **MOB-05** bind a drawing's alert to the drawing | The one cluster where TradingView is simply better. **Needs MOB-09 first** | M |
-| 4 | **MOB-10** `Hide` in the drawing object menu | Confirmed absent: the menu has Lock/Unlock, Duplicate, Bring/Send, Set level…, Save as default, Delete — nothing non-destructive between Lock and Delete | S |
-| 5 | **MOB-18** mid-draw cancel | Confirmed absent from `MobileDrawBar.jsx` (no cancel/Escape path) | S |
-| 6 | **MOB-11** placement narration | "Point 1 of 2" + a live axis price echo | S |
-| 7 | **MOB-08** `presentation[deviceClass]` | The "Layouts + chart state" interaction: view-lock and grid mode are device-shaped facts stored server-side | L |
-| 8 | **Clear-all / Repeat** rows | MOB-06′ orphans — one Tools row each | S |
-| 9 | **Drawing Boards** phone door | MOB-06′ orphan, medium severity, **owner call** — a phone door is a wave, not a row | M |
+| # | item | status |
+|---|---|---|
+| 1 | **MOB-09** tracings sync highwatermark | ✅ **SHIPPED** `ecfec4a2c` — ordering fix + reconciliation, 5 mutations (4 red, 1 recorded inert) |
+| 2 | **MOB-04** all-tools reach | ✅ **SHIPPED** `c35345c00` + rail fix `47dd0bbcc` — pinned `⊞ All` door, search, recents, edge mask |
+| 3 | **MOB-11** placement narration | ✅ **SHIPPED** `f04bd486c` — "Point N of M" |
+| 4 | **MOB-18** mid-draw cancel | ✅ **SHIPPED** `f04bd486c` — Cancel, reusing Escape's abort |
+| 5 | **Clear-all / Repeat** orphans | ✅ **SHIPPED** `3930bb0a3` (+ Repeat relocated in `47dd0bbcc`) |
+| 6 | **MOB-05** bind a drawing's alert to the drawing | ⛔ **DEFERRED — explicitly.** It needs an alert-row schema change AND a change to server-side alert evaluation. Neither can be verified in this session: the device cannot authenticate (below), so there is no way to watch a bound alert actually fire. Shipping an unverifiable change to *when a member's alerts trigger* is not a trade worth making. TradingView stays ahead on F14 and the rerun says so |
+| 7 | **MOB-10** `Hide` in the drawing object menu | ⛔ **DEFERRED — with a product reason, not a scheduling one.** Drawings carry `locked` but no `hidden`: a model field, the render loop, both hit-test loops, **and a recovery surface**. Hiding an object that vanishes with no list to unhide it from is exactly the ACCIDENTALLY_UNAVAILABLE state this sprint forbids, and the object tree that fixes it (MOB-15) is deferred. Half of this is worse than none of it |
+| 8 | **MOB-08** `presentation[deviceClass]` | ⛔ **DEFERRED.** `L`, MEDIUM risk, and a persistence-shape migration on the workspace record — the one place a careless refactor produces a blank board. Not a 4am change without device verification |
+| 9 | **Drawing Boards** phone door | ⛔ **OWNER CALL**, unchanged — a phone door is a wave, not a row |
 
 ## TOMBSTONED — and one row that must be OVERTURNED
 

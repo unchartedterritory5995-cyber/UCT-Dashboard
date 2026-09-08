@@ -131,9 +131,13 @@ Baseline: "the phone is a first-class WRITER to a durable object it cannot name,
 snapshot or restore." MOB-01 shipped the door: Tools → Layouts → apply / prebuilt
 / Save / Save As / delete-own, calling the desktop's own handlers against the
 same server record. Device-verified on iPhone 15 / iOS 17.5 at the time.
-**UCT is now ahead**: named, server-backed, cross-device, with firm-published
-prebuilts — TradingView's mobile layout list is per-account but has no equivalent
-of published firm templates.
+**UCT is now ahead on the measured axis** — the door exists, and UCT's record is
+named, server-backed and cross-device, with firm-published prebuilts.
+⚠️ **Evidence-tier discipline:** the *comparative* claim is scoped to what the
+research actually observed of TradingView (`CMP-068`…`CMP-073`). I have **not**
+verified whether TradingView offers anything equivalent to firm-published
+templates, so this does not claim it lacks them — a negative claim about a
+competitor needs the same proof as a positive one, and I do not have it.
 
 ---
 
