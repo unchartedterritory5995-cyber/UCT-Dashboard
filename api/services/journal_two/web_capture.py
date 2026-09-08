@@ -214,7 +214,16 @@ def build_capture(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "tier": tier,
+        # ⛔ TWO URLs, on purpose (Wave L §7). `url` is the CANONICAL form and is
+        # the only thing identity is derived from. `source_url` is what the
+        # member actually captured, kept verbatim (minus sanitization) because a
+        # fragment like `#risk-factors` is how they get back to the passage.
+        # Canonicalization stays conservative: scheme/host lowercased, fragment
+        # dropped, QUERY KEPT — for many publishers `?id=N` IS the article, and
+        # no tracking-parameter stripping is performed at all, because "looks
+        # like tracking" is a guess and a wrong guess merges two sources.
         "url": url,
+        "source_url": _navigable_url(payload.get("url")),
         "domain": source_domain(url),
         "title": sanitize_text(payload.get("title"), limit=MAX_TITLE_CHARS) or source_domain(url),
         "passage": passage,
@@ -224,6 +233,14 @@ def build_capture(payload: dict[str, Any]) -> dict[str, Any]:
         "identity": web_document_identity(url),
         "source_kind": SOURCE_KIND_WEB,
     }
+
+
+def _navigable_url(raw: Any) -> str:
+    """The member's own URL, sanitized and scheme-checked but NOT canonicalized —
+    what "open the original" should use."""
+    s = sanitize_text(raw, limit=MAX_URL_CHARS)
+    canonical_url(s)          # scheme/host validation, raises on anything unsafe
+    return s
 
 
 def _captured_at(raw: Any) -> str:

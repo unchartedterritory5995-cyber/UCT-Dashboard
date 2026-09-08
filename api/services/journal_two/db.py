@@ -1709,6 +1709,15 @@ _PHASE_2_ALTERS = [
     # PDF path declines it instead of touching the filesystem.
     "ALTER TABLE j2_note_documents ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'attachment'",
     "ALTER TABLE j2_note_documents ADD COLUMN source_url TEXT",
+    # ⛔ COVERAGE MUST STAY TRUTHFUL (Wave L §1). `source_kind` answers "is this
+    # a filesystem attachment?" — a WRITE-PATH question. `capture_type` answers
+    # "what do I actually hold?" — a RETRIEVAL question, and the two have
+    # different consumers. A web_passage row holds ONE passage the member chose;
+    # it must never let a reader infer the article was read or searched.
+    #   pdf_full_text — every pre-Wave-L row: extracted text of the whole PDF
+    #   web_reference — title + URL + domain only. No body text at all.
+    #   web_passage   — the passages the member selected, and nothing else.
+    "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
 ]
 
 
