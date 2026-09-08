@@ -22,11 +22,29 @@ const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
 // above: `railway redeploy` reuses the image and would silently change nothing —
 // rollback means unsetting the var AND rebuilding.
 const SERVER_TOPPICKS = import.meta.env.VITE_FLOW_SERVER_TOPPICKS === "1";
+// Search deep-dive: fetch the DERIVED per-ticker product instead of the raw
+// uncapped tape. `/api/flow/ticker/AMD` ships 3,651 KB gz / 20,252 KB decoded
+// and the browser then runs the FULL processFlowData over it in the worker — to
+// render ~17 rows. Same defect class as TOP 10 before 3b.
+//
+// Measured on prod 2026-09-08, live tape: the product is 136 KB gz for AMD (27x
+// smaller) and a warm hit answers in 178-337 ms flat, whatever the ticker's
+// size. But a COLD miss is 10,787 ms — worse than the legacy path's 4,232 ms —
+// so the client races a 2.5 s deadline and falls back rather than ever waiting
+// on a build. The abandoned build still installs its cache entry, so the first
+// search for a ticker warms it for every later one.
+//
+// ⛔ OFF => byte-identical fetch behaviour; that is the rollback path.
+// ⛔ BUILD-time, like the flags above: rollback means unsetting the var AND
+// rebuilding — `railway redeploy` reuses the image and would change nothing.
+const SERVER_SEARCH = import.meta.env.VITE_FLOW_SERVER_SEARCH === "1";
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS } from "./optionsFlow/flowParts";
 import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
+import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
+import { applyErOverlay } from "./optionsFlow/flowSearchProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
@@ -1187,7 +1205,20 @@ export default function OptionsFlowDashboard() {
       setSearchStatus("error");
       if (searchRetry < 8) retryTimer = setTimeout(() => { if (!cancelled) setSearchRetry(n => n + 1); }, 4000);
     };
-    fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
+    // ⛔ ONE CONTRACT, TWO TRANSPORTS. Both land the SAME shape through `_land`,
+    // so the sticky/last-good behaviour, the deploy-blip guard and the render are
+    // identical either way. The flag changes how the deep dive is FETCHED, never
+    // what the page does with it, and rolling it back cannot strand a code path.
+    const _land = (_data) => {
+      if (cancelled) return;
+      if (_data) _lastUncappedRef.current[sym] = _data;   // cache last-good uncapped
+      // Sticky (2026-07-25): keep the last good uncapped data if a re-fetch
+      // yields nothing, so the Search view never collapses back to the capped
+      // bulk feed. This is what caused the "6 rows flash then drop to 2" flicker.
+      setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
+      setSearchStatus("ok");
+    };
+    const _legacyTape = () => fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
       .then(r => (r.ok ? r.text() : null))
       .then(async text => {
         if (cancelled) return;
@@ -1204,7 +1235,14 @@ export default function OptionsFlowDashboard() {
         // applies the SELECTED day range; this effect just supplies full history.
         // Parsed + aggregated in the WORKER: a busy symbol's uncapped feed is
         // ~64k rows, which froze the UI for about a second on every Search click.
-        const _res = await computeCsv(text, erSoonArr);
+        // ⛔ COMPUTED WITH NO EARNINGS SET, DELIBERATELY. `er` is re-applied as a
+        // render-time overlay (see `searchUncapped`), which is what lets this
+        // effect stop depending on erSoonArr. Proven deep-equal on the real tape
+        // by searchErIndependence.test.js: processFlowData(rows, null) + the
+        // client's own set === processFlowData(rows, set), on the projection
+        // Search reads. Both transports now agree on this, so the served product
+        // and the legacy fallback are the same shape.
+        const _res = await computeCsv(text, null);
         if (cancelled) return;
         const _data = _res.D;
         if (_data) _lastUncappedRef.current[sym] = _data;   // cache last-good uncapped
@@ -1213,12 +1251,54 @@ export default function OptionsFlowDashboard() {
         // bulk feed. This is what caused the "6 rows flash then drop to 2" flicker
         // — the erSoonSet-triggered re-fetch (calendar loads ~1s after search)
         // occasionally returned empty and nulled searchFull.data → fell back to bulk.
-        setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
-        setSearchStatus("ok");
+        _land(_data);
       })
       .catch(_fail);
+
+    // ⛔ A COLD MISS MUST NEVER REACH THE MEMBER. fetchSearchProduct races a
+    // 2.5 s deadline (a warm hit is 178-337 ms; a cold AMD build is 10,787 ms,
+    // worse than this fallback's own 4,232 ms). A decline for ANY reason —
+    // busy, timeout, stale schema, an identity that does not match — lands here
+    // on the legacy path, which stays semantically identical. The abandoned
+    // build still installs its cache entry, so this member's slow search is
+    // what makes the next one fast.
+    (async () => {
+      if (SERVER_SEARCH) {
+        const got = await fetchSearchProduct(sym, src);
+        if (cancelled) return;
+        if (got.ok) { _land(got.product); return; }
+        console.log(`[perf] search product declined (${got.reason}) — falling back to the tape`);
+      }
+      if (!cancelled) _legacyTape();
+    })();
+
     return () => { cancelled = true; if (retryTimer) clearTimeout(retryTimer); };
-  }, [selectedTicker, dataMode, erSoonArr, searchRetry]);
+    // ⛔ erSoonArr is DELIBERATELY NOT A DEPENDENCY. It arrives from /api/calendar
+    // about a second after a search, and while it was listed here its landing
+    // re-ran this whole effect — re-fetching and re-deriving ~20 MB to change one
+    // boolean field. `er` is now a render-time overlay; see `searchUncapped`.
+  }, [selectedTicker, dataMode, searchRetry]);
+
+  // The Search deep-dive dataset, with the member's earnings set applied.
+  //
+  // ⛔ THE OVERLAY LIVES HERE SO THE FETCH DOES NOT DEPEND ON IT. Both transports
+  // derive with `erSoon = null` — that is what makes the served product
+  // user-independent and therefore cacheable at all — and `er` is re-applied at
+  // render as a copy-on-overlay. `applyErOverlay` rebuilds every object it
+  // touches: the base product is shared (it is a cached response another read may
+  // already hold), and mutating it would leak one member's earnings flags into
+  // another member's view.
+  //
+  // ⛔ Memoised on the SET, not on the array. A new array identity each render
+  // would rebuild TICKER_DB and all_directional on every keystroke.
+  const searchUncapped = useMemo(() => {
+    const sym = selectedTicker && selectedTicker.s;
+    if (!sym) return null;
+    const base = (searchFull && searchFull.sym === sym && searchFull.data)
+      ? searchFull.data
+      : (_lastUncappedRef.current[sym] || null);   // last-good, never collapse to bulk
+    return applyErOverlay(base, erSoonSet);
+  }, [selectedTicker, searchFull, erSoonSet]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -7890,9 +7970,9 @@ export default function OptionsFlowDashboard() {
               // small-caps whose low-premium prints were cut from the bulk feed
               // still show their full totals. Falls back to the capped TICKER_DB
               // entry while the fetch is in flight or if it returned nothing.
-              const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data)
-                ? searchFull.data
-                : (_lastUncappedRef.current[selectedTicker.s] || null);   // last-good, never collapse to bulk
+              // Resolved + er-overlaid above (`searchUncapped`), so this render reads
+              // one value rather than re-deriving the fallback chain inline.
+              const _uncapped = searchUncapped;
               // DEPLOY-BLIP GUARD (2026-09-06): /api/flow/ticker is proxied to the
               // flow-worker, which returns 502 while it restarts (a deploy). With no
               // dataset the cards below zero out to a false "NEUTRAL / $0 / 0 total"

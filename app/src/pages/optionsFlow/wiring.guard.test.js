@@ -477,3 +477,83 @@ describe('stale-copy skip — the ORDER is the optimisation', () => {
       'the stale skip does not trigger a refetch — the page would sit empty' + FIX).toBe(true)
   })
 })
+
+// ⛔ THE RAIL THIS SECTION EXISTS FOR. Removing `erSoonArr` from the Search
+// fetch effect and re-applying `er` as a render overlay are ONE change: do the
+// first without the second and every `er` flag in the Search deep dive silently
+// goes false, with the whole suite still green (it was — 421/421 — which is why
+// this file gained a section rather than a comment).
+//
+// The invariant is stated directly, and the effect is LOCATED rather than
+// pinned to a line or a retyped literal: a previous guard in this file retyped
+// a gate's source text, the gate changed shape, and a real invariant went
+// offline while reading green.
+describe('Search deep dive: the er overlay and the fetch lifecycle are one change', () => {
+  /** The Search fetch effect's dependency array, found from its own fetch call. */
+  function searchEffectDeps() {
+    const at = CODE.indexOf('/api/flow/ticker/${')
+    if (at < 0) return null
+    const close = CODE.indexOf('}, [', at)
+    if (close < 0) return null
+    const end = CODE.indexOf(']', close)
+    return CODE.slice(close + 4, end)
+  }
+
+  it('CONTROL: the probe can actually read a dependency array', () => {
+    // Without this, every assertion below would pass on a probe that returns
+    // null because the effect moved or the anchor stopped matching.
+    const deps = searchEffectDeps()
+    expect(deps, 'could not locate the Search fetch effect' + FIX).not.toBe(null)
+    expect(deps).toContain('selectedTicker')
+    expect(deps).toContain('dataMode')
+  })
+
+  it('CONTROL: a dep array elsewhere in the file DOES still carry erSoonArr', () => {
+    // Proves the name is greppable in a dep array at all — so the assertion
+    // below is about the Search effect specifically, not about `erSoonArr`
+    // having quietly disappeared from the whole component.
+    expect(/\}, \[[^\]]*erSoonArr[^\]]*\]/.test(CODE),
+      'no dep array anywhere carries erSoonArr — this control is vacuous, and '
+      + 'the assertion below proves nothing' + FIX).toBe(true)
+  })
+
+  it('the Search fetch does NOT depend on erSoonArr', () => {
+    // erSoonArr lands from /api/calendar ~1s after a search. While it was a
+    // dependency, that landing re-ran the effect: re-fetching and re-deriving
+    // ~20 MB of tape to change one boolean field.
+    expect(searchEffectDeps()).not.toContain('erSoonArr')
+  })
+
+  it('...because `er` is re-applied as a render overlay instead', () => {
+    // The other half. Dropping the dep alone loses the member's earnings flags.
+    expect(CODE.includes('applyErOverlay('),
+      'the Search fetch stopped depending on erSoonArr and NOTHING re-applies '
+      + 'the earnings set — every `er` flag in the deep dive is now false' + FIX)
+      .toBe(true)
+    expect(CODE.includes('const searchUncapped'),
+      'the overlay memo is gone' + FIX).toBe(true)
+  })
+
+  it('both transports derive with NO earnings set, so they agree', () => {
+    // A served product is computed with erSoon=null (that is what makes it
+    // user-independent and cacheable). If the legacy fallback still baked the
+    // set in, the two paths would disagree the moment the overlay applied.
+    expect(/computeCsv\(text,\s*null\)/.test(CODE),
+      'the legacy tape path bakes an earnings set into its derivation, so it '
+      + 'disagrees with the served product once the overlay runs' + FIX).toBe(true)
+  })
+
+  it('a declined product falls back to the tape rather than rendering nothing', () => {
+    const at = CODE.indexOf('fetchSearchProduct(')
+    expect(at, 'the server Search product is not wired' + FIX).toBeGreaterThan(-1)
+    const region = CODE.slice(at, at + 400)
+    expect(/_legacyTape\(\)/.test(region),
+      'nothing falls back when the product declines — a busy or cold server '
+      + 'would leave Search empty' + FIX).toBe(true)
+  })
+
+  it('the flag is read the same build-time way as its three siblings', () => {
+    expect(CODE.includes('VITE_FLOW_SERVER_SEARCH === "1"'),
+      'the Search product flag is not a build-time env read' + FIX).toBe(true)
+  })
+})
