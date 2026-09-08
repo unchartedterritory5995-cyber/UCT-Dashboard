@@ -289,6 +289,44 @@ describe('Options Flow correctness guard', () => {
       'the render counter is gone — render-cascade claims become unfalsifiable' + FIX).toBe(true)
   })
 
+  it('3b: the server TOP 10 is gated on an EXACT generation match', () => {
+    // The server classified with ITS replica; this browser has its own fetched
+    // set. Two classifications can produce two different TOP 10 lists from one
+    // tape, silently, in a table members trade on.
+    expect(CODE.includes('topPicksUsable('),
+      'the generation gate is gone — a served product would be trusted blind' + FIX).toBe(true)
+    expect(CODE.includes('reviveTopPickVariant('),
+      'served candidates are used raw — daysSince/freshLabel would carry SERVER build time' + FIX).toBe(true)
+  })
+
+  it('3b: a declined product still renders TOP 10 from the raw rows', () => {
+    // The fallback is permanent, not a migration switch.
+    expect(CODE.includes('TOP_PICK_RAW_PARTS'),
+      'the raw-row fallback is gone — a generation mismatch would blank TOP 10' + FIX).toBe(true)
+    expect(/servedTopPicks \|\| _local/.test(CODE),
+      'the local computation is no longer the fallback' + FIX).toBe(true)
+  })
+
+  it('3b: the render gate no longer REQUIRES the raw array', () => {
+    // `{D && D.all_directional && ...}` would blank the table the moment the
+    // part stopped being fetched — the gate has to move with the dependency.
+    expect(CODE.includes('{D && (D.all_directional || servedTopPicks) && (()=>{'),
+      'the TOP 10 render gate still demands all_directional' + FIX).toBe(true)
+  })
+
+  it('3b: the flag defaults OFF and rollback is provable', () => {
+    expect(CODE.includes('VITE_FLOW_SERVER_TOPPICKS === "1"'),
+      'the 3b flag is gone or no longer opt-in' + FIX).toBe(true)
+  })
+
+  it('3b: a failed ETF fetch RESOLVES the generation instead of hanging', () => {
+    // null means "still deciding" to the fallback effect. A permanently failed
+    // ETF request would hang TOP 10 forever, where today it just falls back to
+    // the hardcoded set and renders.
+    expect(/catch\(\(\) => \{ if \(!cancelled\) setEtfGeneration\(""\); \}\)/.test(CODE),
+      'a failed ETF fetch no longer resolves the generation' + FIX).toBe(true)
+  })
+
   it('FD does not rebuild charts the server already sent', () => {
     // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
     // When FD's filters drop nothing, rebuilding recomputes a value already in

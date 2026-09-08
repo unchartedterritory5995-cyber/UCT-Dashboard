@@ -13,10 +13,17 @@ const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
 // because TOP 10 needs all_trades (1,312.2) + all_directional (601.2) and only
 // server-side TOP 10 (3b) removes those. Independent of DEFER_TAPE.
 const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
+// 3b: let the SERVER compute TOP 10 FLOW PICKS and stop shipping the raw rows.
+// `all_directional` (601 KB gz) + `all_trades` (1,312 KB gz) sat on first paint
+// for ONE reader — a ten-row table. The derived product measures 195 KB gz on
+// prod. ⛔ OFF => byte-identical fetch behaviour; that is the rollback path.
+// ⛔ Requires USE_PARTS: the product travels over the parts transport.
+const SERVER_TOPPICKS = import.meta.env.VITE_FLOW_SERVER_TOPPICKS === "1";
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
-import { fetchPartsBundle } from "./optionsFlow/flowParts";
+import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS } from "./optionsFlow/flowParts";
+import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
@@ -610,6 +617,7 @@ export default function OptionsFlowDashboard() {
   // that depend on `isETF` recompute and the full ~18k list takes effect.
   // If the fetch fails, we silently keep the hardcoded fallback.
   const [remoteETFSet, setRemoteETFSet] = useState(null);
+  const [etfGeneration, setEtfGeneration] = useState(null);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/ticker-types/etf-index-symbols")
@@ -619,8 +627,19 @@ export default function OptionsFlowDashboard() {
         const s = new Set();
         for (const sym of data.symbols) s.add(String(sym||"").toUpperCase());
         setRemoteETFSet(s);
+        // 3b: the CANONICAL generation, derived by the server from the very
+        // rows it just returned (api/main.py: etf_index_snapshot). It is the
+        // client half of the TOP 10 generation gate — without it a served
+        // product can never be accepted, which is the safe direction.
+        if (typeof data.generation === "string" && data.generation) setEtfGeneration(data.generation);
+        else setEtfGeneration("");
       })
-      .catch(() => {});
+      // ⛔ RESOLVE to the empty string, do not leave it null. `null` means
+      // "still deciding" to the 3b fallback below, so a permanently failed ETF
+      // fetch would hang TOP 10 forever — whereas today a failed fetch just
+      // falls back to the hardcoded set and the page renders. "" is a RESOLVED
+      // unknown: topPicksUsable rejects it, so the raw-row fallback fires.
+      .catch(() => { if (!cancelled) setEtfGeneration(""); });
     return () => { cancelled = true; };
   }, []);
   // Effective ETF check — hardcoded fallback set UNION remote-fetched set.
@@ -1449,7 +1468,8 @@ export default function OptionsFlowDashboard() {
       // what the page does with it, and rolling it back cannot strand a code path.
       (USE_PARTS
         ? fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
-                           { deadlineMs: PREHYDRATE_FALLBACK_MS })
+                           { deadlineMs: PREHYDRATE_FALLBACK_MS,
+                             parts: SERVER_TOPPICKS ? SERVER_TOPPICKS_PARTS : undefined })
         : fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current)
       ).then(pre => {
         if (cancelled) return;
@@ -1675,6 +1695,56 @@ export default function OptionsFlowDashboard() {
   // Cap-filtered view: recompute charts using only the selected cap band's
   // clean_confirmed. Also honors the current tab (Stocks vs Indexes) so that
   // SECTORS/THEMES/SBLC-etc bins on Market Read exclude the wrong universe.
+  // ── 3b: the server's TOP 10, or nothing ──────────────────────────────────
+  // ⛔ THE GATE IS PERMANENT, NOT A MIGRATION SWITCH. The server classified
+  // with ITS replica; this browser has its own fetched set. Classification
+  // decides which universe a ticker is in, so two classifications can produce
+  // two different TOP 10 lists from one tape — silently, in a table members
+  // trade on. `topPicksUsable` demands an exact non-empty string match and
+  // treats two unknowns as disagreement.
+  const servedTopPicks = useMemo(() => {
+    if (!SERVER_TOPPICKS) return null;
+    const product = D && D.TOP_PICKS;
+    if (!topPicksUsable(product, etfGeneration)) return null;
+    const v = topPickVariant(product, dataMode, capFilter);
+    // Revived, not used raw: `daysSince`/`freshLabel` are the only clock-derived
+    // fields on a candidate and the server stamped them at BUILD time.
+    return v ? reviveTopPickVariant(v) : null;
+  }, [D, etfGeneration, dataMode, capFilter]);
+
+  // ── 3b: the PERMANENT fallback ───────────────────────────────────────────
+  // The server product was declined, absent or malformed, so this page needs
+  // the raw rows after all. Fetched HERE rather than on first paint, and only
+  // the two arrays TOP 10 reads.
+  //
+  // ⛔ FEATURE-SCOPED, NOT "load the tape once the page settles". A blanket
+  // deferred fetch would simply move 1.9 MB from first paint to second, and a
+  // member who never triggers this path would still pay for it.
+  //
+  // ⛔ `etfGeneration === null` means STILL DECIDING and must not trigger the
+  // fetch — the ETF request is ~200 ms and racing it would fetch 1.9 MB the
+  // gate was about to make unnecessary. The ETF effect resolves it to "" on
+  // failure, so this can never wait forever.
+  const _rawPartsAsked = useRef(false);
+  useEffect(() => {
+    if (!SERVER_TOPPICKS) return;
+    if (!D || D.all_directional) return;      // nothing missing
+    if (servedTopPicks) return;               // the product answered
+    if (D.TOP_PICKS && etfGeneration === null) return;  // generation still in flight
+    if (_rawPartsAsked.current) return;
+    _rawPartsAsked.current = true;
+    let cancelled = false;
+    fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
+                     { deadlineMs: 20000, parts: TOP_PICK_RAW_PARTS })
+      .then(res => {
+        if (cancelled || !res || !res.D) return;
+        // Merge, never replace: `D` already holds bootstrap and possibly more.
+        setD(prev => (prev ? { ...prev, ...res.D } : prev));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [D, servedTopPicks, etfGeneration, csvFile, dateFilter]);
+
   const FD = useMemo(() => {
     if (!D) return null;
     const needsTabFilter = dataMode === "stocks" || dataMode === "index";
@@ -5703,17 +5773,28 @@ export default function OptionsFlowDashboard() {
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
             {/* TOP 10 FLOW PICKS */}
-            {D && D.all_directional && (()=>{
+            {D && (D.all_directional || servedTopPicks) && (()=>{
               // TOP 10 FLOW PICKS candidates now come from flowCompute — the same
               // computation, lifted VERBATIM (see buildTopPickCandidates) so it can
               // eventually run once on the server instead of once per member. This
               // block is the only first-paint reader of D.all_directional and
               // D.all_trades, which together are ~16.4 MB of the aggregate payload.
-              const { candidates, standoutCandidates, ad } = buildTopPickCandidates(
-                D.all_directional, D.all_trades,
-                { dataMode, capFilter, isEtfFn: isETF, includeStandout: top5Filter === "Standout" },
-              );
-              if (!ad.length) return null;
+              // 3b: prefer the server's product; compute locally when it is
+              // declined AND the raw rows are present. `ad` was only ever read
+              // for `ad.length`, so the served form carries `adCount` instead
+              // of re-shipping a filtered copy of all_directional.
+              const _local = servedTopPicks ? null
+                : (D.all_directional
+                    ? buildTopPickCandidates(
+                        D.all_directional, D.all_trades,
+                        { dataMode, capFilter, isEtfFn: isETF, includeStandout: top5Filter === "Standout" })
+                    : null);
+              const _picksSrc = servedTopPicks || _local;
+              if (!_picksSrc) return null;
+              const candidates = _picksSrc.candidates;
+              const standoutCandidates = _picksSrc.standoutCandidates;
+              const _adCount = servedTopPicks ? servedTopPicks.adCount : _local.ad.length;
+              if (!_adCount) return null;
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
                 : top5Filter==="Both" ? candidates

@@ -35,6 +35,39 @@ import { prehydrateUrl } from './flowPrehydrate'
  */
 export const REQUIRED_PARTS = Object.freeze(['bootstrap', 'all_directional', 'all_trades'])
 
+/**
+ * First paint when the server computes TOP 10 (3b).
+ *
+ * `all_directional` (601 KB gz) + `all_trades` (1,312 KB gz) were on this path
+ * for ONE reader: the ten-row TOP 10 FLOW PICKS table. `TOP_PICKS` is that
+ * table's inputs already reduced — 195 KB gz measured on prod. Reachability was
+ * RE-DERIVED from the current page before this list was written, not copied
+ * from the slice-1 audit: after 3b the remaining readers of those two arrays
+ * are Top Flow (all_trades), Leaderboard + Search (all_directional) and the
+ * Watchlist auto-fill action — none of them first paint, none of them the
+ * default tab.
+ */
+export const SERVER_TOPPICKS_PARTS = Object.freeze(['bootstrap', 'TOP_PICKS'])
+
+/**
+ * What the PERMANENT fallback fetches when the server product is declined.
+ *
+ * ⛔ Feature-scoped on purpose. The alternative — "load the raw arrays once
+ * the page settles" — would just move 1.9 MB from first paint to second, and a
+ * member who never opens a raw-row feature would still pay for it.
+ */
+export const TOP_PICK_RAW_PARTS = Object.freeze(['all_directional', 'all_trades'])
+
+/**
+ * Parts whose body is an OBJECT rather than a bare array.
+ *
+ * ⛔ An explicit list, not a loosened check. Every deferred part is a slice of
+ * `D` and therefore an array; accepting "array OR object" everywhere would let
+ * a malformed answer merge silently. `TOP_PICKS` is a DERIVED product
+ * (`{generation, variants}`), so it is named here and nowhere else.
+ */
+export const OBJECT_PART_NAMES = Object.freeze(['TOP_PICKS'])
+
 /** The aggregate URL for one part, or null if the view is not answerable. */
 export function partUrlFrom(baseUrl, part) {
   if (!baseUrl || typeof part !== 'string' || !part) return null
@@ -53,7 +86,7 @@ export function partUrlFrom(baseUrl, part) {
  *
  * Returns `{ ok: true, D, stats, version }` or `{ ok: false, reason }`.
  */
-export function planBundle(results) {
+export function planBundle(results, parts = REQUIRED_PARTS) {
   if (!Array.isArray(results) || results.length === 0) {
     return { ok: false, reason: 'no-results' }
   }
@@ -61,7 +94,7 @@ export function planBundle(results) {
   for (const r of results) {
     if (r && typeof r.part === 'string' && !byPart.has(r.part)) byPart.set(r.part, r)
   }
-  for (const name of REQUIRED_PARTS) {
+  for (const name of parts) {
     const r = byPart.get(name)
     if (!r) return { ok: false, reason: `missing:${name}` }
     if (r.declined) return { ok: false, reason: `declined:${name}` }
@@ -70,7 +103,7 @@ export function planBundle(results) {
     }
   }
   // One identity for the whole bundle, or no bundle.
-  const versions = new Set(REQUIRED_PARTS.map((n) => String(byPart.get(n).version)))
+  const versions = new Set(parts.map((n) => String(byPart.get(n).version)))
   if (versions.size !== 1) return { ok: false, reason: 'version-mismatch' }
   const version = [...versions][0]
   // ⛔ An UNKNOWN identity is not agreement. Three parts that each failed to
@@ -79,20 +112,34 @@ export function planBundle(results) {
     return { ok: false, reason: 'version-unknown' }
   }
 
-  const boot = byPart.get('bootstrap').body
-  if (!boot || boot.ok !== true || !boot.D || typeof boot.D !== 'object') {
-    return { ok: false, reason: 'bootstrap-shape' }
+  // ⛔ A bundle need not include `bootstrap`. The 3b fallback asks for the raw
+  // arrays ALONE, to merge into a `D` the page already holds — refetching the
+  // 583 KB bootstrap to satisfy a shape check would spend most of what the
+  // fallback is trying to avoid. When it IS requested it remains the base and
+  // its shape is still checked; when it is not, the caller merges the result.
+  const wantsBoot = parts.includes('bootstrap')
+  let boot = null
+  if (wantsBoot) {
+    boot = byPart.get('bootstrap').body
+    if (!boot || boot.ok !== true || !boot.D || typeof boot.D !== 'object') {
+      return { ok: false, reason: 'bootstrap-shape' }
+    }
   }
-  const D = { ...boot.D }
-  for (const name of REQUIRED_PARTS) {
+  const D = wantsBoot ? { ...boot.D } : {}
+  for (const name of parts) {
     if (name === 'bootstrap') continue
     const body = byPart.get(name).body
-    // A deferred part is a bare array. Anything else means the server answered
-    // with something this contract does not describe — decline rather than merge.
-    if (!Array.isArray(body)) return { ok: false, reason: `shape:${name}` }
+    // A deferred part is a bare array; a DERIVED part is an object. Anything
+    // else means the server answered with something this contract does not
+    // describe — decline rather than merge.
+    const wantsObject = OBJECT_PART_NAMES.includes(name)
+    const shapeOk = wantsObject
+      ? (body && typeof body === 'object' && !Array.isArray(body))
+      : Array.isArray(body)
+    if (!shapeOk) return { ok: false, reason: `shape:${name}` }
     D[name] = body
   }
-  return { ok: true, D, stats: boot.stats || null, version }
+  return { ok: true, D, stats: boot ? (boot.stats || null) : null, version }
 }
 
 /**
@@ -151,6 +198,7 @@ export async function fetchPartsBundle(csvFile, dateFilter, dataVersion, {
   deadlineMs = 3000,
   fetchImpl = (...a) => fetch(...a),
   signal,
+  parts = REQUIRED_PARTS,
 } = {}) {
   const base = prehydrateUrl(csvFile, dateFilter, dataVersion)
   if (!base) return null
@@ -164,7 +212,7 @@ export async function fetchPartsBundle(csvFile, dateFilter, dataVersion, {
 
   try {
     const first = await race(
-      Promise.all(REQUIRED_PARTS.map((p) => fetchPart(base, p, { fetchImpl, signal }))))
+      Promise.all(parts.map((p) => fetchPart(base, p, { fetchImpl, signal }))))
     if (expired || first === 'deadline' || !Array.isArray(first)) return null
 
     let results = first
@@ -178,7 +226,7 @@ export async function fetchPartsBundle(csvFile, dateFilter, dataVersion, {
       results = first.map((r) => replaced.get(r.part) || r)
     }
 
-    const plan = planBundle(results)
+    const plan = planBundle(results, parts)
     if (!plan.ok) return null
     return { D: plan.D, stats: plan.stats, version: plan.version }
   } finally {
