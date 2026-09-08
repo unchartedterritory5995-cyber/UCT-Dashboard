@@ -55,7 +55,7 @@ export function normaliseSymbols(symbols) {
  * Returns null when there is nothing to review (no symbols, or the opened
  * symbol is not in them) rather than a session that lies about its position.
  */
-export function enter({ source = 'other', sourceId = null, label = '', symbols, symbol, sort = null, scrollTop = 0 } = {}) {
+export function enter({ source = 'other', sourceId = null, label = '', symbols, symbol, sort = null } = {}) {
   const list = normaliseSymbols(symbols)
   const sym = isStr(symbol) ? symbol.trim().toUpperCase() : null
   if (!list.length || !sym) return null
@@ -71,7 +71,6 @@ export function enter({ source = 'other', sourceId = null, label = '', symbols, 
     sort: isStr(sort) ? sort : null,
     symbols: list,
     index,
-    scrollTop: Number.isFinite(scrollTop) ? scrollTop : 0,
     reviewed: [sym],
   }
 }
@@ -165,11 +164,16 @@ export function neighbours(s) {
   return [s.symbols[i + 1], s.symbols[i + 2], s.symbols[i - 1]].filter(Boolean)
 }
 
-/** RETURN — remember where the list was scrolled to, so re-entry is not a hunt. */
-export function withScrollTop(s, scrollTop) {
-  if (!s) return null
-  return { ...s, scrollTop: Number.isFinite(scrollTop) ? scrollTop : 0 }
-}
+/* ⚰️ `withScrollTop` / `scrollTop` LIVED HERE AND ARE GONE — dead state removed
+ * rather than carried. Two reasons, and the second is the real one:
+ *   1. nothing ever consumed it;
+ *   2. it answered the WRONG QUESTION. After several next/prev steps the right
+ *      place to land is wherever the CURRENT SYMBOL now is, not wherever the
+ *      list happened to be scrolled when you left it. The owning surface
+ *      already does exactly that — a scoped watchlist auto-expands from
+ *      `pickList` and scrolls `selectedSym` into view — so return needs no
+ *      offset bookkeeping at all.
+ */
 
 // ─── persistence ────────────────────────────────────────────────────────────
 //

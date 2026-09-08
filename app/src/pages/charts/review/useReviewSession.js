@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  read, publish, position, step, syncToSymbol, withScrollTop, currentSymbol, REVIEW_EVENT,
+  read, publish, position, step, syncToSymbol, currentSymbol, REVIEW_EVENT,
   neighbours,
 } from './reviewSession'
 import { prefetchBars } from '../../../utils/prefetchBars'
@@ -68,16 +68,10 @@ export default function useReviewSession(symbol, { tf = 'D' } = {}) {
     return currentSymbol(next)
   }, [])
 
-  const rememberScroll = useCallback((scrollTop) => {
-    const cur = read()
-    if (cur) publish(withScrollTop(cur, scrollTop))
-  }, [])
-
   return {
     session,
     position: position(session),
     next: () => go(1),
     prev: () => go(-1),
-    rememberScroll,
   }
 }

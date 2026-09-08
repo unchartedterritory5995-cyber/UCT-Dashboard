@@ -1,20 +1,20 @@
 /* RETURN TO LIST — does the list put you back where you were?
  *
- * ⛔ THE AMBIGUITY THIS CLOSES. The review session carried a `scrollTop` that
- * nothing consumed, and the phone shell's comment ("it never unmounts —
- * returning is free") is about the CHART, not the list: the widget page is
- * conditionally rendered (`{!tablet && screenWidget && …}`), so it genuinely
- * unmounts and its scroll offset genuinely dies with it.
+ * ⚰️⚰️ THIS FILE ONCE ASSERTED THE OPPOSITE, AND IT WAS WRONG. A first pass
+ * rendered `<Watchlists embedded />` with NO `pickList`, found that every list
+ * was collapsed, that no row existed, that `scrollIntoView` therefore never
+ * fired — and reported return-to-list as broken.
  *
- * ⭐ AND A PIXEL OFFSET WAS THE WRONG THING TO RESTORE ANYWAY. After several
- * next/prev steps the right place to land is wherever the CURRENT symbol is —
- * not wherever the list happened to be scrolled when you left it.
+ * ⛔ THAT CONFIGURATION IS ONE USERS NEVER SEE. `Watchlists.jsx`'s own header
+ * says so in the first ten lines: SCOPED (`pickList` set) is "the ONLY mode
+ * users ever see"; a workspace watchlist widget is always pinned to one list.
+ * In the scoped mode the list auto-expands from `pickList`, the rows mount, and
+ * the existing `scrollIntoView(selectedSym)` lands the review symbol.
  *
- * ⚰️ I EXPECTED THE EXISTING MECHANISM TO COVER THAT, AND IT DOES NOT. Watchlists
- * scrolls the selected row into view (`data-watch-sym` + `scrollIntoView`) and
- * `selectedSym` syncs from the hub symbol, so re-mounting mid-review LOOKED like
- * it would land correctly. Written as a passing assertion, it failed: see the
- * block above the tests for what actually happens.
+ * ⭐ THE LESSON, because it is the expensive kind: a test can measure a REAL
+ * behaviour of a configuration that does not exist, and report it with total
+ * confidence. The unscoped case is kept below — labelled — precisely so the
+ * difference between the two is visible rather than re-discovered.
  *
  * Mock set mirrors Watchlists.keyboard.test.jsx exactly.
  */
@@ -105,51 +105,38 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); HUB = null })
 
-/* ⚠️⚠️ THESE ARE CHARACTERIZATION TESTS — they pin what the product does TODAY,
- * and two of them SHOULD BE INVERTED when the gap below is closed. They are
- * written this way rather than left red so the finding lives in a rail instead
- * of a paragraph nobody re-reads.
- *
- * THE FINDING. Returning to the list mid-review does NOT land on your symbol,
- * and the loss is bigger than a scroll offset:
- *   1. the phone's widget page is conditionally rendered
- *      (`{!tablet && screenWidget && …}`), so it genuinely UNMOUNTS — the
- *      "never unmounts, returning is free" comment is about the CHART beneath;
- *   2. on remount `expandedLists` resets to an empty Set, so every list
- *      RE-COLLAPSES;
- *   3. with no rows rendered there is nothing to scroll to, which is why the
- *      existing `scrollIntoView(selectedSym)` never fires. The mechanism is
- *      real and correct; it is simply unreachable from a collapsed list.
- *
- * ⭐ THE SMALLEST FIX NEEDS NO NEW MACHINERY, and both halves already exist:
- * the review session carries `sourceId`, and Watchlists already auto-expands a
- * list when handed `pickList`. Seed `sourceId` on ENTER, pass it as `pickList`
- * on RETURN, and the existing scroll-into-view lands the row. Deliberately NOT
- * done here — it writes widget opts from the phone shell, which is a change
- * worth making on its own rather than inside a test-driven detour.
- */
-test('⚠️ TODAY: returning mid-review does NOT land on the current symbol', async () => {
-  // INVERT THIS when the pickList wiring lands: it should become
-  // `expect(scrolled[scrolled.length - 1]).toBe('AVGO')`.
-  HUB = 'AVGO'                       // deep in the list — the 5th of ten
-  render(<Watchlists embedded />)
-  await screen.findByText('Momentum Plays')
-  expect(scrolled, 'the list re-collapsed, so no row existed to scroll to').toHaveLength(0)
+test('⭐ SCOPED (what users see) · returning mid-review lands on the CURRENT symbol', async () => {
+  HUB = 'AVGO'                        // deep in the list — the 5th of ten
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findAllByText('Momentum Plays')
+  await new Promise((r) => setTimeout(r, 50))
+  expect(document.querySelector('[data-watch-sym="AVGO"]'), 'the row never mounted').toBeTruthy()
+  expect(scrolled[scrolled.length - 1]).toBe('AVGO')
 })
 
-test('⚠️ TODAY: the row is not even rendered, because the list re-collapsed', async () => {
-  // This is the ROOT of the one above, asserted separately so a future fix that
-  // restores scrolling without restoring expansion cannot look like success.
-  HUB = 'AVGO'
-  render(<Watchlists embedded />)
-  await screen.findByText('Momentum Plays')
-  expect(document.querySelector('[data-watch-sym="AVGO"]'),
-    'a row exists — expansion now survives, so the sibling test above must be inverted').toBeNull()
+test('⛔ NON-VACUITY · a different review symbol lands somewhere else', async () => {
+  // Without this the case above could pass against a list that scrolls every row
+  // it renders, or a spy recording the same thing regardless of the symbol.
+  HUB = 'TSLA'
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findAllByText('Momentum Plays')
+  await new Promise((r) => setTimeout(r, 50))
+  expect(scrolled[scrolled.length - 1]).toBe('TSLA')
 })
 
 test('no review in progress scrolls nothing — the list opens at the top', async () => {
   HUB = null
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findAllByText('Momentum Plays')
+  await new Promise((r) => setTimeout(r, 50))
+  expect(scrolled).toHaveLength(0)
+})
+
+test('UNSCOPED · lists start collapsed, so nothing scrolls — NOT a user-facing state', async () => {
+  // Kept as the record of the configuration that produced the wrong finding.
+  HUB = 'AVGO'
   render(<Watchlists embedded />)
   await screen.findByText('Momentum Plays')
+  expect(document.querySelector('[data-watch-sym="AVGO"]')).toBeNull()
   expect(scrolled).toHaveLength(0)
 })

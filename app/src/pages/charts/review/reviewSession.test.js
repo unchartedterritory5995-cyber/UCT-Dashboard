@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  enter, step, position, syncToSymbol, reconcile, withScrollTop,
+  enter, step, position, syncToSymbol, reconcile,
   currentSymbol, nextSymbol, prevSymbol, normaliseSymbols, neighbours,
   read, write, clear, STORAGE_KEY,
 } from './reviewSession'
@@ -129,13 +129,6 @@ describe('REFRESH — the list moved while reviewing', () => {
 
   it('⛔ and ends on an emptied list rather than reporting a phantom total', () => {
     expect(reconcile(mk('AVGO'), [])).toBeNull()
-  })
-})
-
-describe('RETURN position', () => {
-  it('carries the list scroll offset', () => {
-    expect(withScrollTop(mk(), 842).scrollTop).toBe(842)
-    expect(withScrollTop(mk(), NaN).scrollTop).toBe(0)
   })
 })
 
