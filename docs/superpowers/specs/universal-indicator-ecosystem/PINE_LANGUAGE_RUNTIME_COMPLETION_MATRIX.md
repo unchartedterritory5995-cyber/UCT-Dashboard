@@ -1,6 +1,6 @@
 # PINE LANGUAGE + RUNTIME COMPLETION MATRIX
 
-As of C4 Phase 2D-2. Branch `worktree-indicator-ecosystem`.
+As of C4 Phase 2E. Branch `worktree-indicator-ecosystem`.
 
 ⭐⭐ **FIVE LEVELS, NOT ONE WORD (§52).** "LOOP: partial" tells an engineer
 nothing about what is left. These columns do:
@@ -58,13 +58,15 @@ the RUNTIME lane, not the product overall.
 
 | family | PARSE | SEM | IR | RUN | PROD | notes |
 |---|---|---|---|---|---|---|
-| user-defined functions | ✅ | ✅ | 🟡 | ⬜ | ⬜ | `runtime:function`; IR has the `FUNC`/`RETURN` shapes declared |
+| user-defined functions | ✅ | ✅ | ✅ | ✅ | ⬜ | **2E** — see the fine-grained table below |
 | tuples / destructuring | ✅ | ✅ | 🟡 | ⬜ | ⬜ | `runtime:tuple`; `EXPR.TUPLE` declared |
 | loops `for` / `while` | ✅ | ✅ | 🟡 | ⬜ | ⬜ | `runtime:loop`; `STMT.FOR`/`WHILE`/`BREAK`/`CONTINUE` declared |
 | arrays / matrix / map | ✅ | ✅ | 🟡 | ⬜ | ⬜ | `runtime:array` — routed to the COLLECTION family, not `pine:builtin` |
 | user-defined types | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:udt` |
 | builtin calls (closed table, 70) | ✅ | ✅ | ✅ | ✅ | ✅ | via `READ_COLUMN` — evaluated once by the columnar lane |
-| **a builtin FED BY mutable state** | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-with-state` — the series bridge, a separately schedulable capability |
+| a **POINTWISE** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-pointwise-state` — **8 scripts**; needs only a per-bar apply, no series |
+| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — **6 scripts**; the real series bridge |
+| a **REQUEST** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:request-with-state` — 1 script |
 
 ## Outputs, presentation, objects
 
@@ -114,11 +116,71 @@ curated 3/3.** The single exception is named and exempted with its reason.
 
 ### The next dependency, on the frozen OOS-60
 
-`runtime:function` 18 · `runtime:call-with-state` 7 · `runtime:presentation` 5 ·
-`pine:text-value` 5 · `pine:character` 4 · `pine:block` 4 · `pine:collection` 3 ·
-`runtime:udt` 3 · `runtime:directive` 2 · `pine:statement` 2 ·
-`pine:colour-value` 2 · `runtime:expression-statement` 2 · `runtime:tuple` 2 ·
-`pine:function` 1.
+⚰️ **THE 2D-2 CENSUS THAT STOOD HERE IS SUPERSEDED** — it read `runtime:function`
+18 and would have contradicted the 2E section below in the same document, which
+is the second-authority-over-one-value defect this repo pays for most often.
+**The live census is under "Next dependency … after 2E".**
 
-⭐⭐ **UDFs are the wall now, and by a factor of two and a half over the next
-family.** That is the single most useful number this wave produced.
+
+---
+
+## UDF fine grain (§64) — after 2E
+
+⛔ **`UDF ✅` after the first call works is exactly what this table exists to
+prevent.** Rows, not a word.
+
+| row | status | note |
+|---|---|---|
+| PARSE | ✅ | reuses `pine.js`'s statement tree |
+| SEMANTIC DEFINITION | ✅ | name, params, frame, persistent count, body, result, effects, source location |
+| SYMBOL RESOLUTION | ✅ | declared-before-use, matching Pine; a self-call is `runtime:recursion` by name |
+| CALL IR | ✅ | `EXPR.CALL {fn, site, args}` — the site is validated, not optional |
+| CALL FRAME | ✅ | frame-relative addressing; one locals array, a base per invocation |
+| ARGUMENTS | ✅ | pushed left-to-right, popped in reverse; order fixed in the lowering |
+| ORDINARY LOCALS | ✅ | cleared on **every invocation**, not per bar |
+| PERSISTENT LOCALS | ✅ | `var` inside a function |
+| **PER-CALL-SITE STATE** | ✅ | **the load-bearing 2E invariant** — mutation-proven |
+| NESTED CALL | ✅ | incl. a stateful helper inside another function |
+| STATEFUL CALL | ✅ | result assignable, re-usable, order-correct |
+| PURE CALL | ✅ | executes; classified `pure` but **not yet routed to the graph** (§26 deferred) |
+| RETURN (single value) | ✅ | Pine's last-statement value, incl. a final binding |
+| STATE-DERIVED ARGUMENT | ✅ | `f(acc)` |
+| PURE-GRAPH ARGUMENT | ✅ | `f(ta.sma(close,10))` — the column seam through a frame |
+| PARAMETER (member input) | ✅ | same logical input as every other lane |
+| RESOURCE BOUNDS | ✅ | `CALL_DEPTH` + `CALL_COUNT`, and in-call instructions charged to the same budget |
+| TUPLE RETURN | ⬜ | ABI is a general Pine value, not a numeric register — ready, not built |
+| ARRAY ARG / RETURN | ⬜ | |
+| OBJECT ARG / RETURN | ⬜ | |
+| LOOP IN UDF | ⬜ | refuses `runtime:loop`, and refuses the **whole program** (§44) |
+| HISTORY IN UDF (over a variable) | ⬜ | `runtime:history-variable`, unchanged |
+| GLOBAL MUTABLE READ IN UDF | ⬜ | `runtime:function-global-state` — a frame has no address for a caller slot |
+| DEFAULT PARAMETER VALUES | ⬜ | `runtime:function`, named |
+| **VENDOR VERIFIED** | ⬜ | ⛔ **NOT CAPTURED.** §53 asks for a TradingView oracle on per-call-site persistence; this wave took none. The behaviour is implemented from Pine's documented semantics and is **unpinned**. |
+| PROD INTEGRATED | ⬜ | chart and screener still deliberately unwired |
+
+**Therefore the honest headline is `STATEFUL UDF CALL FRAMES COMPLETE` (§66) —
+not "UDF support complete".**
+
+## Measured coverage after 2E
+
+| corpus | n | executed | differential |
+|---|---|---|---|
+| blind | 48 | 19 | 18/19 |
+| community | 30 | 5 | 5/5 |
+| curated | 21 | 3 | 3/3 |
+| OOS-1 | 60 | 0 | — |
+
+⚠️ **Executed counts did not move, and that is the expected shape** (§42): the 18
+function-blocked scripts each hit their next true dependency. What moved is the
+wall.
+
+### Next dependency on the frozen OOS-60, after 2E
+
+`runtime:function` **18 → 0**.
+
+`pine:block` 9 · `runtime:call-pointwise-state` **8** ·
+`runtime:call-windowed-state` 6 · `pine:text-value` 6 · `runtime:presentation` 5 ·
+`pine:character` 4 · `pine:collection` 4 · `pine:statement` 3 · `runtime:udt` 3 ·
+`runtime:directive` 2 · `pine:builtin` 2 · `pine:colour-value` 2 ·
+`runtime:expression-statement` 2 · `runtime:tuple` 2 · `pine:function` 1 ·
+`runtime:request-with-state` 1.

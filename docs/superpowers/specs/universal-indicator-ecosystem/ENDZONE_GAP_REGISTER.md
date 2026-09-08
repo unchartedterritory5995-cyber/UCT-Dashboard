@@ -1048,3 +1048,67 @@ where there is. Statement-level calls are now three families:
 | **L7.3** | RUNTIME / HISTORY | `runtime:history-variable` — `x[1]` over a slot. Refused, never approximated: reading the slot's current value is silently one bar wrong on every bar. Integration point is the slot table, whose identity is already stable. |
 | **L7.4** | RUNTIME / PERSISTENCE | A runtime program is **not persisted at all** yet. No artifact version, no save/reopen journey. Legacy V1/V2 documents are untouched and unmigrated, so nothing is at risk — but §42's journey is NOT done and is not claimed. |
 | **L7.5** | FRONT END / DIAGNOSTICS | `pine:character` on `^` and on `f(...).field` is still mischaracterised (PART K, K7.1). 2D-2 did not fix it: the new front end reuses the same lexer, so those 4 OOS scripts still meet the same wrong message. Investigated and located; correcting the character class is its own change with its own blast radius. |
+
+---
+
+# PART M — 2E: Pine functions get real execution semantics (2026-09-08)
+
+Evidence: `PINE_LANGUAGE_RUNTIME_COMPLETION_MATRIX.md` (UDF fine grain).
+Instrument: `ast/runtimeFrontendCoverage.test.js`.
+
+### M1 — ⭐⭐ `runtime:function` 18 → 0 ON THE FROZEN 60
+
+Every function-blocked script now compiles its functions and reaches its next
+true dependency. Where they went: `runtime:call-with-state` 8 · `pine:block` 5 ·
+`pine:builtin` 2 · `pine:statement` 1 · `pine:text-value` 1 · `pine:collection` 1.
+⚠️ **Executed counts did NOT move** (blind 19, community 5, curated 3, OOS 0) and
+that is the expected shape (§42) — the wall moved, not the total.
+
+### M2 — ⭐⭐ PERSISTENT FUNCTION-LOCAL STATE IS PER CALL SITE, AND IT IS PROVEN
+
+`CALL a b` carries BOTH the function and the call site; `persistBase` comes from
+the site. `f(1)` and `f(10)` on two lines are two independent `var`s — asserted
+behaviourally (independent accumulators) AND structurally (distinct bases), with
+the IR validator refusing two sites that share a base.
+⭐ **Mutation-proven**: replacing `persistBase = site.persistBase` with `0` turns
+the rail red; the file was restored byte-identically (sha256 verified), never by
+`git checkout` — `feedback_mutation_check_never_git_checkout`.
+
+### M3 — ⚰️⚰️ `runtime:call-with-state` WAS THREE CAPABILITIES WEARING ONE LABEL
+
+It became the top blocker at 15 after 2E, and the names underneath it were `na`,
+`nz`, `math.max`, `int`, `str.upper` **beside** `ema`, `sma` and
+`request.security`. Those are a POINTWISE apply, a growing SERIES, and an MTF
+REQUEST — three separately-schedulable capabilities of very different size, and
+one label made them look like one wall.
+
+Split (§29) into `runtime:call-pointwise-state` **8** ·
+`runtime:call-windowed-state` **6** · `runtime:request-with-state` **1**.
+⭐ **The pointwise 8 are the cheapest real capability left in the census**: they
+need a per-bar apply of a function the closed table already declares pointwise —
+no series, no bridge.
+⚠️ The namespace strip that classifies them is a documented HEURISTIC and affects
+only a LABEL: `pine.js`'s authoritative name mapping is not exported, so a
+mislabel misfiles a row in the matrix and can never change a number.
+
+### M4 — 🔴 OPEN: THE VENDOR PIN §53 REQUIRED WAS NOT TAKEN
+
+Per-call-site persistence is implemented from Pine's documented semantics and is
+**UNPINNED**. §53 asks for a deterministic TradingView oracle — one stateful
+helper called from two source call sites — and this wave captured none.
+⛔ **The 2E exit gate item 21 is therefore NOT met**, and the matrix row reads
+`VENDOR VERIFIED ⬜` rather than being quietly omitted. It is the single most
+consequential unpinned semantic in the runtime: if Pine shares state per
+FUNCTION rather than per call site, every multi-call helper computes the wrong
+number and nothing here would catch it.
+
+### M5 — NEW GAPS, NAMED AND NOT FIXED
+
+| id | family | statement |
+|---|---|---|
+| **M5.1** | RUNTIME / BUILTINS | `runtime:call-pointwise-state` — 8 scripts. A pointwise builtin applied to a mutable value. Cheapest remaining capability. |
+| **M5.2** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — 6 scripts. A windowed builtin fed by a growing series. |
+| **M5.3** | RUNTIME / FRAMES | `runtime:function-global-state` — a function body reading a mutable GLOBAL. A frame has no address for a caller's slot; the plausible shortcut reads a DIFFERENT variable. |
+| **M5.4** | RUNTIME / FUNCTIONS | Default parameter values refuse `runtime:function`. |
+| **M5.5** | RUNTIME / FUNCTIONS | Tuple return, array/object arguments: the ABI is a general Pine value rather than a numeric register, so they are **ready but not built**. |
+| **M5.6** | PERSISTENCE | Still no persisted runtime artifact and no version (carried from L7.4). Call-site identity is a deterministic ordinal over a deterministic traversal — stable for unchanged source, and it MUST become part of the artifact contract before anything is saved. |

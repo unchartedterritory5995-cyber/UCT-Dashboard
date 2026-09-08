@@ -97,19 +97,42 @@ export function execute(program, ctx, limits) {
   // Pine local read before assignment is `na` and NOT last bar's value — carrying
   // it over would turn every ordinary binding into an accidental `var`.
   // `persist` survives, which is what `var` means.
-  const locals = new Float64Array(program.locals).fill(NaN)
-  const persist = new Float64Array(program.persists).fill(NaN)
+  // ⭐⭐ ONE LOCALS ARRAY, ADDRESSED THROUGH A FRAME BASE. Every LOAD_LOCAL is
+  // frame-relative, so the SAME opcode serves the main program (base 0) and any
+  // invocation, and a nested call cannot reach its caller's slots — the isolation
+  // §5 requires is a property of the addressing rather than of a rule somebody
+  // has to remember.
+  const maxFrame = program.functions.length
+    ? Math.max(...program.functions.map((f) => f.frameSize)) : 0
+  const depthLimit = Math.max(1, budget.limits.CALL_DEPTH)
+  const locals = new Float64Array(program.locals + depthLimit * maxFrame).fill(NaN)
+  const persist = new Float64Array(Math.max(program.persists, 1)).fill(NaN)
   // ⛔ INITIALISATION IS TRACKED SEPARATELY FROM VALUE. `na` is a legitimate
   // value for an initialised slot (`var float x = na` is real Pine), so "is it
   // still NaN" cannot answer "has it been initialised" — that conflation would
   // re-run an initialiser every bar for any slot legitimately holding `na`.
-  const initialised = new Uint8Array(program.persists)
+  const initialised = new Uint8Array(Math.max(program.persists, 1))
+
+  // The frame stack. ⛔ Parallel typed arrays rather than objects: a frame is
+  // pushed and popped on every call, and allocating one per invocation would put
+  // the garbage collector inside the hot loop.
+  const frRetPc = new Int32Array(depthLimit + 1)
+  const frLocalsBase = new Int32Array(depthLimit + 1)
+  const frLocalsTop = new Int32Array(depthLimit + 1)
+  const frPersistBase = new Int32Array(depthLimit + 1)
 
   for (let bar = 0; bar < ctx.bars; bar += 1) {
-    locals.fill(NaN)
+    // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
+    // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
+    // call from seeing the previous bar's leftovers.
+    locals.fill(NaN, 0, program.locals)
     let sp = 0
     let pc = 0
     let perBar = 0
+    let depth = 0
+    let localsBase = 0
+    let localsTop = program.locals
+    let persistBase = 0
     for (;;) {
       const base = pc * 3
       const op = code[base]
@@ -159,10 +182,13 @@ export function execute(program, ctx, limits) {
           stack[sp - 1] = TERNARY(stack[sp - 1], aa, bb)
           break
         }
-        case OP.LOAD_LOCAL: stack[sp++] = locals[a]; break
-        case OP.STORE_LOCAL: locals[a] = stack[--sp]; break
-        case OP.LOAD_PERSIST: stack[sp++] = persist[a]; break
-        case OP.STORE_PERSIST: persist[a] = stack[--sp]; initialised[a] = 1; break
+        case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
+        case OP.STORE_LOCAL: locals[localsBase + a] = stack[--sp]; break
+        case OP.LOAD_PERSIST: stack[sp++] = persist[persistBase + a]; break
+        case OP.STORE_PERSIST:
+          persist[persistBase + a] = stack[--sp]
+          initialised[persistBase + a] = 1
+          break
         case OP.JUMP: pc = a; break
         case OP.JUMP_IF_FALSE: {
           // ⛔ `na` IS FALSE HERE, and that is a decision rather than an accident.
@@ -173,7 +199,45 @@ export function execute(program, ctx, limits) {
           if (t !== t || t === 0) pc = a
           break
         }
-        case OP.JUMP_IF_INIT: if (initialised[a]) pc = b; break
+        case OP.JUMP_IF_INIT: if (initialised[persistBase + a]) pc = b; break
+        case OP.CALL: {
+          const fn = program.functions[a]
+          const site = program.callSites[b]
+          budget.peak('CALL_DEPTH', depth + 1)
+          budget.charge('CALL_COUNT', 1)
+          const newBase = localsTop
+          // ⭐ ARGUMENTS COME OFF THE STACK IN REVERSE — they were pushed
+          // left-to-right, so the last parameter is on top.
+          for (let k = fn.params - 1; k >= 0; k -= 1) locals[newBase + k] = stack[--sp]
+          // ⛔⛔ AND THE REST OF THE FRAME IS CLEARED ON EVERY INVOCATION. A Pine
+          // function local read before assignment is `na`; leaving the previous
+          // invocation's values there would make an ordinary local behave like a
+          // `var` that is also shared between call sites — two defects at once,
+          // and both silent.
+          locals.fill(NaN, newBase + fn.params, newBase + fn.frameSize)
+          frRetPc[depth] = pc
+          frLocalsBase[depth] = localsBase
+          frLocalsTop[depth] = localsTop
+          frPersistBase[depth] = persistBase
+          depth += 1
+          localsBase = newBase
+          localsTop = newBase + fn.frameSize
+          // ⭐⭐ THE PERSISTENT BASE COMES FROM THE CALL SITE, NOT THE FUNCTION.
+          // This one line is §6: the code is shared, the `var` state is not.
+          persistBase = site.persistBase
+          pc = fn.entry
+          break
+        }
+        case OP.RET: {
+          const value = stack[--sp]
+          depth -= 1
+          pc = frRetPc[depth]
+          localsBase = frLocalsBase[depth]
+          localsTop = frLocalsTop[depth]
+          persistBase = frPersistBase[depth]
+          stack[sp++] = value
+          break
+        }
         case OP.EMIT: {
           // ⚰️ A NON-FINITE RESULT IS `na`, AND THE DIFFERENTIAL RAIL IS WHY
           // THIS LINE EXISTS. `close / (close - close)` is Infinity in raw IEEE

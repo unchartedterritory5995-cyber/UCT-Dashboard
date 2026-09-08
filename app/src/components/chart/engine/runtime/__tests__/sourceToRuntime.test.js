@@ -182,10 +182,20 @@ describe('H — a member input drives state', () => {
 describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden', () => {
   const CASES = [
     ['a loop', `${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
-    ['a user function', `${head}f(x) => x * 2\nplot(f(close))\n`, 'runtime:function'],
+    // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
+    // functions real call frames. The case moved rather than being deleted: what
+    // it asserts now is that a function this front end cannot READ still refuses
+    // by the same name, so the guard is still reachable.
+    ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
     ['a tuple', `${head}[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n`, 'runtime:tuple'],
     ['history over a mutable variable', `${head}var x = 0.0\nx := close\nplot(x[1])\n`, 'runtime:history-variable'],
-    ['a builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, 'runtime:call-with-state'],
+    // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
+    // population under that one label was three capabilities — a POINTWISE
+    // builtin applied to a value, a WINDOWED one that needs a growing series, and
+    // an MTF request — so the label was retired rather than kept as a wall that
+    // looked bigger and more uniform than it is. `ta.sma` is the windowed case.
+    ['a WINDOWED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, 'runtime:call-windowed-state'],
+    ['a POINTWISE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(math.max(x, 5))\n`, 'runtime:call-pointwise-state'],
     ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],
   ]
   for (const [label, src, guard] of CASES) {

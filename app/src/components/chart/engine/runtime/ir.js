@@ -47,8 +47,8 @@ export const EXPR = Object.freeze({
   BINARY: 'binary',
   UNARY: 'unary',
   TERNARY: 'ternary',
+  CALL: 'call',           // a user-defined function invocation at a CALL SITE
   // ── declared, not yet lowerable ──
-  CALL: 'call',
   TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
@@ -82,12 +82,44 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  * differently (§19: two same-named locals in different scopes get different
  * slots and can never alias).
  */
-export function makeIrProgram({ version = null, statements, slots, columns = [], outputs = [] }) {
+export function makeIrProgram({
+  version = null, statements, slots, columns = [], outputs = [],
+  functions = [], callSites = [],
+}) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
-  const p = { version, statements, slots, columns, outputs }
+  const p = {
+    version, statements, slots: normaliseSlots(slots), columns, outputs, functions, callSites,
+  }
   validateIr(p)
   return p
+}
+
+/** ⭐⭐ A SLOT'S ADDRESS IS FRAME-RELATIVE, AND IT IS ASSIGNED HERE — ONCE.
+ *
+ *  The IR names variables by an index into one flat table; the RUNTIME addresses
+ *  them relative to a frame base, because that is what lets one `LOAD_LOCAL`
+ *  serve the main program and every invocation. Something has to map between
+ *  those two numberings, and if the lowering did it AND the front end did it, the
+ *  two would eventually disagree about which `x` a call is mutating — the exact
+ *  class of defect §5 exists to prevent.
+ *
+ *  ⛔ SO THE NORMALISER IS THE ONE AUTHORITY. `owner` is the function a slot
+ *  belongs to (`null` = the main program); `index` is its position within that
+ *  owner's frame, numbered per kind in declaration order. A front end that
+ *  already knows an index may supply it — a function's parameters must, since
+ *  they occupy the first frame slots by calling convention — and anything left
+ *  out is derived here rather than in a second place. */
+function normaliseSlots(slots) {
+  const next = new Map()
+  return slots.map((s) => {
+    const owner = s.owner === undefined ? null : s.owner
+    const key = `${owner}:${s.kind}`
+    const n = next.get(key) || 0
+    const index = s.index === undefined ? n : s.index
+    next.set(key, Math.max(n, index + 1))
+    return { ...s, owner, index }
+  })
 }
 
 /** ⛔ VALIDATED AT THE BOUNDARY (§44). A malformed IR is a front-end bug and has
@@ -145,7 +177,24 @@ export function validateIr(p) {
         walkExpr(e.then, `${where}.then`)
         walkExpr(e.else, `${where}.else`)
         return
-      case EXPR.CALL: case EXPR.TUPLE: case EXPR.ARRAY_OP: case EXPR.OBJECT_OP:
+      case EXPR.CALL: {
+        // ⛔ A CALL NAMES A SITE, NOT JUST A FUNCTION. The site is what owns the
+        // invocation's persistent locals; validating it here is what stops a
+        // front end from emitting a call whose state has nowhere to live.
+        if (!Number.isInteger(e.fn) || e.fn < 0 || e.fn >= p.functions.length) {
+          throw new IrError(`${where}: function ${e.fn} outside ${p.functions.length}`)
+        }
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= p.callSites.length) {
+          throw new IrError(`${where}: call site ${e.site} outside ${p.callSites.length}`)
+        }
+        const fn = p.functions[e.fn]
+        if (!Array.isArray(e.args) || e.args.length !== fn.params) {
+          throw new IrError(`${where}: \`${fn.name}\` takes ${fn.params} arguments, got ${e.args ? e.args.length : 0}`)
+        }
+        e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
+        return
+      }
+      case EXPR.TUPLE: case EXPR.ARRAY_OP: case EXPR.OBJECT_OP:
         // ⛔ DECLARED, NOT LOWERABLE. Accepted by the validator so a front end
         // can BUILD one and get a named refusal from the lowering, rather than
         // the validator pretending the shape does not exist.
@@ -192,6 +241,49 @@ export function validateIr(p) {
   }
 
   walkStmts(p.statements, 'statements')
+
+  // ⭐⭐ A FUNCTION IS A FIRST-CLASS SEMANTIC ENTITY (§4), not a macro. It carries
+  // its own frame size, its own persistent-local count, its body and its result —
+  // so nothing downstream has to re-derive them from source, and two call sites
+  // share the CODE while owning their state separately.
+  p.functions.forEach((fn, i) => {
+    const at = `functions[${i}] \`${fn.name}\``
+    if (typeof fn.name !== 'string') throw new IrError(`${at}: needs a name`)
+    if (!Number.isInteger(fn.params) || fn.params < 0) throw new IrError(`${at}: params must be a count`)
+    if (!Number.isInteger(fn.frameSize) || fn.frameSize < fn.params) {
+      throw new IrError(`${at}: frameSize ${fn.frameSize} cannot be smaller than its ${fn.params} parameters`)
+    }
+    if (!Number.isInteger(fn.persistCount) || fn.persistCount < 0) {
+      throw new IrError(`${at}: persistCount must be a count`)
+    }
+    walkStmts(fn.body || [], `${at}.body`)
+    walkExpr(fn.result, `${at}.result`)
+  })
+
+  // ⛔ EVERY CALL SITE'S PERSISTENT BLOCK IS ITS OWN, AND THE VALIDATOR SAYS SO.
+  // Two sites sharing a base is the exact defect §6 forbids — one helper called
+  // twice would silently share a counter — so it is checked here rather than
+  // trusted to the allocator.
+  const seenBase = new Map()
+  p.callSites.forEach((cs, i) => {
+    const at = `callSites[${i}]`
+    if (!Number.isInteger(cs.fn) || cs.fn < 0 || cs.fn >= p.functions.length) {
+      throw new IrError(`${at}: function ${cs.fn} outside ${p.functions.length}`)
+    }
+    if (!Number.isInteger(cs.persistBase) || cs.persistBase < 0) {
+      throw new IrError(`${at}: persistBase must be an index`)
+    }
+    const fn = p.functions[cs.fn]
+    if (fn.persistCount > 0) {
+      const prior = seenBase.get(cs.persistBase)
+      if (prior !== undefined) {
+        throw new IrError(
+          `${at}: persistBase ${cs.persistBase} is already used by callSites[${prior}] — `
+          + 'two call sites would share one function-local `var`')
+      }
+      seenBase.set(cs.persistBase, i)
+    }
+  })
   return true
 }
 
@@ -204,6 +296,7 @@ export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
 export const binary = (op, left, right) => ({ kind: EXPR.BINARY, op, left, right })
 export const unary = (op, of) => ({ kind: EXPR.UNARY, op, of })
 export const ternary = (test, a, b) => ({ kind: EXPR.TERNARY, test, then: a, else: b })
+export const call = (fn, site, args) => ({ kind: EXPR.CALL, fn, site, args })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

@@ -71,8 +71,17 @@ export const OP = Object.freeze({
   // EVALUATE the initialiser every bar, which is wrong the moment an initialiser
   // can have an effect. Jumping over it is once-only by construction.
   JUMP_IF_INIT: 62,      // a: persist slot, b: target — skip an initialiser already run
+  // ── calls (2E) ──
+  // ⭐⭐ `CALL a b` — a: FUNCTION index, b: CALL-SITE index. Both, and that is the
+  // whole of §6: the function says WHICH CODE runs, the call site says WHOSE
+  // PERSISTENT STATE it runs against. Pine's function-local `var` belongs to the
+  // place the function is called FROM, so two calls to one helper must not share
+  // a counter — carrying only the function index here is precisely the bug that
+  // invariant forbids, and it would be invisible until a script called a helper
+  // twice.
+  CALL: 70,
+  RET: 71,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
-  CALL: 70, RET: 71,
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
 })
@@ -86,6 +95,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
+  OP.CALL, OP.RET,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -108,7 +118,10 @@ export class ProgramError extends Error {
  * `columns` names the pure subtrees the columnar lane evaluates for us — the
  * runtime is handed their values, never their trees.
  */
-export function makeProgram({ code, consts, columns, outputs, locals = 0, persists = 0, version = null }) {
+export function makeProgram({
+  code, consts, columns, outputs, locals = 0, persists = 0, version = null,
+  functions = [], callSites = [],
+}) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
   }
@@ -120,6 +133,10 @@ export function makeProgram({ code, consts, columns, outputs, locals = 0, persis
     columns: Object.freeze((columns || []).slice()),
     outputs: Object.freeze((outputs || []).slice()),
     locals, persists, version,
+    // `entry` is the pc a CALL jumps to; `frameSize` is how many local slots the
+    // invocation owns; `params` is how many of them are bound from the stack.
+    functions: Object.freeze((functions || []).map((f) => Object.freeze({ ...f }))),
+    callSites: Object.freeze((callSites || []).map((c) => Object.freeze({ ...c }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -152,11 +169,32 @@ export function validateProgram(p) {
     if (op === OP.EMIT && (a < 0 || a >= p.outputs.length)) {
       throw new ProgramError(`pc ${pc}: EMIT ${a} outside ${p.outputs.length} outputs`)
     }
-    if ((op === OP.LOAD_LOCAL || op === OP.STORE_LOCAL) && (a < 0 || a >= p.locals)) {
-      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.locals} locals`)
+    // ⚠️ LOCAL AND PERSIST OPERANDS ARE FRAME-RELATIVE ONCE FUNCTIONS EXIST, so
+    // they are bounded by the LARGEST frame rather than by the main program's
+    // count. The exact per-frame bound is a property of the function a pc belongs
+    // to; checking it here would need a pc→function map that the lowering already
+    // guarantees by construction, and a wrong one would refuse valid programs.
+    const maxLocal = Math.max(p.locals, ...p.functions.map((f) => f.frameSize), 0)
+    const maxPersist = Math.max(p.persists, 1)
+    if ((op === OP.LOAD_LOCAL || op === OP.STORE_LOCAL) && (a < 0 || a >= maxLocal)) {
+      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxLocal} local slots`)
     }
-    if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= p.persists)) {
-      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.persists} persists`)
+    if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= maxPersist)) {
+      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxPersist} persist slots`)
+    }
+    if (op === OP.CALL) {
+      if (a < 0 || a >= p.functions.length) {
+        throw new ProgramError(`pc ${pc}: CALL function ${a} outside ${p.functions.length}`)
+      }
+      const site = p.code[pc * 3 + 2]
+      if (site < 0 || site >= p.callSites.length) {
+        throw new ProgramError(`pc ${pc}: CALL site ${site} outside ${p.callSites.length}`)
+      }
+      if (p.callSites[site].fn !== a) {
+        throw new ProgramError(
+          `pc ${pc}: CALL names function ${a} but site ${site} was allocated for function `
+          + `${p.callSites[site].fn} — its persistent state belongs to a different function`)
+      }
     }
     // ⛔ A JUMP TARGET IS VALIDATED HERE, not discovered by running off the end.
     // An out-of-range target is a compiler bug and reads as one; reaching the
@@ -170,8 +208,22 @@ export function validateProgram(p) {
       if (t < 0 || t > n) throw new ProgramError(`pc ${pc}: JUMP_IF_INIT target ${t} outside 0..${n}`)
     }
   }
-  if (n === 0 || p.code[(n - 1) * 3] !== OP.HALT) {
-    throw new ProgramError('a program must end in HALT')
+  // ⛔ THE MAIN PROGRAM ENDS IN HALT; FUNCTION BODIES END IN RET, and they live
+  // AFTER it in the same code array. So the last instruction is only required to
+  // be HALT when there are no functions — otherwise the requirement is that every
+  // declared entry point is in range and the main body still halts.
+  if (n === 0) throw new ProgramError('an empty program')
+  if (p.functions.length === 0) {
+    if (p.code[(n - 1) * 3] !== OP.HALT) throw new ProgramError('a program must end in HALT')
+  } else {
+    let sawHalt = false
+    for (let pc = 0; pc < n; pc += 1) if (p.code[pc * 3] === OP.HALT) { sawHalt = true; break }
+    if (!sawHalt) throw new ProgramError('a program must contain a HALT')
+    p.functions.forEach((f, i) => {
+      if (!Number.isInteger(f.entry) || f.entry < 0 || f.entry >= n) {
+        throw new ProgramError(`function ${i} (${f.name}) has entry ${f.entry} outside 0..${n - 1}`)
+      }
+    })
   }
   return true
 }

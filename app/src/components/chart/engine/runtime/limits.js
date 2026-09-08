@@ -21,7 +21,9 @@
 // is the whole reason. `RuntimeLimitError` carries the limit's name, the ceiling
 // and what was reached, so the member is told which ceiling they met.
 
-/** The sixteen accounted resources. ⭐ DERIVED-FROM, NEVER RETYPED: every other
+/** The accounted resources. ⛔ NOT "the sixteen" — a typed count beside the list
+ *  it describes is the drift this repo pays for most often, and this list grew by
+ *  one the first time functions needed accounting. ⭐ DERIVED-FROM, NEVER RETYPED: every other
  *  file in this directory reads limit names from here, and the conformance rail
  *  asserts the runtime counts something for each one it claims to enforce. */
 export const LIMIT_NAMES = Object.freeze([
@@ -32,6 +34,7 @@ export const LIMIT_NAMES = Object.freeze([
   'LOOP_ITERATIONS',
   'LOOP_NESTING',
   'CALL_DEPTH',
+  'CALL_COUNT',
   'ARRAY_ELEMENTS',
   'ARRAY_OPERATIONS',
   'LIVE_OBJECTS',
@@ -56,6 +59,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   LOOP_ITERATIONS: 100000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,
+  CALL_COUNT: 5000000,
   ARRAY_ELEMENTS: 100000,
   ARRAY_OPERATIONS: 2000000,
   LIVE_OBJECTS: 500,
