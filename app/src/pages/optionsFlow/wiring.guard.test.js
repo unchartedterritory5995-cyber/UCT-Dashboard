@@ -620,3 +620,32 @@ describe('interaction-only keys: no unguarded member access', () => {
       'the post-paint fetch is no longer keyed on the data version' + FIX).toBe(true)
   })
 })
+
+
+// ⛔⛔ THE GUARD THAT SILENTLY DISABLED THE WHOLE SLICE.
+// The post-paint fetch is keyed on the data version so it does not re-ask for a
+// version it already has. Initialised to `null`, that ref compared EQUAL to
+// `dataVersionRef.current` (still null before /api/flow/version answers) on the
+// very first run — so it returned before fetching, permanently, and nothing
+// reset it. Verified on production: first paint dropped to bootstrap +
+// TOP_PICKS exactly as designed and the deferred request NEVER fired. Every
+// test was green; only loading the real page found it.
+describe('the post-paint fetch cannot be disabled by its own guard', () => {
+  it('the version ref is seeded with a sentinel, never null/undefined', () => {
+    const m = /_interactionAskedFor\s*=\s*useRef\(([^)]*)\)/.exec(CODE)
+    expect(m, 'the post-paint fetch lost its version ref' + FIX).not.toBe(null)
+    const seed = m[1].trim()
+    expect(['null', 'undefined', ''],
+      'the version ref is seeded with a value a real version can EQUAL, so the '
+      + '"already asked" guard returns before the first fetch and the deferred '
+      + 'payload never loads' + FIX).not.toContain(seed)
+  })
+
+  it('CONTROL: the sentinel is a value no version can equal', () => {
+    // A string seed would also pass the check above while still colliding with
+    // a string version, so pin the construct rather than merely "not null".
+    expect(/ASKED_NONE\s*=\s*Symbol\(/.test(CODE),
+      'the sentinel is no longer a Symbol — a primitive seed can collide with a '
+      + 'real version value' + FIX).toBe(true)
+  })
+})

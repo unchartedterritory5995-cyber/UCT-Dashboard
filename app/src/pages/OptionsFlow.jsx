@@ -41,6 +41,8 @@ const SERVER_SEARCH = import.meta.env.VITE_FLOW_SERVER_SEARCH === "1";
 // Shared + frozen: a per-call `[]` would let one consumer mutate a fallback
 // and make "not loaded yet" look like a real, empty answer somewhere else.
 const EMPTY_ROWS = Object.freeze([]);
+// Distinct from every possible data version, including null/undefined.
+const ASKED_NONE = Symbol("no-interaction-fetch-yet");
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
@@ -1325,7 +1327,14 @@ export default function OptionsFlowDashboard() {
   // refetch after a version roll replaced `D` with a fresh bootstrap, and the
   // page would sit permanently without its interaction data. Asking again for
   // the SAME version is what must not happen, and this is what prevents it.
-  const _interactionAskedFor = useRef(null);
+  // ⛔ A SENTINEL, NOT `null`. `dataVersionRef.current` is null until
+  // /api/flow/version answers, so a ref initialised to null compares EQUAL to it
+  // on the first run and the "already asked for this version" guard returns
+  // before ever fetching — permanently, because nothing else resets it. Verified
+  // on production: first paint dropped to bootstrap + TOP_PICKS exactly as
+  // designed and the deferred request NEVER fired. A value no version can equal
+  // is the only initialiser that cannot collide.
+  const _interactionAskedFor = useRef(ASKED_NONE);
   const _interactionTries = useRef(0);
   const [interactionFetchFailed, setInteractionFetchFailed] = useState(false);
   useEffect(() => {
