@@ -707,6 +707,15 @@ class _Stages:
 # is useful warming, and request lifetime must not decide product lifecycle.
 _SEARCH_BUILD_LOCK = threading.Lock()
 
+# The materialisation budget for ONE ticker's Search product. Derived from the
+# measured cost curve, not chosen: p50 ALIT 5 KB / 242 ms, p90 WPM 125 KB /
+# 596 ms, p99 CRWD 3.1 MB / 863 ms. 48 MB / 20 s admits everything through p99
+# with orders of magnitude to spare and excludes only the head, which cannot be
+# derived inside a member's patience anyway.
+_SEARCH_CSV_MAX_BYTES = int(os.environ.get("FLOW_SEARCH_CSV_MAX_MB", "48") or 48) * 1024 * 1024
+_NEWLINE = bytes([10])   # written this way so no escape survives three layers of quoting
+_SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
+
 
 def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
@@ -724,12 +733,42 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
     try:
         # FULL COLUMN SET. processFlowData resolves columns by name, so a
         # narrowed projection could change the derivation.
+        # ⛔ THIS PHASE IS BOUNDED, AND IT WAS NOT. `BUILD_TIMEOUT_S` bounds the
+        # node subprocess below; NOTHING bounded the materialisation above it.
+        # Measured on prod 2026-09-08 during RTH: one NVDA build held the single
+        # search lane for 7.5+ MINUTES and never reached node at all, while pod
+        # RSS climbed 3.4 GB -> 11.2 GB. A member searching a head ticker can
+        # trigger that, and while it runs no other ticker can warm.
+        #
+        # ⛔ EXCEEDING THE BUDGET IS A DECLINE, NOT AN ERROR IN THE PRODUCT. The
+        # member is already on the legacy tape and sees no difference; the
+        # ticker enters the warm cooldown instead of holding the lane. Nothing
+        # about what Options Flow computes changes -- only whether we attempt it.
         parts = []
         rows_seen = 0
+        csv_len = 0
+        t_csv = time.monotonic()
+        overrun = None
         for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
             b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
             parts.append(b)
-            rows_seen += b.count(b"\n")
+            csv_len += len(b)
+            rows_seen += b.count(_NEWLINE)
+            if csv_len > _SEARCH_CSV_MAX_BYTES:
+                overrun = "bytes>%d" % _SEARCH_CSV_MAX_BYTES
+                break
+            if (time.monotonic() - t_csv) > _SEARCH_CSV_DEADLINE_S:
+                overrun = "seconds>%g" % _SEARCH_CSV_DEADLINE_S
+                break
+        if overrun:
+            parts = None
+            st.mark("csv_overrun", why=overrun, kb=csv_len // 1024, rows=rows_seen)
+            st.flush("TOO_BIG")
+            log.info("[flow-search] %s/%s exceeds the warm budget (%s) - declining "
+                     "so the lane stays available", sym, src, overrun)
+            return None, JSONResponse(
+                {"ok": False, "error": "too big to derive within budget"},
+                status_code=503)
         csv_bytes = b"".join(parts)
     except Exception as e:
         st.mark("csv_failed")
