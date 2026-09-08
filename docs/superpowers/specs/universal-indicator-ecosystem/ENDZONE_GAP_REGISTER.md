@@ -507,19 +507,53 @@ first, which is why they are counted apart.
 missing.** One cause dominates all ten: nine of them construct graphical objects
 and carry none.
 
-### H2 — the TradingView vendor check is BLOCKED, not skipped
+### H2 — the TradingView vendor check is DONE, and it found a wrong constant
 
-Requires a logged-in session, which the standing vendor boundary reserves to the
-owner. A public script preview IS reachable (verified) and was **deliberately
-not used**: it carries unknown bars, so it cannot discriminate an event bar from
-an off-by-one, and `tests/fixtures/vendor/README.md` forbids exactly that
-unattributable comparison. Capture packet ready:
-`C3A_CLOSE_VENDOR_CAPTURE_PACKET.md`, ~15 minutes.
+**Closed 2026-09-07** by an owner-authenticated browser session, not by the owner
+doing the capture by hand. The observation is
+`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`; the rail
+is `app/src/components/chart/builder/vendorMarkerParity.test.js` (10 cases,
+including a one-bar-shift control).
 
-The three discriminations are settled at **spec tier** instead — this repo's own
-`spec-falsified` class, explicitly weaker than `confirmed` — each with a fixture
-whose wrong answer is a *different array*, plus a control proving the fixture can
-fail.
+**This is the first vendor observation of VISUAL semantics the repo holds.** All
+22 existing ones are numbers, and a number cannot tell you which bar a glyph
+landed on. SPY · 1D · NYSE Arca, 50 daily bars (2026-06-26 → 2026-09-04), read
+out of TradingView's own chart model — bars from the main series, MA20 and every
+marker column from the study, both on the SAME chart in the SAME session, so a
+delta cannot be a data delta.
+
+All four discriminations moved from `spec` to **`confirmed`**:
+
+```
+  A  event bar       vendor's marked bars == ours, exactly (4 UP, 3 DN)
+  B  placement       BelowBar/AboveBar/Absolute == belowBar/aboveBar/inBar
+  C  dynamic colour  vendor compiles it to a per-bar palette index; so do we
+  D  text/glyph/size "U" "D" "X" small  ==  "U" "D" "X" 0.8
+```
+
+⚰️⚰️ **AND IT DISAGREED ON ITS FIRST RUN.** `pine.js` mapped `color.red` to
+`#F23645` — the chart's **down-candle** red — under a comment asserting the table
+held the vendor's own hexes. TradingView's answer is `#FF5252`. Six of the seven
+colours the observation reaches matched exactly; red did not.
+
+⛔⛔ **NO RAIL IN THE REPOSITORY COULD HAVE FOUND THIS.** Every colour test
+asserted OUR constant, so the wrong red was the expected red everywhere and the
+provenance claim in the comment was checked by nothing —
+`lesson_a_green_suite_does_not_mean_a_true_number`, in the one place the repo had
+explicitly written down that it must not happen. Fixed, three rails updated, and
+all seven reachable colours now pinned to the vendor's own answer.
+Mutation-checked: restoring `#F23645` turns the new rail red.
+
+⚠️ **What it does NOT settle:** pixels (it reads TradingView's rendering model,
+with the eye-checks recorded separately as prose in `vendor.visualFacts`), glyph
+shape (triangle → arrow stays a declared approximation), and the other nine
+members of the parity set. H1's numbers are unchanged.
+
+⭐ Method note worth keeping: **a `plotshape` carries a value per bar in
+TradingView's data model** — 1 where the glyph draws, 0 where it does not. That
+turns "did it land on the right bar" from a question about a screenshot into an
+array comparison, and it is why this capture is `confirmed` rather than "the
+pictures look similar".
 
 ### H3 — shape approximation matrix
 
@@ -565,3 +599,66 @@ every imported indicator attached to the chart. Three members came back
 workspace layout, not the product.** Recorded because a contaminated green is
 the same class of defect as a contaminated red, and the run that produced those
 three rows would otherwise have been reported as evidence.
+
+### H6 — 🔴 `tools/vendor_truth.py --check` CRASHES AT HEAD, and 22 green tests cannot see it
+
+**Found while closing H2, NOT by any rail. Not fixed here — it is another
+workstream's ruling to make. Reported so nobody quotes the tool as green.**
+
+```
+$ python tools/vendor_truth.py --check
+==============================================================================
+VENDOR TRUTH
+==============================================================================
+Traceback (most recent call last):
+  ...
+  File "tools/vendor_truth.py", line 203, in compare
+    delta = float(got) - float(want)
+TypeError: float() argument must be a string or a real number, not 'dict'
+```
+
+**Cause.** `32046d04c` (2026-09-07, the vendor-backed-builtins batch) added four
+observations whose `vendor.values` map a bar to a **dict of named candidate
+columns** rather than to a scalar:
+
+```
+  ta-accdist-delta5-2026-09-06   {'ad_change5': …, 'ad_deltaSumCandReal5': …}
+  ta-falling-close3-2026-09-06   {'falling_real_builtin': …, 'falling_real_candMonotone': …, …}
+  ta-kcw-close20-2-2026-09-06    {'kcw_builtin': …, 'kcw_candRatio': …, 'kcw_candPercent': …}
+  ta-pvt-delta5-2026-09-06       {'pvt_change5': …, 'pvt_deltaSumCandReal5': …}
+```
+
+All four also carry an `engine.ast`, so `check()` classes them **parity-comparable**
+and calls `compare(obs)` with no `column=` — and `compare` reads
+`obs["vendor"]["values"]` as scalars. `compare` HAS a `column` parameter for
+exactly this, and nothing passes one.
+
+⛔⛔ **AND THE RAIL IS GREEN.** `tests/test_vendor_truth.py` is 22/22 passing —
+because **every one of its cases monkeypatches `OBS_DIR` to a `tmp_path`**. Not
+one test runs `check()` against the store the repository actually holds. So the
+harness is verified to work on fixtures it invents and is verified against
+nothing it ships, which is `lesson_a_green_suite_does_not_mean_a_true_number`
+wearing the exact costume this directory exists to strip off. The one-line rail
+that would have caught it — *run `check()` on the real store and assert it does
+not raise* — is the kind of test the repo has repeatedly discovered it was
+missing.
+
+**Why it is not fixed here.** Reading a multi-column observation means deciding
+**which named column is the vendor's answer** and which are our competing
+candidate readings. That is the whole subject of the oracle-ambiguity work that
+produced these files (the four are also the only four with no counterpart under
+`tests/fixtures/vendor/parity/`, so their authors already knew they were a
+different kind of object). Guessing it from outside would put a second authority
+on their ruling — the defect class this register names more than any other.
+
+**Two things the fixer must decide, in this order:**
+1. Does a multi-column observation belong in `observations/` at all, or in its
+   own directory the way `visual/` now is? `load_observations`'s shape check is
+   the natural place to refuse the shape it cannot read.
+2. If it stays, `check()` must select the vendor-answer column per observation —
+   and the selection has to be declared IN the observation, not inferred from a
+   name, or the tool becomes a second authority on the ruling.
+
+⚠️ Also unread: **nothing in the repository reads `tests/fixtures/vendor/parity/`**
+(18 files). Grep for the path returns no consumer. Either it is an artifact
+directory that should say so, or a reader was intended and never landed.

@@ -8391,13 +8391,26 @@ export function isBareSource(node) {
 /** TradingView's own published constants. ⛔ THESE ARE THE VENDOR'S HEX VALUES,
  *  not our palette: an imported indicator that comes back a different red has
  *  not been imported faithfully, and "close enough" is the whole failure this
- *  wave exists to stop. */
+ *  wave exists to stop.
+ *
+ *  ⚰️ `color.red` READ `#F23645` UNTIL 2026-09-07, AND THAT IS THE CHART'S
+ *  DOWN-CANDLE RED, NOT PINE'S. The comment directly above has said "these are
+ *  the vendor's hex values" since the table was written, and nothing in the repo
+ *  could falsify it: every rail that touched a colour asserted OUR constant, so
+ *  the wrong red was the expected red everywhere. What caught it was the first
+ *  observation ever taken of TradingView's own resolved marker styles
+ *  (`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`),
+ *  where a `color = color.red` plotshape came back `#FF5252`. Six of the seven
+ *  colours that observation reaches — aqua, blue, fuchsia, green, orange,
+ *  purple — matched this table exactly; red was the one that did not.
+ *  ⭐ `vendorMarkerParity.test.js` now pins every one of the seven to the
+ *  vendor's own answer, so this table can no longer drift undetected. */
 const PINE_COLOURS = Object.freeze({
   'color.aqua': '#00BCD4', 'color.black': '#363A45', 'color.blue': '#2962FF',
   'color.fuchsia': '#E040FB', 'color.gray': '#787B86', 'color.grey': '#787B86',
   'color.green': '#4CAF50', 'color.lime': '#00E676', 'color.maroon': '#880E4F',
   'color.navy': '#311B92', 'color.olive': '#808000', 'color.orange': '#FF9800',
-  'color.purple': '#9C27B0', 'color.red': '#F23645', 'color.silver': '#B2B5BE',
+  'color.purple': '#9C27B0', 'color.red': '#FF5252', 'color.silver': '#B2B5BE',
   'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
 })
 

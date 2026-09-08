@@ -329,7 +329,8 @@ and that is the correct outcome for an evidence wave.
 |---|---|---|---|---|
 | C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | Now **measured on the fixed parity set** rather than asserted: `VISUAL_FULL 0 · MOSTLY 0 · PARTIAL 2 · MINIMAL 6 · BLOCKED 2`. The grade did not move; what moved is that it is now a measurement. |
 | I | FAILURE TRANSPARENCY | ✅ | ✅ | The shape matrix classifies 3 of 12 mappings MATERIAL — including `plotshape`'s own default — rather than reporting twelve supported shapes. |
-| — | VENDOR VALIDATION | ⬜ | ⬜ | Still unmeasured, and now with a named, ~15-minute unblock instead of an open question. **Zero vendor observations of visual semantics exist; that has not changed.** |
+| — | VENDOR VALIDATION | ⬜ | 🟡 | **Measured.** The repo now holds its FIRST vendor observation of visual semantics (SPY 1D, TradingView's own bars + its own resolved marker styles), and all four marker discriminations are `confirmed` rather than `spec`. 🟡 not ✅ because it is one probe on one symbol: marker semantics are confirmed, visual parity in general is not. |
+| I | FAILURE TRANSPARENCY | ✅ | ✅ | Unmoved as a grade, but for a new reason: the vendor check **falsified one of our own constants** (`color.red` was the chart's down-candle red, not Pine's) and it was reported and fixed rather than absorbed. |
 
 **A and F remain 🔴. Tier 2 remains the earned ceiling.**
 
@@ -340,8 +341,14 @@ loop boundary costs it 19 scripts that no object model can reach while RISK-043
 stands. It is still the largest item and the only one that converts partial
 indicators into whole ones.
 
-Two owner decisions gate it:
+Two owner decisions gated it. **Both are now resolved:**
 
-1. **The vendor capture** (~15 min) closes C3A-CLOSE item 2.
-2. **Confirm C3B against 27/46 rather than 46/60**, now that the reachable
-   number is known.
+1. ~~The vendor capture closes C3A-CLOSE item 2.~~ **DONE** — browser automation
+   in an owner-authenticated session; gate item 2 is ✅ and the gate passes 8/8.
+2. ~~Confirm C3B against 27/46 rather than 46/60.~~ **CONFIRMED by the owner.**
+
+So the only thing still standing between here and C3B is the owner's checkpoint.
+
+⚰️ **And record what the capture cost, because it is the argument for doing more
+of them:** one wrong colour constant, live in the product, invisible to a
+7,485-test suite, found in the first minute of holding a real vendor answer.

@@ -1,3 +1,49 @@
+# ✅ EXECUTED 2026-09-07 — THE OWNER DID NOT HAVE TO DO ANY OF THIS
+
+**Superseded by the observation it asked for:**
+`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`, with
+`app/src/components/chart/builder/vendorMarkerParity.test.js` as its rail.
+Kept because the reasoning below is still the reasoning, and because two things
+about it turned out to be wrong in ways worth recording.
+
+**What changed:** the owner moved the boundary — *"do not ask the owner to
+perform the technical capture manually … stop at the login boundary and request
+only the authentication action."* The session was already authenticated, so the
+login boundary was never reached, and browser automation did the script setup,
+the symbol/timeframe setup, the data capture, the comparison and the cleanup.
+
+⚰️ **THE HAND-CAPTURE THIS PACKET DESIGNED WOULD HAVE BEEN WEAKER THAN WHAT WAS
+TAKEN.** It asks for nine typed rows read off the Data Window. What was actually
+read is **fifty bars** straight out of TradingView's own chart model, including a
+per-bar value for every marker plot — because a `plotshape` in TradingView
+carries `1` on the bars it draws and `0` elsewhere. "Did the glyph land on the
+right bar" was never a question about a picture; it is an array, and the vendor
+will hand it to you. Nine hand-typed rows would also have carried transcription
+risk that the model read does not.
+
+⚰️ **AND STEP 1's SCRIPT HAD A BUG THAT WOULD HAVE WASTED THE CAPTURE.** This
+line:
+
+```
+plotshape(up, title = "ABS", style = shape.circle, location = location.absolute, color = color.orange)
+```
+
+`location.absolute` plots the shape **at the series' own value**, and `up` is a
+boolean — so the circle would have been drawn at y = 1 on a chart trading near
+770, off-screen, and it would have wrecked the price scale on the way. Step 4
+then asks *"is the orange circle at the MA/price value?"*, a question the script
+as written makes unanswerable. The executed probe used
+`plotshape(up ? ma : na, …)`, which is what the question was actually about.
+
+⭐ The executed probe also added three things this packet did not think to ask
+for, each of which earned its place: two `display.data_window` flag plots (so the
+event bar is a NUMBER on both sides), and a `plotshape` whose colour is a
+per-bar ternary — which is how discrimination C got a vendor answer at all.
+TradingView compiles it into a separate `colorer` plot carrying one palette index
+per bar, and that structural fact is the answer.
+
+---
+
 # C3A-CLOSE — Owner Vendor Capture Packet: EVENT-MARKER SEMANTICS
 
 **Time: ~15 minutes.** One paste, one symbol, one timeframe, one table of

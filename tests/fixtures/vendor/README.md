@@ -93,6 +93,46 @@ observation states the vendor's own display precision, and nothing else. If a
 delta exceeds it, the answer is a `divergences.json` row with a reason, or a fix
 — never a bigger number in the fixture.
 
+## `visual/` — observations that are not numbers (added 2026-09-07)
+
+⭐ **A NUMBER CANNOT TELL YOU WHICH BAR A GLYPH LANDED ON.** Everything in
+`observations/` is a plotted VALUE, and for a product whose promise is "paste
+your script and it looks the same", the value is half the claim. `visual/` holds
+the other half: which bar carries a marker, which side of the bar it sits on,
+what glyph and size it carries, and what colour — read off the vendor, same rule
+as everything else here.
+
+- `visual/marker-semantics-spy-1d-2026-09-07.json` — SPY · 1D · NYSE Arca, 50
+  daily bars, `plotshape` / `plotchar` in every location, with a per-bar
+  conditional colour. Rail:
+  `app/src/components/chart/builder/vendorMarkerParity.test.js`.
+
+⭐⭐ **THE TRICK THAT MAKES A VISUAL CLAIM MEASURABLE: a `plotshape` carries a
+VALUE per bar in TradingView's own data model** — 1 where the glyph draws, 0
+where it does not. So "is our marker on the right bar" is an array comparison,
+not a screenshot comparison, and an off-by-one is visible rather than arguable.
+The observation's rail carries a one-bar-shift control to prove exactly that.
+
+⛔ **`tools/vendor_truth.py` DOES NOT SEE THIS DIRECTORY.** Its `--check` and
+`--coverage` walk `observations/` only, and `load_observations` refuses any
+`shape` outside `stateless | seeded | stateful` on purpose — coverage is measured
+over those three, and a visual observation counted among them would inflate a
+number that means something else. So a `--coverage` run reporting three shapes is
+still telling the truth; it is simply not the whole truth about what this
+directory holds. **Read `visual/` separately, and do not "fix" the runner by
+widening `SHAPES`.**
+
+⚠️ A visual observation records TradingView's **rendering model** (the location,
+shape, glyph, size and per-bar colour it resolved), not the rasterised chart. Eye
+checks made on the live chart belong in `vendor.visualFacts` as prose, clearly
+labelled — they are context, not measurement.
+
+⚰️ **The first one paid for itself immediately.** `pine.js` mapped `color.red` to
+`#F23645` under a comment claiming the table held the vendor's hexes; the vendor
+says `#FF5252`. Every colour rail in the repo asserted our own constant, so
+nothing could disagree — which is the entire argument for this directory, found
+in the first minute of the first visual observation.
+
 ## Files
 
 - `observations/*.json` — one file per observation. Schema below.

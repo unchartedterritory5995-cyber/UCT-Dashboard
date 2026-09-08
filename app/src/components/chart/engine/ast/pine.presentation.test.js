@@ -55,7 +55,7 @@ describe('per-output styling is carried, and what is NOT carried is reported', (
   it('⭐⭐ TradingView`s own colour constants, by their published hex', () => {
     // ⛔ THE VENDOR'S VALUES, NOT OUR PALETTE. An indicator that comes back a
     // different red has not been imported faithfully.
-    expect(pres('plot(close, color = color.red)').color).toBe('#F23645')
+    expect(pres('plot(close, color = color.red)').color).toBe('#FF5252')
     expect(pres('plot(close, color = color.green)').color).toBe('#4CAF50')
     expect(pres('plot(close, color = color.purple)').color).toBe('#9C27B0')
   })
@@ -93,7 +93,7 @@ describe('per-output styling is carried, and what is NOT carried is reported', (
   it('⭐⭐ A CONDITIONAL BETWEEN TWO STATIC COLOURS IS CARRIED, condition and all', () => {
     const p = pres('plot(close, color = close > open ? color.green : color.red)')
     expect(p.colorUp).toBe('#4CAF50')
-    expect(p.colorDown).toBe('#F23645')
+    expect(p.colorDown).toBe('#FF5252')
     expect(p.colorCondition.formula).toBe('close > open')
     // ⛔ AND IT IS NO LONGER REPORTED AS UNCARRIED — a document that both carries
     // the rule and warns it was dropped tells the member two different things.
@@ -105,7 +105,7 @@ describe('per-output styling is carried, and what is NOT carried is reported', (
   it('⭐ …through a NAME, which is how 217 of the corpus\' colour arguments read', () => {
     const p = pres('col = close > open ? color.green : color.red\nplot(close, color = col)')
     expect(p.colorUp).toBe('#4CAF50')
-    expect(p.colorDown).toBe('#F23645')
+    expect(p.colorDown).toBe('#FF5252')
     expect(p.colorCondition.formula).toBe('close > open')
   })
 
@@ -128,7 +128,7 @@ describe('hline is a level, and the schema has had one all along', () => {
     const out = translatePine(src(
       'plot(ta.rsi(close, 14))\nhline(70, "Overbought", color = color.red, linewidth = 2)\nhline(30, "Oversold")'))
     expect(out.presentation.levels).toEqual([
-      { value: 70, title: 'Overbought', color: '#F23645', width: 2 },
+      { value: 70, title: 'Overbought', color: '#FF5252', width: 2 },
       { value: 30, title: 'Oversold' },
     ])
   })

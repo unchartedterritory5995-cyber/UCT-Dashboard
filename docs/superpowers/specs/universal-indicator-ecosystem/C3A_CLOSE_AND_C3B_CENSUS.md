@@ -1,13 +1,20 @@
 # C3A-CLOSE — EVIDENCE CLOSURE, AND THE C3B CENSUS
 
-**Result: the gate does NOT pass, on one item, and the reason is not a product
-defect.** Everything obtainable was measured; the one item I cannot obtain needs
-the owner, and the capture packet for it is written and ready
-(`C3A_CLOSE_VENDOR_CAPTURE_PACKET.md`, ~15 minutes).
+**Result: the gate PASSES, on evidence that did not exist when this document was
+first written.** Item 2 — the TradingView vendor check — was the single blocker,
+and it is now closed by a real observation taken from TradingView's own chart.
 
-**C3B implementation was NOT begun.** Two independent reasons, either sufficient:
-the gate is explicit, and the C3B census below materially changes the premise
-the C3B authorization rests on.
+⚰️ **AND THE OBSERVATION IMMEDIATELY FALSIFIED ONE OF OUR CONSTANTS.** `color.red`
+read `#F23645` in `pine.js` under a comment claiming "THESE ARE THE VENDOR'S HEX
+VALUES"; TradingView's own answer is `#FF5252`. Six of the seven colours the
+observation reaches matched exactly. That is what a vendor oracle is FOR, and it
+is the first time this repository has held one that could disagree about a
+picture.
+
+**C3B implementation was NOT begun.** The gate is no longer a reason — it passes.
+The remaining reason is the one that has not moved: the C3B census below changes
+the premise the C3B authorization rests on, from 46/60 to a reachable 27/46, and
+that is the owner's call to confirm rather than mine to assume.
 
 ---
 
@@ -83,40 +90,127 @@ reported as evidence.
 
 ---
 
-## 2. TRADINGVIEW VENDOR CHECK — **BLOCKED, NOT SKIPPED**
+## 2. TRADINGVIEW VENDOR CHECK — **DONE, AND IT FOUND SOMETHING**
 
-**I could not do this within the owner's own standing boundary, and I did not
-manufacture a substitute.**
+**Fixture:** `tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`
+**Rail:** `app/src/components/chart/builder/vendorMarkerParity.test.js` (10 cases)
 
-- `VENDOR_CAPTURE_PLAN.md`: *"I do not request, enter, or store TradingView
-  credentials … When login is required I stop and the owner performs it
-  manually."* Putting an arbitrary community script on a chosen symbol and
-  timeframe requires a session.
-- I DID check what is reachable without one: a public script page serves a
-  rendered preview image (verified: `s3.tradingview.com/c/CwRbjtih_mid.webp`).
-  **I did not use it.** `tests/fixtures/vendor/README.md` is unambiguous — *"An
-  observation carries the vendor's own bars. THIS IS NOT OPTIONAL … otherwise a
-  delta has two possible causes and the harness cannot tell you which."* A
-  preview on an unknown symbol over an unknown window cannot discriminate a
-  correct event bar from an off-by-one, which is the first thing this closure
-  asks for. Eyeballing it would be the screenshot-similarity claim the
-  authorization forbids.
+This is the **first vendor observation of VISUAL semantics** this repository
+holds. Every other file under `tests/fixtures/vendor/` is a number — `sma`,
+`rma`, `adx` — and not one of them can say whether a marker lands on the right
+BAR, on the right SIDE of it, carrying the right glyph, in the right colour.
 
-⭐ **What I did instead, and what it is worth.** The three discriminations the
-closure names are settled against **Pine's published semantics** in
-`markerSemantics.test.js`, each with a fixture built so the right and wrong
-answers differ observably:
+### How it was taken
 
-| discrimination | how it is settled | evidence tier |
-|---|---|---|
-| correct event bar vs **off-by-one** | markers land on bars `[10, 20, 30]`; a deliberately shifted column gives `[11, 21, 31]` — **a control proving the fixture can fail** | spec |
-| above/below vs **generic centred** | three calls differing ONLY in `location` produce three DIFFERENT positions and the SAME bars | spec |
-| conditional marker colour | each glyph is coloured by ITS OWN bar's condition, through the same fields a line uses | spec |
-| marker bar vs **screener bar** | every marked bar is a bar where the column reads 1, and the counts match | spec |
+A probe indicator was written into the Pine Editor of an owner-authenticated
+TradingView session, added to an **SPY · 1D · NYSE Arca** chart, and then read
+back — **out of TradingView's own chart model, not off the pixels**:
 
-⛔ **This is `spec-falsified` tier, which this repo's own protocol ranks BELOW
-`confirmed` — "nobody has read the vendor's SCREEN".** I am not claiming vendor
-parity. The packet that would close it is written.
+- the bars from the main series' own plot list (OHLCV, 50 daily bars, indices
+  250–299, 2026-06-26 → 2026-09-04);
+- `MA20` and every marker column from the study's own plot list, **on the same
+  chart in the same session** — so the bars and the plotted values cannot come
+  from different data;
+- location / shape / colour / text / size from the study's own resolved style
+  state and `metaInfo`.
+
+⭐ **THE VENDOR ANSWERS "WHICH BAR" IN NUMBERS, NOT IN PIXELS.** A `plotshape`
+carries a value per bar in TradingView's data model — `1` where the glyph is
+drawn, `0` where it is not. So "did the marker land on the right bar" stopped
+being a question about a screenshot and became an array comparison. The chart's
+own Data Window was read first and agreed with the model on the last bar
+(O 772.01 H 772.87 L 769.00 C 770.19, Vol 34.05 M, MA20 769.05), which is what
+ties the model read to the screen a member would see.
+
+⛔ **The public preview image was still not used.** It was verified reachable
+(`s3.tradingview.com/c/CwRbjtih_mid.webp`) and deliberately left alone: unknown
+symbol, unknown window, no attributable bars. That decision did not change; what
+changed is that a real session made it unnecessary.
+
+### The four discriminations, now at `confirmed` tier
+
+| # | discrimination | the vendor's own answer | ours | verdict |
+|---|---|---|---|---|
+| A | correct event bar vs **off-by-one** | UP on 4 bars, DN on 3, inside the comparable window | **identical arrays** | ✅ |
+| B | above / below / at-value | `BelowBar` · `AboveBar` · `Absolute` | `belowBar` · `aboveBar` · `inBar` | ✅ |
+| C | **conditional colour, per bar** | compiled into a separate `colorer` plot targeting the shape plot, one palette index per bar | `colorUp` + `colorDown` + `colorCondition`, and the two hexes are the vendor's | ✅ |
+| D | text / glyph / size | `text:"U"` · `text:"D"` · `char:"X"` · `size:"small"` | same text, same char, size `0.8` | ✅ |
+
+⭐ **Discrimination A is the one that could not be faked.** Bar 290 closes
+763.47 against an MA20 of 763.546 and bar 291 closes 765.91 against 764.7985 —
+0.076 apart. An engine one bar early or one bar late puts its glyph on a bar
+where the vendor drew nothing, and the arrays differ visibly. The rail carries a
+**control** that shifts our own column by one and asserts the comparison goes
+red, so it cannot pass by looking at something that cannot disagree.
+
+⭐ **And `location.absolute` was checked by VALUE, not just by position.** The
+probe's `plotshape(up ? ma : na, location = location.absolute)` must sit at the
+moving average, and our column equals the vendor's own MA20 to 4 decimal places
+on every marked bar — plus our `sma(close, 20)` equals the vendor's MA20 on all
+30 comparable bars.
+
+### ⚰️ THE FINDING: `color.red` WAS THE WRONG RED
+
+`pine.js`'s colour table carries the comment *"THESE ARE THE VENDOR'S HEX VALUES,
+not our palette: an imported indicator that comes back a different red has not
+been imported faithfully"*. It read `'color.red': '#F23645'`. TradingView's own
+resolved value for a `color = color.red` plotshape is **`#FF5252`**; `#F23645` is
+the chart's **down-candle** red, a different constant that happens to look red.
+
+```
+  color.aqua    #00BCD4  ✅        color.orange  #FF9800  ✅
+  color.blue    #2962FF  ✅        color.purple  #9C27B0  ✅
+  color.fuchsia #E040FB  ✅        color.red     #F23645 → #FF5252  ⚰️
+  color.green   #4CAF50  ✅
+```
+
+⛔⛔ **NOTHING IN THE REPOSITORY COULD HAVE CAUGHT THIS.** Every colour rail —
+`pine.presentation.test.js`, `BuilderSheet.dynamicColour.test.jsx` — asserted OUR
+constant, so the wrong red was the *expected* red everywhere, and the comment
+claiming vendor provenance was checked by nothing. This is the
+`lesson_a_green_suite_does_not_mean_a_true_number` shape exactly, and it is the
+argument for the whole `tests/fixtures/vendor/` directory in one line.
+
+**Fixed** (`'color.red': '#FF5252'`), three rails updated to the vendor's value,
+and the new observation now pins **all seven** colours it reaches so the table
+cannot drift undetected again. Mutation-checked: restoring `#F23645` turns
+`vendorMarkerParity.test.js` red.
+
+⭐ **The other six matching is itself a result.** It says the table was
+*assembled* correctly and one entry was wrong, rather than the whole thing being
+our palette wearing a vendor label.
+
+### 🔴 AND A SECOND FINDING, ABOUT THE HARNESS ITSELF
+
+`python tools/vendor_truth.py --check` — the repository's headline vendor gate —
+**crashes at HEAD** with a `TypeError`, and has since `32046d04c` landed four
+multi-column observations this morning. Its 22-case rail is green because every
+case monkeypatches the observation directory to a `tmp_path`: **not one test runs
+the tool against the store the repo actually ships.**
+
+Not fixed here — reading a multi-column observation means ruling on which named
+column is the vendor's answer, which belongs to the workstream that wrote them.
+Recorded in full as **H6** in `ENDZONE_GAP_REGISTER.md`, including the two
+decisions the fixer has to make first. Stated here because a closure that says
+"the vendor check passes" beside a vendor tool that will not run is exactly the
+half-truth this wave is supposed to stop.
+
+### What this observation does NOT settle
+
+- **Pixels.** It reads TradingView's rendering *model* — the location, shape,
+  glyph, size and per-bar colour it resolved — not the rasterised chart. The
+  visual facts were also confirmed by eye on the live chart (green `U` triangles
+  below their bars, red `D` triangles above, purple `X` above those, orange
+  circles sitting on the MA line, aqua/fuchsia squares alternating), and those
+  eye-checks are recorded in the fixture as `vendor.visualFacts` — prose, not
+  measurement, and labelled as such.
+- **Glyph shape.** TradingView draws a triangle; lightweight-charts has four
+  shapes and no triangle. The observation records `shape_triangle_up` and the
+  rail asserts we render `arrowUp` **and flag it `shapeApprox`** — the
+  approximation is confirmed as an approximation, not silently promoted.
+- **The other nine members of the parity set.** One probe on one symbol closes
+  the marker-semantics question, not visual parity in general. Section 1's
+  numbers stand unchanged.
 
 ---
 
@@ -165,16 +259,21 @@ measurement closure.
 | # | condition | result |
 |---|---|---|
 | 1 | fixed 10-member set remeasured | ✅ |
-| 2 | **real TradingView evidence validates marker semantics** | ⛔ **BLOCKED — needs the owner's session. Packet ready.** |
-| 3 | no event-bar off-by-one remains | ✅ *(spec tier, with a failing control)* |
-| 4 | placement semantically correct | ✅ *(spec tier)* |
+| 2 | **real TradingView evidence validates marker semantics** | ✅ **CONFIRMED tier** — observation + 10-case rail, and it found a wrong hex |
+| 3 | no event-bar off-by-one remains | ✅ *(now CONFIRMED against the vendor's own marked bars, control included)* |
+| 4 | placement semantically correct | ✅ *(now CONFIRMED against the vendor's own `location` values)* |
 | 5 | persistence intact | ✅ |
 | 6 | shape approximations truthfully classified | ✅ |
 | 7 | no silent disappearing-marker path | ✅ — the four disappearance modes each have a rail |
 | 8 | no new silent wrong result | ✅ |
 
-**GATE: DOES NOT PASS**, on item 2 only, and item 2 is an evidence-availability
-boundary rather than either failure branch the authorization anticipated.
+**GATE: PASSES, 8 of 8.**
+
+⛔ **AND PASSING IT COST A CORRECTION, WHICH IS THE POINT.** Item 8 is "no new
+silent wrong result"; the vendor check turned up an OLD one — `color.red` — that
+had been silently wrong since the colour table was written and was invisible to
+every rail in the repository. A gate that only ever confirms what you already
+believed is `lesson_gate_that_cannot_fail`. This one disagreed on its first run.
 
 ---
 
@@ -252,11 +351,14 @@ reference** (`line[1]`), so object references never need bar-history semantics.
 
 ## 6. WHY C3B WAS NOT BEGUN
 
-1. **The gate is explicit** and item 2 is unmet.
-2. **The premise moved.** C3B was authorised against 46/60; the reachable figure
-   under the standing loop boundary is 27/46. That is a materially different
-   trade, and *"Do not fake it"* cuts both ways — starting an architecture wave
-   on a headline number I have just measured to be optimistic would be the same
-   error in a different direction.
+1. ~~**The gate is explicit** and item 2 is unmet.~~ **CLEARED** — the vendor
+   check is done and the gate passes 8 of 8.
+2. **The premise moved, and that reason still stands.** C3B was authorised
+   against 46/60; the reachable figure under the standing loop boundary is
+   27/46. That is a materially different trade, and *"Do not fake it"* cuts both
+   ways — starting an architecture wave on a headline number I have just measured
+   to be optimistic would be the same error in a different direction. The owner
+   has since confirmed 27/46 as the corrected denominator, so this is now a
+   recorded premise rather than an open question.
 
-Both are the owner's calls, not mine, and each is one message away.
+The remaining stop is the owner's checkpoint, not a missing measurement.

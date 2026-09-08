@@ -18,7 +18,7 @@ import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 
 const UP = '#4CAF50'
-const DOWN = '#F23645'
+const DOWN = '#FF5252'
 
 /** What `PineBox` hands back for `plot(close, color = close > open ? g : r)`. */
 const SINGLE = {
