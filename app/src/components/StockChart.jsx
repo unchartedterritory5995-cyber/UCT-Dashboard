@@ -69,6 +69,7 @@ import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
 import { createPrevDayLevelsPrimitive, computePrevDayLevels, buildPrevDayLines } from './chart/prevDayLevelsPrimitive'
 import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
+import { createObjectLayer } from './chart/engine/objectLayer'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
@@ -9801,6 +9802,26 @@ export default function StockChart({
         tf: resolvedTf,
         adjustTime,
         applyData: _applyData,
+        // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
+        // other chart-library capability the binder uses: a host that cannot
+        // provide it draws no lines, labels or boxes and everything else — the
+        // columns, the legend, the scan — is untouched. One canvas per INSTANCE,
+        // because two copies of one indicator are two independent lifetimes.
+        createObjectLayer: () => createObjectLayer({
+          container: chart.chartElement ? chart.chartElement() : null,
+          mapping: () => {
+            const series = candleSeriesRef.current
+            const ts = chart.timeScale ? chart.timeScale() : null
+            if (!series || !ts) return null
+            const el = chart.chartElement ? chart.chartElement() : null
+            return {
+              timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
+              priceToY: (p) => series.priceToCoordinate(p),
+              width: el ? el.clientWidth : 0,
+              height: el ? el.clientHeight : 0,
+            }
+          },
+        }),
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },
         // The declutter toggle. `visible` is part of the option set the binder
         // re-asserts on every bind, so without this a hidden engine series would

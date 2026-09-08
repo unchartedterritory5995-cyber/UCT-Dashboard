@@ -122,6 +122,11 @@ import { UNBOUNDED as FORWARD_UNBOUNDED, declaredInputs } from './ast/lint'
 // clock, no second grammar. It is here because the alternative is worse — the
 // hash and the badge aggregators would be re-spelled per consumer.
 import { treesHash as treesHashOf, assertTrees } from './ast/trees'
+// ⭐⭐ C3B — the object program is validated by ITS OWN module, never by a
+// second copy of the rules here. `assertObjectProgram` is the one authority on
+// what a legal program is; this file only adds the DOCUMENT-level rules the
+// program module cannot know (is it bound, and does every node it names exist).
+import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from './ast/objectProgram'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -1971,6 +1976,91 @@ export function validateSourceReferents(def, resolveColumns) {
   return errors
 }
 
+/**
+ * ⭐⭐ C3B — `definition.objects`, THE GRAPHICAL-OBJECT PROGRAM.
+ *
+ * A definition may carry a lifecycle program beside its columns. It is
+ * OPTIONAL: 14 of the frozen 60 draw no objects at all and must stay
+ * byte-identical, so an absent field is not an error and an absent field is not
+ * an empty program either.
+ *
+ * ⛔⛔ WHICH FORM IS LEGAL DEPENDS ON THE DOCUMENT, and getting this backwards
+ * is how the C2C compaction would be lost in silence:
+ *
+ *   V1 (inlined, `compute.trees`)  →  the program is UNBOUND. Its `{v:'tree'}`
+ *       references index its OWN `trees` array, which is the only place those
+ *       expressions live — carrying them is necessary, not wasteful.
+ *   V2 (`compute.graph`)           →  the program is BOUND. Its references are
+ *       node indices into the shared graph, and a `trees` array beside them
+ *       would be a SECOND copy of every expression the graph already holds.
+ *
+ * So this refuses a bound program on a V1 document (its node indices point at a
+ * table that is not there) and an unbound one on a V2 document (a duplicate
+ * store). Either way the failure is named, not silent.
+ */
+function validateObjectProgramField(def, errors) {
+  const program = def.objects
+  if (program === undefined || program === null) return
+  try {
+    assertObjectProgram(program)
+  } catch (err) {
+    errors.push(`objects: ${err && err.message ? err.message : String(err)}`)
+    return
+  }
+  const graph = def.compute && def.compute.graph
+  const nodes = graph && Array.isArray(graph.nodes) ? graph.nodes.length : null
+  const treeRefs = treeRefsReferenced(program)
+  const nodeRefs = graphNodesReferenced(program)
+  const trees = Array.isArray(program.trees) ? program.trees : null
+
+  if (nodes === null) {
+    // ── the V1 form ───────────────────────────────────────────────────────
+    if (nodeRefs.length) {
+      errors.push(
+        `objects: ${nodeRefs.length} graph node reference(s) on a document that carries no graph — `
+        + 'a bound program indexes a node table that is not here',
+      )
+    }
+    if (treeRefs.length && !trees) {
+      errors.push(
+        'objects.trees: the program references its own trees but carries none — '
+        + `[${treeRefs.join(', ')}] index nothing`,
+      )
+    }
+    if (trees) {
+      const over = treeRefs.filter((i) => i >= trees.length)
+      if (over.length) {
+        errors.push(
+          `objects.trees: reference(s) [${over.join(', ')}] are past the end of a ${trees.length}-tree list`,
+        )
+      }
+    }
+    return
+  }
+
+  // ── the V2 form ─────────────────────────────────────────────────────────
+  if (trees) {
+    errors.push(
+      'objects.trees: a program stored beside a graph is BOUND to it and carries no trees of its own — '
+      + 'keeping them would put a second copy of every expression in the document, which is the '
+      + 'compaction C2C exists to protect',
+    )
+  }
+  if (treeRefs.length) {
+    errors.push(
+      `objects: ${treeRefs.length} unbound {v:"tree"} reference(s) on a graph document — `
+      + 'the intermediate form a translator emits must be bound before it is stored',
+    )
+  }
+  const bad = nodeRefs.filter((n) => n >= nodes)
+  if (bad.length) {
+    errors.push(
+      `objects: node reference(s) [${bad.join(', ')}] are past the end of a ${nodes}-node graph — `
+      + 'a dangling reference renders as NaN, which draws an object at zero and explains nothing',
+    )
+  }
+}
+
 export function validateDefinition(def) {
   try {
     const errors = []
@@ -2065,6 +2155,7 @@ export function validateDefinition(def) {
     validateBandEdges(plots, errors)
     validateFills(plots, errors)
     validateTreesAgainstPlots(out.compute, plots, errors)
+    validateObjectProgramField(out, errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array

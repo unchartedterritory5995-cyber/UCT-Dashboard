@@ -23,6 +23,7 @@
 // being refused. If the two ever drift, the failure is a refused save with the
 // server's own sentence — not a stored document that is wrong.
 import { buildGraph, expandGraph, GRAPH_VERSION } from './graph'
+import { bindObjectProgram, graphNodesReferenced } from './objectProgram'
 import { astHash } from './parse'
 import { printFormula } from './pine'
 import { treesHash } from './trees'
@@ -155,6 +156,24 @@ export function toGraphDocument(definition) {
   const manifest = isPlainObject(compute.paramManifest) ? compute.paramManifest : {}
   const placed = tagFromManifest(copy, manifest, scan)
 
+  // ⭐⭐ C3B — THE OBJECT PROGRAM'S EXPRESSIONS BECOME EXTRA ROOTS OF THE SAME
+  // GRAPH. This is the whole reason the object program stores `{v:'tree', i}`
+  // rather than an AST: handing those trees to `buildGraph` alongside the plots
+  // means a coordinate that is `close`, or `ta.sma(close, 20)`, or a condition
+  // a plot already computes, is stored ONCE and referenced by integer from both
+  // places. Inlining them into the ops would have worked and would have undone a
+  // ×48 compaction that cost a whole wave to earn.
+  // ⚠️ The extra roots are named `uctobj<i>` so they cannot collide with a plot
+  // key, and they are removed from `outputRoots` afterwards — an object
+  // expression is not a column and must never be offered as one.
+  const objectProgram = isPlainObject(definition.objects) ? definition.objects : null
+  const objTrees = objectProgram && Array.isArray(objectProgram.trees) ? objectProgram.trees : []
+  const objRootKey = (i) => `uctobj${i}`
+  objTrees.forEach((tree, i) => {
+    if (objRootKey(i) in copy) return
+    copy[objRootKey(i)] = JSON.parse(JSON.stringify(tree))
+  })
+
   const params = Object.entries(manifest).map(([id, e]) => ({
     id,
     sourceName: e.sourceName,
@@ -209,7 +228,32 @@ export function toGraphDocument(definition) {
     }
   }
 
+  // ⭐ BIND, THEN STRIP. The object roots have done their job the moment
+  // `buildGraph` has told us which node each landed on.
+  let boundObjects = null
+  if (objectProgram) {
+    const nodeOf = (i) => {
+      const at = graph.outputRoots[objRootKey(i)]
+      if (!Number.isInteger(at)) throw new Error(`object tree ${i} found no root`)
+      return at
+    }
+    try {
+      boundObjects = bindObjectProgram(objectProgram, nodeOf)
+    } catch (err) {
+      return { ok: false, reason: 'objects — ' + (err && err.message ? err.message : String(err)) }
+    }
+    for (let i = 0; i < objTrees.length; i += 1) delete graph.outputRoots[objRootKey(i)]
+    // ⛔ AND EVERY BOUND REFERENCE MUST LAND INSIDE THE GRAPH. A node index past
+    // the end is a dangling pointer that renders as NaN — an object at
+    // coordinate zero with nothing anywhere saying why.
+    const over = graphNodesReferenced(boundObjects).filter((n) => n >= graph.nodes.length)
+    if (over.length) {
+      return { ok: false, reason: 'objects: node reference(s) past the end of the graph: ' + over.join(', ') }
+    }
+  }
+
   const next = { ...definition, compute: { ...compute, graph } }
+  if (boundObjects) next.objects = boundObjects
   delete next.compute.trees
   delete next.compute.ast
   delete next.compute.source

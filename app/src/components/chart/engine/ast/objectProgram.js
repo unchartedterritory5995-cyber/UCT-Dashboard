@@ -364,6 +364,15 @@ export function assertObjectProgram(program) {
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
       throw new Error(`objects.ops[${i}]: lastBarOnly is a flag — it is either absent or true`)
     }
+    if (op.once !== undefined && op.once !== true) {
+      throw new Error(`objects.ops[${i}]: once is a flag — it is either absent or true`)
+    }
+    for (const k of ['requiresLive', 'requiresEmpty']) {
+      if (op[k] === undefined) continue
+      if (!regs.has(op[k])) {
+        throw new Error(`objects.ops[${i}]: ${k} names undeclared register ${JSON.stringify(op[k])}`)
+      }
+    }
     if (op.k === 'create') {
       if (!OBJECT_FAMILIES.includes(op.family)) {
         throw new Error(`objects.ops[${i}]: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
@@ -497,6 +506,39 @@ export function graphNodesReferenced(program) {
   for (const op of program.ops || []) {
     walkValue(op.when)
     walkRef(op.target); walkRef(op.value)
+    walkValue(op.col); walkValue(op.row); walkValue(op.index)
+    for (const v of Object.values(op.props || {})) {
+      if (isObj(v) && v.r) walkRef(v)
+      else walkValue(v)
+    }
+  }
+  return [...seen].sort((a, b) => a - b)
+}
+
+/** Every UNBOUND tree index the program reads. ⭐ The mirror of
+ *  `graphNodesReferenced`, and the two together are what let the document
+ *  validator say which FORM a program is in rather than guessing. */
+export function treeRefsReferenced(program) {
+  const seen = new Set()
+  const walkText = (t) => {
+    if (!isObj(t)) return
+    if (t.t === 'num' && Number.isInteger(t.tree)) seen.add(t.tree)
+    if (t.t === 'cat') (t.args || []).forEach(walkText)
+    if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
+  }
+  const walkColor = (c) => {
+    if (!isObj(c)) return
+    if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
+  }
+  function walkValue(v) {
+    if (!isObj(v)) return
+    if (v.v === 'tree') seen.add(v.tree)
+    if (v.v === 'text') walkText(v.node)
+    if (v.v === 'color') walkColor(v.node)
+  }
+  const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
+  for (const op of program.ops || []) {
+    walkValue(op.when); walkRef(op.target); walkRef(op.value)
     walkValue(op.col); walkValue(op.row); walkValue(op.index)
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)

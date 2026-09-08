@@ -398,7 +398,8 @@ function legacyDefinition({ defId, version, rev, source, ast, mode, readback, de
  */
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
   readback = '', inputs = BUILDER_INPUTS,
-  plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null }) {
+  plots = null, scanPlot = null, placement = null, levels = null, paramManifest = null,
+  objects = null }) {
   // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
   // scope below and the document's own `inputs` are the SAME array, because a
   // member-declared name that reached one and not the other would badge a
@@ -498,6 +499,12 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     schemaVersion: SCHEMA_VERSION,
     id: defId,
     version,
+    // ⭐⭐ C3B — THE OBJECT PROGRAM RIDES ON THE DOCUMENT, BESIDE THE COLUMNS.
+    // ⛔ AND IT IS OMITTED WHEN THERE IS NONE. 14 of the frozen 60 draw no
+    // objects at all and their saved documents must stay byte-identical — an
+    // empty `objects: {}` on every save would change every hash in the repo and
+    // buy nothing. Same additive discipline as `paramManifest` above.
+    ...(objects && Array.isArray(objects.ops) && objects.ops.length ? { objects } : {}),
     compute: {
       kind: 'ast', fn: astHash(scan.ast), rev, ast: scan.ast, source: scan.source,
       // ⭐ TRACK F (DEC-006) — additive, OMITTED for every non-Pine save. A
@@ -773,6 +780,9 @@ export default function BuilderSheet({
    *  inventing a separate one. Threaded into `evaluatedDocArgs` so both the
    *  live preview and the real save read the SAME assembly. */
   const [paramManifest, setParamManifest] = useState(null)
+  /** ⭐⭐ C3B — the imported script's graphical-object program, held beside
+   *  the parameter manifest and written onto the document at save. */
+  const [objectProgram, setObjectProgram] = useState(null)
 
   // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
   //
@@ -1100,7 +1110,7 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setResult(evaluateFormula('', inputScope))
+    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setResult(evaluateFormula('', inputScope)); setObjectProgram(null)
     // ⛔ NO `setAcknowledged` HERE ANY MORE — `resetPlots()` below already puts a
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
@@ -1273,7 +1283,7 @@ export default function BuilderSheet({
   }, [resetPlots])
 
   const cancelEdit = useCallback(() => {
-    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null)
+    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setObjectProgram(null)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -1384,6 +1394,10 @@ export default function BuilderSheet({
     result && result.ok && result.ast && result.verdict && inputsValid
       ? buildDefinition({
         ...evaluatedDocArgs(result, memberInputs, paramManifest),
+        // ⭐ THE PREVIEW DRAWS THE OBJECTS TOO. A preview that showed only the
+        // columns would tell a member their import lost its lines, right up
+        // until they saved and found it had not.
+        objects: objectProgram,
         defId: PREVIEW_DEF_ID,
         // A preview must draw before the member has named the thing; `save()`
         // requires a name and `canSave` is the one authority on that.
@@ -1549,6 +1563,7 @@ export default function BuilderSheet({
       // the ONE assembly the live preview also asks — so the two cannot drift
       // apart the day a field moves. See `evaluatedDocArgs`.
       ...evaluatedDocArgs(result, memberInputs, paramManifest),
+      objects: objectProgram,
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
@@ -2284,6 +2299,12 @@ export default function BuilderSheet({
                   }
                 }
                 setParamManifest(nextParamManifest)
+                // ⛔ `picked2` IS NULL FOR THE STRING FORM. `onPick` still
+                // takes a bare string — the widened door did not move it — so
+                // this must be the optional read, not the confident one. The
+                // string-form rail caught it immediately, which is what that
+                // rail is for.
+                setObjectProgram((picked2 && picked2.objects) || null)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)

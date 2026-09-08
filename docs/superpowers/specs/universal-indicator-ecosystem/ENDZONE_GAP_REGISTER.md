@@ -662,3 +662,104 @@ on their ruling — the defect class this register names more than any other.
 ⚠️ Also unread: **nothing in the repository reads `tests/fixtures/vendor/parity/`**
 (18 files). Grep for the path returns no consumer. Either it is an artifact
 directory that should say so, or a reader was intended and never landed.
+
+---
+
+## PART I — C3B, THE GRAPHICAL-OBJECT MODEL (2026-09-08)
+
+### I1 — the census that changed the build
+
+Two populations, never mixed. **46/60 demand objects; 27 of those are
+execution-reachable; C3B targets the 27.**
+
+⭐⭐ **THE REACHABLE POPULATION IS TABLE-DOMINATED — 19/27 scripts, 227 cell
+sites, more than line, box and linefill combined.** The 46-script headline hides
+this completely (line and label lead there). A wave built to the headline would
+have shipped a line/label engine and served two thirds of nobody.
+
+⭐ **And collections collapse from 23/46 to 7/27** — sixteen of the twenty-three
+are loop-blocked, because an object array is overwhelmingly something authors
+fill inside a `for`. Built anyway, small: five operations, bounded by
+construction.
+
+### I2 — what was built, and what it reaches
+
+`objectProgram.js` (model) · `objectRuntime.js` (evaluator) ·
+`objectRenderState.js` (generic state) · `objectCanvas.js` (pure painter) ·
+`objectLayer.js` (one canvas per instance) · `objectColumns.js` (graph → columns)
+· `pineObjects.js` + `pine.js` (translation), wired through `binder.js` into
+`StockChart.jsx` and saved by `BuilderSheet.buildDefinition`.
+
+```
+  scripts yielding an object program   23/60
+    …of the reachable 27               18/27
+    …of the loop-blocked 19             5/19  (their non-loop ops only)
+```
+
+⛔ Of the 9 reachable scripts with no program, **five do not translate at all**
+for reasons that predate C3B (UDTs, loops in the VALUE lane). Object reachability
+is not script translatability, and merging them would credit C3B with a failure
+it did not cause.
+
+### I3 — ⚰️ THE `var` BUG, AND WHY ONLY THE LADDER COULD FIND IT
+
+Pine's `var x = <expr>` initialises **once**. The translator emitted it as an
+unguarded create, so `var table t = table.new(…)` minted a NEW table on every
+bar: 300 bars, 300 tables, the 8-table envelope blown by bar 8, and the whole
+indicator refused with `OBJECT_LIMIT_EXCEEDED`.
+
+⛔⛔ **Every unit test of the runtime passed. The model was right; the translator
+was wrong about the commonest object initialiser in the corpus.** What caught it
+was Level 9 of the capability ladder — a real dashboard over 300 real bars. A
+level built from a two-bar fixture would have been green.
+
+### I4 — three flags that could have been values, and must not be
+
+`lastBarOnly` (`barstate.islast`), `once` (`var`), `requiresLive`/`requiresEmpty`
+(`na(handle)`). Each is answerable by the RUNTIME and unanswerable by a pure
+graph, so each is lifted OUT of the expression into a flag — where no tree, no
+hash and no screener column can contain it. `barstate.islast` in particular stays
+correctly refused for a screener column, where "the last bar" would depend on how
+many bars the request asked for.
+
+### I5 — text is a value kind, and the measurement forced it
+
+The first build was numeric-only and reached **6 of 27**. A table is made of
+strings and the V2 graph is numeric by construction, so text became a small
+expression tree whose LEAVES are graph nodes — the numbers keep one authority.
+6 → 14 with text and colour; 14 → 18 with block-local scope (the corpus binds a
+cell's text inside the same `if` that draws it).
+
+⛔ A cell whose text cannot be read is DROPPED, not blanked: an empty cell reads
+as "the value is empty", which is a worse claim than "we could not import this".
+
+### I6 — 🔴 THE THREE OPEN GATE ITEMS ARE ALL EVIDENCE
+
+```
+  11  real chart rendering       WIRED, NOT PHOTOGRAPHED
+  12  TradingView object parity  NOT TAKEN
+  13  parity set remeasured      NOT RE-RUN
+```
+
+They are one piece of work. The C3A-CLOSE vendor method already works and would
+transfer directly (TradingView's chart model exposes object state per bar the
+same way it exposed marker state). Until item 13 runs, **fidelity is NOT
+re-graded** — "18/27 translate" is a translation number, and calling it a
+fidelity improvement would be the `CHART_RENDERABLE`-as-`VISUAL_FULL` substitution
+C3A-CLOSE forbade.
+
+### I7 — cost
+
+```
+   objects   evaluate   renderState     paint       (5,000 bars)
+         1      5.4ms        0.89ms      0.59ms
+        10     13.7ms        0.29ms      0.07ms
+       100    117.1ms        0.27ms      0.23ms
+
+   5,000 create/delete cycles  7.7ms, peak live 1
+   60-cell dashboard           10.4ms, 61 ops executed (not 300,000)
+```
+
+⭐ `lastBarOnly` is the dashboard performance story, with its control measured.
+⚠️ The 100-object row is a pathological program (100 lines updated on every one
+of 5,000 bars); cost is linear in operations, not quadratic in bars.

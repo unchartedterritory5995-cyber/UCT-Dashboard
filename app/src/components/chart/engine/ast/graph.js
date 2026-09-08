@@ -452,3 +452,44 @@ export function expandGraph(graph, opts = {}) {
 export function graphTreesHash(graph) {
   return treesHash(expandGraph(graph))
 }
+
+/**
+ * ⭐⭐ ONE NODE OF THE TABLE, AS A CANONICAL TREE.
+ *
+ * `expandGraph` materialises the OUTPUT ROOTS, which is what a plot needs.
+ * C3B needs something narrower and more often: the tree for an ARBITRARY node,
+ * because an object program references interior nodes directly — a line's
+ * y-coordinate is whatever node its expression landed on, and that node may be
+ * shared with three plots and never be a root of anything.
+ *
+ * ⛔ IT IS BOUNDED BY THE SAME RULE AS `expandGraph`. A node whose inlined size
+ * exceeds the expansion budget throws rather than materialising, so this cannot
+ * become a second, unguarded door into the expansion bomb the budget exists to
+ * stop.
+ *
+ * ⚠️ The result is a FRESH tree every call — callers mutate trees (tagging,
+ * substitution), and handing out shared subtrees would let one caller's edit
+ * appear in another's node.
+ */
+export function nodeTree(graph, index, opts = {}) {
+  const nodes = graph && graph.nodes
+  if (!Array.isArray(nodes)) throw new Error('nodeTree: graph has no node table')
+  if (!Number.isInteger(index) || index < 0 || index >= nodes.length) {
+    throw new Error(`nodeTree: ${JSON.stringify(index)} is not a node in a ${nodes.length}-node graph`)
+  }
+  const maxNodes = Number.isInteger(opts.maxNodes) ? opts.maxNodes : MAX_EXPANDED_NODES
+  let made = 0
+  const build = (i) => {
+    made += 1
+    if (made > maxNodes) {
+      throw new Error(`nodeTree: node ${index} inlines to more than ${maxNodes} nodes`)
+    }
+    const n = nodes[i]
+    const out = { type: n.type }
+    if (n.name !== undefined) out.name = n.name
+    if (n.value !== undefined) out.value = n.value
+    if (n.args !== undefined) out.args = n.args.map(build)
+    return out
+  }
+  return build(index)
+}

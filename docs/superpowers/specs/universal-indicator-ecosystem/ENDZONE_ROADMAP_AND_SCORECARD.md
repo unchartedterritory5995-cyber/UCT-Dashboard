@@ -352,3 +352,32 @@ So the only thing still standing between here and C3B is the owner's checkpoint.
 ⚰️ **And record what the capture cost, because it is the argument for doing more
 of them:** one wrong colour constant, live in the product, invisible to a
 7,485-test suite, found in the first minute of holding a real vendor answer.
+
+---
+
+# POST-C3B UPDATE (2026-09-08)
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | **Unmoved ON PURPOSE.** The object model exists and 18 of the reachable 27 now produce one, but the fixed 10-member parity set has NOT been re-run, so no member has been re-graded. Moving this grade on a translation count would be exactly the substitution C3A-CLOSE forbade. |
+| — | GRAPHICAL OBJECTS | 🔴 | 🟡 | From nothing to a shared lifecycle model with identity, CRUD, var-held references, bounded collections, an author-derived resource envelope, persistence that preserves C2C compaction, and a wired renderer. 🟡 not ✅ because it is **wired, not photographed**. |
+| I | FAILURE TRANSPARENCY | ✅ | ✅ | The drop ledger names WHICH gate refused an operation; 186 loop ops, 8 getters and 1 polyline script are refused BY NAME; a cell that cannot be read is dropped rather than blanked. |
+
+**A and F remain 🔴. Tier 2 remains the earned ceiling** — and it must, because
+nobody has yet seen one of these indicators draw.
+
+## The next wave, on the measured numbers
+
+**C3B-CLOSE: the three open gate items, which are one piece of work.**
+
+1. a headless chart run that photographs a real object-bearing OOS script;
+2. a TradingView vendor capture of OBJECT semantics — the C3A-CLOSE method
+   transfers directly and is already proven;
+3. the fixed 10-member parity set re-run, with fidelity re-graded on the result.
+
+Only after (3) can C's grade move. Everything else in C3B is done.
+
+⚰️ **And record what the ladder cost, because it is the argument for building
+one:** a `var`-initialiser bug that minted a new table on every bar, invisible to
+every unit test of the runtime, found by the one level that built a real
+dashboard over real bars.

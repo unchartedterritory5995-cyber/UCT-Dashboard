@@ -232,6 +232,13 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // Absent for a dialect with no `paramManifest` support, which is an empty
       // list rather than a missing key.
       inputParams: t.inputParams || [],
+      // ⭐⭐ C3B — THE OBJECT PROGRAM, FORWARDED BY NAME for the same reason
+      // `presentation` had to be added below: this function does NOT spread, so
+      // a new field the translator produces is invisible here until a line says
+      // otherwise — and `ImportBox`, the only production paste door, goes
+      // through THIS function. A program left unforwarded would translate
+      // perfectly, save nothing, and draw nothing, with every test still green.
+      objects: t.objects || null,
       // ⭐⭐ WAVE B — AND THIS LINE IS WHY THE WAVE EXISTS, COMMITTED TWICE.
       //
       // ⚰️ `inspectPine` above SPREADS its translation (`{...translated}`), so it
@@ -274,6 +281,7 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     ignored: [],
     folded: [],
     inputParams: [],
+    objects: null,
   }
 }
 
@@ -763,8 +771,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     const anyPlacement = !wrapped && (outputs || []).some(
       (o) => o.paramLocators && o.paramLocators.length)
     const extra = rows.length || anyPlacement || presentation || (outputs && outputs.length > 1)
-    onPick?.(extra
-      ? { source: picked, inputs: rows, inputParams, presentation, outputs }
+    // ⭐⭐ C3B — an object program makes the pick "extra" ALL BY ITSELF. A script
+    // whose only non-formula content is a set of lines and labels has no member
+    // inputs, no placements and one output — so without this it would take the
+    // bare-string branch and the program would be dropped on the floor.
+    const objectProgram = wrapped || !report ? null : (report.objects || null)
+    onPick?.(extra || objectProgram
+      ? { source: picked, inputs: rows, inputParams, presentation, outputs, objects: objectProgram }
       : picked)
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape

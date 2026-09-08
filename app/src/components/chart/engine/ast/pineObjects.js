@@ -175,7 +175,13 @@ export function collectObjectOps(stmts, h) {
           const eq = h.findTop(t, (x) => h.isPunct(x, '='))
           if (eq > 0) {
             const rhs = t.slice(eq + 1)
-            emitFromRhs(rhs, name, guards, inLoop, st, localScope)
+            // ⭐⭐ `var x = <expr>` INITIALISES ONCE, and that is not a detail.
+            // ⚰️ Without this, `var table t = table.new(…)` created a NEW table
+            // on every bar: 300 bars, 300 tables, the 8-table envelope exceeded
+            // by bar 8, and the whole indicator refused. The ladder caught it at
+            // Level 9 — a dashboard is the commonest `var` initialiser in the
+            // corpus, so this was not an edge case, it was the main road.
+            emitFromRhs(rhs, name, guards, inLoop, st, localScope, true)
           }
           continue
         }
@@ -246,7 +252,7 @@ export function collectObjectOps(stmts, h) {
     } catch { return null }
   }
 
-  function emitFromRhs(rhs, intoName, guards, inLoop, st, scope) {
+  function emitFromRhs(rhs, intoName, guards, inLoop, st, scope, once = false) {
     if (!rhs.length || rhs[0].kind !== 'ident') return
     const ns = nsOf(rhs[0].value)
     if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(rhs[0].value) !== 'new') return
@@ -259,6 +265,7 @@ export function collectObjectOps(stmts, h) {
       family: ns,
       site: `s${siteSeq}`,
       into: intoName || null,
+      once,
       guards,
       locals: scope,
       args,

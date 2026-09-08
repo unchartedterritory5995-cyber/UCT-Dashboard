@@ -7739,9 +7739,25 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
    * a non-finite guard as "did not fire". A drawing that appears during warmup
    * is worse than one that appears a bar late.
    */
+  /** `na(x)` / `not na(x)` over a bare name → `{name, negated}`, else null. */
+  const readNaGuard = (node) => {
+    if (!node) return null
+    if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
+      const inner = readNaGuard(node.arg)
+      return inner ? { ...inner, negated: !inner.negated } : null
+    }
+    if (node.type === 'call' && node.name === 'na' && node.args && node.args.length === 1) {
+      const a = node.args[0] && node.args[0].value
+      if (a && a.type === 'name') return { name: a.name, negated: false }
+    }
+    return null
+  }
+
   const guardOf = (guards) => {
     let acc = null
     let lastBarOnly = false
+    let requiresLive = null
+    let requiresEmpty = null
     for (const g of guards) {
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
@@ -7766,14 +7782,38 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
           node = split.rest
         }
       }
+      // ⭐⭐ `na(l)` ON AN OBJECT REFERENCE IS A LIVENESS TEST, NOT ARITHMETIC.
+      // The V2 graph has no node for "is that handle empty", and it must not —
+      // that is object state, and a pure graph cannot read it. But the two
+      // idioms the corpus writes are exactly answerable by the RUNTIME, which
+      // holds the register:
+      //
+      //   if not na(l)   → run only while the handle is live
+      //   if na(l)       → run only while it is empty (the "create one if we
+      //                     haven't got one" idiom)
+      //
+      // Lifted out of the expression into flags for the same reason
+      // `barstate.islast` is: so no tree, hash or screener column can ever
+      // contain them.
+      const naRef = readNaGuard(node)
+      if (naRef && regId.has(naRef.name)) {
+        if (g.negate ? naRef.negated : !naRef.negated) requiresEmpty = regId.get(naRef.name)
+        else requiresLive = regId.get(naRef.name)
+        continue
+      }
       const ast = canonicalOf(node)
       if (!ast) return undefined
       const one = g.negate ? { type: 'op', name: '!', args: [ast] } : ast
       acc = acc === null ? one : { type: 'op', name: '&&', args: [acc, one] }
     }
-    if (acc === null) return { when: null, lastBarOnly }
+    const extra = {
+      ...(lastBarOnly ? { lastBarOnly: true } : {}),
+      ...(requiresLive ? { requiresLive } : {}),
+      ...(requiresEmpty ? { requiresEmpty } : {}),
+    }
+    if (acc === null) return { when: null, extra }
     const ref = internTree(acc)
-    return ref === null ? undefined : { when: ref, lastBarOnly }
+    return ref === null ? undefined : { when: ref, extra }
   }
 
   const namedOrPositional = (args, order) => {
@@ -7829,7 +7869,7 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
     const g = guardOf(op.guards)
     if (g === undefined) { dropped(`guard:${op.k}`); continue }
     const when = g.when
-    const lastBarOnly = g.lastBarOnly ? { lastBarOnly: true } : null
+    const lastBarOnly = g.extra
     if (op.k === 'create') {
       const order = CREATE_POSITIONAL[op.family] || []
       const raw = namedOrPositional(op.args, order)
@@ -7863,6 +7903,7 @@ function buildObjectProgram(stmts, source, env, makeResolver) {
         site: op.site,
         into: op.into && regId.has(op.into) ? regId.get(op.into) : null,
         when,
+        ...(op.once ? { once: true } : {}),
         ...lastBarOnly,
         props,
       })

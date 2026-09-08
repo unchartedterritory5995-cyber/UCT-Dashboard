@@ -61,6 +61,12 @@ import {
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
+// ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
+// marker layer above it: the capability is handed in, and a host that does not
+// provide one simply draws no objects.
+import { evaluateObjects } from './objectRuntime'
+import { computeObjectColumns } from './objectColumns'
+import { toRenderState } from './objectRenderState'
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
  *  declares them, else its series colour at a low default alpha.
@@ -342,6 +348,63 @@ export function createBinder({ chart, LWC }) {
   // compute. Both are pruned to what this pass actually used, so a symbol flip
   // cannot leave 5,000-point arrays alive behind a stale key.
 
+  /** instanceId → the live object layer for that indicator, if it draws any. */
+  const objectLayers = new Map()
+
+  /** ⭐⭐ C3B — EVERY INSTANCE'S OBJECT PROGRAM, EVALUATED AND DRAWN.
+   *
+   *  ⛔ ONE INSTANCE, ONE LAYER. Two copies of the same indicator on one chart
+   *  are two independent lifetimes — the same program, different inputs, and
+   *  therefore different objects. Keying by `instanceId` rather than `defId` is
+   *  what keeps them apart; keying by definition would make the second copy
+   *  silently overwrite the first's drawings.
+   *
+   *  ⛔ AND A FAILURE HERE COSTS ONLY THE DRAWINGS. Wrapped end to end: an
+   *  object program that refuses, exceeds its envelope, or throws must never
+   *  take the columns, the legend or the scan down with it. That is the C2A
+   *  failure-containment rule applied to the newest surface. */
+  const syncObjects = (ctx, instances, bars) => {
+    const make = ctx.createObjectLayer
+    const alive = new Set()
+    for (const inst of instances) {
+      if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
+      const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      const program = def && def.objects
+      if (!program) continue
+      alive.add(inst.instanceId)
+      if (typeof make !== 'function') continue
+      let layer = objectLayers.get(inst.instanceId)
+      if (!layer) {
+        const made = attempt(() => make(inst))
+        layer = made.ok ? made.value : null
+        if (!layer) continue
+        objectLayers.set(inst.instanceId, layer)
+      }
+      const graph = def.compute && def.compute.graph
+      const built = attempt(() => {
+        if (!graph) return null
+        const { readNode } = computeObjectColumns(graph, program, bars)
+        const run = evaluateObjects(program, {
+          barCount: bars.length,
+          readNode,
+          readTime: (i) => bars[i] && bars[i].t,
+        })
+        return { run, state: toRenderState(run.live, { bars }) }
+      })
+      if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
+      // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
+      // series is the same picture, so a poll that changed nothing repaints
+      // nothing — the memo discipline the column path above already keeps.
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}`
+      attempt(() => layer.set(built.value.state, sig))
+    }
+    for (const [id, layer] of objectLayers) {
+      if (alive.has(id)) continue
+      attempt(() => layer.clear())
+      objectLayers.delete(id)
+    }
+  }
+
   /** instanceId → `{registry, def, bars, sig, cols}`. */
   let computeMemo = new Map()
 
@@ -405,6 +468,12 @@ export function createBinder({ chart, LWC }) {
    *  makes `teardown()` safe to call unconditionally from an unmount path. */
   function releaseAll() {
     for (const b of held) attempt(() => chart.removeSeries(b.series))
+    // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
+    // would leave its last picture frozen over the chart, which reads as "the
+    // indicator is still on" — the ghost-state defect this release path exists
+    // to prevent, one surface newer.
+    for (const [, layer] of objectLayers) attempt(() => layer.clear())
+    objectLayers.clear()
     held = []
     computeMemo = new Map()
     pointMemo = new Map()
@@ -582,6 +651,12 @@ export function createBinder({ chart, LWC }) {
       const col = columns.get(key)
       return col !== undefined && registry.hasAnyFinite(col)
     }
+
+    // ── 1b. ⭐⭐ C3B — the object programs, evaluated and drawn ──
+    // AFTER the columns and BEFORE the pool, because a drawing must never be
+    // able to change which series get bound: an object program that refuses has
+    // to cost its own pictures and nothing else.
+    attempt(() => syncObjects(ctx, instances, bars))
 
     // ── 2. Ask the pool what should happen ──
     const { bind, release } = planBindings(instances, registry, held, { hasData })

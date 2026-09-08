@@ -77,6 +77,9 @@ export function evaluateObjects(program, ctx) {
   const counts = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const peak = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
 
+  /** site ids whose ONCE create has already fired. ⭐ Pine's `var x = expr`
+   *  initialises the first time the path is reached and never again. */
+  const firedOnce = new Set()
   let nextId = 1
   let created = 0; let updated = 0; let deleted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
@@ -192,6 +195,16 @@ export function evaluateObjects(program, ctx) {
       // never leak into a tree, a hash or a screener column, where "the last
       // bar" would depend on how many bars the caller asked for.
       if (op.lastBarOnly && bar !== barCount - 1) continue
+      // ⭐⭐ `var x = <expr>` RUNS ONCE. Without this a `var table t =
+      // table.new(…)` mints a new table on every bar — 300 bars, 300 tables,
+      // the envelope exceeded, the whole indicator refused. It is the
+      // commonest object initialiser in the corpus.
+      if (op.once && firedOnce.has(op.site)) continue
+      // ⭐ `not na(l)` / `na(l)` are LIVENESS tests on a handle, answered here
+      // because only the runtime holds the registers. They are flags rather
+      // than values so that object state can never leak into the pure graph.
+      if (op.requiresLive && regs.get(op.requiresLive) === null) continue
+      if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
       if (op.when != null && !truthy(value(op.when))) continue
       opsThisBar += 1
       opsExecuted += 1
@@ -215,6 +228,7 @@ export function evaluateObjects(program, ctx) {
           counts[op.family] += 1
           if (counts[op.family] > peak[op.family]) peak[op.family] = counts[op.family]
           siteNow.set(op.site, id)
+          if (op.once) firedOnce.add(op.site)
           if (op.into) regs.set(op.into, id)
           created += 1
           if (ctx.trace) events.push({ bar, k: 'create', family: op.family, id, site: op.site })
