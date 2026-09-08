@@ -22,6 +22,10 @@ const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
  * thesis whose Research Type gets cleared later). An ordinary note never
  * shows an "Add evidence" invitation it has no use for (north star:
  * "not administrative," no giant panel on every note). */
+/** The server's own `list_candidates` default page size. Named here so the
+ *  "showing N most recent" line cannot drift away from what arrives. */
+const CANDIDATE_PAGE = 50
+
 function isThesisShaped(note, evidence, changelog) {
   if (!note) return false
   const researchType = note.propertiesJson?.['builtin:research_type']
@@ -161,6 +165,23 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   // the member happened to open Add Evidence. One note's own candidates, so
   // the cost is a small scoped query rather than a corpus scan.
   const { candidates, refresh: refreshCandidates } = useEvidenceCandidates(noteId)
+  // ⛔⛔ WAVE N §12 — THE PICKER SHOWED 50 OF 120 AND SAID NOTHING.
+  // The endpoint is correctly bounded (one note's own material, LIMIT 50) and
+  // measured at ~12ms p50 against a 240-capture corpus, so scale is not the
+  // problem. Reachability is: a member with more than fifty saved passages in
+  // one note could not get to the rest, and nothing on screen said so. The
+  // endpoint has taken `q` since Wave N step 1 — the picker simply never
+  // offered it. Same defect shape as the candidate list itself: the capability
+  // existed and no door opened it.
+  // ⭐ A SECOND read, not a replacement: the unfiltered one above labels the
+  // ATTACHED rows and must not narrow when the member types. With an empty
+  // query both calls resolve to the same URL, so SWR dedupes them to ONE
+  // request and the common case costs nothing.
+  const [excerptQuery, setExcerptQuery] = useState('')
+  const { candidates: excerptCandidates } = useEvidenceCandidates(noteId, {
+    q: excerptQuery,
+    enabled: pickerOpen && targetType === 'document_excerpt',
+  })
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
@@ -192,6 +213,7 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
     setStance('supports')
     setTargetType('note')
     setQuery('')
+    setExcerptQuery('')
     setResults([])
     setSelected(null)
     setCaption('')
@@ -327,9 +349,21 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
                   <span>{selected.title}</span>
                   <button type="button" className={styles.clearSel} onClick={() => setSelected(null)}>Change</button>
                 </div>
-              ) : candidates.length ? (
+              ) : (
+              <>
+                {(excerptCandidates.length >= CANDIDATE_PAGE || excerptQuery) && (
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    placeholder="Search your captured passages…"
+                    aria-label="Search your captured passages"
+                    value={excerptQuery}
+                    onChange={(e) => setExcerptQuery(e.target.value)}
+                  />
+                )}
+                {excerptCandidates.length ? (
                 <ul className={styles.resultsList}>
-                  {candidates.map((c) => {
+                  {excerptCandidates.map((c) => {
                     // ⛔ ONE labeller, shared with Search. A web capture reads
                     // "Captured passage · Reuters: NVDA margins (reuters.com)";
                     // a real PDF keeps "NVDA 10-Q · p.47".
@@ -372,11 +406,23 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
                     )
                   })}
                 </ul>
-              ) : (
-                <div className={styles.hint}>
-                  Capture a passage from the web, or save an excerpt from a PDF,
-                  in this note first.
-                </div>
+                ) : (
+                  <div className={styles.hint}>
+                    {excerptQuery
+                      ? 'No captured passage in this note matches that.'
+                      : 'Capture a passage from the web, or save an excerpt from a PDF, in this note first.'}
+                  </div>
+                )}
+                {/* ⛔ SAY WHAT IS BEING SHOWN. A capped list that looks complete
+                    is the CoverageLine defect in miniature: the member reads
+                    "these are my passages" and acts on a subset. It never
+                    claims a total it does not have. */}
+                {excerptCandidates.length >= CANDIDATE_PAGE && (
+                  <div className={styles.hint}>
+                    Showing your {CANDIDATE_PAGE} most recent — search to narrow.
+                  </div>
+                )}
+              </>
               )
             ) : targetType === 'note' ? (
               selected ? (

@@ -33,6 +33,7 @@ app/public/dev-login.html
 tools/mobile_audit_out/
 tools/wave_l_e2e_out/
 tools/wave_n_e2e_out/
+tools/wave_n_perf_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/

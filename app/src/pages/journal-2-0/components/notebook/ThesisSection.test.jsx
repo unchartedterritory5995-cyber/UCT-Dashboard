@@ -434,4 +434,69 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
       expect(screen.queryByText(/no longer available/i)).toBeNull()
     })
   })
+
+  describe('§12 — a picker that shows 50 of 120', () => {
+    // ⛔⛔ The endpoint is correctly bounded and fast (~12ms p50 against a
+    // 240-capture corpus). The defect was REACHABILITY: a member with more
+    // than fifty saved passages in one note could not get to the rest, and
+    // nothing on screen said so. The endpoint has taken `q` since step 1 —
+    // the picker never offered it.
+    const many = (n, from = 0) => Array.from({ length: n }, (_, i) => ({
+      id: `c${from + i}`, sourceKind: 'web', sourceTitle: `Reuters ${from + i}`,
+      sourceUrl: 'https://www.reuters.com/x', pageNumber: null,
+      text: `passage ${from + i}`, annotation: null, alreadyAttached: false,
+    }))
+
+    function openExcerptPicker() {
+      renderIt(THESIS_NOTE_BY_TAG)
+      fireEvent.click(screen.getByText('Add evidence'))
+      fireEvent.click(screen.getByText('Document excerpt'))
+    }
+
+    it('a short list offers no search and claims no cap', () => {
+      candidatesResult = { candidates: many(3), isLoading: false, refresh: vi.fn() }
+      openExcerptPicker()
+      expect(screen.queryByLabelText(/Search your captured passages/i)).toBeNull()
+      expect(screen.queryByText(/most recent/i)).toBeNull()
+    })
+
+    it('⛔ a FULL page says so, and offers the way to narrow it', () => {
+      candidatesResult = { candidates: many(50), isLoading: false, refresh: vi.fn() }
+      openExcerptPicker()
+      expect(screen.getByLabelText(/Search your captured passages/i)).toBeTruthy()
+      expect(screen.getByText(/Showing your 50 most recent/i)).toBeTruthy()
+    })
+
+    it('typing asks the SERVER, rather than filtering fifty rows on the client', () => {
+      candidatesResult = { candidates: many(50), isLoading: false, refresh: vi.fn() }
+      openExcerptPicker()
+      useEvidenceCandidatesSpy.mockClear()
+      fireEvent.change(screen.getByLabelText(/Search your captured passages/i),
+                       { target: { value: 'margins' } })
+      const withQuery = useEvidenceCandidatesSpy.mock.calls
+        .filter(([, opts]) => opts && opts.q === 'margins')
+      expect(withQuery.length).toBeGreaterThan(0)
+    })
+
+    it('⭐ and the UNFILTERED read survives, because it labels the attached rows', () => {
+      // THE CONTROL. If searching narrowed the one read, an attached row's
+      // citation would vanish the moment the member typed.
+      candidatesResult = { candidates: many(50), isLoading: false, refresh: vi.fn() }
+      openExcerptPicker()
+      useEvidenceCandidatesSpy.mockClear()
+      fireEvent.change(screen.getByLabelText(/Search your captured passages/i),
+                       { target: { value: 'margins' } })
+      const unfiltered = useEvidenceCandidatesSpy.mock.calls
+        .filter(([, opts]) => !opts || !opts.q)
+      expect(unfiltered.length).toBeGreaterThan(0)
+    })
+
+    it('an empty RESULT is not the same sentence as an empty NOTE', () => {
+      candidatesResult = { candidates: [], isLoading: false, refresh: vi.fn() }
+      renderIt(THESIS_NOTE_BY_TAG)
+      fireEvent.click(screen.getByText('Add evidence'))
+      fireEvent.click(screen.getByText('Document excerpt'))
+      expect(screen.getByText(/Capture a passage from the web/i)).toBeTruthy()
+    })
+  })
 })

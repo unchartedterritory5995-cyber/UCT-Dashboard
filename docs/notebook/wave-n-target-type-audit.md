@@ -128,6 +128,7 @@ Measured on this branch:
 | before Wave M (`6cac94274~1`) | 0 | — | 9 | — |
 | at HEAD (`998ab87dd`) | 28 | 3 | 9 | **40** |
 | after this change | 0 | 3 | 9 | **12** |
+| after the disk/quota fix (§4 commit) | 0 | 0 | 0 | **0** |
 
 ⛔ **A `no such column` catch could not have fixed it.** That error is
 indistinguishable from a real failure and swallowing it turns one into a
@@ -136,13 +137,25 @@ confident empty result (`lesson_a_swallowed_error_becomes_a_confident_finding`)
 schema is the only way to tell *"this database cannot hold a capture"* from
 *"something is broken"*, and it is what `capture_columns` does.
 
-**The remaining 12 are not code.** Every one of them uploads an attachment, and
-`notes_quota.assert_import_headroom` refuses on this box: the volume has
-**~1.02 GB free against a ~49.9 GB required reserve**, so every upload 400s.
-Product-correct behaviour, environment-limited. ⚠️ **§2's flagship E2E and §8's
-PDF control must not route a real upload through that endpoint on this machine**
-— insert the document row directly, as `TestTheDocumentControl` does, or free
-disk first.
+**The remaining 12 were not code either — and they are fixed now too.** Every
+one of them uploads an attachment, and `notes_quota.assert_import_headroom`
+refused on this box. The reserve is derived as a percentage of the VOLUME,
+sized for Railway's 78 GB attachment volume; under pytest the attachment root
+lands in the temp sandbox, whose volume is the developer's 499 GB SYSTEM DRIVE,
+so the same formula demanded ~50 GB free.
+
+⚠️ **And the drive really was full: ZERO bytes.** Every pytest session mints two
+sandbox directories under TEMP and nothing ever removed them, while the product
+WARMS them (~200 MB a session) — measured 5,209 directories, 13.14 GB. It did
+not present as a full disk. It presented as twelve red tests that read exactly
+like a defect in the attachment path.
+
+Both halves are fixed in the §4 commit: `conftest` prunes its own stale
+sandboxes (24h TTL) and pins `NOTE_IMPORT_RESERVE_BYTES` — the guard's own
+documented override — so the sandbox is measured against a sandbox rather than
+against Railway's volume. `tests/test_sandbox_pruning.py` rails both, including
+the control that the real derivation still answers when the override is
+removed. Production sets nothing and resolves byte-identically.
 
 ---
 
@@ -195,3 +208,30 @@ rendering that ordinal as **`p.2`**, a page — not saying what it is.
 `test_evidence_export_source_truth` 5 · `test_evidence_candidates` 16 ·
 `test_ask_retrieval` (28 recovered) · notebook family sweep 211 ·
 frontend `ThesisSection` + label/navigation/capture-context 54.
+
+---
+
+## §17 — two endpoints, two questions, and why they must stay two
+
+Recorded explicitly, because "one fewer endpoint" is a permanently tempting
+refactor and it would destroy a real distinction:
+
+| | asks | keyed on | still correct? |
+|---|---|---|---|
+| `list_note_excerpts` | *"What excerpts are embedded or referenced in this note's BODY?"* | `j2_note_excerpt_refs`, the sidecar `notes._sync_note_excerpt_refs` rebuilds from `documentExcerpt` nodes in the body | **Yes — untouched.** The editor genuinely needs it: it is what makes an excerpt card in the prose resolvable. |
+| `evidence_candidates` | *"What evidence-capable source objects does this note OWN that the member may attach?"* | `e.note_id` — ownership | New in Wave N |
+
+⚰️ **The defect that proves they are different questions.** A captured web
+passage is never embedded in the body, so it has no ref row and
+`list_note_excerpts` correctly returns nothing for it — while the evidence API
+accepted it perfectly. Built, green, and member-unreachable.
+
+⛔⛔ **AND THE FIX THAT WAS NOT TAKEN.** Fabricating a `documentExcerpt` node so
+the old list could see it would have put a card in the member's prose they never
+wrote, and made *"is this excerpt in my note's text?"* permanently unanswerable.
+The correction was the QUESTION, not the plumbing. That is why merging them to
+reduce endpoint count is a regression, not a simplification.
+
+Standing rail: `tests/test_evidence_candidates.py::TestTheGapItself` pins BOTH
+halves — the capture is invisible to the body-refs list (still correct) and
+visible as a candidate (the new question).
