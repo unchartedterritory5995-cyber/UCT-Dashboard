@@ -258,3 +258,32 @@
     flex: none;
   }
 }
+
+/* Wave N — an evidence candidate shows three distinct things, and they must
+   stay visually distinct: what it IS, what the SOURCE said, and what the MEMBER
+   wrote about it. Collapsing them into one line is how a member's own opinion
+   ends up attached to a thesis as a publisher's claim. */
+.candidateLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text, #e8eaed);
+}
+.candidateSource {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-style: italic;
+  opacity: 0.86;
+  border-left: 2px solid var(--color-accent, #c9a84c);
+  padding-left: 8px;
+}
+.candidateAnnotation {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+.resultItem:disabled { opacity: 0.55; cursor: default; }

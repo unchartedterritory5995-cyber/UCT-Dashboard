@@ -5,6 +5,11 @@ import UIcon from '../../../../components/ui/UIcon'
 import useThesisSummary from '../../hooks/useThesisSummary'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
+import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
+// ⛔ Wave M's canonical source-kind labeller. The picker used to format
+// `${documentName} · p.${pageNumber}` itself — a THIRD formatter over one
+// truth, and the one place the '· p.2' defect would have survived Wave M.
+import { searchResultTitle } from '../../lib/searchResultLabel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import styles from './ThesisSection.module.css'
 
@@ -108,6 +113,11 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [stance, setStance] = useState('supports')
   const [targetType, setTargetType] = useState('note')
+  // ⭐ WAVE N: what this note OWNS that can be evidence — captured web
+  // passages included. `useNoteExcerpts` answers "embedded in the body",
+  // which is why a capture was invisible here.
+  const { candidates, refresh: refreshCandidates } = useEvidenceCandidates(
+    noteId, { enabled: targetType === 'document_excerpt' })
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
@@ -163,6 +173,10 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
         throw new Error(body?.detail || 'Could not add evidence')
       }
       await refresh()
+      // ⛔ The candidate list carries `alreadyAttached`, so it must be re-read
+      // after a write — otherwise the member can pick the same passage twice
+      // and only learn it was a duplicate by being refused.
+      await refreshCandidates()
       resetPicker()
     } catch (e) {
       setError(e.message)
@@ -174,6 +188,8 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   const remove = async (evidenceId) => {
     await fetch(`/api/j2/evidence/${evidenceId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
     await refresh()
+    // Removing evidence frees the candidate again — the picker must say so.
+    await refreshCandidates()
   }
 
   return (
@@ -267,25 +283,56 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
                   <span>{selected.title}</span>
                   <button type="button" className={styles.clearSel} onClick={() => setSelected(null)}>Change</button>
                 </div>
-              ) : excerpts.length ? (
+              ) : candidates.length ? (
                 <ul className={styles.resultsList}>
-                  {excerpts.map((ex) => (
-                    <li key={ex.id}>
-                      <button
-                        type="button"
-                        className={styles.resultItem}
-                        onClick={() => setSelected({
-                          id: ex.id,
-                          title: `${ex.documentName || 'Document'} · p.${ex.pageNumber} — "${ex.capturedText.slice(0, 60)}${ex.capturedText.length > 60 ? '…' : ''}"`,
-                        })}
-                      >
-                        {ex.documentName || 'Document'} · p.{ex.pageNumber} — &ldquo;{ex.capturedText.slice(0, 60)}{ex.capturedText.length > 60 ? '…' : ''}&rdquo;
-                      </button>
-                    </li>
-                  ))}
+                  {candidates.map((c) => {
+                    // ⛔ ONE labeller, shared with Search. A web capture reads
+                    // "Captured passage · Reuters: NVDA margins (reuters.com)";
+                    // a real PDF keeps "NVDA 10-Q · p.47".
+                    const label = searchResultTitle(
+                      { sourceKind: c.sourceKind, name: c.sourceTitle,
+                        pageNumber: c.pageNumber, sourceUrl: c.sourceUrl },
+                      // ⛔ 'page' rather than 'excerpt' is deliberate: in the
+                      // PICKER the member is choosing the capture itself, and
+                      // the wave directive's own example wording is "Captured
+                      // passage · <title> (<domain>)". 'excerpt' would render
+                      // "Saved passage", which describes the storage rather
+                      // than what the member did.
+                      { kind: 'page' })
+                    return (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          className={styles.resultItem}
+                          disabled={c.alreadyAttached}
+                          onClick={() => setSelected({ id: c.id, title: label })}
+                        >
+                          <span className={styles.candidateLabel}>
+                            {label}{c.alreadyAttached ? ' · already attached' : ''}
+                          </span>
+                          {/* ⛔ SOURCE CLAIM AND MEMBER NOTE ARE TWO THINGS, and
+                              the picker is where a member decides which they are
+                              attaching. Concatenating them here would let their
+                              own opinion be filed as a publisher's quotation. */}
+                          <span className={styles.candidateSource}>
+                            &ldquo;{c.text.slice(0, 90)}{c.text.length > 90 ? '…' : ''}&rdquo;
+                          </span>
+                          {c.annotation && (
+                            <span className={styles.candidateAnnotation}>
+                              Your note: {c.annotation.slice(0, 70)}
+                              {c.annotation.length > 70 ? '…' : ''}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : (
-                <div className={styles.hint}>Save an excerpt from a PDF in this note first.</div>
+                <div className={styles.hint}>
+                  Capture a passage from the web, or save an excerpt from a PDF,
+                  in this note first.
+                </div>
               )
             ) : targetType === 'note' ? (
               selected ? (

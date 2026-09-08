@@ -11,6 +11,15 @@ const useNoteExcerptsSpy = vi.fn(() => excerptsResult)
 vi.mock('../../hooks/useThesisSummary', () => ({ default: (noteId) => useThesisSummarySpy(noteId) }))
 vi.mock('../../hooks/useNoteFacts', () => ({ default: (noteId) => useNoteFactsSpy(noteId) }))
 vi.mock('../../hooks/useNoteExcerpts', () => ({ default: (noteId) => useNoteExcerptsSpy(noteId) }))
+// ⭐ WAVE N: the evidence PICKER now sources candidates by OWNERSHIP, not from
+// the body-refs sidecar `useNoteExcerpts` reads — that sidecar is why a captured
+// web passage was never offered. `useNoteExcerpts` is still mocked above because
+// the component still uses it for RENDERING an existing evidence row's citation.
+let candidatesResult
+const useEvidenceCandidatesSpy = vi.fn(() => candidatesResult)
+vi.mock('../../hooks/useEvidenceCandidates', () => ({
+  default: (noteId, opts) => useEvidenceCandidatesSpy(noteId, opts),
+}))
 
 import ThesisSection from './ThesisSection'
 
@@ -32,9 +41,11 @@ beforeEach(() => {
   summaryResult = { evidence: [], changelog: [], isLoading: false, refresh: vi.fn() }
   factsResult = { facts: [] }
   excerptsResult = { excerpts: [] }
+  candidatesResult = { candidates: [], isLoading: false, refresh: vi.fn() }
   useThesisSummarySpy.mockClear()
   useNoteFactsSpy.mockClear()
   useNoteExcerptsSpy.mockClear()
+  useEvidenceCandidatesSpy.mockClear()
   global.fetch = vi.fn()
   // CollapsibleSection persists open/closed per-id in localStorage -- clear
   // it so one test's toggle can't leak into the next (both tests here use
@@ -141,6 +152,12 @@ describe('ThesisSection — Wave J document excerpt evidence', () => {
   })
 
   it('picking "Document excerpt" lists this note\'s own saved excerpts by citation + quote', () => {
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [{
+      id: 'ex1', evidenceType: 'document_excerpt', sourceKind: 'attachment',
+      sourceTitle: 'NVDA Investor Deck.pdf', sourceUrl: null, pageNumber: 17,
+      text: 'Management expects gross margins to normalize lower',
+      annotation: null, alreadyAttached: false,
+    }] }
     excerptsResult = {
       excerpts: [{
         id: 'ex1', documentName: 'NVDA Investor Deck.pdf', pageNumber: 17,
@@ -158,10 +175,20 @@ describe('ThesisSection — Wave J document excerpt evidence', () => {
     renderIt(THESIS_NOTE_BY_TAG)
     fireEvent.click(screen.getByText('Add evidence'))
     fireEvent.click(screen.getByText('Document excerpt'))
-    expect(screen.getByText(/Save an excerpt from a PDF in this note first/)).toBeTruthy()
+    // ⚰️ The copy widened in Wave N: a captured web passage is now an equally
+    // valid source of evidence, so "save an excerpt from a PDF" was no longer
+    // the whole truth about what the member can do here.
+    expect(screen.getByText(/Capture a passage from the web, or save an excerpt/)).toBeTruthy()
   })
 
   it('adding document_excerpt evidence posts the right targetType/targetId', async () => {
+    // ⭐ §35 CONTROL: a real PDF excerpt must still be selectable, keep its REAL
+    // page number, and post the same targetType/targetId as before Wave N.
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [{
+      id: 'ex1', evidenceType: 'document_excerpt', sourceKind: 'attachment',
+      sourceTitle: 'Deck.pdf', sourceUrl: null, pageNumber: 17,
+      text: 'margin commentary', annotation: null, alreadyAttached: false,
+    }] }
     excerptsResult = {
       excerpts: [{ id: 'ex1', documentName: 'Deck.pdf', pageNumber: 17, capturedText: 'margin commentary' }],
     }
@@ -230,5 +257,73 @@ describe('ThesisSection — Wave J document excerpt evidence', () => {
     expect(screen.getByText('Document excerpt')).toBeTruthy() // generic fallback label
     fireEvent.click(screen.getByText('Document excerpt'))
     expect(onOpenExcerptSource).toHaveBeenCalledWith('ex-from-elsewhere')
+  })
+})
+
+describe('⛔⛔ Wave N — a CAPTURED WEB PASSAGE is attachable evidence', () => {
+  // ⚰️ THE GAP. The picker listed `useNoteExcerpts`, which joins the body-refs
+  // sidecar rebuilt from `documentExcerpt` nodes in the note's prose. A capture
+  // never embeds one, so a member who clipped a passage from Reuters could
+  // never attach it — while the evidence API accepted it perfectly.
+  // BUILT + GREEN + MEMBER-UNREACHABLE.
+  const webCandidate = {
+    id: 'cap1', evidenceType: 'document_excerpt', sourceKind: 'web',
+    sourceTitle: 'Reuters: NVDA margins',
+    sourceUrl: 'https://www.reuters.com/markets/nvda',
+    pageNumber: null,
+    text: 'Gross margin normalizes toward the mid-70s next year.',
+    annotation: 'I think that is optimistic given HBM pricing.',
+    alreadyAttached: false,
+  }
+
+  const openExcerptPicker = () => {
+    renderIt(THESIS_NOTE_BY_TAG)
+    fireEvent.click(screen.getByText('Add evidence'))
+    fireEvent.click(screen.getByText('Document excerpt'))
+  }
+
+  it('the captured passage is OFFERED', () => {
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [webCandidate] }
+    openExcerptPicker()
+    expect(screen.getByText(/Captured passage/)).toBeTruthy()
+    expect(screen.getByText(/reuters\.com/)).toBeTruthy()
+  })
+
+  it('⛔ and it is NOT labelled with a page number', () => {
+    // Wave M banned rendering a capture ordinal as a page. The picker was the
+    // one surface that still formatted `· p.${pageNumber}` itself.
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [webCandidate] }
+    openExcerptPicker()
+    expect(screen.queryByText(/p\.\d/)).toBeNull()
+  })
+
+  it('⛔ SOURCE and YOUR NOTE are shown as two separate things', () => {
+    // §19: source claim ≠ member belief ≠ evidence stance. If the picker
+    // concatenated them, a member could attach their own opinion to a thesis
+    // as though a publisher had said it.
+    candidatesResult = { isLoading: false, refresh: vi.fn(), candidates: [webCandidate] }
+    openExcerptPicker()
+    expect(screen.getByText(/Gross margin normalizes/)).toBeTruthy()
+    expect(screen.getByText(/Your note: I think that is optimistic/)).toBeTruthy()
+  })
+
+  it('an already-attached candidate says so and cannot be picked again', () => {
+    candidatesResult = {
+      isLoading: false, refresh: vi.fn(),
+      candidates: [{ ...webCandidate, alreadyAttached: true }],
+    }
+    openExcerptPicker()
+    expect(screen.getByText(/already attached/)).toBeTruthy()
+    expect(screen.getByText(/Captured passage/).closest('button').disabled).toBe(true)
+  })
+
+  it('⭐ CONTROL: a real PDF candidate still shows its real page', () => {
+    candidatesResult = {
+      isLoading: false, refresh: vi.fn(),
+      candidates: [{ ...webCandidate, id: 'ex9', sourceKind: 'attachment',
+                     sourceTitle: 'NVDA 10-Q', sourceUrl: null, pageNumber: 47 }],
+    }
+    openExcerptPicker()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeTruthy()
   })
 })

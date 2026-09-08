@@ -2829,6 +2829,25 @@ def create_excerpt_endpoint(
     return {"excerpt": excerpt}
 
 
+@router.get("/notes/{note_id}/evidence-candidates")
+def list_evidence_candidates_endpoint(
+    note_id: str, q: str | None = None, limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave N — research this note OWNS that could serve as thesis evidence.
+
+    ⛔ DELIBERATELY NOT `/excerpts`. That endpoint answers "which excerpts are
+    embedded in this note's BODY" (it joins the `j2_note_excerpt_refs` sidecar
+    that `notes.py` rebuilds from `documentExcerpt` nodes) — a real question the
+    editor needs, and the reason a captured web passage was invisible to the
+    evidence picker: a capture never embeds such a node. Attachability is a
+    different question, answered by OWNERSHIP.
+    """
+    from api.services.journal_two import evidence_candidates
+    return {"candidates": evidence_candidates.list_candidates(
+        user["id"], note_id, q=q, limit=limit)}
+
+
 @router.get("/notes/{note_id}/excerpts")
 def list_note_excerpts_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
     return {"excerpts": note_excerpts.list_note_excerpts(user["id"], note_id)}
