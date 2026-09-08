@@ -206,7 +206,12 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // builtin applied to a value, a WINDOWED one that needs a growing series, and
     // an MTF request — so the label was retired rather than kept as a wall that
     // looked bigger and more uniform than it is. `ta.sma` is the windowed case.
-    ['a WINDOWED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, 'runtime:call-windowed-state'],
+    // ⚰️ `ta.sma(x, 5)` WAS A ROW HERE UNTIL 2F-2B, WHICH EXECUTES IT. Note the
+    // shape of the mistake it would have become: this table's whole point is
+    // that a refusal names the NEXT dependency, and a row asserting a shipped
+    // capability is still blocked points the reader at work that is already
+    // done. The recurrent row below is the wall that is genuinely still there.
+    ['a RECURRENT builtin fed by state (declared)', `${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, 'runtime:call-windowed-state'],
     // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
     // the replacement case is worth reading because the first attempt was WRONG.
     // It moved to `ta.cum` and asserted `call-windowed-state` — "cumulative needs
@@ -215,7 +220,7 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // census found the same mistake sitting in the corpus numbers (`str.upper`,
     // `int` and `iff` were all filed as windowed), and the split below is what
     // that correction looks like. These three refusals are three different walls.
-    ['a WINDOWED builtin fed by state (declared)', `${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, 'runtime:call-windowed-state'],
+    ['a SCAN-BACKWARDS builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`, 'runtime:call-windowed-state'],
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`, 'runtime:call-undeclared-builtin-state'],
     ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(int(x))\n`, 'runtime:call-conversion-state'],

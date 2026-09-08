@@ -87,7 +87,8 @@ told them apart.
 | user-defined types | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:udt` |
 | builtin calls (closed table, 70) | ✅ | ✅ | ✅ | ✅ | ✅ | via `READ_COLUMN` — evaluated once by the columnar lane |
 | a **POINTWISE** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-1** — `EXPR.BUILTIN` → `OP.POINTWISE`, applied per bar. **14 → 0** across all five corpora |
-| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — first blocker **11**, **TOTAL DEMAND 24**. The real series bridge, and the census says its dominant shape is a windowed call INSIDE a UDF frame over its parameters — **2F-2B** |
+| a **FINITE-WINDOW** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-2B** — `OP.WINDOW` reads `span` cells from the committed ring and calls `interpret.js`'s OWN reducer. 12 members. First blocker **11 → 8**, and every one of the 8 survivors is blocked on `ta.ema` |
+| a **RECURRENT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — `ema`/`rma` carry their previous OUTPUT, which no window of inputs can supply. **This is now the whole of that guard's population** — **2F-2C** |
 | an **UNDECLARED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-undeclared-builtin-state` — 2 scripts. Blocked on the BUILTIN existing in the closed table, not on the runtime |
 | a **TEXT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-text-state` — 1 script. A value-model change; deferred by name (§22) |
 | a **CONVERSION** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-conversion-state` — 1 script. `int`/`float`/`bool`; `pine.js` rules on each separately |
@@ -233,14 +234,14 @@ Rows, not a word — the same discipline the UDF table below applies to `UDF ✅
 | DISTINCT CALL-SITE HISTORY | ✅ | `historyBase` per site; **mutation-proven** — sharing one ring turns a rail red |
 | CONDITIONAL UDF HISTORY | ✅ | **VENDOR-PINNED v5+v6**: chart-bar indexed, HOLDS across skipped bars |
 | LOOP-INVOKED CALL-SITE HISTORY | ⬜ | the held cell commits the LAST invocation of a bar — the natural reading, **not vendor-pinned** (S6.5) |
-| FINITE WINDOW OVER RUNTIME SERIES | ⬜ | **2F-2B**; `runtime:call-windowed-state`, first blocker 11 / demand 24 |
+| FINITE WINDOW OVER RUNTIME SERIES | ✅ | **2F-2B** — 12 members, ONE authority (`interpret.js::FINITE_WINDOW`), no synthetic column |
 | RECURRENT OVER RUNTIME SERIES | ⬜ | **2F-2C**; own initialisation, not a ring |
 | CUMULATIVE OVER RUNTIME SERIES | ⬜ | `cum` is not in the closed table at all — a TABLE gap, not a runtime one |
 | REALTIME / FORMING-BAR HISTORY | ⬜ | the commit counter is the only thing it needs to touch (§27) |
 | LOOP-COMPATIBLE COMMIT | ✅ | commit is per BAR, so N invocations in one bar commit once (§26) |
 | RESOURCE ACCOUNTING | ✅ | `HISTORY_SLOTS` + `HISTORY_VALUES`, charged at run time and capped at compile time |
-| GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | 8 paired cases, both lanes, 1e-12 |
-| MUTATION CONTROLS | ✅ | 5 wrong implementations, each turns a rail red |
+| GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | 8 paired history cases + **all 12 window members**, index for index, warm-up included |
+| MUTATION CONTROLS | ✅ | 5 history + **13 window** wrong implementations, each turns a rail red (`tools/window_mutations.py`, clean-file control first) |
 | **VENDOR VERIFIED** | ✅ | **2F-2A-CLOSE** — TradingView v5 AND v6, SPY 1D, 400 rows. Both wrong models positively excluded. Gate **18/18** |
 | PROD INTEGRATED | ⬜ | the runtime lane is still deliberately unwired (§43/§44) |
 
@@ -459,3 +460,143 @@ Depth demand, measured over those 35: **29 scripts at `[1]`, one at `[2]`, none
 deeper**; 7 scripts use a non-literal offset. That measurement — not a guess —
 is what sets `HISTORY_SLOTS`/`HISTORY_VALUES` and why the ring is sized per slot
 rather than reserved in bulk.
+
+
+## 2F-2B — FINITE WINDOWS OVER RUNTIME SERIES
+
+### What shipped
+
+`ta.sma(x, 20)` where `x` is a value the runtime mutated — at top level, over a
+UDF parameter, over a UDF local, over UDF `var` state, across two call sites, and
+through a skipped call site — now EXECUTES in the runtime lane.
+
+| member | span | member | span |
+|---|---|---|---|
+| `sma` | n | `median` | n |
+| `wma` | n | `highest` | n |
+| `stdev` | n | `lowest` | n |
+| `sum` | n | `highestbars` | n |
+| `dev` | n | `lowestbars` | n |
+| `rising` | **n+1** | `falling` | **n+1** |
+
+⭐⭐ **ONE SEMANTIC AUTHORITY, AND IT IS `interpret.js`.** `FINITE_WINDOW` is a
+table of `{reduce, span}` pairs. The columnar lane feeds it through `rolling`,
+which walks the whole series; the runtime feeds it a `span`-wide scratch buffer
+refilled per bar from the committed ring. **It is the same function object** —
+there is no second SMA to keep in step, and no synthetic column is ever
+materialised out of the ring.
+
+⭐ **THE SPAN COMES FROM THE TABLE, NOT THE CALL SITE.** `ta.rising(x, n)`
+compares n+1 bars to answer about n intervals. Asking the table means the two
+lanes cannot disagree about how wide a window is; a mutation that reads `n` at
+the call site turns a rail red.
+
+### ⛔⛔ The defect the differential caught — a sign, not a magnitude
+
+`ta.highestbars` returns a **NON-POSITIVE** offset (0 on this bar, −1 one bar
+back). This engine's table entry returns the **POSITIVE** distance, and `pine.js`
+reconciles them in `PINE_NAMESPACED_TREE` by translating the Pine spelling as
+`-highestbars(src, n)`. The runtime front end reached the bare table entry
+through its namespace strip and **lost the negation** — right magnitude, wrong
+sign, on two of twelve members. Nothing in the suite that checked a magnitude
+could have seen it; the index-for-index differential against the columnar lane
+is what did.
+
+The fix does not restate the rule. `namespacedWindowShape` hands
+`PINE_NAMESPACED_TREE`'s own builder two probe nodes and reads the tree back; it
+admits a rewrite only when it is exactly `-<member>(src, len)` with the probe
+nodes returned in order **as the same objects**. `ta.pivothigh` is rewritten into
+a confirmation-bar SHIFT, fails that match, and refuses. A third entry added
+tomorrow is measured on the day it lands, not the day someone remembers.
+
+⚠️ Against the shipped table every guard in that function except the `u-` test is
+dead code — both real entries are already the right shape, so deleting the arity,
+identity or membership checks changes no answer and a mutation run would report
+them all surviving. So the `tree` parameter is exported for the rail, exactly as
+`pointwiseTarget`'s `shapes` is, and 12 synthetic rewrites the real table cannot
+spell (reordered arguments, a defaulted source, a non-member call, a builder that
+throws) exercise each guard.
+
+### ⛔⛔ THE TRANSITION, MEASURED A/B ON ONE TREE — AND IT IS NOT A COVERAGE WIN
+
+Both columns are the SAME working tree, 169 scripts, five corpora; the "before"
+column is that tree with the window router cut and byte-exactly restored.
+
+| first blocker | before | after | Δ |
+|---|---:|---:|---:|
+| `runtime:call-windowed-state` | 11 | **8** | **−3** |
+| `runtime:function-global-state` | 0 | 2 | +2 |
+| `runtime:history-expression` | 0 | 1 | +1 |
+| **fully executing (OK)** | **27** | **27** | **0** |
+
+⛔ **ZERO SCRIPTS BECAME EXECUTABLE.** Three moved past the windowed wall —
+`community/07-hull-suite`, `curated/05-mtf-structure-bias`,
+`oos1/high_engagement__04-ttm-squeeze-greeny` — and all three landed on the NEXT
+wall. That is what a foundation dependency looks like, and calling it progress
+would be `lesson_a_refusal_count_is_not_a_progress_metric` run in reverse. The
+census predicted it: windowed-over-state carried **24 scripts of demand** against
+**11 first-blocker**, so most of that demand was always sitting behind something
+else.
+
+⭐⭐ **THE USEFUL RESULT IS WHAT THE 8 SURVIVORS ARE BLOCKED ON: every one of them
+uses `ta.ema`.** The `runtime:call-windowed-state` guard's remaining population is
+now entirely the RECURRENT family. That is 2F-2C, and this is the evidence for
+sequencing it next — measured, not assumed.
+
+The two new blockers are both nameable and small:
+
+| new first blocker | what it is |
+|---|---|
+| `runtime:function-global-state` (2) | a window inside a UDF over a GLOBAL the function reads, rather than over a parameter |
+| `runtime:history-expression` (1) | `sma(a + b, n)` — the expression needs its own committed series, exactly as `(a+b)[1]` does |
+
+### ⭐ What it costs — and the 5,000-symbol scan
+
+Measured by `windowPerf.test.js` (VM only; compiling Pine is once per scan).
+
+| sites | span | bars | ms | cells |
+|---:|---:|---:|---:|---:|
+| 1 | 20 | 300 | 0.37 | 5,620 |
+| 1 | 20 | 5,000 | 5.62 | 99,620 |
+| 10 | 20 | 5,000 | 37.09 | 996,200 |
+| 40 | 20 | 5,000 | 142.40 | 3,984,800 |
+
+Linear in bars (15.2× the time for 16.7× the bars) and linear in sites.
+
+⭐⭐ **SPAN IS ALMOST FREE, WHICH IS THE FINDING WORTH KEEPING.** At 2,000 bars,
+going from span 5 to span 200 — **40× the cells**, 9,980 → 360,200 — cost
+**1.3× the time** (2.11ms → 2.76ms). Per-bar dispatch dominates; the inner
+reduction over a contiguous `Float64Array` is nearly invisible. So `sma(x, 200)`
+is not the expensive thing a reviewer would assume — the number of SITES is.
+
+| 5,000-symbol scan | per symbol | whole scan | cells/symbol |
+|---|---:|---:|---:|
+| typical (4 windows, 300 bars) | 0.97 ms | **4.9 s** | 22,480 |
+| heavy (8 windows × span 200, 5,000 bars) | 42.8 ms | **214 s** | 7,681,600 |
+
+⚠️ `WINDOW_CELLS` (100M) is charged **per execution**, so it bounds a runaway
+SYMBOL, not a runaway SCAN. The heavy row is 7.7M cells for one symbol — well
+inside the ceiling and still 3.5 minutes across the market. Budgeting the scan is
+not this wave's to solve, and this table is the evidence for whoever does it.
+
+### ⚠️ MEASURED GAP, recorded rather than fixed
+
+`ta.sma(x, k + 2)` where `k` is an input **refuses**. A bare input name folds
+because `pine.js` substitutes the frozen default and the canonical node IS a
+`num`; `k + 2` stays an `op` node. The fold is CONSERVATIVE — a refusal, never a
+wrong width — but it is a real gap. Closing it means consulting `pine.js`'s own
+`constantValueOf` (with its fold budget), which touches history offsets too and
+is therefore not 2F-2B's to change. Pinned as a fact in `finiteWindow.test.js`
+with an instruction to assert the value rather than delete the case when it lands.
+
+A surviving mutation also surfaced that **fractional and negative lengths were
+untested** — `ta.sma(x, 2.5)` refuses, and nothing checked it, so cutting both
+halves of the fold's integer guard left the suite green. Covered now.
+
+### ⚰️ Four tests asserted the wall this wave removed
+
+`pointwise`, `history`, `sourceToRuntime` and `elseIfChain` each pinned
+`ta.sma(x, 5)` as refused. All four are re-pointed at `ema`/`rma`/`barssince` and
+annotated in place rather than deleted — **a green test asserting a capability has
+NOT shipped, on the day it shipped, is exactly what this register exists to make
+visible.**

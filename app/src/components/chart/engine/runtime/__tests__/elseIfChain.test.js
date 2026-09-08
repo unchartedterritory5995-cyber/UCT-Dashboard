@@ -200,7 +200,11 @@ describe('⭐ the chain composes with the rest of the runtime', () => {
 describe('⛔ diagnostics survive the chain (§30)', () => {
   it('a refusal inside a later arm reports THAT arm\'s line', () => {
     //                     1              2            3          4        5             6           7
-    const src = `${head}var x = 0.0\nif close > 118\n    x := 1\nelse if close > 114\n    x := ta.sma(x, 5)\nelse\n    x := 3\nplot(x)\n`
+    // ⚰️ THE REFUSING CALL WAS `ta.sma(x, 5)` AND 2F-2B EXECUTES IT, so the arm
+    // stopped refusing and this test went green-on-nothing. What it measures is
+    // LINE ATTRIBUTION, not which builtin is blocked — so it takes the nearest
+    // still-refused call at the same position rather than being deleted.
+    const src = `${head}var x = 0.0\nif close > 118\n    x := 1\nelse if close > 114\n    x := ta.ema(x, 5)\nelse\n    x := 3\nplot(x)\n`
     const r = refusalOf(src)
     expect(r.guard).toBe('runtime:call-windowed-state')
     // line 7 of the whole source: 2 header lines + 5 body lines

@@ -121,6 +121,15 @@ export function lowerIrProgram(ir) {
         emit(OP.POINTWISE, i, e.args.length)
         return
       }
+      case EXPR.WINDOW: {
+        // ⭐ THE SOURCE'S LIVE VALUE IS PUSHED FIRST, then WINDOW consumes it and
+        // draws the rest of the span from that series' committed ring. The live
+        // bar is PART OF the window — `rolling` reduces bars `i-n+1 .. i` — so a
+        // span of n needs n-1 committed bars plus this one, never n committed.
+        expr(e.source)
+        emit(OP.WINDOW, e.site)
+        return
+      }
       case EXPR.CALL: {
         // ⭐ ARGUMENTS PUSH LEFT TO RIGHT; the frame pops them in reverse. The
         // order is fixed HERE rather than left to the host, because once an
@@ -228,6 +237,7 @@ export function lowerIrProgram(ir) {
     persists: persistTotal(ir),
     functions,
     pointwise,
+    windows: (ir.windows || []).map((w) => ({ ...w })),
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0, at: c.at || null,
     })),

@@ -1,0 +1,98 @@
+{
+  "runs": [
+    {
+      "sites": 1,
+      "span": 20,
+      "bars": 300,
+      "ms": 0.3730000000000473,
+      "cells": 5620,
+      "windows": 1
+    },
+    {
+      "sites": 1,
+      "span": 20,
+      "bars": 5000,
+      "ms": 5.617599999999925,
+      "cells": 99620,
+      "windows": 1
+    },
+    {
+      "sites": 10,
+      "span": 20,
+      "bars": 300,
+      "ms": 2.333099999999945,
+      "cells": 56200,
+      "windows": 10
+    },
+    {
+      "sites": 10,
+      "span": 20,
+      "bars": 5000,
+      "ms": 37.08629999999994,
+      "cells": 996200,
+      "windows": 10
+    },
+    {
+      "sites": 40,
+      "span": 20,
+      "bars": 300,
+      "ms": 8.714699999999993,
+      "cells": 224800,
+      "windows": 40
+    },
+    {
+      "sites": 40,
+      "span": 20,
+      "bars": 5000,
+      "ms": 142.39660000000003,
+      "cells": 3984800,
+      "windows": 40
+    },
+    {
+      "sites": 1,
+      "bars": 2000,
+      "span": 5,
+      "ms": 2.111499999999978,
+      "cells": 9980,
+      "windows": 1
+    },
+    {
+      "sites": 1,
+      "bars": 2000,
+      "span": 20,
+      "ms": 2.1376999999999953,
+      "cells": 39620,
+      "windows": 1
+    },
+    {
+      "sites": 1,
+      "bars": 2000,
+      "span": 100,
+      "ms": 2.4532000000001517,
+      "cells": 190100,
+      "windows": 1
+    },
+    {
+      "sites": 1,
+      "bars": 2000,
+      "span": 200,
+      "ms": 2.7644000000000233,
+      "cells": 360200,
+      "windows": 1
+    }
+  ],
+  "market": {
+    "typical": {
+      "perSymbolMs": 0.9729999999999563,
+      "scanSeconds": 4.864999999999782,
+      "cells": 22480
+    },
+    "heavy": {
+      "perSymbolMs": 42.839300000000094,
+      "scanSeconds": 214.19650000000047,
+      "cells": 7681600
+    },
+    "windowCellsCeiling": 100000000,
+    "heavyCellsPerSymbol": 7681600
+  }
+}

@@ -31,13 +31,14 @@
 import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal,
-  VALUE_NAMESPACES, PINE_CALL_SHAPES,
+  VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE,
 } from './pine.js'
 import { TABLE, isPointwise } from './parse.js'
-import { interpret, POINTWISE_FOR_PARITY } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW } from './interpret.js'
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
+  windowCall,
 } from '../runtime/ir.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
@@ -59,9 +60,15 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'history over an EXPRESSION containing a mutable value — `(a + b)[1]` needs its own '
     + 'committed series, and distributing the offset over the operands is only right when '
     + 'nothing inside carries state',
+  // ⭐ ONE GUARD, TWO NOUNS — a history offset (`x[n]`) and a finite-window
+  // length (`sma(x, n)`) ask the SAME question of the SAME ring, so they share a
+  // guard and a measurement bucket deliberately. The stock sentence therefore
+  // names neither; the call site supplies the noun. ⚰️ It led with "a history
+  // offset" while the window path was already using it, so a refused length read
+  // as a refused offset and sent the reader to ring machinery.
   'runtime:history-dynamic-offset':
-    'a history offset that is only known while the bar is running — the ring depth it may '
-    + 'reach cannot be bounded before execution, and an offset past the ring would answer '
+    'a ring width that is only known while the bar is running — the depth it may reach '
+    + 'cannot be bounded before execution, and reading past the ring would answer '
     + '`na` where Pine answers a number',
   'runtime:history-function-local':
     'history over a FUNCTION-LOCAL value — the ring needs a per-call-site base the way '
@@ -209,6 +216,59 @@ class Scope {
  *  the deletion left all 124 runtime tests green. A guard nobody has seen fire is
  *  not a guard (`lesson_gate_that_cannot_fail`), so the rail passes a synthetic
  *  rewrite shape onto a pointwise target and watches this refuse it. */
+
+/** What `pine.js` turns a NAMESPACED Pine spelling into, when this runtime can
+ *  serve the result.
+ *
+ *  ⭐⭐ THREE ANSWERS, AND THE THIRD IS THE POINT:
+ *    · `undefined` — `pine.js` does not rewrite this name; the caller should
+ *      go on to the ordinary namespace-strip path.
+ *    · `null` — it DOES rewrite it, into something other than a bare negated
+ *      finite window (`ta.pivothigh` shifts to its confirmation bar). Refuse.
+ *    · a descriptor — the rewrite is exactly `-<member>(src, len)`.
+ *
+ *  ⛔⛔ THE MATCH IS STRUCTURAL AND IT CHECKS ARGUMENT IDENTITY. The probe
+ *  nodes are handed in and must come back OUT, in order, as the same objects —
+ *  so a rewrite that reorders, defaults, wraps or duplicates an argument fails
+ *  the test even though its shape still reads `-call(a, b)`. `negatedBars`'
+ *  own one-argument form defaults the source to `high`/`low`, which is a
+ *  DIFFERENT question with the same shape; the two-argument probe is what
+ *  keeps that form from being admitted on the two-argument form's evidence.
+ *
+ *  ⚠️ AND IT NEVER NAMES A MEMBER. Adding a third entry to
+ *  `PINE_NAMESPACED_TREE` tomorrow is measured by this function on the day it
+ *  lands — admitted if it is a negated window, refused if it is anything else.
+ *  A hand-written `if (name === 'ta.highestbars')` would be a second authority
+ *  over the sign, which is the defect this whole wave exists to stop.
+ *
+ *  ⚠️ `tree` IS EXPORTED FOR THE RAIL ONLY, exactly as `pointwiseTarget`'s
+ *  `shapes` is, and for the same reason. `PINE_NAMESPACED_TREE` holds two
+ *  entries and both are negated windows, so with the shipped table every guard
+ *  below except the `u-` test is DEAD — deleting the argument-identity check,
+ *  the arity check or the table membership check changes no answer, and a
+ *  mutation run would report them all as surviving. That is not a reason to
+ *  drop them (the next entry is what they are for); it is a reason to make
+ *  them reachable. The rail passes synthetic rewrites — an argument reorder, a
+ *  defaulted source, a non-member call — that the shipped table cannot spell.
+ */
+export const namespacedWindowShape = (pineName, tree = PINE_NAMESPACED_TREE) => {
+  const build = tree[pineName]
+  if (typeof build !== 'function') return undefined
+  const src = { type: 'name', name: '__runtime_window_probe_src__' }
+  const len = { type: 'num', value: 0 }
+  let built = null
+  try { built = build([src, len]) } catch { return null }
+  if (!built || built.type !== 'op' || built.name !== 'u-') return null
+  if (!Array.isArray(built.args) || built.args.length !== 1) return null
+  const call = built.args[0]
+  if (!call || call.type !== 'call') return null
+  if (!Array.isArray(call.args) || call.args.length !== 2) return null
+  if (call.args[0] !== src || call.args[1] !== len) return null
+  if (!TABLE.functions[call.name]) return null
+  if (!FINITE_WINDOW[call.name]) return null
+  return { table: call.name, negate: true }
+}
+
 /** ⭐⭐ THE AUTHORITATIVE POINTWISE CLASSIFIER (§14) — EXECUTION SEMANTICS.
  *
  *  ⛔ THIS IS NOT THE NAMESPACE HEURISTIC BELOW, and the difference is the
@@ -294,6 +354,8 @@ export function buildRuntimeIr(source, opts = {}) {
   // Nothing allocates a ring for a variable nobody looks back at (§16).
   const history = []
   const historyByVarSlot = new Map()
+  // ⭐ 2F-2B — one entry per finite-window CALL SITE in the source.
+  const windows = []
   const functions = []
   const fnByName = new Map()
   const callSites = []
@@ -422,6 +484,17 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:statement',
         'a bar offset counts backwards in whole bars', at)
     }
+    return foldConstNode(e, at)
+  }
+
+  /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
+   *
+   *  Shared by history offsets (`x[n]`) and finite-window lengths
+   *  (`sma(x, n)`) — the same question, so the same answer and the same refusal.
+   *  Splitting them would let a knob mean one thing in an offset and another in a
+   *  length, which is precisely the divergence the frozen-default rule exists to
+   *  prevent. */
+  const foldConstNode = (e, at, what = null) => {
     // ⭐⭐ THE CONSTANT IS READ OFF THE CANONICAL TREE, NOT OFF AN EVALUATION.
     //
     // ⚰️ The first draft interpreted the expression and asked whether the result
@@ -445,7 +518,12 @@ export function buildRuntimeIr(source, opts = {}) {
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {
       note('runtime:history-dynamic-offset')
-      throw new RuntimeRefusal('runtime:history-dynamic-offset', null, at)
+      // ⛔ ONE GUARD NAME, TWO NOUNS. The guard stays shared — splitting it is
+      // what would let a knob mean one thing in an offset and another in a
+      // length — but a refusal that calls a WINDOW LENGTH "a history offset"
+      // sends the reader to the ring when the work is the fold, which is the
+      // misfiled-refusal defect this front end has already paid for once.
+      throw new RuntimeRefusal('runtime:history-dynamic-offset', what, at)
     }
     return canonical.value
   }
@@ -508,6 +586,59 @@ export function buildRuntimeIr(source, opts = {}) {
     return h
   }
 
+
+  /** ⭐⭐ THE AUTHORITATIVE FINITE-WINDOW CLASSIFIER (2F-2B).
+   *
+   *  Same five-authority discipline as `pointwiseTarget`, with `FINITE_WINDOW`
+   *  standing where `POINTWISE_FOR_PARITY` stands: a call executes here only if
+   *  `VALUE_NAMESPACES`, an IDENTITY `PINE_CALL_SHAPES` build, `TABLE.functions`
+   *  and `interpret.js`'s own finite-window table all agree.
+   *
+   *  ⛔⛔ MEMBERSHIP IS `interpret.js`'S, NOT THIS FILE'S. `ema` and `rma` take a
+   *  series and a length and are NOT members, because their implementations carry
+   *  the previous OUTPUT; `valuewhen`/`barssince` search backwards for a
+   *  condition; `cum` accumulates without bound. Deciding membership here — by
+   *  name, by arity, or by "it has a length argument" — is exactly how `ema`
+   *  would end up computed as a moving average of the last n bars: a plausible
+   *  line, wrong on every bar, with nothing red.
+   *
+   *  @returns {{table:string, negate:boolean}|null}
+   */
+  const windowTarget = (pineName) => {
+    const name = String(pineName || '')
+    // ⭐⭐ THE NAMESPACED REWRITE IS ASKED FIRST, AND IT IS pine.js's ANSWER,
+    // NOT A COPY OF IT. `ta.highestbars` is NOT `highestbars`: Pine returns a
+    // NON-POSITIVE offset and this engine's table entry returns the POSITIVE
+    // distance, so `pine.js` translates the Pine spelling as `-highestbars(...)`.
+    // Reading through the namespace strip to the bare table entry loses that
+    // negation and answers with the RIGHT MAGNITUDE AND THE WRONG SIGN — a
+    // defect no `toBeCloseTo` on a magnitude would ever catch, and one the
+    // columnar lane does not have.
+    //
+    // ⛔ SO IT IS DERIVED BY RUNNING THE REWRITE, never by naming the two
+    // members here. `namespacedWindowShape` hands `PINE_NAMESPACED_TREE`'s own
+    // builder two probe nodes and reads the tree back; a rewrite that stops
+    // being a bare negation — or that starts touching its arguments — fails the
+    // structural match and REFUSES rather than quietly changing meaning.
+    const ns = namespacedWindowShape(name)
+    if (ns !== undefined) return ns
+    let bare = name
+    const dot = name.indexOf('.')
+    if (dot >= 0) {
+      if (!VALUE_NAMESPACES.has(name.slice(0, dot))) return null
+      bare = name.slice(dot + 1)
+    }
+    const shape = PINE_CALL_SHAPES[bare]
+    if (shape) {
+      const identity = Array.isArray(shape.build)
+        && shape.build.every((b, i) => b && b.pine === i && Object.keys(b).length === 1)
+      if (!identity) return null
+    }
+    const table = shape && shape.table ? shape.table : bare
+    if (!TABLE.functions[table]) return null
+    if (!FINITE_WINDOW[table]) return null
+    return { table, negate: false }
+  }
 
   /** ⭐ WHICH builtin-with-state family a call belongs to.
    *
@@ -698,6 +829,58 @@ export function buildRuntimeIr(source, opts = {}) {
               locate(node.tok))
           }
           return irBuiltin(pw.table, args)
+        }
+        // ⭐⭐⭐ 2F-2B — A FINITE-WINDOW BUILTIN OVER A RUNTIME-PRODUCED SERIES.
+        const win = windowTarget(node.name)
+        if (win) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes a source and a length, given ${given.length}`, at)
+          }
+          // ⛔ THE SOURCE MUST BE A NAME. A window needs a COMMITTED SERIES, and
+          // only a variable has one — `sma(x + 1, 5)` needs its own series exactly
+          // as `(x + 1)[1]` does, and is refused by the same name.
+          const srcNode = given[0]
+          if (!srcNode || srcNode.type !== 'name') {
+            note('runtime:history-expression')
+            throw new RuntimeRefusal('runtime:history-expression',
+              `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+          }
+          const varSlot = scope.lookup(srcNode.name)
+          if (varSlot === null) {
+            note('runtime:function-global-state')
+            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+          }
+          // ⭐ THE LENGTH FOLDS THE SAME WAY A HISTORY OFFSET DOES — literal or
+          // input-derived, off the CANONICAL TREE. A length only known while the
+          // bar runs cannot size a ring before bar 0.
+          const n = foldConstNode(given[1], at,
+            `the length of \`${node.name}\` is only known while the bar is running, `
+            + 'so the ring it needs cannot be sized before bar 0')
+          if (n < 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+          }
+          // ⭐⭐ SPAN COMES FROM `interpret.js`, NOT FROM HERE. `ta.rising(x, n)`
+          // spans n+1 bars; asking the table means the runtime cannot disagree
+          // with the columnar lane about how wide the window is.
+          const span = FINITE_WINDOW[win.table].span(n)
+          // the ring must reach `span - 1` bars back; the live bar completes it
+          if (span > 1) {
+            if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 1, at)
+            else historySlotFor(varSlot, span - 1, at)
+          }
+          const histIndex = span > 1
+            ? (owner !== null ? functions[owner].historyByVarSlot.get(varSlot) : historyByVarSlot.get(varSlot))
+            : 0
+          windows.push({ fn: win.table, name: `${node.name}(${srcNode.name},${n})`, historySlot: histIndex, span })
+          const call = windowCall(windows.length - 1, read(varSlot))
+          // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
+          // `pine.js` applies it — `u-` wrapping the bare call, not a second
+          // reducer with a flipped comparison. One reducer, one negation node.
+          return win.negate ? unary('u-', call) : call
         }
         // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
         const g = builtinStateFamily(node.name)
@@ -1088,6 +1271,7 @@ export function buildRuntimeIr(source, opts = {}) {
       })),
       callSites,
       history,
+      windows,
     })
   } catch (e) { return fail(e, diagnostics) }
 

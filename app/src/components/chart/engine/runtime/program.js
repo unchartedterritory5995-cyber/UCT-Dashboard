@@ -105,6 +105,16 @@ export const OP = Object.freeze({
   // on this bar, so materialising a fake history column just to reuse a columnar
   // implementation would invent data the program never had.
   POINTWISE: 72,
+  // ⭐⭐⭐ 2F-2B — a FINITE-WINDOW builtin over a runtime-produced series.
+  // a: index into `program.windows`. The source’s LIVE value for this bar is on
+  // the stack when this executes; the committed bars come from its history ring.
+  //
+  // ⛔⛔ NO SYNTHETIC COLUMN. The tempting implementation is to materialise the
+  // whole series from the ring and hand it to the columnar `rolling` — which
+  // would be a second way to compute a settled builtin AND would need history
+  // the program never asked for. The window is built per bar, bounded by the
+  // span the front end already proved, and handed to the SAME reducer.
+  WINDOW: 73,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -120,7 +130,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -145,7 +155,7 @@ export class ProgramError extends Error {
  */
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
-  functions = [], callSites = [], pointwise = [], history = [],
+  functions = [], callSites = [], pointwise = [], history = [], windows = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -169,6 +179,10 @@ export function makeProgram({
     // allocates from it and never grows it, so the memory a program needs is a
     // property of the program rather than of the data it meets (§60).
     history: Object.freeze((history || []).map((h) => Object.freeze({ ...h }))),
+    // ⭐ Each entry is `{fn, historySlot, span, name}`: WHICH reducer, WHICH
+    // history ring supplies the committed bars (frame-relative), and HOW MANY
+    // bars the window spans. Decided once by the front end.
+    windows: Object.freeze((windows || []).map((w) => Object.freeze({ ...w }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -213,6 +227,15 @@ export function validateProgram(p) {
     }
     if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxPersist} persist slots`)
+    }
+    if (op === OP.WINDOW) {
+      if (a < 0 || a >= p.windows.length) {
+        throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${p.windows.length} window sites`)
+      }
+      const w = p.windows[a]
+      if (!Number.isInteger(w.span) || w.span < 1) {
+        throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
+      }
     }
     if (op === OP.POINTWISE) {
       if (a < 0 || a >= p.pointwise.length) {

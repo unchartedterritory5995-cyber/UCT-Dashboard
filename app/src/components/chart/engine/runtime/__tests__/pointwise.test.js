@@ -198,10 +198,15 @@ describe('⭐⭐ graph-vs-runtime differential for pointwise (§29)', () => {
 })
 
 describe('⛔ what 2F-1 does NOT do — the split stays honest', () => {
-  it('a WINDOWED builtin over state is still refused, never approximated (§31)', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`).guard)
-      .toBe('runtime:call-windowed-state')
+  it('a RECURRENT builtin over state is still refused, never approximated (§31)', () => {
+    // ⚰️ `ta.sma(x, 5)` STOOD HERE AND 2F-2B EXECUTES IT. This case was written
+    // when "windowed" was one wall; it is now two, and only the recurrent half
+    // is still standing. `ema`/`rma` carry the previous OUTPUT, which no finite
+    // window can reach — keeping the `sma` line would have been a green test
+    // asserting a capability had NOT shipped on the day it did.
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`).guard)
+      .toBe('runtime:call-windowed-state')
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rma(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 

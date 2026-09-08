@@ -1828,8 +1828,109 @@ is weak.**
 | id | family | statement |
 |---|---|---|
 | **S6.1** | ✅ CLOSED | P7.2. UDF-local, parameter, ordinary-local, `var`-local and nested-UDF history all execute, per call site, with skipped-call semantics vendor-pinned on v5 and v6. |
-| **S6.2** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — first blocker 11, total demand 24 (21 of them inside UDF frames, now unblocked at the history layer). **2F-2B is next.** |
+| **S6.2** | ✅ CLOSED (partly) | 2F-2B shipped the FINITE-WINDOW half. First blocker 11 → 8; **all 8 survivors are `ta.ema`**, so what is left of this guard is recurrence — see **T5.2**. |
 | **S6.3** | RUNTIME / HISTORY | `runtime:history-expression` — `(v + 1)[1]` inside a frame, same gap as at top level. `runtime:history-dynamic-offset` unchanged. |
 | **S6.4** | VENDOR | Still UNPINNED and named in both fixtures: warm-up at bar 0, a committed-`na` history value, and per-call-site history identity (implemented to match the 2E persistent-state pin, not separately captured). |
 | **S6.5** | RUNTIME / LOOPS | The held cell is written at RET, so a site invoked many times in one bar (a future loop) would commit its LAST invocation. That is the natural reading of a chart-bar-indexed series but it is **not vendor-pinned**, and the loop wave must confirm it. |
 | **S6.6** | PERSISTENCE | Carried. `history[]`, `historyBase` and `historyCount` are now part of the artifact shape and must be in the version contract before anything is saved. |
+
+
+## PART T — 2F-2B: WHAT THE FINITE-WINDOW BRIDGE ACTUALLY MOVED (2026-09-08)
+
+### T1 — The headline is a NON-result, and it is the honest one
+
+**Zero scripts became executable.** 27 before, 27 after, measured A/B on one tree
+(169 scripts, five corpora; the "before" column is the same tree with the window
+router cut and byte-exactly restored).
+
+| first blocker | before | after | Δ |
+|---|---:|---:|---:|
+| `runtime:call-windowed-state` | 11 | **8** | **−3** |
+| `runtime:function-global-state` | 0 | 2 | +2 |
+| `runtime:history-expression` | 0 | 1 | +1 |
+| **OK (fully executing)** | **27** | **27** | **0** |
+
+Three scripts moved past the windowed wall and all three landed on the next one:
+`community/07-hull-suite`, `curated/05-mtf-structure-bias`,
+`oos1/high_engagement__04-ttm-squeeze-greeny`.
+
+⛔ **This is what a foundation dependency looks like and it must not be dressed
+as coverage.** The census already predicted it — windowed-over-state carried
+**24 scripts of demand** against **11 first-blocker** — which is precisely why
+"FIRST-BLOCKER COUNTS ARE NOT FEATURE DEMAND" is a standing rule. A wave can be
+correct, necessary and fully verified and still move the coverage number by zero.
+
+### T2 — ⭐⭐ The result that DOES steer the next wave
+
+**All 8 remaining `runtime:call-windowed-state` scripts use `ta.ema`.**
+
+| script | the builtins it reaches |
+|---|---|
+| `oos1/long_tail__05-master-line-plus` | alma, atr, **ema**, hma, **rma**, sma, wma |
+| `parity/long_tail__05-master-line-plus` | (same) |
+| `community/06-qqe-mod` | cross, crossover, crossunder, **ema**, rsi, sma, stdev |
+| `community/13-relative-strength-vs-benchmark-spy` | crossover, crossunder, **ema** |
+| `oos1/high_engagement__02-waddah-attar-explosion-lazybear` | **ema** (via helper) |
+| `oos1/high_engagement__11-vumanchu-cipher-a-vumanchu` | **ema** (via helper) |
+| `oos1/high_engagement__16-klinger-volume-oscillator-everget` | **ema** (via helper) |
+| `parity/high_engagement__16-klinger-volume-oscillator-everget` | (same) |
+
+That guard's population is now **entirely the recurrent family**. The name
+`call-windowed-state` is now misleading for what it holds, and the matrix row has
+been split into FINITE-WINDOW (shipped) and RECURRENT (2F-2C) to say so.
+
+⭐ `atr`, `rsi` and `alma` ride along on the same decision: `atr`/`rsi` are RMA
+underneath, and `alma` is finite-window but was never a member. Whoever takes
+2F-2C should measure whether `alma`/`hma`/`bbw`/`percentrank` belong in
+`FINITE_WINDOW` — they were deliberately excluded from 2F-2B with reasons, and
+that exclusion has not been re-measured since.
+
+### T3 — ⛔⛔ THE SIGN DEFECT, and why only the differential could see it
+
+`ta.highestbars` returns a NON-POSITIVE offset; this engine's table entry returns
+the POSITIVE distance; `pine.js` reconciles them in `PINE_NAMESPACED_TREE` as
+`-highestbars(src, n)`. The runtime front end reached the bare entry through its
+namespace strip and **dropped the negation on two of twelve members** — right
+magnitude, wrong sign.
+
+**No magnitude assertion could have caught it.** Both lanes computed `1` and
+`−1` and both are "close to" nothing in common. It was caught because §39's
+differential compares the runtime against the SHIPPED columnar door index for
+index, and it was caught on the first run of that differential.
+
+The repair reads `PINE_NAMESPACED_TREE`'s own builder rather than restating its
+two entries, so a third entry is classified the day it lands. **But that guard is
+unfalsifiable against the shipped table** — both real entries are already the
+right shape — so the table is injectable and 12 synthetic rewrites exercise it.
+That is the same correction `pointwiseTarget` needed in 2F-1 and the same one
+that killed `histPresent` in 2F-2A. **Three waves, one recurring blind spot: a
+guard whose only inputs are the two cases that already pass.**
+
+### T4 — What it costs, and the number the scan wave will need
+
+| 5,000-symbol scan | per symbol | whole scan |
+|---|---:|---:|
+| typical (4 windows, 300 bars) | 0.97 ms | **4.9 s** |
+| heavy (8 windows × span 200, 5,000 bars) | 42.8 ms | **214 s** |
+
+⭐⭐ **SPAN IS NEARLY FREE; SITES ARE NOT.** 40× the cells (span 5 → 200 at 2,000
+bars) costs 1.3× the time. Per-bar dispatch dominates the inner reduction over a
+contiguous `Float64Array`. Anyone about to optimise `sma(x, 200)` should read
+that row first.
+
+⚠️ `WINDOW_CELLS` is charged **per execution** — it bounds a runaway SYMBOL, not
+a runaway SCAN. Nothing in this runtime budgets a 5,000-symbol pass.
+
+### T5 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **T5.1** | ✅ CLOSED | 2F-2B. Twelve finite-window members over runtime-produced series, at every scope P7.2 reaches, sharing `interpret.js`'s reducer objects. 13/13 mutations killed. |
+| **T5.2** | RUNTIME / RECURRENCE | `ema`/`rma` and everything built on them. **The entire remaining `call-windowed-state` population.** 2F-2C — and NOT to be implemented before owner/ChatGPT review. |
+| **T5.3** | RUNTIME / SERIES | `runtime:function-global-state` (+2, NEW as a first blocker) — a window inside a UDF over a GLOBAL the function reads rather than over a parameter. A frame that can reach an outer slot; small and nameable. |
+| **T5.4** | RUNTIME / HISTORY | `runtime:history-expression` (+1 as a first blocker, carried from S6.3) — `sma(a + b, n)` needs the expression's own committed series, exactly as `(a+b)[1]` does. Now blocks a script rather than merely existing. |
+| **T5.5** | FRONT END / FOLD | `ta.sma(x, k + 2)` where `k` is an input REFUSES. A bare input name folds (`pine.js` freezes the default → a `num` node); arithmetic over it stays an `op` node. Conservative, never a wrong width. Closing it means consulting `pine.js::constantValueOf`, which touches history offsets too — deliberately out of 2F-2B's scope. Pinned as a fact in `finiteWindow.test.js`. |
+| **T5.6** | TABLE MEMBERSHIP | `bbw`, `hma`, `percentrank`, `pivothigh`/`pivotlow` are excluded from `FINITE_WINDOW` with stated reasons. **Not re-measured since 2F-2A.** `hma` appears in one of the 8 blocked scripts. |
+| **T5.7** | VENDOR | ⛔ **NO WINDOW SEMANTIC IS VENDOR-PINNED IN THIS WAVE, AND NONE IS CLAIMED.** Every window value is verified against this engine's own columnar door, which is a CONSISTENCY proof, not a vendor proof. The columnar lane's own window semantics were pinned in earlier waves; the runtime adds no new semantic, only a second consumer of the same reducer. Anything that WOULD be a new semantic — a warm-up boundary that differs from `rolling`'s, a tie-break, a `na` inside a window — is answered by the shared table, not by the runtime. |
+| **T5.8** | RESOURCE | `WINDOW_CELLS` bounds one execution, not one scan. A 5,000-symbol pass over the heavy shape is 3.5 minutes and 38 billion cells and NOTHING refuses it. Carried to whichever wave owns screener budgeting. |
+| **T5.9** | PERSISTENCE | Carried and widened. `windows[]` and `OP.WINDOW` join `history[]`/`historyBase`/`historyCount` in the artifact shape; the version contract must cover them before anything is saved. |

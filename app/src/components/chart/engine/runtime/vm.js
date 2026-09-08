@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
 import { Budget } from './limits.js'
 
@@ -154,6 +154,24 @@ export function execute(program, ctx, limits) {
   // `v[4]`), not blank. Because `held` is simply not overwritten on a skipped
   // bar, holding is what this array does by construction rather than by a rule.
   const held = new Float64Array(histTotal ? nHist : 1).fill(NaN)
+
+  // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
+  //
+  // The reducers in `interpret.js` take `(series, lo, hi)` over a CONTIGUOUS
+  // array, and a ring is not contiguous — so each site owns a buffer the width
+  // of its span, refilled per bar in bar order. Allocating it per bar would put
+  // the collector inside the hot loop, which is the error Phase 1 measured.
+  //
+  // ⛔ THE BUFFER IS THE ONLY THING THIS RUNTIME ADDS. The arithmetic is
+  // `FINITE_WINDOW[fn].reduce` — the SAME function object the columnar lane's
+  // `rolling` calls — so there is no second SMA to keep in step.
+  const winPlan = program.windows || []
+  const winBuf = winPlan.map((w) => new Float64Array(w.span))
+  const winReduce = winPlan.map((w) => {
+    const spec = FINITE_WINDOW[w.fn]
+    if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
+    return spec.reduce
+  })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
   // The reasoning for it was good and is the `var float x = na` lesson: a
@@ -324,6 +342,34 @@ export function execute(program, ctx, limits) {
           else if (b === 2) v = fn(stack[sp], stack[sp + 1])
           else v = fn(...Array.prototype.slice.call(stack, sp, sp + b))
           stack[sp++] = v
+          break
+        }
+        case OP.WINDOW: {
+          const w = winPlan[a]
+          const span = w.span
+          const live = stack[--sp]
+          // ⛔⛔ WARM-UP IS `rolling`'S OWN RULE, NOT A NEW ONE. It starts at
+          // `i = n - 1`, so a window is unanswerable until the series has n bars.
+          // Inventing a runtime warm-up here is exactly how the two lanes would
+          // begin disagreeing about the first valid bar.
+          if (committed < span - 1) { stack[sp++] = NaN; break }
+          const buf = winBuf[a]
+          buf[span - 1] = live
+          // ⚠️ A SPAN OF 1 READS NO HISTORY AT ALL — and therefore has no ring to
+          // look up. Reaching for one would dereference an entry the front end
+          // correctly never allocated.
+          if (span > 1) {
+            const hi = historyBase + w.historySlot
+            const plan = histPlan[hi]
+            const off = histOffset[hi]
+            const depth = plan.depth
+            // bar order: the oldest committed bar first, the live bar last
+            for (let k = 1; k < span; k += 1) {
+              buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
+            }
+          }
+          budget.charge('WINDOW_CELLS', span)
+          stack[sp++] = winReduce[a](buf, 0, span - 1)
           break
         }
         case OP.RET: {

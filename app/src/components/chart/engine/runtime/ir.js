@@ -49,6 +49,7 @@ export const EXPR = Object.freeze({
   TERNARY: 'ternary',
   CALL: 'call',           // a user-defined function invocation at a CALL SITE
   BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
+  WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
   // ── declared, not yet lowerable ──
   TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
@@ -85,7 +86,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  */
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
-  functions = [], callSites = [], history = [],
+  functions = [], callSites = [], history = [], windows = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -109,6 +110,7 @@ export function makeIrProgram({
   })
   const p = {
     version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
+    windows: windows || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -241,6 +243,13 @@ export function validateIr(p) {
           throw new IrError(`${where}: \`${fn.name}\` takes ${fn.params} arguments, got ${e.args ? e.args.length : 0}`)
         }
         e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
+        return
+      }
+      case EXPR.WINDOW: {
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.windows || []).length) {
+          throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${(p.windows || []).length}`)
+        }
+        walkExpr(e.source, `${where}.source`)
         return
       }
       case EXPR.BUILTIN: {
@@ -444,6 +453,10 @@ export const unary = (op, of) => ({ kind: EXPR.UNARY, op, of })
 export const ternary = (test, a, b) => ({ kind: EXPR.TERNARY, test, then: a, else: b })
 export const call = (fn, site, args) => ({ kind: EXPR.CALL, fn, site, args })
 export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
+/** ⭐ A finite-window builtin over a runtime series. `site` indexes the program's
+ *  window table; `source` is the expression producing the CURRENT bar's value, and
+ *  the committed bars come from that series' own history ring. */
+export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

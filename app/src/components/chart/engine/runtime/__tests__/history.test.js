@@ -343,13 +343,18 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     expect(() => runPine(`${head}var c = 0.0\nc := c + 1\nplot(c[1])\n`)).not.toThrow()
   })
 
-  it('a WINDOWED builtin over runtime state is still refused — no fake column', () => {
-    // ⛔ THE RING IS NOT A SERIES BRIDGE. `sma(x, 5)` needs the window semantics
-    // the closed table already owns, fed by a real runtime series — 2F-2B. Feeding
-    // it a synthetic column materialised from the ring would be a second
-    // implementation of a settled builtin, which is the one thing this
-    // architecture refuses on principle.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`).guard)
+  it('a RECURRENT builtin over runtime state is still refused — no fake column', () => {
+    // ⛔ THE RING IS NOT A SERIES BRIDGE, AND THAT SURVIVED 2F-2B INTACT.
+    //
+    // ⚰️ This case named `ta.sma(x, 5)` and 2F-2B now EXECUTES it — by reading
+    // `span` values per bar out of this ring and handing them to `interpret.js`'s
+    // own reducer, which is the opposite of the fake column the comment feared:
+    // no series is materialised and no builtin is re-implemented.
+    //
+    // `ema` is the case that still stands, and for a DIFFERENT reason: it is not
+    // blocked on reaching the ring, it is blocked on carrying its own previous
+    // OUTPUT, which no window of inputs can supply. Two walls, told apart.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 })

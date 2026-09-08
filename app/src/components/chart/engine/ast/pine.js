@@ -966,7 +966,7 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
  *  bare `pivothigh(...)` still resolves to this table's own function, unshifted,
  *  because a member typing the bare name in OUR box means OUR vocabulary — the
  *  same rule `ta.barssince` established. */
-const PINE_NAMESPACED_TREE = Object.freeze({
+export const PINE_NAMESPACED_TREE = Object.freeze({
   'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
   'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
   // ⭐⭐ THE SIGN FLIP, AND IT IS A NODE THIS TABLE HAS HAD ALL ALONG. Pine's

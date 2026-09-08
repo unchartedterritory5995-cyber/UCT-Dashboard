@@ -52,6 +52,12 @@ export const LIMIT_NAMES = Object.freeze([
   // ten slots at depth two and two slots at depth ten are not the same object.
   'HISTORY_SLOTS',
   'HISTORY_VALUES',
+  // ⭐ 2F-2B. A finite-window call reads `span` values EVERY BAR, so the cost
+  // that scales is not the ring's size but the total cells read across the run —
+  // `sma(x, 200)` on 5,000 bars touches a million of them. Counted here so a
+  // program whose windows are quietly enormous stops BY NAME rather than by
+  // taking a very long time.
+  'WINDOW_CELLS',
   'REQUEST_COUNT',
   'REQUEST_FANOUT',
   'MEMORY',
@@ -85,6 +91,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // runaway long before it can matter.
   HISTORY_SLOTS: 512,
   HISTORY_VALUES: 262144,
+  WINDOW_CELLS: 100000000,
   REQUEST_COUNT: 16,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,

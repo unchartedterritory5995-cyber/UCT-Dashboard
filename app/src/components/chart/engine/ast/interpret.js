@@ -1136,17 +1136,67 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *  TABLE, which is the one thing this phase exists to make impossible; a
  *  DECLARED-BUT-UNIMPLEMENTED one is a formula the builder offers and the chart
  *  cannot draw. `interpret.test.js` asserts the equality in both directions. */
+/**
+ * ⭐⭐⭐ THE FINITE-WINDOW FAMILY, DECLARED ONCE AND CONSUMED BY BOTH LANES.
+ *
+ * A finite-window builtin is one whose value on a bar is a pure function of a
+ * BOUNDED recent window of its source — no carried recurrence, no backward
+ * search. `rolling` walks the whole series for the columnar lane; the bar-by-bar
+ * runtime hands the SAME `reduce` a window drawn from its history rings. Two
+ * drivers, one meaning.
+ *
+ * ⛔⛔ MEMBERSHIP IS AN IMPLEMENTATION FACT, NOT A NAME OR AN ARITY. `ema` and
+ * `rma` take a series and a length and are NOT here: `emaCol`/`rmaCol` carry
+ * state from the previous OUTPUT, which a window cannot express. `barssince` and
+ * `valuewhen` search backwards for a CONDITION. `cum` accumulates without bound.
+ * Each is its own family and each is still required — see the gap register.
+ *
+ * ⛔ `span` IS PART OF THE SEMANTICS, NOT A DETAIL. `ta.rising(x, n)` compares
+ * n+1 BARS to answer about n intervals, and that +1 is vendor-pinned
+ * (2026-09-06 capture). A runtime that asked for `n` bars would be one bar short
+ * on every call, which is why the number lives here rather than at each call site.
+ *
+ * ⚠️ DELIBERATELY NOT MEMBERS, though they are finite in a looser sense:
+ *   `bbw`  composes TWO windows over one source — expressible, not yet wired.
+ *   `hma`  windows a DERIVED series (`2*wma(n/2) - wma(n)`), so it needs a
+ *          runtime series that does not exist in the source program.
+ *   `percentrank` uses its own `percentrankAt` rather than a `(s, lo, hi)` reducer.
+ *   `pivothigh`/`pivotlow` read `right` bars into the FUTURE — not causal, so a
+ *          bar loop cannot answer them at the current bar at all.
+ */
+export const FINITE_WINDOW = Object.freeze({
+  sma: { reduce: windowMean, span: (n) => n },
+  wma: { reduce: windowWeightedMean, span: (n) => n },
+  stdev: { reduce: windowStdev, span: (n) => n },
+  sum: { reduce: windowSum, span: (n) => n },
+  dev: { reduce: windowMeanAbsDev, span: (n) => n },
+  median: { reduce: windowMedian, span: (n) => n },
+  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n },
+  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n },
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n },
+  rising: { reduce: windowRisingMonotone, span: (n) => n + 1 },
+  falling: { reduce: windowFallingMonotone, span: (n) => n + 1 },
+})
+
+/** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
+ *  ABOVE. This is what makes "one semantic authority" structural: the whole-series
+ *  pass and the runtime bridge cannot drift, because neither owns the reducer or
+ *  the span — the table does. */
+const windowFn = (name) => (series, n) =>
+  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce)
+
 export const FN = Object.freeze({
-  sma: (series, n) => rolling(series, n, windowMean),
+  sma: windowFn('sma'),
   ema: (series, n) => emaCol(series, n),
-  highest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b)),
-  lowest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b)),
+  highest: windowFn('highest'),
+  lowest: windowFn('lowest'),
   // ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME SHAPE THE VALUE
   // FORMS PASS — `windowArgExtreme` asks `windowExtreme` for the value and only
   // then names the bar, so the pair cannot disagree about one window and the
   // tie-break is the manifest's ruling rather than this line's.
-  highestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b)),
-  lowestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b)),
+  highestbars: windowFn('highestbars'),
+  lowestbars: windowFn('lowestbars'),
   barssince: (cond, n) => barsSince(cond, n),
   valuewhen: (cond, src, n) => valueWhen(cond, src, n),
   // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
@@ -1154,18 +1204,18 @@ export const FN = Object.freeze({
   // both bars of a tie. See `closedTable.json::_functions_pivots`.
   pivothigh: (series, left, right) => pivotCol(series, left, right, (v, w) => v > w),
   pivotlow: (series, left, right) => pivotCol(series, left, right, (v, w) => v < w),
-  stdev: (series, n) => rolling(series, n, windowStdev),
-  sum: (series, n) => rolling(series, n, windowSum),
-  dev: (series, n) => rolling(series, n, windowMeanAbsDev),
+  stdev: windowFn('stdev'),
+  sum: windowFn('sum'),
+  dev: windowFn('dev'),
   // ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
   // TradingView capture, not by inferred/documentation evidence. See
   // `closedTable.json`'s `_functions_vendor_parity_resolutions` for the
   // full evidence chain each of these four carries.
-  rising: (series, n) => rolling(series, n + 1, windowRisingMonotone),
+  rising: windowFn('rising'),
   // ⭐⭐ BATCH 1 — resolved 2026-09-06 by real TradingView capture (independent
   // proof, not assumed symmetry). See `windowFallingMonotone`'s own docstring.
-  falling: (series, n) => rolling(series, n + 1, windowFallingMonotone),
-  median: (series, n) => rolling(series, n, windowMedian),
+  falling: windowFn('falling'),
+  median: windowFn('median'),
   percentrank: (series, n) => {
     const out = nan(series.length)
     for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n)
@@ -1199,7 +1249,7 @@ export const FN = Object.freeze({
   min: (a, b) => elementwise2(a, b, POINTWISE.min),
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
   rma: (series, n) => rmaCol(series, n),
-  wma: (series, n) => rolling(series, n, windowWeightedMean),
+  wma: windowFn('wma'),
   // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
   // the manifest carries one period and the member writes one number. Alan Hull's
   // published definition, restated verbatim by TradingView's `ta.hma`.
