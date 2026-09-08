@@ -77,7 +77,10 @@ _log = logging.getLogger(__name__)
 #   v7: summary.next_report_date is resolved DIRECTLY when no forward estimate
 #       carried one. Persisted payloads hold the old null, so without this bump
 #       every cached ticker would keep saying "Date TBD" after the fix shipped.
-_KIND = "earnings_intel_v7"
+# v8: added `reaction` (earnings-day price move per quarter). A shape change
+# MUST bump this or every persisted v7 snapshot keeps serving a payload with
+# no reaction key and the strip stays blank for its whole TTL.
+_KIND = "earnings_intel_v8"
 _STALE_MAX = 45 * 86400
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
@@ -476,12 +479,23 @@ def _build(sym: str) -> dict:
             _log.debug("next_report_date fallback failed for %s: %s", sym, e)
     cal_desc = cal.describe() if cal else {"known": False}
 
+    # Earnings-day price reaction, from OUR OWN daily bars (no metered call).
+    # Never let it break the tab: the reaction strip is one block inside
+    # Earnings, so a failure here must cost that block, not the whole payload.
+    try:
+        from api.services import earnings_reaction as _er
+        reaction = _er.reaction_for(sym, quarters)
+    except Exception as e:                                # noqa: BLE001
+        _log.warning("earnings reaction failed for %s: %s", sym, e)
+        reaction = None
+
     return {
         "ticker": sym,
         "quarters": quarters,
         "estimates": estimates,
         "annual": annual,
         "summary": summary,
+        "reaction": reaction,
         # Drives the proximity-weighted TTL below. Previously read but never
         # written, so every payload silently took the 24-hour branch.
         "next_report_date": summary.get("next_report_date"),
