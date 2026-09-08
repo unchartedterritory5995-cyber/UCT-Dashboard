@@ -347,8 +347,24 @@ describe('Options Flow correctness guard', () => {
     // When FD's filters drop nothing, rebuilding recomputes a value already in
     // hand — on the main thread, over every confirmed trade. The length test is
     // what skips it; flowChartsReuse.test.js proves the equivalence it relies on.
-    expect(CODE.includes('if (cc.length === D.clean_confirmed.length) return D;'),
-      'the redundant buildCharts rebuild is back on the entry path' + FIX).toBe(true)
+    //
+    // ⛔ STATED AS THE INVARIANT, NOT RETYPED. This asserted the literal
+    // `if (cc.length === D.clean_confirmed.length) return D;` and went red the
+    // day the return was wrapped for tracing — the guard broke while the
+    // invariant it protects was completely intact. That is the exact failure
+    // this file has already paid for once: a retyped literal takes a real
+    // invariant offline the moment the code changes shape.
+    const test = CODE.indexOf('cc.length === D.clean_confirmed.length')
+    expect(test, 'the length short-circuit is gone — buildCharts now reruns on '
+      + 'every entry, on the main thread, over every confirmed trade' + FIX)
+      .toBeGreaterThan(-1)
+    // It must SHORT-CIRCUIT: a return between the test and the rebuild.
+    const rebuild = CODE.indexOf('buildCharts(', test)
+    const ret = CODE.indexOf('return', test)
+    expect(ret).toBeGreaterThan(-1)
+    expect(ret, 'the length test no longer returns before buildCharts — it is '
+      + 'computed and then discarded, which is the cost it exists to skip' + FIX)
+      .toBeLessThan(rebuild === -1 ? Number.MAX_SAFE_INTEGER : rebuild)
   })
 
   it('CONTROL: the guard can still see this file', () => {

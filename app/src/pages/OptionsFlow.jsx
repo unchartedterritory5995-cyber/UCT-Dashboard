@@ -1837,9 +1837,13 @@ export default function OptionsFlowDashboard() {
   }, [D, servedTopPicks, etfGeneration, csvFile, dateFilter]);
 
   const FD = useMemo(() => {
+    // ⛔ FD IS TRACED SEPARATELY. The last branch returns a PLAIN copy of D, and
+    // once that happens every downstream `FD.x` read is invisible to the trace
+    // on D — which is why an earlier run reported TICKER_DB "read" with ZERO
+    // rows touched. That was an instrument artifact, not a finding.
     if (!D) return null;
     const needsTabFilter = dataMode === "stocks" || dataMode === "index";
-    if (capFilter === "All" && !needsTabFilter) return D;
+    if (capFilter === "All" && !needsTabFilter) return traceDataset(D, 'FD');
 
     let cc = D.clean_confirmed;
     if (needsTabFilter) {
@@ -1871,10 +1875,14 @@ export default function OptionsFlowDashboard() {
     // reclassifies a symbol the length changes and we rebuild — which is the
     // whole reason the filter runs client-side. Removing the filter fails 8
     // tests; skipping a provably-redundant rebuild fails none.
-    if (cc.length === D.clean_confirmed.length) return D;
+    if (cc.length === D.clean_confirmed.length) return traceDataset(D, 'FD');
 
     const charts = buildCharts(cc);
-    return { ...D, ...charts };
+    // ⛔ `.__raw` FIRST, OR THE TRACE LIES. Spreading the traced dataset reads
+    // EVERY key, which marked the whole bootstrap as "read at first paint" while
+    // nothing had consumed a single row. `__raw` is undefined when tracing is
+    // off, so production behaviour is byte-identical.
+    return traceDataset({ ...(D.__raw || D), ...charts }, 'FD');
   }, [D, capFilter, dataMode, isETF]);
 
   useEffect(() => {

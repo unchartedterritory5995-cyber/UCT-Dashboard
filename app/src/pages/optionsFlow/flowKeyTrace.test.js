@@ -73,3 +73,46 @@ describe('armed, it records the FIRST read of each key', () => {
     expect(Object.keys(window.__flowKeyReads.firstRead).length).toBeGreaterThan(3)
   })
 })
+
+describe('field-level trace on the row arrays', () => {
+  const BIG = {
+    TICKER_DB: Array.from({ length: 50 }, (_, i) => ({ s: 'T' + i, n: i, prem: i * 10, unused: 'x' })),
+    WATCH: [{ s: 'W', deep: 1 }],
+  }
+
+  beforeEach(() => arm(true))
+
+  it('records WHICH fields and HOW MANY rows a consumer touched', () => {
+    const t = traceDataset(BIG)
+    // A consumer shaped like the real ones: find one row, read two fields.
+    const hit = t.TICKER_DB.find(r => r.s === 'T3')
+    void hit.prem
+    const rep = window.__flowKeyReads.fieldReport()
+    expect(rep.TICKER_DB.rowCount).toBe(50)
+    expect(rep.TICKER_DB.fields.some(f => f.startsWith('s:'))).toBe(true)
+    expect(rep.TICKER_DB.fields.some(f => f.startsWith('prem:'))).toBe(true)
+    // ⛔ The point of the whole exercise: an untouched field must NOT appear,
+    // or the report cannot size a derived product.
+    expect(rep.TICKER_DB.fields.some(f => f.startsWith('unused:'))).toBe(false)
+    expect(rep.TICKER_DB.arrayOps).toContain('find')
+  })
+
+  it('counts only the rows actually visited', () => {
+    const t = traceDataset(BIG)
+    void t.TICKER_DB[0].s
+    void t.TICKER_DB[1].s
+    expect(window.__flowKeyReads.fieldReport().TICKER_DB.rowsTouched).toBe(2)
+  })
+
+  it('CONTROL: a non-deep key is not field-traced', () => {
+    // Deep-proxying everything would distort the timings this file reports.
+    const t = traceDataset(BIG)
+    void t.WATCH[0].deep
+    expect(window.__flowKeyReads.fieldReport().WATCH).toBeUndefined()
+  })
+
+  it('values still come back correct through both proxies', () => {
+    const t = traceDataset(BIG)
+    expect(t.TICKER_DB.filter(r => r.n < 3).map(r => r.s)).toEqual(['T0', 'T1', 'T2'])
+  })
+})

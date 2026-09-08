@@ -63,7 +63,7 @@ accept a bearer). Re-driving them would duplicate authority, not add it.
 
 | # | Residual | Owner | Why it is not a Wave L defect |
 |---|---|---|---|
-| **R1** | **Note search does not index document page text.** A captured passage is not findable by its own words in Search. | product | `notes.py` documents the boundary; a **PDF behaves identically**. Pre-existing shape, not a Wave L regression. **Ask does reach it** via `j2_note_document_pages_fts`. Strong competitive gap — see §6. |
+| **R1** | ⚠️ **SUPERSEDED 2026-09-08 — SEE THE CORRECTION BELOW.** Stated as: "Note search does not index document page text; a captured passage is not findable by its own words in Search." | corrected | `notes.py` documents the boundary; a **PDF behaves identically**. Pre-existing shape, not a Wave L regression. **Ask does reach it** via `j2_note_document_pages_fts`. Strong competitive gap — see §6. |
 | **R2** | **A captured passage is not listed as an excerpt of its note**, so its id is not discoverable and there is no member path from "I captured this" to "attach as thesis evidence". | next wave | `list_note_excerpts` joins the refs sidecar that `notes.py` derives from `documentExcerpt` nodes in the **body**; a capture never embeds one. The evidence API accepts a captured excerpt perfectly. **Surfacing gap, not a broken capability** — and building the surface is a feature, which Slice 5 is not. |
 | **R3** | **GET share payload reaches Railway's edge** before our code runs. | unenforceable | See §5. |
 | **R4** | **No physical handset.** Certified in Chromium at phone width. | next wave | Install eligibility on a given Android build is not proven by a viewport. |
@@ -259,3 +259,96 @@ touched** (`git diff origin/master...HEAD` over their paths is empty):
 `chart/engine/ast/pine.blindCorpus` — the indicator workstream's.
 
 ⛔ **This is not "the entire repository is green", and it is not claimed to be.**
+
+---
+
+## 12. PRODUCTION — deployed and verified 2026-09-08
+
+| Item | Value |
+|---|---|
+| Branch commit | `dbeaca53e` (`notebook-primary-platform`, pushed) |
+| Merge commit pushed to master | `7226939c8` |
+| Serving entry bundle | `/assets/index-DVnQg2EZ.js` |
+| Fresh process | ✅ `uptime_seconds: 43` on `/api/health` |
+| `broker_sync` invariant | 10 (floor 7) — preserved through the merge |
+
+⛔ **Master moved twice during release and was reconciled, never forced.** The
+first push was rejected as non-fast-forward; the second reconciled two further
+company-panel commits. The only file overlapping this wave was `api/main.py`
+(both the `logging_redaction` lifespan wiring and `broker_sync` survived), and
+only the drift-affected rails were re-run: 21 passed.
+
+### Frontend asset proof — COMPLETE sweep, 288 assets
+
+| Marker | Chunk |
+|---|---|
+| `/journal/share` | `index-DVnQg2EZ.js` |
+| `share-signin` | **`ShareTargetPage-B0EVX0wa.js`** (a real code-split chunk) |
+| storage-refusal copy | `ShareTargetPage-B0EVX0wa.js` |
+| `/journal/capture-connect` | `index-DVnQg2EZ.js` |
+| `This note` (Slice 5 context destination) | `index-DVnQg2EZ.js` |
+
+⚰️ **THE FIRST TWO SWEEPS WERE WRONG IN THE TWO WAYS THIS PROGRAM ALREADY KNEW
+ABOUT, and both were caught rather than believed.** The first found **4 assets**
+and reported COMPLETE — the chunk-discovery pattern matched almost nothing, and
+a walker that finds nothing raises no error. The second, with discovery fixed,
+swept 286 assets against entry `index-C-EZqwzY.js` and found **zero** Wave L
+markers — because Railway had not finished building the push yet, so that was the
+PREVIOUS build. *A stale artifact reads exactly like a missing feature.* The tool
+now carries a sanity floor on "COMPLETE" and the run above is against the entry
+hash that changed after the deploy landed.
+
+### Member-flow verification (real Chromium, 390×844, production)
+
+| Check | Result |
+|---|---|
+| **B** `/journal/share` reachable | ✅ renders "Sign in to save this" |
+| **B** intro animation not obstructing | ✅ `elementFromPoint` → `coveredBy: null` |
+| **B** lapsed-session continuation | ✅ `next=%2Fjournal%2Fshare` — **bare route** |
+| **B** no payload in `?next=` | ✅ |
+| **B** query scrubbed from the address bar | ✅ `search: ""` after load |
+| **B** no horizontal overflow at 390px | ✅ `overflowX: 0` |
+| **C** `/journal/capture-connect` reachable | ✅ "Sign in to connect", `coveredBy: null` |
+| Routes auth-gated, not SPA fallthrough | ✅ `POST /api/j2/capture` → **401**, `POST /api/j2/ask/stream` → **401** (405 is this app's catch-all signature; 401 proves both are mounted) |
+| **E** G-080 | ✅ `J2_SHARE_LINKS_ENABLED=0` |
+| **F** semantic activation | ✅ **zero** embedding/semantic env vars present |
+
+### ⛔ What production verification did NOT cover
+
+**A (in-app contextual destination) and D (Ask Current Note reading a captured
+passage) were NOT verified with a production member session.** I have no
+production member credentials, and creating notes and captures in the owner's
+live Notebook to test would pollute real member research — which the release
+instruction forbids.
+
+What is proven for them: the code is **in the serving bundle** (the `This note`
+context label ships in the entry chunk), the routes are **mounted and
+auth-gated** in production, and the behaviour is certified in the fail-closed
+sandbox against the same commit. What is **not** proven: a real member
+round-trip on production data.
+
+⭐ This is the same honest limit Wave K recorded for Ask, and it is stated rather
+than rounded up.
+
+---
+
+## 13. ⚠️ CORRECTION TO RESIDUAL R1 (2026-09-08, during Wave M)
+
+**This closure overstated R1, and the correction is recorded rather than the
+original erased.**
+
+| | |
+|---|---|
+| **EARLIER CONCLUSION** | "Notebook Search does not reach captured/document text." |
+| **CORRECTION** | **The corpus was already reachable.** The claim was measured on `GET /api/j2/notes?q=` — whose FTS index is title + body_plain *by design* — and generalised to "Search". The member's Search has rendered three sections since Waves I and J: Notes, **Documents**, **Evidence**. |
+| **EVIDENCE** | A passage captured from Reuters, on the running product: `notes=0 · documents=1 · excerpts=1`. `FolderSidebar` calls `useDocumentSearch` and `useExcerptSearch` in search mode and renders both. |
+| **ACTUAL DEFECT** | Search could not **distinguish** an external web-passage row from a real paginated document row, because `source_kind` was never selected into the result surface — producing false `· p.N` labels. Fixed in Wave M (`6cac94274`). |
+
+⭐ **Why this matters beyond the fact:** the false residual was inherited by the
+post-Wave-L re-baseline and by the Wave M directive, where it became the wave's
+stated primary blocker. **A wrong measurement propagates into plans.** The
+generalisation — from one endpoint to "Search" — is the whole error.
+
+The genuine competitive gap in this area is narrower and still stands:
+**low-overlap paraphrase retrieval**, which is a semantic capability and remains
+**DARK** (see `wave-m-closure.md` §3).
