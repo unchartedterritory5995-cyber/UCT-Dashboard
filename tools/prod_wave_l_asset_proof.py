@@ -46,6 +46,25 @@ MARKERS = {
     # that a web capture can no longer be rendered as "· p.N".
     "wave_m_captured_passage_label": "Captured passage",
     "wave_m_saved_passage_label": "Saved passage",
+    # ── Wave N ─────────────────────────────────────────────────────────────
+    # ⛔ ONE MARKER PER DISTINCT BEHAVIOUR, so a partial deploy cannot pass by
+    # carrying a single string. Each of these is member-facing copy introduced
+    # by a different section of the wave.
+    # §9 — the captured-source view that replaced the fake PDF viewer.
+    "wave_n_capture_coverage_copy": "not the whole article",
+    "wave_n_open_the_source": "Open the source",
+    # §10 — the purged-source degrade (ghost evidence).
+    "wave_n_purged_degrade": "source no longer available",
+    # §12 — the picker search and its honest cap line.
+    "wave_n_picker_search": "Search your captured passages",
+    # ⚠️ "most recent" alone matched OptionsFlow's own copy — generic English
+    # is not a marker, it is a coincidence. The distinctive half of the cap
+    # line is what proves the §12 change shipped.
+    "wave_n_picker_cap": "search to narrow",
+    # §14 — the attach announcement to assistive tech.
+    "wave_n_attach_announcement": "Evidence added as",
+    # Step 1 — the duplicate state the member sees before acting.
+    "wave_n_already_attached": "already attached",
 }
 
 

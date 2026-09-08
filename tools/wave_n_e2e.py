@@ -157,16 +157,22 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
             return _finish(F, browser, page)
         page.screenshot(path=str(OUT_DIR / "01_capture_dialog.png"))
         dialog.locator('[data-testid="capture-save"]').click()
-        try:
-            page.wait_for_selector('[role="status"]', timeout=10000)
-        except Exception:  # noqa: BLE001
-            pass
+        # ⛔ WAIT FOR THE WRITE, NOT FOR A ROLE THAT SEVERAL THINGS CLAIM.
+        # This used to wait on `[role="status"]`, which the Compass tip and
+        # other surfaces also carry — so it returned instantly on somebody
+        # else's element while the dialog still said "Saving…", and the very
+        # next line read the server and reported "the captured passage did not
+        # land as ONE candidate: []". A race in the probe, indistinguishable in
+        # the output from a product that dropped the capture.
+        rows = []
+        for _ in range(40):
+            cands = jbody(api(ctx, "get",
+                              f"/api/j2/notes/{note_id}/evidence-candidates", base))
+            rows = cands.get("candidates", [])
+            if rows:
+                break
+            page.wait_for_timeout(500)
         page.screenshot(path=str(OUT_DIR / "02_capture_saved.png"))
-
-        # Server truth for 1-2: two fields in, two fields out.
-        cands = jbody(api(ctx, "get",
-                          f"/api/j2/notes/{note_id}/evidence-candidates", base))
-        rows = cands.get("candidates", [])
         F.check("1", len(rows) == 1,
                 f"the captured passage did not land as ONE candidate: {rows!r}")
         if not rows:
@@ -220,7 +226,15 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
         page.screenshot(path=str(OUT_DIR / "04_stance_chosen.png"))
         # The picker's own submit — the trigger link is gone while it is open.
         page.locator("button", has_text="Add evidence").last.click()
-        page.wait_for_timeout(1200)
+        # ⛔ WAIT FOR THE EDGE TO EXIST, not for a fixed 1.2s. The screenshot
+        # from the run that caught this shows the button still reading
+        # "Saving…" while the next step was already asserting about the thesis.
+        for _ in range(40):
+            _ev = jbody(api(ctx, "get", f"/api/j2/notes/{note_id}/thesis-summary", base))
+            if any(e.get("targetId") == excerpt_id for e in _ev.get("evidence", [])):
+                break
+            page.wait_for_timeout(500)
+        page.wait_for_timeout(600)
         page.screenshot(path=str(OUT_DIR / "05_attached.png"))
         # ⛔ THE PICKER'S OWN ERROR LINE, read rather than inferred. A failed
         # attach otherwise surfaces three steps later as "the thesis does not
@@ -240,8 +254,14 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
                 "the thesis does not show the stance it was given")
         F.check("10", SOURCE_TITLE in body or "cuts against the long case" in body,
                 "the attached evidence does not identify itself in the thesis")
-        F.check("10", "Document excerpt" not in body,
-                "a captured web passage is labelled 'Document excerpt' in the thesis")
+        # ⛔ SCOPED TO THE ATTACHED ROW. "Document excerpt" is also the picker's
+        # own TYPE BUTTON label, so a whole-page check reports a defect
+        # whenever the picker happens to be open — which is what it did.
+        _row_txt = (page.locator("li", has_text="Opposes").first.inner_text()
+                    if page.locator("li", has_text="Opposes").count() else "")
+        F.check("10", "Document excerpt" not in _row_txt,
+                f"a captured web passage is labelled 'Document excerpt' in the "
+                f"thesis: {_row_txt!r}")
         attached_row = page.locator("li", has_text="Opposes").first
         F.note("10", thesis_row=attached_row.inner_text() if attached_row.count() else None)
         F.check("10", "p.1" not in (attached_row.inner_text() if attached_row.count() else ""),

@@ -128,6 +128,12 @@ def _dismiss_intro(page) -> None:
 
 
 def main() -> int:  # noqa: C901
+    # ⛔ THE REPORT MUST SURVIVE THE FAILURE PATH. A finding can quote page
+    # text, and page text contains glyphs cp1252 cannot encode (a ⌘ in the
+    # site search hint crashed this harness while PRINTING its own findings —
+    # the diagnostic worked on every green run and died on the red one, which
+    # is the only run that matters).
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8077")
     ap.add_argument("--email", default="mobtest@local.dev")
@@ -265,7 +271,19 @@ def main() -> int:  # noqa: C901
               "attach button (enabled)")
         page.screenshot(path=str(OUT_DIR / "m03_before_attach.png"), full_page=True)
         submit.click()
-        page.wait_for_timeout(1500)
+        # ⛔ WAIT FOR THE EDGE, NOT A STOPWATCH. A fixed 1.5s read the page
+        # mid-write and reported three defects at once — no announcement, focus
+        # on <body>, no attached row — all of which were the attach still being
+        # in flight.
+        for _ in range(40):
+            r2 = ctx.request.get(f"{base}/api/j2/notes/{note_id}/thesis-summary")
+            try:
+                if r2.ok and (r2.json().get("evidence") or []):
+                    break
+            except Exception:  # noqa: BLE001
+                pass
+            page.wait_for_timeout(500)
+        page.wait_for_timeout(700)
         # ⛔ §14 — WAS IT ANNOUNCED, AND WHERE DID FOCUS GO? On success the
         # picker unmounts and a row appears elsewhere on the page: a sighted
         # member sees it, and assistive tech is told nothing unless a live
