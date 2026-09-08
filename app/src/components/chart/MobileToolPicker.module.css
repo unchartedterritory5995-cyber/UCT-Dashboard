@@ -1,0 +1,99 @@
+/* MOB-04 — the all-tools sheet. A flat labelled grid, not a category tree:
+   TradingView's own hub hides 15 of 18 entries behind its default detent
+   (CMP-083), so tabs are not a proven answer at this roster size. Eighteen
+   tools fit in one scroll of a 4-across grid. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px 8px;
+}
+
+.search {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text);
+  /* 16px is not a style choice: iOS Safari zooms the whole page when a focused
+     input is under 16px, and a zoomed chart page does not zoom back. */
+  font-size: 16px;
+}
+.search:focus {
+  outline: none;
+  border-color: var(--ut-gold);
+}
+
+.sectionLabel {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+/* A narrow phone (or a large text size) gets three across rather than four
+   cramped ones — the label is what makes this surface worth having. */
+@media (max-width: 360px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 64px;              /* ≥ --tap-min with room for a two-line label */
+  padding: 8px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tile:active { background: var(--bg-hover); }
+
+.tileActive {
+  color: var(--ut-gold);
+  border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
+}
+
+.glyph {
+  font-size: 17px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+}
+
+.label {
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  /* Two lines then ellipsis: "Advance %" and "Pitchfork" must stay readable
+     rather than being clipped mid-word. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty {
+  padding: 14px 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
