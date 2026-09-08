@@ -67,7 +67,7 @@ Certification tip was `f8d625c27` (doc `ab93803ef`). Everything below is after i
 
 | residual | at certification | now |
 |---|---|---|
-| Authenticated real-device loop | BLOCKED | **BLOCKED — unchanged, owner action** |
+| Authenticated real-device loop | BLOCKED | 🟡 **PARTIAL** — a session RAN; see `99f` |
 | MOB-05 bound alerts | DEFERRED | **SHIPPED** `2d3b2d555` |
 | MOB-10 per-object Hide | DEFERRED | **SHIPPED** `d216ba57b` — *and only because the recovery surface shipped first* |
 | Tool discovery at scale | open residue | **SHIPPED** `251c22e49` |
@@ -81,7 +81,46 @@ Certification tip was `f8d625c27` (doc `ab93803ef`). Everything below is after i
 
 ## 3 · The certification's residuals R1-R6, answered
 
-### R1 · Real-device QA of the authenticated app — **STILL BLOCKED**
+### R1 · Real-device QA of the authenticated app — **PARTIAL** (updated 2026-09-08)
+
+> 🔄 **UPDATED THE SAME DAY, AND THE TEXT BELOW IS PRESERVED RATHER THAN
+> REWRITTEN.** Full evidence: **`99f-r1-authenticated-device-evidence.md`**.
+>
+> **R1_AUTHENTICATED_DEVICE_GATE = PARTIAL** · **BROWSERSTACK_DEVICE_ACCESS = LIMITED**
+>
+> · **The cap is CURRENT, not stale** — re-measured on the logged-in account:
+>   Free Trial, **60 s per device, hard**, auto-closing, consumed per device
+>   (devices grey out after one run). Three sessions confirmed it.
+> · **The other half of the blocker is GONE.** The paragraph below gives two
+>   independent causes; the second — *"the device cannot authenticate"* — no
+>   longer holds. An authenticated session ran on **iPhone 16 Pro / iOS 18.6**,
+>   **iPhone 14 / iOS 18.3** and **iPhone 13 Pro Max / iOS 18.3**, signed in as
+>   the disposable sandbox account, with `/charts` mounted (`canvas=1`,
+>   `shell=phone`) and `pointer: coarse` true on hardware.
+> · **No production auth was weakened.** `COOKIE_SECURE` is False off-Railway,
+>   so plain-HTTP `bs-local.com` authenticates normally; the only requirement is
+>   one origin for SPA + API. No bypass, no token in a URL.
+> · 🔴 **F17's unmeasured half is MEASURED: application state across rotation —
+>   STATE HELD**, on two devices, carrying symbol *and* timeframe. R5's closing
+>   caveat and F17's PARTIAL both rested on this being unmeasured; **§6's F17
+>   row and R5's last paragraph are superseded on that point.**
+> · **Workspace persistence: PARTIAL.** The phone's `POST /api/charts/layouts`
+>   returned 200; the harness's read-back asserted the wrong shape (the endpoint
+>   returns `{global, mine}`) — an instrument defect, now corrected and proven
+>   end-to-end, with the device leg staged.
+> · **F14 bound alerts: NOT VERIFIED, and F14 stays PARITY.** A bound alert
+>   firing needs a server evaluation cycle, which does not fit in 60 seconds.
+> · **PORTRAIT_TOOLBAR = CORRECT.** A device reading suggested the landscape rail
+>   shape in portrait; `tools/r1_toolbar_probe.py` (coarse-pointer emulation,
+>   polling to two identical reads) shows `absolute/column` appears ONLY where the
+>   gate is true. The device reading was a probe artifact — **the same
+>   sample-instead-of-settle defect class as `f5a495c51`'s crosshair race.**
+> · ⚰️ **The screenshots were NOT preserved** — captured without saving, so they
+>   died with the session. The verbatim panel text in `99f` §3 is what survives.
+>   Every future device pass saves its frames at capture time.
+
+*(original text, as written when R1 was blocked:)*
+
 
 Nothing has changed about the cause, and it must not be reported as softened. The
 BrowserStack account is still a Free Trial capped at one minute per device, and
@@ -405,8 +444,12 @@ would be exactly the massaging `99c` refused to do.
 
 ### OWNER_ACTION_REQUIRED
 
-1. **An authenticated real-device loop.** The only thing gating everything below
-   it. Needs a BrowserStack plan with usable session length, or the owner signing
+1. **An authenticated real-device loop.** 🟡 **PARTIALLY OPEN as of 2026-09-08** —
+   a session runs and authenticates (`99f`); what remains is DURATION, a hard
+   60 s per device. The recommended next step is NOT a purchase but an
+   authenticated auto-driving harness (`99f` §8), which also produces the
+   measurement that would justify a plan if it turns out to be needed.
+   Originally: Needs a BrowserStack plan with usable session length, or the owner signing
    the sandbox account in during a session. Required outcome: a real iPhone → the
    authenticated app → a real member workspace → ideally an isolated test
    workspace → the ability to verify persistence across reload, orientation and
