@@ -42,6 +42,7 @@ function render(results, done) {
     `<div>PASS <b class="PASS">${s.pass}</b> · FAIL <b class="FAIL">${s.fail}</b> · ` +
     `BLOCKED <b class="BLOCKED">${s.blocked}</b> / ${s.total}` +
     ` · ROUNDTRIP <b class="${s.deviceWorkspaceRoundTrip}">${s.deviceWorkspaceRoundTrip}</b>` +
+    ` · MOB08 <b class="${s.deviceScopedPresentation}">${s.deviceScopedPresentation}</b>` +
     (done ? ' · <b>DONE</b>' : '') + '</div>'
   const rows = results.map((r) =>
     `<div class="row"><span class="${r.state}">${r.state[0]}</span> ` +
@@ -53,10 +54,11 @@ function render(results, done) {
 }
 
 ;(async () => {
-  const steps = buildSteps({ frame, cred: CRED, runId })
+  const ctx = {}
+  const steps = buildSteps({ frame, cred: CRED, runId, ctx })
   const results = await runSteps(steps, {}, (r) => render(r, false))
   let cleaned = []
-  try { cleaned = await cleanup(runId) } catch (e) { cleaned = ['cleanup threw: ' + e.message] }
+  try { cleaned = await cleanup(runId, ctx) } catch (e) { cleaned = ['cleanup threw: ' + e.message] }
   const summary = summarise(results)
   // Machine-readable, and deliberately free of anything secret.
   window.__r1 = {

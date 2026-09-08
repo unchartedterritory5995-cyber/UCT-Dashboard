@@ -26,6 +26,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
@@ -2004,7 +2005,10 @@ export default function ChartsWorkspace() {
   }, [scheduleSave])
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
-  const mc = useMultiChartState()
+  // MOB-08 — the grid's `mode` is DEVICE-SCOPED. `isMobile` is already the one
+  // authority for which shell renders (a single MQL, deliberately), so the
+  // device class is derived from it rather than from a second opinion.
+  const mc = useMultiChartState(deviceClassOf(isMobile))
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -2065,9 +2069,13 @@ export default function ChartsWorkspace() {
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
           <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Phone toolbar: grid mode persists from desktop, and without an
-                exit control a phone user is TRAPPED in it (mega-review #15 —
-                the desktop entry flyout doesn't exist on phone). */}
+            {/* Phone toolbar: an exit control, kept as a safety net.
+                ⚰️ It used to read "grid mode persists from desktop… a phone user
+                is TRAPPED in it" — that inheritance was the MOB-08 defect and is
+                fixed at the source: `mode` is device-scoped, so a phone no longer
+                inherits the desktop's grid at all. The button stays because a
+                phone that reaches grid mode by any future path still needs a way
+                out, and exiting now writes only the MOBILE branch. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: '1px solid var(--border, #2a3340)', flex: '0 0 auto' }}>
               <span style={{ fontSize: 12, color: 'var(--ut-gold, #c9a84c)', fontWeight: 600 }}>▦ Multi Chart</span>
               <button

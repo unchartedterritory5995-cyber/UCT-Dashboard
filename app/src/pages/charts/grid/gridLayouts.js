@@ -7,6 +7,7 @@
 // gracefully instead of mounting more charts than the cap allows).
 
 import { CHART_TYPE_OPTIONS } from '../../../components/chart/chartDefaults'
+import { normalisePresentation } from '../presentation/devicePresentation'
 
 // Hard ceiling on cells in a grid. 16 pending the perf spike (see the design
 // spec's decision tree) — lower it there, never raise it without a spike run.
@@ -134,6 +135,13 @@ export function sanitizeState(raw) {
   return {
     layout: layout.id,
     cells: reconcileCells(cells, layout.cellCount),
+    // ⛔ MOB-08 — CARRIED EXPLICITLY, BECAUSE THIS FUNCTION IS AN ALLOW-LIST.
+    // Everything not named here is DROPPED, so a `presentation` key added to
+    // the persisted blob would be silently erased on every hydrate: the scoped
+    // state would never survive a round trip, and each device's save would wipe
+    // the other's branch. That is the blank-board/bleed risk of this feature,
+    // and it lives in this one line rather than anywhere more dramatic.
+    presentation: normalisePresentation(raw.presentation),
     syncCrosshair: raw.syncCrosshair === true,
     syncTimeRange: raw.syncTimeRange === true,
     // A non-null group implies scanning is on — mirrors applyGridTemplate's

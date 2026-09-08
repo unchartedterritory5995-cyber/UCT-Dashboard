@@ -49,12 +49,33 @@ MODULE = OUT / "uct-r1.js"
 CRED = OUT / "uct-r1.cred.js"           # generated - secret - always deleted
 GENERATED = (PAGE, MODULE, CRED)
 
-# The credential is GENERATED per run by `sandbox_account` and never written
-# in source. See that module for why.
-SANDBOX_PASSWORD = new_password()
-
-# The negative control's credential.
 BREAK_PASSWORD = "!!wrong-on-purpose!!"
+
+
+def _reuse_or_new_password() -> str:
+    """Reuse the password already staged against a LIVE sandbox, else make one.
+
+    ⛔ WHY: the account is created once per sandbox, but `--validate` is run many
+    times against it. Minting a fresh password on every run made the second run
+    fail to log in — a harness that cannot be re-run without restarting a whole
+    backend is a harness people stop re-running. The staged file is gitignored
+    build output and `--clean` still deletes it, so nothing is stored anywhere
+    durable; the BREAK password is never reused, or a negative control would
+    poison the next real run.
+    """
+    try:
+        if CRED.exists():
+            txt = CRED.read_text(encoding="utf-8")
+            got = json.loads(txt[txt.index("{"):txt.rindex("}") + 1]).get("password")
+            if got and got != BREAK_PASSWORD:
+                return got
+    except Exception:
+        pass
+    return new_password()
+
+
+SANDBOX_PASSWORD = _reuse_or_new_password()
+
 
 _HEADER = "// GENERATED - deleted by `device_auth_harness.py --clean`. Never commit.\n"
 
@@ -132,7 +153,8 @@ def validate(base: str, landscape: bool, break_auth: bool) -> int:
     print("")
     print("PASS {} - FAIL {} - BLOCKED {} / {}   elapsed {:.1f}s".format(
         s["pass"], s["fail"], s["blocked"], s["total"], out["elapsedMs"] / 1000))
-    print("DEVICE_WORKSPACE_ROUNDTRIP = " + s["deviceWorkspaceRoundTrip"] + "  (host-side dry run)")
+    print("DEVICE_WORKSPACE_ROUNDTRIP  = " + s["deviceWorkspaceRoundTrip"])
+    print("DEVICE_SCOPED_PRESENTATION = " + s.get("deviceScopedPresentation", "(absent)"))
     print("cleanup: " + (" / ".join(out.get("cleaned") or []) or "nothing to clean"))
 
     # The credential must not have leaked into the machine-readable artifact.

@@ -8,11 +8,12 @@
 // ChartsWorkspace's header (the Multi Charts dropdown) and the grid body share
 // one source of truth without bloating the workspace file.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import {
   sanitizeState, makeDefaultState, parseLayoutId, reconcileCells, makeLayout,
 } from './gridLayouts'
+import { readScopedField, writeScopedField } from '../presentation/devicePresentation'
 
 function parseRaw(raw) {
   if (!raw) return null
@@ -23,13 +24,30 @@ function parseRaw(raw) {
   } catch { return null }
 }
 
-export default function useMultiChartState() {
+/**
+ * @param deviceClass MOB-08 — 'desktop' | 'mobile', from `deviceClassOf(isMobile)`
+ *   in ChartsWorkspace. Defaults to 'desktop' so every existing caller and test
+ *   keeps its exact pre-MOB-08 behaviour.
+ *
+ * ⛔ TWO SHAPES, DELIBERATELY. `persisted` is what goes to the server: legacy
+ * `mode` (the desktop's compatibility mirror) plus `presentation[class].mode`.
+ * `state` is what the UI reads: the same object with `mode` RESOLVED for THIS
+ * device. Collapsing them is the bug — persisting the resolved value is exactly
+ * how a phone would write its answer into the desktop's field.
+ */
+export default function useMultiChartState(deviceClass = 'desktop') {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
-  const [state, setState] = useState(
+  const [persisted, setState] = useState(
     () => parseRaw(prefs?.multichart_state) || { mode: 'workspace', ...makeDefaultState() },
   )
-  const stateRef = useRef(state)
-  stateRef.current = state
+  // The ref feeds `scheduleSave`, so it MUST hold the persisted shape.
+  const stateRef = useRef(persisted)
+  stateRef.current = persisted
+
+  const state = useMemo(
+    () => ({ ...persisted, mode: readScopedField(persisted, deviceClass, 'mode') }),
+    [persisted, deviceClass],
+  )
 
   // The grid's ONE shared ChartSettingsModal — opened from the Multi Charts
   // dropdown or any cell's right-click menu; rendered by MultiChartGrid.
@@ -84,20 +102,20 @@ export default function useMultiChartState() {
   const enterGrid = useCallback((layoutId) => {
     apply(prev => {
       const layout = parseLayoutId(layoutId || prev.layout)
-      return { ...prev, mode: 'grid', layout: layout.id, cells: reconcileCells(prev.cells, layout.cellCount) }
+      return writeScopedField({ ...prev, layout: layout.id, cells: reconcileCells(prev.cells, layout.cellCount) }, deviceClass, 'mode', 'grid')
     })
-  }, [apply])
+  }, [apply, deviceClass])
 
   const exitGrid = useCallback(() => {
-    apply(prev => ({ ...prev, mode: 'workspace' }))
-  }, [apply])
+    apply(prev => writeScopedField(prev, deviceClass, 'mode', 'workspace'))
+  }, [apply, deviceClass])
 
   const applyCustomLayout = useCallback((rows, cols) => {
     apply(prev => {
       const layout = makeLayout(rows, cols)
-      return { ...prev, mode: 'grid', layout: layout.id, cells: reconcileCells(prev.cells, layout.cellCount) }
+      return writeScopedField({ ...prev, layout: layout.id, cells: reconcileCells(prev.cells, layout.cellCount) }, deviceClass, 'mode', 'grid')
     })
-  }, [apply])
+  }, [apply, deviceClass])
 
   // Per-cell updates preserve the identity of every untouched cell so the
   // React.memo'd GridChartCells only re-render the edited one.
@@ -145,9 +163,9 @@ export default function useMultiChartState() {
           })
         }
       }
-      return { ...prev, mode: 'grid', cells, group: group || prev.group || null }
+      return writeScopedField({ ...prev, cells, group: group || prev.group || null }, deviceClass, 'mode', 'grid')
     })
-  }, [apply])
+  }, [apply, deviceClass])
 
   // Verbatim board restore (Undo): unlike fillCells (which rebuilds cells from
   // bare syms — discarding per-cell tf + chart style), this reapplies the exact
@@ -162,9 +180,9 @@ export default function useMultiChartState() {
         tf: c?.tf || 'D',
         chartType: c?.chartType || null,
       }))
-      return { ...prev, mode: 'grid', cells: reconcileCells(restored, layout.cellCount), group: group || null }
+      return writeScopedField({ ...prev, cells: reconcileCells(restored, layout.cellCount), group: group || null }, deviceClass, 'mode', 'grid')
     })
-  }, [apply])
+  }, [apply, deviceClass])
 
   const setGroup = useCallback((group) => {
     apply(prev => ({ ...prev, group: group || null }))
@@ -196,9 +214,12 @@ export default function useMultiChartState() {
     apply(prev => {
       const s = sanitizeState({ layout: l.layout, cells: l.cells, syncCrosshair: prev.syncCrosshair, syncTimeRange: prev.syncTimeRange, group: l.group })
       // A saved Group board comes back in scanning mode; a plain saved grid does not.
-      return { mode: 'grid', ...s, groupsMode: !!s.group }
+      // ⛔ `...prev` first: a template replaces the BOARD, never the device
+      // scoping. Rebuilding from `{mode, ...s}` dropped `presentation`, which
+      // would silently clear every other device's branch on apply.
+      return writeScopedField({ ...prev, ...s, groupsMode: !!s.group }, deviceClass, 'mode', 'grid')
     })
-  }, [apply])
+  }, [apply, deviceClass])
 
   return {
     state, hydrated,

@@ -201,12 +201,13 @@ export const findMine = (d, name) => ((d && d.mine) || []).find((r) => r && r.na
 // ─── the flows ──────────────────────────────────────────────────────────────
 
 export const WS_KEY = 'charts_workspace_layout'
+export const MC_KEY = 'multichart_state'
 export const TEST_LAYOUT = '__r1_device__'
 
 /** Isolated marker written INTO the workspace blob — never a real board. */
 export const marker = (runId) => ({ __r1_device_marker__: runId })
 
-export function buildSteps({ frame, cred, runId }) {
+export function buildSteps({ frame, cred, runId, ctx = {} }) {
   return [
     step('transport', 1, 'the sandbox is reachable from this device', [], async () => {
       const r = await fetch('/api/health', { credentials: 'include' })
@@ -282,8 +283,52 @@ export function buildSteps({ frame, cred, runId }) {
       return expect(mineNames(await api.layouts()).join(','), !!got, `contains ${TEST_LAYOUT}`)
     }),
 
+    // ── TIER 1 · MOB-08 · the DISCRIMINATING assertion ──────────────────────
+    // ⛔ THIS IS THE ONE THE GATE'S ASTERISK WAS ABOUT. Everything else proves a
+    // device can persist state; this proves the SAME RECORD gives two different
+    // answers to two device classes — which is the entire feature. Seeding a
+    // desktop-in-grid record and opening it on a phone reproduces the exact
+    // shipped defect, so a regression cannot pass this quietly.
+    step('mob08-seed', 1, 'seed a DESKTOP-in-grid record (the shipped defect)', ['app'], async () => {
+      const prev = (await api.prefs())[MC_KEY] || null
+      ctx.mcBefore = prev
+      await api.setPref(MC_KEY, JSON.stringify({
+        mode: 'grid',                                   // the legacy shared value
+        presentation: { desktop: { mode: 'grid' } },    // and the desktop branch
+        layout: '2x2', cells: [], syncCrosshair: false,
+      }))
+      return expect('seeded desktop=grid', true, 'seeded')
+    }),
+
+    step('mob08-phone-ignores-grid', 1, 'the PHONE does not inherit the desktop grid', ['mob08-seed'], async () => {
+      const st = await bootApp(frame, '/charts')
+      const d = appDoc(frame)
+      // The grid branch renders an "Exit Multi Chart" escape hatch; the phone
+      // shell renders a symbol strip over a drawn canvas. Assert BOTH, so a
+      // blank render cannot be mistaken for "not in grid mode".
+      const inGrid = [...d.querySelectorAll('button')].some((b) => /exit multi chart/i.test(b.textContent || ''))
+      return expect(`inGrid=${inGrid} canvas=${st.canvases} symbol=${st.symbol}`,
+        !inGrid && st.canvases > 0 && !!st.symbol,
+        'the workspace shell, drawn, with a symbol — never the desktop grid')
+    }),
+
+    step('mob08-desktop-branch-intact', 1, "and the phone did not touch the DESKTOP's branch", ['mob08-phone-ignores-grid'], async () => {
+      const blob = JSON.parse((await api.prefs())[MC_KEY] || '{}')
+      const desk = blob && blob.presentation && blob.presentation.desktop
+      return expect(`desktop.mode=${desk && desk.mode} legacy=${blob.mode}`,
+        !!desk && desk.mode === 'grid' && blob.mode === 'grid',
+        "presentation.desktop.mode='grid' AND the legacy mirror still 'grid'")
+    }),
+
     // ── TIER 2 · rotation ───────────────────────────────────────────────────
     step('rot-baseline', 2, 'record symbol/timeframe before rotating', ['app'], async () => {
+      // ⚰️ THIS USED `settle()` ALONE AND WENT RED after the MOB-08 steps
+      // reloaded the iframe: `settle` proves a value STOPPED MOVING, which a
+      // blank mid-remount frame satisfies perfectly. Readiness is `until`;
+      // stability is `settle`. They are not interchangeable, and using the
+      // second where the first belongs is the same mistake in a new costume.
+      await until('a drawn chart to read state from',
+        () => { const a = appState(frame); return a.symbol && a.canvases > 0 ? a : null })
       const st = await settle('the app state', () => appState(frame))
       return expect(`${st.symbol}/${st.tf}`, !!st.symbol, 'a symbol to compare against')
     }),
@@ -300,9 +345,9 @@ export function buildSteps({ frame, cred, runId }) {
       // ⛔ NOT "does a menu exist" — the four scale rows BY ID. The pre-MOB-06′
       // defect was a row that ticked and wrote a value nothing read, so the
       // roster is what has to be asserted, not the door.
-      const d = appDoc(frame), w = frame.contentWindow
-      const lw = d.querySelector('.tv-lightweight-charts')
-      if (!lw) throw new Error('no chart container')
+      const w = frame.contentWindow
+      const lw = await until('the chart container', () => appDoc(frame).querySelector('.tv-lightweight-charts'))
+      const d = appDoc(frame)
       const el = lw.parentElement
       const got = []
       const onCtx = (e) => got.push(e.detail)
@@ -321,9 +366,7 @@ export function buildSteps({ frame, cred, runId }) {
     }),
 
     step('tools', 3, 'the Tools door opens', ['app'], async () => {
-      const d = appDoc(frame)
-      const more = d && d.querySelector('[aria-label="More tools"]')
-      if (!more) throw new Error('no More tools button')
+      const more = await until('the More tools button', () => appDoc(frame).querySelector('[aria-label="More tools"]'))
       more.click()
       const sheet = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
       try { appDoc(frame).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) } catch {}
@@ -331,9 +374,7 @@ export function buildSteps({ frame, cred, runId }) {
     }),
 
     step('chart-type', 3, 'the chart-type catalogue opens', ['app'], async () => {
-      const d = appDoc(frame)
-      const b = d && d.querySelector('[aria-label="Chart type"]')
-      if (!b) throw new Error('no Chart type door')
+      const b = await until('the Chart type door', () => appDoc(frame).querySelector('[aria-label="Chart type"]'))
       b.click()
       const sheet = await until('the chart-type sheet', () => {
         const dd = appDoc(frame)
@@ -346,13 +387,20 @@ export function buildSteps({ frame, cred, runId }) {
 }
 
 /** Remove everything this run created. Cleanup is a step, not an afterthought. */
-export async function cleanup(runId) {
+export async function cleanup(runId, cleanupCtx = {}) {
   const out = []
   try {
     const d = await api.layouts()
     const row = findMine(d, TEST_LAYOUT)
     if (row && row.id != null) { await api.deleteLayout(row.id); out.push('layout deleted') }
   } catch (e) { out.push('layout cleanup failed: ' + e.message) }
+  try {
+    // MOB-08 seeded a whole record; put back exactly what was there.
+    if (Object.prototype.hasOwnProperty.call(cleanupCtx, 'mcBefore')) {
+      await api.setPref(MC_KEY, cleanupCtx.mcBefore == null ? '' : cleanupCtx.mcBefore)
+      out.push('multichart_state restored')
+    }
+  } catch (e) { out.push('multichart cleanup failed: ' + e.message) }
   try {
     const p = await api.prefs()
     const blob = (() => { try { return JSON.parse(p[WS_KEY] || '{}') } catch { return {} } })()
@@ -371,6 +419,15 @@ export function summarise(results) {
   return {
     pass: c(STATE.PASS), fail: c(STATE.FAIL), blocked: c(STATE.BLOCKED), total: results.length,
     tier1Pass: t1.every((r) => r.state === STATE.PASS),
+    /** MOB-08's acceptance criterion, as its own verdict. */
+    deviceScopedPresentation: (() => {
+      const need = ['mob08-seed', 'mob08-phone-ignores-grid', 'mob08-desktop-branch-intact']
+      const rows = need.map((id) => results.find((r) => r.id === id)).filter(Boolean)
+      if (rows.length !== need.length) return STATE.BLOCKED
+      if (rows.every((r) => r.state === STATE.PASS)) return STATE.PASS
+      if (rows.some((r) => r.state === STATE.FAIL)) return STATE.FAIL
+      return STATE.BLOCKED
+    })(),
     deviceWorkspaceRoundTrip: (() => {
       const need = ['ws-write', 'ws-readback', 'ws-reload', 'ws-nosymloss']
       const rows = need.map((id) => results.find((r) => r.id === id)).filter(Boolean)

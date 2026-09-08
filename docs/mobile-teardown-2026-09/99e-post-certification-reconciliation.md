@@ -74,7 +74,7 @@ Certification tip was `f8d625c27` (doc `ab93803ef`). Everything below is after i
 | Symbol-search disambiguation | open (MOB-17, low value) | **SHIPPED** `78ee9417b` |
 | Chart-type catalogue | open (smaller gap) | **SHIPPED** `a9eb38b89` |
 | Landscape as a designed mode | R5, presentation only | **SHIPPED** `2f9d68b9f` |
-| MOB-08 `presentation[deviceClass]` | DEFERRED | **NOT_STARTED / BLOCKED FOR IMPLEMENTATION** |
+| MOB-08 `presentation[deviceClass]` | DEFERRED | ✅ **SHIPPED** — see `99h` |
 | Crosshair rail stability | not known to be a defect | **SHIPPED** `f5a495c51` |
 
 ---
@@ -186,7 +186,32 @@ because filtering the overlay's `drawings` *prop* would have made the paneRelY
 migration rebuild the list from the visible set and **silently delete every
 hidden object**, with the whole suite green.
 
-### R4 · MOB-08 `presentation[deviceClass]` — **NOT_STARTED, and blocked on purpose**
+### R4 · MOB-08 `presentation[deviceClass]` — ✅ **SHIPPED** (updated 2026-09-08)
+
+> 🔄 **UPDATED; the original text is preserved below rather than rewritten.**
+> Full record: **`99h-mob08-device-scoped-presentation.md`**.
+>
+> **MOB-08 = SHIPPED · DEVICE_SCOPED_PRESENTATION = PASS** on real hardware
+> (iPhone 17 Pro / iOS 26.6, 17/17 in 12.1 s).
+>
+> · The defect was concrete and already commented in `ChartsWorkspace.jsx`:
+>   `multichart_state.mode` was ONE shared key, so a desktop entering Multi Chart
+>   made the PHONE open in grid, and the phone's escape hatch wrote the shared
+>   key back — destroying the desktop's mode. Bleed both ways.
+> · **One field scoped** (`mode`), one additive key (`presentation`), **no new
+>   record and no parallel mobile workspace**. Vocabulary is two classes,
+>   `desktop | mobile`, derived from the shell that renders.
+> · ⛔ The blank-board risk was **not** in the API but in
+>   `gridLayouts.sanitizeState`, an ALLOW-LIST that silently drops unknown keys —
+>   one line, mutation-checked.
+> · Backward compatible by runtime normalisation, **no bulk migration**; legacy
+>   `mode` retained as a desktop-only compatibility mirror with ONE writer.
+> · 16 new cases, 5/5 mutations red, 640/640 charts+device, `components/chart`
+>   clean but for the three known pre-existing failures.
+> · No flow verdict moves; the 20-flow distribution is unchanged.
+
+*(original text, as written when MOB-08 was blocked:)*
+
 
 Unchanged in substance, and the owner has re-affirmed the block. It is an `L`,
 MEDIUM-risk, persistence-shape migration on the workspace record — by the
@@ -457,9 +482,9 @@ would be exactly the massaging `99c` refused to do.
 
 ### SURVIVING_BUILD_ITEM
 
-2. **MOB-08 `presentation[deviceClass]`** — the only unbuilt item in the program.
-   **BLOCKED FOR IMPLEMENTATION** behind (1) by owner decision, and it must not be
-   redesigned around the absence of device access.
+2. ⚰️ ~~**MOB-08 `presentation[deviceClass]`**~~ — ✅ **SHIPPED 2026-09-08**
+   (`99h`), device-verified. **This category is now EMPTY: no surviving build
+   item remains in the best-in-class mobile program.**
 
 ### VERIFICATION_ONLY — all gated behind (1)
 
