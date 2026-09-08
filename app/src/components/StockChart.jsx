@@ -1223,7 +1223,7 @@ if (typeof window !== 'undefined') {
 // (which is itself 0 unless the load-anchor is on AND today is a not-yet-present session),
 // so it self-cancels the moment today is present. Dark: at PCT=0/opt-out the added term is
 // 0 → byte-identical. Ramp = the constant; window.__uctSwitchReserve(true) forces on.
-export const SWITCH_RESERVE_PCT = 0
+export const SWITCH_RESERVE_PCT = 100
 export function _switchReserveEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.switchReserve.enabled') : null
