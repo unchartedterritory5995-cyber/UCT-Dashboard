@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.thesis_review_changes import review_attention
 
 _HOME_SECTION_LIMIT = 5
 
@@ -56,7 +57,24 @@ def _needs_review(user_id: str, limit: int, conn: sqlite3.Connection) -> list[di
         sort="updated", limit=200, conn=conn,
     )
     not_closed = [n for n in due if (n.get("propertiesJson") or {}).get("builtin:thesis_status") != "closed"]
-    return not_closed[:limit]
+    picked = not_closed[:limit]
+
+    # ⛔⛔ WAVE O §16 — IF UCT SAYS LOOK AT THIS, IT SAYS WHY. A due date alone
+    # is a generic reminder; what makes this finance-native is that the row can
+    # state what happened to the RESEARCH since the member last looked. Attached
+    # per row, bounded by the section limit that already applies, and
+    # best-effort per note so one unreadable thesis cannot blank the section.
+    #
+    # ⛔ CAUSES, NEVER A PRIORITY. There is deliberately no score to sort by —
+    # an opaque HIGH badge is exactly what turns a review queue into somebody
+    # else's homework.
+    for n in picked:
+        try:
+            att = review_attention(user_id, n["id"], conn=conn)
+            n["reviewReasons"] = att["reasons"]
+        except Exception:  # noqa: BLE001
+            n["reviewReasons"] = []
+    return picked
 
 
 def _open_position_research(user_id: str, limit: int, conn: sqlite3.Connection) -> list[dict[str, Any]]:

@@ -165,6 +165,25 @@ export default function ThesisReviewSection({ noteId, evidence = [] }) {
         body: JSON.stringify({ memberNote, outcome, nextReviewAt: nextReviewAt || null }),
       })
       if (!r.ok) throw new Error((await r.json()).detail || 'Could not complete the review')
+      // ⛔⛔ ONE LIVE AUTHORITY FOR "WHEN IS THIS DUE" (§14/§36). The review row
+      // records what the member chose AT THAT REVIEW — a historical fact that
+      // must never be edited afterwards. The SCHEDULE the queue reads is the
+      // thesis's own `builtin:review_date`, which Research Home has surfaced
+      // since Wave H. Those are different facts (a record vs a state), not two
+      // copies of one — and keeping the schedule where it already lives is why
+      // Wave O adds no second scheduling store.
+      // ⭐ Written through the CANONICAL note-update path, so it produces a
+      // version and a changelog entry exactly like any other property change.
+      // The server's `complete` deliberately does none of this: a review
+      // service that could write note properties is one refactor away from
+      // writing a thesis status (§4/§9).
+      if (nextReviewAt) {
+        await fetch(`/api/j2/notes/${noteId}`, {
+          method: 'PUT', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { 'builtin:review_date': nextReviewAt } }),
+        }).catch(() => {})
+      }
       setAnnouncement(`Review completed: ${OUTCOMES.find((o) => o.id === outcome)?.label}.`)
       setMemberNote(''); setOutcome(null); setNextReviewAt('')
       reviewIdRef.current = null
@@ -264,6 +283,7 @@ export default function ThesisReviewSection({ noteId, evidence = [] }) {
             Completing records your decision and this note in your review history.
             It does not change the thesis itself — edit the thesis above if you
             want it to change.
+            {nextReviewAt && ' It also sets this thesis’s Review Date, so it appears in Research Home when it comes due.'}
           </p>
 
           {error && <div className={styles.error} role="alert">{error}</div>}
