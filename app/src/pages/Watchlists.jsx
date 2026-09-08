@@ -73,6 +73,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
+import { enter as enterReview, publish as publishReview } from './charts/review/reviewSession'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
@@ -2012,8 +2013,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Handlers that read mutable render state reach it through a ref, so the callback identity
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
-  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists, setAttnPopover }
-  const onRowSelect = useCallback((sym) => { clickSelectRef.current = sym; setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
+  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists, setAttnPopover, visibleSymsFlat }
+  /* ⭐ WHERE A REVIEW IS BORN. Picking a row publishes the ordered set ALONGSIDE
+   * the symbol, so the chart inherits the context instead of receiving one
+   * ticker and losing the list. `visibleSymsFlat` is passed as-is — it is
+   * already deduped and in VISUAL order across Flagged, the tag auto-lists and
+   * user lists, and re-deriving that ordering here is how the phone and the
+   * desktop would start disagreeing about what "next" means.
+   * ⛔ Best-effort: a failure to open a review must never stop a chart opening. */
+  const onRowSelect = useCallback((sym) => {
+    clickSelectRef.current = sym
+    setSelectedSym(sym)
+    rowStateRef.current.setHubSym(sym)
+    try {
+      const flat = rowStateRef.current.visibleSymsFlat || []
+      publishReview(enterReview({
+        source: 'watchlist',
+        label: 'Watchlist',
+        symbols: flat,
+        symbol: sym,
+      }))
+    } catch { /* a review is a convenience; the chart is not */ }
+  }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {

@@ -6,6 +6,8 @@ import { useWorkspace } from '../WorkspaceContext'
 import UIcon from '../../../components/ui/UIcon'
 import { labelMap } from '../../../widgets/registry'
 import MobileSymbolStrip from './MobileSymbolStrip'
+import ReviewNavControl, { VARIANTS as NAV_VARIANTS } from '../review/ReviewNavControl'
+import useReviewSession from '../review/useReviewSession'
 import MobileChartToolbar from './MobileChartToolbar'
 import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
@@ -150,6 +152,22 @@ export default function MobileChartsApp({
     setScreen({ id: firstWatchlist.id, symAtOpen: sym })
   }
   const tf = chartWidget?.opts?.tf || 'D'
+
+  /* MOB-REVIEW · the transport control for an in-progress review.
+   *
+   * ⛔ It renders ONLY when a review session exists. A chart opened from search
+   * or a deep link has no ordered set behind it, and a "1 / 1" chip there would
+   * be furniture pretending to be context. */
+  const review = useReviewSession(groupSyms?.[color] || null)
+  // Placement probe: `?navprobe=rail|pill|edge` forces a variant with a synthetic
+  // position so the three candidates can be MEASURED on hardware against the real
+  // chart. Never reachable without the param.
+  const navProbe = (() => {
+    try {
+      const v = new URLSearchParams(window.location.search).get('navprobe')
+      return NAV_VARIANTS.includes(v) ? v : null
+    } catch { return null }
+  })()
   const opts = chartWidget?.opts || null
 
   // Settings ride the SAME per-widget blob the desktop main tab edits.
@@ -237,6 +255,17 @@ export default function MobileChartsApp({
     setPendingWatchlistOpen(true)
     onAddWidget('watchlist')
   }, [watchlistWidget, onAddWidget, openWidgetScreen])
+
+  /* RETURN — back to the list the review came from, at the position it was left.
+   *
+   * ⛔ THE CHART NEVER UNMOUNTS when a widget opens as a full-screen page over it
+   * ("returning is free"), so this is not a rebuild — it is re-showing a surface
+   * that is still mounted. The only thing that was missing was the INTENT to go
+   * back to *the list you were reviewing*, rather than to a menu. */
+  const openReviewList = useCallback(() => {
+    if (watchlistWidget) { openWidgetScreen(watchlistWidget.id); return }
+    setSheet('more')
+  }, [watchlistWidget, openWidgetScreen])
   // Render-time state adjustment (the you-might-not-need-an-effect pattern):
   // the moment the added watchlist hydrates into `widgets`, consume the pending
   // flag and open it — React re-renders before committing, no effect pass.
@@ -329,6 +358,18 @@ export default function MobileChartsApp({
           <div className={styles.chartCol}>
           <MobileSymbolStrip sym={sym} onOpenSearch={() => setSheet('symbol')} />
           <div className={styles.chartArea}>
+            {(review.position.total > 0 || navProbe) && (
+              <ReviewNavControl
+                variant={navProbe || 'pill'}
+                label={navProbe ? '12 / 47' : review.position.label}
+                sourceLabel={review.session?.label || ''}
+                canPrev={navProbe ? true : review.position.canPrev}
+                canNext={navProbe ? true : review.position.canNext}
+                onPrev={() => { const t = review.prev(); if (t) setGroupSym(color, t) }}
+                onNext={() => { const t = review.next(); if (t) setGroupSym(color, t) }}
+                onOpenList={openReviewList}
+              />
+            )}
             <div className={styles.paneWrap}>
               <ChartPane
                 ref={paneRef}
