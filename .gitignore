@@ -105,3 +105,4 @@ tools/c0_ctrl/
 tools/c0r_out*/*.png
 tools/c1_out*/*.png
 tools/c1_keep/
+tools/c2a_out*/*.png

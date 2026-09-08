@@ -1164,6 +1164,42 @@ function astTrees(def) {
  * as "computed nothing" is the wrong-door defect this phase has now found four
  * times. A refusal must reach the caller as the refusal it is.
  */
+/** The key every partial-compute result carries its reasons under.
+ *  ⛔ NON-ENUMERABLE, AND THAT IS THE WHOLE DESIGN. Every consumer of a column
+ *  map walks it with `Object.keys` (the binder's `for (const plotKey of
+ *  Object.keys(cols))` is the one that matters), and a visible extra key would
+ *  become a phantom plot on every chart. */
+const COLUMN_ERRORS = '__columnErrors'
+
+/** Attach the per-column reasons to a column map without widening its key set. */
+function withColumnErrors(out, errors) {
+  if (errors && Object.keys(errors).length) {
+    Object.defineProperty(out, COLUMN_ERRORS, { value: Object.freeze(errors), enumerable: false })
+  }
+  return out
+}
+
+/**
+ * ⭐⭐ WHY A COLUMN IS MISSING — the structured state C2A.8 asks be preserved.
+ *
+ * A column map returned by `computeFor` holds only the columns that COMPUTED.
+ * This is how a caller learns that a key is absent because it exceeded a limit
+ * rather than because the definition never declared it — which are different
+ * facts and, without this, indistinguishable.
+ *
+ * ⛔ IT IS NOT UX. No surface renders it yet, deliberately (C2A.8: "do not build
+ * broad new UX in this wave"). It exists so that the day one does, the product
+ * can say WHICH output and WHICH limit instead of re-deriving a guess — and so
+ * that "the indicator drew nothing" and "one of its seven columns is too
+ * expensive" stop being the same observation.
+ *
+ * @returns {Record<string, {guard: string, message: string}>} possibly empty
+ */
+export function columnErrors(columns) {
+  const e = columns && columns[COLUMN_ERRORS]
+  return e || {}
+}
+
 function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
@@ -1183,6 +1219,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // a node, blaming the formula for a document defect.
   if (trees) {
     const out = {}
+    const errors = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -1195,10 +1232,42 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // THE `undefined` SCALARS — see that call's comments. One budget covers
       // every tree because the budget is the DOCUMENT's (`compute.budget`), and
       // a map over `interpret` that dropped it would run every plot uncapped.
-      out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
-        undefined, { tf: ctx && ctx.tf })
+      //
+      // ⛔⛔ ONE COLUMN'S FAILURE IS ONE COLUMN'S FAILURE (C2A).
+      //
+      // ⚰️ MEASURED ON A REAL SCRIPT. `mid_engagement__14-master-line-lite`
+      // declares 7 columns. Three of them — Consensus and the two bands —
+      // compute cleanly at the 5,000 bars a chart loads (4,945 finite values
+      // each, 6-20 ms). The other four are `accum` recurrences whose
+      // `bars × warmup` exceeds `MAX_RECURRENCE_STEPS`, and they refuse.
+      //
+      // This loop had no `try`. The fourth tree threw, the loop unwound,
+      // `computeFor` threw, and the binder's `attempt(...)` caught it and
+      // `continue`d PAST THE WHOLE INSTANCE — so all seven plots drew nothing.
+      // Measured through this very function: OK at 1, 2 and 3 columns; throws
+      // from the 4th on. Three good columns were erased by a fourth.
+      //
+      // ⛔ THE BUDGET WAS NEVER SHARED. Each `interpret` call is capped on its
+      // own tree; nothing accumulates across siblings. The loss was CONTAINMENT,
+      // and the two are worth telling apart: a shared budget would mean the
+      // document is too big, and it is not — one column of it is.
+      //
+      // ⛔ A FAILED COLUMN IS ABSENT, NOT ALL-NaN. `hasAnyFinite` already reads
+      // an absent key as "no data" and gives the plot no series, so absence
+      // needs no new handling anywhere; a 5,000-long NaN array per failed column
+      // would allocate for nothing and read as a column that computed.
+      // The REASON is preserved instead — see `columnErrors`.
+      try {
+        out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
+          undefined, { tf: ctx && ctx.tf })
+      } catch (err) {
+        errors[key] = {
+          guard: (err && err.guard) || 'compute:error',
+          message: String((err && err.message) || err),
+        }
+      }
     }
-    return out
+    return withColumnErrors(out, errors)
   }
   if (keys.length !== 1) {
     throw new Error(
