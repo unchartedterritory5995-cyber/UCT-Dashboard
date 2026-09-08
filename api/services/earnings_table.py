@@ -465,6 +465,24 @@ def _build(ticker, now):
     return result, fresh
 
 
+def _snapshot_is_complete(payload) -> bool:
+    """Is a PERSISTED payload one we should still serve?
+
+    Entries written before the completeness check below existed can hold a
+    forward-only quarterly calendar with no reported actuals. Serving those
+    keeps the gap alive for the rest of their TTL, so they are treated as a
+    miss and rebuilt instead.
+    """
+    if not isinstance(payload, dict):
+        return False
+    quarterly = payload.get("quarterly") or []
+    if not quarterly:
+        return False
+    if payload.get("annual") and not any(r.get("reported") for r in quarterly):
+        return False
+    return True
+
+
 def _build_and_cache(ticker, now=None):
     """Build + populate memory cache; persist non-empty results to disk."""
     now = time.time() if now is None else now
@@ -486,7 +504,19 @@ def _build_and_cache(ticker, now=None):
     # failed fetch as a value". Found again here by the 2026-08-05 data-coverage
     # audit. A partial is still SERVED — dropping it would discard the leg that
     # did work — it just expires fast so the missing leg self-heals in minutes.
-    partial = not result["annual"] or not result["quarterly"]
+    #
+    # ⚠️ AND PRESENCE IS NOT COMPLETENESS. The check above only asked whether the
+    # two lists were non-empty. MU came back with 12 annual rows and 4 quarterly
+    # rows that were ALL unreported with null actuals — a forward calendar and
+    # nothing else — so it passed as complete, was pinned for 6h and persisted.
+    # The Overview tab's Q Sales YoY / EPS Last Q / EPS QoQ / EPS YoY read the
+    # REPORTED quarters, so all four went blank while a rebuild produced 5 of
+    # them immediately. A ticker with years of annual EPS necessarily has
+    # reported quarters; annual data with none is internally inconsistent, and
+    # a genuinely pre-revenue name has neither leg so it is not caught here.
+    partial = (not result["annual"] or not result["quarterly"]
+               or (bool(result["annual"])
+                   and not any(r.get("reported") for r in result["quarterly"])))
     if partial:
         # Not persisted to the snapshot store either: a stale-served partial
         # would outlive the outage that caused it.
@@ -570,7 +600,7 @@ def get_earnings_table(ticker, now=None, debug=False):
         return hit
 
     snap = snap_store.get(_SNAP_KIND, ticker, now=now)
-    if snap is not None:
+    if snap is not None and _snapshot_is_complete(snap[0]):
         payload, age, ttl = snap
         if age <= ttl:
             # Fresh on disk (e.g. right after a redeploy) — seed memory, serve.

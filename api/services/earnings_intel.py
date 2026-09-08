@@ -265,6 +265,23 @@ def _quarters_from_estimates(sym: str, cal: FiscalCalendar | None) -> dict:
                 rows[(fy, fq)] = row
             elif new_has == prior_has and str(rd or "") > str(prior.get("report_date") or ""):
                 rows[(fy, fq)] = row
+            # ⛔ ...but the DATE is decided separately, and it is the EARLIEST.
+            #
+            # The winner above is chosen on which row carries real consensus —
+            # the right test for the financial fields. It is the wrong test for
+            # the date. FMP and Finnhub disagree on when a quarter was reported:
+            # for MU FY2026 Q3, FMP says 2026-06-24 (the announcement, after the
+            # close) and Finnhub says 2026-06-30 (a later filing/period date).
+            # Taking the later one made the earnings-reaction strip measure
+            # 30 Jun -> 1 Jul, printing -6.3% for a print the market answered
+            # with +17.6% on 25 Jun.
+            #
+            # A price reaction is measured from the ANNOUNCEMENT, so the
+            # earliest date any provider reports for the quarter is the one that
+            # can be right; a later one is always a filing artifact.
+            dates = [d for d in (rd, rows[(fy, fq)].get("report_date")) if d]
+            if dates:
+                rows[(fy, fq)]["report_date"] = min(str(d)[:10] for d in dates)
     if collisions:
         _log.info("earnings_intel %s: %d report(s) collided onto an occupied fiscal quarter",
                   sym, collisions)
