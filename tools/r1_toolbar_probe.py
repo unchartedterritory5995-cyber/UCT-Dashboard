@@ -21,10 +21,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from sandbox_account import SANDBOX_EMAIL, new_password, ensure_account  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
-CRED = {"email": "e2e-sandbox@local.dev", "password": "SandboxDevice2026!"}
+# Generated per run; never a literal in source. See tools/sandbox_account.py.
+PASSWORD = new_password()
+CRED = {"email": SANDBOX_EMAIL, "password": PASSWORD}
 
 # The boxes that matter. The device ran the app inside a 150px-shorter iframe,
 # so BOTH the raw device viewport and the iframe's box are measured — if they
@@ -71,6 +78,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8091")
     args = ap.parse_args()
+
+    ensure_account(args.base, PASSWORD)
 
     with sync_playwright() as p:
         browser = p.chromium.launch()

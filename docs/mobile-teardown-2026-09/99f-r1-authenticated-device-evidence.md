@@ -7,6 +7,13 @@ when that document was written and is now **PARTIAL**.
 > **R1_AUTHENTICATED_DEVICE_GATE = PARTIAL**
 > **BROWSERSTACK_DEVICE_ACCESS = LIMITED**
 
+> 🔄 **CONTINUED THE SAME DAY by `99g-route-b-auto-driving-device-harness.md`.**
+> Route B closed the gap this document left open: the authenticated auto-driving
+> harness runs the suite in **12.1 s on a real iPhone**, and
+> **DEVICE_WORKSPACE_ROUNDTRIP = PASS** — read back ON the device, not promoted
+> from a host-side run. §4 and §6 below are superseded on those two points; the
+> 60-second cap in §1 is unchanged but is no longer the binding constraint.
+
 ---
 
 ## 1 · The account limit, re-measured rather than inherited
