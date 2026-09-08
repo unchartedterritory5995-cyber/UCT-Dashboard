@@ -999,6 +999,98 @@ def _diag_percentile(sorted_vals, q):
     return sorted_vals[max(0, min(i, len(sorted_vals) - 1))]
 
 
+# ── Pod cost probe: what does ONE build actually consume? ───────────────────
+# TEMPORARY, admin-gated, read-only, no dependencies. It exists to answer a
+# specific question -- "how many Search derivations can this pod safely run at
+# once" -- which cannot be answered from the lane counters alone.
+#
+# ⛔ CHOOSING A CONCURRENCY WITHOUT THIS WOULD BE A GUESS. The single-slot lane
+# exists to stop concurrent node processes from saturating a shared pod with OOM
+# history, so raising it is only defensible against measured headroom: peak RSS
+# of one build, the node children it spawns, and what the container has spare.
+# Reads /proc, which is the container's own accounting, not an estimate.
+def _read_meminfo() -> dict:
+    out = {}
+    try:
+        with open("/proc/meminfo", "r") as fh:
+            for line in fh:
+                k, _, v = line.partition(":")
+                out[k.strip()] = int(v.strip().split()[0]) // 1024   # MB
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _cgroup_limit_mb() -> dict:
+    """The limit that actually kills the pod, v2 first then v1."""
+    for path, key in (("/sys/fs/cgroup/memory.max", "v2"),
+                      ("/sys/fs/cgroup/memory/memory.limit_in_bytes", "v1")):
+        try:
+            raw = open(path).read().strip()
+            if raw == "max":
+                return {"cgroup": key, "limit_mb": None}
+            return {"cgroup": key, "limit_mb": int(raw) // (1024 * 1024)}
+        except Exception:  # noqa: BLE001
+            continue
+    return {"cgroup": None, "limit_mb": None}
+
+
+def _cgroup_current_mb():
+    for path in ("/sys/fs/cgroup/memory.current",
+                 "/sys/fs/cgroup/memory/memory.usage_in_bytes"):
+        try:
+            return int(open(path).read().strip()) // (1024 * 1024)
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def _proc_table() -> list:
+    """Every process in the container, with RSS and command."""
+    procs = []
+    try:
+        for pid in os.listdir("/proc"):
+            if not pid.isdigit():
+                continue
+            try:
+                with open(f"/proc/{pid}/statm") as fh:
+                    rss_pages = int(fh.read().split()[1])
+                with open(f"/proc/{pid}/cmdline", "rb") as fh:
+                    cmd = fh.read().decode("utf-8", "replace").replace(chr(0), " ").strip()
+            except Exception:  # noqa: BLE001
+                continue
+            procs.append({"pid": int(pid), "rss_mb": rss_pages * 4 // 1024,
+                          "cmd": cmd[:120]})
+    except Exception:  # noqa: BLE001
+        pass
+    return sorted(procs, key=lambda p: -p["rss_mb"])
+
+
+@flow_router.get("/_diag/pod")
+def diag_pod(_auth: dict = Depends(require_flow_admin)):
+    """What one build costs, and what the pod has spare. Read-only."""
+    procs = _proc_table()
+    node = [p for p in procs if "/node" in p["cmd"] or p["cmd"].startswith("node")]
+    mem = _read_meminfo()
+    lim = _cgroup_limit_mb()
+    try:
+        load = os.getloadavg()
+    except Exception:  # noqa: BLE001
+        load = None
+    return JSONResponse({
+        "cgroup": {**lim, "current_mb": _cgroup_current_mb()},
+        "meminfo_mb": {k: mem.get(k) for k in ("MemTotal", "MemAvailable", "MemFree")},
+        "loadavg": load,
+        "cpu_count": os.cpu_count(),
+        "node_children": node,
+        "node_child_count": len(node),
+        "top_procs": procs[:8],
+        "search_lane": {**search_warm_state(),
+                        "lock_held": _SEARCH_BUILD_LOCK.locked()},
+        "prepare": prepare_state(),
+    })
+
+
 @flow_router.get("/_diag/search-capacity")
 def diag_search_capacity(source: str = "stocks", builds: int = 0, top: int = 12,
                          _auth: dict = Depends(require_flow_admin)):
