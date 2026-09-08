@@ -33,15 +33,14 @@ import { searchProductUsable, stampSearchProduct } from './flowSearchProduct'
  * How long a member may wait for the server product before the legacy path
  * takes over.
  *
- * 2,500 ms is chosen from the measurement above, not from taste: a hit lands in
- * 178-337 ms with an order of magnitude of headroom, while the cheapest real
- * cold build observed (CRWD, 2,013 ms) is already close to this line and the
- * expensive one (AMD, 10,787 ms) is nowhere near it. So this admits every hit
- * and funds no build worth the name.
+ * ⛔ THIS IS A SAFETY NET, NOT THE MECHANISM. Because the request carries
+ * `warm_only=1`, the server answers FAST in both directions — a hit in
+ * 178-337 ms, a miss with an immediate 503 — so in normal operation this timer
+ * never fires. It exists only for a stalled network or a wedged proxy, where
+ * something has to decide to stop waiting.
  *
- * It is deliberately TIGHTER than PREHYDRATE_FALLBACK_MS (3,000 ms). That
- * budget covers a first-paint product with no alternative in flight; this one
- * covers a Search whose fallback is already known to answer in ~4 s.
+ * 2,500 ms still bounds it below the 4,232 ms legacy path it defers to, so even
+ * a pathological stall cannot make asking cost more than not asking.
  */
 export const SEARCH_PRODUCT_DEADLINE_MS = 2500
 
@@ -66,8 +65,16 @@ export const SEARCH_DECLINE = Object.freeze({
  */
 export const SEARCH_PRODUCT_SCHEMA = 1
 
+/**
+ * ⛔ `warm_only=1` IS WHAT MAKES A MISS FREE. Without it the server BUILDS on a
+ * miss (10,787 ms for AMD) and this client can only escape by waiting out its
+ * own deadline — so a cold search would cost the deadline PLUS the 4,232 ms
+ * legacy path, strictly worse than never having asked. With it, a miss is an
+ * immediate 503 and the tape starts now, while the server warms the entry in
+ * the background so the NEXT search for that ticker is a ~300 ms hit.
+ */
 export function searchProductUrl(sym, source) {
-  return `/api/flow/ticker-product/${encodeURIComponent(sym)}?source=${source}`
+  return `/api/flow/ticker-product/${encodeURIComponent(sym)}?source=${source}&warm_only=1`
 }
 
 /**

@@ -60,7 +60,7 @@ describe('CONTROL: the happy path really produces a usable product', () => {
   })
 
   it('builds the endpoint URL the server actually serves', () => {
-    expect(searchProductUrl('AMD', 'stocks')).toBe('/api/flow/ticker-product/AMD?source=stocks')
+    expect(searchProductUrl('AMD', 'stocks')).toBe('/api/flow/ticker-product/AMD?source=stocks&warm_only=1')
   })
 })
 
@@ -200,11 +200,11 @@ describe('the request carries nothing user-specific', () => {
     await fetchSearchProduct('amd', 'stocks', {
       fetchImpl: async (url) => { seen = url; return res() },
     })
-    expect(seen).toBe('/api/flow/ticker-product/AMD?source=stocks')
+    expect(seen).toBe('/api/flow/ticker-product/AMD?source=stocks&warm_only=1')
     // Stated as the invariant rather than a substring scan: `source` is the
     // ONLY query parameter, so nothing member-specific can be riding along.
     const params = [...new URL(seen, 'https://x').searchParams.keys()]
-    expect(params).toEqual(['source'])
+    expect(params).toEqual(['source', 'warm_only'])
   })
 
   it('normalises an unknown source to stocks rather than forwarding it', async () => {
@@ -212,6 +212,6 @@ describe('the request carries nothing user-specific', () => {
     await fetchSearchProduct('AMD', 'wat', {
       fetchImpl: async (url) => { seen = url; return res() },
     })
-    expect(seen).toBe('/api/flow/ticker-product/AMD?source=stocks')
+    expect(seen).toBe('/api/flow/ticker-product/AMD?source=stocks&warm_only=1')
   })
 })

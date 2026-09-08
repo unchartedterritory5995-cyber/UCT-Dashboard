@@ -708,6 +708,131 @@ class _Stages:
 _SEARCH_BUILD_LOCK = threading.Lock()
 
 
+def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
+    """Derive, serialise, gzip and CACHE one ticker's Search product.
+
+    Returns `(gz_bytes, None)` on success or `(None, error_response)` on any
+    failure, so the request path can return the error and the background warmer
+    can simply drop it.
+
+    ⛔ ONE IMPLEMENTATION, TWO CALLERS. This was inline in the endpoint; the
+    background warmer needs exactly the same derivation, and a second copy would
+    be free to drift into producing a different product for the same key -- the
+    quietest possible cache-poisoning bug. The CALLER owns the build lock.
+    """
+    st.mark("csv_query_begin")
+    try:
+        # FULL COLUMN SET. processFlowData resolves columns by name, so a
+        # narrowed projection could change the derivation.
+        parts = []
+        rows_seen = 0
+        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+            b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
+            parts.append(b)
+            rows_seen += b.count(b"\n")
+        csv_bytes = b"".join(parts)
+    except Exception as e:
+        st.mark("csv_failed")
+        st.flush("CSV_ERROR")
+        log.exception("[flow-search] csv build failed for %s/%s", sym, src)
+        return None, JSONResponse({"ok": False, "error": "csv: " + str(e)}, status_code=500)
+    st.mark("csv_query_end", rows=rows_seen, kb=len(csv_bytes) // 1024)
+
+    st.mark("spawn_begin")
+    try:
+        proc = subprocess.run(
+            [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+            input=csv_bytes, capture_output=True,
+            timeout=flow_aggregate.BUILD_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        st.mark("derive_timeout", limit_s=flow_aggregate.BUILD_TIMEOUT_S)
+        st.flush("TIMEOUT")
+        return None, JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
+    except Exception as e:
+        st.mark("spawn_failed")
+        st.flush("SPAWN_ERROR")
+        log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
+        return None, JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    st.mark("derive_end", rc=proc.returncode, out_kb=len(proc.stdout or b"") // 1024)
+
+    if proc.returncode != 0:
+        st.flush("DERIVE_FAILED")
+        log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
+                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+        return None, JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
+    try:
+        derived = json.loads(proc.stdout)
+    except Exception:
+        st.mark("parse_failed")
+        st.flush("BAD_PRODUCT")
+        log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
+        return None, JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
+    st.mark("parsed")
+
+    body = {
+        "ok": True, "sym": sym, "source": src, "version": version,
+        "schema": _SEARCH_PRODUCT_SCHEMA,
+        "product": derived.get("product"),
+        "rows": derived.get("rows", 0),
+    }
+    st.mark("serialize_begin")
+    raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
+    st.mark("serialize_end", kb=len(raw) // 1024)
+    gz = gzip.compress(raw, compresslevel=6)
+    st.mark("gzip_end", kb=len(gz) // 1024)
+    _search_product_cache_put(key, gz)
+    st.mark("cache_installed")
+    st.flush("BUILT")
+
+    return gz, None
+
+
+def _truthy(v) -> bool:
+    return str(v or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+# Symbols with a warm-build already in flight. Without this a member typing into
+# the search box would spawn a thread per keystroke-completed symbol; each would
+# decline on the lock, but the churn is pointless and the set makes the intent
+# explicit rather than relying on the lock to absorb it.
+_SEARCH_WARMING = set()
+_SEARCH_WARMING_LOCK = threading.Lock()
+
+
+def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
+    """Build one ticker's Search product in the background. Never raises.
+
+    ⛔ FIRE AND FORGET, DELIBERATELY. The caller has already been answered with a
+    503 and is on the legacy path; this exists only so the NEXT search for this
+    ticker is a hit. It must therefore never block, never retry aggressively, and
+    never let an exception escape into a thread that nothing is watching.
+    """
+    with _SEARCH_WARMING_LOCK:
+        if sym in _SEARCH_WARMING:
+            return False
+        _SEARCH_WARMING.add(sym)
+
+    def _run():
+        try:
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                return                      # a build is already running; drop it
+            try:
+                if _search_product_cache_get(key) is not None:
+                    return
+                _build_search_product(sym, src, key, version, _Stages(sym + "/" + src + " warm"))
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+        except Exception as e:  # noqa: BLE001
+            log.warning("[flow-search] warm build failed for %s: %s", sym, e)
+        finally:
+            with _SEARCH_WARMING_LOCK:
+                _SEARCH_WARMING.discard(sym)
+
+    threading.Thread(target=_run, name=f"flow-search-warm-{sym}", daemon=True).start()
+    return True
+
+
 @flow_router.get("/ticker-product/{symbol}")
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             _auth: dict = Depends(require_flow_user)):
@@ -736,6 +861,24 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
         st.flush("NO_BUNDLE")
         return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
 
+    # ⛔ A MISS MUST NOT COST THE MEMBER ANYTHING. Measured on prod: a warm hit
+    # is 178-337 ms flat, a cold AMD build is 10,787 ms, and the legacy tape the
+    # client falls back to is 4,232 ms. If the client has to WAIT OUT a deadline
+    # before starting that fallback, a cold search costs deadline + 4,232 ms --
+    # strictly worse than never having asked. So on `warm_only` the answer to a
+    # miss is an immediate 503: the client starts the tape now, and the build it
+    # would have waited for runs in the background and warms the entry for every
+    # later search of that ticker.
+    #
+    # ⛔ The background build takes the SAME non-blocking single-flight lock, so
+    # it cannot stack: a thread that finds the lock held exits immediately rather
+    # than queueing. Many distinct symbols searched at once therefore cost at
+    # most one running derivation, not one per symbol.
+    if _truthy(request.query_params.get("warm_only")):
+        _spawn_search_warm(sym, src, key, version)
+        st.flush("MISS_WARM_ONLY")
+        return JSONResponse({"ok": False, "error": "not warm"}, status_code=503)
+
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
         st.flush("DECLINED_BUSY")
         return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
@@ -747,70 +890,9 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
             st.flush("HIT_AFTER_WAIT")
             return _search_response(again, version, "hit")
 
-        st.mark("csv_query_begin")
-        try:
-            # FULL COLUMN SET. processFlowData resolves columns by name, so a
-            # narrowed projection could change the derivation.
-            parts = []
-            rows_seen = 0
-            for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
-                b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
-                parts.append(b)
-                rows_seen += b.count(b"\n")
-            csv_bytes = b"".join(parts)
-        except Exception as e:
-            st.mark("csv_failed")
-            st.flush("CSV_ERROR")
-            log.exception("[flow-search] csv build failed for %s/%s", sym, src)
-            return JSONResponse({"ok": False, "error": "csv: " + str(e)}, status_code=500)
-        st.mark("csv_query_end", rows=rows_seen, kb=len(csv_bytes) // 1024)
-
-        st.mark("spawn_begin")
-        try:
-            proc = subprocess.run(
-                [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
-                input=csv_bytes, capture_output=True,
-                timeout=flow_aggregate.BUILD_TIMEOUT_S,
-            )
-        except subprocess.TimeoutExpired:
-            st.mark("derive_timeout", limit_s=flow_aggregate.BUILD_TIMEOUT_S)
-            st.flush("TIMEOUT")
-            return JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
-        except Exception as e:
-            st.mark("spawn_failed")
-            st.flush("SPAWN_ERROR")
-            log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-        st.mark("derive_end", rc=proc.returncode, out_kb=len(proc.stdout or b"") // 1024)
-
-        if proc.returncode != 0:
-            st.flush("DERIVE_FAILED")
-            log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
-                        (proc.stderr or b"")[:300].decode("utf-8", "replace"))
-            return JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
-        try:
-            derived = json.loads(proc.stdout)
-        except Exception:
-            st.mark("parse_failed")
-            st.flush("BAD_PRODUCT")
-            log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
-            return JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
-        st.mark("parsed")
-
-        body = {
-            "ok": True, "sym": sym, "source": src, "version": version,
-            "schema": _SEARCH_PRODUCT_SCHEMA,
-            "product": derived.get("product"),
-            "rows": derived.get("rows", 0),
-        }
-        st.mark("serialize_begin")
-        raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
-        st.mark("serialize_end", kb=len(raw) // 1024)
-        gz = gzip.compress(raw, compresslevel=6)
-        st.mark("gzip_end", kb=len(gz) // 1024)
-        _search_product_cache_put(key, gz)
-        st.mark("cache_installed")
-        st.flush("BUILT")
+        gz, err = _build_search_product(sym, src, key, version, st)
+        if err is not None:
+            return err
         return _search_response(gz, version, "miss")
     finally:
         _SEARCH_BUILD_LOCK.release()
