@@ -13,6 +13,7 @@ import MobileChartTypeSheet from './MobileChartTypeSheet'
 import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
+import MobileLayoutsSheet from './MobileLayoutsSheet'
 import { pushRecent } from './mobileRecents'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
@@ -50,10 +51,17 @@ export function chartWidgetIndex(widgets) {
  * phone shows a full-screen page. Same state, same handlers; only the
  * presentation and the tap-to-chart rule change (a docked panel never covers
  * the chart, so it stays open while the chart retargets beside it). */
-export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOptsChange, onAddWidget, tablet = false }) {
+export default function MobileChartsApp({
+  widgets, onRemove, onColorChange, onOptsChange, onAddWidget, tablet = false,
+  /* MOB-01 — passed straight through to MobileLayoutsSheet. These are ChartsWorkspace's
+     OWN handlers; this component never touches /api/charts/layouts itself. */
+  layoutsMine = [], layoutsPrebuilt = [], layoutsActive = null, layoutsLoading = false,
+  layoutsSavedFlash = false, isAdmin = false,
+  onApplyLayout, onApplyUctDefault, onSaveLayout, onSaveLayoutAs, onDeleteLayout,
+}) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
-  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
+  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more' | 'layouts'
   const [sheet, setSheet] = useState(null)
   // Wave 10: a legend-chip tap opens the indicator sheet ALREADY INSIDE that
   // study's editor — {kind:'study', defId, instanceId}. Cleared with the sheet
@@ -413,6 +421,22 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         initialEditing={sheetEditing}
       />
       <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} className={sheetTheme} />
+      <MobileLayoutsSheet
+        open={sheet === 'layouts'}
+        onClose={closeSheet}
+        mine={layoutsMine}
+        prebuilt={layoutsPrebuilt}
+        active={layoutsActive}
+        isAdmin={isAdmin}
+        loading={layoutsLoading}
+        savedFlash={layoutsSavedFlash}
+        onApply={onApplyLayout}
+        onApplyUctDefault={onApplyUctDefault}
+        onSaveCurrent={onSaveLayout}
+        onSaveAs={onSaveLayoutAs}
+        onDelete={onDeleteLayout}
+        className={sheetTheme}
+      />
       <MobileMoreSheet
         open={sheet === 'more'}
         onClose={closeSheet}
@@ -420,6 +444,8 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         widgets={otherWidgets}
         onOpenWidget={openWidgetScreen}
         onAddWidget={handleAddFromSheet}
+        onOpenLayouts={() => setSheet('layouts')}
+        activeLayoutName={layoutsActive?.name || null}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}

@@ -1833,8 +1833,12 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', 'null')
   }, [setPref, setChartsTheme])
 
-  const handleSaveAsTemplate = useCallback(async () => {
-    const nm = saveAsName.trim()
+  /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
+     onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
+     Layouts sheet owns its own input and passes the name explicitly. One handler,
+     two callers: the alternative was a second save path that would drift. */
+  const handleSaveAsTemplate = useCallback(async (nameArg, scopeArg) => {
+    const nm = (typeof nameArg === 'string' ? nameArg : saveAsName).trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
       // Templates store the arrangement + the current CHART SETTINGS (so opening
@@ -1849,7 +1853,7 @@ export default function ChartsWorkspace() {
       const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
       const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
       const watchlistColumns = readWatchlistColumns()
-      const scope = isAdmin ? saveAsScope : 'user'
+      const scope = isAdmin ? ((typeof scopeArg === 'string' && scopeArg) || saveAsScope) : 'user'
       const saved = await saveLayout({
         name: nm,
         layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -1866,7 +1870,7 @@ export default function ChartsWorkspace() {
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
 
   // Explicit "Save current arrangement" — flush the debounced auto-save + persist
   // the working board immediately (the auto-save is debounced 500ms, so a refresh
@@ -2042,9 +2046,13 @@ export default function ChartsWorkspace() {
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.
+  // ⭐ COMPUTED ABOVE THE MOBILE RETURN ON PURPOSE: the phone's Layouts sheet reads the
+  // same two lists as the desktop menu. They sat below it until 2026-09-08, which is
+  // the entire reason the phone had no layout door.
   const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
 
@@ -2081,6 +2089,20 @@ export default function ChartsWorkspace() {
             onOptsChange={handleOptsChange}
             onAddWidget={handleAddWidget}
             tablet={shellTablet}
+            /* MOB-01 — the phone's door to the EXISTING layout system. Every one of
+               these is the same callback the desktop menu uses; the sheet adds no
+               persistence of its own. */
+            layoutsMine={wsMyLayouts}
+            layoutsPrebuilt={wsGlobalLayouts}
+            layoutsActive={parsePref(prefs?.charts_active_template, null)}
+            layoutsLoading={templatesLoading}
+            layoutsSavedFlash={savedFlash}
+            isAdmin={isAdmin}
+            onApplyLayout={applyTemplate}
+            onApplyUctDefault={applyUctDefault}
+            onSaveLayout={handleSaveLayout}
+            onSaveLayoutAs={handleSaveAsTemplate}
+            onDeleteLayout={handleDeleteTemplate}
           />
         )}
       </WorkspaceContext.Provider>

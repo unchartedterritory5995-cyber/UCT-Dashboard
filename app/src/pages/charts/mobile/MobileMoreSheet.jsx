@@ -16,6 +16,8 @@ export default function MobileMoreSheet({
   widgets = [],            // NON-chart widgets of the saved layout
   onOpenWidget,            // (widgetId) => void — open as a full-screen page
   onAddWidget,             // (type) => void
+  onOpenLayouts,           // MOB-01 — the workspace/layout sheet (row hidden when absent)
+  activeLayoutName,        // name of the open named layout, or null for the working board
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
@@ -61,6 +63,20 @@ export default function MobileMoreSheet({
           <span className={styles.rowLabel}>Chart settings</span>
           <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
         </button>
+        {/* MOB-01. The phone was a first-class WRITER to the server-backed workspace with
+            no way to name, save or reopen one — the layout lists were computed two lines
+            above ChartsWorkspace's mobile return and used only on desktop. This row is the
+            door; MobileLayoutsSheet calls the desktop's own handlers. */}
+        {onOpenLayouts && (
+          <button type="button" className={styles.row} aria-label="Layouts" onClick={() => { haptics.tap(); onClose(); onOpenLayouts() }}>
+            <span className={styles.rowIcon}><UIcon name="columns" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Layouts</span>
+            <span className={styles.rowRight}>
+              {activeLayoutName ? <span className={styles.rowSub}>{activeLayoutName}</span> : null}
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+          </button>
+        )}
 
         {widgets.length > 0 && (
           <>

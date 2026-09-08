@@ -971,3 +971,106 @@
 .swatchOn { border-color: var(--text-bright); box-shadow: 0 0 0 2px var(--bg-surface); }
 
 .removeRow .rowLabel { color: var(--loss); }
+
+/* ── Layouts sheet (MobileLayoutsSheet) ─────────────────────────────────────
+   The phone's door to the EXISTING workspace/layout system. Rows reuse .row /
+   .rowIcon / .rowLabel above; only the two-control row (open + delete), the
+   read-only badge and the Save-As form need their own metrics.
+   Every interactive element here clears the 44px tap floor. */
+.layoutRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.layoutRow > .row { flex: 1 1 auto; min-width: 0; }
+
+/* Destructive control sits OUTSIDE the open button so a mis-tap on a 390px
+   screen cannot both open a layout and arm a delete. */
+.layoutDel {
+  flex: 0 0 auto;
+  min-width: var(--tap-min, 44px);
+  min-height: var(--tap-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.layoutDel:active { color: var(--loss, #ef4444); }
+
+.layoutConfirm {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 4px;
+}
+.layoutConfirmYes,
+.layoutConfirmNo {
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 12px;
+  cursor: pointer;
+}
+.layoutConfirmYes { color: var(--loss, #ef4444); border-color: color-mix(in srgb, var(--loss, #ef4444) 45%, transparent); }
+.layoutConfirmNo { color: var(--text-dim); }
+
+/* Firm-published rows are read-only for a member: the badge is the reason the
+   delete control is absent, so it must be legible, not decorative. */
+.layoutBadge {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+  border: 1px solid color-mix(in srgb, var(--ut-gold, #c9a84c) 40%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.layoutForm { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 4px; }
+.layoutInput {
+  width: 100%;
+  min-height: var(--tap-min, 44px);
+  box-sizing: border-box;      /* 100% + padding would overflow a 390px sheet */
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text);
+  font-size: 16px;             /* < 16px makes iOS Safari zoom the page on focus */
+}
+.layoutInput:focus { outline: none; border-color: var(--ut-gold, #c9a84c); }
+
+.layoutScope { display: flex; gap: 8px; }
+.layoutScopeBtn,
+.layoutScopeOn {
+  flex: 1 1 0;
+  min-height: var(--tap-min, 44px);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.layoutScopeOn { color: var(--ut-gold, #c9a84c); border-color: var(--ut-gold, #c9a84c); }
+
+.layoutPrimary {
+  min-height: var(--tap-min, 44px);
+  border-radius: 10px;
+  border: 1px solid var(--ut-gold, #c9a84c);
+  background: color-mix(in srgb, var(--ut-gold, #c9a84c) 14%, transparent);
+  color: var(--ut-gold, #c9a84c);
+  font-size: 14px;
+  cursor: pointer;
+}
+.layoutPrimary:disabled { opacity: 0.45; cursor: default; }
+
+.layoutErr { color: var(--loss, #ef4444); font-size: 12.5px; }
+.layoutNote { color: var(--text-dim); font-size: 12px; line-height: 1.5; padding: 4px 12px 10px; }
