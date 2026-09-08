@@ -316,3 +316,32 @@ changes the ordering. The three unbuilt C3A primitives (`bgcolor` 12/60,
 `barcolor` 10/60, `plotcandle` 5/60) are the natural C3A-continuation if the
 owner prefers to finish the declarative layer first — they are 27/60 between
 them, and each is a bounded renderer job rather than an architecture project.
+
+
+---
+
+# POST-C3A-CLOSE UPDATE (2026-09-07)
+
+No implementation in this pass beyond measurement. The scorecard does not move,
+and that is the correct outcome for an evidence wave.
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | Now **measured on the fixed parity set** rather than asserted: `VISUAL_FULL 0 · MOSTLY 0 · PARTIAL 2 · MINIMAL 6 · BLOCKED 2`. The grade did not move; what moved is that it is now a measurement. |
+| I | FAILURE TRANSPARENCY | ✅ | ✅ | The shape matrix classifies 3 of 12 mappings MATERIAL — including `plotshape`'s own default — rather than reporting twelve supported shapes. |
+| — | VENDOR VALIDATION | ⬜ | ⬜ | Still unmeasured, and now with a named, ~15-minute unblock instead of an open question. **Zero vendor observations of visual semantics exist; that has not changed.** |
+
+**A and F remain 🔴. Tier 2 remains the earned ceiling.**
+
+## The next wave, on the measured numbers
+
+**C3B (object model) remains the recommendation — at 27/60, not 46/60.** The
+loop boundary costs it 19 scripts that no object model can reach while RISK-043
+stands. It is still the largest item and the only one that converts partial
+indicators into whole ones.
+
+Two owner decisions gate it:
+
+1. **The vendor capture** (~15 min) closes C3A-CLOSE item 2.
+2. **Confirm C3B against 27/46 rather than 46/60**, now that the reachable
+   number is known.

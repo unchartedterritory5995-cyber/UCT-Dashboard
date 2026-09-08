@@ -1,0 +1,247 @@
+//@version=6
+indicator("SPY Position Helper v1", overlay=true, max_labels_count=500)
+
+// Decision-support indicator for SPY. It does not place trades or model option premiums.
+
+// INPUTS
+groupSetup = "1. Setup"
+macroTimeframe = input.timeframe("240", "Macro timeframe", group=groupSetup)
+contextTimeframe = input.timeframe("60", "Context timeframe", group=groupSetup)
+minimumScore = input.int(7, "Minimum signal score", minval=5, maxval=10, group=groupSetup)
+sessionInput = input.session("0935-1555", "Allowed New York session", group=groupSetup)
+cooldownInput = input.int(5, "Bars between signals", minval=0, maxval=30, group=groupSetup)
+
+groupRisk = "2. Position guide"
+atrLength = input.int(14, "ATR length", minval=2, group=groupRisk)
+zoneAtr = input.float(0.20, "Zone width in ATR", minval=0.05, maxval=1.0, step=0.05, group=groupRisk)
+stopBufferAtr = input.float(0.10, "Stop buffer in ATR", minval=0.0, step=0.05, group=groupRisk)
+targetMultiple = input.float(1.0, "Target R multiple", minval=0.25, step=0.25, group=groupRisk)
+minimumRoom = input.float(0.80, "Minimum structural room in R", minval=0.25, step=0.05, group=groupRisk)
+maximumBars = input.int(9, "Maximum bars in position", minval=1, maxval=24, group=groupRisk)
+
+groupMomentum = "3. Momentum"
+rsiLength = input.int(14, "RSI length", minval=2, group=groupMomentum)
+macdFast = input.int(12, "MACD fast", minval=1, group=groupMomentum)
+macdSlow = input.int(26, "MACD slow", minval=2, group=groupMomentum)
+macdSignalLength = input.int(9, "MACD signal", minval=1, group=groupMomentum)
+diLength = input.int(14, "DI length", minval=2, group=groupMomentum)
+adxSmoothing = input.int(14, "ADX smoothing", minval=2, group=groupMomentum)
+minimumAdx = input.float(18.0, "Minimum ADX", minval=1.0, step=0.5, group=groupMomentum)
+minimumBody = input.float(0.55, "Minimum candle body fraction", minval=0.1, maxval=1.0, step=0.05, group=groupMomentum)
+
+groupDisplay = "4. Display"
+showZones = input.bool(true, "Show support/resistance zones", group=groupDisplay)
+showPriorDay = input.bool(true, "Show prior-day levels", group=groupDisplay)
+showBackground = input.bool(true, "Show WAIT background", group=groupDisplay)
+showDashboard = input.bool(true, "Show dashboard", group=groupDisplay)
+
+if barstate.isfirst and (timeframe.in_seconds() >= timeframe.in_seconds(contextTimeframe) or timeframe.in_seconds() >= timeframe.in_seconds(macroTimeframe))
+    runtime.error("Use a chart timeframe below the context timeframes. This indicator is intended for a 1-minute SPY chart.")
+
+// HELPERS
+f_below(float candidate, float best, float price) => not na(candidate) and candidate < price and (na(best) or candidate > best) ? candidate : best
+f_above(float candidate, float best, float price) => not na(candidate) and candidate > price and (na(best) or candidate < best) ? candidate : best
+f_price(float value) => na(value) ? "--" : str.tostring(value, format.mintick)
+
+// CONFIRMED HIGHER-TIMEFRAME LEVELS
+macroClose = request.security(syminfo.tickerid, macroTimeframe, close[1], lookahead=barmerge.lookahead_on)
+macroEma = request.security(syminfo.tickerid, macroTimeframe, ta.ema(close, 200)[1], lookahead=barmerge.lookahead_on)
+macroEmaPrevious = request.security(syminfo.tickerid, macroTimeframe, ta.ema(close, 200)[2], lookahead=barmerge.lookahead_on)
+contextHigh = request.security(syminfo.tickerid, contextTimeframe, high[1], lookahead=barmerge.lookahead_on)
+contextLow = request.security(syminfo.tickerid, contextTimeframe, low[1], lookahead=barmerge.lookahead_on)
+priorHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+priorLow = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_on)
+priorClose = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+
+macroBull = macroClose > macroEma and macroEma > macroEmaPrevious
+macroBear = macroClose < macroEma and macroEma < macroEmaPrevious
+
+// CORE STUDIES
+atr = ta.atr(atrLength)
+ema200 = ta.ema(close, 200)
+vwapValue = ta.vwap(hlc3)
+rsiValue = ta.rsi(close, rsiLength)
+[macdLine, macdSignal, macdHistogram] = ta.macd(close, macdFast, macdSlow, macdSignalLength)
+[positiveDI, negativeDI, adxValue] = ta.dmi(diLength, adxSmoothing)
+macdRising = macdHistogram > macdHistogram[1]
+macdFalling = macdHistogram < macdHistogram[1]
+adxBull = positiveDI > negativeDI and adxValue >= minimumAdx and adxValue > adxValue[1]
+adxBear = negativeDI > positiveDI and adxValue >= minimumAdx and adxValue > adxValue[1]
+
+// CONFIRMED LOCAL STRUCTURE
+pivotLength = 5
+pivotLow = ta.pivotlow(low, pivotLength, pivotLength)
+pivotHigh = ta.pivothigh(high, pivotLength, pivotLength)
+var float lastSwingLow = na
+var float lastSwingHigh = na
+
+if not na(pivotLow)
+    lastSwingLow := pivotLow
+
+if not na(pivotHigh)
+    lastSwingHigh := pivotHigh
+
+float support = na
+support := f_below(lastSwingLow, support, close)
+support := f_below(contextLow, support, close)
+support := f_below(priorLow, support, close)
+support := f_below(priorClose, support, close)
+support := f_below(vwapValue, support, close)
+support := f_below(ema200, support, close)
+
+float resistance = na
+resistance := f_above(lastSwingHigh, resistance, close)
+resistance := f_above(contextHigh, resistance, close)
+resistance := f_above(priorHigh, resistance, close)
+resistance := f_above(priorClose, resistance, close)
+resistance := f_above(vwapValue, resistance, close)
+resistance := f_above(ema200, resistance, close)
+
+zoneWidth = atr * zoneAtr
+nearSupport = not na(support) and low <= support + zoneWidth and close >= support - zoneWidth
+nearResistance = not na(resistance) and high >= resistance - zoneWidth and close <= resistance + zoneWidth
+nearVwap = math.abs(close - vwapValue) <= zoneWidth
+nearEma = math.abs(close - ema200) <= zoneWidth
+
+// CLOSED-CANDLE TRIGGERS
+candleRange = high - low
+bodyFraction = candleRange > 0.0 ? math.abs(close - open) / candleRange : 0.0
+validBody = bodyFraction >= minimumBody
+bullBreakout = not na(resistance[1]) and close > resistance[1] and close[1] <= resistance[1]
+bearBreakout = not na(support[1]) and close < support[1] and close[1] >= support[1]
+bullRejection = nearSupport and close > high[1] and close > open
+bearRejection = nearResistance and close < low[1] and close < open
+bullTrigger = (bullBreakout or bullRejection) and validBody and macdRising and positiveDI > negativeDI
+bearTrigger = (bearBreakout or bearRejection) and validBody and macdFalling and negativeDI > positiveDI
+
+// STRUCTURAL RISK
+bullStopCandidate = (not na(support) ? math.min(low, support) : low) - atr * stopBufferAtr
+bearStopCandidate = (not na(resistance) ? math.max(high, resistance) : high) + atr * stopBufferAtr
+bullRisk = close - bullStopCandidate
+bearRisk = bearStopCandidate - close
+bullRoom = not na(resistance) ? resistance - close : atr * targetMultiple
+bearRoom = not na(support) ? close - support : atr * targetMultiple
+bullHasRoom = bullRisk > syminfo.mintick and bullRoom >= bullRisk * minimumRoom
+bearHasRoom = bearRisk > syminfo.mintick and bearRoom >= bearRisk * minimumRoom
+
+// TEN-POINT SCORE
+bullMacroPoints = macroBull ? 2 : not macroBear ? 1 : 0
+bearMacroPoints = macroBear ? 2 : not macroBull ? 1 : 0
+bullLocationPoints = nearSupport or bullBreakout ? 2 : 0
+bearLocationPoints = nearResistance or bearBreakout ? 2 : 0
+confluencePoint = nearVwap or nearEma ? 1 : 0
+bullRsiPoint = rsiValue > 50.0 ? 1 : 0
+bearRsiPoint = rsiValue < 50.0 ? 1 : 0
+bullMacdPoint = macdRising and macdLine > macdSignal ? 1 : 0
+bearMacdPoint = macdFalling and macdLine < macdSignal ? 1 : 0
+bullAdxPoint = adxBull ? 1 : 0
+bearAdxPoint = adxBear ? 1 : 0
+bullCandlePoint = bullTrigger ? 1 : 0
+bearCandlePoint = bearTrigger ? 1 : 0
+bullRoomPoint = bullHasRoom ? 1 : 0
+bearRoomPoint = bearHasRoom ? 1 : 0
+bullScore = bullMacroPoints + bullLocationPoints + confluencePoint + bullRsiPoint + bullMacdPoint + bullAdxPoint + bullCandlePoint + bullRoomPoint
+bearScore = bearMacroPoints + bearLocationPoints + confluencePoint + bearRsiPoint + bearMacdPoint + bearAdxPoint + bearCandlePoint + bearRoomPoint
+
+// POSITION-HELPER STATE
+inSession = not na(time(timeframe.period, sessionInput, "America/New_York"))
+var int helperDirection = 0
+var float helperEntry = na
+var float helperStop = na
+var float helperTarget = na
+var int helperScore = na
+var int helperEntryBar = na
+var int lastSignalBar = na
+cooldownReady = na(lastSignalBar) or bar_index - lastSignalBar > cooldownInput
+flatHelper = helperDirection == 0
+callSignal = barstate.isconfirmed and inSession and flatHelper and cooldownReady and bullTrigger and bullHasRoom and bullScore >= minimumScore and not bearTrigger
+putSignal = barstate.isconfirmed and inSession and flatHelper and cooldownReady and bearTrigger and bearHasRoom and bearScore >= minimumScore and not bullTrigger
+
+if callSignal
+    helperDirection := 1
+    helperEntry := close
+    helperStop := bullStopCandidate
+    helperTarget := not na(resistance) and resistance > close ? math.min(close + bullRisk * targetMultiple, resistance) : close + bullRisk * targetMultiple
+    helperScore := bullScore
+    helperEntryBar := bar_index
+    lastSignalBar := bar_index
+    alert("SPY CALL | Score " + str.tostring(bullScore) + "/10 | Entry " + f_price(helperEntry) + " | Stop " + f_price(helperStop) + " | Target " + f_price(helperTarget), alert.freq_once_per_bar_close)
+
+if putSignal
+    helperDirection := -1
+    helperEntry := close
+    helperStop := bearStopCandidate
+    helperTarget := not na(support) and support < close ? math.max(close - bearRisk * targetMultiple, support) : close - bearRisk * targetMultiple
+    helperScore := bearScore
+    helperEntryBar := bar_index
+    lastSignalBar := bar_index
+    alert("SPY PUT | Score " + str.tostring(bearScore) + "/10 | Entry " + f_price(helperEntry) + " | Stop " + f_price(helperStop) + " | Target " + f_price(helperTarget), alert.freq_once_per_bar_close)
+
+barsInHelper = helperDirection != 0 and not na(helperEntryBar) ? bar_index - helperEntryBar : 0
+callStopHit = helperDirection == 1 and bar_index > helperEntryBar and low <= helperStop
+callTargetHit = helperDirection == 1 and bar_index > helperEntryBar and high >= helperTarget
+putStopHit = helperDirection == -1 and bar_index > helperEntryBar and high >= helperStop
+putTargetHit = helperDirection == -1 and bar_index > helperEntryBar and low <= helperTarget
+momentumExitCall = helperDirection == 1 and bar_index > helperEntryBar and close < helperEntry and macdFalling
+momentumExitPut = helperDirection == -1 and bar_index > helperEntryBar and close > helperEntry and macdRising
+timeExit = helperDirection != 0 and barsInHelper >= maximumBars
+sessionExit = helperDirection != 0 and not inSession
+exitSignal = barstate.isconfirmed and (callStopHit or callTargetHit or putStopHit or putTargetHit or momentumExitCall or momentumExitPut or timeExit or sessionExit)
+exitWasCall = exitSignal and helperDirection == 1
+exitWasPut = exitSignal and helperDirection == -1
+
+if exitSignal
+    alert("SPY POSITION GUIDE EXIT | Review price action and close the scalp if still open", alert.freq_once_per_bar_close)
+    helperDirection := 0
+    helperEntry := na
+    helperStop := na
+    helperTarget := na
+    helperScore := na
+    helperEntryBar := na
+
+// VISUALS
+plot(vwapValue, "VWAP", color=color.purple, linewidth=2)
+plot(ema200, "200 EMA", color=color.orange, linewidth=2)
+plot(showPriorDay ? priorHigh : na, "Prior high", color=color.new(color.red, 55), style=plot.style_linebr)
+plot(showPriorDay ? priorLow : na, "Prior low", color=color.new(color.teal, 55), style=plot.style_linebr)
+plot(showPriorDay ? priorClose : na, "Prior close", color=color.new(color.gray, 65), style=plot.style_linebr)
+supportTop = plot(showZones and not na(support) ? support + zoneWidth : na, "Support top", color=color.new(color.teal, 80), style=plot.style_linebr)
+supportBottom = plot(showZones and not na(support) ? support - zoneWidth : na, "Support bottom", color=color.new(color.teal, 80), style=plot.style_linebr)
+fill(supportTop, supportBottom, color=color.new(color.teal, 90), title="Support zone")
+resistanceTop = plot(showZones and not na(resistance) ? resistance + zoneWidth : na, "Resistance top", color=color.new(color.red, 80), style=plot.style_linebr)
+resistanceBottom = plot(showZones and not na(resistance) ? resistance - zoneWidth : na, "Resistance bottom", color=color.new(color.red, 80), style=plot.style_linebr)
+fill(resistanceTop, resistanceBottom, color=color.new(color.red, 90), title="Resistance zone")
+plot(helperDirection != 0 ? helperEntry : na, "Guide entry", color=color.white, linewidth=2, style=plot.style_linebr)
+plot(helperDirection != 0 ? helperStop : na, "Guide stop", color=color.red, linewidth=2, style=plot.style_linebr)
+plot(helperDirection != 0 ? helperTarget : na, "Guide target", color=color.lime, linewidth=2, style=plot.style_linebr)
+plotshape(callSignal, title="CALL", style=shape.labelup, location=location.belowbar, color=color.lime, text="CALL", textcolor=color.black, size=size.small)
+plotshape(putSignal, title="PUT", style=shape.labeldown, location=location.abovebar, color=color.red, text="PUT", textcolor=color.white, size=size.small)
+plotshape(exitWasCall, title="EXIT CALL", style=shape.xcross, location=location.abovebar, color=color.yellow, text="EXIT", textcolor=color.black, size=size.small)
+plotshape(exitWasPut, title="EXIT PUT", style=shape.xcross, location=location.belowbar, color=color.yellow, text="EXIT", textcolor=color.black, size=size.small)
+
+waitCondition = inSession and helperDirection == 0 and math.max(bullScore, bearScore) >= minimumScore - 1 and not callSignal and not putSignal
+bgcolor(showBackground and waitCondition ? color.new(color.blue, 90) : na, title="WAIT condition")
+
+// DASHBOARD
+var table dashboard = table.new(position.top_right, 2, 8, border_width=1)
+
+if barstate.islast and showDashboard
+    stateText = helperDirection == 1 ? "CALL ACTIVE" : helperDirection == -1 ? "PUT ACTIVE" : waitCondition ? "WAIT" : "NO EDGE"
+    biasText = macroBull ? "Bullish" : macroBear ? "Bearish" : "Neutral"
+    scoreText = helperDirection != 0 ? str.tostring(helperScore) + "/10" : "Call " + str.tostring(bullScore) + " | Put " + str.tostring(bearScore)
+    table.cell(dashboard, 0, 0, "SPY POSITION HELPER", bgcolor=color.new(color.blue, 30), text_color=color.white)
+    table.cell(dashboard, 1, 0, stateText, bgcolor=color.new(color.blue, 30), text_color=color.white)
+    table.cell(dashboard, 0, 1, "Macro bias")
+    table.cell(dashboard, 1, 1, biasText)
+    table.cell(dashboard, 0, 2, "Score")
+    table.cell(dashboard, 1, 2, scoreText)
+    table.cell(dashboard, 0, 3, "Support")
+    table.cell(dashboard, 1, 3, f_price(support))
+    table.cell(dashboard, 0, 4, "Resistance")
+    table.cell(dashboard, 1, 4, f_price(resistance))
+    table.cell(dashboard, 0, 5, "Guide stop")
+    table.cell(dashboard, 1, 5, f_price(helperStop))
+    table.cell(dashboard, 0, 6, "Guide target")
+    table.cell(dashboard, 1, 6, f_price(helperTarget))
+    table.cell(dashboard, 0, 7, "Bars active")
+    table.cell(dashboard, 1, 7, str.tostring(barsInHelper) + "/" + str.tostring(maximumBars))

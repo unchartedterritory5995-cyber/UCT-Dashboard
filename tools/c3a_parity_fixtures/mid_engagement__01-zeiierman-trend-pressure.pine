@@ -1,0 +1,353 @@
+//@version=6
+// This work is licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+// https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © Zeiierman {
+indicator("Zeiierman Trend Pressure (Zeiierman)", precision=2, explicit_plot_zorder=true, max_boxes_count=500)
+//}
+
+// ~~ Tooltips {
+var string t1="Primary range horizon for Z-Pulse. Lower values react faster to local range position."
+var string t2="Stochastic pulse applied to the primary range reading. Lower values make Z-Pulse more reactive."
+var string t3="EMA smoothing applied to Z-Pulse. A value of 1 keeps the pulse raw."
+var string t4="Medium horizon used by Z-Trend to measure structural range position."
+var string t5="Macro horizon that dominates Z-Trend and gives it its long trend-following character."
+var string t6="EMA smoothing applied to the Z-Trend target. Higher values make the line steadier."
+var string t7="Strengthens persistence when Z-Trend repeatedly occupies an outer range zone."
+var string t8="Base exhaustion zone. Sensitivity expands or contracts this zone around the default value."
+var string t9="Strong global exhaustion sensitivity. 1 is intentionally loose, fast and inconsistent. 5 is balanced. 10 is strict, selective and persistent."
+var string t10="Main smoothing control for Pressure Core. Higher values calm its reactive pressure component."
+var string t11="Controls the balance between the fixed macro regime and reactive pressure in Pressure Core."
+var string t12="Color of the reactive Z-Pulse line."
+var string t13="Color of the macro-weighted Z-Trend line."
+var string t14="Bull, bear and neutral colors used by Pressure Core."
+var string t15="Thickness of the Pressure Core line."
+var string t16="Fills the space between Z-Pulse and Z-Trend with fading hot and cold extreme gradients."
+var string t17="Draws persistent price boxes while Z-Pulse and Z-Trend remain in a pressure exhaustion state."
+var string t18="Colors of the upper and lower pressure levels shown in the oscillator pane."
+var string t19="Transparency of the upper and lower pressure levels. 0 is fully visible and 100 is invisible."
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Groups {
+gP="1. Z-Pulse"
+gT="2. Z-Trend"
+gE="3. Pressure Exhaustion"
+gC="4. Pressure Core"
+gS="5. Colors & Style"
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Inputs {
+fl=input.int(21,"Pulse Range",minval=3,group=gP,tooltip=t1)
+pl=input.int(9,"Pulse Stochastic",minval=3,group=gP,tooltip=t2)
+ps=input.int(7,"Pulse Smoothing",minval=1,maxval=50,group=gP,tooltip=t3)
+
+sl=input.int(55,"Trend Range",minval=5,group=gT,tooltip=t4)
+ml=input.int(120,"Macro Trend",minval=10,group=gT,tooltip=t5)
+ts=input.int(5,"Trend Smoothing",minval=1,maxval=30,group=gT,tooltip=t6)
+db=input.float(9.0,"Trend Persistence",minval=0.0,maxval=20.0,step=0.5,group=gT,tooltip=t7)
+
+zn=input.int(20,"Exhaustion Zone",minval=5,maxval=40,group=gE,tooltip=t8)
+sn=input.int(7,"Sensitivity",minval=1,maxval=10,group=gE,tooltip=t9)
+xc=input.bool(false,"Pulse / Trend Crosses",group=gE)
+
+rm=input.int(16,"Reactive Smoothing",minval=1,maxval=30,group=gC,tooltip=t10)
+gw=input.float(0.65,"Regime Weight",minval=0.0,maxval=1.0,step=0.05,group=gC,tooltip=t11)
+
+cc=input.color(#2962ff,"Cold",inline="z",group=gS)
+hc=input.color(#e6283e,"Hot",inline="z",group=gS)
+
+ulc=input.color(#e6283e,"Upper Level",inline="lv",group=gS,tooltip=t18)
+llc=input.color(#2962ff,"Lower Level",inline="lv",group=gS,tooltip=t18)
+lvt=input.int(20,"Level Transparency",minval=0,maxval=100,group=gS,tooltip=t19)
+
+pc=input.color(#E5E7EB,"Z-Pulse",inline="l",group=gS,tooltip=t12)
+zc=input.color(color.rgb(139,174,255),"Z-Trend",inline="l",group=gS,tooltip=t13)
+
+cbc=input.color(#40e3c3,"Core Bull",inline="tc",group=gS,tooltip=t14)
+csc=input.color(#df5141,"Core Bear",inline="tc",group=gS,tooltip=t14)
+cnc=input.color(color.silver,"Core Neutral",inline="tc",group=gS,tooltip=t14)
+cw=input.int(2,"Core Width",minval=1,maxval=4,group=gS,tooltip=t15)
+
+sf=input.bool(true,"Gradient Fill",group=gS,tooltip=t16)
+bx=input.bool(true,"Price Boxes",inline="b",group=gS,tooltip=t17)
+mb=input.int(60,"#",minval=1,maxval=300,inline="b",group=gS,active=bx)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Core Params {
+const float sw=0.18
+const float mw=0.72
+const float th=0.92
+
+const int rl=21
+const int gl=112
+const int gm=3
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ State {
+F=0
+S=1
+M=2
+
+var array<box> bh=array.new_box()
+
+var float ud=0.0
+var float dd=0.0
+var float tz=na
+
+var int est=0
+var int ucn=0
+var int lcn=0
+
+var box ubx=na
+var box lbx=na
+
+var float ut=na
+var float ub=na
+var float lt=na
+var float lb=na
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Helpers {
+clp(float v,float lo,float hi)=>math.max(lo,math.min(hi,v))
+sm(float v,int k)=>k>1?ta.ema(v,k):v
+
+wr(int k)=>
+    hh=ta.highest(high,k)
+    ll=ta.lowest(low,k)
+    100.0*(close-hh)/math.max(hh-ll,syminfo.mintick)
+
+eff(int k)=>
+    p=ta.sma(math.abs(close-close[1]),k)*k
+    n=na(close[k])?na:math.abs(close-close[k])
+    na(p) or na(n)?na:clp(n/math.max(p,syminfo.mintick),0.0,1.0)
+
+stk(float x,int k)=>
+    hi=ta.highest(x,k)
+    lo=ta.lowest(x,k)
+    -100.0+100.0*(x-lo)/math.max(hi-lo,1e-10)
+
+con(array<float> a,array<float> w)=>
+    ws0=w.get(F)+w.get(S)+w.get(M)
+    clp((a.get(F)*w.get(F)+a.get(S)*w.get(S)+a.get(M)*w.get(M))/math.max(ws0,1e-10),-100.0,0.0)
+
+agr(array<float> a)=>
+    d=math.abs(a.get(F)-a.get(S))+math.abs(a.get(S)-a.get(M))+math.abs(a.get(F)-a.get(M))
+    1.0-clp(d/300.0,0.0,1.0)
+
+prs(int k)=>
+    hh=ta.highest(high,k)
+    ll=ta.lowest(low,k)
+    rg=math.max(hh-ll,syminfo.mintick)
+    cr=math.max(high-low,syminfo.mintick)
+    bh0=math.max(open,close)
+    bl0=math.min(open,close)
+    uw=high-bh0
+    lw=bl0-low
+    cl=(close-ll)/rg
+    mn=(hlc3-ll)/rg
+    bd=((close-open)/cr+1.0)*0.5
+    wk=((lw-uw)/cr+1.0)*0.5
+    p5=nz(close[5],close)
+    im=((close-p5)/rg+1.0)*0.5
+    clp((cl*0.42+mn*0.23+bd*0.13+wk*0.12+im*0.10)*100.0,0.0,100.0)
+
+alpha(float prev,float trg,float mac,float ag,float ef,float base,float hold)=>
+    side=mac>-50.0?1:mac<-50.0?-1:0
+    pull=(side==1 and trg<prev) or (side==-1 and trg>prev)
+    lk=clp(0.15+ag*ef*hold,0.0,0.97)
+    pull?math.max(0.015,base*(1.0-lk)):math.max(base*0.75,0.03)
+
+ccore(float v,float rg)=>
+    v>50.0 and rg>50.0?color.new(cbc,15):
+     v<50.0 and rg<50.0?color.new(csc,15):
+     color.new(cnc,35)
+
+keep(array<box> a,box b,int lim)=>
+    a.push(b)
+    if a.size()>lim
+        box.delete(a.shift())
+    0
+
+mkbox(float t,float b,color c,color br)=>
+    box.new(bar_index-1,t,bar_index,b,bgcolor=color.new(c,80),border_color=br,border_width=1,force_overlay=true)
+
+grow(box b,float t,float d)=>
+    nt=math.max(t,high)
+    nd=math.min(d,low)
+    b.set_right(bar_index)
+    b.set_top(nt)
+    b.set_bottom(nd)
+    [nt,nd]
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Z-Pulse Engine {
+array<float> rz=array.from(wr(fl),wr(sl),wr(ml))
+
+rf=rz.get(F)
+rp=stk(rf,pl)
+
+pr=clp(rf*0.72+rp*0.28,-100.0,0.0)
+pz=sm(pr,ps)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Z-Trend Engine {
+fw=math.max(0.0,1.0-sw-mw)
+array<float> twt=array.from(fw,sw,mw)
+
+cn=con(rz,twt)
+ag=agr(rz)
+ef=nz(eff(sl),0.0)
+
+ud:=cn>-30.0?math.min(1.0,nz(ud[1])*0.93+0.07):nz(ud[1])*0.94
+dd:=cn<-70.0?math.min(1.0,nz(dd[1])*0.93+0.07):nz(dd[1])*0.94
+
+tg0=clp(cn+db*(ud-dd),-100.0,0.0)
+tg=sm(tg0,2)
+
+ba=2.0/(ts+1.0)
+pa=na(tz[1])?ba:alpha(tz[1],tg,rz.get(M),ag,ef,ba,th)
+
+tz:=na(tz[1])?tg:clp(tz[1]+pa*(tg-tz[1]),-100.0,0.0)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Pressure Core {
+cp=ta.ema(prs(rl),rm)
+cg=ta.ema(prs(gl),gm)
+
+c0=cg*gw+cp*(1.0-gw)
+cz=c0-100.0
+ccl=ccore(c0,cg)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Strong Sensitivity Engine {
+d=float(sn-5)
+
+ez=clp(float(zn)-d*4.0,8.0,42.0)
+rb=clp(8.0+d*1.75,1.0,18.0)
+cf=sn<=5?1:sn<=7?2:sn<=9?3:4
+fastExit=sn<=2
+
+up=-ez
+dn=-100.0+ez
+ur=up-rb
+lr=dn+rb
+
+uc=pz>=up and tz>=up
+lc=pz<=dn and tz<=dn
+
+ucn:=uc?ucn+1:0
+lcn:=lc?lcn+1:0
+
+ux=fastExit?(pz<ur or tz<ur):(pz<ur and tz<ur)
+lx=fastExit?(pz>lr or tz>lr):(pz>lr and tz>lr)
+
+if est==0
+    if ucn>=cf
+        est:=1
+    else if lcn>=cf
+        est:=-1
+else if est==1 and ux
+    est:=0
+else if est==-1 and lx
+    est:=0
+
+ue=est==1
+le=est==-1
+
+us=ue and nz(est[1],0)!=1
+ls=le and nz(est[1],0)!=-1
+
+ubk=est==0 and nz(est[1],0)==1
+lbk=est==0 and nz(est[1],0)==-1
+
+xup=ta.crossover(pz,tz)
+xdn=ta.crossunder(pz,tz)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Visuals {
+hm=color.new(hc,60)
+cm=color.new(cc,60)
+
+ul=color.new(ulc,lvt)
+ll=color.new(llc,lvt)
+
+inv=color.new(color.black,100)
+
+hline(0,"Upper Bound",ul)
+pU=plot(up,"Upper Pressure Level",color=ul,linewidth=1)
+
+hline(-50,"Equilibrium",color.new(chart.fg_color,80))
+
+pD=plot(dn,"Lower Pressure Level",color=ll,linewidth=1)
+hline(-100,"Lower Bound",ll)
+
+pP=plot(pz,"Z-Pulse",color=pc,linewidth=1)
+pT=plot(tz,"Z-Trend",color=zc,linewidth=2)
+pC=plot(cz,"Pressure Core",color=ccl,linewidth=cw)
+
+gh=sf?color.new(hc,100):inv
+gc=sf?color.new(cc,100):inv
+
+fill(pP,pT,0,-30,top_color=color.new(gh,0),bottom_color=gh,title="Upper Pressure Gradient")
+fill(pP,pT,-70,-100,top_color=gc,bottom_color=color.new(gc,0),title="Lower Pressure Gradient")
+
+plotshape(ue?5:na,title="Upper Pressure Active",style=shape.circle,location=location.absolute,color=hm,size=size.tiny)
+plotshape(le?-107:na,title="Lower Pressure Active",style=shape.circle,location=location.absolute,color=cm,size=size.tiny)
+
+plotshape(us?5:na,title="Upper Pressure Start",style=shape.triangledown,location=location.absolute,color=hc,size=size.tiny)
+plotshape(ls?-107:na,title="Lower Pressure Start",style=shape.triangleup,location=location.absolute,color=cc,size=size.tiny)
+
+plotshape(ubk?5:na,title="Upper Pressure Release",style=shape.circle,location=location.absolute,color=hc,size=size.tiny)
+plotshape(lbk?-107:na,title="Lower Pressure Release",style=shape.circle,location=location.absolute,color=cc,size=size.tiny)
+
+plot(xc and (xup or xdn)?tz:na,"Z-Pulse / Z-Trend Cross",style=plot.style_circles,color=xup?cc:hc,linewidth=5)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Price Boxes {
+if bx
+    if us
+        if not na(ubx)
+            box.delete(ubx)
+
+        ut:=high
+        ub:=low
+        ubx:=mkbox(ut,ub,hc,hm)
+        keep(bh,ubx,mb)
+
+    else if ue and not na(ubx)
+        [nut,nub]=grow(ubx,ut,ub)
+        ut:=nut
+        ub:=nub
+
+    else if ubk and not na(ubx)
+        ubx.set_right(bar_index-1)
+        ubx:=na
+
+    if ls
+        if not na(lbx)
+            box.delete(lbx)
+
+        lt:=high
+        lb:=low
+        lbx:=mkbox(lt,lb,cc,cm)
+        keep(bh,lbx,mb)
+
+    else if le and not na(lbx)
+        [nlt,nlb]=grow(lbx,lt,lb)
+        lt:=nlt
+        lb:=nlb
+
+    else if lbk and not na(lbx)
+        lbx.set_right(bar_index-1)
+        lbx:=na
+
+plotshape(bx and ubk and not na(ut)?ut:na,title="Upper Pressure Release Price",style=shape.triangledown,location=location.absolute,color=hc,size=size.tiny,force_overlay=true)
+plotshape(bx and lbk and not na(lb)?lb:na,title="Lower Pressure Release Price",style=shape.triangleup,location=location.absolute,color=cc,size=size.tiny,force_overlay=true)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Alerts {
+alertcondition(ubk,"Upper Pressure Release","Zeiierman Trend Pressure upper pressure released on {{ticker}} {{interval}}.")
+alertcondition(lbk,"Lower Pressure Release","Zeiierman Trend Pressure lower pressure released on {{ticker}} {{interval}}.")
+
+alertcondition(xup,"Bullish Z-Pulse / Z-Trend Cross","Z-Pulse crossed above Z-Trend on {{ticker}} {{interval}}.")
+alertcondition(xdn,"Bearish Z-Pulse / Z-Trend Cross","Z-Pulse crossed below Z-Trend on {{ticker}} {{interval}}.")
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}

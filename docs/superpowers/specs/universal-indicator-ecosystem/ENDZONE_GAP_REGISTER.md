@@ -490,3 +490,78 @@ first, which is why they are counted apart.
 - The Complex Visual Parity Set was **not** re-run (C3A.11).
 - No object lifecycle exists, and no declarative label is offered as a stand-in
   for one.
+
+
+---
+
+## PART H — C3A-CLOSE EVIDENCE, AND THE C3B CENSUS (2026-09-07)
+
+### H1 — the fixed parity set, remeasured at HEAD
+
+```
+  VISUAL_MINIMAL 6 · VISUAL_PARTIAL 2 · VISUAL_BLOCKED 2 · VISUAL_FULL 0
+  members whose OBJECT demand is unmet: 9/10
+```
+
+⛔ **Zero VISUAL_FULL, and the classifier cannot award it while objects are
+missing.** One cause dominates all ten: nine of them construct graphical objects
+and carry none.
+
+### H2 — the TradingView vendor check is BLOCKED, not skipped
+
+Requires a logged-in session, which the standing vendor boundary reserves to the
+owner. A public script preview IS reachable (verified) and was **deliberately
+not used**: it carries unknown bars, so it cannot discriminate an event bar from
+an off-by-one, and `tests/fixtures/vendor/README.md` forbids exactly that
+unattributable comparison. Capture packet ready:
+`C3A_CLOSE_VENDOR_CAPTURE_PACKET.md`, ~15 minutes.
+
+The three discriminations are settled at **spec tier** instead — this repo's own
+`spec-falsified` class, explicitly weaker than `confirmed` — each with a fixture
+whose wrong answer is a *different array*, plus a control proving the fixture can
+fail.
+
+### H3 — shape approximation matrix
+
+`EXACT 4 · CLOSE_APPROXIMATION 5 · MATERIAL_APPROXIMATION 3 · UNSUPPORTED 0`
+
+⛔ `shape.xcross` is `plotshape`'s own default and is a MATERIAL approximation,
+so the commonest marker call in the corpus is the one most easily assumed exact.
+
+### H4 — C3B.1 object census, and the finding that moves the premise
+
+| | |
+|---|---|
+| scripts using ANY object | **46/60** |
+| …needing UPDATE (identity across bars) | 35/60 |
+| …needing DELETE | 30/60 |
+| …using an object ARRAY | **23/60** |
+| …CREATE-only | **1/60** |
+| …historically indexing an object ref | **0/60** |
+| **building objects INSIDE a loop** | **19/46** |
+| **reachable by an object model under RISK-043** | **27/46** |
+
+⛔⛔ **C3B was authorised against "46/60". The reachable figure, with
+generalized loops correctly still refused, is 27 — 45% of the corpus, not 77%.**
+Still the largest single item in this register, and still the class that turns
+partial indicators into whole ones, but a materially different trade than the
+headline.
+
+Three design facts fall out:
+
+1. **CREATE-only serves 1 script.** Identity across bars is the entry ticket,
+   not an enhancement.
+2. **Arrays are half of all object scripts (23/46).** C3B.11's "small tail may
+   remain partial" does not apply.
+3. **32/60 authors declare `max_*_count` themselves**, so C3B.13's resource
+   envelope has a natural source rather than an invented one.
+
+### H5 — an instrument that polluted its own measurement
+
+⚰️ The first parity run was taken with the harness's `--keep` flag, which leaves
+every imported indicator attached to the chart. Three members came back
+`SAVED_NOT_RENDERED`. A clean sandbox restored the first of them to
+`FULL_JOURNEY_PASS` — **the failures were my own flag, persisted into the
+workspace layout, not the product.** Recorded because a contaminated green is
+the same class of defect as a contaminated red, and the run that produced those
+three rows would otherwise have been reported as evidence.

@@ -1,0 +1,649 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=6
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// © Market_Logic_India                                                                    MPL-2.0
+// RSI LEVELS & REGIME MAP — SUPPORT, RESISTANCE, HEATMAP & CARDWELL REVERSAL SIGNALS         v1.1
+// ────────────────────────────────────────────────────────────────────────────────────────────
+// OVERVIEW
+//   RSI is the most-used oscillator in the world and almost nobody trades it, because "RSI is 62"
+//   is not something you can place an order against. This tool moves RSI ONTO PRICE.
+//
+//   RSI IS INVERTIBLE. Wilder's smoothing can be solved backwards, so for any RSI value there is an
+//   EXACT price that would produce it on the next bar. Instead of "RSI is 62", the chart says:
+//        "Close above 24,318 -> RSI 70.   Close below 24,102 -> RSI 30."
+//   Those are real levels. You can put a stop there. You can put a target there.
+//
+//   The script draws the full ladder (30 / 40 / 50 / 60 / 70 by default, all configurable), shades
+//   the bands between them into a REGIME HEATMAP, detects the Cardwell range regime, marks Cardwell
+//   POSITIVE and NEGATIVE REVERSALS with measured targets, shows an MTF strip — and then does the
+//   thing nobody else does: IT FORWARD-TESTS WHETHER ANY OF IT ACTUALLY HOLDS.
+//   It is a research and framing tool — NOT a strategy, NOT a signal service, NOT a validated edge.
+//
+// WHY THESE PARTS ARE ONE TOOL  (mashup rationale)
+//   1. THE INVERSE-RSI LADDER. The core. Every level is the exact price at which RSI would print a
+//      chosen value. Recomputed every bar, so the ladder breathes with volatility — it tightens in
+//      quiet markets and widens in violent ones, automatically, with no smoothing parameter to tune.
+//   2. THE HEATMAP. The bands between the rungs are shaded by regime. It shows, at a glance, how far
+//      price must travel to change the RSI story — which is the question the pane can never answer.
+//   3. THE CARDWELL REGIME. Andrew Cardwell's observation: in a BULL market RSI holds roughly 40-80,
+//      and 40 becomes SUPPORT. In a BEAR market it holds 20-60, and 60 becomes RESISTANCE. So "RSI 40"
+//      means the opposite thing in the two regimes, and a tool that ignores the regime will tell you
+//      to buy oversold in a downtrend forever. The regime is measured, not assumed.
+//   4. CARDWELL REVERSALS. The signal almost nobody implements. A POSITIVE REVERSAL is RSI making a
+//      LOWER low while price makes a HIGHER low — the mirror image of classic divergence, and a
+//      CONTINUATION signal, not a reversal of trend. Cardwell projects a measured target from it.
+//   5. THE HONESTY LAYER. Everyone says RSI 30 is support. NOBODY CHECKS. Every level test and every
+//      Cardwell reversal is logged and graded with a triple barrier against a MATCHED CONTROL (same
+//      bar, same direction, same R:R, entered at market instead of at the level). Results are given
+//      as EXPECTANCY IN R with a Welch t-test. If the levels do not hold on your instrument, the
+//      panel says so.
+//   Remove any one and the tool is a prettier RSI that still cannot tell you whether RSI works.
+//
+// THE MATHS  (exact, not an approximation)
+//   RSI = 100 - 100/(1 + AG/AL), where AG and AL are Wilder-smoothed average gain and loss.
+//   For a target T, let RSt = T/(100 - T). Solving the next bar's RSI for the required move x:
+//        an UP move needs    x = (n-1) * (RSt*AL - AG)
+//        a DOWN move needs   x = (n-1) * (AL - AG/RSt)
+//   Level = close + x. The up form is used when it is non-negative; otherwise the down form applies.
+//   No curve fitting, no approximation — this is algebra, and it reproduces ta.rsi exactly.
+//
+//  FIXED IN v1.1 - MEASURED-MOVE PROJECTION
+//    The Cardwell measured-move targets called ta.highest / ta.lowest inside the TRUE branch of a
+//    ternary. Pine's stateful functions must be evaluated on EVERY bar; skipped on every bar
+//    without a qualifying reversal, their rolling windows accumulated over a broken history, so
+//    the projection was wrong on the bars where it actually printed. The lookback is also a
+//    SERIES length (the span between pivots), so it is now clamped to a valid value on bars where
+//    no reversal exists, the extremes are computed unconditionally, and the result is masked
+//    afterwards. Projected targets on existing charts may shift; the new values are the correct ones.
+//
+// HOW TO USE
+//   1. Read the REGIME first. In a bull regime the 40 rung is support and you are hunting long tests
+//      of it; in a bear regime the 60 rung is resistance. In neutral, the ladder is just a map.
+//   2. The rungs are LEVELS. Price closing through one changes the RSI state, by definition.
+//   3. A CARDWELL REVERSAL is a continuation signal with a measured target, drawn on the chart.
+//   4. READ THE CALIBRATION BEFORE YOU WEIGHT ANY OF IT. If level tests show no proven edge here,
+//      the ladder is a MAP, not a probability — treat it as context.
+//   5. Entry / stop / target are arithmetic, not advice.
+//
+// DATA / SCOPE
+//   Any symbol, any timeframe. No volume required. The source is an input, so the ladder can be built
+//   from close, hlc3, or any other series — including another indicator's plot.
+//
+// NON-REPAINT
+//   The ladder is computed from CONFIRMED values and projects forward — it is a statement about what
+//   the NEXT bar would need to do, so it necessarily moves as new bars arrive. That is a projection,
+//   not a repaint, and it is stated plainly. Reversal pivots use ta.pivot* and confirm a few bars
+//   after the fact; once printed they do not move. The calibration harness logs AND resolves on
+//   confirmed bars only, so its statistics cannot inflate intrabar.
+//
+// EXPORTS  (Data Window — consume from other scripts via input.source())
+//   EXP_RSI · EXP_Regime · EXP_L30 · EXP_L40 · EXP_L50 · EXP_L60 · EXP_L70 · EXP_Reversal ·
+//   EXP_LevelEdge · EXP_RevEdge
+//
+// CONCEPT CREDIT
+//   Relative Strength Index and its Wilder smoothing — J. Welles Wilder Jr. Range rules, positive and
+//   negative reversals and the measured-move projection — Andrew Cardwell. Wilson score interval —
+//   Edwin B. Wilson. Triple-barrier forward labelling — Marcos López de Prado. Welch's t-test —
+//   B. L. Welch. The inverse-RSI level engine, the regime map, the matched-control calibration and
+//   the significance testing are the author's own. No third-party code is reused. Not affiliated
+//   with, nor endorsed by, any of the above.
+//
+// HONESTY / LIMITATIONS
+//   The ALGEBRA is exact; the CLAIMS about RSI are not. "RSI 30 is support" is folklore until it is
+//   measured, which is why this script measures it. Calibration figures are IN-SAMPLE, with no costs
+//   or slippage, and use overlapping windows — a proven in-sample edge is NOT a guarantee out-of-
+//   sample. Cardwell's rules are discretionary in origin and are mechanised here in one particular
+//   way; a different mechanisation would give different numbers. Small samples are unreliable even
+//   when they look good. If the edge is near zero, negative, or unstable across timeframes, the
+//   honest conclusion is that it is not there. Nothing here predicts price.
+//
+// DISCLAIMER
+//   Research and educational tool only. NOT financial advice, NOT a recommendation, and NO guarantee
+//   of results. Entry/stop/target output is arithmetic, not advice. Trading carries risk of loss.
+//   Test out-of-sample and make your own decisions. The author accepts no liability for any use.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+indicator("RSI Levels & Regime Map — Support, Resistance, Heatmap & Cardwell Reversal Signals", "RSI Levels",
+     overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500,
+     max_bars_back = 3000)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                          INPUTS
+// ═════════════════════════════════════════════════════════════════════════════════════════
+g1 = "01 · RSI engine"
+g2 = "02 · The level ladder"
+g3 = "03 · Regime (Cardwell range rules)"
+g4 = "04 · Cardwell reversals"
+g5 = "05 · Calibration (do the levels actually hold?)"
+g6 = "06 · Multi-timeframe strip"
+g7 = "07 · Drawing"
+g8 = "08 · Labels"
+g9 = "09 · Dashboard & theme"
+
+rsiLen   = input.int(14, "RSI length", minval = 2, maxval = 200, group = g1)
+rsiSrc   = input.source(close, "Source", group = g1, tooltip = "The ladder can be built from any series — close, hlc3, or even another indicator's plot.")
+
+lv1      = input.float(30.0, "Rung 1 (oversold)",  minval = 1, maxval = 99, step = 1, group = g2)
+lv2      = input.float(40.0, "Rung 2 (bull support)", minval = 1, maxval = 99, step = 1, group = g2, tooltip = "Cardwell: in a BULL regime, RSI 40 acts as support. This rung is the one that matters most in an uptrend.")
+lv3      = input.float(50.0, "Rung 3 (equilibrium)", minval = 1, maxval = 99, step = 1, group = g2)
+lv4      = input.float(60.0, "Rung 4 (bear resistance)", minval = 1, maxval = 99, step = 1, group = g2, tooltip = "Cardwell: in a BEAR regime, RSI 60 acts as resistance.")
+lv5      = input.float(70.0, "Rung 5 (overbought)", minval = 1, maxval = 99, step = 1, group = g2)
+showHeat = input.bool(true, "Shade the bands (regime heatmap)", group = g2)
+
+regLook  = input.int(60, "Regime lookback (bars)", minval = 10, maxval = 500, group = g3, tooltip = "How far back the range rules are measured. Cardwell: a BULL regime holds RSI roughly 40-80, a BEAR regime 20-60.")
+bullFloor= input.float(40.0, "Bull regime: RSI floor", minval = 20, maxval = 50, step = 1, group = g3)
+bearCeil = input.float(60.0, "Bear regime: RSI ceiling", minval = 50, maxval = 80, step = 1, group = g3)
+regTol   = input.float(3.0, "Tolerance", minval = 0.0, maxval = 15.0, step = 0.5, group = g3, tooltip = "How far RSI may poke outside the band before the regime is broken. Real ranges are not perfectly clean.")
+
+useRev   = input.bool(true, "Detect Cardwell reversals", group = g4, tooltip = "A POSITIVE reversal is RSI making a LOWER low while price makes a HIGHER low — the mirror image of classic divergence, and a CONTINUATION signal. Cardwell projects a measured target from it.")
+revPiv   = input.int(5, "Reversal pivot length", minval = 2, maxval = 30, group = g4)
+revLook  = input.int(60, "Max bars between pivots", minval = 5, maxval = 300, group = g4)
+showRevT = input.bool(true, "Project the measured target", group = g4)
+
+calibOn  = input.bool(true, "Forward-test the levels", group = g5, tooltip = "Everyone says RSI 30 is support. Nobody checks. Every level test and every reversal is graded with a triple barrier against a MATCHED CONTROL — same bar, same direction, same R:R, entered at market instead of at the level.")
+calHor   = input.int(30, "Grading horizon (bars)", minval = 5, maxval = 300, group = g5)
+calMinN  = input.int(20, "Min sample before rating", minval = 5, maxval = 300, group = g5)
+stopA    = input.float(1.0, "Stop (×ATR)", minval = 0.2, maxval = 5.0, step = 0.1, group = g5)
+tgtR     = input.float(2.0, "Target (R multiple)", minval = 0.5, maxval = 10.0, step = 0.5, group = g5)
+ctlEvery = input.int(15, "Control sample every N bars", minval = 3, maxval = 200, group = g5, tooltip = "The unconditional yardstick: the SAME trade geometry taken on arbitrary bars, one long and one short. If the level tests cannot beat this, they carry no edge.")
+
+useMTF   = input.bool(true, "Show the MTF strip", group = g6)
+tf1      = input.timeframe("5",  "TF 1", group = g6, inline = "t1")
+tf2      = input.timeframe("15", "TF 2", group = g6, inline = "t1")
+tf3      = input.timeframe("60", "TF 3", group = g6, inline = "t2")
+tf4      = input.timeframe("D",  "TF 4", group = g6, inline = "t2")
+
+lineW    = input.int(2, "Line width", minval = 1, maxval = 6, group = g7)
+showTest = input.bool(true, "Mark level tests", group = g7)
+showSetup= input.bool(true, "Draw entry / stop / target", group = g7)
+colBull  = input.color(#26a69a, "Bullish", inline = "c", group = g7)
+colBear  = input.color(#ef5350, "Bearish", inline = "c", group = g7)
+colMid   = input.color(#b0bec5, "Neutral", inline = "c", group = g7)
+
+showLbl  = input.bool(true, "Show labels", group = g8)
+lblLevel = input.bool(true, "Label the rungs with their prices", group = g8)
+lblRev   = input.bool(true, "Label reversals and targets", group = g8)
+lblSize  = input.string("Small", "Label size", options = ["Tiny","Small","Normal"], group = g8)
+
+showPanel= input.bool(true, "Show dashboard", group = g9)
+panelMode= input.string("Compact", "Dashboard detail", options = ["Compact","Pro"], group = g9)
+panelPos = input.string("Top Right", "Dashboard position", options = ["Top Right","Top Left","Bottom Right","Bottom Left","Middle Right"], group = g9)
+legendPos= input.string("Bottom Right", "Legend position", options = ["Bottom Right","Bottom Left","Middle Left","Top Left"], group = g9, tooltip = "TradingView's own watermark sits bottom-LEFT and will clip a legend placed there.")
+showLegend=input.bool(true, "Show legend / key", group = g9)
+themeOpt = input.string("Auto (match chart)", "Theme", options = ["Auto (match chart)","Dark","Light"], group = g9)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                          TYPES
+// ═════════════════════════════════════════════════════════════════════════════════════════
+type Trade
+    int   bi
+    float entry
+    float stop
+    float tgt
+    int   dir
+    int   bucket        // 1 = level test · 2 = Cardwell reversal · +4 = that event's MATCHED CONTROL
+    float rr
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//        THE RSI ENGINE  —  and its exact inverse
+// ═════════════════════════════════════════════════════════════════════════════════════════
+float atr = ta.atr(14)
+
+// Wilder's RSI, built from its parts so the average gain and loss are available for the inverse.
+float chg = ta.change(rsiSrc)
+float AG  = ta.rma(math.max(chg, 0.0), rsiLen)
+float AL  = ta.rma(-math.min(chg, 0.0), rsiLen)
+float rsi = AL == 0 ? 100.0 : AG == 0 ? 0.0 : 100.0 - 100.0 / (1.0 + AG / AL)
+
+// ── THE INVERSE ──
+// For target T: RSt = T/(100-T). The next bar's Wilder averages are
+//   up move:   AG' = (AG(n-1) + x)/n , AL' = AL(n-1)/n
+//   down move: AG' = AG(n-1)/n       , AL' = (AL(n-1) + |x|)/n
+// Setting AG'/AL' = RSt and solving for x gives the two closed forms below. This is algebra, not a
+// fit: feed the resulting price back through ta.rsi and you get the target value exactly.
+f_rsiPrice(float target, float n, float ag, float al, float src) =>
+    float t  = math.max(1.0, math.min(99.0, target))
+    float rt = t / (100.0 - t)
+    float xu = (n - 1.0) * (rt * al - ag)          // the move required if it must come from ABOVE
+    float x  = xu >= 0 ? xu : (rt > 0 ? (n - 1.0) * (al - ag / rt) : 0.0)
+    src + x
+
+float L1 = f_rsiPrice(lv1, rsiLen, AG, AL, rsiSrc)
+float L2 = f_rsiPrice(lv2, rsiLen, AG, AL, rsiSrc)
+float L3 = f_rsiPrice(lv3, rsiLen, AG, AL, rsiSrc)
+float L4 = f_rsiPrice(lv4, rsiLen, AG, AL, rsiSrc)
+float L5 = f_rsiPrice(lv5, rsiLen, AG, AL, rsiSrc)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//        THE REGIME  —  Cardwell's range rules, MEASURED rather than assumed
+//   In a bull market RSI holds roughly 40-80 and 40 becomes SUPPORT. In a bear market it holds
+//   20-60 and 60 becomes RESISTANCE. So "RSI 40" means the OPPOSITE thing in the two regimes, and a
+//   tool that ignores this will happily tell you to buy oversold all the way down.
+// ═════════════════════════════════════════════════════════════════════════════════════════
+float rsiLo = ta.lowest(rsi, regLook)
+float rsiHi = ta.highest(rsi, regLook)
+bool  bullReg = rsiLo >= bullFloor - regTol
+bool  bearReg = rsiHi <= bearCeil + regTol
+int   regime  = bullReg and not bearReg ? 1 : bearReg and not bullReg ? -1 : 0
+string regTxt = regime == 1 ? "BULL — 40 is support" : regime == -1 ? "BEAR — 60 is resistance" : "NEUTRAL — no range yet"
+color  regCol = regime == 1 ? colBull : regime == -1 ? colBear : colMid
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//        CARDWELL REVERSALS  (the signal almost nobody implements)
+//   POSITIVE reversal: RSI makes a LOWER low while PRICE makes a HIGHER low. The mirror image of
+//   classic divergence — and a CONTINUATION signal, not a trend reversal. Cardwell projects a
+//   measured target: the rally that followed the first low, re-applied from the second.
+// ═════════════════════════════════════════════════════════════════════════════════════════
+float pvL = ta.pivotlow(rsi, revPiv, revPiv)
+float pvH = ta.pivothigh(rsi, revPiv, revPiv)
+bool  pvLc = not na(pvL)
+bool  pvHc = not na(pvH)
+int   curX = bar_index - revPiv
+
+float rLo  = rsi[revPiv]
+float pLo  = low[revPiv]
+float rLo1 = ta.valuewhen(pvLc, rsi[revPiv], 1)
+float pLo1 = ta.valuewhen(pvLc, low[revPiv], 1)
+int   xLo1 = ta.valuewhen(pvLc, bar_index - revPiv, 1)
+
+float rHi  = rsi[revPiv]
+float pHi  = high[revPiv]
+float rHi1 = ta.valuewhen(pvHc, rsi[revPiv], 1)
+float pHi1 = ta.valuewhen(pvHc, high[revPiv], 1)
+int   xHi1 = ta.valuewhen(pvHc, bar_index - revPiv, 1)
+
+// positive: RSI lower low, PRICE higher low → bullish continuation
+bool posRev = useRev and pvLc and not na(rLo1) and rLo < rLo1 and pLo > pLo1 and (curX - xLo1 <= revLook)
+// negative: RSI higher high, PRICE lower high → bearish continuation
+bool negRev = useRev and pvHc and not na(rHi1) and rHi > rHi1 and pHi < pHi1 and (curX - xHi1 <= revLook)
+
+// Cardwell's measured move: the swing that followed the FIRST pivot, projected from the SECOND.
+// ta.highest / ta.lowest are STATEFUL and must be evaluated on EVERY bar. These
+// two sat inside the TRUE branch of a ternary, so on every bar without a
+// qualifying reversal they were skipped and their rolling state drifted over a
+// broken history - corrupting the measured-move projection when one did fire.
+// The lookback is also a SERIES length (distance between pivots), so it must be
+// kept valid on the bars where no reversal exists: na or a non-positive span is
+// clamped to 1 before the call, and the result is masked afterwards.
+int spanLo = na(xLo1) or na(curX) ? 1 : math.max(1, math.min(499, curX - xLo1))
+int spanHi = na(xHi1) or na(curX) ? 1 : math.max(1, math.min(499, curX - xHi1))
+float hiSpan = ta.highest(high, spanLo)
+float loSpan = ta.lowest(low,  spanHi)
+float posTgt = posRev ? pLo + math.abs(hiSpan - pLo1) : na
+float negTgt = negRev ? pHi - math.abs(pHi1 - loSpan) : na
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//        LEVEL TESTS  —  the events the calibration will grade
+//   A support test = price trades DOWN INTO the oversold rung and closes back ABOVE it.
+//   In a BULL regime the rung that matters is 40 (Cardwell), not 30 — so the tested rung follows
+//   the regime rather than a fixed number.
+// ═════════════════════════════════════════════════════════════════════════════════════════
+float supLvl = regime == 1 ? L2 : L1        // bull: the 40 rung. otherwise: oversold
+float resLvl = regime == -1 ? L4 : L5       // bear: the 60 rung. otherwise: overbought
+
+// THE LEVEL IN FORCE DURING THIS BAR is the one computed at the END of the LAST bar. The current
+// bar's level depends on the current bar's own close, so testing this bar's LOW against it would be
+// a look-ahead: nobody could have rested an order at a price that did not exist yet.
+float supPrev = supLvl[1]
+float resPrev = resLvl[1]
+
+// A test = price traded DOWN INTO the pre-known rung and closed back ABOVE it (and vice versa).
+bool supTest = not na(supPrev) and low <= supPrev and close > supPrev and close[1] > supPrev
+bool resTest = not na(resPrev) and high >= resPrev and close < resPrev and close[1] < resPrev
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//   CALIBRATION — and the two traps it took a live test to find
+//
+//   TRAP 1 — THE FILL ADVANTAGE. A support test fires when price dips INTO the rung and closes back
+//   ABOVE it. If the event is entered AT THE RUNG (below the close) while its control is entered at
+//   the CLOSE, the event gets a strictly better fill on every single trade. It would then "beat" the
+//   control by construction — not because the level held, but because it bought lower. That is a
+//   rigged comparison, and it produced a large fake edge on the first live test.
+//   THE FIX: the level test is treated as a SIGNAL, NOT A FILL. Event and control enter at the SAME
+//   reference price (the bar's close). The only thing that differs is WHICH BARS were selected.
+//
+//   TRAP 2 — DIRECTIONAL DRIFT. Indices drift up. If level tests are mostly LONG and the control is
+//   50/50, the events win on drift alone. THE FIX: longs are compared only with control longs, and
+//   shorts only with control shorts, then blended back using the events' OWN direction mix.
+//
+//   The control is UNCONDITIONAL: the same geometry taken on arbitrary bars, unselected by any
+//   signal. If the levels cannot beat that, they carry no edge — and the panel will say so.
+//
+//   Buckets: 1 = level LONG · 2 = level SHORT · 3 = reversal LONG · 4 = reversal SHORT
+//            5 = control LONG · 6 = control SHORT
+// ═════════════════════════════════════════════════════════════════════════════════════════
+var array<Trade> pend = array.new<Trade>()
+var array<int>   bN   = array.from(0, 0, 0, 0, 0, 0, 0, 0)
+var array<int>   bW   = array.from(0, 0, 0, 0, 0, 0, 0, 0)
+var array<float> bR   = array.from(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+var array<float> bR2  = array.from(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+f_logEvent(int bucket, int dir) =>
+    if calibOn and atr > 0
+        float risk = stopA * atr
+        float st = dir == 1 ? close - risk : close + risk
+        float tg = dir == 1 ? close + tgtR * risk : close - tgtR * risk
+        array.push(pend, Trade.new(bar_index, close, st, tg, dir, bucket, tgtR))
+
+if barstate.isconfirmed
+    if supTest
+        f_logEvent(1, 1)
+    if resTest
+        f_logEvent(1 + 1, -1)
+    if posRev
+        f_logEvent(3, 1)
+    if negRev
+        f_logEvent(3 + 1, -1)
+    // the unconditional control: same geometry, arbitrary bars, one of each direction
+    if calibOn and bar_index % ctlEvery == 0
+        f_logEvent(5, 1)
+        f_logEvent(5 + 1, -1)
+
+if barstate.isconfirmed and array.size(pend) > 0
+    int i = 0
+    while i < array.size(pend)
+        Trade t = array.get(pend, i)
+        bool hitT = t.dir == 1 ? high >= t.tgt : low  <= t.tgt
+        bool hitS = t.dir == 1 ? low  <= t.stop : high >= t.stop
+        bool expd = bar_index - t.bi >= calHor
+        if bar_index > t.bi and (hitT or hitS or expd)
+            // both barriers on one bar → the STOP is assumed first. The conservative assumption,
+            // and the only one that cannot flatter the result.
+            int   win  = hitS ? 0 : hitT ? 1 : 0
+            float risk = math.abs(t.entry - t.stop)
+            // expired trades are MARKED TO MARKET, not booked as losses — an unresolved trade is
+            // neither a win nor a loss, and pretending otherwise would lie in the tool's favour.
+            float rOut = hitS ? -1.0 : hitT ? t.rr : (risk > 0 ? (close - t.entry) * t.dir / risk : 0.0)
+            array.set(bN,  t.bucket, array.get(bN,  t.bucket) + 1)
+            array.set(bW,  t.bucket, array.get(bW,  t.bucket) + win)
+            array.set(bR,  t.bucket, array.get(bR,  t.bucket) + rOut)
+            array.set(bR2, t.bucket, array.get(bR2, t.bucket) + rOut * rOut)
+            array.remove(pend, i)
+        else
+            i += 1
+
+f_n(int ix)  => array.get(bN, ix)
+f_exp(int ix) =>
+    int n = array.get(bN, ix)
+    n > 0 ? array.get(bR, ix) / float(n) : na
+f_hit(int ix) =>
+    int n = array.get(bN, ix)
+    n > 0 ? array.get(bW, ix) / float(n) * 100.0 : na
+f_var(int ix) =>
+    int n = array.get(bN, ix)
+    if n < 2
+        na
+    else
+        float m = array.get(bR, ix) / n
+        math.max(array.get(bR2, ix) / n - m * m, 0.0)
+
+// Combine a LONG bucket and a SHORT bucket into one event set, and build the control to MATCH its
+// direction mix. Returns [event expectancy, mix-matched control expectancy, n, Welch t].
+f_pair(int ixL, int ixS, int cL, int cS) =>
+    int nL = f_n(ixL)
+    int nS = f_n(ixS)
+    int nE = nL + nS
+    if nE < 2
+        [float(na), float(na), nE, float(na)]
+    else
+        float sumR  = array.get(bR, ixL)  + array.get(bR, ixS)
+        float sumR2 = array.get(bR2, ixL) + array.get(bR2, ixS)
+        float mE = sumR / nE
+        float vE = math.max(sumR2 / nE - mE * mE, 0.0)
+        float seE = math.sqrt(vE / nE)
+        // the control, weighted by the EVENT's own long/short proportions — so drift cannot flatter it
+        float wL = nL / float(nE)
+        float wS = nS / float(nE)
+        float mCL = f_exp(cL)
+        float mCS = f_exp(cS)
+        float mC = (na(mCL) ? 0.0 : wL * mCL) + (na(mCS) ? 0.0 : wS * mCS)
+        float vCL = f_var(cL)
+        float vCS = f_var(cS)
+        int   nCL = f_n(cL)
+        int   nCS = f_n(cS)
+        float seC = math.sqrt((nCL > 1 and not na(vCL) ? wL * wL * vCL / nCL : 0.0) + (nCS > 1 and not na(vCS) ? wS * wS * vCS / nCS : 0.0))
+        float se = math.sqrt(seE * seE + seC * seC)
+        float t = se > 0 ? (mE - mC) / se : na
+        [mE, mC, nE, t]
+
+[expLvl, ctlLvl, nLvl, tLvl] = f_pair(1, 2, 5, 6)
+[expRev, ctlRev, nRev, tRev] = f_pair(3, 4, 5, 6)
+bool provenLvl = not na(tLvl) and nLvl >= calMinN and tLvl > 1.96
+bool provenRev = not na(tRev) and nRev >= calMinN and tRev > 1.96
+// is there simply an upward drift on this instrument? If control longs beat control shorts, yes —
+// and the reader deserves to know, because it is the most common way a "signal" fools someone.
+float driftL = f_exp(5)
+float driftS = f_exp(6)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                 MULTI-TIMEFRAME STRIP
+// ═════════════════════════════════════════════════════════════════════════════════════════
+f_rsiTF(string tf) => request.security(syminfo.tickerid, tf, ta.rsi(rsiSrc, rsiLen)[barstate.isrealtime ? 1 : 0], lookahead = barmerge.lookahead_off)
+float r1 = useMTF ? f_rsiTF(tf1) : na
+float r2 = useMTF ? f_rsiTF(tf2) : na
+float r3 = useMTF ? f_rsiTF(tf3) : na
+float r4 = useMTF ? f_rsiTF(tf4) : na
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                        THEME
+// ═════════════════════════════════════════════════════════════════════════════════════════
+f_lum(color c) => na(c) ? 0.0 : 0.299 * color.r(c) + 0.587 * color.g(c) + 0.114 * color.b(c)
+f_pos(string s) => s == "Top Left" ? position.top_left : s == "Bottom Right" ? position.bottom_right : s == "Bottom Left" ? position.bottom_left : s == "Middle Right" ? position.middle_right : s == "Middle Left" ? position.middle_left : position.top_right
+f_lblSize() => lblSize == "Tiny" ? size.tiny : lblSize == "Normal" ? size.normal : size.small
+f_rsiCol(float v) => na(v) ? color.new(color.gray, 60) : v >= lv5 ? colBear : v >= lv4 ? color.new(colBear, 55) : v <= lv1 ? colBull : v <= lv2 ? color.new(colBull, 55) : colMid
+
+bool darkUI   = themeOpt == "Dark" ? true : themeOpt == "Light" ? false : f_lum(chart.bg_color) < 140
+color panelBg = darkUI ? color.rgb(17, 22, 28)    : color.rgb(244, 246, 248)
+color rowAlt  = darkUI ? color.rgb(25, 31, 39)    : color.rgb(232, 236, 240)
+color txtMain = darkUI ? color.white              : color.rgb(16, 20, 24)
+color txtSub  = darkUI ? color.rgb(154, 166, 178) : color.rgb(74, 82, 91)
+color txtMut  = darkUI ? color.rgb(110, 120, 132) : color.rgb(140, 148, 156)
+color frameC  = darkUI ? color.rgb(58, 70, 84)    : color.rgb(196, 204, 212)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                         THE LADDER ON PRICE  +  THE HEATMAP
+// ═════════════════════════════════════════════════════════════════════════════════════════
+// NOTE: plot() titles must be CONST strings — they cannot be built from input values, so the rung
+// numbers are generic here. The actual RSI value of each rung is on its price label anyway.
+p1 = plot(L1, "Rung 1 — oversold",         color.new(colBull, 0),  lineW)
+p2 = plot(L2, "Rung 2 — bull support",     color.new(colBull, 45), lineW)
+p3 = plot(L3, "Rung 3 — equilibrium",      color.new(colMid, 15),  lineW, style = plot.style_line)
+p4 = plot(L4, "Rung 4 — bear resistance",  color.new(colBear, 45), lineW)
+p5 = plot(L5, "Rung 5 — overbought",       color.new(colBear, 0),  lineW)
+
+// the heatmap: the band you are IN is the band that is lit. In a bull regime the 40-50 band is the
+// one that matters (it is support); in a bear regime it is 50-60.
+fill(p1, p2, color.new(colBull, showHeat ? (regime == 1 ? 82 : 90) : 100), title = "Oversold → 40")
+fill(p2, p3, color.new(colBull, showHeat ? (regime == 1 ? 88 : 94) : 100), title = "40 → 50")
+fill(p3, p4, color.new(colBear, showHeat ? (regime == -1 ? 88 : 94) : 100), title = "50 → 60")
+fill(p4, p5, color.new(colBear, showHeat ? (regime == -1 ? 82 : 90) : 100), title = "60 → Overbought")
+
+// level tests
+plotshape(showTest and supTest, "Support test",    shape.triangleup,   location.belowbar, colBull, size = size.tiny)
+plotshape(showTest and resTest, "Resistance test", shape.triangledown, location.abovebar, colBear, size = size.tiny)
+
+// Cardwell reversals
+plotshape(posRev, "Positive reversal (bullish continuation)", shape.labelup,   location.belowbar, colBull, text = "POS", textcolor = color.white, size = size.small)
+plotshape(negRev, "Negative reversal (bearish continuation)", shape.labeldown, location.abovebar, colBear, text = "NEG", textcolor = color.white, size = size.small)
+
+// live setup frame from the most recent event
+var float eEn = na
+var float eSt = na
+var float eTg = na
+var int   eDir = 0
+var int   eBar = -1000
+var string eSrc = ""
+if barstate.isconfirmed and atr > 0
+    float risk = stopA * atr
+    // Entry is the CLOSE, exactly as the calibration measures it. Drawing an entry at the rung while
+    // grading it at the close would show you a trade the statistics never tested.
+    if supTest or posRev
+        eEn := close
+        eDir := 1
+        eSt := eEn - risk
+        eTg := eEn + tgtR * risk
+        eBar := bar_index
+        eSrc := supTest ? "Support test" : "Positive reversal"
+    if resTest or negRev
+        eEn := close
+        eDir := -1
+        eSt := eEn + risk
+        eTg := eEn - tgtR * risk
+        eBar := bar_index
+        eSrc := resTest ? "Resistance test" : "Negative reversal"
+bool setupLive = showSetup and not na(eEn) and (bar_index - eBar) < 100
+plot(setupLive ? eEn : na, "Entry",  color.new(color.gray, 0),                    lineW, style = plot.style_linebr)
+plot(setupLive ? eSt : na, "Stop",   color.new(eDir == 1 ? colBear : colBull, 0), lineW, style = plot.style_linebr)
+plot(setupLive ? eTg : na, "Target", color.new(eDir == 1 ? colBull : colBear, 0), lineW, style = plot.style_linebr)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                 LABELS  (the rung prices)
+// ═════════════════════════════════════════════════════════════════════════════════════════
+var label a1 = na
+var label a2 = na
+var label a3 = na
+var label a4 = na
+var label a5 = na
+var label aE = na
+var label aS = na
+var label aT = na
+var label aR = na
+
+f_tag(bool on, float y, string txt, color c) =>
+    on and not na(y) ? label.new(bar_index + 3, y, txt, xloc = xloc.bar_index, style = label.style_label_left, color = c, textcolor = color.white, size = f_lblSize()) : na
+
+if barstate.islast
+    label.delete(a1)
+    label.delete(a2)
+    label.delete(a3)
+    label.delete(a4)
+    label.delete(a5)
+    label.delete(aE)
+    label.delete(aS)
+    label.delete(aT)
+    label.delete(aR)
+    bool L = showLbl and lblLevel
+    // the rung that the regime says actually matters is named, not just numbered
+    string t1s = (regime != 1 ? "▸ SUPPORT  " : "") + "RSI " + str.tostring(lv1, "#") + "   " + str.tostring(L1, format.mintick)
+    string t2s = (regime == 1 ? "▸ SUPPORT  " : "") + "RSI " + str.tostring(lv2, "#") + "   " + str.tostring(L2, format.mintick)
+    string t4s = (regime == -1 ? "▸ RESISTANCE  " : "") + "RSI " + str.tostring(lv4, "#") + "   " + str.tostring(L4, format.mintick)
+    string t5s = (regime != -1 ? "▸ RESISTANCE  " : "") + "RSI " + str.tostring(lv5, "#") + "   " + str.tostring(L5, format.mintick)
+    a1 := f_tag(L, L1, t1s, color.new(colBull, regime != 1 ? 5 : 40))
+    a2 := f_tag(L, L2, t2s, color.new(colBull, regime == 1 ? 5 : 55))
+    a3 := f_tag(L, L3, "RSI " + str.tostring(lv3, "#") + "   " + str.tostring(L3, format.mintick), color.new(colMid, 30))
+    a4 := f_tag(L, L4, t4s, color.new(colBear, regime == -1 ? 5 : 55))
+    a5 := f_tag(L, L5, t5s, color.new(colBear, regime != -1 ? 5 : 40))
+    if setupLive and showLbl
+        aE := f_tag(true, eEn, "ENTRY  " + str.tostring(eEn, format.mintick) + "   " + eSrc, color.new(color.gray, 10))
+        aS := f_tag(true, eSt, "STOP  " + str.tostring(eSt, format.mintick), color.new(eDir == 1 ? colBear : colBull, 10))
+        aT := f_tag(true, eTg, "TARGET  " + str.tostring(eTg, format.mintick) + "   R:R " + str.tostring(tgtR, "#.#"), color.new(eDir == 1 ? colBull : colBear, 10))
+
+// Cardwell measured targets
+if showRevT and showLbl and lblRev and posRev and not na(posTgt)
+    label.new(bar_index, posTgt, "Cardwell target  " + str.tostring(posTgt, format.mintick), xloc = xloc.bar_index, style = label.style_label_down, color = color.new(colBull, 25), textcolor = color.white, size = f_lblSize())
+if showRevT and showLbl and lblRev and negRev and not na(negTgt)
+    label.new(bar_index, negTgt, "Cardwell target  " + str.tostring(negTgt, format.mintick), xloc = xloc.bar_index, style = label.style_label_up, color = color.new(colBear, 25), textcolor = color.white, size = f_lblSize())
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                       DASHBOARD
+// ═════════════════════════════════════════════════════════════════════════════════════════
+bool isPro = panelMode == "Pro"
+var table tb = table.new(f_pos(panelPos), 3, 16, frame_width = 1, border_width = 1)
+f_r2(int r, string k, string v, color c, color bg) =>
+    table.cell(tb, 0, r, k, text_color = txtSub, text_size = size.small, text_halign = text.align_left, bgcolor = bg)
+    table.cell(tb, 1, r, v, text_color = c, text_size = size.small, text_halign = text.align_right, bgcolor = bg)
+    table.cell(tb, 2, r, "", bgcolor = bg)
+f_r3(int r, string k, string a, string b, color c, color bg) =>
+    table.cell(tb, 0, r, k, text_color = txtSub, text_size = size.small, text_halign = text.align_left, bgcolor = bg)
+    table.cell(tb, 1, r, a, text_color = c, text_size = size.small, text_halign = text.align_right, bgcolor = bg)
+    table.cell(tb, 2, r, b, text_color = c, text_size = size.small, text_halign = text.align_right, bgcolor = bg)
+
+if showPanel and barstate.islast
+    table.set_bgcolor(tb, panelBg)
+    table.set_frame_color(tb, frameC)
+    table.set_border_color(tb, frameC)
+    color hdrT = f_lum(regCol) > 140 ? color.rgb(10, 10, 10) : color.white
+    string lvlStr = not calibOn ? "off" : nLvl < calMinN ? "warming (" + str.tostring(nLvl) + "/" + str.tostring(calMinN) + ")" : (na(expLvl) ? "-" : str.tostring(expLvl, "+#.00") + "R vs " + str.tostring(ctlLvl, "+#.00") + "R  n=" + str.tostring(nLvl) + (provenLvl ? "  PROVEN" : "  (not proven)"))
+    color lvlCol = (not calibOn or nLvl < calMinN) ? txtMut : provenLvl ? colBull : color.new(#ffa726, 0)
+    string revStr = not calibOn ? "off" : nRev < calMinN ? "warming (" + str.tostring(nRev) + "/" + str.tostring(calMinN) + ")" : (na(expRev) ? "-" : str.tostring(expRev, "+#.00") + "R vs " + str.tostring(ctlRev, "+#.00") + "R  n=" + str.tostring(nRev) + (provenRev ? "  PROVEN" : "  (not proven)"))
+    color revCol = (not calibOn or nRev < calMinN) ? txtMut : provenRev ? colBull : color.new(#ffa726, 0)
+    // Drift is the commonest way a signal fools its author: if control longs beat control shorts,
+    // the instrument simply goes up, and any long-biased "signal" inherits that for free.
+    string driftStr = (na(driftL) or na(driftS)) ? "-" : "long " + str.tostring(driftL, "+#.00") + "R · short " + str.tostring(driftS, "+#.00") + "R"
+    color  driftCol = (na(driftL) or na(driftS)) ? txtMut : math.abs(driftL - driftS) > 0.15 ? color.new(#ffa726, 0) : txtMut
+
+    table.cell(tb, 0, 0, "RSI LEVELS", text_color = hdrT, bgcolor = regCol, text_size = size.small, text_halign = text.align_left)
+    table.cell(tb, 1, 0, str.tostring(rsi, "#.0"), text_color = hdrT, bgcolor = regCol, text_size = size.small, text_halign = text.align_right)
+    table.cell(tb, 2, 0, regime == 1 ? "BULL" : regime == -1 ? "BEAR" : "NEUTRAL", text_color = hdrT, bgcolor = regCol, text_size = size.small, text_halign = text.align_right)
+    if isPro
+        f_r2(1, "Regime", regTxt, regCol, rowAlt)
+        f_r2(2, "Support rung", "RSI " + str.tostring(regime == 1 ? lv2 : lv1, "#") + "  →  " + str.tostring(supLvl, format.mintick), colBull, panelBg)
+        f_r2(3, "Resistance rung", "RSI " + str.tostring(regime == -1 ? lv4 : lv5, "#") + "  →  " + str.tostring(resLvl, format.mintick), colBear, rowAlt)
+        f_r2(4, "Distance to support", str.tostring((close - supLvl) / close * 100.0, "#.00") + "%", txtMain, panelBg)
+        f_r2(5, "Distance to resistance", str.tostring((resLvl - close) / close * 100.0, "#.00") + "%", txtMain, rowAlt)
+        if useMTF
+            table.cell(tb, 0, 6, "MTF RSI", text_color = txtMain, bgcolor = frameC, text_size = size.small, text_halign = text.align_left)
+            table.cell(tb, 1, 6, tf1 + " · " + tf2, text_color = txtMain, bgcolor = frameC, text_size = size.small, text_halign = text.align_right)
+            table.cell(tb, 2, 6, tf3 + " · " + tf4, text_color = txtMain, bgcolor = frameC, text_size = size.small, text_halign = text.align_right)
+            f_r3(7, "Values", (na(r1) ? "-" : str.tostring(r1, "#")) + " · " + (na(r2) ? "-" : str.tostring(r2, "#")), (na(r3) ? "-" : str.tostring(r3, "#")) + " · " + (na(r4) ? "-" : str.tostring(r4, "#")), txtMain, panelBg)
+        table.cell(tb, 0, 8, "CALIBRATION", text_color = txtMain, bgcolor = frameC, text_size = size.small, text_halign = text.align_left)
+        table.cell(tb, 1, 8, "expectancy vs its own control", text_color = txtMain, bgcolor = frameC, text_size = size.small, text_halign = text.align_right)
+        table.cell(tb, 2, 8, "", bgcolor = frameC)
+        f_r2(9,  "Level tests hold?", lvlStr, lvlCol, rowAlt)
+        f_r2(10, "Reversals work?", revStr, revCol, panelBg)
+        f_r2(11, "Significance (t)", (na(tLvl) ? "-" : "levels " + str.tostring(tLvl, "#.2")) + " · " + (na(tRev) ? "-" : "rev " + str.tostring(tRev, "#.2")), (provenLvl or provenRev) ? colBull : txtMut, rowAlt)
+        f_r2(14, "Baseline drift (control)", driftStr, driftCol, panelBg)
+        f_r2(12, "Live setup", setupLive ? (eDir == 1 ? "LONG · " : "SHORT · ") + eSrc : "none", setupLive ? (eDir == 1 ? colBull : colBear) : txtMut, panelBg)
+        f_r2(15, "Note", "entry = close · expectancy in R · not advice", txtMut, rowAlt)
+    else
+        f_r2(1, "Regime", regTxt, regCol, rowAlt)
+        f_r2(2, "Support → price", str.tostring(supLvl, format.mintick), colBull, panelBg)
+        f_r2(3, "Resistance → price", str.tostring(resLvl, format.mintick), colBear, rowAlt)
+        f_r2(4, "Do the levels hold?", lvlStr, lvlCol, panelBg)
+        f_r2(5, "Note", "in-sample · not advice", txtMut, rowAlt)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                       LEGEND / KEY
+// ═════════════════════════════════════════════════════════════════════════════════════════
+var table lg = table.new(f_pos(legendPos), 2, 8, frame_width = 1, border_width = 1)
+f_lg(int r, string sw, color c, string txt) =>
+    color bg = r % 2 == 0 ? panelBg : rowAlt
+    table.cell(lg, 0, r, sw,  text_color = c,      bgcolor = bg, text_size = size.tiny, text_halign = text.align_center)
+    table.cell(lg, 1, r, txt, text_color = txtSub, bgcolor = bg, text_size = size.tiny, text_halign = text.align_left)
+if showLegend and barstate.islast
+    table.set_bgcolor(lg, panelBg)
+    table.set_frame_color(lg, frameC)
+    table.set_border_color(lg, frameC)
+    table.cell(lg, 0, 0, "KEY", text_color = txtMain, bgcolor = frameC, text_size = size.tiny)
+    table.cell(lg, 1, 0, "what you're looking at", text_color = txtMain, bgcolor = frameC, text_size = size.tiny, text_halign = text.align_left)
+    f_lg(1, "━━", colBull, "The EXACT price at which RSI would print each value")
+    f_lg(2, "▒",  colMid,  "Heatmap — the lit band is the one the regime cares about")
+    f_lg(3, "▸",  colBull, "SUPPORT / RESISTANCE tag = the rung the REGIME says matters")
+    f_lg(4, "▲▼", colBull, "Level test — price into the rung, close back out")
+    f_lg(5, "POS", colBull, "Cardwell positive reversal — RSI lower low, PRICE higher low")
+    f_lg(6, "NEG", colBear, "Cardwell negative reversal — a bearish CONTINUATION")
+    f_lg(7, "R",  colBull, "Expectancy in R vs a matched control (same bar, same R:R)")
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                  EXPORTS  (Data Window — consume elsewhere via input.source())
+// ═════════════════════════════════════════════════════════════════════════════════════════
+color exC = color.new(color.gray, 100)
+plot(rsi,                                "EXP_RSI",       exC, display = display.data_window)
+plot(regime,                             "EXP_Regime",    exC, display = display.data_window)
+plot(L1,                                 "EXP_L30",       exC, display = display.data_window)
+plot(L2,                                 "EXP_L40",       exC, display = display.data_window)
+plot(L3,                                 "EXP_L50",       exC, display = display.data_window)
+plot(L4,                                 "EXP_L60",       exC, display = display.data_window)
+plot(L5,                                 "EXP_L70",       exC, display = display.data_window)
+plot(posRev ? 1 : negRev ? -1 : 0,       "EXP_Reversal",  exC, display = display.data_window)
+plot(na(expLvl) or na(ctlLvl) ? na : expLvl - ctlLvl, "EXP_LevelEdge", exC, display = display.data_window)
+plot(na(expRev) or na(ctlRev) ? na : expRev - ctlRev, "EXP_RevEdge",   exC, display = display.data_window)
+
+// ═════════════════════════════════════════════════════════════════════════════════════════
+//                                          ALERTS
+// ═════════════════════════════════════════════════════════════════════════════════════════
+alertcondition(supTest, "Support rung tested",    "RSI Levels: price tested the regime's support rung and closed back above it (context, not advice)")
+alertcondition(resTest, "Resistance rung tested", "RSI Levels: price tested the regime's resistance rung and closed back below it (context, not advice)")
+alertcondition(posRev,  "Cardwell positive reversal", "RSI Levels: positive reversal — RSI made a lower low while price made a higher low (bullish continuation, context only)")
+alertcondition(negRev,  "Cardwell negative reversal", "RSI Levels: negative reversal — RSI made a higher high while price made a lower high (bearish continuation, context only)")
+alertcondition(ta.crossover(close, L5),  "Price into overbought rung", "RSI Levels: price closed above the overbought rung")
+alertcondition(ta.crossunder(close, L1), "Price into oversold rung",   "RSI Levels: price closed below the oversold rung")
