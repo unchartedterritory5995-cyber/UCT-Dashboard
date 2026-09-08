@@ -204,6 +204,18 @@ def warm(symbol: str) -> dict[str, Any]:
     return ingest.ensure_symbol(symbol)
 
 
+@ops_router.post("/recheck-filters")
+def recheck_filters() -> dict[str, Any]:
+    """Re-apply the current reject rules to rows already stored.
+
+    Contacts NO provider -- it is a pure re-read of our own DB. Needed because
+    rejected items are kept with a reason rather than dropped, so fixing a bad
+    rule otherwise leaves everything it already hid invisible forever.
+    """
+    from api.services.news import ingest
+    return ingest.recheck_rejects()
+
+
 @ops_router.get("/verify-latest")
 def verify_latest() -> dict[str, Any]:
     """§4: is FMP's global `-latest` ingestion path available?"""

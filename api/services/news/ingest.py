@@ -231,28 +231,66 @@ def _parse(s: str) -> datetime | None:
 # ---------------------------------------------------------------------------
 # cycles
 # ---------------------------------------------------------------------------
-def _active_universe(limit: int) -> list[str]:
-    """Symbols worth polling in the fallback path. Bounded by construction."""
-    try:
-        from api.services import universe            # type: ignore
-        for fn in ("active_symbols", "get_active_universe", "symbols"):
-            f = getattr(universe, fn, None)
-            if callable(f):
-                syms = [str(s).upper() for s in (f() or [])]
-                if syms:
-                    return syms[:limit]
-    except Exception:
-        pass
-    # Fall back to what our own store already tracks, newest links first.
+def _universe_all() -> list[str]:
+    """The full symbol list the sweep should eventually cover, ordered stably.
+
+    ⛔ `api.services.universe` DOES NOT EXIST. This function used to try three
+    attribute names on that phantom module, fail the import every time, and fall
+    through to "symbols we already have news for" -- which made coverage
+    self-reinforcing: a ticker with no rows was never polled, so it never got
+    rows. LITE held zero items for exactly this reason.
+    """
+    for mod, attr in (("api.services.cap_universe", "symbols"),
+                      ("api.services.bars_universe_crawler", "load_universe")):
+        try:
+            m = __import__(mod, fromlist=["*"])
+            f = getattr(m, attr, None)
+            syms = sorted({str(s).upper() for s in (f() or [])}) if callable(f) else []
+            if syms:
+                return syms
+        except Exception:                             # noqa: BLE001
+            continue
+    # Last resort: what our own store already tracks. Note this CANNOT discover
+    # a new ticker -- it is a degraded mode, not the intended path.
     try:
         import contextlib as _c
         with _c.closing(store._connect()) as c:      # noqa: SLF001
             rows = c.execute(
-                "SELECT ticker, COUNT(*) n FROM news_tickers GROUP BY ticker "
-                "ORDER BY n DESC LIMIT ?", (limit,)).fetchall()
+                "SELECT ticker FROM news_tickers GROUP BY ticker "
+                "ORDER BY COUNT(*) DESC").fetchall()
             return [r["ticker"] for r in rows]
-    except Exception:
+    except Exception:                                 # noqa: BLE001
         return []
+
+
+def _active_universe(limit: int, *, rotate: str = "") -> list[str]:
+    """Symbols to poll this cycle. Bounded by construction.
+
+    With `rotate`, returns a MOVING window over the whole universe, persisting
+    the offset under that job name so the sweep continues across restarts and
+    every symbol comes up in turn. Without it, the head of the list -- which is
+    what the metered FMP fallback wants, since it is a cost ceiling rather than
+    a coverage sweep.
+    """
+    full = _universe_all()
+    if not full:
+        return []
+    limit = max(1, min(int(limit or 1), len(full)))
+    if not rotate:
+        return full[:limit]
+
+    try:
+        state = store.get_backfill(rotate) or {}
+        off = int(str(state.get("cursor") or "0") or 0) % len(full)
+    except Exception:                                 # noqa: BLE001
+        off = 0
+    window = [full[(off + i) % len(full)] for i in range(limit)]
+    try:
+        store.set_backfill(rotate, str((off + limit) % len(full)),
+                           note=f"{len(full)} symbols")
+    except Exception:                                 # noqa: BLE001
+        pass
+    return window
 
 
 def run_fmp_cycle(*, budget: int | None = None) -> dict[str, Any]:
@@ -425,3 +463,19 @@ def run_all(symbols: Iterable[str] | None = None) -> dict[str, Any]:
         return out
     finally:
         _RUN_LOCK.release()
+
+
+def recheck_rejects() -> dict[str, Any]:
+    """Re-apply today's reject rules to everything already stored.
+
+    Run after changing a filter rule. Reuses the EXACT two-step decision
+    process() makes -- the headline rules first, then the displayable-source
+    check -- so a recheck can never disagree with fresh ingestion.
+    """
+    def rule(headline: str, source_class: str) -> str:
+        reason = filters.reject_reason(headline, source_class=source_class)
+        if not reason and not news_sources.is_displayable(source_class):
+            reason = filters.REJECT_SOURCE
+        return reason or ""
+
+    return store.recheck_rejects(rule)

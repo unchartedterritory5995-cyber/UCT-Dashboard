@@ -145,6 +145,67 @@ class TestCanonical:
 # ===========================================================================
 # junk filters
 # ===========================================================================
+class TestCommentaryIsSourceAware:
+    """The commentary detector judges STANCE at whitelisted newsrooms and both
+    stance and STYLE everywhere else.
+
+    Found in production 8 Sep 2026: MU's News tab showed nothing newer than a
+    two-week-old SEC filing while the database held that morning's Barron's
+    report. The `^why` rule -- "explainer voice" -- had deleted it. Every
+    headline below is a REAL row from the production store.
+    """
+
+    def test_barrons_explainer_is_news_not_commentary(self):
+        from api.services.news import filters
+        h = "Why Micron Stock Is Popping on Fresh Memory-Chip Price Data"
+        assert filters.reject_reason(h, source_class="journalism") is None
+        # ...but the same shape from a commentary shop is still commentary.
+        assert filters.reject_reason(h, source_class="commentary") == \
+            filters.REJECT_COMMENTARY
+
+    def test_prediction_markets_is_a_product_not_a_forecast(self):
+        """A bare \bprediction\b deleted an entire news category. Prediction
+        markets are a real product line (HOOD, DKNG) and this bug silently
+        dropped the story across journalism, wire AND social at once."""
+        from api.services.news import filters
+        for cls, h in [
+            ("journalism", "Robinhood Strikes Deal With Crypto.com in Latest "
+                           "Prediction-Markets Push"),
+            ("wire", "Robinhood Selects OG.com as Infrastructure Partner for "
+                     "Prediction Markets Platform"),
+            ("social", "$HOOD EXPANDS PREDICTION MARKETS WITH CRYPTO .COM DEAL"),
+        ]:
+            assert filters.reject_reason(h, source_class=cls) is None, h
+        # The forecast sense is still commentary.
+        assert filters.reject_reason(
+            "Prediction: This Stock Will Double", source_class="commentary") == \
+            filters.REJECT_COMMENTARY
+
+    def test_journalism_is_still_held_to_stance(self):
+        """Exempting style must not exempt opinion. A whitelisted outlet running
+        an actual recommendation column is still commentary."""
+        from api.services.news import filters
+        for h in ("3 No-Brainer Stocks to Buy Right Now",
+                  "Why I Sold My Entire Micron Position",
+                  "Is Micron a Buy Right Now?",
+                  "Should You Buy Micron Before Earnings?"):
+            assert filters.reject_reason(h, source_class="journalism") == \
+                filters.REJECT_COMMENTARY, h
+
+    def test_style_rules_still_apply_off_the_whitelist(self):
+        from api.services.news import filters
+        for h in ("Why Micron Technology Stock Surged 16.5% Last Month",
+                  "Here's Why Micron Is Moving"):
+            assert filters.reject_reason(h, source_class="commentary") == \
+                filters.REJECT_COMMENTARY, h
+
+    def test_primary_and_wire_reporting_unaffected(self):
+        from api.services.news import filters
+        assert filters.reject_reason("Results of operations",
+                                     source_class="primary") is None
+        assert filters.reject_reason("Micron Announces Quarterly Dividend",
+                                     source_class="wire") is None
+
 class TestFilters:
     def test_legal_solicitation_rejected(self):
         for t in [
@@ -996,3 +1057,138 @@ class TestMalformedInputDoesNotAbortIngestion:
         assert len(items) == 3, "a malformed row stopped the batch"
         unsafe = [i for i in items if i["url"].lower().startswith("javascript:")]
         assert not unsafe, "an unsafe scheme reached the UI"
+
+
+class TestRecheckRejects:
+    """A filter fix has to be RETROACTIVE.
+
+    Rejected items are stored with a reason rather than dropped, so correcting a
+    bad rule does nothing for the stories it already hid unless those rows are
+    re-judged. The Barron's report that started this was already in the database
+    by the time the rule was fixed.
+    """
+
+    def test_recheck_unhides_rows_a_fixed_rule_no_longer_rejects(self, db):
+        _mk("MU", "Why Micron Stock Is Popping", when=_dt(hours=1),
+            klass="journalism", src="Barron's", reject="editorial-commentary")
+        assert store.feed("MU")["items"] == []           # hidden before
+        res = store.recheck_rejects(lambda h, c: "")     # rule now clears it
+        assert res["scanned"] >= 1
+        assert res["updated"] == 1
+        assert len(store.feed("MU")["items"]) == 1       # visible after
+
+    def test_recheck_is_idempotent(self, db):
+        _mk("MU", "Micron Announces Dividend", when=_dt(hours=1), klass="wire",
+            src="Business Wire")
+        rule = (lambda h, c: "")
+        assert store.recheck_rejects(rule)["updated"] == 0
+        assert store.recheck_rejects(rule)["updated"] == 0
+
+    def test_recheck_re_judges_rather_than_only_un_rejecting(self, db):
+        _mk("MU", "3 No-Brainer Stocks to Buy", when=_dt(hours=1),
+            klass="journalism", src="Barron's")
+        assert len(store.feed("MU")["items"]) == 1
+        store.recheck_rejects(lambda h, c: "editorial-commentary")
+        assert store.feed("MU")["items"] == []
+
+    def test_recheck_reports_the_transitions_it_made(self, db):
+        _mk("MU", "Why Micron Stock Is Popping", when=_dt(hours=1),
+            klass="journalism", src="Barron's", reject="editorial-commentary")
+        res = store.recheck_rejects(lambda h, c: "")
+        assert res["transitions"] == {"editorial-commentary -> shown": 1}
+
+    def test_the_real_rule_recovers_the_barrons_row(self, db):
+        """End to end with the ACTUAL production rule, not a stub."""
+        from api.services.news import ingest
+        _mk("MU", "Why Micron Stock Is Popping on Fresh Memory-Chip Price Data",
+            when=_dt(hours=1), klass="journalism", src="Barron's",
+            reject="editorial-commentary")
+        assert store.feed("MU")["items"] == []
+        ingest.recheck_rejects()
+        assert len(store.feed("MU")["items"]) == 1
+
+    def test_the_real_rule_keeps_commentary_publishers_hidden(self, db):
+        """Un-hiding must not leak the classes that are stored-but-never-shown."""
+        from api.services.news import ingest
+        _mk("MU", "Micron Had A Fine Quarter", when=_dt(hours=1),
+            klass="commentary", src="The Motley Fool", reject="")
+        ingest.recheck_rejects()
+        assert store.feed("MU")["items"] == []
+
+    def test_ingest_recheck_matches_fresh_ingestion_exactly(self):
+        """The recheck must make the same two-step decision process() makes,
+        including the displayable-source check -- otherwise a recheck would
+        silently disagree with the next ingest cycle."""
+        import inspect
+        from api.services.news import ingest
+        src = inspect.getsource(ingest.recheck_rejects)
+        assert "filters.reject_reason" in src
+        assert "is_displayable" in src
+        assert "REJECT_SOURCE" in src
+
+
+class TestUniverseRotation:
+    """Coverage must not be self-reinforcing.
+
+    The sweep used to import a module that does not exist (`api.services.
+    universe`), silently fall back to "tickers we already have news for", and
+    poll the same head of that list every cycle. A ticker with no rows was
+    therefore never polled and could never get rows. LITE sat at zero items.
+    """
+
+    def test_universe_does_not_come_from_our_own_news_counts(self, db):
+        from api.services.news import ingest
+        full = ingest._universe_all()
+        assert len(full) > 500, "expected a real market universe, not our store"
+        assert full == sorted(full), "order must be stable for a resumable sweep"
+
+    def test_rotation_advances_and_eventually_covers_everything(self, db,
+                                                                monkeypatch):
+        from api.services.news import ingest
+        alphabet = [f"S{i:03d}" for i in range(25)]
+        monkeypatch.setattr(ingest, "_universe_all", lambda: alphabet)
+
+        seen: set[str] = set()
+        for _ in range(5):                       # 5 cycles x 5 = the whole list
+            seen.update(ingest._active_universe(5, rotate="t_sweep"))
+        assert seen == set(alphabet)
+
+    def test_consecutive_cycles_do_not_repeat(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        a = ingest._active_universe(5, rotate="t_sweep2")
+        b = ingest._active_universe(5, rotate="t_sweep2")
+        assert a != b and not (set(a) & set(b))
+
+    def test_rotation_wraps_around(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: ["A", "B", "C"])
+        first = ingest._active_universe(2, rotate="t_wrap")   # A B
+        second = ingest._active_universe(2, rotate="t_wrap")  # C A
+        assert first == ["A", "B"]
+        assert second == ["C", "A"]
+
+    def test_offset_persists_so_a_restart_resumes(self, db, monkeypatch):
+        from api.services.news import ingest, store
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        ingest._active_universe(5, rotate="t_resume")
+        assert (store.get_backfill("t_resume") or {}).get("cursor") == "5"
+
+    def test_without_rotate_it_is_a_stable_bounded_head(self, db, monkeypatch):
+        """The METERED FMP fallback wants a cost ceiling, not a sweep."""
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        assert ingest._active_universe(3) == ingest._active_universe(3)
+
+    def test_limit_never_exceeds_the_universe(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: ["A", "B"])
+        assert len(ingest._active_universe(50, rotate="t_small")) == 2
+
+    def test_empty_universe_is_survivable(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: [])
+        assert ingest._active_universe(10, rotate="t_empty") == []

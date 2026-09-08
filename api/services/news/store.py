@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+from collections import Counter
 import json
 import logging
 import os
@@ -575,3 +576,38 @@ def prune() -> dict[str, int]:
                   "(SELECT id FROM news_items)")
         c.commit()
     return out
+
+
+def recheck_rejects(rule) -> dict[str, Any]:
+    """Re-apply the CURRENT reject rules to rows already stored.
+
+    Rejected items are kept, not dropped (§ ingest.process), which is what makes
+    a filter fix retroactive instead of "fixed for items we happen to fetch
+    next". Without this, correcting a bad rule leaves every story it already
+    deleted invisible forever -- exactly what happened when `^why` ate a
+    Barron's report and `\bprediction\b` ate the prediction-markets story.
+
+    `rule(headline, source_class) -> str` keeps the filter import out of the
+    storage layer. Contacts no provider; safe to run repeatedly.
+    """
+    _ensure_init()
+    changed: Counter = Counter()
+    scanned = 0
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, headline, source_class, reject_reason FROM news_items"
+        ).fetchall()
+        updates: list[tuple[str, int]] = []
+        for r in rows:
+            scanned += 1
+            new = rule(r["headline"] or "", r["source_class"] or "") or ""
+            old = r["reject_reason"] or ""
+            if new != old:
+                updates.append((new, int(r["id"])))
+                changed[f"{old or 'shown'} -> {new or 'shown'}"] += 1
+        if updates:
+            c.executemany(
+                "UPDATE news_items SET reject_reason = ? WHERE id = ?", updates)
+            c.commit()
+    return {"scanned": scanned, "updated": len(updates),
+            "transitions": dict(changed)}

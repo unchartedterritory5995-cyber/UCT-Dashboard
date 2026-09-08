@@ -1838,17 +1838,25 @@ def register_company_news_jobs(scheduler):
             print(f"[news] fmp cycle error: {e}")
 
     def _per_company():
-        """SEC + the local tweet store for the most-followed symbols.
+        """SEC + the local tweet store, ROTATING across the whole universe.
 
-        Both are free and per-company: EDGAR is public domain at 10 req/s and
-        the tweet store is already on disk, so this adds no metered cost.
+        Both are free and per-company: sec_news.fetch is one HTTP request per
+        ticker (the submissions document is cached per CIK and filtered in
+        memory) and the tweet store is already on disk, so this adds no metered
+        cost.
+
+        ⛔ It must ROTATE. This used to poll a fixed head of the list every
+        cycle, so the same handful of symbols were refreshed forever and a
+        ticker outside it -- LITE, for one -- could never receive a filing no
+        matter how long the service ran. The offset persists in the store, so
+        the sweep resumes where it left off across restarts.
         """
         try:
             from api.services.news import ingest
-            syms = ingest._active_universe(ingest.FALLBACK_SYMBOLS_PER_CYCLE)
+            syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
             if syms:
-                ingest.run_sec_cycle(syms[:40])
-                ingest.run_x_cycle(syms[:80])
+                ingest.run_sec_cycle(syms)
+                ingest.run_x_cycle(syms)
         except Exception as e:
             print(f"[news] per-company cycle error: {e}")
 
@@ -1860,6 +1868,10 @@ def register_company_news_jobs(scheduler):
             print(f"[news] prune error: {e}")
 
     poll_min = int(os.environ.get("COMPANY_NEWS_POLL_MINUTES", "5"))
+    # Free lane, so this is a COVERAGE knob, not a cost one: 150 symbols every
+    # 20 min walks a ~3,700-name universe in about 8 hours. Kept separate from
+    # NEWS_FALLBACK_SYMBOLS, which bounds the METERED FMP fallback.
+    SEC_SYMS = int(os.environ.get("NEWS_SEC_SYMBOLS_PER_CYCLE", "150"))
     scheduler.add_job(_poll, trigger=IntervalTrigger(minutes=poll_min),
                       id="company_news_fmp", max_instances=1,
                       replace_existing=True, coalesce=True)
