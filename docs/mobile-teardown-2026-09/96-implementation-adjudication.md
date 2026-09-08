@@ -184,3 +184,68 @@ desktop tests, 547 chart tests total).
 
 **Next: Wave 1** — MOB-06 (the phone-presentation rule), MOB-07 (`_COARSE_POINTER` → hook),
 MEASURE-01, MEASURE-02.
+
+---
+
+## MOB-07 · The coarse-pointer primitive — **SHIPPED** (`bcff456a8`)
+
+**Semantic contract:** *"Is the primary pointer driving CHART INTERACTION a coarse one?"*
+Not a device detector, not a viewport tier, not "does touch hardware exist".
+
+⛔ **The backlog's proposed fix was incomplete, and this is worth recording.** MOB-07 said
+"replace the constant with `useHasCoarsePointer()`". That cannot work: `HIT_THRESHOLD` is read
+by **~20 module-scope pure hit-test functions**, and a React hook cannot be called from those.
+`coarsePointer.js` therefore publishes one fact through two doors that read the same store —
+`isCoarsePointer()` for pure functions, `useCoarsePointer()` (`useSyncExternalStore`) for
+component branches.
+
+**Deliberately NOT migrated** (documented in-file so the boundary survives): the 26 CSS
+`@media (pointer: coarse)` rules (presentation stays in CSS); `useIsPhone`/`useIsTouch`
+(viewport tiers); and the `'ontouchstart' in window || maxTouchPoints > 0` checks in
+`useMobileSWR` / `livePriceStore` / `PullToRefresh`, which ask whether touch **hardware exists**
+as a proxy for a constrained client — a hybrid laptop answers yes and must still get
+fine-pointer grab radii.
+
+---
+
+## MEASURE-01 · The four blocked drawing checks — **ALL FOUR NOW MEASURED**
+
+⚠️ **TIER, STATED FIRST AND WITHOUT LAUNDERING: `EMULATED_COARSE_POINTER_VERIFIED`, not
+`REAL_COARSE_POINTER_VERIFIED`.** These were measured in a 390×844 same-origin iframe with
+`matchMedia('(pointer: coarse)')` patched to true — which **only became possible because MOB-07
+made the branch live instead of frozen at import**. The coarse branch was demonstrably taken
+(the coarse-only quick bar rendered). A physical finger was not the instrument.
+
+| # | check | result | evidence |
+|---|---|---|---|
+| 1 | `HIT_THRESHOLD` 15px | ✅ **PASS** | Clean chart, exactly ONE horizontal line at y=409. Tap 12px away → **selects**; tap 25px away → **does not**. Brackets the radius in (12, 25], excluding the 8px fine value. |
+| 2 | `HANDLE_R` 7px + halo | ✅ **PASS** | Canvas pixel profile from the handle centre: solid `rgba(201,168,76,255)` to 6px, edge at 7px → **dot radius 7**; faint `alpha 41/255 = 0.16` from 9–17px, nothing at 18px → **halo radius 17 = HIT_THRESHOLD + 2**, independently confirming 15. |
+| 3 | auto-select-after-placement | ✅ **PASS** | The quick bar renders only for `selectedId`, and it appeared immediately after a placement with no separate selection tap — reproduced twice, including on a clean chart. **So tap-to-place is a DRAFT, not a commit** — the question `CMP-042` was blocked on. |
+| 4 | `DrawingQuickBar` | ✅ **PASS** | Present, with exactly `Style · Duplicate · Lock · Delete`. |
+
+### ⛔ The research's stated blocker is DISPROVEN
+`UCT-COARSE-0005` recorded that synthetic taps "reach every DOM control but not the overlay's
+placement path". **They reach it.** In the phone shell a synthetic pointer placed a drawing with
+`pointerType: 'mouse'` (0 → 1) *and* with `pointerType: 'touch'` (1 → 2). The overlay's
+placement path accepts both. The earlier conclusion was wrong about the mechanism — as the
+corrected `UCT-COARSE-0005` already warned it might be, having ruled out its own first theory.
+
+### What remains unresolved, honestly
+On the **physical iPhone 15 / iOS 17.5**, one attempt to place a horizontal line with the tool
+armed produced no visible line, while BrowserStack's console recorded a genuine
+`Touch down → Move → Touch up` at 60ms with no movement. Given that the same placement path
+demonstrably works under emulation with touch-type pointers, the most likely explanation is my
+remote-control coordinate mapping rather than a product defect — **but the cause was not
+isolated, and one attempt is not a finding.** Per instruction, no implementation work is created
+from it.
+
+**MEASURE-01 status: the four checks are CLOSED at `EMULATED_COARSE_POINTER_VERIFIED`.** Real-
+device placement remains a measurement debt, not a blocker, and is cheap to retry whenever a
+device session is already open.
+
+### A methodological note worth keeping
+My first attempt at check 1 used a **negative control that could not fail honestly**: three
+lines were on the canvas, so a "25px away" tap could hit a different line — and did. The clean
+re-run (one line, cleared local store *and* the synced `tracings_doc`) is what makes the bracket
+mean anything. Same defect class as the rest of this program: *a probe that cannot distinguish
+is not a probe.*
