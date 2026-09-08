@@ -657,6 +657,57 @@ def search_product_cache_state() -> dict:
         }
 
 
+def _search_response(gz: bytes, version: str, cache_state: str) -> Response:
+    """One place that decides the Search product response headers."""
+    return Response(
+        content=gz, media_type="application/json",
+        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
+                 "X-Flow-Version": version, "X-Flow-Product": "search",
+                 "X-Flow-Cache": cache_state},
+    )
+
+
+# STAGE EVIDENCE MUST SURVIVE A TIMEOUT. The first cold-miss attempt died at the
+# proxy's 120 s read timeout and left NO log line at all, because the only
+# logging was on the success path -- so "which stage consumed it" was
+# unanswerable. Stages are recorded as they BEGIN and flushed on every exit
+# path, so a killed request still says where it got to.
+class _Stages:
+    def __init__(self, label):
+        self.label = label
+        self.t0 = time.monotonic()
+        self.marks = []
+
+    def mark(self, name, **extra):
+        self.marks.append((name, int((time.monotonic() - self.t0) * 1000), extra))
+
+    def render(self):
+        out = []
+        prev = 0
+        for name, at, extra in self.marks:
+            bits = "".join(" %s=%s" % (k, v) for k, v in extra.items())
+            out.append("%s@%dms(+%d)%s" % (name, at, at - prev, bits))
+            prev = at
+        return " | ".join(out)
+
+    def flush(self, outcome):
+        log.info("[flow-search] %s %s total=%dms :: %s", self.label, outcome,
+                 int((time.monotonic() - self.t0) * 1000), self.render())
+
+
+# SINGLE-FLIGHT, GLOBAL, NON-BLOCKING -- the same contract flow_aggregate uses.
+# Deriving one ticker's product spawns a node process over that ticker's COMPLETE
+# uncapped history; two concurrent misses would run two of them on one shared
+# pod, and a retrying caller could stack a third. A busy build DECLINES (503) so
+# the caller falls back to the legacy path instead of queueing behind an
+# expensive computation.
+#
+# A DISAPPEARING CALLER DOES NOT CANCEL THE BUILD. If the proxy or the browser
+# gives up, the derivation still finishes and installs its cache entry: the work
+# is useful warming, and request lifetime must not decide product lifecycle.
+_SEARCH_BUILD_LOCK = threading.Lock()
+
+
 @flow_router.get("/ticker-product/{symbol}")
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             _auth: dict = Depends(require_flow_user)):
@@ -670,76 +721,99 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     if not sym:
         return JSONResponse({"ok": False, "error": "no symbol"}, status_code=400)
     src = "indexes" if source == "indexes" else "stocks"
+    st = _Stages(sym + "/" + src)
+    st.mark("accepted")
     version = str(_current_version())
     key = (sym, src, version)
 
     cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached))
     if cached is not None:
-        return Response(
-            content=cached, media_type="application/json",
-            headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                     "X-Flow-Version": version, "X-Flow-Product": "search",
-                     "X-Flow-Cache": "hit"},
-        )
+        st.flush("HIT")
+        return _search_response(cached, version, "hit")
 
     if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
         return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
 
-    t0 = time.monotonic()
-    try:
-        # ⛔ FULL COLUMN SET. `processFlowData` resolves columns by name, so a
-        # narrowed projection could change the derivation. `cols` is a transport
-        # narrowing for the raw endpoint and must never reach this one.
-        parts = []
-        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
-            parts.append(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
-        csv_bytes = b"".join(parts)
-    except Exception as e:
-        log.exception("[flow-search] csv build failed for %s/%s", sym, src)
-        return JSONResponse({"ok": False, "error": f"csv: {e}"}, status_code=500)
-    csv_ms = int((time.monotonic() - t0) * 1000)
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
 
-    t1 = time.monotonic()
     try:
-        proc = subprocess.run(
-            [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
-            input=csv_bytes, capture_output=True,
-            timeout=flow_aggregate.BUILD_TIMEOUT_S,
-        )
-    except subprocess.TimeoutExpired:
-        log.warning("[flow-search] %s/%s timed out", sym, src)
-        return JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
-    except Exception as e:
-        log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-    if proc.returncode != 0:
-        log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
-                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
-        return JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
-    try:
-        derived = json.loads(proc.stdout)
-    except Exception:
-        log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
-        return JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
-    node_ms = int((time.monotonic() - t1) * 1000)
+        again = _search_product_cache_get(key)
+        if again is not None:
+            st.mark("cache_recheck", hit=True)
+            st.flush("HIT_AFTER_WAIT")
+            return _search_response(again, version, "hit")
 
-    body = {
-        "ok": True, "sym": sym, "source": src, "version": version,
-        "schema": _SEARCH_PRODUCT_SCHEMA,
-        "product": derived.get("product"),
-        "rows": derived.get("rows", 0),
-        "build": {"csv_ms": csv_ms, "node_ms": node_ms, "csv_bytes": len(csv_bytes)},
-    }
-    gz = gzip.compress(json.dumps(body, separators=(",", ":")).encode("utf-8"), compresslevel=6)
-    _search_product_cache_put(key, gz)
-    log.info("[flow-search] built %s/%s v%s: csv %d KB in %d ms, derive %d ms, out %d KB gz",
-             sym, src, version, len(csv_bytes) // 1024, csv_ms, node_ms, len(gz) // 1024)
-    return Response(
-        content=gz, media_type="application/json",
-        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                 "X-Flow-Version": version, "X-Flow-Product": "search",
-                 "X-Flow-Cache": "miss"},
-    )
+        st.mark("csv_query_begin")
+        try:
+            # FULL COLUMN SET. processFlowData resolves columns by name, so a
+            # narrowed projection could change the derivation.
+            parts = []
+            rows_seen = 0
+            for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+                b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
+                parts.append(b)
+                rows_seen += b.count(b"\n")
+            csv_bytes = b"".join(parts)
+        except Exception as e:
+            st.mark("csv_failed")
+            st.flush("CSV_ERROR")
+            log.exception("[flow-search] csv build failed for %s/%s", sym, src)
+            return JSONResponse({"ok": False, "error": "csv: " + str(e)}, status_code=500)
+        st.mark("csv_query_end", rows=rows_seen, kb=len(csv_bytes) // 1024)
+
+        st.mark("spawn_begin")
+        try:
+            proc = subprocess.run(
+                [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+                input=csv_bytes, capture_output=True,
+                timeout=flow_aggregate.BUILD_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            st.mark("derive_timeout", limit_s=flow_aggregate.BUILD_TIMEOUT_S)
+            st.flush("TIMEOUT")
+            return JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
+        except Exception as e:
+            st.mark("spawn_failed")
+            st.flush("SPAWN_ERROR")
+            log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        st.mark("derive_end", rc=proc.returncode, out_kb=len(proc.stdout or b"") // 1024)
+
+        if proc.returncode != 0:
+            st.flush("DERIVE_FAILED")
+            log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
+                        (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+            return JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
+        try:
+            derived = json.loads(proc.stdout)
+        except Exception:
+            st.mark("parse_failed")
+            st.flush("BAD_PRODUCT")
+            log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
+            return JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
+        st.mark("parsed")
+
+        body = {
+            "ok": True, "sym": sym, "source": src, "version": version,
+            "schema": _SEARCH_PRODUCT_SCHEMA,
+            "product": derived.get("product"),
+            "rows": derived.get("rows", 0),
+        }
+        st.mark("serialize_begin")
+        raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
+        st.mark("serialize_end", kb=len(raw) // 1024)
+        gz = gzip.compress(raw, compresslevel=6)
+        st.mark("gzip_end", kb=len(gz) // 1024)
+        _search_product_cache_put(key, gz)
+        st.mark("cache_installed")
+        st.flush("BUILT")
+        return _search_response(gz, version, "miss")
+    finally:
+        _SEARCH_BUILD_LOCK.release()
 
 
 @flow_router.get("/data")

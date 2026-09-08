@@ -70,6 +70,15 @@ over it in the worker to render ~17 rows. This runs the SAME bundle
 flag, which the client re-applies as a copy-on-overlay; that is what makes the
 product user-independent and cacheable at all. Nothing calls it yet. Bundle
 change => this header edit is the deploy trigger.
+(2026-09-08 follow-up:) that endpoint now records STAGES as they begin and
+flushes them on every exit path. The first cold-miss attempt died at the proxy's
+120 s read timeout and left NO log line at all, because logging was success-only,
+so "which stage consumed 120 s" was unanswerable. It is also SINGLE-FLIGHT now
+(global, non-blocking, decline-with-503) — one derivation runs a node process
+over a ticker's COMPLETE uncapped history, and a retrying caller could
+otherwise stack a second and a third on one shared pod. A caller that gives up
+does NOT cancel the build: the work is useful warming, and request lifetime must
+not decide product lifecycle.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is
