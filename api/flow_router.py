@@ -799,6 +799,25 @@ def _truthy(v) -> bool:
 _SEARCH_WARMING = set()
 _SEARCH_WARMING_LOCK = threading.Lock()
 
+# How long a ticker whose warm FAILED sits out before anything tries it again.
+# It exists to stop one un-buildable symbol monopolising the single build lane;
+# it is not a circuit breaker for the endpoint, which stays available throughout.
+_WARM_COOLDOWN_S = float(os.environ.get("FLOW_SEARCH_WARM_COOLDOWN_S", "600") or 600)
+_WARM_FAILED_UNTIL = {}
+_WARM_STATS = {"built": 0, "failed": 0, "declined": 0, "already": 0, "last_ms": None}
+
+
+def _note_warm_failure(sym: str) -> None:
+    with _SEARCH_WARMING_LOCK:
+        _WARM_FAILED_UNTIL[sym] = time.monotonic() + _WARM_COOLDOWN_S
+
+
+def search_warm_state() -> dict:
+    """Diagnostics for the background warmer. Counters are process-local."""
+    with _SEARCH_WARMING_LOCK:
+        return {**_WARM_STATS, "in_flight": sorted(_SEARCH_WARMING),
+                "cooling_off": sorted(_WARM_FAILED_UNTIL)}
+
 
 def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     """Build one ticker's Search product in the background. Never raises.
@@ -808,22 +827,48 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     ticker is a hit. It must therefore never block, never retry aggressively, and
     never let an exception escape into a thread that nothing is watching.
     """
+    now = time.monotonic()
     with _SEARCH_WARMING_LOCK:
         if sym in _SEARCH_WARMING:
+            return False
+        # ⛔ A TICKER THAT CANNOT BE BUILT MUST NOT OWN THE LANE FOREVER.
+        # Observed live: MU (465,956 rows) exceeds the 60 s derive timeout, and
+        # because every search for it re-spawned a warm, one symbol held the
+        # single build lane almost continuously and starved every other ticker's
+        # warm — silently. A failed warm now sits out `_WARM_COOLDOWN_S`.
+        until = _WARM_FAILED_UNTIL.get(sym)
+        if until is not None and now < until:
             return False
         _SEARCH_WARMING.add(sym)
 
     def _run():
         try:
             if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
-                return                      # a build is already running; drop it
+                # ⛔ SAY SO. This declined SILENTLY and cost an hour of live
+                # debugging: warm builds simply never happened and the logs held
+                # no record of them being skipped, so "the warmer is broken" and
+                # "the warmer never got the lane" were indistinguishable.
+                _WARM_STATS["declined"] += 1
+                log.info("[flow-search] warm %s declined — build lane busy", sym)
+                return
+            t0 = time.monotonic()
             try:
                 if _search_product_cache_get(key) is not None:
+                    _WARM_STATS["already"] += 1
                     return
-                _build_search_product(sym, src, key, version, _Stages(sym + "/" + src + " warm"))
+                gz, err = _build_search_product(
+                    sym, src, key, version, _Stages(sym + "/" + src + " warm"))
+                if err is not None:
+                    _note_warm_failure(sym)
+                    _WARM_STATS["failed"] += 1
+                else:
+                    _WARM_STATS["built"] += 1
             finally:
                 _SEARCH_BUILD_LOCK.release()
+                _WARM_STATS["last_ms"] = int((time.monotonic() - t0) * 1000)
         except Exception as e:  # noqa: BLE001
+            _note_warm_failure(sym)
+            _WARM_STATS["failed"] += 1
             log.warning("[flow-search] warm build failed for %s: %s", sym, e)
         finally:
             with _SEARCH_WARMING_LOCK:
@@ -1480,6 +1525,7 @@ async def aggregate_health():
     # Colour, not verdict: `warm` above already answers "is the first paint
     # ready". These say whether the preparer is the reason it is.
     out["prepare"] = prepare_state()
+    out["search_warm"] = search_warm_state()
     return JSONResponse(out)
 
 

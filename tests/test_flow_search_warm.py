@@ -281,3 +281,91 @@ def test_CONTROL_without_warm_only_the_same_miss_DOES_build(client, monkeypatch)
 
     assert r.status_code == 200
     assert built, "the synchronous build path is gone"
+
+
+# ── One un-buildable ticker must not own the single warm lane ────────────────
+#
+# ⛔ OBSERVED LIVE, 2026-09-08. MU (465,956 rows) exceeds the 60 s derive
+# timeout. Every search for it re-spawned a warm, each holding the single build
+# lane ~90 s, so no other ticker's warm ever ran -- and the decline path logged
+# NOTHING, so "the warmer is broken" and "the warmer never got the lane" looked
+# identical for an hour of live debugging.
+
+@pytest.fixture(autouse=True)
+def _clean_cooldown():
+    with fr._SEARCH_WARMING_LOCK:
+        fr._WARM_FAILED_UNTIL.clear()
+    yield
+    with fr._SEARCH_WARMING_LOCK:
+        fr._WARM_FAILED_UNTIL.clear()
+
+
+def test_a_failed_warm_puts_the_ticker_in_cooldown(monkeypatch):
+    done = threading.Event()
+
+    def failing(sym, src, key, version, st):
+        try:
+            return None, "boom"          # the (gz, err) failure shape
+        finally:
+            done.set()
+
+    monkeypatch.setattr(fr, "_build_search_product", failing)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+
+    assert fr._spawn_search_warm("MU", "stocks", ("MU", "stocks", "1"), "1") is True
+    assert done.wait(5)
+    for _ in range(50):
+        with fr._SEARCH_WARMING_LOCK:
+            if "MU" not in fr._SEARCH_WARMING:
+                break
+        time.sleep(0.02)
+
+    # The retry that used to monopolise the lane is now refused.
+    assert fr._spawn_search_warm("MU", "stocks", ("MU", "stocks", "1"), "1") is False
+    assert "MU" in fr.search_warm_state()["cooling_off"]
+
+
+def test_CONTROL_a_SUCCESSFUL_warm_leaves_no_cooldown(monkeypatch):
+    """Without this, the test above would pass on a warmer that cooled off every
+    ticker it ever touched — which would disable warming entirely."""
+    done = threading.Event()
+
+    def ok(sym, src, key, version, st):
+        try:
+            return b"gz", None
+        finally:
+            done.set()
+
+    monkeypatch.setattr(fr, "_build_search_product", ok)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+
+    assert fr._spawn_search_warm("ALIT", "stocks", ("ALIT", "stocks", "1"), "1") is True
+    assert done.wait(5)
+    for _ in range(50):
+        with fr._SEARCH_WARMING_LOCK:
+            if "ALIT" not in fr._SEARCH_WARMING:
+                break
+        time.sleep(0.02)
+
+    assert "ALIT" not in fr.search_warm_state()["cooling_off"]
+    assert fr._spawn_search_warm("ALIT", "stocks", ("ALIT", "stocks", "1"), "1") is True
+
+
+def test_a_declined_warm_is_counted_rather_than_vanishing(monkeypatch):
+    """⛔ A silent decline is indistinguishable from a broken warmer. It must
+    leave a trace."""
+    fr._WARM_STATS["declined"] = 0
+    fr._SEARCH_BUILD_LOCK.acquire()          # hold the lane, as a real build would
+    try:
+        done = threading.Event()
+        monkeypatch.setattr(fr, "_build_search_product",
+                            lambda *a, **k: (b"gz", None))
+        assert fr._spawn_search_warm("NVDA", "stocks", ("NVDA", "stocks", "1"), "1") is True
+        for _ in range(100):
+            if fr._WARM_STATS["declined"] > 0:
+                done.set()
+                break
+            time.sleep(0.02)
+        assert done.is_set(), "a warm declined on the busy lane and recorded nothing"
+    finally:
+        fr._SEARCH_BUILD_LOCK.release()
