@@ -19,7 +19,7 @@ replayed. Where I did not verify something, it says so.
 | Capture — internal UCT artifact | ✅ 9 widget call sites + tray; Screener/COT/Model Book/OptionsFlow deliberately **not** covered (G-040) |
 | Rights / provenance | ✅ structural: link + member-selected passage only; full page refused; source claim vs member annotation separated in storage, retrieval and answers |
 | Documents | PDF ingest, page text, excerpts, quote anchors, status lifecycle |
-| Search | title + body + tags + ticker. **Not** document/attachment text |
+| Search | three sections: Notes (title+body+tags+ticker) · **Documents** (page text) · **Evidence** (excerpts). Source-kind-aware labels + deep navigation as of Wave M. ⚠️ the earlier "not document text" row was WRONG — see C1 |
 | Ask | 4 scopes, fenced evidence, typed citations, truthful no-answer, lineage dedupe; note scope now reads captures |
 | Thesis / evidence | supports/opposes edges over note · fact · document_excerpt; **no UI path from a captured passage** |
 | Financial facts | captured with temporal gate (G-063) |
@@ -28,7 +28,7 @@ replayed. Where I did not verify something, it says so.
 | Export out | present |
 | Mobile | responsive Notebook; share-target capture; **no offline** |
 | Sharing out | G-080 implemented, **disabled, unauthorized** |
-| Semantic retrieval | **benchmarked only**, nothing activated |
+| Semantic retrieval | benchmarked · architecture selected (C+B) · **DARK** — ~478 MB + 25 s cold load not justified in the single web process |
 | OCR | absent |
 | Offline | absent |
 | Tasks / review loop | absent as a system |
@@ -44,8 +44,8 @@ this session**. UCT columns are measured.
 |---|---|---|
 | Capture a link/passage from the web | ✅ | **COMPETITIVE** |
 | Capture on mobile | ✅ Android; ❌ iOS share sheet | **PARTIAL** |
-| Find a captured passage by searching its words | ❌ | **MATERIAL** |
-| Find text inside a PDF/attachment by searching | ❌ (Ask can) | **MATERIAL** |
+| Find a captured passage by searching its words | ✅ (Evidence + Documents sections) | **COMPETITIVE** — corrected 2026-09-08 |
+| Find text inside a PDF/attachment by searching | ✅ Documents section, navigates to the page | **COMPETITIVE** — corrected 2026-09-08 |
 | Scanned document / image text | ❌ | **MATERIAL** (Evernote's historic moat) |
 | Work offline | ❌ | **MATERIAL** (Obsidian's moat) |
 | Templates / repeatable structure | partial | **MODERATE** |
@@ -68,10 +68,13 @@ Scored on switching-blocker severity × frequency × UX impact × financial
 differentiation × dependency order × trust × mobile × competitive gap ×
 acquisition/retention value × engineering risk — **not** by ease.
 
-1. **Search does not reach document/captured text.** Highest frequency action in
-   any notebook; a member who captures and then cannot find is being taught the
-   product loses things. Ask can reach it, which makes the inconsistency worse,
-   not better.
+1. ~~**Search does not reach document/captured text.**~~ ⚠️ **WITHDRAWN
+   2026-09-08 — THIS WAS WRONG.** Measured on `notes?q=` and generalised to
+   "Search"; the Documents and Evidence sections already reached it. What was
+   real was that results could not tell a web capture from a paginated document,
+   and said "· p.2" about a Reuters article. Fixed in Wave M.
+   **The surviving gap in this area is narrower: low-overlap paraphrase
+   retrieval**, which is semantic and remains DARK (`wave-m-closure.md` §3).
 2. **No path from a captured passage to thesis evidence.** This is UCT's single
    most differentiating journey and it is currently API-only. Fixing it is
    mostly surfacing work over machinery that already exists and is proven.

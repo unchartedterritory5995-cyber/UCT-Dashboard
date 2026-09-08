@@ -2725,6 +2725,12 @@ def search_note_documents_endpoint(
         "documentId": r["document_id"], "pageNumber": r["page_number"],
         "snippet": r["snippet"], "noteId": r["note_id"], "noteTitle": r["note_title"],
         "name": r["name"], "attachmentUrl": r["attachment_url"],
+        # ⛔ WAVE M: the surface cannot tell the truth about a hit it cannot
+        # identify. `sourceKind` is "attachment" (a real paginated document) or
+        # "web" (a captured source, whose pageNumber is a CAPTURE ORDINAL and
+        # must never be rendered as a page).
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
     } for r in rows]}
 
 
@@ -2870,6 +2876,9 @@ def search_excerpts_endpoint(
         "noteTitle": r["note_title"], "documentId": r["document_id"],
         "documentName": r["document_name"], "pageNumber": r["page_number"],
         "annotation": r["annotation"],
+        # Same contract as the document-page results above.
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
     } for r in rows]}
 
 

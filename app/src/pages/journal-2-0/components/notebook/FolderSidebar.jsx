@@ -6,6 +6,8 @@ import useJ2Notes, {
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
 import useExcerptSearch from '../../hooks/useExcerptSearch'
+import { searchResultTitle, searchResultHint } from '../../lib/searchResultLabel'
+import { searchResultTarget } from '../../lib/searchNavigation'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -978,13 +980,17 @@ export default function FolderSidebar({
                   key={`${d.documentId}-${d.pageNumber}`}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: d.noteId })}
-                  title={`${d.name || 'Document'} — p. ${d.pageNumber}, in "${d.noteTitle}"`}
+                  onClick={() => onOpenNote({ id: d.noteId },
+                                             searchResultTarget(d, { kind: 'page' }))}
+                  title={searchResultHint(d, { kind: 'page' })}
                 >
-                  <UIcon name="document" size={12} gold={false} />
+                  {/* ⛔ The icon follows the KIND too: a captured web source is
+                      not a filed document, and showing the document glyph for
+                      it repeats the same false claim in another channel. */}
+                  <UIcon name={d.sourceKind === 'web' ? 'link' : 'document'} size={12} gold={false} />
                   <span className={styles.searchResultBody}>
                     <span className={styles.searchResultTitle}>
-                      {d.name || 'Document'} · p.{d.pageNumber}
+                      {searchResultTitle(d, { kind: 'page' })}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
                   </span>
@@ -1009,13 +1015,14 @@ export default function FolderSidebar({
                   key={e.excerptId}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: e.noteId })}
-                  title={`${e.documentName || 'Document'} — p. ${e.pageNumber}, in "${e.noteTitle}"`}
+                  onClick={() => onOpenNote({ id: e.noteId },
+                                             searchResultTarget(e, { kind: 'excerpt' }))}
+                  title={searchResultHint(e, { kind: 'excerpt' })}
                 >
                   <UIcon name="quote" size={12} gold={false} />
                   <span className={styles.searchResultBody}>
                     <span className={styles.searchResultTitle}>
-                      {e.documentName || 'Document'} · p.{e.pageNumber}
+                      {searchResultTitle(e, { kind: 'excerpt' })}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
                   </span>

@@ -33,7 +33,11 @@ def search_excerpts(user_id: str, q: str, *, limit: int = 20, conn=None) -> list
             "SELECT j2_note_excerpts_fts.excerpt_id AS excerpt_id,"
             " snippet(j2_note_excerpts_fts, 2, '<mark>', '</mark>', '…', 12) AS snippet,"
             " e.note_id AS note_id, e.document_id AS document_id, e.page_number AS page_number,"
-            " e.annotation AS annotation, d.name AS document_name, n.title AS note_title"
+            " e.annotation AS annotation, d.name AS document_name,"
+            # ⛔ WAVE M: same reason as document_search — an excerpt kept from a
+            # web capture is not "page N" of anything.
+            " d.source_kind AS source_kind, d.source_url AS source_url,"
+            " n.title AS note_title"
             " FROM j2_note_excerpts_fts"
             " JOIN j2_note_excerpts e ON e.id = j2_note_excerpts_fts.excerpt_id"
             " JOIN j2_note_documents d ON d.id = e.document_id"

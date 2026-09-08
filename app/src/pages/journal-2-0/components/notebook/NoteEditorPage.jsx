@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
   buildExtensions, uploadInlineImage, uploadNoteAttachment,
@@ -8,6 +8,7 @@ import {
 } from '../../lib/tiptap'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import { targetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
@@ -725,6 +726,47 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [previewDoc, setPreviewDoc] = useState(null)
   const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
   const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
+
+  // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
+  // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
+  // the SAME `previewDoc` shape Wave J's click-to-source above already uses —
+  // one document-navigation contract, reached from either door.
+  //
+  // ⛔ It waits for `noteDocuments`: the target names a document id, and the
+  // preview needs that document's href. Firing before the list resolves would
+  // silently drop the deep link and look exactly like "search only opens the
+  // note", which is the defect this closes.
+  //
+  // ⛔ AND IT CLEARS THE PARAMS ONCE CONSUMED, so a refresh, a Back, or simply
+  // closing the sheet does not reopen it — the same once-only discipline the
+  // mobile share handoff needed.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navTarget = targetFromParams(searchParams)
+  const navTargetKey = navTarget
+    ? `${navTarget.documentId}:${navTarget.page || ''}:${navTarget.excerptId || ''}`
+    : null
+  const consumedTargetRef = useRef(null)
+  useEffect(() => {
+    if (!navTarget || !noteDocuments?.length) return
+    if (consumedTargetRef.current === navTargetKey) return
+    const doc = noteDocuments.find((d) => d.id === navTarget.documentId)
+    if (!doc) return
+    consumedTargetRef.current = navTargetKey
+    const localExcerpt = navTarget.excerptId
+      ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
+      : null
+    setPreviewDoc({
+      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
+      page: navTarget.page || undefined,
+      emphasizeExcerptId: navTarget.excerptId || undefined,
+      emphasizeExcerpt: localExcerpt,
+    })
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
+      return next
+    }, { replace: true })
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return

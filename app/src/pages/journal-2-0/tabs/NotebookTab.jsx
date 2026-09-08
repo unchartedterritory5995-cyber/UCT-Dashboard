@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
+import { applyTargetToParams } from '../lib/searchNavigation'
 import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
@@ -291,9 +292,13 @@ export default function NotebookTab() {
     globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
   }
 
-  const openNote = (note) => {
+  // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
+  // named — a document page or a saved excerpt — through the same `?note=`
+  // routing every other opener already uses. Callers that just want the note
+  // pass nothing and behave exactly as before.
+  const openNote = (note, target = null) => {
     setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
+      const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
       // Deep-link params ride along in `prev` when a template create opened
       // this note (setSearchParams' functional prev can be a render stale) —

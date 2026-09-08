@@ -912,7 +912,12 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     expect(screen.getByText('margin').tagName).toBe('MARK')
   })
 
-  it('clicking a document result opens its OWNING NOTE (v1 scope — the member reaches the PDF preview from there)', () => {
+  // ⚰️ THIS TEST USED TO ASSERT THE v1 LIMITATION. Wave I deliberately scoped
+  // navigation to "open the owning note; the member finds the PDF from there",
+  // and the test recorded that as a requirement. Wave M closed the gap, so the
+  // INTENT is kept — clicking a document hit opens the right note — and the
+  // MECHANISM is updated: it now also carries the page the result named.
+  it('clicking a document result opens its owning note AND targets the page it named', () => {
     useDocumentSearchMock.mockReturnValue({
       results: [{
         documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
@@ -927,7 +932,10 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
     settle()
     fireEvent.click(screen.getByText('deck.pdf · p.3'))
-    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 3, depth: 'page' }),
+    )
   })
 
   it('shows an honest "Searching documents…" state while a document query is in flight', () => {
@@ -1013,7 +1021,8 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
   })
 
-  it('clicking an excerpt result opens its owning note', () => {
+  // Same v1→Wave M transition as the document test above.
+  it('clicking an excerpt result opens its owning note AND targets the excerpt', () => {
     useExcerptSearchMock.mockReturnValue({
       results: [{
         excerptId: 'e1', noteId: 'n7', noteTitle: 'NVDA thesis', documentId: 'd1',
@@ -1029,7 +1038,10 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
     settle()
     fireEvent.click(screen.getByText('deck.pdf · p.4'))
-    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', excerptId: 'e1', depth: 'excerpt' }),
+    )
   })
 
   it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
@@ -1152,5 +1164,103 @@ describe('Saved Views sidebar section (Wave E)', () => {
     fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
     expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ a search hit says what it IS (Wave M §8)', () => {
+  // ⚰️ THE DEFECT, measured on the running product 2026-09-08. A captured web
+  // source is stored as a document whose passages are page rows, so the SECOND
+  // passage clipped from one Reuters article has page_number 2 — and both
+  // sections rendered "· p.2". There is no page 2. There is no page 1. It is a
+  // web article the member quoted twice, and a page number asserts a paginated
+  // document exists behind it.
+  const webPage = {
+    documentId: 'd1', pageNumber: 2, snippet: 'customer <mark>concentration</mark> rose',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+  const pdfPage = {
+    documentId: 'd2', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+
+  const openSearch = () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'),
+                     { target: { value: 'concentration' } })
+  }
+
+  it('a captured web passage is NOT rendered as a page', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [webPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Captured passage/i)).toBeInTheDocument()
+    expect(screen.getByText(/reuters\.com/i)).toBeInTheDocument()
+  })
+
+  it('⭐ CONTROL: a real document still shows its page', () => {
+    // Without this, the assertion above would pass on a sidebar that stopped
+    // rendering page numbers for everything.
+    useDocumentSearchMock.mockReturnValue({ results: [pdfPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeInTheDocument()
+  })
+
+  it('a saved excerpt from a web capture reads as a saved passage, not p.N', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{ excerptId: 'e1', snippet: 'x', noteId: 'n1', noteTitle: 'NVDA research',
+                  documentId: 'd1', documentName: 'Reuters: NVDA margins', pageNumber: 2,
+                  sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda' }],
+      isLoading: false, error: null,
+    })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Saved passage/i)).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/§6)', () => {
+  // ⛔ §6: proving the row CARRIES documentId/pageNumber is not the test. The
+  // member action has to arrive somewhere. These assert what `onOpenNote`
+  // actually receives, and the mutation that reverts it to a bare note open is
+  // what proves they can fail.
+  const pdfPage = {
+    documentId: 'd1', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+  const webPage = {
+    documentId: 'd2', pageNumber: 2, snippet: 'customer <mark>concentration</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+
+  const openAndClick = (results, query) => {
+    const onOpenNote = vi.fn()
+    useDocumentSearchMock.mockReturnValue({ results, isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'), { target: { value: query } })
+    fireEvent.click(screen.getByText(new RegExp(query, 'i')).closest('button'))
+    return onOpenNote
+  }
+
+  it('a PDF page hit navigates to that PAGE, not just the note', () => {
+    const onOpenNote = openAndClick([pdfPage], 'margin')
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 47, depth: 'page' }),
+    )
+  })
+
+  it('⛔ a WEB capture navigates to the note and claims no page', () => {
+    const onOpenNote = openAndClick([webPage], 'concentration')
+    const target = onOpenNote.mock.calls[0][1]
+    expect(target).toEqual({ noteId: 'n1', depth: 'note' })
+    expect(target.page).toBeUndefined()
   })
 })
