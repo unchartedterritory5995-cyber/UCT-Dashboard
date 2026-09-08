@@ -44,6 +44,7 @@ import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS } from "./optionsFlow/flowParts";
 import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
 import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
+import { traceDataset, markFirstContent } from "./optionsFlow/flowKeyTrace";
 import { applyErOverlay } from "./optionsFlow/flowSearchProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
@@ -1300,6 +1301,11 @@ export default function OptionsFlowDashboard() {
     return applyErOverlay(base, erSoonSet);
   }, [selectedTicker, searchFull, erSoonSet]);
 
+  // Mark the moment the page has a real dataset, so the key trace can split
+  // reads into "needed for first paint" and "needed after it". The PAGE says
+  // when, not a timer — a fixed cutoff would classify keys by network luck.
+  useEffect(() => { if (D) markFirstContent(); }, [D]);
+
   // Auto-set dateFilter when data loads
   useEffect(() => {
     if (availableDates.length > 0 && dateFilter !== "All" && !dateFilter.startsWith("Last") && !availableDates.includes(dateFilter)) {
@@ -1362,7 +1368,7 @@ export default function OptionsFlowDashboard() {
       _processedOnce.current = true;
       _processedViewKey.current = snapshotKey(csvFile) + "|"
         + processedKey(dateFilter, dateFrom, dateTo);
-      setD(res.D);
+      setD(traceDataset(res.D));
     };
 
     // Coalesce the INITIAL load into ONE pass. The live delta-merge splices
@@ -1566,7 +1572,7 @@ export default function OptionsFlowDashboard() {
         console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
         _prehydrated.current = true;   // the budget firstPassWaitMs spends
-        setD(pre.D);
+        setD(traceDataset(pre.D));
         // ── the date-range picker's calendar ────────────────────────────────
         // `availableDates` is normally derived by PARSING THE TAPE. Defer that
         // download and it stays empty — and the picker gates itself off on
@@ -1822,7 +1828,9 @@ export default function OptionsFlowDashboard() {
       .then(res => {
         if (cancelled || !res || !res.D) return;
         // Merge, never replace: `D` already holds bootstrap and possibly more.
-        setD(prev => (prev ? { ...prev, ...res.D } : prev));
+        // `.__raw` unwraps the trace Proxy first: spreading it would read every
+        // key and the trace would claim first paint needs the whole dataset.
+        setD(prev => (prev ? traceDataset({ ...(prev.__raw || prev), ...res.D }) : prev));
       })
       .catch(() => {});
     return () => { cancelled = true; };
