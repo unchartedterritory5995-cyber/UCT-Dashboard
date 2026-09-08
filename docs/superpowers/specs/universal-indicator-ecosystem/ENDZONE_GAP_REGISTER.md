@@ -974,3 +974,77 @@ Option B, arriving as accreted special cases instead of a design. The decision i
 columnar graph (kept — 2.7× faster on what it can express, cross-kernel verified)
 for pure expressions, and a bounded bar-by-bar runtime for everything imperative,
 emitting into C3B's object program. **Phase 2 requires owner authorization.**
+
+---
+
+# PART L — 2D-2: real Pine source reaches the runtime (2026-09-08)
+
+Evidence: `PINE_LANGUAGE_RUNTIME_COMPLETION_MATRIX.md`,
+`PHASE2_RUNTIME_ARCHITECTURE.md`. Instrument:
+`ast/runtimeFrontendCoverage.test.js`.
+
+### L1 — ⭐⭐ 27 REAL SCRIPTS NOW EXECUTE THROUGH SOURCE → IR → BAR LOOP
+
+blind 19/48 · community 5/30 · curated 3/21 · OOS-1 0/60. And where both lanes
+describe the indicator they AGREE, paired output-for-output at 1e-9: 18/19, 5/5,
+3/3. Acceptance in the shipped product is unchanged and that is by design (§48) —
+the runtime lane is not wired to the chart or the screener.
+
+### L2 — ⭐⭐ ALL TEN STATE-BLOCKED OOS SCRIPTS ADVANCED PAST STATE
+
+The transition §54 asked for. Six now stop at `runtime:function`, one at
+`runtime:call-with-state`, two at `pine:text-value`, one at `pine:statement`.
+**`pine:state` and `pine:reassign` are no longer the wall for any of them.**
+
+### L3 — ⭐⭐ UDFs ARE THE WALL, BY 2.5× OVER THE NEXT FAMILY
+
+Next-dependency census on the frozen 60: `runtime:function` **18** ·
+`runtime:call-with-state` 7 · `runtime:presentation` 5 · `pine:text-value` 5 ·
+`pine:character` 4 · `pine:block` 4 · `pine:collection` 3 · `runtime:udt` 3 ·
+others ≤2. This is the single most useful number the wave produced and it names
+the next subwave.
+
+### L4 — ⚰️ A DIFFERENTIAL THAT COMPARED TWO DIFFERENT THINGS
+
+The first version of the real-source differential took the shipped door's first
+NON-HIDDEN output and compared it to the runtime's first SOURCE-ORDER output. On
+`02-wavetrend-oscillator-lazybear` that is output 5 against output 0, and it
+reported `worst: 54` as a runtime defect. **The rail was wrong, not the runtime.**
+⛔ It now requires the output ROSTERS to match before comparing anything, and
+compares index-for-index. A differential that compares two different things is
+worse than none: it manufactures findings, and by the time a real one arrives it
+has taught everyone to discount them.
+
+### L5 — 🔴 OPEN: ONE GENUINE LANE DIVERGENCE, PENDING A VENDOR PIN
+
+`recency-pullback-down-streak` (blind). The shipped door rewrites `downRun >= 3`
+into `close < close[1] && (close < close[1])[1] && (close < close[1])[2]`; on bars
+0-1 the `[2]` term reads before history exists, and this engine's `logical`
+PROPAGATES `na`, so the plot is `na`. The runtime keeps the real counter — `close
+< na` is 0 (`cmp` answers 0), so `downRun` is 0 and the plot is 0.
+⛔ **BOTH LANES ARE INTERNALLY CONSISTENT AND THE TIE IS PINE'S TO BREAK.** Pine
+documents comparison against `na` as false, which would make the runtime right and
+put a two-bar warm-up difference into every script using the bounded run-length
+rewrite — but that is a claim about the VENDOR and this wave captured no vendor
+evidence. Exempted BY NAME in the rail, with a second test asserting the exemption
+is still needed so it cannot rot into permanent permission to differ.
+**→ §55 vendor capture programme.**
+
+### L6 — ⚰️ A FAMILY MISCLASSIFICATION THE FIRST MEASUREMENT EXPOSED
+
+The front end initially filed `fill()`, `bgcolor()` and `max_bars_back()` under
+`runtime:expression-statement` — technically true and useless: it put a
+PRESENTATION gap and a COMPILER DIRECTIVE in the row reserved for effectful calls,
+so the completion matrix would have shown work where there is none and hidden work
+where there is. Statement-level calls are now three families:
+`runtime:presentation`, `runtime:directive`, `runtime:expression-statement`.
+
+### L7 — NEW GAPS, NAMED AND NOT FIXED
+
+| id | family | statement |
+|---|---|---|
+| **L7.1** | RUNTIME / FUNCTIONS | `runtime:function` — 18 of 60. Call frames with per-CALL-SITE persistent slots (Pine's function-local `var` persists per call site, not per function). The next subwave. |
+| **L7.2** | RUNTIME / SERIES BRIDGE | `runtime:call-with-state` — 7 of 60. A windowed builtin fed by a mutable variable. Distinct from state support and separately schedulable. |
+| **L7.3** | RUNTIME / HISTORY | `runtime:history-variable` — `x[1]` over a slot. Refused, never approximated: reading the slot's current value is silently one bar wrong on every bar. Integration point is the slot table, whose identity is already stable. |
+| **L7.4** | RUNTIME / PERSISTENCE | A runtime program is **not persisted at all** yet. No artifact version, no save/reopen journey. Legacy V1/V2 documents are untouched and unmigrated, so nothing is at risk — but §42's journey is NOT done and is not claimed. |
+| **L7.5** | FRONT END / DIAGNOSTICS | `pine:character` on `^` and on `f(...).field` is still mischaracterised (PART K, K7.1). 2D-2 did not fix it: the new front end reuses the same lexer, so those 4 OOS scripts still meet the same wrong message. Investigated and located; correcting the character class is its own change with its own blast radius. |

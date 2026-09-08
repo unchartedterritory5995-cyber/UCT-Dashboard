@@ -1662,7 +1662,7 @@ const danglesIntoNextLine = (tok) => {
  * ⚠️ `else` IS A SEPARATE STATEMENT AT THE SAME INDENT, not part of the `if`.
  * Pine writes it that way and so does this; `ifBranches` re-joins them.
  */
-function blockStatements(toks, indents, indent) {
+export function blockStatements(toks, indents, indent) {
   const out = []
   let i = 0
   while (i < toks.length) {
@@ -1745,7 +1745,7 @@ function blockStatements(toks, indents, indent) {
   return out
 }
 
-const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
+export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
 
 /** Is this token run `… name = expression`, i.e. one binding?
  *
@@ -2427,7 +2427,7 @@ export function forgetsItsSeed(node, table, warmup) {
   return ok(node, false)
 }
 
-function findTop(toks, pred) {
+export function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
     const tok = toks[i]
@@ -2513,7 +2513,7 @@ function spanOfNode(node) {
   return lo !== Infinity && lo < hi ? [lo, hi] : null
 }
 
-const locate = (tok) => (tok
+export const locate = (tok) => (tok
   ? { line: tok.line, column: tok.column, index: tok.index, token: String(tok.raw ?? tok.value) }
   : null)
 
@@ -3136,7 +3136,7 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
-function parseWholeExpression(toks) {
+export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
   const rest = cur.peek()
@@ -3721,7 +3721,7 @@ const MAX_CALL_DEPTH = 24
  *  refusal path already handles every kind this set does not name. */
 const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float', 'bool']))
 
-class Resolver {
+export class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
     /** The member's own script, when the caller passed it — an offer quotes
@@ -6860,7 +6860,7 @@ function reassignedNames(tokens) {
 /** The name a declaration binds — the identifier immediately before the `=`,
  *  unless that identifier is one of Pine's type words (`float x = 0.0`, where the
  *  walk-back has already passed `x`). */
-function boundName(toks, eqIndex) {
+export function boundName(toks, eqIndex) {
   const tok = toks[eqIndex - 1]
   if (!tok || tok.kind !== 'ident' || TYPE_WORDS.has(tok.value)) return null
   return tok
