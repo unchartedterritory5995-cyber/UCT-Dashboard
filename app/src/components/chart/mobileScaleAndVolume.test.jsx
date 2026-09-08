@@ -27,7 +27,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import bars200 from '../../pages/parityBars/ramp200.json'
-import { legendTextOf } from './engine/__tests__/legendProbe'
+import { legendTextOf, settledLegend } from './engine/__tests__/legendProbe'
 import { __resetCoarsePointerForTest } from './coarsePointer'
 
 const PLOT = { width: 800, height: 400 }
@@ -403,16 +403,44 @@ const eventAt = ({ close = 1.5, volume = 2_000_000 } = {}) => {
   return { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
 }
 
-const pump = async (fn) => {
+/* ⛔ NEVER A FIXED SLEEP BUDGET — THE LEGEND COALESCES THROUGH rAF.
+ * `StockChart`'s crosshair handler parks the param on a ref and schedules ONE
+ * `requestAnimationFrame` flush, so the legend updates a FRAME LATER than the
+ * event. A helper that delivers on a 12x20ms timer and then asserts is racing
+ * that frame against a loaded fork, and this suite lost it: three cases here
+ * (`$ Vol tracks the bar`, `an UNAVAILABLE average`, `an UNAVAILABLE volume`)
+ * read the OFF-hover fallback during a full `components/chart` run while every
+ * one of them passed alone.
+ *
+ * ⭐ THE FIX ALREADY EXISTED, AND THIS FILE ALREADY IMPORTED HALF OF IT. It
+ * took `legendTextOf` from `legendProbe` and left `settledLegend` — the poll-to-
+ * stability half, written for this exact defect — behind. Now it takes both.
+ *
+ * ⛔ THE PREDICATE HAS TO DISCRIMINATE. `L 0.5` is `eventAt`'s synthetic low
+ * and appears in no real bar of the fixture; `/O\s*1/` would also match the
+ * off-hover row `O 114.73` and settle on the state this is trying to leave. */
+const HOVERED = /L\s*0\.5/
+const hover = (view, opts) => settledLegend(view, eventAt(opts), H.crosshairHandlers, HOVERED)
+
+/** Deliver the hover and require the legend to STAY ABSENT.
+ *
+ * ⛔ `settledLegend` cannot express this and must not be bent into it. Its rule
+ * is "two identical reads that satisfy the predicate", and an empty read
+ * satisfies an empty predicate IMMEDIATELY — it would return before the legend
+ * had any chance to appear, which is the one thing this case exists to catch. A
+ * fixed number of deliveries is the right instrument here precisely because the
+ * expected outcome is NO CHANGE: nothing is being waited for, so nothing can be
+ * read too early. */
+const hoverExpectingNoLegend = async (view, opts) => {
   for (let i = 0; i < 12; i++) {
-    // Sequential: each pass must observe the DOM the previous one settled into.
     // eslint-disable-next-line no-await-in-loop
-    await act(async () => { fn(); await new Promise(r => setTimeout(r, 20)) })
+    await act(async () => {
+      for (const fn of [...H.crosshairHandlers]) fn(eventAt(opts))
+      await new Promise(r => setTimeout(r, 20))
+    })
   }
+  return legendTextOf(view)
 }
-const hover = (opts) => pump(() => {
-  for (const fn of [...H.crosshairHandlers]) fn(eventAt(opts))
-})
 
 /** The desktop volume-pane strip, which must keep working untouched. */
 const volStripText = (view) => {
@@ -436,7 +464,7 @@ const fmtVolume = (v) => (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v 
 describe("MOB-06′ #2 — dollar volume and average volume reach the phone", () => {
   it('CONTROL · hovering draws the legend, and Vol is in it', async () => {
     const view = draw()
-    await hover()
+    await hover(view)
     expect(legendTextOf(view), 'the legend never drew — every case below would pass vacuously')
       .toMatch(/O\s*1/)
     expect(legendTextOf(view)).toMatch(/V\s*2\.0M/)
@@ -444,7 +472,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
 
   it('$ Vol is in the legend, and it is volume × close', async () => {
     const view = draw()
-    await hover({ close: 1.5, volume: 2_000_000 })
+    await hover(view, { close: 1.5, volume: 2_000_000 })
     // 2,000,000 × 1.5 = $3.0M, through the shipped formatter.
     expect(legendTextOf(view)).toContain('$ Vol')
     expect(legendTextOf(view)).toContain('$3.0M')
@@ -453,13 +481,13 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
   it('$ Vol tracks the bar — a different bar gives a different number', async () => {
     // Guards the "renders a constant" failure an equality check alone cannot see.
     const view = draw()
-    await hover({ close: 10, volume: 4_000_000 })
+    await hover(view, { close: 10, volume: 4_000_000 })
     expect(legendTextOf(view)).toContain('$40.0M')
   })
 
   it('Avg 50D is in the legend, and it is the real moving average', async () => {
     const view = draw()
-    await hover()
+    await hover(view)
     const text = legendTextOf(view)
     expect(text).toContain('Avg 50D')
     expect(text, 'the Avg row is not the volume MA the chart draws')
@@ -468,7 +496,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
 
   it('the Avg row names the CONFIGURED period, not a hard-coded 50', async () => {
     const view = draw({ settings: { volume: { maPeriod: 20 } } })
-    await hover()
+    await hover(view)
     const text = legendTextOf(view)
     expect(text).toContain('Avg 20D')
     expect(text).toContain(fmtVolume(meanOfLastVolumes(20)))
@@ -479,7 +507,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     // maPeriod 1 makes the MA uncomputable (the memo bails under 2), so the datum
     // is genuinely absent. The row must vanish while its neighbours stay.
     const view = draw({ settings: { volume: { maPeriod: 1 } } })
-    await hover()
+    await hover(view)
     const text = legendTextOf(view)
     expect(text, 'an absent average was rendered as a number').not.toMatch(/Avg\s*\d/)
     expect(text, 'a metric that IS available was dropped with the one that is not').toContain('$ Vol')
@@ -490,7 +518,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     // The guards are independent per metric, so absence propagates exactly as far
     // as the missing datum and no further.
     const view = draw()
-    await hover({ close: 1.5, volume: null })
+    await hover(view, { close: 1.5, volume: null })
     const text = legendTextOf(view)
     expect(text, 'dollar volume was computed from a volume that does not exist').not.toContain('$ Vol')
     expect(text, 'the OHLC half of the legend went down with the volume half').toMatch(/O\s*1/)
@@ -502,7 +530,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     // forcing a new fixed-width surface. The PIXEL half cannot be measured in
     // jsdom (no layout engine) and is on the device-validation list.
     const view = draw()
-    await hover()
+    await hover(view)
     const leg = legendEl(view)
     expect(leg, 'no legend element').toBeTruthy()
     const labels = [...leg.children].map(el => (el.textContent || '').trim())
@@ -515,7 +543,7 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
     // the V row must NOT carry it, or the metric that already worked everywhere
     // would become phone-only too.
     const view = draw()
-    await hover()
+    await hover(view)
     const leg = legendEl(view)
     const byText = (re) => [...leg.children].find(el => re.test((el.textContent || '').trim()))
     expect(byText(/^\$ Vol/).className, '$ Vol is not marked for the phone-only rule').toMatch(/volXtra/)
@@ -526,13 +554,12 @@ describe("MOB-06′ #2 — dollar volume and average volume reach the phone", ()
   it('they are CONTEXTUAL — no crosshair, no rows', async () => {
     // The decision was explicitly not to restore permanent chart furniture.
     const view = draw({ legendMode: 'off' })
-    await hover()
-    expect(legendTextOf(view)).toBe('')
+    expect(await hoverExpectingNoLegend(view)).toBe('')
   })
 
   it('DESKTOP UNCHANGED · the volume-pane strip still carries both numbers', async () => {
     const view = draw({ volumeSeparatePane: true })
-    await hover()
+    await hover(view)
     const strip = volStripText(view)
     expect(strip, 'the desktop strip stopped rendering — this repair was additive').toContain('$ Vol')
     expect(strip).toContain('Avg 50D')

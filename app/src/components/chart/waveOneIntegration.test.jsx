@@ -21,6 +21,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import bars200 from '../../pages/parityBars/ramp200.json'
+import { settledLegend, legendTextOf } from './engine/__tests__/legendProbe'
 
 const PLOT = { width: 800, height: 400 }
 const AXIS_W = 60
@@ -212,17 +213,29 @@ const eventAt = ({ close = 1.5, volume = 2_000_000 } = {}) => {
   if (vol && volume != null) seriesData.set(vol.series, { value: volume })
   return { time: BARS.at(-1).t, point: { x: 100, y: 100 }, logical: BARS.length - 1, seriesData }
 }
-const pump = async (fn) => {
-  for (let i = 0; i < 12; i++) {
-    // eslint-disable-next-line no-await-in-loop
-    await act(async () => { fn(); await new Promise((r) => setTimeout(r, 20)) })
-  }
-}
-const hover = (opts) => pump(() => { for (const fn of [...H.crosshairHandlers]) fn(eventAt(opts)) })
-const legendText = (view) => {
-  const o = [...view.container.querySelectorAll('span')].find((s) => /^O\s/.test(s.textContent || ''))
-  return o && o.parentElement ? o.parentElement.textContent.replace(/\s+/g, ' ').trim() : ''
-}
+/* ⛔ NEVER A FIXED SLEEP BUDGET — THE LEGEND COALESCES THROUGH rAF.
+ * `StockChart`'s crosshair handler does not render. It parks the param on a ref
+ * and schedules ONE `requestAnimationFrame` flush, so the legend updates a FRAME
+ * LATER than the event that caused it. A helper that delivers on a 12x20ms timer
+ * and then asserts is racing that frame against a loaded fork, and this suite
+ * lost that race: `one hover produces every readout at once` read the OFF-hover
+ * fallback (the fixture's real `O 114.73`, not the synthetic 1/2/0.5/1.5) during
+ * a full `components/chart` run while passing alone.
+ *
+ * ⭐ AND THE FIX ALREADY EXISTED IN THIS REPO. `legendProbe.js::settledLegend`
+ * polls to two identical reads and was written for exactly this defect — its
+ * lesson 1 is "NEVER `setTimeout(40)` AND COMPARE", recorded after the same
+ * failure in `stockChartWiring`. This suite re-implemented the read instead of
+ * importing it, and inherited the bug the helper exists to prevent.
+ *
+ * ⛔ THE PREDICATE HAS TO DISCRIMINATE, OR THE POLL SETTLES ON THE WRONG STATE.
+ * `LEGEND_RENDERED` (/O\s*1/) also matches the off-hover row `O 114.73` — it
+ * answers "did a legend draw", not "did MY hover land". `L 0.5` is `eventAt`'s
+ * synthetic low and appears in no real bar of the fixture, so it is the one
+ * token that separates the two. */
+const HOVERED = /L\s*0\.5/
+const hover = (view, opts) => settledLegend(view, eventAt(opts), H.crosshairHandlers, HOVERED)
+const legendText = (view) => legendTextOf(view).replace(/\s+/g, ' ').trim()
 
 // ─── 1-4 · THE FOUR SCALE CONTROLS, AND THE PAIRS THAT BROKE ────────────────
 
@@ -327,7 +340,7 @@ describe('the long-press context sheets — a verified UCT advantage, still inta
 describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER', () => {
   it('one hover produces every readout at once', async () => {
     const v = mountChart()
-    await hover({ close: 1.5, volume: 2_000_000 })
+    await hover(v, { close: 1.5, volume: 2_000_000 })
     const t = legendText(v)
     expect(t, 'OHLC missing').toMatch(/O\s*1.*H\s*2.*L\s*0\.5.*C\s*1\.5/)
     expect(t, 'Vol missing').toMatch(/V\s*2\.0M/)
@@ -342,22 +355,23 @@ describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER',
     // rather than merged would blank the volume rows, and no isolated suite for
     // either feature would see it.
     const v = mountChart()
-    await hover()
+    await hover(v)
     expect(legendText(v)).toContain('$ Vol')
     act(() => { rowOf(scaleSec(), 'p-pct').onSelect() })
-    await hover()
+    await hover(v)
     const t = legendText(v)
     expect(t, 'the volume rows vanished after a scale change').toContain('$ Vol')
     expect(t).toContain('Avg 50D')
-    // ⛔ THE ROW, NOT THE NUMBER — and the distinction is why this went red in
-    // company while passing alone. This test's subject is SURVIVAL: does a scale
-    // write blank the volume rows? The legend legitimately falls back to the
-    // DEVELOPING bar's own volume (a documented behaviour), so under load it can
-    // show the fixture's real 2.6M instead of `eventAt`'s synthetic 2.0M — a
-    // correct, complete readout failing an assertion about which bar was hovered.
-    // The exact synthetic values are owned by 'one hover produces every readout
-    // at once' above, which is the test whose subject they actually are.
-    expect(t, 'the V row lost its number').toMatch(/V\s*\d[\d.]*[KM]?/)
+    // ⛔ RESTORED, AND THE REASON IT WAS OPENED IS GONE. This asserted `V 2.0M`
+    // until it went red in company and was widened to "some number" on the
+    // reading that the legend had legitimately fallen back to the DEVELOPING
+    // bar. That was the symptom: the fallback is what the legend shows when the
+    // hover has NOT landed, and the hover had not landed because the old fixed
+    // sleep budget beat the rAF flush. With `settledLegend` the read cannot be
+    // taken before the hover lands, so the synthetic volume is assertable again
+    // — and a rail that accepts any number cannot tell a scale write that blanks
+    // the rows from one that silently swaps which bar is being read.
+    expect(t, 'the V row lost the hovered bar’s number').toMatch(/V\s*2\.0M/)
   })
 
   it('crosshair + LONG indicator names — nothing is dropped when labels grow', async () => {
@@ -368,7 +382,7 @@ describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER',
         { type: 'EMA', period: 21, enabled: true, color: '#4af' },
       ] },
     })
-    await hover()
+    await hover(v)
     const t = legendText(v)
     expect(t).toContain('$ Vol')
     expect(t).toContain('Avg 50D')
@@ -377,7 +391,7 @@ describe('crosshair — OHLC, Vol, $ Vol, Avg ND and indicator values TOGETHER',
 
   it('crosshair + an unavailable metric — the others survive', async () => {
     const v = mountChart({ settings: { volume: { maPeriod: 1 } } })
-    await hover()
+    await hover(v)
     const t = legendText(v)
     expect(t, 'an absent average printed a number').not.toMatch(/Avg\s*\d/)
     expect(t, 'a present metric was dropped with the absent one').toContain('$ Vol')
@@ -486,7 +500,7 @@ describe('desktop behaviour is unchanged by every phone repair', () => {
 
   it('the volume-pane strip still carries both numbers on desktop', async () => {
     const v = mountChart({ volumeSeparatePane: true })
-    await hover()
+    await hover(v)
     const strip = v.container.querySelector('[class*="volLegend" i]')
     expect(strip, 'the desktop strip stopped rendering').toBeTruthy()
     expect(strip.textContent).toContain('$ Vol')
@@ -498,7 +512,7 @@ describe('desktop behaviour is unchanged by every phone repair', () => {
     // DOM both are present; that is by design and is what makes the CSS rail the
     // authority rather than a second JS opinion.
     const v = mountChart({ volumeSeparatePane: true })
-    await hover()
+    await hover(v)
     expect(v.container.querySelectorAll('[class*="volXtra"]')).toHaveLength(2)
     expect(v.container.querySelector('[class*="volLegend" i]')).toBeTruthy()
   })
