@@ -477,6 +477,37 @@ export function buildRuntimeIr(source, opts = {}) {
     return h
   }
 
+  /** ⭐⭐⭐ THE SAME ALLOCATION, ONE FRAME DOWN — and the index it returns is
+   *  FRAME-RELATIVE.
+   *
+   *  A function's history-bearing locals are numbered within the FUNCTION, not
+   *  globally, because the same compiled body runs at every call site. The
+   *  runtime adds the site's `historyBase` (allocated after the walk, exactly as
+   *  `persistBase` already is), so `f(1)` and `f(10)` get separate rings for the
+   *  same source variable — which is the 2E rule extended from live persistent
+   *  state to committed history.
+   *
+   *  ⛔ KEYED BY THE **DECLARATION**, never by the name. Two `x`es in sibling
+   *  blocks of one function are two slots, and giving them one ring would let a
+   *  branch that never ran answer for one that did. */
+  const fnHistorySlotFor = (fnIndex, varSlot, back, at) => {
+    const fn = functions[fnIndex]
+    if (!fn.historyLocals) { fn.historyLocals = []; fn.historyByVarSlot = new Map() }
+    let h = fn.historyByVarSlot.get(varSlot)
+    if (h === undefined) {
+      h = fn.historyLocals.length
+      fn.historyLocals.push({ name: slots[varSlot].name, varSlot, depth: back })
+      fn.historyByVarSlot.set(varSlot, h)
+    } else if (back > fn.historyLocals[h].depth) {
+      fn.historyLocals[h].depth = back
+    }
+    if (fn.historyLocals.length > MAX_HISTORY_SLOTS) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${fn.name}\` keeps history for more than ${MAX_HISTORY_SLOTS} values`, at)
+    }
+    return h
+  }
+
 
   /** ⭐ WHICH builtin-with-state family a call belongs to.
    *
@@ -588,23 +619,17 @@ export function buildRuntimeIr(source, opts = {}) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
           }
-          // ⛔⛔ FUNCTION-LOCAL HISTORY IS REFUSED, AND NOT MERELY BECAUSE IT IS
-          // UNBUILT. A ring keyed by frame index alone would have the commit
-          // phase read the MAIN frame's slot of the same number — a different
-          // variable, committed under this one's name. It needs the per-call-site
-          // base persistent state already has (§23), and Pine's answer for a call
-          // site SKIPPED on a bar is not vendor-pinned (§25). Two open questions,
-          // one refusal, both named.
-          if (owner !== null) {
-            note('runtime:history-function-local')
-            throw new RuntimeRefusal('runtime:history-function-local',
-              `\`${node.arg.name}\` in \`${functions[owner].name}\``, at)
-          }
           const back = foldOffset(node.n, at)
           // ⭐ `x[0]` IS `x`. Pine says so, and routing it through the ring would
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
+          // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
+          // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
+          // FRAME-RELATIVE, exactly like a persist slot: the runtime adds the call
+          // site's `historyBase`, so one compiled body serves every site and two
+          // sites can never share a ring.
+          if (owner !== null) return histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back)
           return histSlot(varSlot, historySlotFor(varSlot, back, at), back)
         }
         const back = Number(node.n)
@@ -1006,6 +1031,41 @@ export function buildRuntimeIr(source, opts = {}) {
     }
   }
 
+  // ⭐⭐⭐ P7.2 — AND THE HISTORY RINGS ARE ALLOCATED THE SAME WAY, for the same
+  // reason. The main program's entries occupy the bottom of the table; each call
+  // site then takes a block sized to its function's history-bearing locals. One
+  // compiled body, one ring per SITE.
+  //
+  // ⛔⛔ THE ENTRY CARRIES ITS `site`, AND THAT IS WHAT THE COMMIT PHASE READS.
+  // TradingView's ruling (fixture `skipped-callsite-history-spy-1d-2026-09-08`)
+  // is that a function-local series is indexed by CHART BAR and HOLDS its value
+  // across bars where the call site does not run — so the ring must be committed
+  // every bar from a HELD cell the invocation writes, not from a frame local that
+  // no longer exists. An entry that did not know its site could not have one.
+  {
+    let hbase = history.length
+    for (const cs of callSites) {
+      const fn = functions[cs.fn]
+      const locals = fn.historyLocals || []
+      cs.historyBase = hbase
+      for (const h of locals) {
+        history.push({ name: `${fn.name}.${h.name}`, varSlot: h.varSlot, depth: h.depth, site: callSites.indexOf(cs) })
+      }
+      hbase += locals.length
+    }
+    for (const fn of functions) {
+      fn.historyCount = (fn.historyLocals || []).length
+      // the frame slots the RET hand-off copies from, in history-index order
+      fn.historySlots = (fn.historyLocals || []).map((h) => h.varSlot)
+      delete fn.historyLocals
+      delete fn.historyByVarSlot
+    }
+    if (history.length > MAX_HISTORY_SLOTS) {
+      return fail(new RuntimeRefusal('runtime:statement',
+        `this script keeps history for more than ${MAX_HISTORY_SLOTS} values across all call sites`, null), diagnostics)
+    }
+  }
+
   if (!outputs.length) {
     return fail(new RuntimeRefusal('runtime:no-output', null, null), diagnostics)
   }
@@ -1024,6 +1084,7 @@ export function buildRuntimeIr(source, opts = {}) {
         name: f.name, params: f.params, frameSize: f.frameSize,
         persistCount: f.persistCount, body: f.body, result: f.result,
         effects: f.effects, at: f.at,
+        historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
       })),
       callSites,
       history,

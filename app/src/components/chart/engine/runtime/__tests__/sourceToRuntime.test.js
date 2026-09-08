@@ -195,7 +195,12 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // `call-with-state` and 2F-1 split the residue after it.
     ['history over an EXPRESSION with state', `${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`, 'runtime:history-expression'],
     ['a history offset only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`, 'runtime:history-dynamic-offset'],
-    ['history over a FUNCTION-LOCAL value', `${head}f(v) =>\n    var c = 0.0\n    c := c + v\n    c[1]\nplot(f(1))\n`, 'runtime:history-function-local'],
+    // ⚰️ `history over a FUNCTION-LOCAL value → runtime:history-function-local`
+    // LIVED HERE UNTIL P7.2, which builds it (per-call-site rings, vendor-pinned
+    // skipped-call semantics). What replaces it is the part of the family that is
+    // still genuinely unbuilt: history over an ARBITRARY EXPRESSION inside a
+    // frame, which needs its own committed series exactly as it does at top level.
+    ['history over an expression INSIDE a function', `${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`, 'runtime:history-expression'],
     // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
     // population under that one label was three capabilities — a POINTWISE
     // builtin applied to a value, a WINDOWED one that needs a growing series, and

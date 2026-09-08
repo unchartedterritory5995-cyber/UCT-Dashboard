@@ -138,6 +138,22 @@ export function execute(program, ctx, limits) {
   const hist = new Float64Array(histTotal).fill(NaN)
   // How many bars have been committed, so a ring position is `(committed - k) % depth`.
   let committed = 0
+
+  // ⭐⭐⭐ P7.2 — THE HELD CELL, AND IT IS TRADINGVIEW'S RULING IN ONE ARRAY.
+  //
+  // A function-local series belongs to a CALL SITE, and its frame local does not
+  // exist between invocations. So the value a site will contribute to this bar is
+  // stashed here when the call RETURNS, and the end-of-bar phase commits from
+  // here rather than from a frame that has gone.
+  //
+  // ⛔⛔ AND A SKIPPED CALL RE-COMMITS WHAT IT HELD. Vendor-pinned v5 and v6
+  // (`skipped-callsite-history-spy-1d-2026-09-08`): with a call site firing every
+  // third bar, `v[1] = v[2] = v[3] = A-3` and `v[4] = A-6` — the series is
+  // indexed by CHART BAR and HOLDS across the bars the site did not run. Not
+  // per-invocation (that gives `A-6` at `v[2]`), not clamped (that gives `A-3` at
+  // `v[4]`), not blank. Because `held` is simply not overwritten on a skipped
+  // bar, holding is what this array does by construction rather than by a rule.
+  const held = new Float64Array(histTotal ? nHist : 1).fill(NaN)
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
   // The reasoning for it was good and is the `var float x = na` lesson: a
@@ -164,6 +180,8 @@ export function execute(program, ctx, limits) {
   const frLocalsBase = new Int32Array(depthLimit + 1)
   const frLocalsTop = new Int32Array(depthLimit + 1)
   const frPersistBase = new Int32Array(depthLimit + 1)
+  const frHistoryBase = new Int32Array(depthLimit + 1)
+  const frFn = new Int32Array(depthLimit + 1)
 
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
@@ -177,6 +195,7 @@ export function execute(program, ctx, limits) {
     let localsBase = 0
     let localsTop = program.locals
     let persistBase = 0
+    let historyBase = 0
     for (;;) {
       const base = pc * 3
       const op = code[base]
@@ -232,8 +251,12 @@ export function execute(program, ctx, limits) {
           // READ_HIST gives a column, and for the same reason: clamping to the
           // earliest bar is how a warm-up silently becomes a real number.
           if (b > committed) { stack[sp++] = NaN; break }
-          const plan = histPlan[a]
-          const cell = histOffset[a] + ((committed - b) % plan.depth)
+          // ⭐ FRAME-RELATIVE, exactly like a persist slot: the main program
+          // reads at base 0 and an invocation reads at its SITE’s base, so one
+          // compiled body serves every call site without sharing a ring.
+          const hi = historyBase + a
+          const plan = histPlan[hi]
+          const cell = histOffset[hi] + ((committed - b) % plan.depth)
           stack[sp++] = hist[cell]
           break
         }
@@ -280,6 +303,9 @@ export function execute(program, ctx, limits) {
           // ⭐⭐ THE PERSISTENT BASE COMES FROM THE CALL SITE, NOT THE FUNCTION.
           // This one line is §6: the code is shared, the `var` state is not.
           persistBase = site.persistBase
+          frFn[depth - 1] = a
+          frHistoryBase[depth - 1] = historyBase
+          historyBase = site.historyBase
           pc = fn.entry
           break
         }
@@ -302,11 +328,26 @@ export function execute(program, ctx, limits) {
         }
         case OP.RET: {
           const value = stack[--sp]
+          // ⭐⭐ P7.2 — THE HAND-OFF. The frame is about to disappear, so
+          // whatever this invocation produced for its history-bearing locals is
+          // stashed in the SITE’s held cells now. The end-of-bar phase commits
+          // from there — which is why a bar on which this site never runs
+          // re-commits the previous value instead of blanking it.
+          {
+            const rf = program.functions[frFn[depth - 1]]
+            const hc = rf.historyCount
+            for (let k = 0; k < hc; k += 1) {
+              held[historyBase + k] = rf.historyPersist[k]
+                ? persist[persistBase + rf.historySlots[k]]
+                : locals[localsBase + rf.historySlots[k]]
+            }
+          }
           depth -= 1
           pc = frRetPc[depth]
           localsBase = frLocalsBase[depth]
           localsTop = frLocalsTop[depth]
           persistBase = frPersistBase[depth]
+          historyBase = frHistoryBase[depth]
           stack[sp++] = value
           break
         }
@@ -370,7 +411,12 @@ export function execute(program, ctx, limits) {
         // ⭐ THE LIVE VALUE IS READ FROM ITS OWN LIFETIME'S ARRAY. A history slot
         // names a `local` or a `persist`; the plan says which, so this never has
         // to guess and a local can never be silently promoted to a `var` (§21).
-        hist[cell] = plan.persist ? persist[plan.slot] : locals[plan.slot]
+        // ⭐ A MAIN series reads its LIVE slot; a call-site series commits what
+        // that site HELD. One loop, two lifetimes, and the branch is the
+        // vendor ruling rather than an optimisation.
+        hist[cell] = plan.site === null
+          ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
+          : held[i]
       }
       committed += 1
     }

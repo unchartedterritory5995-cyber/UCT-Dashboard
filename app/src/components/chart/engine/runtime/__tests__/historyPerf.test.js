@@ -159,7 +159,13 @@ describe('⭐ what runtime history costs', () => {
       const small = at(300, slots)
       const big = at(5000, slots)
       const ratio = big.msWithHistory / small.msWithHistory
-      expect(ratio, `${slots} slots: ${ratio.toFixed(1)}x for 16.7x the bars`).toBeLessThan(40)
+      // ⚠️ GENEROUS ON PURPOSE. This is wall-clock on a shared machine, and the
+      // suite runs 200+ files in parallel — a tight ratio here fails for LOAD, not
+      // for a regression, and a rail that goes red when the laptop is busy gets
+      // muted (`lesson_an_intermittent_red_can_be_a_population_not_a_test`).
+      // Measured quiet: ~5.3x. Quadratic growth would be ~280x, so 120 separates
+      // the two failure modes without being noise-sensitive.
+      expect(ratio, `${slots} slots: ${ratio.toFixed(1)}x for 16.7x the bars`).toBeLessThan(120)
     }
   })
 })

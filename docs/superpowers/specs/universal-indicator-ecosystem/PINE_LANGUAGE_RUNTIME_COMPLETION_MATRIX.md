@@ -1,6 +1,6 @@
 # PINE LANGUAGE + RUNTIME COMPLETION MATRIX
 
-As of C4 Phase 2F-2A-CLOSE + P7.4. Branch `worktree-indicator-ecosystem`.
+As of C4 Phase P7.2 (UDF-local history). Branch `worktree-indicator-ecosystem`.
 
 ⭐⭐ **FIVE LEVELS, NOT ONE WORD (§52).** "LOOP: partial" tells an engineer
 nothing about what is left. These columns do:
@@ -225,11 +225,15 @@ Rows, not a word — the same discipline the UDF table below applies to `UDF ✅
 | INPUT-DERIVED OFFSET | ✅ | folded off the CANONICAL TREE; freezes the input's DEFAULT, matching `pine.js` |
 | RUNTIME-DERIVED OFFSET | ⬜ | `runtime:history-dynamic-offset` — every corpus instance is inside a `for` body |
 | HISTORY OVER AN EXPRESSION | ⬜ | `runtime:history-expression` — `(a+b)[1]` needs its own committed series |
-| UDF-LOCAL HISTORY | ⬜ | `runtime:history-function-local` — 1 script (`curated/02-ict-retracement`) |
-| UDF `var` HISTORY | ⬜ | same refusal; needs the per-call-site ring base |
-| DISTINCT CALL-SITE HISTORY | ⬜ | designed (mirrors `persistBase`), not built |
-| CONDITIONAL UDF HISTORY | ⬜ | §25 — Pine's answer for a SKIPPED call site is not pinned |
-| FINITE WINDOW OVER RUNTIME SERIES | ⬜ | **2F-2B**; `runtime:call-windowed-state`, 11 scripts |
+| UDF-LOCAL HISTORY | ✅ | **P7.2** — a ring per (call site, local). Demand **17 scripts / 82 sites**; first blocker was **1** |
+| UDF PARAMETER HISTORY | ✅ | **P7.2** — the shape 21 of the 24 windowed scripts actually use |
+| UDF `var` HISTORY | ✅ | live persistence and committed history are separate stores, both per site |
+| UDF ORDINARY-LOCAL HISTORY | ✅ | bears history and still resets per invocation — railed, not assumed |
+| NESTED-UDF HISTORY | ✅ | caller and callee rings are disjoint |
+| DISTINCT CALL-SITE HISTORY | ✅ | `historyBase` per site; **mutation-proven** — sharing one ring turns a rail red |
+| CONDITIONAL UDF HISTORY | ✅ | **VENDOR-PINNED v5+v6**: chart-bar indexed, HOLDS across skipped bars |
+| LOOP-INVOKED CALL-SITE HISTORY | ⬜ | the held cell commits the LAST invocation of a bar — the natural reading, **not vendor-pinned** (S6.5) |
+| FINITE WINDOW OVER RUNTIME SERIES | ⬜ | **2F-2B**; `runtime:call-windowed-state`, first blocker 11 / demand 24 |
 | RECURRENT OVER RUNTIME SERIES | ⬜ | **2F-2C**; own initialisation, not a ring |
 | CUMULATIVE OVER RUNTIME SERIES | ⬜ | `cum` is not in the closed table at all — a TABLE gap, not a runtime one |
 | REALTIME / FORMING-BAR HISTORY | ⬜ | the commit counter is the only thing it needs to touch (§27) |

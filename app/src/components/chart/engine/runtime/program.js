@@ -224,14 +224,15 @@ export function validateProgram(p) {
       // `x[5]` against a ring the front end sized for 2 would answer `na` on
       // every bar — a wrong number that looks exactly like a warm-up, forever.
       // Refusing it at the boundary makes it a compiler bug, which is what it is.
-      // ⚠️ THIS BOUND IS EXACT ONLY WHILE HISTORY IS MAIN-PROGRAM-ONLY. Function
-      // -local history is refused by name today (`runtime:history-function-local`),
-      // so every history slot belongs to the main frame and `a` is a global
-      // index. When UDF history lands, `a` becomes frame-relative against a call
-      // site's `historyBase` and this check must loosen exactly the way the
-      // persist bound above already has — deliberately, not by drift.
-      if (a < 0 || a >= p.history.length) {
-        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${p.history.length} history slots`)
+      // ⚠️ P7.2 LOOSENED THIS, DELIBERATELY AND FOR THE SAME REASON THE PERSIST
+      // BOUND ABOVE IS LOOSE. `a` is now FRAME-RELATIVE: the main program reads
+      // at base 0 and an invocation reads at its call site's `historyBase`, so
+      // the exact per-frame bound is a property of the function a pc belongs to,
+      // which the lowering already guarantees by construction. Checking it here
+      // would need a pc→function map, and a wrong one would refuse valid programs.
+      const maxHist = Math.max(p.history.length, 1)
+      if (a < 0 || a >= maxHist) {
+        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${maxHist} history slots`)
       }
       const b2 = p.code[pc * 3 + 2]
       if (!Number.isInteger(b2) || b2 < 1) {
@@ -239,10 +240,15 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT offset ${b2} — history counts whole bars BACKWARDS from 1; `
           + '`x[0]` is the live value and lowers to a slot read, never to this opcode')
       }
-      if (b2 > p.history[a].depth) {
+      // ⛔ THE DEPTH CHECK STAYS EXACT FOR MAIN-FRAME READS, where `a` IS the
+      // entry. A read deeper than its planned ring would answer `na` on every
+      // bar — a wrong number wearing a warm-up's clothes — so where the bound can
+      // be proved it still is.
+      const mainEntry = p.history[a]
+      if (mainEntry && mainEntry.site === null && b2 > mainEntry.depth) {
         throw new ProgramError(
-          `pc ${pc}: READ_HIST_SLOT reads \`${p.history[a].name}\`[${b2}] but its ring was `
-          + `planned for depth ${p.history[a].depth} — the static demand analysis and the `
+          `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
+          + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
           + 'lowering disagree about how far back this program looks')
       }
     }

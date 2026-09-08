@@ -1721,3 +1721,115 @@ Two facts the implementation will have to carry, both already visible:
 ⚠️ **Nothing here is a refusal of the endzone.** All four families are required
 for complete transferability; this is ordering, and the ordering changed because
 the measurement did.
+
+---
+
+# PART S — P7.2: FUNCTION-LOCAL / CALL-SITE HISTORY (2026-09-08)
+
+HEAD at entry `943c53b09`. Engine suite **4,477 passing / 1 failing** (N6,
+pre-existing at HEAD, untouched). Runtime suite **206 passing** (13 files).
+
+### S1 — ⭐⭐⭐ THE VENDOR ANSWERED THE WAVE'S HARDEST QUESTION
+
+Fixture `tests/fixtures/vendor/runtime/skipped-callsite-history-spy-1d-2026-09-08.json`;
+rail `runtime/__tests__/vendorSkippedCallHistory.test.js` (6 tests).
+
+**Question (§17):** what does history mean for a UDF call site that does not run
+on every chart bar? **Five** hypotheses were live, not two.
+
+Probe: one call site inside `if go` with `go = bar_index % 3 == 0`, handed
+`bar_index` so every answer is self-labelling. SPY · NYSE Arca · 1D · 400 rows,
+133 call bars. Identity proved from the model for all three compiles.
+
+| read | vendor | kills |
+|---|---|---|
+| `v[1]` | `A − 3` | D (evaluated every bar → `A−1`) |
+| `v[2]` | `A − 3` | **B (per-invocation → `A−6`)** |
+| `v[3]` | `A − 3` | — |
+| `v[4]` | **`A − 6`** | **C (clamp-to-last → `A−3`)** |
+
+⭐⭐ **ONE PROBE COULD NOT HAVE DONE IT.** The shallow read separates B, A1 and D
+but leaves A2 and C tied; the deep read separates A2 from C. Two probes, five
+hypotheses, one survivor:
+
+> **FUNCTION-LOCAL SERIES HISTORY IS INDEXED BY CHART BAR. On a bar where the
+> call site does not execute, the series HOLDS its previous value.**
+
+v5 and v6 agree. ⛔ It is not per-invocation, not clamped, not blanked, and the
+call is genuinely not evaluated on skipped bars.
+
+### S2 — ⭐⭐ THE IMPLEMENTATION IS THE RULING, NOT AN INTERPRETATION OF IT
+
+Three pieces, and the third is where the vendor answer lives:
+
+1. **A ring per (call site, history-bearing local)**, addressed off the site's
+   `historyBase` exactly as persistent state is addressed off `persistBase`. Two
+   sites over one helper get two rings — 2E's vendor-pinned independence extended
+   from live state to committed history.
+2. **A frame-relative index on the opcode.** One compiled body serves every site;
+   `READ_HIST_SLOT` adds the frame's base.
+3. ⭐⭐⭐ **A HELD CELL, written at RET.** The frame local does not survive the
+   invocation, so what the site will contribute to this bar is stashed when the
+   call returns and the end-of-bar phase commits from there. **A skipped bar
+   simply does not overwrite it** — so holding is what the array does by
+   construction, not a rule someone has to remember.
+
+⛔ **THE TWO LIFETIMES STAY APART (§13).** The live frame value is still cleared
+on every invocation; only the committed series holds. A rail proves it: a
+function that returns `x - x[1]` over a source climbing by 1 must answer 3 (for
+`x = v*3`) and never 0 — 0 is what a carried frame value would produce.
+
+### S3 — P7.2 DEMAND: 1 FIRST BLOCKER, **17 SCRIPTS**, **82 USE SITES**
+
+The §7 lesson applied to this wave's own numbers.
+
+| | scripts | sites |
+|---|---|---|
+| history over a TOP-LEVEL mutable value | 29 | 130 |
+| **history over a UDF-frame local/parameter** | **17** | **82** |
+| either | 41 | 212 |
+| first blocker `runtime:history-function-local` | **1** | — |
+
+⚠️ 165 of 169 scripts lexed for this measure; 4 did not and are excluded rather
+than counted as zero.
+
+### S4 — BLOCKER TRANSITIONS, AND AN HONEST READING OF THEM
+
+`runtime:history-function-local` **1 → 0**
+(`curated/02-ict-retracement-to-order-block-screener` → `pine:collection`).
+Executed unchanged at 27/169.
+
+⛔⛔ **`runtime:call-windowed-state` IS STILL 11, AND THAT IS THE POINT.** P7.2
+removed those scripts' PREREQUISITE, not their wall: they can now have a
+history-bearing parameter, and they still need a finite-window builtin to consume
+it. Reporting P7.2 as "moved one script" would repeat exactly the first-blocker
+error this programme just corrected — the wave's value is that 2F-2B is now
+buildable against the shape 88% of the demand actually has.
+
+### S5 — MUTATION CONTROLS
+
+Three wrong implementations, each turning a rail red, each restored
+byte-identically (sha256):
+
+| mutation | caught by |
+|---|---|
+| all sites share ONE ring (`historyBase = 0`) | "TWO call sites do NOT share history" |
+| commit **per invocation** instead of per bar | the GAP conformance case **and** the vendor rail |
+| a skipped site **blanks** instead of holding | the parameter-history case + the two-site case |
+
+⚰️ The per-invocation mutation was written badly the first time — it wrote the
+ring at RET and the end-of-bar phase overwrote it, so it survived and proved
+nothing. Rebuilt to actually move the commit, it is caught by two independent
+rails. **A mutation that does not change behaviour is not evidence that the rail
+is weak.**
+
+### S6 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **S6.1** | ✅ CLOSED | P7.2. UDF-local, parameter, ordinary-local, `var`-local and nested-UDF history all execute, per call site, with skipped-call semantics vendor-pinned on v5 and v6. |
+| **S6.2** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — first blocker 11, total demand 24 (21 of them inside UDF frames, now unblocked at the history layer). **2F-2B is next.** |
+| **S6.3** | RUNTIME / HISTORY | `runtime:history-expression` — `(v + 1)[1]` inside a frame, same gap as at top level. `runtime:history-dynamic-offset` unchanged. |
+| **S6.4** | VENDOR | Still UNPINNED and named in both fixtures: warm-up at bar 0, a committed-`na` history value, and per-call-site history identity (implemented to match the 2E persistent-state pin, not separately captured). |
+| **S6.5** | RUNTIME / LOOPS | The held cell is written at RET, so a site invoked many times in one bar (a future loop) would commit its LAST invocation. That is the natural reading of a chart-bar-indexed series but it is **not vendor-pinned**, and the loop wave must confirm it. |
+| **S6.6** | PERSISTENCE | Carried. `history[]`, `historyBase` and `historyCount` are now part of the artifact shape and must be in the version contract before anything is saved. |

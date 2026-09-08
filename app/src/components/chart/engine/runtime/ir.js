@@ -90,8 +90,25 @@ export function makeIrProgram({
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
   const normalised = normaliseSlots(slots)
+  // ⭐⭐ P7.2 — A FUNCTION'S HISTORY SLOTS ARE TRANSLATED TO FRAME ADDRESSES HERE,
+  // by the same normaliser that decided where every slot lives. The front end
+  // names them by IR slot index (which is what it has); the RET hand-off needs
+  // the frame-relative index and the lifetime. Deriving both from `normalised`
+  // keeps ONE authority over where a variable is (`lesson_a_second_authority_over_one_value`).
+  const fns = (functions || []).map((fn) => {
+    const varSlots = fn.historySlots || []
+    return {
+      ...fn,
+      historySlots: varSlots.map((v) => {
+        const s = normalised[v]
+        if (!s) throw new IrError(`function \`${fn.name}\` keeps history for slot ${v}, which is outside ${normalised.length}`)
+        return s.index
+      }),
+      historyPersist: varSlots.map((v) => (normalised[v].kind === SLOT.PERSIST ? 1 : 0)),
+    }
+  })
   const p = {
-    version, statements, slots: normalised, columns, outputs, functions, callSites,
+    version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -349,25 +366,64 @@ export function validateIr(p) {
     // than no check: it costs a reader's attention and buys a false sense that
     // the two are independently corroborated (`lesson_gate_that_cannot_fail`).
     // What follows are the properties the front end really can get wrong.
-    // ⛔ ONE RING PER VARIABLE. Two plan entries for one slot would each commit,
-    // and `x[1]` would answer from whichever the lowering happened to name.
-    const prior = seenHistFor.get(h.varSlot)
+    // ⛔ ONE RING PER VARIABLE **PER CALL SITE**. Two plan entries for the same
+    // (slot, site) would each commit and `x[1]` would answer from whichever the
+    // lowering happened to name.
+    // ⚰️ Keyed by slot ALONE this refused the correct program: `f(close)` and
+    // `f(open)` are two sites over ONE source variable, which is exactly the
+    // independence 2E pinned — so the key has to carry the site or the guard
+    // forbids the feature it is guarding.
+    const key = `${h.varSlot}@${h.site === undefined || h.site === null ? 'main' : h.site}`
+    const prior = seenHistFor.get(key)
     if (prior !== undefined) {
-      throw new IrError(`${at}: slot ${h.varSlot} (\`${s.name}\`) already has history[${prior}]`)
+      throw new IrError(`${at}: slot ${h.varSlot} (\`${s.name}\`) already has history[${prior}] at the same call site`)
     }
-    seenHistFor.set(h.varSlot, i)
-    // ⚠️ MAIN-FRAME ONLY, TODAY, AND SAID OUT LOUD. Function-local history is
-    // refused by name in the front end; if one ever reached here the commit phase
-    // would read `locals[index]` in the MAIN frame — a different variable
-    // entirely. Refusing it here is the guard that makes that impossible rather
-    // than unlikely.
-    if (s.owner !== null) {
-      throw new IrError(
-        `${at}: \`${s.name}\` belongs to function ${s.owner}. Function-local history needs a `
-        + 'per-call-site ring base, the way persistent state already has one — it is refused '
-        + 'in the front end and must never be lowered by accident.')
+    seenHistFor.set(key, i)
+    // ⭐⭐⭐ P7.2 — A FUNCTION-OWNED ENTRY MUST NAME THE CALL SITE IT BELONGS TO,
+    // and a main-frame entry must NOT. This is the guard that makes the commit
+    // phase's choice unambiguous: a main entry reads its live slot at end of bar,
+    // a site entry commits the value that site last HELD (TradingView's ruling —
+    // a skipped call re-commits, it does not blank or advance). An entry without
+    // a site would have the commit phase read `locals[index]` in the MAIN frame:
+    // a different variable entirely, committed under this one's name.
+    if (s.owner === null) {
+      if (h.site !== undefined && h.site !== null) {
+        throw new IrError(`${at}: \`${s.name}\` is a main-program slot but names call site ${h.site}`)
+      }
+    } else {
+      if (!Number.isInteger(h.site) || h.site < 0 || h.site >= p.callSites.length) {
+        throw new IrError(
+          `${at}: \`${s.name}\` belongs to function ${s.owner}, so its ring is per CALL SITE — `
+          + `got site ${JSON.stringify(h.site)} against ${p.callSites.length} call sites`)
+      }
+      if (p.callSites[h.site].fn !== s.owner) {
+        throw new IrError(
+          `${at}: \`${s.name}\` belongs to function ${s.owner} but site ${h.site} calls `
+          + `function ${p.callSites[h.site].fn} — its history would live in another function's block`)
+      }
     }
   })
+
+  // ⛔ EVERY CALL SITE'S HISTORY BLOCK IS ITS OWN, checked the way `persistBase`
+  // already is. Two sites sharing a base is the defect §14 forbids: one helper
+  // called twice would answer `x[1]` from the other call's series.
+  {
+    const seenHist = new Map()
+    p.callSites.forEach((cs, i) => {
+      const fn = p.functions[cs.fn]
+      if (!fn || !(fn.historyCount > 0)) return
+      if (!Number.isInteger(cs.historyBase) || cs.historyBase < 0) {
+        throw new IrError(`callSites[${i}]: historyBase must be an index`)
+      }
+      const prior = seenHist.get(cs.historyBase)
+      if (prior !== undefined) {
+        throw new IrError(
+          `callSites[${i}]: historyBase ${cs.historyBase} is already used by callSites[${prior}] — `
+          + 'two call sites would share one function-local history ring')
+      }
+      seenHist.set(cs.historyBase, i)
+    })
+  }
   return true
 }
 

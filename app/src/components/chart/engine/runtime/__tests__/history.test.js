@@ -336,9 +336,10 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
       .toBe('runtime:history-expression')
   })
 
-  it('history over a FUNCTION-LOCAL value — and the top-level twin executes', () => {
-    expect(refusalOf(`${head}f(v) =>\n    var c = 0.0\n    c := c + v\n    c[1]\nplot(f(1))\n`).guard)
-      .toBe('runtime:history-function-local')
+  it('⭐ history over a FUNCTION-LOCAL value now EXECUTES — see udfHistory.test.js', () => {
+    // ⚰️ This was a refusal until P7.2. The wall it named is gone; what remains
+    // in THIS file is top-level history, and the frame case has its own suite.
+    expect(() => runPine(`${head}f(v) =>\n    var c = 0.0\n    c := c + v\n    c[1]\nplot(f(1))\n`)).not.toThrow()
     expect(() => runPine(`${head}var c = 0.0\nc := c + 1\nplot(c[1])\n`)).not.toThrow()
   })
 

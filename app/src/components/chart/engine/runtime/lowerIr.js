@@ -208,6 +208,12 @@ export function lowerIrProgram(ir) {
       params: fn.params,
       frameSize: fn.frameSize,
       persistCount: fn.persistCount,
+      // ⭐ P7.2 — how many history rings ONE invocation of this function owns, and
+      // which frame slots the RET hand-off copies from. Per FUNCTION; the SITE
+      // supplies the base.
+      historyCount: fn.historyCount || 0,
+      historySlots: (fn.historySlots || []).slice(),
+      historyPersist: (fn.historyPersist || []).slice(),
       effects: fn.effects || null,
       at: fn.at || null,
     }
@@ -223,7 +229,7 @@ export function lowerIrProgram(ir) {
     functions,
     pointwise,
     callSites: (ir.callSites || []).map((c) => ({
-      fn: c.fn, persistBase: c.persistBase, at: c.at || null,
+      fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0, at: c.at || null,
     })),
     // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
     // decided which values bear history and how deep; this only copies it, so the
@@ -231,6 +237,11 @@ export function lowerIrProgram(ir) {
     // two different answers to the same question.
     history: (ir.history || []).map((h) => ({
       name: h.name, varSlot: h.varSlot, slot: h.slot, persist: h.persist, depth: h.depth,
+      // ⭐ `site` is null for a main-program series and the CALL SITE index for a
+      // function-local one. The commit phase branches on it: a main entry reads
+      // its live slot at end of bar; a site entry commits what that site last
+      // HELD, which is what makes a skipped call re-commit rather than blank.
+      site: h.site === undefined ? null : h.site,
     })),
     version: ir.version,
   })
