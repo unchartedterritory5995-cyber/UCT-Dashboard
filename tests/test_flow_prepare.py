@@ -462,3 +462,60 @@ def test_CONTROL_the_two_classes_are_actually_distinguishable():
     fr._record_roll(new_v, 7000, False)
     assert len(fr.prepare_rolls("startup_catchup")) == 1
     assert len(fr.prepare_rolls("steady_state_roll")) == 1
+
+
+def test_observed_s_stops_at_FIRST_PAINT_not_after_the_remainder():
+    """⛔ THE HEADLINE NUMBER MUST BE THE MEMBER-RELEVANT ONE. The roll used to
+    be recorded AFTER pass 2, so `observed_s` carried the remainder pass (7-11 s)
+    while `prepare_ms` covered pass 1 only — the difference surfaced as a
+    nonsense 8.7 s "handoff" in the first production row. `published_at` stamps
+    the instant first paint became servable."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._note_version_seen(v)
+    published = time.time()
+    time.sleep(0.15)                       # stand-in for pass 2 running on
+    fr._record_roll(v, prepare_ms=50, pass2_skipped=False, published_at=published)
+
+    row = fr.prepare_rolls("steady_state_roll")[0]
+    assert row["observed_s"] < 0.12, (
+        f"observed_s={row['observed_s']} includes work done after first paint "
+        "was already servable")
+
+
+def test_the_PREPARER_stamps_publication_so_pass_2_is_excluded(monkeypatch):
+    """⛔ THE ONE THAT GUARDS THE CALL SITE. Testing `_record_roll` in isolation
+    proves nothing about whether `_prepare_once` passes the stamp — a mutation
+    that drops the argument falls back to `time.time()` and the isolated test
+    stays green. So drive the REAL preparer with a slow pass 2 and require the
+    recorded window to exclude it."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    calls = []
+
+    def builder(key, version, provider, date_filter, part, only=None):
+        calls.append(only)
+        if len(calls) == 2:          # pass 2 — the remainder
+            time.sleep(0.3)
+        return (version, b"gz")
+
+    monkeypatch.setattr(fr, "_current_version", lambda: v)
+    monkeypatch.setattr(fa, "get_cached_or_build_part", builder)
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (v, __import__("gzip").compress(b"csv")))
+    fr._note_version_seen(v)
+
+    fr._prepare_once(None)
+
+    assert len(calls) == 2, "the remainder pass did not run, so this proves nothing"
+    row = fr.prepare_rolls("steady_state_roll")[0]
+    assert row["observed_s"] < 0.25, (
+        f"observed_s={row['observed_s']} includes the 0.3s remainder pass — the "
+        "preparer is not stamping first-paint publication")
+
+
+def test_CONTROL_a_later_stamp_DOES_show_up(monkeypatch):
+    """Proves the assertion above is measuring the stamp and not a constant."""
+    v = int((fr._PROCESS_START_WALL + 180) // fr._VERSION_BUCKET_SEC)
+    fr._note_version_seen(v)
+    time.sleep(0.15)
+    fr._record_roll(v, prepare_ms=50, pass2_skipped=False, published_at=time.time())
+    assert fr.prepare_rolls("steady_state_roll")[0]["observed_s"] >= 0.14

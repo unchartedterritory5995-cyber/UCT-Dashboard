@@ -1178,6 +1178,8 @@ def diag_pod(_auth: dict = Depends(require_flow_admin)):
         "node_children": node,
         "node_child_count": len(node),
         "top_procs": procs[:8],
+        "rolls_steady": prepare_rolls("steady_state_roll")[-25:],
+        "rolls_startup": prepare_rolls("startup_catchup")[-5:],
         "search_lane": {**search_warm_state(),
                         "lock_held": _SEARCH_BUILD_LOCK.locked(),
                         "lanes": _SEARCH_BUILD_LOCK.slots,
@@ -1699,6 +1701,12 @@ def _prepare_once(last_version):
         _PREPARE_STATE["last_version"] = version
         _PREPARE_STATE["last_ms"] = ms
         _PREPARE_STATE["last_error"] = None
+        # ⛔ THE MEMBER-RELEVANT INSTANT IS *HERE*, not after pass 2. Recording
+        # the roll below would have timed first paint through the remainder pass
+        # and inflated `observed_s` by 7-11 s while `prepare_ms` covered pass 1
+        # only -- the difference then showed up as a nonsense "handoff". Stamp it
+        # at publication, where a member can actually be served.
+        published_at = time.time()
         log.info("[flow-prepare] first paint warmed %s v=%s in %dms", key, version, ms)
         # Pass 2 -- everything else, so the deferred and fallback paths stay warm.
         # Failure here is NOT a failure of the roll: first paint is already
@@ -1712,7 +1720,7 @@ def _prepare_once(last_version):
             if _current_version() != version:
                 log.info("[flow-prepare] version moved during pass 1 — skipping "
                          "the remainder for v=%s", version)
-                _record_roll(version, ms, pass2_skipped=True)
+                _record_roll(version, ms, pass2_skipped=True, published_at=published_at)
                 return version
             t1 = time.monotonic()
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
@@ -1724,7 +1732,7 @@ def _prepare_once(last_version):
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] remainder pass failed (first paint is "
                         "already live): %s", e)
-        _record_roll(version, ms, pass2_skipped=False)
+        _record_roll(version, ms, pass2_skipped=False, published_at=published_at)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1765,8 +1773,10 @@ def _note_version_seen(version) -> None:
     _VERSION_FIRST_SEEN[version] = time.time()
 
 
-def _record_roll(version, prepare_ms, pass2_skipped) -> None:
-    now = time.time()
+def _record_roll(version, prepare_ms, pass2_skipped, published_at=None) -> None:
+    # `published_at` is when FIRST PAINT became servable. Falling back to now
+    # keeps older callers working, but the preparer always passes it.
+    now = published_at if published_at is not None else time.time()
     first_seen = _VERSION_FIRST_SEEN.get(version)
     born_bucket = version * _VERSION_BUCKET_SEC if _FORCE_BUMP_OFFSET == 0 else None
     kind = "steady_state_roll"
